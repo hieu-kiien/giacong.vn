@@ -1,13 +1,12 @@
-import { ContentFooterSections } from "@/components/ContentFooterSections";
-import { HeroSection } from "@/components/HeroSection";
-import { ServicesSection } from "@/components/ServicesSection";
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
 
-export default function Home() {
+export const dynamic = "force-static";
+
+export default async function Home() {
+  const markup = await readFile(join(process.cwd(), "src", "data", "giacong.html"), "utf8");
+
   return (
-    <main className="overflow-hidden bg-white">
-      <HeroSection />
-      <ServicesSection />
-      <ContentFooterSections />
-    </main>
+    <div dangerouslySetInnerHTML={{ __html: markup }} />
   );
 }

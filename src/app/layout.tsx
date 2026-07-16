@@ -16,7 +16,17 @@ export default function RootLayout({
       lang="vi"
       className="h-full antialiased"
     >
-      <body className="min-h-full">{children}</body>
+      <body className="home page-template-page-transparent-header-light wp-theme-flatsome theme-flatsome lightbox nav-dropdown-has-shadow nav-dropdown-has-border">
+        {/* eslint-disable-next-line @next/next/no-css-tags */}
+        <link rel="stylesheet" href="/styles/flatsome.css" />
+        {/* eslint-disable-next-line @next/next/no-css-tags */}
+        <link rel="stylesheet" href="/styles/flatsome-shop.css" />
+        {/* eslint-disable-next-line @next/next/no-css-tags */}
+        <link rel="stylesheet" href="/styles/giacong.css" />
+        {/* eslint-disable-next-line @next/next/no-css-tags */}
+        <link rel="stylesheet" href="/styles/giacong-sections.css" />
+        {children}
+      </body>
     </html>
   );
 }
