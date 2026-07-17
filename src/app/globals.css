@@ -130,3 +130,18 @@
   }
   body { overflow-x: hidden; }
 }
+
+#main-menu.clone-menu-open {
+  display: block !important;
+  left: 0;
+  opacity: 1;
+  position: fixed;
+  top: 0;
+  visibility: visible;
+  z-index: 9999;
+}
+
+.wpcf7-form[data-status="sent"] .wpcf7-response-output {
+  border-color: #46b450;
+  color: #46b450;
+}
