@@ -241,6 +241,16 @@ body.clone-menu-active {
   color: #46b450;
 }
 
+.wpcf7-form[data-status="failed"] .wpcf7-response-output,
+.wpcf7-form[data-status="invalid"] .wpcf7-response-output {
+  color: #b42318;
+}
+
+.wpcf7-form[data-status="submitting"] [type="submit"] {
+  cursor: wait;
+  opacity: 0.72;
+}
+
 @media (min-width: 850px) {
   #header li.has-dropdown:hover > .nav-dropdown,
   #header li.has-dropdown:focus-within > .nav-dropdown {

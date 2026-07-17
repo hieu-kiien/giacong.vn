@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 
+import { connectContactForms } from "@/components/contact-form";
 import {
   addMobileAccordionToggles,
   createMobileProductItem,
@@ -66,6 +67,7 @@ export function GiacongInteractions({
     );
     const restoreMobileMenuIcons = replaceMobileMenuIcons(menu);
     const generatedToggles = addMobileAccordionToggles(menu);
+    const disconnectContactForms = connectContactForms();
     const mobileSearchInput = menu?.querySelector<HTMLInputElement>(
       "input[type='search']",
     );
@@ -164,13 +166,6 @@ export function GiacongInteractions({
         slide.hidden = slideIndex !== current;
       });
     };
-    const handleForm = (event: Event) => {
-      const form = event.currentTarget as HTMLFormElement;
-      event.preventDefault();
-      form.dataset.status = "sent";
-      const response = form.querySelector<HTMLElement>(".wpcf7-response-output");
-      if (response) response.textContent = "Cảm ơn bạn. Chúng tôi sẽ liên hệ lại sớm nhất.";
-    };
     const handleSubmenu = (event: Event) => {
       handleMobileAccordion(event, menu);
     };
@@ -260,7 +255,6 @@ export function GiacongInteractions({
     document.addEventListener("keydown", handleDesktopMenuKeydown);
     window.addEventListener("scroll", updateStickyHeader, { passive: true });
     window.addEventListener("resize", repositionOpenMegaMenus);
-    document.querySelectorAll(".wpcf7-form").forEach((form) => form.addEventListener("submit", handleForm));
     showSlide(0);
     updateStickyHeader();
     const timer = window.setInterval(() => showSlide(current + 1), 6000);
@@ -295,7 +289,7 @@ export function GiacongInteractions({
         panel?.style.removeProperty("left");
         panel?.style.removeProperty("top");
       });
-      document.querySelectorAll(".wpcf7-form").forEach((form) => form.removeEventListener("submit", handleForm));
+      disconnectContactForms();
       window.clearInterval(timer);
       generatedToggles.forEach((button) => button.remove());
       restoreMobileMenuIcons();

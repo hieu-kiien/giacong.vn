@@ -33,6 +33,33 @@ async function verifyRouteResponses() {
 await Promise.all(Array.from({ length: 12 }, () => verifyRouteResponses()));
 assert.deepEqual(routeFailures, [], "One or more mirrored routes failed");
 
+const validContactData = new FormData();
+validContactData.set("name", "Kiểm thử liên hệ");
+validContactData.set("phone", "0900000000");
+validContactData.set("source", "/");
+const validContactResponse = await fetch("http://localhost:3100/api/contact", {
+  method: "POST",
+  body: validContactData,
+});
+assert.equal(validContactResponse.status, 202, "Mock contact API did not accept valid data");
+const validContactResult = await validContactResponse.json();
+assert.equal(validContactResult.ok, true);
+assert.match(
+  validContactResult.reference,
+  /^MOCK-/,
+  "Mock contact API did not return a replaceable reference",
+);
+
+const invalidContactResponse = await fetch("http://localhost:3100/api/contact", {
+  method: "POST",
+  body: new FormData(),
+});
+assert.equal(
+  invalidContactResponse.status,
+  400,
+  "Mock contact API accepted an empty submission",
+);
+
 const browser = await chromium.launch({ channel: "chrome", headless: true });
 try {
   for (const width of [320, 390, 768, 1024, 1440]) {
@@ -51,6 +78,79 @@ try {
     assert.deepEqual(errors, [], `Console errors at ${width}px`);
     await page.close();
   }
+
+  const contactFlow = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+  await contactFlow.goto("http://localhost:3100/", { waitUntil: "networkidle" });
+  assert.equal(
+    await contactFlow.getByRole("link", { name: "Liên hệ ngay" }).getAttribute("href"),
+    "/lien-he/",
+    "Primary contact CTA does not point to the local contact page",
+  );
+  assert.equal(
+    await contactFlow.getByRole("link", { name: "Về chúng tôi" }).getAttribute("href"),
+    "/gioi-thieu-ve-gia-cong/",
+    "About CTA does not point to the local introduction page",
+  );
+  const contactForm = contactFlow.locator(".wpcf7-form").first();
+  await contactForm.locator("input[type='text']").fill("Kiểm thử liên hệ");
+  await contactForm.locator("input[type='tel']").fill("0900000000");
+  const contactRequest = contactFlow.waitForResponse((response) => (
+    response.url() === "http://localhost:3100/api/contact"
+    && response.request().method() === "POST"
+  ));
+  await contactForm.locator("input[type='submit']").click();
+  assert.equal(
+    (await contactRequest).status(),
+    202,
+    "Contact form did not reach the mock server",
+  );
+  assert.equal(await contactForm.getAttribute("data-status"), "sent");
+  assert.match(
+    await contactForm.locator(".wpcf7-response-output").textContent(),
+    /đã được tiếp nhận/i,
+    "Contact form did not show the server acknowledgement",
+  );
+  await contactFlow.close();
+
+  const contactPageFlow = await browser.newPage({
+    viewport: { width: 390, height: 900 },
+    hasTouch: true,
+  });
+  await contactPageFlow.goto("http://localhost:3100/lien-he/", {
+    waitUntil: "networkidle",
+  });
+  const detailedContactForm = contactPageFlow.locator(".wpcf7-form").first();
+  const invalidContactRequest = contactPageFlow.waitForResponse((response) => (
+    response.url() === "http://localhost:3100/api/contact"
+    && response.request().method() === "POST"
+  ));
+  await detailedContactForm.locator("input[type='submit']").tap();
+  assert.equal(
+    (await invalidContactRequest).status(),
+    400,
+    "Detailed contact form did not surface server validation",
+  );
+  assert.equal(await detailedContactForm.getAttribute("data-status"), "invalid");
+  assert.match(
+    await detailedContactForm.locator(".wpcf7-response-output").textContent(),
+    /kiểm tra lại/i,
+  );
+  await detailedContactForm.locator("input[type='text']").fill("Khách hàng mobile");
+  await detailedContactForm.locator("input[type='tel']").fill("0912345678");
+  await detailedContactForm.locator("input[type='email']").fill("mobile@example.com");
+  await detailedContactForm.locator("textarea").fill("Cần tư vấn dịch vụ gia công.");
+  const acceptedDetailedRequest = contactPageFlow.waitForResponse((response) => (
+    response.url() === "http://localhost:3100/api/contact"
+    && response.request().method() === "POST"
+  ));
+  await detailedContactForm.locator("input[type='submit']").tap();
+  assert.equal(
+    (await acceptedDetailedRequest).status(),
+    202,
+    "Detailed mobile contact form did not reach the mock server",
+  );
+  assert.equal(await detailedContactForm.getAttribute("data-status"), "sent");
+  await contactPageFlow.close();
 
   for (const route of ["/san-pham/", "/gia-cong-do-uong/", "/lien-he/", "/sua-bot-cho-nguoi-gia/"]) {
     const page = await browser.newPage({ viewport: { width: 390, height: 900 } });
