@@ -1,16 +1,10 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
-import { GiacongInteractions } from "@/components/GiacongInteractions";
+import { CapturedPage } from "@/components/CapturedPage";
 
 export const dynamic = "force-static";
 
 export default async function Home() {
-  const markup = await readFile(join(process.cwd(), "src", "data", "giacong.html"), "utf8");
-
-  return (
-    <>
-      <div dangerouslySetInnerHTML={{ __html: markup }} />
-      <GiacongInteractions />
-    </>
-  );
+  const data = JSON.parse(await readFile(join(process.cwd(), "src", "data", "pages", "home.json"), "utf8")) as { markup: string; pageStyles: string };
+  return <CapturedPage markup={data.markup} pageStyles={data.pageStyles} />;
 }
