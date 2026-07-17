@@ -168,10 +168,20 @@
 }
 
 #main-menu.clone-menu-open .nav-vertical > li > a {
+  align-items: center;
   color: #fff;
+  display: flex;
   font-size: 16px;
   padding: 13px 0 13px 20px;
   text-transform: none;
+}
+
+#main-menu .clone-mobile-menu-icon {
+  color: rgb(255 255 255 / 92%);
+  flex: 0 0 21px;
+  height: 21px;
+  margin-right: 9px;
+  width: 21px;
 }
 
 .clone-menu-backdrop {
@@ -284,9 +294,14 @@ body.clone-menu-active {
   height: 52px;
   line-height: 1;
   margin: 0 5px 0 0;
-  opacity: 0.6;
+  opacity: 0.75;
   padding: 0;
   width: 45px;
+}
+
+#main-menu .clone-toggle i {
+  color: rgb(255 255 255 / 80%);
+  display: inline-block;
 }
 
 #main-menu li.clone-submenu-open > .clone-toggle {

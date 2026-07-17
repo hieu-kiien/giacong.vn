@@ -199,8 +199,49 @@ try {
     hasTouch: true,
   });
   await mobileMenu.goto("http://localhost:3100/", { waitUntil: "networkidle" });
+  const mobileHeaderSearch = mobileMenu.locator(
+    ".mobile-nav.nav-right .header-search > a",
+  );
+  await mobileHeaderSearch.tap();
+  assert.equal(
+    await mobileMenu.locator("#main-menu").isVisible(),
+    true,
+    "Mobile header search did not open the search drawer",
+  );
+  assert.equal(
+    await mobileMenu
+      .locator("#main-menu input[type='search']")
+      .evaluate((input) => document.activeElement === input),
+    true,
+    "Mobile header search did not focus the search field",
+  );
+  assert.equal(
+    await mobileHeaderSearch.getAttribute("aria-expanded"),
+    "true",
+    "Mobile header search did not expose its expanded state",
+  );
+  await mobileMenu.locator(".clone-menu-close").tap();
+  assert.equal(
+    await mobileHeaderSearch.getAttribute("aria-expanded"),
+    "false",
+    "Closing the drawer did not reset the mobile search state",
+  );
   await mobileMenu.locator("[data-open='#main-menu']").click();
   assert.equal(await mobileMenu.locator("#main-menu").isVisible(), true, "Mobile menu did not open");
+  assert.equal(
+    await mobileMenu
+      .locator("#main-menu .nav-sidebar > li > a > svg.clone-mobile-menu-icon")
+      .count(),
+    6,
+    "Mobile menu does not use a complete, consistent SVG icon set",
+  );
+  assert.equal(
+    await mobileMenu
+      .locator("#main-menu .nav-sidebar > li > a > img.ux-sidebar-menu-icon")
+      .count(),
+    0,
+    "Legacy mixed-quality mobile menu icons remain visible",
+  );
   const mobileMenuLayout = await mobileMenu.locator("#main-menu").evaluate((menu) => {
     const styles = getComputedStyle(menu);
     const rect = menu.getBoundingClientRect();
@@ -376,6 +417,28 @@ try {
     "Closing the mobile menu must restore focus to its trigger",
   );
   await mobileMenu.close();
+
+  const mobileSearchPage = await browser.newPage({
+    viewport: { width: 390, height: 900 },
+    hasTouch: true,
+  });
+  await mobileSearchPage.goto("http://localhost:3100/", { waitUntil: "networkidle" });
+  await mobileSearchPage.locator(".mobile-nav.nav-right .header-search > a").tap();
+  await mobileSearchPage
+    .locator("#main-menu input[type='search']")
+    .fill("sữa");
+  await Promise.all([
+    mobileSearchPage.waitForURL((url) => url.searchParams.get("s") === "sữa"),
+    mobileSearchPage
+      .locator("#main-menu .ux-search-submit")
+      .click(),
+  ]);
+  assert.equal(
+    new URL(mobileSearchPage.url()).origin,
+    "http://localhost:3100",
+    "Mobile search escaped the local clone",
+  );
+  await mobileSearchPage.close();
 
   for (const accordionSelector of [".clone-mobile-products", "#menu-item-5466"]) {
     const choicePage = await browser.newPage({

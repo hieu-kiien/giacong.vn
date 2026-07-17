@@ -6,6 +6,7 @@ import {
   addMobileAccordionToggles,
   createMobileProductItem,
   handleMobileAccordion,
+  replaceMobileMenuIcons,
 } from "@/components/mobile-navigation";
 
 interface GiacongInteractionsProps {
@@ -25,6 +26,9 @@ export function GiacongInteractions({
 
     const menu = document.querySelector<HTMLElement>("#main-menu");
     const trigger = document.querySelector<HTMLElement>("[data-open='#main-menu']");
+    const headerSearchTrigger = document.querySelector<HTMLElement>(
+      ".mobile-nav.nav-right .header-search > a",
+    );
     const menuBackdrop = document.createElement("button");
     menuBackdrop.type = "button";
     menuBackdrop.className = "clone-menu-backdrop";
@@ -60,7 +64,15 @@ export function GiacongInteractions({
       menu,
       document.querySelector<HTMLElement>("#menu-item-1742"),
     );
+    const restoreMobileMenuIcons = replaceMobileMenuIcons(menu);
     const generatedToggles = addMobileAccordionToggles(menu);
+    const mobileSearchInput = menu?.querySelector<HTMLInputElement>(
+      "input[type='search']",
+    );
+    let menuReturnFocus = trigger;
+
+    headerSearchTrigger?.setAttribute("aria-controls", "main-menu");
+    headerSearchTrigger?.setAttribute("aria-expanded", "false");
 
     const collapseTaxonomy = (event?: Event) => {
       event?.preventDefault();
@@ -94,20 +106,31 @@ export function GiacongInteractions({
       menuBackdrop.classList.remove("clone-menu-backdrop-open");
       document.body.classList.remove("clone-menu-active");
       trigger?.setAttribute("aria-expanded", "false");
-      if (restoreFocus) trigger?.focus();
+      headerSearchTrigger?.setAttribute("aria-expanded", "false");
+      if (restoreFocus) menuReturnFocus?.focus();
     };
     const closeMenu = () => setMenuClosed(true);
+    const openMenu = (returnFocus: HTMLElement | null, focusTarget: HTMLElement | null) => {
+      menuReturnFocus = returnFocus;
+      menu?.classList.add("clone-menu-open");
+      menuBackdrop.classList.add("clone-menu-backdrop-open");
+      document.body.classList.add("clone-menu-active");
+      trigger?.setAttribute("aria-expanded", "true");
+      headerSearchTrigger?.setAttribute("aria-expanded", "true");
+      focusTarget?.focus();
+    };
     const toggleMenu = (event: Event) => {
       event.preventDefault();
       if (menu?.classList.contains("clone-menu-open")) {
         closeMenu();
         return;
       }
-      menu?.classList.add("clone-menu-open");
-      menuBackdrop.classList.add("clone-menu-backdrop-open");
-      document.body.classList.add("clone-menu-active");
-      trigger?.setAttribute("aria-expanded", "true");
-      menuClose.focus();
+      openMenu(trigger, menuClose);
+    };
+    const openMobileSearch = (event: Event) => {
+      event.preventDefault();
+      openMenu(headerSearchTrigger, mobileSearchInput ?? null);
+      mobileSearchInput?.select();
     };
     const handleMenuKeydown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
@@ -228,6 +251,7 @@ export function GiacongInteractions({
         .forEach(positionMegaMenu);
     };
     trigger?.addEventListener("click", toggleMenu);
+    headerSearchTrigger?.addEventListener("click", openMobileSearch);
     menuBackdrop.addEventListener("click", closeMenu);
     menuClose.addEventListener("click", closeMenu);
     document.addEventListener("click", handleSubmenu);
@@ -243,6 +267,7 @@ export function GiacongInteractions({
 
     return () => {
       trigger?.removeEventListener("click", toggleMenu);
+      headerSearchTrigger?.removeEventListener("click", openMobileSearch);
       menuBackdrop.removeEventListener("click", closeMenu);
       menuClose.removeEventListener("click", closeMenu);
       document.removeEventListener("click", handleSubmenu);
@@ -273,6 +298,7 @@ export function GiacongInteractions({
       document.querySelectorAll(".wpcf7-form").forEach((form) => form.removeEventListener("submit", handleForm));
       window.clearInterval(timer);
       generatedToggles.forEach((button) => button.remove());
+      restoreMobileMenuIcons();
       generatedMobileProductItem?.remove();
       taxonomyShow?.removeEventListener("click", expandTaxonomy);
       taxonomyLess?.removeEventListener("click", collapseTaxonomy);
