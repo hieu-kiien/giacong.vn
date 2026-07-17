@@ -10,10 +10,16 @@ assert.ok(
 
 const home = JSON.parse(await readFile(`src/data/pages/${manifest["/"]}`, "utf8"));
 const products = JSON.parse(await readFile(`src/data/pages/${manifest["/san-pham/"]}`, "utf8"));
+const fixedTocCss = await readFile("public/styles/fixed-toc.css", "utf8");
 assert.match(home.bodyClasses, /\bhome\b/);
 assert.match(home.description, /gia công/i);
 assert.match(products.bodyClasses, /\barchive\b/);
 assert.match(products.bodyClasses, /\bwoocommerce\b/);
+assert.doesNotMatch(
+  fixedTocCss,
+  /https:\/\/giacong\.vn\/wp-content\/plugins\/fixed-toc\/frontend\/assets\/fonts\//,
+  "Fixed TOC fonts must be served locally to avoid mobile CORS failures",
+);
 
 const routeQueue = Object.keys(manifest);
 const routeFailures = [];
@@ -48,8 +54,13 @@ try {
 
   for (const route of ["/san-pham/", "/gia-cong-do-uong/", "/lien-he/", "/sua-bot-cho-nguoi-gia/"]) {
     const page = await browser.newPage({ viewport: { width: 390, height: 900 } });
+    const errors = [];
+    page.on("console", (message) => {
+      if (message.type() === "error") errors.push(message.text());
+    });
     const response = await page.goto(`http://localhost:3100${route}`, { waitUntil: "networkidle" });
     assert.equal(response?.status(), 200, `${route} did not render`);
+    assert.deepEqual(errors, [], `Console errors on mobile route ${route}`);
     await page.close();
   }
 
@@ -116,6 +127,34 @@ try {
   await mobileMenu.goto("http://localhost:3100/", { waitUntil: "networkidle" });
   await mobileMenu.locator("[data-open='#main-menu']").click();
   assert.equal(await mobileMenu.locator("#main-menu").isVisible(), true, "Mobile menu did not open");
+  const mobileMenuLayout = await mobileMenu.locator("#main-menu").evaluate((menu) => {
+    const styles = getComputedStyle(menu);
+    const rect = menu.getBoundingClientRect();
+    return {
+      backgroundColor: styles.backgroundColor,
+      height: rect.height,
+      viewportHeight: window.innerHeight,
+      width: rect.width,
+    };
+  });
+  assert.notEqual(
+    mobileMenuLayout.backgroundColor,
+    "rgba(0, 0, 0, 0)",
+    "Mobile menu must have an opaque background",
+  );
+  assert.ok(
+    mobileMenuLayout.width >= 240 && mobileMenuLayout.width <= 300,
+    `Unexpected mobile menu width: ${mobileMenuLayout.width}px`,
+  );
+  assert.ok(
+    mobileMenuLayout.height >= mobileMenuLayout.viewportHeight,
+    `Mobile menu does not cover the viewport: ${mobileMenuLayout.height}px`,
+  );
+  assert.equal(
+    await mobileMenu.locator(".clone-menu-backdrop").isVisible(),
+    true,
+    "Mobile menu backdrop is missing",
+  );
   await mobileMenu.locator("#main-menu .clone-toggle").first().click();
   assert.equal(
     await mobileMenu.locator("#main-menu li.clone-submenu-open > .sub-menu").first().isVisible(),

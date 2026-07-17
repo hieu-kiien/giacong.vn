@@ -8,6 +8,7 @@ const pagesRoot = resolve("src/data/pages");
 const publicStylesRoot = resolve("public/styles");
 const remoteIconRoot = "https://giacong.vn/wp-content/themes/flatsome/assets/css/icons/";
 const remoteFontRoot = "https://giacong.vn/wp-content/themes/thiet-ke-web/font/";
+const remoteFixedTocFontRoot = "https://giacong.vn/wp-content/plugins/fixed-toc/frontend/assets/fonts/";
 const sharedStyles = [
   ["menu-icons.css", "https://giacong.vn/wp-content/plugins/menu-icons/css/extra.min.css?ver=0.13.23"],
   ["woocommerce-blocks.css", "https://giacong.vn/wp-content/plugins/woocommerce/assets/client/blocks/wc-blocks.css?ver=wc-10.9.4"],
@@ -20,6 +21,13 @@ const sharedStyles = [
   ["contact-form.css", "https://giacong.vn/wp-content/plugins/contact-form-7/includes/css/styles.css?ver=6.1.6"],
 ];
 const iconFiles = ["fl-icons.eot", "fl-icons.woff2", "fl-icons.ttf", "fl-icons.woff", "fl-icons.svg"];
+const fixedTocFontFiles = [
+  "icons.eot",
+  "icons.woff2",
+  "icons.woff",
+  "icons.ttf",
+  "icons.svg",
+];
 const fontFiles = [
   "SFProDisplay-Regular.woff2",
   "SFProDisplay-Regular.woff",
@@ -38,6 +46,7 @@ await Promise.all([
   mkdir(pagesRoot, { recursive: true }),
   mkdir(`${publicStylesRoot}/icons`, { recursive: true }),
   mkdir(`${publicStylesRoot}/fonts`, { recursive: true }),
+  mkdir(`${publicStylesRoot}/fonts/fixed-toc`, { recursive: true }),
 ]);
 
 async function writeOutput(file, contents) {
@@ -214,7 +223,8 @@ function rewriteStylesheetAssets(css, stylesheetUrl) {
     const absolute = new URL(value, stylesheetUrl).href;
     const localized = absolute
       .replace(remoteIconRoot, "/styles/icons/")
-      .replace(remoteFontRoot, "/styles/fonts/");
+      .replace(remoteFontRoot, "/styles/fonts/")
+      .replace(remoteFixedTocFontRoot, "/styles/fonts/fixed-toc/");
     return `url(${quote}${localized}${quote})`;
   });
 }
@@ -238,6 +248,15 @@ await Promise.all(fontFiles.map(async (name) => {
   if (response.ok) {
     await writeOutput(`${publicStylesRoot}/fonts/${name}`, Buffer.from(await response.arrayBuffer()));
   }
+}));
+
+await Promise.all(fixedTocFontFiles.map(async (name) => {
+  const response = await fetch(`${remoteFixedTocFontRoot}${name}?45335921`);
+  if (!response.ok) throw new Error(`Unable to download Fixed TOC font ${name}: ${response.status}`);
+  await writeOutput(
+    `${publicStylesRoot}/fonts/fixed-toc/${name}`,
+    Buffer.from(await response.arrayBuffer()),
+  );
 }));
 
 console.log(`Captured ${Object.keys(manifest).length} routes from ${mirrorRoot}`);
