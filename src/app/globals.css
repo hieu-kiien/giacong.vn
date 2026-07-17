@@ -149,6 +149,31 @@
   z-index: 9999;
 }
 
+#main-menu.clone-menu-open .sidebar-menu {
+  padding: 30px 0;
+}
+
+#main-menu.clone-menu-open .nav-vertical > li.header-search-form {
+  padding: 20px;
+}
+
+#main-menu.clone-menu-open .header-search-form-wrapper,
+#main-menu.clone-menu-open .searchform-wrapper,
+#main-menu.clone-menu-open .searchform {
+  width: 100%;
+}
+
+#main-menu.clone-menu-open .nav-sidebar.nav-vertical > li + li {
+  border-top-color: #528d26;
+}
+
+#main-menu.clone-menu-open .nav-vertical > li > a {
+  color: #fff;
+  font-size: 16px;
+  padding: 13px 0 13px 20px;
+  text-transform: none;
+}
+
 .clone-menu-backdrop {
   background: rgb(0 0 0 / 60%);
   border: 0;
@@ -164,6 +189,37 @@
 
 .clone-menu-backdrop.clone-menu-backdrop-open {
   display: block;
+}
+
+.clone-menu-close {
+  -webkit-backface-visibility: hidden;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  color: #fff;
+  cursor: pointer;
+  display: none;
+  height: 40px;
+  line-height: 40px;
+  margin: 0;
+  min-height: 0;
+  mix-blend-mode: difference;
+  opacity: 0.6;
+  padding: 6px;
+  position: fixed;
+  right: 0;
+  top: 0;
+  width: 40px;
+  z-index: 10000;
+}
+
+body.clone-menu-active .clone-menu-close {
+  display: block;
+}
+
+.clone-menu-close:hover,
+.clone-menu-close:focus-visible {
+  opacity: 1;
 }
 
 body.clone-menu-active {
@@ -196,12 +252,15 @@ body.clone-menu-active {
   background: transparent;
   border: 0;
   color: currentColor;
-  float: right;
-  font-size: 22px;
+  flex: 0 0 45px;
+  height: 52px;
   line-height: 1;
-  padding: 10px 14px;
+  margin: 0 5px 0 0;
+  opacity: 0.6;
+  padding: 0;
+  width: 45px;
 }
 
 #main-menu li.clone-submenu-open > .clone-toggle {
-  transform: rotate(45deg);
+  transform: rotate(-180deg);
 }

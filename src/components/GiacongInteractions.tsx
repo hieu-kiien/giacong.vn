@@ -24,6 +24,19 @@ export function GiacongInteractions({
     menuBackdrop.className = "clone-menu-backdrop";
     menuBackdrop.setAttribute("aria-label", "Đóng menu");
     document.body.append(menuBackdrop);
+    const menuClose = document.createElement("button");
+    menuClose.type = "button";
+    menuClose.className = "clone-menu-close";
+    menuClose.setAttribute("aria-label", "Đóng menu");
+    menuClose.innerHTML = [
+      '<svg aria-hidden="true" width="28" height="28" viewBox="0 0 24 24"',
+      ' fill="none" stroke="currentColor" stroke-width="2"',
+      ' stroke-linecap="round" stroke-linejoin="round">',
+      '<line x1="18" y1="6" x2="6" y2="18"></line>',
+      '<line x1="6" y1="6" x2="18" y2="18"></line>',
+      "</svg>",
+    ].join("");
+    document.body.append(menuClose);
     const slider = document.querySelector<HTMLElement>(".slider");
     const slides = slider ? Array.from(slider.querySelectorAll<HTMLElement>(":scope > .row")) : [];
     const generatedToggles: HTMLButtonElement[] = [];
@@ -44,8 +57,8 @@ export function GiacongInteractions({
       button.className = "toggle clone-toggle";
       button.setAttribute("aria-label", "Mở menu con");
       button.setAttribute("aria-expanded", "false");
-      button.textContent = "+";
-      item.prepend(button);
+      button.innerHTML = '<i aria-hidden="true" class="icon-angle-down"></i>';
+      item.append(button);
       generatedToggles.push(button);
     });
 
@@ -76,12 +89,14 @@ export function GiacongInteractions({
       collapseTaxonomy();
     }
 
-    const closeMenu = () => {
+    const setMenuClosed = (restoreFocus: boolean) => {
       menu?.classList.remove("clone-menu-open");
       menuBackdrop.classList.remove("clone-menu-backdrop-open");
       document.body.classList.remove("clone-menu-active");
       trigger?.setAttribute("aria-expanded", "false");
+      if (restoreFocus) trigger?.focus();
     };
+    const closeMenu = () => setMenuClosed(true);
     const toggleMenu = (event: Event) => {
       event.preventDefault();
       if (menu?.classList.contains("clone-menu-open")) {
@@ -92,9 +107,32 @@ export function GiacongInteractions({
       menuBackdrop.classList.add("clone-menu-backdrop-open");
       document.body.classList.add("clone-menu-active");
       trigger?.setAttribute("aria-expanded", "true");
+      menuClose.focus();
     };
     const handleMenuKeydown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") closeMenu();
+      if (event.key === "Escape") {
+        closeMenu();
+        return;
+      }
+      if (event.key !== "Tab" || !menu?.classList.contains("clone-menu-open")) return;
+      const focusable = Array.from(
+        menu.querySelectorAll<HTMLElement>(
+          'a[href], button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        ),
+      ).filter((element) => element.getClientRects().length > 0);
+      const first = focusable[0];
+      const last = focusable.at(-1);
+      if (!first || !last) return;
+      if (event.shiftKey && (document.activeElement === first || !menu.contains(document.activeElement))) {
+        event.preventDefault();
+        menuClose.focus();
+      } else if (!event.shiftKey && document.activeElement === menuClose) {
+        event.preventDefault();
+        first.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        menuClose.focus();
+      }
     };
     const showSlide = (index: number) => {
       if (slides.length < 2) return;
@@ -162,6 +200,7 @@ export function GiacongInteractions({
     };
     trigger?.addEventListener("click", toggleMenu);
     menuBackdrop.addEventListener("click", closeMenu);
+    menuClose.addEventListener("click", closeMenu);
     document.addEventListener("click", handleSubmenu);
     document.addEventListener("keydown", handleMenuKeydown);
     window.addEventListener("resize", repositionOpenMegaMenus);
@@ -172,6 +211,7 @@ export function GiacongInteractions({
     return () => {
       trigger?.removeEventListener("click", toggleMenu);
       menuBackdrop.removeEventListener("click", closeMenu);
+      menuClose.removeEventListener("click", closeMenu);
       document.removeEventListener("click", handleSubmenu);
       document.removeEventListener("keydown", handleMenuKeydown);
       window.removeEventListener("resize", repositionOpenMegaMenus);
@@ -199,8 +239,9 @@ export function GiacongInteractions({
       taxonomyShow?.remove();
       taxonomyLess?.remove();
       taxonomy?.style.removeProperty("height");
-      closeMenu();
+      setMenuClosed(false);
       menuBackdrop.remove();
+      menuClose.remove();
       document.body.className = previousBodyClasses;
       document.documentElement.className = previousHtmlClasses;
     };

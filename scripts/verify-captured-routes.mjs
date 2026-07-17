@@ -33,7 +33,7 @@ async function verifyRouteResponses() {
 await Promise.all(Array.from({ length: 12 }, () => verifyRouteResponses()));
 assert.deepEqual(routeFailures, [], "One or more mirrored routes failed");
 
-const browser = await chromium.launch({ headless: true });
+const browser = await chromium.launch({ channel: "chrome", headless: true });
 try {
   for (const width of [320, 390, 768, 1024, 1440]) {
     const page = await browser.newPage({ viewport: { width, height: 900 } });
@@ -130,11 +130,35 @@ try {
   const mobileMenuLayout = await mobileMenu.locator("#main-menu").evaluate((menu) => {
     const styles = getComputedStyle(menu);
     const rect = menu.getBoundingClientRect();
+    const search = menu.querySelector(".header-search-form-wrapper");
+    const searchRect = search?.getBoundingClientRect();
+    const firstLink = menu.querySelector("#menu-item-5465 > a");
+    const firstLinkStyles = firstLink ? getComputedStyle(firstLink) : null;
+    const firstLinkRect = firstLink?.getBoundingClientRect();
+    const toggle = menu.querySelector(".clone-toggle");
+    const toggleRect = toggle?.getBoundingClientRect();
     return {
       backgroundColor: styles.backgroundColor,
       height: rect.height,
       viewportHeight: window.innerHeight,
       width: rect.width,
+      search: searchRect ? {
+        height: searchRect.height,
+        left: searchRect.left - rect.left,
+        top: searchRect.top - rect.top,
+        width: searchRect.width,
+      } : null,
+      firstLink: firstLinkRect && firstLinkStyles ? {
+        color: firstLinkStyles.color,
+        fontSize: firstLinkStyles.fontSize,
+        fontWeight: Number(firstLinkStyles.fontWeight),
+        height: firstLinkRect.height,
+        textTransform: firstLinkStyles.textTransform,
+      } : null,
+      toggle: toggleRect ? {
+        left: toggleRect.left - rect.left,
+        text: toggle?.textContent?.trim(),
+      } : null,
     };
   });
   assert.notEqual(
@@ -150,10 +174,51 @@ try {
     mobileMenuLayout.height >= mobileMenuLayout.viewportHeight,
     `Mobile menu does not cover the viewport: ${mobileMenuLayout.height}px`,
   );
+  assert.deepEqual(
+    mobileMenuLayout.search && {
+      height: Math.round(mobileMenuLayout.search.height),
+      left: Math.round(mobileMenuLayout.search.left),
+      top: Math.round(mobileMenuLayout.search.top),
+      width: Math.round(mobileMenuLayout.search.width),
+    },
+    { height: 42, left: 20, top: 50, width: 220 },
+    "Mobile search spacing does not match the source site",
+  );
+  assert.equal(mobileMenuLayout.firstLink?.color, "rgb(255, 255, 255)");
+  assert.equal(mobileMenuLayout.firstLink?.fontSize, "16px");
+  assert.ok(
+    (mobileMenuLayout.firstLink?.fontWeight ?? 0) >= 600,
+    "Mobile menu labels must be bold",
+  );
+  assert.equal(mobileMenuLayout.firstLink?.textTransform, "none");
+  assert.ok(
+    Math.abs((mobileMenuLayout.firstLink?.height ?? 0) - 52) <= 1,
+    `Unexpected mobile menu row height: ${mobileMenuLayout.firstLink?.height}px`,
+  );
+  assert.ok(
+    (mobileMenuLayout.toggle?.left ?? 0) >= 210,
+    "Mobile submenu chevron must be aligned to the right",
+  );
+  assert.notEqual(mobileMenuLayout.toggle?.text, "+", "Mobile submenu must not use a plus sign");
   assert.equal(
     await mobileMenu.locator(".clone-menu-backdrop").isVisible(),
     true,
     "Mobile menu backdrop is missing",
+  );
+  const closeButton = mobileMenu.locator(".clone-menu-close");
+  assert.equal(await closeButton.isVisible(), true, "Mobile menu close button is missing");
+  assert.equal(
+    await closeButton.evaluate((button) => document.activeElement === button),
+    true,
+    "Opening the mobile menu must focus its close control",
+  );
+  await mobileMenu.keyboard.press("Tab");
+  assert.equal(
+    await mobileMenu.locator("#main-menu").evaluate(
+      (menu) => menu.contains(document.activeElement),
+    ),
+    true,
+    "Keyboard focus must remain inside the open mobile menu",
   );
   await mobileMenu.locator("#main-menu .clone-toggle").first().click();
   assert.equal(
@@ -161,7 +226,32 @@ try {
     true,
     "Mobile submenu did not expand",
   );
+  await closeButton.click();
+  assert.equal(await mobileMenu.locator("#main-menu").isVisible(), false, "Close button did not close menu");
+  assert.equal(
+    await mobileMenu.locator("[data-open='#main-menu']").evaluate(
+      (button) => document.activeElement === button,
+    ),
+    true,
+    "Closing the mobile menu must restore focus to its trigger",
+  );
   await mobileMenu.close();
+
+  for (const width of [320, 430, 768]) {
+    const page = await browser.newPage({ viewport: { width, height: 900 }, hasTouch: true });
+    await page.goto("http://localhost:3100/", { waitUntil: "networkidle" });
+    await page.locator("[data-open='#main-menu']").tap();
+    const drawer = page.locator("#main-menu");
+    assert.equal(await drawer.isVisible(), true, `Mobile menu did not open at ${width}px`);
+    assert.equal(
+      await page.locator(".clone-menu-close").isVisible(),
+      true,
+      `Mobile close control is missing at ${width}px`,
+    );
+    await page.keyboard.press("Escape");
+    assert.equal(await drawer.isVisible(), false, `Escape did not close menu at ${width}px`);
+    await page.close();
+  }
 } finally {
   await browser.close();
 }

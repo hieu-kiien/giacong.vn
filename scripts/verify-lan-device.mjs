@@ -4,7 +4,7 @@ import { chromium, devices } from "playwright";
 const origin = process.env.LAN_ORIGIN;
 assert.ok(origin, "Set LAN_ORIGIN to the dev server address visible to physical devices");
 
-const browser = await chromium.launch({ headless: true });
+const browser = await chromium.launch({ channel: "chrome", headless: true });
 try {
   const context = await browser.newContext({ ...devices["iPhone 12"] });
   const page = await context.newPage();
