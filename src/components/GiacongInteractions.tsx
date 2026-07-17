@@ -2,6 +2,12 @@
 
 import { useEffect } from "react";
 
+import {
+  addMobileAccordionToggles,
+  createMobileProductItem,
+  handleMobileAccordion,
+} from "@/components/mobile-navigation";
+
 interface GiacongInteractionsProps {
   bodyClasses: string;
   htmlClasses: string;
@@ -39,7 +45,6 @@ export function GiacongInteractions({
     document.body.append(menuClose);
     const slider = document.querySelector<HTMLElement>(".slider");
     const slides = slider ? Array.from(slider.querySelectorAll<HTMLElement>(":scope > .row")) : [];
-    const generatedToggles: HTMLButtonElement[] = [];
     const desktopMegaMenus = Array.from(
       document.querySelectorAll<HTMLElement>(
         "#header li.menu-item-design-container-width.menu-item-has-block.has-dropdown",
@@ -51,17 +56,11 @@ export function GiacongInteractions({
     let taxonomyLess: HTMLDivElement | undefined;
     let current = 0;
 
-    menu?.querySelectorAll<HTMLElement>("li.menu-item-has-children, li.has-dropdown").forEach((item) => {
-      if (item.querySelector(":scope > button.toggle")) return;
-      const button = document.createElement("button");
-      button.type = "button";
-      button.className = "toggle clone-toggle";
-      button.setAttribute("aria-label", "Mở menu con");
-      button.setAttribute("aria-expanded", "false");
-      button.innerHTML = '<i aria-hidden="true" class="icon-angle-down"></i>';
-      item.append(button);
-      generatedToggles.push(button);
-    });
+    const generatedMobileProductItem = createMobileProductItem(
+      menu,
+      document.querySelector<HTMLElement>("#menu-item-1742"),
+    );
+    const generatedToggles = addMobileAccordionToggles(menu);
 
     const collapseTaxonomy = (event?: Event) => {
       event?.preventDefault();
@@ -150,12 +149,7 @@ export function GiacongInteractions({
       if (response) response.textContent = "Cảm ơn bạn. Chúng tôi sẽ liên hệ lại sớm nhất.";
     };
     const handleSubmenu = (event: Event) => {
-      const button = (event.target as Element).closest<HTMLButtonElement>("button.toggle");
-      if (!button) return;
-      event.preventDefault();
-      const item = button.closest<HTMLElement>("li.menu-item-has-children, li.has-dropdown");
-      item?.classList.toggle("clone-submenu-open");
-      button.setAttribute("aria-expanded", String(item?.classList.contains("clone-submenu-open")));
+      handleMobileAccordion(event, menu);
     };
     const positionMegaMenu = (item: HTMLElement) => {
       if (window.matchMedia("(max-width: 849px)").matches) return;
@@ -279,6 +273,7 @@ export function GiacongInteractions({
       document.querySelectorAll(".wpcf7-form").forEach((form) => form.removeEventListener("submit", handleForm));
       window.clearInterval(timer);
       generatedToggles.forEach((button) => button.remove());
+      generatedMobileProductItem?.remove();
       taxonomyShow?.removeEventListener("click", expandTaxonomy);
       taxonomyLess?.removeEventListener("click", collapseTaxonomy);
       taxonomyShow?.remove();

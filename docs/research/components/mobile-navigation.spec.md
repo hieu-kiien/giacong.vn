@@ -20,11 +20,17 @@ Source of truth:
 - Menu icons remain 20px black artwork with a 5px gap before the label.
 - The service item uses a right-aligned down chevron and expands its submenu
   in the drawer.
+- A Product accordion is inserted before Service on mobile. Its choices are
+  derived from the captured desktop Product mega menu so mobile and desktop
+  use the same local routes and real labels.
 
 ## Interaction
 
 - Menu trigger opens the drawer and updates `aria-expanded`.
 - Close button, backdrop click, and Escape close the drawer.
 - The service chevron toggles its submenu and `aria-expanded`.
+- Tapping the full Product or Service row toggles its submenu; the small
+  chevron is not the only touch target.
+- Open submenus remain inside the 260px drawer and expose selectable links.
+- Opening Product closes Service and vice versa.
 - Drawer scrolling is independent from the locked page body.
-

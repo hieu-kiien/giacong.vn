@@ -60,6 +60,11 @@ try {
     });
     const response = await page.goto(`http://localhost:3100${route}`, { waitUntil: "networkidle" });
     assert.equal(response?.status(), 200, `${route} did not render`);
+    assert.equal(
+      await page.locator("#main-menu .clone-mobile-products").count(),
+      1,
+      `Mobile Product accordion is missing on ${route}`,
+    );
     assert.deepEqual(errors, [], `Console errors on mobile route ${route}`);
     await page.close();
   }
@@ -189,7 +194,10 @@ try {
   );
   await desktopMenu.close();
 
-  const mobileMenu = await browser.newPage({ viewport: { width: 390, height: 900 } });
+  const mobileMenu = await browser.newPage({
+    viewport: { width: 390, height: 900 },
+    hasTouch: true,
+  });
   await mobileMenu.goto("http://localhost:3100/", { waitUntil: "networkidle" });
   await mobileMenu.locator("[data-open='#main-menu']").click();
   assert.equal(await mobileMenu.locator("#main-menu").isVisible(), true, "Mobile menu did not open");
@@ -286,11 +294,77 @@ try {
     true,
     "Keyboard focus must remain inside the open mobile menu",
   );
-  await mobileMenu.locator("#main-menu .clone-toggle").first().click();
+  const mobileProductItem = mobileMenu.locator("#main-menu .clone-mobile-products");
+  assert.equal(await mobileProductItem.count(), 1, "Mobile Product accordion is missing");
+  assert.ok(
+    await mobileProductItem.locator(":scope > .sub-menu > li > a").count() >= 10,
+    "Mobile Product accordion does not contain enough choices",
+  );
+  await mobileProductItem.locator(":scope > a").tap();
+  const mobileProductSubmenu = mobileProductItem.locator(":scope > .sub-menu");
   assert.equal(
-    await mobileMenu.locator("#main-menu li.clone-submenu-open > .sub-menu").first().isVisible(),
+    await mobileProductSubmenu.isVisible(),
     true,
-    "Mobile submenu did not expand",
+    "Tapping the Product row did not expand its choices",
+  );
+  const productAccordionHeader = await mobileProductItem.evaluate((item) => {
+    const link = item.querySelector(":scope > a")?.getBoundingClientRect();
+    const toggle = item.querySelector(":scope > .clone-toggle")?.getBoundingClientRect();
+    return {
+      linkTop: link?.top ?? -1,
+      toggleLeft: toggle?.left ?? -1,
+      toggleTop: toggle?.top ?? -1,
+    };
+  });
+  assert.ok(
+    Math.abs(productAccordionHeader.linkTop - productAccordionHeader.toggleTop) <= 1
+      && productAccordionHeader.toggleLeft >= 210,
+    `Product chevron moved away from its header row: ${JSON.stringify(productAccordionHeader)}`,
+  );
+  const productSubmenuRect = await mobileProductSubmenu.evaluate((submenu) => {
+    const rect = submenu.getBoundingClientRect();
+    const drawer = submenu.closest("#main-menu")?.getBoundingClientRect();
+    return {
+      drawerLeft: drawer?.left ?? -1,
+      drawerRight: drawer?.right ?? -1,
+      left: rect.left,
+      right: rect.right,
+    };
+  });
+  assert.ok(
+    productSubmenuRect.left >= productSubmenuRect.drawerLeft
+      && productSubmenuRect.right <= productSubmenuRect.drawerRight,
+    `Mobile Product choices render outside the drawer: ${JSON.stringify(productSubmenuRect)}`,
+  );
+  await mobileMenu.locator("#menu-item-5466 > a").tap();
+  assert.equal(
+    await mobileMenu.locator("#menu-item-5466.clone-submenu-open > .sub-menu").isVisible(),
+    true,
+    "Tapping the Service row did not expand its choices",
+  );
+  const serviceAccordionHeader = await mobileMenu.locator("#menu-item-5466").evaluate((item) => {
+    const link = item.querySelector(":scope > a")?.getBoundingClientRect();
+    const toggle = item.querySelector(":scope > .clone-toggle")?.getBoundingClientRect();
+    return {
+      linkTop: link?.top ?? -1,
+      toggleLeft: toggle?.left ?? -1,
+      toggleTop: toggle?.top ?? -1,
+    };
+  });
+  assert.ok(
+    Math.abs(serviceAccordionHeader.linkTop - serviceAccordionHeader.toggleTop) <= 1
+      && serviceAccordionHeader.toggleLeft >= 210,
+    `Service chevron moved away from its header row: ${JSON.stringify(serviceAccordionHeader)}`,
+  );
+  assert.equal(
+    await mobileProductSubmenu.isVisible(),
+    false,
+    "Opening Service must close the Product accordion",
+  );
+  const firstServiceChoice = mobileMenu.locator("#menu-item-5466 > .sub-menu > li > a").first();
+  assert.ok(
+    (await firstServiceChoice.boundingBox())?.x >= 0,
+    "Mobile Service choices remain positioned off-screen",
   );
   await closeButton.click();
   assert.equal(await mobileMenu.locator("#main-menu").isVisible(), false, "Close button did not close menu");
@@ -302,6 +376,32 @@ try {
     "Closing the mobile menu must restore focus to its trigger",
   );
   await mobileMenu.close();
+
+  for (const accordionSelector of [".clone-mobile-products", "#menu-item-5466"]) {
+    const choicePage = await browser.newPage({
+      viewport: { width: 390, height: 900 },
+      hasTouch: true,
+    });
+    await choicePage.goto("http://localhost:3100/", { waitUntil: "networkidle" });
+    await choicePage.locator("[data-open='#main-menu']").tap();
+    const accordion = choicePage.locator(`#main-menu ${accordionSelector}`);
+    await accordion.locator(":scope > a").tap();
+    const choiceHref = await accordion
+      .locator(":scope > .sub-menu > li > a")
+      .first()
+      .getAttribute("href");
+    assert.ok(choiceHref && choiceHref !== "#" && choiceHref !== "/");
+    await Promise.all([
+      choicePage.waitForURL((url) => url.pathname !== "/"),
+      accordion.locator(":scope > .sub-menu > li > a").first().tap(),
+    ]);
+    assert.equal(
+      new URL(choicePage.url()).origin,
+      "http://localhost:3100",
+      `Mobile choice escaped the local clone from ${accordionSelector}`,
+    );
+    await choicePage.close();
+  }
 
   for (const width of [320, 430, 768]) {
     const page = await browser.newPage({ viewport: { width, height: 900 }, hasTouch: true });
