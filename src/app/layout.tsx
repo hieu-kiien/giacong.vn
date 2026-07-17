@@ -14,9 +14,17 @@ export default function RootLayout({
   return (
     <html
       lang="vi"
-      className="h-full antialiased"
+      className="js"
     >
-      <body className="home page-template-page-transparent-header-light wp-theme-flatsome theme-flatsome lightbox nav-dropdown-has-shadow nav-dropdown-has-border">
+      <body>
+        {/* eslint-disable-next-line @next/next/no-css-tags */}
+        <link rel="stylesheet" href="/styles/menu-icons.css" />
+        {/* eslint-disable-next-line @next/next/no-css-tags */}
+        <link rel="stylesheet" href="/styles/woocommerce-blocks.css" />
+        {/* eslint-disable-next-line @next/next/no-css-tags */}
+        <link rel="stylesheet" href="/styles/star-ratings.css" />
+        {/* eslint-disable-next-line @next/next/no-css-tags */}
+        <link rel="stylesheet" href="/styles/quick-buy.css" />
         {/* eslint-disable-next-line @next/next/no-css-tags */}
         <link rel="stylesheet" href="/styles/flatsome.css" />
         {/* eslint-disable-next-line @next/next/no-css-tags */}
@@ -24,7 +32,9 @@ export default function RootLayout({
         {/* eslint-disable-next-line @next/next/no-css-tags */}
         <link rel="stylesheet" href="/styles/giacong.css" />
         {/* eslint-disable-next-line @next/next/no-css-tags */}
-        <link rel="stylesheet" href="/styles/giacong-sections.css" />
+        <link rel="stylesheet" href="/styles/fixed-toc.css" />
+        {/* eslint-disable-next-line @next/next/no-css-tags */}
+        <link rel="stylesheet" href="/styles/contact-form.css" />
         {children}
       </body>
     </html>

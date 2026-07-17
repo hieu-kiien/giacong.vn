@@ -47,3 +47,7 @@ next-env.d.ts
 
 # Local temp files
 temp/
+
+# Regeneratable browser-audit captures
+docs/design-references/audit-*.png
+docs/design-references/qa-*.png
