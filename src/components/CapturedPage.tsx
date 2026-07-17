@@ -1,4 +1,5 @@
 import { GiacongInteractions } from "@/components/GiacongInteractions";
+import { normalizeCapturedMarkup } from "@/lib/captured-markup";
 import type { CapturedPageData } from "@/types/captured-page";
 
 type CapturedPageProps = Pick<
@@ -12,13 +13,15 @@ export function CapturedPage({
   bodyClasses,
   htmlClasses,
 }: CapturedPageProps) {
+  const normalizedMarkup = normalizeCapturedMarkup(markup);
+
   return (
     <>
       <style dangerouslySetInnerHTML={{ __html: pageStyles }} />
       <div
         className={bodyClasses}
         suppressHydrationWarning
-        dangerouslySetInnerHTML={{ __html: markup }}
+        dangerouslySetInnerHTML={{ __html: normalizedMarkup }}
       />
       <div className="echbay-sms-messenger style-for-position-br" aria-label="Liên hệ nhanh">
         <div className="phonering-alo-alo">
