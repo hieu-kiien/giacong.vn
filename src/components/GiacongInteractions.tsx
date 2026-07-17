@@ -45,6 +45,7 @@ export function GiacongInteractions({
         "#header li.menu-item-design-container-width.menu-item-has-block.has-dropdown",
       ),
     );
+    const headerWrapper = document.querySelector<HTMLElement>(".header-wrapper");
     const taxonomy = document.querySelector<HTMLElement>(".taxonomy-description");
     let taxonomyShow: HTMLDivElement | undefined;
     let taxonomyLess: HTMLDivElement | undefined;
@@ -178,12 +179,28 @@ export function GiacongInteractions({
       item.querySelector<HTMLElement>(":scope > a")?.setAttribute("aria-expanded", "true");
     };
     const closeMegaMenu = (item: HTMLElement) => {
-      item.classList.remove("current-dropdown");
+      item.classList.remove("clone-mega-menu-pinned", "current-dropdown");
       item.querySelector<HTMLElement>(":scope > a")?.setAttribute("aria-expanded", "false");
     };
+    const closeAllMegaMenus = () => desktopMegaMenus.forEach(closeMegaMenu);
+    const openExclusiveMegaMenu = (item: HTMLElement, pinned: boolean) => {
+      desktopMegaMenus.filter((candidate) => candidate !== item).forEach(closeMegaMenu);
+      if (pinned) item.classList.add("clone-mega-menu-pinned");
+      openMegaMenu(item);
+    };
     const desktopMenuListeners = desktopMegaMenus.map((item) => {
-      const handleOpen = () => openMegaMenu(item);
-      const handleClose = () => closeMegaMenu(item);
+      const link = item.querySelector<HTMLElement>(":scope > a");
+      const handleOpen = () => openExclusiveMegaMenu(item, false);
+      const handleClose = () => {
+        if (!item.classList.contains("clone-mega-menu-pinned")) closeMegaMenu(item);
+      };
+      const handleClick = (event: Event) => {
+        if (window.matchMedia("(max-width: 849px)").matches) return;
+        event.preventDefault();
+        const wasPinned = item.classList.contains("clone-mega-menu-pinned");
+        closeAllMegaMenus();
+        if (!wasPinned) openExclusiveMegaMenu(item, true);
+      };
       const handleFocusOut = (event: FocusEvent) => {
         if (!item.contains(event.relatedTarget as Node | null)) handleClose();
       };
@@ -191,8 +208,26 @@ export function GiacongInteractions({
       item.addEventListener("mouseleave", handleClose);
       item.addEventListener("focusin", handleOpen);
       item.addEventListener("focusout", handleFocusOut);
-      return { item, handleOpen, handleClose, handleFocusOut };
+      link?.addEventListener("click", handleClick);
+      return { item, link, handleOpen, handleClose, handleClick, handleFocusOut };
     });
+    const handleDesktopMenuDocumentClick = (event: Event) => {
+      if (desktopMegaMenus.some((item) => item.contains(event.target as Node))) return;
+      closeAllMegaMenus();
+    };
+    const handleDesktopMenuKeydown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      closeAllMegaMenus();
+      if (
+        document.activeElement instanceof HTMLElement
+        && desktopMegaMenus.some((item) => item.contains(document.activeElement))
+      ) {
+        document.activeElement.blur();
+      }
+    };
+    const updateStickyHeader = () => {
+      headerWrapper?.classList.toggle("stuck", window.scrollY > 70);
+    };
     const repositionOpenMegaMenus = () => {
       desktopMegaMenus
         .filter((item) => item.classList.contains("current-dropdown"))
@@ -202,10 +237,14 @@ export function GiacongInteractions({
     menuBackdrop.addEventListener("click", closeMenu);
     menuClose.addEventListener("click", closeMenu);
     document.addEventListener("click", handleSubmenu);
+    document.addEventListener("click", handleDesktopMenuDocumentClick);
     document.addEventListener("keydown", handleMenuKeydown);
+    document.addEventListener("keydown", handleDesktopMenuKeydown);
+    window.addEventListener("scroll", updateStickyHeader, { passive: true });
     window.addEventListener("resize", repositionOpenMegaMenus);
     document.querySelectorAll(".wpcf7-form").forEach((form) => form.addEventListener("submit", handleForm));
     showSlide(0);
+    updateStickyHeader();
     const timer = window.setInterval(() => showSlide(current + 1), 6000);
 
     return () => {
@@ -213,18 +252,24 @@ export function GiacongInteractions({
       menuBackdrop.removeEventListener("click", closeMenu);
       menuClose.removeEventListener("click", closeMenu);
       document.removeEventListener("click", handleSubmenu);
+      document.removeEventListener("click", handleDesktopMenuDocumentClick);
       document.removeEventListener("keydown", handleMenuKeydown);
+      document.removeEventListener("keydown", handleDesktopMenuKeydown);
+      window.removeEventListener("scroll", updateStickyHeader);
       window.removeEventListener("resize", repositionOpenMegaMenus);
       desktopMenuListeners.forEach(({
         item,
+        link,
         handleOpen,
         handleClose,
+        handleClick,
         handleFocusOut,
       }) => {
         item.removeEventListener("mouseenter", handleOpen);
         item.removeEventListener("mouseleave", handleClose);
         item.removeEventListener("focusin", handleOpen);
         item.removeEventListener("focusout", handleFocusOut);
+        link?.removeEventListener("click", handleClick);
         closeMegaMenu(item);
         const panel = item.querySelector<HTMLElement>(":scope > .nav-dropdown");
         panel?.style.removeProperty("width");
@@ -239,6 +284,7 @@ export function GiacongInteractions({
       taxonomyShow?.remove();
       taxonomyLess?.remove();
       taxonomy?.style.removeProperty("height");
+      headerWrapper?.classList.remove("stuck");
       setMenuClosed(false);
       menuBackdrop.remove();
       menuClose.remove();

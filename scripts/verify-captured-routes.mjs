@@ -79,6 +79,29 @@ try {
 
   const desktopMenu = await browser.newPage({ viewport: { width: 1440, height: 900 } });
   await desktopMenu.goto("http://localhost:3100/", { waitUntil: "networkidle" });
+  await desktopMenu.evaluate(() => window.scrollTo(0, 700));
+  await desktopMenu.waitForFunction(() => (
+    window.scrollY >= 700
+    && document.querySelector(".header-wrapper")?.classList.contains("stuck")
+    && Math.abs(
+      document.querySelector(".header-wrapper")?.getBoundingClientRect().top ?? -999,
+    ) <= 1
+  ));
+  const stickyHeader = await desktopMenu.locator(".header-wrapper").evaluate((wrapper) => {
+    const rect = wrapper.getBoundingClientRect();
+    const styles = getComputedStyle(wrapper);
+    return {
+      isStuck: wrapper.classList.contains("stuck"),
+      position: styles.position,
+      top: Math.abs(Math.round(rect.top)),
+    };
+  });
+  assert.deepEqual(
+    stickyHeader,
+    { isStuck: true, position: "fixed", top: 0 },
+    "Header must remain fixed and visible after scrolling",
+  );
+  await desktopMenu.evaluate(() => window.scrollTo(0, 0));
   await desktopMenu.getByRole("link", { name: /Sản Phẩm/ }).first().hover();
   assert.equal(
     await desktopMenu.locator("#header .nav-dropdown").first().isVisible(),
@@ -111,11 +134,54 @@ try {
     productMenuLayout.columnWidths.every((width) => width >= 200),
     `Product mega-menu columns are too narrow: ${productMenuLayout.columnWidths.join(", ")}px`,
   );
+  const desktopUrlBeforeProductClick = desktopMenu.url();
+  await desktopMenu.locator("#menu-item-1742 > a").click();
+  assert.equal(
+    desktopMenu.url(),
+    desktopUrlBeforeProductClick,
+    "Clicking Product must open its choices instead of navigating away",
+  );
+  assert.equal(
+    await desktopMenu.locator("#menu-item-1742 > .nav-dropdown").isVisible(),
+    true,
+    "Clicking Product did not keep its mega menu open",
+  );
   await desktopMenu.locator("#menu-item-5166 > a").hover();
   const serviceMenuWidth = await desktopMenu.locator(
     "#menu-item-5166 > .nav-dropdown",
   ).evaluate((panel) => panel.getBoundingClientRect().width);
   assert.ok(serviceMenuWidth >= 1000, `Desktop service mega menu is too narrow: ${serviceMenuWidth}px`);
+  await desktopMenu.locator("#menu-item-5166 > a").click();
+  await desktopMenu.waitForFunction(() => {
+    const product = document.querySelector("#menu-item-1742 > .nav-dropdown");
+    const service = document.querySelector("#menu-item-5166 > .nav-dropdown");
+    if (!product || !service) return false;
+    return getComputedStyle(product).visibility === "hidden"
+      && getComputedStyle(service).visibility === "visible"
+      && Number(getComputedStyle(service).opacity) > 0.99;
+  });
+  assert.equal(
+    await desktopMenu.locator("#menu-item-5166 > .nav-dropdown").isVisible(),
+    true,
+    "Clicking Service did not keep its mega menu open",
+  );
+  assert.equal(
+    await desktopMenu.locator("#menu-item-1742 > .nav-dropdown").isVisible(),
+    false,
+    "Opening Service must close the Product mega menu",
+  );
+  await desktopMenu.mouse.move(10, 500);
+  await desktopMenu.keyboard.press("Escape");
+  await desktopMenu.waitForFunction(() => (
+    getComputedStyle(
+      document.querySelector("#menu-item-5166 > .nav-dropdown"),
+    ).visibility === "hidden"
+  ));
+  assert.equal(
+    await desktopMenu.locator("#menu-item-5166 > .nav-dropdown").isVisible(),
+    false,
+    "Escape must close an expanded desktop mega menu",
+  );
   assert.equal(
     await desktopMenu.locator(".echbay-sms-messenger").isVisible(),
     true,
@@ -240,6 +306,18 @@ try {
   for (const width of [320, 430, 768]) {
     const page = await browser.newPage({ viewport: { width, height: 900 }, hasTouch: true });
     await page.goto("http://localhost:3100/", { waitUntil: "networkidle" });
+    await page.evaluate(() => window.scrollTo(0, 700));
+    await page.waitForFunction(() => (
+      document.querySelector(".header-wrapper")?.classList.contains("stuck")
+      && Math.abs(
+        document.querySelector(".header-wrapper")?.getBoundingClientRect().top ?? -999,
+      ) <= 1
+    ));
+    assert.equal(
+      await page.locator("[data-open='#main-menu']").isVisible(),
+      true,
+      `Sticky mobile header disappeared at ${width}px`,
+    );
     await page.locator("[data-open='#main-menu']").tap();
     const drawer = page.locator("#main-menu");
     assert.equal(await drawer.isVisible(), true, `Mobile menu did not open at ${width}px`);
