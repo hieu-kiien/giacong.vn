@@ -22,6 +22,11 @@ export function GiacongInteractions({
     const slider = document.querySelector<HTMLElement>(".slider");
     const slides = slider ? Array.from(slider.querySelectorAll<HTMLElement>(":scope > .row")) : [];
     const generatedToggles: HTMLButtonElement[] = [];
+    const desktopMegaMenus = Array.from(
+      document.querySelectorAll<HTMLElement>(
+        "#header li.menu-item-design-container-width.menu-item-has-block.has-dropdown",
+      ),
+    );
     const taxonomy = document.querySelector<HTMLElement>(".taxonomy-description");
     let taxonomyShow: HTMLDivElement | undefined;
     let taxonomyLess: HTMLDivElement | undefined;
@@ -97,8 +102,51 @@ export function GiacongInteractions({
       item?.classList.toggle("clone-submenu-open");
       button.setAttribute("aria-expanded", String(item?.classList.contains("clone-submenu-open")));
     };
+    const positionMegaMenu = (item: HTMLElement) => {
+      if (window.matchMedia("(max-width: 849px)").matches) return;
+      const panel = item.querySelector<HTMLElement>(":scope > .nav-dropdown");
+      const headerInner = item.closest<HTMLElement>(".header-inner");
+      if (!panel || !headerInner) return;
+      const itemRect = item.getBoundingClientRect();
+      const headerRect = headerInner.getBoundingClientRect();
+      const panelWidth = Math.min(1240, headerRect.width - 30);
+      panel.style.width = `${panelWidth}px`;
+      panel.style.setProperty(
+        "left",
+        `${headerRect.left + (headerRect.width - panelWidth) / 2 - itemRect.left}px`,
+        "important",
+      );
+      panel.style.top = "55px";
+    };
+    const openMegaMenu = (item: HTMLElement) => {
+      positionMegaMenu(item);
+      item.classList.add("current-dropdown");
+      item.querySelector<HTMLElement>(":scope > a")?.setAttribute("aria-expanded", "true");
+    };
+    const closeMegaMenu = (item: HTMLElement) => {
+      item.classList.remove("current-dropdown");
+      item.querySelector<HTMLElement>(":scope > a")?.setAttribute("aria-expanded", "false");
+    };
+    const desktopMenuListeners = desktopMegaMenus.map((item) => {
+      const handleOpen = () => openMegaMenu(item);
+      const handleClose = () => closeMegaMenu(item);
+      const handleFocusOut = (event: FocusEvent) => {
+        if (!item.contains(event.relatedTarget as Node | null)) handleClose();
+      };
+      item.addEventListener("mouseenter", handleOpen);
+      item.addEventListener("mouseleave", handleClose);
+      item.addEventListener("focusin", handleOpen);
+      item.addEventListener("focusout", handleFocusOut);
+      return { item, handleOpen, handleClose, handleFocusOut };
+    });
+    const repositionOpenMegaMenus = () => {
+      desktopMegaMenus
+        .filter((item) => item.classList.contains("current-dropdown"))
+        .forEach(positionMegaMenu);
+    };
     trigger?.addEventListener("click", toggleMenu);
     document.addEventListener("click", handleSubmenu);
+    window.addEventListener("resize", repositionOpenMegaMenus);
     document.querySelectorAll(".wpcf7-form").forEach((form) => form.addEventListener("submit", handleForm));
     showSlide(0);
     const timer = window.setInterval(() => showSlide(current + 1), 6000);
@@ -106,6 +154,23 @@ export function GiacongInteractions({
     return () => {
       trigger?.removeEventListener("click", toggleMenu);
       document.removeEventListener("click", handleSubmenu);
+      window.removeEventListener("resize", repositionOpenMegaMenus);
+      desktopMenuListeners.forEach(({
+        item,
+        handleOpen,
+        handleClose,
+        handleFocusOut,
+      }) => {
+        item.removeEventListener("mouseenter", handleOpen);
+        item.removeEventListener("mouseleave", handleClose);
+        item.removeEventListener("focusin", handleOpen);
+        item.removeEventListener("focusout", handleFocusOut);
+        closeMegaMenu(item);
+        const panel = item.querySelector<HTMLElement>(":scope > .nav-dropdown");
+        panel?.style.removeProperty("width");
+        panel?.style.removeProperty("left");
+        panel?.style.removeProperty("top");
+      });
       document.querySelectorAll(".wpcf7-form").forEach((form) => form.removeEventListener("submit", handleForm));
       window.clearInterval(timer);
       generatedToggles.forEach((button) => button.remove());

@@ -74,6 +74,37 @@ try {
     true,
     "Desktop product dropdown did not open",
   );
+  const productMenuLayout = await desktopMenu.locator("#menu-item-1742").evaluate((item) => {
+    const panel = item.querySelector(":scope > .nav-dropdown");
+    const columns = panel?.querySelectorAll(".menu-san-pham > .col") ?? [];
+    return {
+      panelWidth: panel?.getBoundingClientRect().width ?? 0,
+      panelLeft: panel?.getBoundingClientRect().left ?? 0,
+      viewportWidth: document.documentElement.clientWidth,
+      columnWidths: Array.from(columns, (column) => column.getBoundingClientRect().width),
+    };
+  });
+  assert.ok(
+    productMenuLayout.panelWidth >= 1000,
+    `Desktop product mega menu is too narrow: ${productMenuLayout.panelWidth}px`,
+  );
+  assert.ok(
+    Math.abs(
+      productMenuLayout.panelLeft
+      - (productMenuLayout.viewportWidth - productMenuLayout.panelWidth) / 2
+    ) <= 2,
+    `Desktop product mega menu is not centered: left ${productMenuLayout.panelLeft}px`,
+  );
+  assert.equal(productMenuLayout.columnWidths.length, 4, "Product mega menu must have four columns");
+  assert.ok(
+    productMenuLayout.columnWidths.every((width) => width >= 200),
+    `Product mega-menu columns are too narrow: ${productMenuLayout.columnWidths.join(", ")}px`,
+  );
+  await desktopMenu.locator("#menu-item-5166 > a").hover();
+  const serviceMenuWidth = await desktopMenu.locator(
+    "#menu-item-5166 > .nav-dropdown",
+  ).evaluate((panel) => panel.getBoundingClientRect().width);
+  assert.ok(serviceMenuWidth >= 1000, `Desktop service mega menu is too narrow: ${serviceMenuWidth}px`);
   assert.equal(
     await desktopMenu.locator(".echbay-sms-messenger").isVisible(),
     true,

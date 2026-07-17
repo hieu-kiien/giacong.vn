@@ -25,6 +25,9 @@
 
 ## Responsive behavior
 - **Desktop (1440px):** centered logo, left/right navigation groups and hover dropdowns.
+- Product and service mega menus open on hover or keyboard focus, are centered inside the
+  1270px header container, are capped at 1240px wide, and use four equal columns.
+- At 1920px the mega-menu target bounds are `left: 340px`, `top: 70px`, `width: 1240px`.
 - **Tablet (768px):** mobile navigation trigger, responsive Flatsome column widths.
 - **Mobile (390px and 320px):** no horizontal overflow, off-canvas menu and expandable nested menus.
 - Preserve the source breakpoints at 849px and 549px.
