@@ -59,7 +59,16 @@ async function waitForPortToClose(port) {
 
 async function startFakeBagisto() {
   const sockets = new Set();
+  const redirectTargetPath = "/redirect-target";
+  let origin = "";
+  let redirectTargetHits = 0;
   const server = createServer((request, response) => {
+    if (request.method === "GET" && request.url === redirectTargetPath) {
+      redirectTargetHits += 1;
+      response.writeHead(200, { "Content-Type": "application/json" });
+      response.end(JSON.stringify({ ok: true, data: { reference: "BFF-REDIRECT-TARGET" } }));
+      return;
+    }
     if (request.method !== "POST" || request.url !== "/api/b2b/briefs") {
       response.writeHead(404).end();
       return;
@@ -79,7 +88,7 @@ async function startFakeBagisto() {
         return;
       }
       if (body.includes("__redirect__")) {
-        response.writeHead(302, { Location: "https://upstream.example/private" }).end();
+        response.writeHead(302, { Location: `${origin}${redirectTargetPath}` }).end();
         return;
       }
       if (body.includes("__upstream_5xx__")) {
@@ -123,8 +132,10 @@ async function startFakeBagisto() {
   await once(server, "listening");
   const address = server.address();
   assert.ok(address && typeof address !== "string", "Fake Bagisto did not bind a port");
+  origin = `http://127.0.0.1:${address.port}`;
   return {
-    origin: `http://127.0.0.1:${address.port}`,
+    origin,
+    redirectTargetHits: () => redirectTargetHits,
     stop: async () => {
       sockets.forEach((socket) => socket.destroy());
       await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
@@ -133,7 +144,11 @@ async function startFakeBagisto() {
 }
 
 async function stopChild(child, port, logs) {
-  if (!child || child.exitCode !== null) return;
+  if (!child) return;
+  if (child.exitCode !== null || child.signalCode !== null) {
+    if (port !== undefined) await waitForPortToClose(port);
+    return;
+  }
   let exited = false;
   child.once("exit", () => {
     exited = true;
@@ -330,6 +345,11 @@ for (const [message, expectedStatus, label] of [
     `BFF leaked upstream details for ${label}`,
   );
 }
+assert.equal(
+  fakeBagisto.redirectTargetHits(),
+  0,
+  "BFF followed an upstream redirect instead of rejecting it",
+);
 
 const browser = await chromium.launch({ channel: "chrome", headless: true });
 try {
