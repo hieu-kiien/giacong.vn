@@ -85,7 +85,7 @@ async function submitContactForm(event: Event) {
     if (!response.ok || !result.ok) {
       setContactFormStatus(
         form,
-        response.status === 400 ? "invalid" : "failed",
+        response.status === 400 || response.status === 422 ? "invalid" : "failed",
         result.message ?? "Không thể gửi yêu cầu. Vui lòng thử lại.",
       );
       return;

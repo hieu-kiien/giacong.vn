@@ -32,7 +32,9 @@ function hasReference(result: BriefApiResponse | null): result is BriefApiRespon
   data: { reference: string };
   ok: true;
 } {
-  return result?.ok === true && typeof result.data?.reference === "string" && result.data.reference.length > 0;
+  return result?.ok === true
+    && typeof result.data?.reference === "string"
+    && result.data.reference.trim().length > 0;
 }
 
 function readField(formData: FormData, name: string, maxLength: number) {
@@ -115,9 +117,15 @@ export async function POST(request: Request) {
       cache: "no-store",
       headers: { Accept: "application/json" },
       method: "POST",
+      redirect: "error",
       signal: timeoutController.signal,
     });
-    result = await response.json().catch(() => null) as BriefApiResponse | null;
+    try {
+      result = await response.json() as BriefApiResponse;
+    } catch (error) {
+      if (timeoutController.signal.aborted) throw error;
+      result = null;
+    }
   } catch {
     return Response.json(
       {

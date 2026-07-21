@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { once } from "node:events";
 import { readFile } from "node:fs/promises";
 import { createServer } from "node:http";
@@ -17,7 +17,12 @@ async function findOpenPort() {
   return port;
 }
 
-async function waitForServer(url, child) {
+function formatLogs(logs) {
+  const output = logs.join("").trim();
+  return output ? `\n--- Next.js logs ---\n${output.slice(-8_000)}` : "\n--- Next.js logs ---\n(no output)";
+}
+
+async function waitForServer(url, child, logs) {
   const deadline = Date.now() + 30_000;
   let lastError = "";
   while (Date.now() < deadline) {
@@ -28,14 +33,32 @@ async function waitForServer(url, child) {
       lastError = error instanceof Error ? error.message : String(error);
     }
     if (child.exitCode !== null) {
-      throw new Error(`Next.js exited before QA started: ${lastError}`);
+      throw new Error(`Next.js exited before QA started: ${lastError}${formatLogs(logs)}`);
     }
     await new Promise((resolve) => setTimeout(resolve, 250));
   }
-  throw new Error(`Next.js did not become ready within 30 seconds: ${lastError}`);
+  throw new Error(`Next.js did not become ready within 30 seconds: ${lastError}${formatLogs(logs)}`);
+}
+
+async function waitForPortToClose(port) {
+  const deadline = Date.now() + 10_000;
+  while (Date.now() < deadline) {
+    const server = createNetServer();
+    try {
+      server.listen(port, "127.0.0.1");
+      await once(server, "listening");
+      await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+      return;
+    } catch {
+      server.close();
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+  }
+  throw new Error(`Port ${port} remained open after Next.js cleanup.`);
 }
 
 async function startFakeBagisto() {
+  const sockets = new Set();
   const server = createServer((request, response) => {
     if (request.method !== "POST" || request.url !== "/api/b2b/briefs") {
       response.writeHead(404).end();
@@ -55,6 +78,15 @@ async function startFakeBagisto() {
         request.socket.destroy();
         return;
       }
+      if (body.includes("__redirect__")) {
+        response.writeHead(302, { Location: "https://upstream.example/private" }).end();
+        return;
+      }
+      if (body.includes("__upstream_5xx__")) {
+        response.writeHead(500, { "Content-Type": "application/json" });
+        response.end(JSON.stringify({ ok: false, message: "secret upstream failure", url: "https://upstream.example/private" }));
+        return;
+      }
       if (body.includes("__timeout__")) {
         setTimeout(() => {
           if (!response.destroyed) {
@@ -64,11 +96,27 @@ async function startFakeBagisto() {
         }, 500);
         return;
       }
+      if (body.includes("__headers_then_hang__")) {
+        response.writeHead(201, { "Content-Type": "application/json" });
+        response.write('{"ok":true,"data":{"reference":"BFF-HANG');
+        return;
+      }
+      if (body.includes("__malformed_json__")) {
+        response.writeHead(201, { "Content-Type": "application/json" });
+        response.end("{");
+        return;
+      }
       response.writeHead(201, { "Content-Type": "application/json" });
       response.end(JSON.stringify(body.includes("__missing_reference__")
         ? { ok: true, data: {} }
+        : body.includes("__blank_reference__")
+          ? { ok: true, data: { reference: "   " } }
         : { ok: true, data: { reference: "BFF-REF-001" } }));
     });
+  });
+  server.on("connection", (socket) => {
+    sockets.add(socket);
+    socket.on("close", () => sockets.delete(socket));
   });
 
   server.listen(0, "127.0.0.1");
@@ -77,21 +125,78 @@ async function startFakeBagisto() {
   assert.ok(address && typeof address !== "string", "Fake Bagisto did not bind a port");
   return {
     origin: `http://127.0.0.1:${address.port}`,
-    stop: () => new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve())),
+    stop: async () => {
+      sockets.forEach((socket) => socket.destroy());
+      await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+    },
   };
 }
 
-async function stopChild(child) {
+async function stopChild(child, port, logs) {
   if (!child || child.exitCode !== null) return;
-  child.kill();
-  await Promise.race([
-    once(child, "exit"),
-    new Promise((resolve) => setTimeout(resolve, 5_000)),
+  let exited = false;
+  child.once("exit", () => {
+    exited = true;
+  });
+  child.kill("SIGTERM");
+  const exitedGracefully = await Promise.race([
+    once(child, "exit").then(() => true),
+    new Promise((resolve) => setTimeout(() => resolve(false), 5_000)),
   ]);
+  if (!exitedGracefully) {
+    if (process.platform === "win32") {
+      const result = spawnSync("taskkill", ["/pid", String(child.pid), "/t", "/f"], { windowsHide: true });
+      if (result.status !== 0 && child.exitCode === null) {
+        throw new Error(`Could not force-stop Next.js process tree: ${result.stderr?.toString() ?? "unknown taskkill error"}${formatLogs(logs)}`);
+      }
+    } else {
+      child.kill("SIGKILL");
+    }
+    await Promise.race([
+      once(child, "exit"),
+      new Promise((_, reject) => setTimeout(() => reject(new Error(`Next.js did not exit after forced cleanup.${formatLogs(logs)}`)), 5_000)),
+    ]);
+  }
+  await new Promise((resolve) => setTimeout(resolve, 50));
+  assert.ok(
+    exited || child.exitCode !== null || child.signalCode !== null,
+    `Next.js child was still running after cleanup.${formatLogs(logs)}`,
+  );
+  await waitForPortToClose(port);
+}
+
+async function assertTimeoutFallback(fakeBagisto, configuredTimeout, label) {
+  const port = await findOpenPort();
+  const logs = [];
+  const child = spawn(process.execPath, ["node_modules/next/dist/bin/next", "dev", "-p", String(port)], {
+    env: {
+      ...process.env,
+      BAGISTO_API_TIMEOUT_MS: configuredTimeout,
+      BAGISTO_API_URL: fakeBagisto.origin,
+    },
+    stdio: ["ignore", "pipe", "pipe"],
+    windowsHide: true,
+  });
+  child.stdout.on("data", (chunk) => logs.push(chunk.toString()));
+  child.stderr.on("data", (chunk) => logs.push(chunk.toString()));
+  try {
+    const appUrl = `http://localhost:${port}`;
+    await waitForServer(`${appUrl}/`, child, logs);
+    const formData = new FormData();
+    formData.set("name", "Kiểm thử timeout");
+    formData.set("phone", "0900000000");
+    formData.set("message", "__timeout__");
+    const response = await fetch(`${appUrl}/api/contact`, { method: "POST", body: formData });
+    assert.equal(response.status, 202, `Invalid ${label} timeout must fall back to the default`);
+  } finally {
+    await stopChild(child, port, logs);
+  }
 }
 
 let fakeBagisto;
 let nextServer;
+let nextPort;
+let nextLogs = [];
 
 try {
 const manifest = JSON.parse(await readFile("src/data/pages/manifest.json", "utf8"));
@@ -114,9 +219,40 @@ assert.doesNotMatch(
 );
 
   fakeBagisto = await startFakeBagisto();
+  for (const [configuredTimeout, label] of [
+    ["99", "lower bound"],
+    ["30001", "upper bound"],
+    ["1.5", "float"],
+    ["NaN", "NaN"],
+  ]) {
+    await assertTimeoutFallback(fakeBagisto, configuredTimeout, label);
+  }
+
+  const missingConfigPort = await findOpenPort();
+  const missingConfigLogs = [];
+  const missingConfigServer = spawn(process.execPath, ["node_modules/next/dist/bin/next", "dev", "-p", String(missingConfigPort)], {
+    env: { ...process.env, BAGISTO_API_URL: "" },
+    stdio: ["ignore", "pipe", "pipe"],
+    windowsHide: true,
+  });
+  missingConfigServer.stdout.on("data", (chunk) => missingConfigLogs.push(chunk.toString()));
+  missingConfigServer.stderr.on("data", (chunk) => missingConfigLogs.push(chunk.toString()));
+  try {
+    const missingConfigUrl = `http://localhost:${missingConfigPort}`;
+    await waitForServer(`${missingConfigUrl}/`, missingConfigServer, missingConfigLogs);
+    const formData = new FormData();
+    formData.set("name", "Kiểm thử cấu hình");
+    formData.set("phone", "0900000000");
+    const response = await fetch(`${missingConfigUrl}/api/contact`, { method: "POST", body: formData });
+    assert.equal(response.status, 503, "BFF did not report its missing Bagisto configuration");
+  } finally {
+    await stopChild(missingConfigServer, missingConfigPort, missingConfigLogs);
+  }
+
   const appPort = await findOpenPort();
+  nextPort = appPort;
   const appUrl = `http://localhost:${appPort}`;
-  const nextLogs = [];
+  nextLogs = [];
   nextServer = spawn(process.execPath, ["node_modules/next/dist/bin/next", "dev", "-p", String(appPort)], {
     env: {
       ...process.env,
@@ -128,7 +264,7 @@ assert.doesNotMatch(
   });
   nextServer.stdout.on("data", (chunk) => nextLogs.push(chunk.toString()));
   nextServer.stderr.on("data", (chunk) => nextLogs.push(chunk.toString()));
-  await waitForServer(`${appUrl}/`, nextServer);
+  await waitForServer(`${appUrl}/`, nextServer, nextLogs);
 
 const routeQueue = Object.keys(manifest);
 const routeFailures = [];
@@ -171,9 +307,14 @@ assert.equal(
 
 for (const [message, expectedStatus, label] of [
   ["__missing_reference__", 502, "upstream success without a reference"],
+  ["__blank_reference__", 502, "upstream success with a blank reference"],
+  ["__malformed_json__", 502, "malformed upstream JSON"],
   ["__upstream_4xx__", 422, "upstream client validation failure"],
+  ["__upstream_5xx__", 502, "upstream server failure"],
+  ["__redirect__", 502, "upstream redirect"],
   ["__unavailable__", 502, "unavailable upstream"],
   ["__timeout__", 504, "timed out upstream"],
+  ["__headers_then_hang__", 504, "upstream body hanging after headers"],
 ]) {
   const formData = new FormData();
   formData.set("name", "Kiểm thử BFF");
@@ -183,6 +324,11 @@ for (const [message, expectedStatus, label] of [
   assert.equal(response.status, expectedStatus, `BFF did not handle ${label}`);
   const result = await response.json();
   assert.equal(result.ok, false, `BFF exposed a false success for ${label}`);
+  assert.doesNotMatch(
+    JSON.stringify(result),
+    /upstream validation detail|secret upstream failure|upstream\.example|127\.0\.0\.1/i,
+    `BFF leaked upstream details for ${label}`,
+  );
 }
 
 const browser = await chromium.launch({ channel: "chrome", headless: true });
@@ -263,6 +409,22 @@ try {
   await detailedContactForm.locator("input[type='text']").fill("Khách hàng mobile");
   await detailedContactForm.locator("input[type='tel']").fill("0912345678");
   await detailedContactForm.locator("input[type='email']").fill("mobile@example.com");
+  await detailedContactForm.locator("textarea").fill("__upstream_4xx__");
+  const upstreamValidationRequest = contactPageFlow.waitForResponse((response) => (
+    response.url() === `${appUrl}/api/contact`
+    && response.request().method() === "POST"
+  ));
+  await detailedContactForm.locator("input[type='submit']").tap();
+  assert.equal(
+    (await upstreamValidationRequest).status(),
+    422,
+    "Detailed contact form did not surface upstream validation",
+  );
+  assert.equal(await detailedContactForm.getAttribute("data-status"), "invalid");
+  assert.equal(await detailedContactForm.locator("input[type='text']").inputValue(), "Khách hàng mobile");
+  assert.equal(await detailedContactForm.locator("input[type='tel']").inputValue(), "0912345678");
+  assert.equal(await detailedContactForm.locator("input[type='email']").inputValue(), "mobile@example.com");
+  assert.equal(await detailedContactForm.locator("textarea").inputValue(), "__upstream_4xx__");
   await detailedContactForm.locator("textarea").fill("Cần tư vấn dịch vụ gia công.");
   const acceptedDetailedRequest = contactPageFlow.waitForResponse((response) => (
     response.url() === `${appUrl}/api/contact`
@@ -275,6 +437,11 @@ try {
     "Detailed mobile contact form did not reach the BFF",
   );
   assert.equal(await detailedContactForm.getAttribute("data-status"), "sent");
+  assert.match(
+    await detailedContactForm.locator(".wpcf7-response-output").textContent(),
+    /Mã:\s*BFF-/i,
+    "Detailed mobile contact form did not show the BFF reference",
+  );
   await contactPageFlow.close();
 
   for (const route of ["/san-pham/", "/gia-cong-do-uong/", "/lien-he/", "/sua-bot-cho-nguoi-gia/"]) {
@@ -724,6 +891,6 @@ try {
 
 console.log(`Verified ${Object.keys(manifest).length} mirrored routes, BFF cases, and responsive breakpoints.`);
 } finally {
-  await stopChild(nextServer);
+  await stopChild(nextServer, nextPort, nextLogs);
   await fakeBagisto?.stop();
 }

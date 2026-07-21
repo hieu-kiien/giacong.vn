@@ -96,7 +96,7 @@ Bagisto
 ### Git topology tạm thời
 
 - `bagisto/` là repository local độc lập trên branch `codex/b2b-environment-baseline`; frontend root chưa theo dõi thư mục này.
-- Chỉ chuyển sang Git submodule khi có fork URL được chốt, commit backend cần pin và quy trình clone/CI cho submodule; trước đó không `git add` nội dung `bagisto/` vào frontend.
+- Chỉ chuyển sang Git submodule khi có fork URL được chốt, commit backend cần pin và quy trình clone/CI cho submodule; trước khi thêm submodule phải bỏ ignore `/bagisto/`, và trước đó không `git add` nội dung `bagisto/` vào frontend.
 
 ## Thứ tự triển khai
 
