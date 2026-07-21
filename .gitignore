@@ -3,6 +3,10 @@ node_modules/
 .pnp
 .pnp.js
 
+# Local independent backend checkout and agent worktrees; neither belongs to the frontend repository yet.
+/bagisto/
+/.worktrees/
+
 # Build
 .next/
 out/

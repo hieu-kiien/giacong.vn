@@ -6,17 +6,21 @@
 - `Liên hệ ngay` links to `/lien-he/`.
 - Both destinations stay on the local clone and return HTTP 200.
 
-## Mock intake
+## Bagisto BFF intake
 
 - Captured Contact Form 7 forms submit `POST /api/contact`.
 - The client normalizes captured field names into `name`, `phone`, `email`,
   `message`, and `source`.
-- The mock endpoint validates name, phone, and optional email server-side.
-- Valid submissions return HTTP 202 with a `MOCK-*` reference.
+- The Next.js route validates name, phone, and optional email server-side, then
+  forwards only normalized fields to Bagisto at `POST /api/b2b/briefs`.
+- `BAGISTO_API_URL` and `BAGISTO_API_TIMEOUT_MS` remain server-only variables;
+  a missing configuration returns HTTP 503.
+- Valid Bagisto responses must include `ok: true` and a non-empty reference;
+  only then does the BFF return HTTP 202 with that reference.
 - Invalid submissions return HTTP 400 and a Vietnamese validation message.
-- The mock endpoint intentionally does not persist or log personal data.
-- Replacing the mock later only requires changing the route handler adapter;
-  the browser-facing form contract remains stable.
+- Upstream validation 4xx responses keep their status, unavailable upstreams
+  return 502, and a BFF timeout returns 504 without exposing upstream details.
+- The browser-facing form contract remains stable while Bagisto owns persistence.
 
 ## Form states
 

@@ -1,7 +1,99 @@
 import assert from "node:assert/strict";
+import { spawn } from "node:child_process";
+import { once } from "node:events";
 import { readFile } from "node:fs/promises";
+import { createServer } from "node:http";
+import { createServer as createNetServer } from "node:net";
 import { chromium } from "playwright";
 
+async function findOpenPort() {
+  const server = createNetServer();
+  server.listen(0, "127.0.0.1");
+  await once(server, "listening");
+  const address = server.address();
+  assert.ok(address && typeof address !== "string", "Could not reserve a test port");
+  const { port } = address;
+  await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+  return port;
+}
+
+async function waitForServer(url, child) {
+  const deadline = Date.now() + 30_000;
+  let lastError = "";
+  while (Date.now() < deadline) {
+    try {
+      const response = await fetch(url);
+      if (response.ok) return;
+    } catch (error) {
+      lastError = error instanceof Error ? error.message : String(error);
+    }
+    if (child.exitCode !== null) {
+      throw new Error(`Next.js exited before QA started: ${lastError}`);
+    }
+    await new Promise((resolve) => setTimeout(resolve, 250));
+  }
+  throw new Error(`Next.js did not become ready within 30 seconds: ${lastError}`);
+}
+
+async function startFakeBagisto() {
+  const server = createServer((request, response) => {
+    if (request.method !== "POST" || request.url !== "/api/b2b/briefs") {
+      response.writeHead(404).end();
+      return;
+    }
+
+    const chunks = [];
+    request.on("data", (chunk) => chunks.push(chunk));
+    request.on("end", () => {
+      const body = Buffer.concat(chunks).toString("utf8");
+      if (body.includes("__upstream_4xx__")) {
+        response.writeHead(422, { "Content-Type": "application/json" });
+        response.end(JSON.stringify({ ok: false, message: "upstream validation detail" }));
+        return;
+      }
+      if (body.includes("__unavailable__")) {
+        request.socket.destroy();
+        return;
+      }
+      if (body.includes("__timeout__")) {
+        setTimeout(() => {
+          if (!response.destroyed) {
+            response.writeHead(201, { "Content-Type": "application/json" });
+            response.end(JSON.stringify({ ok: true, data: { reference: "BFF-LATE" } }));
+          }
+        }, 500);
+        return;
+      }
+      response.writeHead(201, { "Content-Type": "application/json" });
+      response.end(JSON.stringify(body.includes("__missing_reference__")
+        ? { ok: true, data: {} }
+        : { ok: true, data: { reference: "BFF-REF-001" } }));
+    });
+  });
+
+  server.listen(0, "127.0.0.1");
+  await once(server, "listening");
+  const address = server.address();
+  assert.ok(address && typeof address !== "string", "Fake Bagisto did not bind a port");
+  return {
+    origin: `http://127.0.0.1:${address.port}`,
+    stop: () => new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve())),
+  };
+}
+
+async function stopChild(child) {
+  if (!child || child.exitCode !== null) return;
+  child.kill();
+  await Promise.race([
+    once(child, "exit"),
+    new Promise((resolve) => setTimeout(resolve, 5_000)),
+  ]);
+}
+
+let fakeBagisto;
+let nextServer;
+
+try {
 const manifest = JSON.parse(await readFile("src/data/pages/manifest.json", "utf8"));
 assert.ok(
   Object.keys(manifest).length >= 230,
@@ -21,12 +113,29 @@ assert.doesNotMatch(
   "Fixed TOC fonts must be served locally to avoid mobile CORS failures",
 );
 
+  fakeBagisto = await startFakeBagisto();
+  const appPort = await findOpenPort();
+  const appUrl = `http://localhost:${appPort}`;
+  const nextLogs = [];
+  nextServer = spawn(process.execPath, ["node_modules/next/dist/bin/next", "dev", "-p", String(appPort)], {
+    env: {
+      ...process.env,
+      BAGISTO_API_TIMEOUT_MS: "100",
+      BAGISTO_API_URL: fakeBagisto.origin,
+    },
+    stdio: ["ignore", "pipe", "pipe"],
+    windowsHide: true,
+  });
+  nextServer.stdout.on("data", (chunk) => nextLogs.push(chunk.toString()));
+  nextServer.stderr.on("data", (chunk) => nextLogs.push(chunk.toString()));
+  await waitForServer(`${appUrl}/`, nextServer);
+
 const routeQueue = Object.keys(manifest);
 const routeFailures = [];
 async function verifyRouteResponses() {
   while (routeQueue.length > 0) {
     const route = routeQueue.shift();
-    const response = await fetch(`http://localhost:3100${route}`);
+    const response = await fetch(`${appUrl}${route}`);
     if (!response.ok) routeFailures.push(`${route}: ${response.status}`);
   }
 }
@@ -37,28 +146,44 @@ const validContactData = new FormData();
 validContactData.set("name", "Kiểm thử liên hệ");
 validContactData.set("phone", "0900000000");
 validContactData.set("source", "/");
-const validContactResponse = await fetch("http://localhost:3100/api/contact", {
+const validContactResponse = await fetch(`${appUrl}/api/contact`, {
   method: "POST",
   body: validContactData,
 });
-assert.equal(validContactResponse.status, 202, "Mock contact API did not accept valid data");
+assert.equal(validContactResponse.status, 202, "BFF contact API did not accept valid data");
 const validContactResult = await validContactResponse.json();
 assert.equal(validContactResult.ok, true);
 assert.match(
   validContactResult.reference,
-  /^MOCK-/,
-  "Mock contact API did not return a replaceable reference",
+  /^BFF-/,
+  "BFF contact API did not return the upstream reference",
 );
 
-const invalidContactResponse = await fetch("http://localhost:3100/api/contact", {
+const invalidContactResponse = await fetch(`${appUrl}/api/contact`, {
   method: "POST",
   body: new FormData(),
 });
 assert.equal(
   invalidContactResponse.status,
   400,
-  "Mock contact API accepted an empty submission",
+  "BFF contact API accepted an empty submission",
 );
+
+for (const [message, expectedStatus, label] of [
+  ["__missing_reference__", 502, "upstream success without a reference"],
+  ["__upstream_4xx__", 422, "upstream client validation failure"],
+  ["__unavailable__", 502, "unavailable upstream"],
+  ["__timeout__", 504, "timed out upstream"],
+]) {
+  const formData = new FormData();
+  formData.set("name", "Kiểm thử BFF");
+  formData.set("phone", "0900000000");
+  formData.set("message", message);
+  const response = await fetch(`${appUrl}/api/contact`, { method: "POST", body: formData });
+  assert.equal(response.status, expectedStatus, `BFF did not handle ${label}`);
+  const result = await response.json();
+  assert.equal(result.ok, false, `BFF exposed a false success for ${label}`);
+}
 
 const browser = await chromium.launch({ channel: "chrome", headless: true });
 try {
@@ -68,7 +193,7 @@ try {
     page.on("console", (message) => {
       if (message.type() === "error") errors.push(message.text());
     });
-    const response = await page.goto("http://localhost:3100/", { waitUntil: "networkidle" });
+    const response = await page.goto(`${appUrl}/`, { waitUntil: "networkidle" });
     assert.equal(response?.status(), 200);
     const dimensions = await page.evaluate(() => ({
       clientWidth: document.documentElement.clientWidth,
@@ -80,7 +205,7 @@ try {
   }
 
   const contactFlow = await browser.newPage({ viewport: { width: 1440, height: 900 } });
-  await contactFlow.goto("http://localhost:3100/", { waitUntil: "networkidle" });
+  await contactFlow.goto(`${appUrl}/`, { waitUntil: "networkidle" });
   assert.equal(
     await contactFlow.getByRole("link", { name: "Liên hệ ngay" }).getAttribute("href"),
     "/lien-he/",
@@ -95,14 +220,14 @@ try {
   await contactForm.locator("input[type='text']").fill("Kiểm thử liên hệ");
   await contactForm.locator("input[type='tel']").fill("0900000000");
   const contactRequest = contactFlow.waitForResponse((response) => (
-    response.url() === "http://localhost:3100/api/contact"
+    response.url() === `${appUrl}/api/contact`
     && response.request().method() === "POST"
   ));
   await contactForm.locator("input[type='submit']").click();
   assert.equal(
     (await contactRequest).status(),
     202,
-    "Contact form did not reach the mock server",
+    "Contact form did not reach the BFF",
   );
   assert.equal(await contactForm.getAttribute("data-status"), "sent");
   assert.match(
@@ -116,12 +241,12 @@ try {
     viewport: { width: 390, height: 900 },
     hasTouch: true,
   });
-  await contactPageFlow.goto("http://localhost:3100/lien-he/", {
+  await contactPageFlow.goto(`${appUrl}/lien-he/`, {
     waitUntil: "networkidle",
   });
   const detailedContactForm = contactPageFlow.locator(".wpcf7-form").first();
   const invalidContactRequest = contactPageFlow.waitForResponse((response) => (
-    response.url() === "http://localhost:3100/api/contact"
+    response.url() === `${appUrl}/api/contact`
     && response.request().method() === "POST"
   ));
   await detailedContactForm.locator("input[type='submit']").tap();
@@ -140,14 +265,14 @@ try {
   await detailedContactForm.locator("input[type='email']").fill("mobile@example.com");
   await detailedContactForm.locator("textarea").fill("Cần tư vấn dịch vụ gia công.");
   const acceptedDetailedRequest = contactPageFlow.waitForResponse((response) => (
-    response.url() === "http://localhost:3100/api/contact"
+    response.url() === `${appUrl}/api/contact`
     && response.request().method() === "POST"
   ));
   await detailedContactForm.locator("input[type='submit']").tap();
   assert.equal(
     (await acceptedDetailedRequest).status(),
     202,
-    "Detailed mobile contact form did not reach the mock server",
+    "Detailed mobile contact form did not reach the BFF",
   );
   assert.equal(await detailedContactForm.getAttribute("data-status"), "sent");
   await contactPageFlow.close();
@@ -158,7 +283,7 @@ try {
     page.on("console", (message) => {
       if (message.type() === "error") errors.push(message.text());
     });
-    const response = await page.goto(`http://localhost:3100${route}`, { waitUntil: "networkidle" });
+    const response = await page.goto(`${appUrl}${route}`, { waitUntil: "networkidle" });
     assert.equal(response?.status(), 200, `${route} did not render`);
     assert.equal(
       await page.locator("#main-menu .clone-mobile-products").count(),
@@ -170,7 +295,7 @@ try {
   }
 
   const archive = await browser.newPage({ viewport: { width: 1440, height: 900 } });
-  await archive.goto("http://localhost:3100/gia-cong-do-uong/", { waitUntil: "networkidle" });
+  await archive.goto(`${appUrl}/gia-cong-do-uong/`, { waitUntil: "networkidle" });
   const collapsedHeight = await archive.locator(".taxonomy-description").evaluate((element) => (
     element.getBoundingClientRect().height
   ));
@@ -183,7 +308,7 @@ try {
   await archive.close();
 
   const desktopMenu = await browser.newPage({ viewport: { width: 1440, height: 900 } });
-  await desktopMenu.goto("http://localhost:3100/", { waitUntil: "networkidle" });
+  await desktopMenu.goto(`${appUrl}/`, { waitUntil: "networkidle" });
   await desktopMenu.evaluate(() => window.scrollTo(0, 700));
   await desktopMenu.waitForFunction(() => (
     window.scrollY >= 700
@@ -298,7 +423,7 @@ try {
     viewport: { width: 390, height: 900 },
     hasTouch: true,
   });
-  await mobileMenu.goto("http://localhost:3100/", { waitUntil: "networkidle" });
+  await mobileMenu.goto(`${appUrl}/`, { waitUntil: "networkidle" });
   const mobileHeaderSearch = mobileMenu.locator(
     ".mobile-nav.nav-right .header-search > a",
   );
@@ -522,7 +647,7 @@ try {
     viewport: { width: 390, height: 900 },
     hasTouch: true,
   });
-  await mobileSearchPage.goto("http://localhost:3100/", { waitUntil: "networkidle" });
+  await mobileSearchPage.goto(`${appUrl}/`, { waitUntil: "networkidle" });
   await mobileSearchPage.locator(".mobile-nav.nav-right .header-search > a").tap();
   await mobileSearchPage
     .locator("#main-menu input[type='search']")
@@ -535,7 +660,7 @@ try {
   ]);
   assert.equal(
     new URL(mobileSearchPage.url()).origin,
-    "http://localhost:3100",
+    appUrl,
     "Mobile search escaped the local clone",
   );
   await mobileSearchPage.close();
@@ -545,7 +670,7 @@ try {
       viewport: { width: 390, height: 900 },
       hasTouch: true,
     });
-    await choicePage.goto("http://localhost:3100/", { waitUntil: "networkidle" });
+    await choicePage.goto(`${appUrl}/`, { waitUntil: "networkidle" });
     await choicePage.locator("[data-open='#main-menu']").tap();
     const accordion = choicePage.locator(`#main-menu ${accordionSelector}`);
     await accordion.locator(":scope > a").tap();
@@ -560,7 +685,7 @@ try {
     ]);
     assert.equal(
       new URL(choicePage.url()).origin,
-      "http://localhost:3100",
+      appUrl,
       `Mobile choice escaped the local clone from ${accordionSelector}`,
     );
     await choicePage.close();
@@ -568,7 +693,7 @@ try {
 
   for (const width of [320, 430, 768]) {
     const page = await browser.newPage({ viewport: { width, height: 900 }, hasTouch: true });
-    await page.goto("http://localhost:3100/", { waitUntil: "networkidle" });
+    await page.goto(`${appUrl}/`, { waitUntil: "networkidle" });
     await page.evaluate(() => window.scrollTo(0, 700));
     await page.waitForFunction(() => (
       document.querySelector(".header-wrapper")?.classList.contains("stuck")
@@ -597,4 +722,8 @@ try {
   await browser.close();
 }
 
-console.log(`Verified ${Object.keys(manifest).length} mirrored routes and responsive breakpoints.`);
+console.log(`Verified ${Object.keys(manifest).length} mirrored routes, BFF cases, and responsive breakpoints.`);
+} finally {
+  await stopChild(nextServer);
+  await fakeBagisto?.stop();
+}

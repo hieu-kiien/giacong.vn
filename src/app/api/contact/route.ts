@@ -6,6 +6,35 @@ interface ContactSubmission {
   source: string;
 }
 
+interface BriefApiResponse {
+  data?: {
+    reference?: string;
+  };
+  ok?: boolean;
+}
+
+const DEFAULT_BAGISTO_API_TIMEOUT_MS = 5_000;
+const MAX_BAGISTO_API_TIMEOUT_MS = 30_000;
+
+function getBagistoApiTimeoutMs() {
+  const configuredTimeout = Number(process.env.BAGISTO_API_TIMEOUT_MS);
+  if (
+    !Number.isInteger(configuredTimeout)
+    || configuredTimeout < 100
+    || configuredTimeout > MAX_BAGISTO_API_TIMEOUT_MS
+  ) {
+    return DEFAULT_BAGISTO_API_TIMEOUT_MS;
+  }
+  return configuredTimeout;
+}
+
+function hasReference(result: BriefApiResponse | null): result is BriefApiResponse & {
+  data: { reference: string };
+  ok: true;
+} {
+  return result?.ok === true && typeof result.data?.reference === "string" && result.data.reference.length > 0;
+}
+
 function readField(formData: FormData, name: string, maxLength: number) {
   const value = formData.get(name);
   return typeof value === "string" ? value.trim().slice(0, maxLength) : "";
@@ -65,17 +94,66 @@ export async function POST(request: Request) {
     );
   }
 
-  const reference = [
-    "MOCK",
-    Date.now().toString(36).toUpperCase(),
-    crypto.randomUUID().slice(0, 8).toUpperCase(),
-  ].join("-");
+  const bagistoApiUrl = process.env.BAGISTO_API_URL;
+  if (!bagistoApiUrl) {
+    return Response.json(
+      { ok: false, message: "Dịch vụ tiếp nhận yêu cầu chưa được cấu hình." },
+      { status: 503 },
+    );
+  }
+
+  const payload = new FormData();
+  Object.entries(submission).forEach(([key, value]) => payload.set(key, value));
+
+  const timeoutController = new AbortController();
+  const timeout = setTimeout(() => timeoutController.abort(), getBagistoApiTimeoutMs());
+  let response: Response;
+  let result: BriefApiResponse | null;
+  try {
+    response = await fetch(new URL("/api/b2b/briefs", bagistoApiUrl), {
+      body: payload,
+      cache: "no-store",
+      headers: { Accept: "application/json" },
+      method: "POST",
+      signal: timeoutController.signal,
+    });
+    result = await response.json().catch(() => null) as BriefApiResponse | null;
+  } catch {
+    return Response.json(
+      {
+        ok: false,
+        message: timeoutController.signal.aborted
+          ? "Dịch vụ tiếp nhận yêu cầu phản hồi quá chậm."
+          : "Không thể kết nối dịch vụ tiếp nhận yêu cầu.",
+      },
+      { status: timeoutController.signal.aborted ? 504 : 502 },
+    );
+  } finally {
+    clearTimeout(timeout);
+  }
+
+  if (!response.ok) {
+    return Response.json(
+      {
+        ok: false,
+        message: "Không thể tiếp nhận yêu cầu. Vui lòng thử lại.",
+      },
+      { status: response.status >= 400 && response.status < 500 ? response.status : 502 },
+    );
+  }
+
+  if (!hasReference(result)) {
+    return Response.json(
+      { ok: false, message: "Dịch vụ tiếp nhận yêu cầu trả về dữ liệu không hợp lệ." },
+      { status: 502 },
+    );
+  }
 
   return Response.json(
     {
       ok: true,
       message: "Yêu cầu của bạn đã được tiếp nhận.",
-      reference,
+      reference: result.data.reference,
     },
     {
       headers: { "Cache-Control": "no-store" },
