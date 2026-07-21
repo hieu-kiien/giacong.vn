@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { CatalogProductImage } from "@/components/catalog/CatalogProductImage";
 import { formatVnd } from "@/components/catalog/CatalogProductCard";
+import { PurchaseQuantity } from "@/components/catalog/PurchaseQuantity";
 import styles from "@/components/catalog/catalog.module.css";
 import type { CatalogProduct } from "@/types/catalog";
 
@@ -33,6 +34,15 @@ export function CatalogDetail({ product }: CatalogDetailProps) {
                 <tr><th scope="row">Đơn vị</th><td>{product.unit}</td></tr>
               </tbody>
             </table>
+            <PurchaseQuantity
+              contactFromQuantity={product.contactFromQuantity}
+              minimumOrderQuantity={product.minimumOrderQuantity}
+              productName={product.name}
+              quantityStep={product.quantityStep}
+              slug={product.slug}
+              tierPrices={product.tierPrices}
+              unit={product.unit}
+            />
           </div>
         </div>
         {product.description ? <section><h2 className={styles.title}>Mô tả sản phẩm</h2><p className={styles.description}>{product.description}</p></section> : null}
@@ -42,7 +52,10 @@ export function CatalogDetail({ product }: CatalogDetailProps) {
             <table className={styles.tierTable}>
               <caption className="screen-reader-text">Bảng giá theo số lượng</caption>
               <thead><tr><th scope="col">Số lượng từ</th><th scope="col">Đơn giá</th></tr></thead>
-              <tbody>{product.tierPrices.map((tier) => <tr key={tier.minQuantity}><td>{tier.minQuantity} {product.unit}</td><td>{formatVnd(tier.price)}</td></tr>)}</tbody>
+              <tbody>
+                {product.tierPrices.map((tier) => <tr key={tier.minQuantity}><td>{tier.minQuantity} {product.unit}</td><td>{formatVnd(tier.price)}</td></tr>)}
+                <tr><td>Từ {product.contactFromQuantity} {product.unit}</td><td><strong>Liên hệ</strong></td></tr>
+              </tbody>
             </table>
           </section>
         ) : null}

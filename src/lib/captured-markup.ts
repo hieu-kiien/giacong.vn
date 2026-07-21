@@ -13,12 +13,51 @@ function readLinkLabel(content: string) {
 }
 
 export function normalizeCapturedMarkup(markup: string) {
-  return markup.replace(
+  const normalized = markup
+    .replace(/Sản Phẩm(?=<i class="icon-angle-down"><\/i>)/g, "Mua hàng")
+    .replace(/Dịch vụ(?=<i class="icon-angle-down"><\/i>)/g, "Thuê gia công")
+    .replace(/Dịch Vụ Gia Công(?=<\/a>)/g, "Thuê gia công")
+    .replace(
     /<a\b([^>]*?)href=(["'])#\2([^>]*)>([\s\S]*?)<\/a>/gi,
     (link, beforeHref: string, quote: string, afterHref: string, content: string) => {
       const route = localCtaRoutes[readLinkLabel(content)];
       if (!route) return link;
       return `<a${beforeHref}href=${quote}${route}${quote}${afterHref}>${content}</a>`;
     },
-  );
+    );
+
+  return replaceShoppingMenu(normalized);
+}
+
+function replaceShoppingMenu(markup: string): string {
+  const shoppingAnchor = /<a\b[^>]*href=(['"])\/san-pham\/\1[^>]*>([\s\S]*?)Mua hàng<i class="icon-angle-down"><\/i><\/a>/i;
+  const match = shoppingAnchor.exec(markup);
+  if (!match || match.index === undefined) return markup;
+
+  const itemStart = markup.lastIndexOf("<li", match.index);
+  const itemEnd = itemStart < 0 ? -1 : matchingListItemEnd(markup, itemStart);
+  if (itemEnd < 0) return markup;
+
+  const itemOpenEnd = markup.indexOf(">", itemStart) + 1;
+  const anchor = match[0]
+    .replace(/\saria-current=(['"])[\s\S]*?\1/i, "")
+    .replace(/\saria-expanded=(['"])[\s\S]*?\1/i, "")
+    .replace(/\saria-haspopup=(['"])[\s\S]*?\1/i, "")
+    .replace('<i class="icon-angle-down"></i>', "");
+  const directItem = `${markup.slice(itemStart, itemOpenEnd)
+    .replace(/\s(?:menu-item-has-block|has-dropdown)\b/g, "")}${anchor}</li>`;
+
+  return `${markup.slice(0, itemStart)}${directItem}${markup.slice(itemEnd)}`;
+}
+
+function matchingListItemEnd(markup: string, start: number): number {
+  const tags = /<\/?li\b[^>]*>/gi;
+  tags.lastIndex = start;
+  let depth = 0;
+  let tag: RegExpExecArray | null;
+  while ((tag = tags.exec(markup))) {
+    depth += tag[0].startsWith("</") ? -1 : 1;
+    if (depth === 0) return tags.lastIndex;
+  }
+  return -1;
 }

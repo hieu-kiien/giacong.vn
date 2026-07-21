@@ -158,6 +158,8 @@
 
 .meta { color: #666; font-size: 12px; }
 
+.contactPrice { color: #267300; font-size: 12px; font-weight: 700; }
+
 .empty, .notice {
   background: #fafafa;
   border: 1px solid #e6e6e6;
@@ -200,6 +202,25 @@
 .tierTable { border-collapse: collapse; font-size: 14px; width: 100%; }
 .tierTable th, .tierTable td { border: 1px solid #e1e1e1; padding: 11px; text-align: left; }
 .tierTable th { background: #f7f7f7; }
+
+.purchase {
+  background: #f7f9f4;
+  border: 1px solid #dbe5d3;
+  display: grid;
+  gap: 12px;
+  padding: 18px;
+}
+
+.purchaseTitle { font-size: 18px; margin: 0; }
+.purchaseRule { color: #555; font-size: 13px; margin: 0; }
+.quantityControl { align-items: end; display: grid; grid-template-columns: 42px minmax(0, 1fr) 42px; gap: 8px; }
+.quantityControl label { display: grid; font-size: 12px; font-weight: 700; gap: 5px; }
+.quantityControl input { border: 1px solid #bbb; min-height: 42px; padding: 8px; width: 100%; }
+.quantityControl button { background: #fff; border: 1px solid #bbb; cursor: pointer; font-size: 22px; height: 42px; }
+.quantityControl button:disabled { cursor: not-allowed; opacity: .45; }
+.quantityError { color: #b42318; font-size: 13px; margin: 0; }
+.purchaseSummary { display: grid; font-size: 14px; gap: 4px; }
+.disabledButton { opacity: .5; pointer-events: none; }
 
 .loading { display: grid; gap: 16px; }
 .loadingLine { background: #eee; height: 22px; max-width: 480px; }

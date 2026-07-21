@@ -18,6 +18,7 @@ export interface CatalogProduct {
   imageUrl: string | null;
   minimumOrderQuantity: number;
   quantityStep: number;
+  contactFromQuantity: number;
   unit: string;
   price: number;
   tierPrices: CatalogTierPrice[];

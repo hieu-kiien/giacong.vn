@@ -1,4 +1,3 @@
-const productSubmenuId = "clone-mobile-products-submenu";
 const svgNamespace = "http://www.w3.org/2000/svg";
 
 const mobileMenuIcons = [
@@ -89,17 +88,10 @@ export function createMobileProductItem(
   if (!navigation || !serviceItem || !desktopProductItem) return undefined;
 
   const productItem = document.createElement("li");
-  productItem.className = [
-    "menu-item",
-    "menu-item-has-children",
-    "has-icon-left",
-    "clone-mobile-products",
-  ].join(" ");
+  productItem.className = "menu-item has-icon-left clone-mobile-products";
 
   const productLink = document.createElement("a");
-  productLink.href = "#";
-  productLink.setAttribute("aria-controls", productSubmenuId);
-  productLink.setAttribute("aria-expanded", "false");
+  productLink.href = "/san-pham/";
   const sourceIcon = desktopProductItem.querySelector<HTMLImageElement>(
     ":scope > a > .ux-menu-icon",
   );
@@ -108,32 +100,9 @@ export function createMobileProductItem(
     icon.className = "ux-sidebar-menu-icon";
     productLink.append(icon);
   }
-  productLink.append(document.createTextNode("Sản Phẩm"));
+  productLink.append(document.createTextNode("Mua hàng"));
 
-  const submenu = document.createElement("ul");
-  submenu.id = productSubmenuId;
-  submenu.className = "sub-menu nav-sidebar-ul children";
-  const seenChoices = new Set<string>();
-  desktopProductItem
-    .querySelectorAll<HTMLAnchorElement>(
-      ".menu-san-pham h4 > a, .menu-san-pham .ux-menu-link__link",
-    )
-    .forEach((sourceLink) => {
-      const label = sourceLink.textContent.trim().replace(/\s+/g, " ");
-      const href = sourceLink.getAttribute("href")?.trim() ?? "";
-      const key = `${label}|${href}`;
-      if (!label || !href || href === "#" || href === "/" || seenChoices.has(key)) return;
-      seenChoices.add(key);
-      const choice = document.createElement("li");
-      choice.className = "menu-item clone-mobile-product-choice";
-      const link = document.createElement("a");
-      link.href = href;
-      link.textContent = label;
-      choice.append(link);
-      submenu.append(choice);
-    });
-
-  productItem.append(productLink, submenu);
+  productItem.append(productLink);
   navigation.insertBefore(productItem, serviceItem);
   return productItem;
 }

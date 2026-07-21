@@ -4,6 +4,7 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { cache } from "react";
 
+import { normalizeCapturedMarkup } from "@/lib/captured-markup";
 import type { CapturedPageData } from "@/types/captured-page";
 
 export interface CatalogChromeData {
@@ -18,10 +19,11 @@ export interface CatalogChromeData {
 export const getCatalogChrome = cache(async (): Promise<CatalogChromeData> => {
   const filePath = path.join(process.cwd(), "src", "data", "pages", "san-pham.json");
   const source = JSON.parse(await readFile(filePath, "utf8")) as CapturedPageData;
-  const headerMarkup = extractElement(source.markup, "header");
-  const footerMarkup = extractElement(source.markup, "footer");
-  const footerEnd = source.markup.indexOf(footerMarkup) + footerMarkup.length;
-  const trailingMarkup = source.markup.slice(footerEnd).replace(/^\s*<\/div>\s*/, "");
+  const markup = normalizeCapturedMarkup(source.markup);
+  const headerMarkup = extractElement(markup, "header");
+  const footerMarkup = extractElement(markup, "footer");
+  const footerEnd = markup.indexOf(footerMarkup) + footerMarkup.length;
+  const trailingMarkup = markup.slice(footerEnd).replace(/^\s*<\/div>\s*/, "");
 
   return {
     bodyClasses: source.bodyClasses,

@@ -96,10 +96,32 @@ function parseProduct(payload: unknown, label: string): CatalogProduct {
   const value = record(payload, label);
   positiveInteger(value.id, `${label}.id`);
   string(value.sku, `${label}.sku`);
+  const minimumOrderQuantity = positiveInteger(value.moq, `${label}.moq`);
+  const quantityStep = positiveInteger(value.quantity_step, `${label}.quantity_step`);
+  const contactFromQuantity = positiveInteger(
+    value.contact_from_quantity,
+    `${label}.contact_from_quantity`,
+  );
   const categories = array(value.categories, `${label}.categories`)
     .map((item, index) => parseCategory(item, `${label}.categories[${index}]`));
   const tiers = array(value.tier_prices, `${label}.tier_prices`)
     .map((item, index) => parseTier(item, `${label}.tier_prices[${index}]`));
+  if (
+    contactFromQuantity <= minimumOrderQuantity
+    || (contactFromQuantity - minimumOrderQuantity) % quantityStep !== 0
+  ) {
+    throw invalid(`${label}.contact_from_quantity không khớp MOQ và bước số lượng.`);
+  }
+  if (
+    tiers[0]?.minQuantity !== minimumOrderQuantity
+    || tiers.some((tier, index) => (
+      tier.minQuantity >= contactFromQuantity
+      || (tier.minQuantity - minimumOrderQuantity) % quantityStep !== 0
+      || (index > 0 && tier.minQuantity <= tiers[index - 1].minQuantity)
+    ))
+  ) {
+    throw invalid(`${label}.tier_prices không khớp quy tắc số lượng.`);
+  }
   return {
     id: positiveInteger(value.id, `${label}.id`),
     name: nonEmptyString(value.name, `${label}.name`),
@@ -107,8 +129,9 @@ function parseProduct(payload: unknown, label: string): CatalogProduct {
     shortDescription: nullableString(value.description, `${label}.description`) ?? "",
     description: nullableString(value.description, `${label}.description`) ?? "",
     imageUrl: parseImage(value.image, `${label}.image`),
-    minimumOrderQuantity: positiveInteger(value.moq, `${label}.moq`),
-    quantityStep: positiveInteger(value.quantity_step, `${label}.quantity_step`),
+    minimumOrderQuantity,
+    quantityStep,
+    contactFromQuantity,
     unit: nonEmptyString(value.unit, `${label}.unit`),
     price: tiers[0]?.price ?? 0,
     tierPrices: tiers,

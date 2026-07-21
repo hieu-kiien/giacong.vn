@@ -92,6 +92,7 @@ const category = { id: 2, parent_id: 1, slug: "nguyen-lieu", name: "Nguyên li�
 const product = {
   id: 10, sku: "CACAO-10", slug: "bot-cacao", name: "Bột cacao", description: "Nguyên chất", image: null,
   categories: [category], unit: "kg", moq: 20, quantity_step: 5,
+  contact_from_quantity: 100,
   tier_prices: [{ min_quantity: 20, unit_price: 100000, currency: "VND" }],
 };
 const listMeta = { current_page: 1, last_page: 1, per_page: 12, total: 1, channel: "default", locale: "vi", currency: "VND" };
@@ -121,6 +122,13 @@ const fake = createServer((request, response) => {
   if (query === "bad-list-locale") return json(response, { data: [product], meta: { ...listMeta, locale: "" } });
   if (query === "bad-list-currency") return json(response, { data: [product], meta: { ...listMeta, currency: "USD" } });
   if (query === "bad-item") return json(response, { data: [{ ...product, name: 7 }], meta: listMeta });
+  if (query === "bad-contact-missing") {
+    const withoutContact = Object.fromEntries(
+      Object.entries(product).filter(([key]) => key !== "contact_from_quantity"),
+    );
+    return json(response, { data: [withoutContact], meta: listMeta });
+  }
+  if (query === "bad-contact-invariant") return json(response, { data: [{ ...product, contact_from_quantity: 21 }], meta: listMeta });
   if (query === "bad-tier") return json(response, { data: [{ ...product, tier_prices: [{ min_quantity: 20, unit_price: 1, currency: "USD" }] }], meta: listMeta });
   if (query === "bad-image") return json(response, { data: [{ ...product, image: { url: "ftp://bad", alt: "x" } }], meta: listMeta });
   if (query === "bad-image-shape") return json(response, { data: [{ ...product, image: { url: "/storage/a.webp", alt: "x", extra: true } }], meta: listMeta });
@@ -153,6 +161,7 @@ try {
     ["/san-pham/a/b/", 404], ["/sua-bot-cho-nguoi-gia/", 200],
     ["/san-pham/?q=bad-root", 500], ["/san-pham/?q=bad-list-channel", 500], ["/san-pham/?q=bad-list-locale", 500],
     ["/san-pham/?q=bad-list-currency", 500], ["/san-pham/?q=bad-item", 500], ["/san-pham/?q=bad-tier", 500],
+    ["/san-pham/?q=bad-contact-missing", 500], ["/san-pham/?q=bad-contact-invariant", 500],
     ["/san-pham/?q=bad-image", 500], ["/san-pham/?q=bad-image-shape", 500], ["/san-pham/?q=valid-image", 200],
     ["/san-pham/?q=redirect", 500], ["/san-pham/?q=timeout", 500],
   ]) {
@@ -163,6 +172,29 @@ try {
   assert.equal(seenQueries.at(-1)?.length, 100, "Catalog query must cap at 100 characters");
   const listHtml = await (await fetchWithTimeout(`${origin}/san-pham/`, {}, "catalog input markup")).text();
   assert.match(listHtml, /maxLength="100"/i, "Catalog search input must cap at 100 characters");
+  assert.match(listHtml, /Liên hệ từ[\s\S]*?100[\s\S]*?kg/i, "Catalog card must expose the large-order contact threshold");
+  const detailHtml = await (await fetchWithTimeout(`${origin}/san-pham/bot-cacao/`, {}, "catalog detail markup")).text();
+  assert.match(detailHtml, /min="20"/i, "Quantity selector must enforce MOQ");
+  assert.match(detailHtml, /step="5"/i, "Quantity selector must enforce the configured step");
+  assert.match(detailHtml, /Từ[\s\S]*?100[\s\S]*?kg[\s\S]*?Liên hệ/i, "Detail must expose the custom-price threshold");
+  const homeHtml = await (await fetchWithTimeout(`${origin}/`, {}, "home navigation markup")).text();
+  assert.match(homeHtml, />Mua hàng</i, "Primary navigation must expose the shopping path");
+  assert.match(homeHtml, />Thuê gia công</i, "Primary navigation must expose the manufacturing-service path");
+  assert.match(
+    homeHtml,
+    /Thuê gia công<i class="icon-angle-down"><\/i>/i,
+    "Manufacturing-service navigation must retain its mega-menu affordance",
+  );
+  assert.doesNotMatch(
+    homeHtml,
+    /<li[^>]*id="menu-item-1742"[^>]*has-dropdown/i,
+    "Shopping navigation must be a direct link without a mega menu",
+  );
+  assert.doesNotMatch(
+    homeHtml,
+    /Mua hàng<i class="icon-angle-down"><\/i>/i,
+    "Shopping navigation must not render a dropdown affordance",
+  );
 } finally {
   await stopChild(app, appPort, logs);
   fakeSockets.forEach((socket) => socket.destroy());
