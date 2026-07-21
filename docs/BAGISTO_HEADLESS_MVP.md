@@ -11,6 +11,7 @@ Bagisto là backend và nguồn dữ liệu chính. Next.js là storefront. Fron
 - Frontend dùng Next.js 16, React 19 và TypeScript; giao diện hiện có chủ yếu là storefront tĩnh.
 - Bagisto/Laravel và MySQL đã có trong `bagisto/`; storefront chưa kết nối hoàn chỉnh với catalog, pricing và cart.
 - Route Next.js `POST /api/contact` đang chuyển dữ liệu sang `POST /api/b2b/briefs` của package `Acme/B2b`.
+- Email liên hệ chấp nhận cú pháp RFC và không thực hiện tra cứu DNS đồng bộ; Bagisto xác thực contract này ở ranh giới persistence.
 - Chưa có luồng giỏ hàng bán sỉ hoàn chỉnh, quản trị yêu cầu đặt hàng, Google Sheet hoặc webhook sản xuất.
 - B2B Suite, GraphQL và customer account không thuộc phạm vi MVP.
 - Thư mục `bagisto/` hiện chưa được Git theo dõi; phải tạo baseline an toàn trước khi triển khai lớn.

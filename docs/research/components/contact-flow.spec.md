@@ -13,6 +13,9 @@
   `message`, and `source`.
 - The Next.js route validates name, phone, and optional email server-side, then
   forwards only normalized fields to Bagisto at `POST /api/b2b/briefs`.
+- The contact email contract accepts RFC-syntax email addresses without a
+  synchronous DNS lookup; Bagisto is the final validation authority for this
+  syntactic rule.
 - `BAGISTO_API_URL` and `BAGISTO_API_TIMEOUT_MS` remain server-only variables;
   a missing configuration returns HTTP 503.
 - Valid Bagisto responses must include `ok: true` and a non-empty reference;
