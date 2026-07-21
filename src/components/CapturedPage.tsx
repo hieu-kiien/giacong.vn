@@ -23,7 +23,15 @@ export function CapturedPage({
         suppressHydrationWarning
         dangerouslySetInnerHTML={{ __html: normalizedMarkup }}
       />
-      <div className="echbay-sms-messenger style-for-position-br" aria-label="Liên hệ nhanh">
+      <CapturedFloatingContact />
+      <GiacongInteractions bodyClasses={bodyClasses} htmlClasses={htmlClasses} />
+    </>
+  );
+}
+
+export function CapturedFloatingContact() {
+  return (
+    <div className="echbay-sms-messenger style-for-position-br" aria-label="Liên hệ nhanh">
         <div className="phonering-alo-alo">
           <a href="tel:0947142999" rel="nofollow" aria-label="Gọi 0947142999">.</a>
         </div>
@@ -50,8 +58,6 @@ export function CapturedPage({
             .
           </a>
         </div>
-      </div>
-      <GiacongInteractions bodyClasses={bodyClasses} htmlClasses={htmlClasses} />
-    </>
+    </div>
   );
 }
