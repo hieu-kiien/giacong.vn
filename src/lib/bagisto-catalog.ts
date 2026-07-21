@@ -66,6 +66,7 @@ function parseProductList(payload: unknown): CatalogProductList {
   const root = record(payload, "Sản phẩm");
   const data = array(root.data, "Sản phẩm.data");
   const meta = record(root.meta, "Sản phẩm.meta");
+  validateCatalogMeta(meta, "Sản phẩm.meta");
   const products = data.map((item, index) => parseProduct(item, `Sản phẩm.data[${index}]`));
   return {
     products,
@@ -81,8 +82,14 @@ function parseProductList(payload: unknown): CatalogProductList {
 function parseProductResponse(payload: unknown): CatalogProduct {
   const root = record(payload, "Sản phẩm");
   const meta = record(root.meta, "Sản phẩm.meta");
-  if (string(meta.currency, "Sản phẩm.meta.currency") !== "VND") throw invalid("Sản phẩm.meta.currency phải là VND.");
+  validateCatalogMeta(meta, "Sản phẩm.meta");
   return parseProduct(root.data, "Sản phẩm.data");
+}
+
+function validateCatalogMeta(meta: Record<string, unknown>, label: string) {
+  nonEmptyString(meta.channel, `${label}.channel`);
+  nonEmptyString(meta.locale, `${label}.locale`);
+  if (string(meta.currency, `${label}.currency`) !== "VND") throw invalid(`${label}.currency phải là VND.`);
 }
 
 function parseProduct(payload: unknown, label: string): CatalogProduct {
