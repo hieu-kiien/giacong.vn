@@ -1,3 +1,9 @@
+import {
+  getBagistoApiTimeoutMs,
+  getBagistoApiUrl,
+  BagistoApiConfigurationError,
+} from "@/lib/bagisto-api";
+
 interface ContactSubmission {
   email: string;
   message: string;
@@ -11,21 +17,6 @@ interface BriefApiResponse {
     reference?: string;
   };
   ok?: boolean;
-}
-
-const DEFAULT_BAGISTO_API_TIMEOUT_MS = 5_000;
-const MAX_BAGISTO_API_TIMEOUT_MS = 30_000;
-
-function getBagistoApiTimeoutMs() {
-  const configuredTimeout = Number(process.env.BAGISTO_API_TIMEOUT_MS);
-  if (
-    !Number.isInteger(configuredTimeout)
-    || configuredTimeout < 100
-    || configuredTimeout > MAX_BAGISTO_API_TIMEOUT_MS
-  ) {
-    return DEFAULT_BAGISTO_API_TIMEOUT_MS;
-  }
-  return configuredTimeout;
 }
 
 function hasReference(result: BriefApiResponse | null): result is BriefApiResponse & {
@@ -96,8 +87,11 @@ export async function POST(request: Request) {
     );
   }
 
-  const bagistoApiUrl = process.env.BAGISTO_API_URL;
-  if (!bagistoApiUrl) {
+  let bagistoApiUrl: URL;
+  try {
+    bagistoApiUrl = getBagistoApiUrl("/api/b2b/briefs");
+  } catch (error) {
+    if (!(error instanceof BagistoApiConfigurationError)) throw error;
     return Response.json(
       { ok: false, message: "Dịch vụ tiếp nhận yêu cầu chưa được cấu hình." },
       { status: 503 },
@@ -112,7 +106,7 @@ export async function POST(request: Request) {
   let response: Response;
   let result: BriefApiResponse | null;
   try {
-    response = await fetch(new URL("/api/b2b/briefs", bagistoApiUrl), {
+    response = await fetch(bagistoApiUrl, {
       body: payload,
       cache: "no-store",
       headers: { Accept: "application/json" },

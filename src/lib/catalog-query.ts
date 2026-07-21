@@ -3,7 +3,7 @@ import type { CatalogFilters } from "@/types/catalog";
 type SearchParameter = string | string[] | undefined;
 
 export function parseCatalogFilters(searchParams: Record<string, SearchParameter>): CatalogFilters {
-  const query = firstValue(searchParams.q).trim().slice(0, 120);
+  const query = firstValue(searchParams.q).trim().slice(0, 100);
   const category = firstValue(searchParams.category).trim().slice(0, 120);
   const parsedPage = Number.parseInt(firstValue(searchParams.page), 10);
 

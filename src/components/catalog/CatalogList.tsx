@@ -26,7 +26,7 @@ export function CatalogList({ categories, filters, result }: CatalogListProps) {
         <form className={styles.filters} action="/san-pham/" method="get">
           <label className={styles.field} htmlFor="catalog-query">
             Tìm sản phẩm
-            <input defaultValue={filters.query} id="catalog-query" name="q" type="search" />
+            <input defaultValue={filters.query} id="catalog-query" maxLength={100} name="q" type="search" />
           </label>
           <label className={styles.field} htmlFor="catalog-category">
             Danh mục

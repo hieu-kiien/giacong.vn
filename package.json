@@ -33,6 +33,7 @@
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "qa:captured": "node scripts/verify-captured-routes.mjs",
+    "qa:catalog": "node scripts/verify-catalog-storefront.mjs",
     "check": "npm run lint && npm run typecheck && npm run build"
   },
   "dependencies": {

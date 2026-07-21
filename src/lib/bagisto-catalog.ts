@@ -2,6 +2,7 @@ import "server-only";
 
 import { cache } from "react";
 
+import { fetchBagistoJson, getBagistoApiUrl } from "@/lib/bagisto-api";
 import type {
   CatalogCategory,
   CatalogFilters,
@@ -9,8 +10,6 @@ import type {
   CatalogProductList,
   CatalogTierPrice,
 } from "@/types/catalog";
-
-const DEFAULT_API_ORIGIN = "http://127.0.0.1:8000";
 
 export class CatalogApiError extends Error {
   constructor(message: string, readonly status?: number) {
@@ -20,149 +19,174 @@ export class CatalogApiError extends Error {
 }
 
 export async function getCatalogProducts(filters: CatalogFilters): Promise<CatalogProductList> {
-  const url = catalogUrl("/api/b2b/catalog/products");
+  const url = getBagistoApiUrl("/api/b2b/catalog/products", true);
   if (filters.query) url.searchParams.set("q", filters.query);
   if (filters.category) url.searchParams.set("category", filters.category);
   url.searchParams.set("page", String(filters.page));
   url.searchParams.set("per_page", "12");
-
-  return parseProductList(await fetchCatalog(url));
+  return parseProductList(await fetchJson(url));
 }
 
 export const getCatalogProduct = cache(async (slug: string): Promise<CatalogProduct | null> => {
-  const url = catalogUrl(`/api/b2b/catalog/products/${encodeURIComponent(slug)}`);
-  const response = await fetch(url, { cache: "no-store", headers: { Accept: "application/json" } });
+  const url = getBagistoApiUrl(`/api/b2b/catalog/products/${encodeURIComponent(slug)}`, true);
+  const { payload, response } = await catalogJson(url);
   if (response.status === 404) return null;
-  return parseProduct(await responseBody(response));
+  return parseProductResponse(responsePayload(response, payload));
 });
 
 export const getCatalogCategories = cache(async (): Promise<CatalogCategory[]> => {
-  const url = catalogUrl("/api/b2b/catalog/categories");
-  const payload = await fetchCatalog(url);
-  const data = objectValue(payload).data;
-  const values = Array.isArray(data) ? data : Array.isArray(payload) ? payload : [];
-
-  return values.map(parseCategory).filter((category): category is CatalogCategory => category !== null);
+  const root = record(await fetchJson(getBagistoApiUrl("/api/b2b/catalog/categories", true)), "Danh mục");
+  const data = array(root.data, "Danh mục.data");
+  const meta = record(root.meta, "Danh mục.meta");
+  string(meta.channel, "Danh mục.meta.channel");
+  string(meta.locale, "Danh mục.meta.locale");
+  return data.map((item, index) => parseCategory(item, `Danh mục.data[${index}]`));
 });
 
-async function fetchCatalog(url: URL): Promise<unknown> {
-  const response = await fetch(url, { cache: "no-store", headers: { Accept: "application/json" } });
-  return responseBody(response);
+async function fetchJson(url: URL): Promise<unknown> {
+  const { payload, response } = await catalogJson(url);
+  return responsePayload(response, payload);
 }
 
-async function responseBody(response: Response): Promise<unknown> {
-  if (!response.ok) throw new CatalogApiError("Không thể tải dữ liệu danh mục.", response.status);
-  return response.json() as Promise<unknown>;
-}
-
-function catalogUrl(pathname: string): URL {
-  const configuredOrigin = process.env.BAGISTO_API_URL?.trim() || DEFAULT_API_ORIGIN;
+async function catalogJson(url: URL) {
   try {
-    return new URL(pathname, withTrailingSlash(configuredOrigin));
-  } catch {
-    throw new CatalogApiError("BAGISTO_API_URL không hợp lệ.");
+    return await fetchBagistoJson(url, { headers: { Accept: "application/json" } });
+  } catch (error) {
+    if (error instanceof SyntaxError) throw new CatalogApiError("Dịch vụ danh mục trả về JSON không hợp lệ.");
+    throw error;
   }
 }
 
-function withTrailingSlash(value: string): string {
-  return value.endsWith("/") ? value : `${value}/`;
+function responsePayload(response: Response, payload: unknown): unknown {
+  if (!response.ok) throw new CatalogApiError("Không thể tải dữ liệu danh mục.", response.status);
+  return payload;
 }
 
 function parseProductList(payload: unknown): CatalogProductList {
-  const root = objectValue(payload);
-  const productValues = Array.isArray(root.data) ? root.data : Array.isArray(payload) ? payload : [];
-  const paginationValue = objectValue(root.meta ?? root.pagination);
-  const products = productValues.map(parseProduct).filter((product): product is CatalogProduct => product !== null);
-
+  const root = record(payload, "Sản phẩm");
+  const data = array(root.data, "Sản phẩm.data");
+  const meta = record(root.meta, "Sản phẩm.meta");
+  const products = data.map((item, index) => parseProduct(item, `Sản phẩm.data[${index}]`));
   return {
     products,
     pagination: {
-      currentPage: positiveNumber(paginationValue.current_page ?? paginationValue.currentPage, 1),
-      lastPage: positiveNumber(paginationValue.last_page ?? paginationValue.lastPage, 1),
-      perPage: positiveNumber(paginationValue.per_page ?? paginationValue.perPage, products.length || 1),
-      total: nonNegativeNumber(paginationValue.total, products.length),
+      currentPage: positiveInteger(meta.current_page, "Sản phẩm.meta.current_page"),
+      lastPage: positiveInteger(meta.last_page, "Sản phẩm.meta.last_page"),
+      perPage: positiveInteger(meta.per_page, "Sản phẩm.meta.per_page"),
+      total: nonNegativeInteger(meta.total, "Sản phẩm.meta.total"),
     },
   };
 }
 
-function parseProduct(payload: unknown): CatalogProduct | null {
-  const value = objectValue(payload);
-  const source = objectValue(value.data ?? value.product ?? payload);
-  const id = positiveNumber(source.id, 0);
-  const name = stringValue(source.name);
-  const slug = stringValue(source.slug);
-  if (!id || !name || !slug) return null;
+function parseProductResponse(payload: unknown): CatalogProduct {
+  const root = record(payload, "Sản phẩm");
+  const meta = record(root.meta, "Sản phẩm.meta");
+  if (string(meta.currency, "Sản phẩm.meta.currency") !== "VND") throw invalid("Sản phẩm.meta.currency phải là VND.");
+  return parseProduct(root.data, "Sản phẩm.data");
+}
 
-  const categoryValues = source.categories;
-  const categories = Array.isArray(categoryValues)
-    ? categoryValues.map(parseCategory).filter((item): item is CatalogCategory => item !== null)
-    : [];
-  const tierValues = source.tier_prices ?? source.tierPrices;
-  const tiers = Array.isArray(tierValues)
-    ? tierValues.map(parseTier).filter((tier): tier is CatalogTierPrice => tier !== null)
-    : [];
-
+function parseProduct(payload: unknown, label: string): CatalogProduct {
+  const value = record(payload, label);
+  positiveInteger(value.id, `${label}.id`);
+  string(value.sku, `${label}.sku`);
+  const categories = array(value.categories, `${label}.categories`)
+    .map((item, index) => parseCategory(item, `${label}.categories[${index}]`));
+  const tiers = array(value.tier_prices, `${label}.tier_prices`)
+    .map((item, index) => parseTier(item, `${label}.tier_prices[${index}]`));
   return {
-    id,
-    name,
-    slug,
-    shortDescription: stringValue(source.short_description ?? source.shortDescription ?? source.description),
-    description: stringValue(source.description),
-    imageUrl: imageUrl(source.image_url ?? source.imageUrl ?? source.image),
-    minimumOrderQuantity: positiveNumber(source.minimum_order_quantity ?? source.minimumOrderQuantity ?? source.moq, 1),
-    quantityStep: positiveNumber(source.quantity_step ?? source.quantityStep, 1),
-    unit: stringValue(source.unit) || "sản phẩm",
-    price: tiers[0]?.price ?? nonNegativeNumber(source.price ?? source.final_price ?? source.finalPrice, 0),
+    id: positiveInteger(value.id, `${label}.id`),
+    name: nonEmptyString(value.name, `${label}.name`),
+    slug: nonEmptyString(value.slug, `${label}.slug`),
+    shortDescription: nullableString(value.description, `${label}.description`) ?? "",
+    description: nullableString(value.description, `${label}.description`) ?? "",
+    imageUrl: parseImage(value.image, `${label}.image`),
+    minimumOrderQuantity: positiveInteger(value.moq, `${label}.moq`),
+    quantityStep: positiveInteger(value.quantity_step, `${label}.quantity_step`),
+    unit: nonEmptyString(value.unit, `${label}.unit`),
+    price: tiers[0]?.price ?? 0,
     tierPrices: tiers,
     category: categories[0] ?? null,
   };
 }
 
-function parseCategory(payload: unknown): CatalogCategory | null {
-  const value = objectValue(payload);
-  const id = positiveNumber(value.id, 0);
-  const name = stringValue(value.name);
-  const slug = stringValue(value.slug);
-  return id && name && slug ? { id, name, slug } : null;
+function parseCategory(payload: unknown, label: string): CatalogCategory {
+  const value = record(payload, label);
+  positiveInteger(value.id, `${label}.id`);
+  nullableInteger(value.parent_id, `${label}.parent_id`);
+  nullableString(value.description, `${label}.description`);
+  parseImage(value.image, `${label}.image`);
+  return {
+    id: positiveInteger(value.id, `${label}.id`),
+    name: nonEmptyString(value.name, `${label}.name`),
+    slug: nonEmptyString(value.slug, `${label}.slug`),
+  };
 }
 
-function parseTier(payload: unknown): CatalogTierPrice | null {
-  const value = objectValue(payload);
-  const minQuantity = positiveNumber(value.min_quantity ?? value.minQuantity ?? value.qty, 0);
-  const price = nonNegativeNumber(value.price ?? value.unit_price ?? value.unitPrice, -1);
-  return minQuantity && price >= 0 ? { minQuantity, price } : null;
+function parseTier(payload: unknown, label: string): CatalogTierPrice {
+  const value = record(payload, label);
+  if (string(value.currency, `${label}.currency`) !== "VND") throw invalid(`${label}.currency phải là VND.`);
+  return {
+    minQuantity: positiveInteger(value.min_quantity, `${label}.min_quantity`),
+    price: nonNegativeInteger(value.unit_price, `${label}.unit_price`),
+  };
 }
 
-function objectValue(value: unknown): Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value)
-    ? value as Record<string, unknown>
-    : {};
-}
-
-function stringValue(value: unknown): string {
-  return typeof value === "string" ? value : "";
-}
-
-function imageUrl(value: unknown): string | null {
-  const string = typeof value === "object" && value !== null
-    ? stringValue(objectValue(value).url)
-    : stringValue(value);
-  if (!string) return null;
-
+function parseImage(value: unknown, label: string): string | null {
+  if (value === null) return null;
+  const image = record(value, label);
+  const keys = Object.keys(image).sort();
+  if (keys.length !== 2 || keys[0] !== "alt" || keys[1] !== "url") throw invalid(`${label} không đúng định dạng.`);
+  const url = nonEmptyString(image.url, `${label}.url`);
+  nullableString(image.alt, `${label}.alt`);
+  let parsed: URL;
   try {
-    const url = new URL(string, catalogUrl("/"));
-    return url.protocol === "http:" || url.protocol === "https:" ? url.toString() : null;
+    parsed = new URL(url, getBagistoApiUrl("/", true));
   } catch {
-    return null;
+    throw invalid(`${label}.url không hợp lệ.`);
   }
+  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") throw invalid(`${label}.url không hợp lệ.`);
+  return parsed.toString();
 }
 
-function positiveNumber(value: unknown, fallback: number): number {
-  const number = typeof value === "number" ? value : Number(value);
-  return Number.isFinite(number) && number > 0 ? number : fallback;
+function record(value: unknown, label: string): Record<string, unknown> {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) throw invalid(`${label} phải là object.`);
+  return value as Record<string, unknown>;
 }
 
-function nonNegativeNumber(value: unknown, fallback: number): number {
-  const number = typeof value === "number" ? value : Number(value);
-  return Number.isFinite(number) && number >= 0 ? number : fallback;
+function array(value: unknown, label: string): unknown[] {
+  if (!Array.isArray(value)) throw invalid(`${label} phải là mảng.`);
+  return value;
+}
+
+function string(value: unknown, label: string): string {
+  if (typeof value !== "string") throw invalid(`${label} phải là chuỗi.`);
+  return value;
+}
+
+function nonEmptyString(value: unknown, label: string): string {
+  const result = string(value, label).trim();
+  if (!result) throw invalid(`${label} không được rỗng.`);
+  return result;
+}
+
+function nullableString(value: unknown, label: string): string | null {
+  return value === null ? null : string(value, label);
+}
+
+function positiveInteger(value: unknown, label: string): number {
+  if (typeof value !== "number" || !Number.isInteger(value) || value < 1) throw invalid(`${label} phải là số nguyên dương.`);
+  return value;
+}
+
+function nonNegativeInteger(value: unknown, label: string): number {
+  if (typeof value !== "number" || !Number.isInteger(value) || value < 0) throw invalid(`${label} phải là số nguyên không âm.`);
+  return value;
+}
+
+function nullableInteger(value: unknown, label: string): number | null {
+  return value === null ? null : positiveInteger(value, label);
+}
+
+function invalid(message: string): CatalogApiError {
+  return new CatalogApiError(`Dữ liệu danh mục không hợp lệ: ${message}`);
 }
