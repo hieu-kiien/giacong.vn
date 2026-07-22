@@ -12,7 +12,7 @@ async function stop(process) { if (process.exitCode === null) process.kill("SIGT
 function body(response, status, payload, cookies = []) { response.writeHead(status, { "Content-Type": "application/json", "Set-Cookie": cookies }); response.end(JSON.stringify(payload)); }
 
 const requests = [];
-const upstream = createServer((request, response) => {
+const upstream = createServer(async (request, response) => {
   const url = new URL(request.url ?? "/", "http://127.0.0.1"); const cookie = request.headers.cookie ?? ""; const xsrf = request.headers["x-xsrf-token"];
   requests.push({ path: url.pathname, method: request.method, cookie, xsrf });
   assert.doesNotMatch(cookie, /marketing=secret/, "Only allowlisted administrative cookies may reach Bagisto.");
@@ -23,6 +23,7 @@ const upstream = createServer((request, response) => {
   if (url.pathname.endsWith("/product-aggregates")) return body(response, 200, { data: [], links: { first: null, last: null, prev: null, next: null }, meta: { current_page: 1, from: null, last_page: 1, path: "/api/b2b/admin/v1/product-aggregates", per_page: 12, to: null, total: 0, channel: "default", locale: "vi", currency: "VND", contract_version: 1 } });
   if (url.pathname.endsWith("/session") && request.method === "POST") {
     assert.match(cookie, /XSRF-TOKEN=abc%2520token/); assert.match(cookie, /laravel_session=pre-session/); assert.equal(xsrf, "abc%20token");
+    let raw = ""; for await (const chunk of request) raw += chunk; assert.equal(JSON.parse(raw).password, " secret ", "Passwords must retain their original bytes.");
     return body(response, 202, { code: "two_factor_required", message: "x", trace_id: "00000000-0000-4000-8000-000000000000" }, ["laravel_session=two-factor-session; Path=/; HttpOnly"]);
   }
   if (url.pathname.endsWith("/two-factor")) { assert.match(cookie, /laravel_session=two-factor-session/); assert.equal(xsrf, "abc%20token"); return body(response, 200, { data: { two_factor_verified: true } }, ["laravel_session=verified-session; Path=/; HttpOnly"]); }
@@ -48,7 +49,7 @@ try {
   const jsonx = await fetch(`${origin}/api/quan-tri/session`, { method: "POST", headers: { "Content-Type": "application/jsonx", Origin: origin }, body: "{}" }); assert.equal(jsonx.status, 422, "Only the exact JSON media type is accepted.");
   const oversized = new ReadableStream({ start(controller) { controller.enqueue(new TextEncoder().encode("x".repeat(1_000_001))); controller.close(); } });
   const oversizedResponse = await fetch(`${origin}/api/quan-tri/session`, { method: "POST", headers: { "Content-Type": "application/json", Origin: origin }, body: oversized, duplex: "half" }); assert.equal(oversizedResponse.status, 422, "Chunked mutation bodies must stop at 1MB.");
-  const login = await fetch(`${origin}/api/quan-tri/session`, { method: "POST", headers: { "Content-Type": "application/json", Origin: origin, Cookie: "marketing=secret" }, body: JSON.stringify({ email: "a@example.test", password: "correct-password" }) }); assert.equal(login.status, 202); const loginCookies = login.headers.getSetCookie(); assert.equal(loginCookies.length, 3); assert.equal(loginCookies.some((value) => value.startsWith("marketing=")), false); const cookie = loginCookies.map((value) => value.split(";", 1)[0]).join("; ");
+  const login = await fetch(`${origin}/api/quan-tri/session`, { method: "POST", headers: { "Content-Type": "application/json", Origin: origin, Cookie: "marketing=secret" }, body: JSON.stringify({ email: "a@example.test", password: " secret " }) }); assert.equal(login.status, 202); const loginCookies = login.headers.getSetCookie(); assert.equal(loginCookies.length, 3); assert.equal(loginCookies.some((value) => value.startsWith("marketing=")), false); const cookie = loginCookies.map((value) => value.split(";", 1)[0]).join("; ");
   const twoFactor = await fetch(`${origin}/api/quan-tri/two-factor`, { method: "POST", headers: { "Content-Type": "application/json", Origin: origin, Cookie: cookie }, body: JSON.stringify({ code: "123456" }) }); assert.equal(twoFactor.status, 200); const verifiedCookie = [...loginCookies, ...twoFactor.headers.getSetCookie()].map((value) => value.split(";", 1)[0]).join("; ");
   const logout = await fetch(`${origin}/api/quan-tri/session`, { method: "DELETE", headers: { Origin: origin, Cookie: verifiedCookie } }); assert.equal(logout.status, 204); assert.equal(logout.headers.getSetCookie().length, 2);
   assert.deepEqual(requests.map((request) => `${request.method} ${request.path}`), ["GET /api/b2b/admin/v1/me", "GET /api/b2b/admin/v1/me", "GET /api/b2b/admin/v1/me", "GET /api/b2b/admin/v1/me", "GET /api/b2b/admin/v1/me", "GET /api/b2b/admin/v1/me", "POST /api/b2b/admin/v1/session", "POST /api/b2b/admin/v1/two-factor", "DELETE /api/b2b/admin/v1/session"]);
