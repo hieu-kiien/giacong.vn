@@ -2,8 +2,9 @@ import { redirect } from "next/navigation";
 import { can, getAdmin, getDashboard } from "@/lib/admin-server";
 
 export default async function Dashboard() {
-  const admin = await getAdmin();
-  if (!admin) redirect("/quan-tri/dang-nhap");
+  const session = await getAdmin();
+  if (session.kind !== "authenticated") redirect("/quan-tri/dang-nhap");
+  const admin = session.admin;
   if (!can(admin, "b2b.dashboard")) redirect("/quan-tri/san-pham");
   const data = await getDashboard();
   if (!data) return <section><h1 className="text-2xl font-semibold">Tổng quan</h1><p role="alert" className="mt-4 rounded border border-[#d5c3a2] bg-[#fff9ed] p-4">Không thể tải số liệu được cấp quyền. Vui lòng thử lại.</p></section>;

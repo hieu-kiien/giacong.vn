@@ -56,7 +56,7 @@ export function parseProductList(payload: unknown): AdminProductList {
   const meta = exact(root.meta, ["channel", "contract_version", "currency", "current_page", "from", "last_page", "locale", "path", "per_page", "to", "total"]);
   const links = exact(root.links, ["first", "last", "prev", "next"]);
   nullableText(links.first); nullableText(links.last); nullableText(links.prev); nullableText(links.next);
-  version(meta);
+  listVersion(meta);
   const currentPage = positive(meta.current_page); const lastPage = positive(meta.last_page); const perPage = positive(meta.per_page); const total = nonNegative(meta.total);
   nullablePositive(meta.from); nullablePositive(meta.to); nonEmpty(meta.path);
   if (currentPage > lastPage || perPage > 48) bad();
@@ -99,8 +99,7 @@ export function parseLogin(payload: unknown, status: number): { two_factor_requi
 }
 
 function parseProduct(payload: unknown): AdminProduct {
-  const raw = record(payload);
-  const value = exact({ id: raw.id, type: raw.type, sku: raw.sku, slug: raw.slug, name: raw.name, description: raw.description, image: raw.image, categories: raw.categories, variant_count: raw.variant_count, available_variant_count: raw.available_variant_count, starting_price: raw.starting_price }, ["id", "type", "sku", "slug", "name", "description", "image", "categories", "variant_count", "available_variant_count", "starting_price"]);
+  const value = exact(payload, ["id", "type", "sku", "slug", "name", "description", "image", "categories", "variant_count", "available_variant_count", "starting_price"]);
   if (text(value.type) !== "configurable") bad();
   const price = value.starting_price === null ? null : exact(value.starting_price, ["unit_price", "currency"]);
   if (price && text(price.currency) !== "VND") bad();
@@ -113,7 +112,8 @@ function parseProduct(payload: unknown): AdminProduct {
 function validateVariantIndex(value: unknown, groups: AdminProductDetail["option_groups"], variants: AdminProductDetail["variants"]) { const index = record(value); const ids = variants.map((variant) => String(variant.id)); if (Object.keys(index).length !== ids.length || ids.some((id) => !(id in index))) bad(); for (const variant of variants) { const selected = record(index[String(variant.id)]); if (Object.keys(selected).length !== groups.length) bad(); for (const group of groups) { if (positive(selected[group.code]) !== variant.option_values.find((item) => item.attribute_id === group.attribute_id)?.option_id) bad(); } } }
 function image(value: unknown) { if (value === null) return; const item = exact(value, ["url", "alt"]); nonEmpty(item.url); nullableText(item.alt); }
 
-function version(value: unknown) { const meta = record(value); if (positive(meta.contract_version) !== 1 || text(meta.currency) !== "VND" || !nonEmpty(meta.channel) || !nonEmpty(meta.locale)) bad(); }
+function version(value: unknown) { const meta = exact(value, ["channel", "locale", "currency", "contract_version"]); if (positive(meta.contract_version) !== 1 || text(meta.currency) !== "VND" || !nonEmpty(meta.channel) || !nonEmpty(meta.locale)) bad(); }
+function listVersion(meta: Record<string, unknown>) { if (positive(meta.contract_version) !== 1 || text(meta.currency) !== "VND" || !nonEmpty(meta.channel) || !nonEmpty(meta.locale)) bad(); }
 function exact(value: unknown, keys: string[]) { const result = record(value); if (Object.keys(result).length !== keys.length || keys.some((key) => !(key in result))) bad(); return result; }
 function record(value: unknown): Record<string, unknown> { if (typeof value !== "object" || value === null || Array.isArray(value)) bad(); return value as Record<string, unknown>; }
 function list(value: unknown): unknown[] { if (!Array.isArray(value)) bad(); return value; }

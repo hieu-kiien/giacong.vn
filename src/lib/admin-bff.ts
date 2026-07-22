@@ -28,9 +28,8 @@ export function requireSameOrigin(request: Request): void {
 export function parseExactJson(request: Request, keys: readonly string[]): Promise<Record<string, unknown>> {
   const contentType = request.headers.get("content-type")?.toLowerCase() ?? "";
   const length = Number(request.headers.get("content-length"));
-  if (!contentType.startsWith("application/json") || (Number.isFinite(length) && length > MAX_JSON_BYTES)) return Promise.reject(new AdminBffError(422, "validation_failed"));
-  return request.text().then((text) => {
-    if (new TextEncoder().encode(text).byteLength > MAX_JSON_BYTES) throw new AdminBffError(422, "validation_failed");
+  if (!isJsonMediaType(contentType) || (Number.isFinite(length) && length > MAX_JSON_BYTES)) return Promise.reject(new AdminBffError(422, "validation_failed"));
+  return readBody(request.body, 422).then((text) => {
     let value: unknown; try { value = JSON.parse(text) as unknown; } catch { throw new AdminBffError(422, "validation_failed"); }
     if (!isRecord(value) || Object.keys(value).length !== keys.length || keys.some((key) => !(key in value))) throw new AdminBffError(422, "validation_failed");
     return value;
@@ -41,6 +40,7 @@ export function safeText(value: unknown, max = 255): string {
   if (typeof value !== "string" || !value.trim() || value.length > max) throw new AdminBffError(422, "validation_failed");
   return value.trim();
 }
+export function safePassword(value: unknown): string { if (typeof value !== "string" || value.length === 0 || value.length > 255) throw new AdminBffError(422, "validation_failed"); return value; }
 
 export async function callAdminApi(request: Request, operation: AdminOperation, options: { body?: Record<string, string>; query?: URLSearchParams; slug?: string; bootstrap?: boolean } = {}): Promise<AdminUpstreamResult> {
   const spec = operations[operation];
@@ -84,8 +84,8 @@ function baseUrl(): URL {
 
 async function responseJson(response: Response): Promise<unknown> {
   const length = Number(response.headers.get("content-length"));
-  if (!response.headers.get("content-type")?.toLowerCase().includes("application/json") || (Number.isFinite(length) && length > MAX_JSON_BYTES)) throw new AdminBffError(502, "upstream_unavailable");
-  const body = await response.text(); if (new TextEncoder().encode(body).byteLength > MAX_JSON_BYTES) throw new AdminBffError(502, "upstream_unavailable");
+  if (!isJsonMediaType(response.headers.get("content-type")?.toLowerCase() ?? "") || (Number.isFinite(length) && length > MAX_JSON_BYTES)) throw new AdminBffError(502, "upstream_unavailable");
+  const body = await readBody(response.body);
   try { return JSON.parse(body) as unknown; } catch { throw new AdminBffError(502, "upstream_unavailable"); }
 }
 
@@ -118,4 +118,6 @@ function xsrf(cookie: string): string | null {
   const encoded = cookie.split(";").map((part) => part.trim()).find((part) => part.startsWith("XSRF-TOKEN="))?.slice("XSRF-TOKEN=".length);
   if (!encoded) return null; try { const decoded = decodeURIComponent(encoded); return decoded && !/[\r\n]/.test(decoded) ? decoded : null; } catch { return null; }
 }
+async function readBody(body: ReadableStream<Uint8Array> | null, failureStatus = 502): Promise<string> { const code = failureStatus === 422 ? "validation_failed" : "upstream_unavailable"; if (!body) throw new AdminBffError(failureStatus, code); const reader = body.getReader(); const chunks: Uint8Array[] = []; let total = 0; try { while (true) { const next = await reader.read(); if (next.done) break; total += next.value.byteLength; if (total > MAX_JSON_BYTES) { await reader.cancel(); throw new AdminBffError(failureStatus, code); } chunks.push(next.value); } } finally { reader.releaseLock(); } const merged = new Uint8Array(total); let offset = 0; for (const chunk of chunks) { merged.set(chunk, offset); offset += chunk.byteLength; } return new TextDecoder().decode(merged); }
+function isJsonMediaType(value: string): boolean { return value.split(";", 1)[0].trim() === "application/json"; }
 function isRecord(value: unknown): value is Record<string, unknown> { return typeof value === "object" && value !== null && !Array.isArray(value); }
