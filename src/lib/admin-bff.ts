@@ -43,7 +43,7 @@ export async function callAdminApi(request: Request, operation: AdminOperation, 
   if (incomingCookie.length > 16_384 || /[\r\n]/.test(incomingCookie)) throw new AdminBffError(400, "invalid_request");
   let cookie = incomingCookie;
   const cookies: string[] = [];
-  if (options.bootstrap) {
+  if (options.bootstrap && !xsrf(cookie)) {
     const bootstrap = await fetchAdmin("/me", "GET", cookie);
     cookies.push(...bootstrap.setCookies); cookie = cookieJar(cookie, bootstrap.setCookies);
   }
