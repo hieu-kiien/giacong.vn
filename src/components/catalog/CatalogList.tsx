@@ -20,6 +20,12 @@ export function CatalogList({ categories, filters, result }: CatalogListProps) {
   const queryInputRef = useRef<HTMLInputElement>(null);
   const [isPending, startTransition] = useTransition();
   const pages = paginationPages(result.pagination.currentPage, result.pagination.lastPage);
+  const committedFilterKey = JSON.stringify([
+    filters.query,
+    filters.category,
+    filters.page,
+    result.pagination.perPage,
+  ]);
 
   const updateFilters = (nextFilters: CatalogFilters) => {
     const normalized = { ...nextFilters, page: 1 };
@@ -46,11 +52,14 @@ export function CatalogList({ categories, filters, result }: CatalogListProps) {
           <label className={styles.field} htmlFor="catalog-query">
             Tìm sản phẩm
             <input
+              aria-busy={isPending}
+              aria-describedby="catalog-result-status"
               id="catalog-query"
               defaultValue={filters.query}
-              key={filters.query}
+              key={committedFilterKey}
               maxLength={100}
               name="q"
+              readOnly={isPending}
               ref={queryInputRef}
               type="search"
             />
@@ -75,7 +84,7 @@ export function CatalogList({ categories, filters, result }: CatalogListProps) {
           </fieldset>
         </form>
 
-        <p className={styles.resultCount} aria-live="polite">{isPending ? "Đang cập nhật danh mục..." : `${result.pagination.total} dòng sản phẩm`}</p>
+        <p className={styles.resultCount} aria-live="polite" id="catalog-result-status">{isPending ? "Đang cập nhật danh mục..." : `${result.pagination.total} dòng sản phẩm`}</p>
         {result.products.length ? (
           <div aria-busy={isPending} className={styles.grid} data-catalog-grid>{result.products.map((product) => <CatalogProductCard key={product.id} product={product} />)}</div>
         ) : (
