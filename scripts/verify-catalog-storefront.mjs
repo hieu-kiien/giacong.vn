@@ -250,10 +250,12 @@ const fake = createServer((request, response) => {
     return json(response, { data: malformed, meta: detailMeta });
   }
   if (slug === "detail-bad-version") return json(response, { data: detail(families[0]), meta: { ...detailMeta, contract_version: 1 } });
+  if (slug === "preview-invalid-upstream") return response.writeHead(422).end();
   if (slug === "preview-malformed") {
     response.writeHead(200, { "Content-Type": "application/json" });
     return response.end("{");
   }
+  if (slug === "preview-network") return request.socket.destroy();
   if (slug === "preview-timeout") return;
   if (url.pathname.startsWith("/api/b2b/catalog/products/")) return response.writeHead(404).end();
   if (url.pathname !== "/api/b2b/catalog/products") return response.writeHead(404).end();
@@ -308,10 +310,13 @@ try {
   const origin = `http://127.0.0.1:${appPort}`;
   await waitForServer(`${origin}/`, app, logs);
   for (const [slug, status, error] of [
+    ["x".repeat(161), 422, "invalid_product"],
     ["missing", 404, "product_not_found"],
+    ["preview-invalid-upstream", 422, "catalog_unavailable"],
     ["preview-malformed", 502, "catalog_unavailable"],
     ["detail-bad-option-index", 502, "catalog_unavailable"],
-    ["preview-timeout", 503, "catalog_unavailable"],
+    ["preview-network", 502, "catalog_unavailable"],
+    ["preview-timeout", 504, "catalog_unavailable"],
   ]) {
     const response = await fetchWithTimeout(`${origin}/api/catalog/products/${slug}`, {}, `safe quick preview ${slug}`);
     assert.equal(response.status, status, `Quick preview must map ${slug} to a safe status`);
@@ -541,6 +546,38 @@ try {
   assert.equal(await page.getByRole("button", { name: "Xem nhanh" }).count(), 3, "Each parent card needs an explicit 44px quick-preview action");
   const previewIds = await page.locator("dialog[id], dialog [id]").evaluateAll((elements) => elements.map((element) => element.id));
   assert.equal(new Set(previewIds).size, previewIds.length, "Quick-preview dialog IDs must remain unique across all product cards");
+  const retryBrowserIssueStart = browserIssues.length;
+  let retryRequestCount = 0;
+  await page.route("**/api/catalog/products/b2b-demo-bot-dinh-duong", async (route) => {
+    retryRequestCount += 1;
+    if (retryRequestCount === 1) {
+      await route.fulfill({
+        body: JSON.stringify({ error: "catalog_unavailable" }),
+        contentType: "application/json",
+        headers: { "Cache-Control": "no-store" },
+        status: 502,
+      });
+      return;
+    }
+    await route.fulfill({ response: await route.fetch() });
+  });
+  await page.getByRole("button", { name: "Xem nhanh" }).first().click();
+  const retryDialog = page.getByRole("dialog");
+  await retryDialog.getByRole("alert").getByText("Không thể tải thông tin sản phẩm lúc này.").waitFor();
+  await retryDialog.getByRole("button", { name: "Thử lại" }).click();
+  await retryDialog.getByRole("radio", { name: "Vani" }).waitFor();
+  assert.equal(retryRequestCount, 2, "Quick-preview retry must issue exactly one fresh same-origin request");
+  assert.deepEqual(
+    browserIssues.splice(retryBrowserIssueStart),
+    ["Failed to load resource: the server responded with a status of 502 (Bad Gateway)"],
+    "The intentional safe 502 must be the only browser issue during error and retry",
+  );
+  await retryDialog.getByRole("button", { name: "Đóng xem nhanh" }).focus();
+  await page.keyboard.press("Shift+Tab");
+  assert.equal(await retryDialog.getByRole("radio", { name: "Vani" }).evaluate((element) => element === document.activeElement), true, "Retry success must preserve backward focus wrapping");
+  await page.keyboard.press("Escape");
+  assert.equal(await page.getByRole("button", { name: "Xem nhanh" }).first().evaluate((element) => element === document.activeElement), true, "Closing a retried preview must restore trigger focus");
+  await page.unroute("**/api/catalog/products/b2b-demo-bot-dinh-duong");
   const quickStart = seenCatalogRequests.length;
   await page.getByRole("button", { name: "Xem nhanh" }).first().click();
   const quickDialog = page.getByRole("dialog");
