@@ -24,6 +24,8 @@ export class CatalogApiError extends Error {
   }
 }
 
+export const CATALOG_PRODUCTS_CACHE_TAG = "catalog-products-v2";
+
 export async function getCatalogProducts(filters: CatalogFilters): Promise<CatalogProductList> {
   const context = getCatalogContext();
   return getValidatedCatalogProducts(
@@ -70,7 +72,7 @@ const getValidatedCatalogProducts = unstable_cache(async (
   url.searchParams.set("page", String(page));
   url.searchParams.set("per_page", String(perPage));
   return parseProductList(await fetchJson(url));
-}, ["catalog-products-v2"], { revalidate: 30 });
+}, ["catalog-products-v2"], { revalidate: 30, tags: [CATALOG_PRODUCTS_CACHE_TAG] });
 
 const getValidatedCatalogCategories = unstable_cache(async (
   apiBaseUrl: string,

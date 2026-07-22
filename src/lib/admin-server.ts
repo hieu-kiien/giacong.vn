@@ -16,12 +16,13 @@ export async function getAdminProduct(slug: string): Promise<AdminProductResult>
     const response = await result("product", { slug });
     if (response.status === 404) return { kind: "not_found" };
     if (response.status !== 200) return { kind: "unavailable" };
-    return { kind: "found", product: parseProductDetail(response.payload) };
+    if (!response.etag) return { kind: "unavailable" };
+    return { kind: "found", product: parseProductDetail(response.payload, response.etag) };
   } catch {
     return { kind: "unavailable" };
   }
 }
-export function can(admin: AdminIdentity, permission: "b2b.dashboard" | "b2b.catalog.read") { return admin.permissions.includes("*") || admin.permissions.includes(permission); }
+export function can(admin: AdminIdentity, permission: "b2b.dashboard" | "b2b.catalog.read" | "b2b.catalog.write") { return admin.permissions.includes("*") || admin.permissions.includes(permission); }
 export function safeReturnTo(value: string | null): string { return value && /^\/quan-tri(?:\/san-pham(?:\/[a-z0-9-]+)?)?(?:\?[^#]*)?$/i.test(value) ? value : "/quan-tri"; }
 export type AdminSession = { kind: "authenticated"; admin: AdminIdentity } | { kind: "unauthenticated" } | { kind: "unavailable" };
 export type AdminProductResult = { kind: "found"; product: AdminProductDetail } | { kind: "not_found" } | { kind: "unavailable" };
