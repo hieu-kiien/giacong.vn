@@ -20,13 +20,18 @@ export interface AdminUpstreamResult { status: number; payload: unknown; setCook
 
 export function requireSameOrigin(request: Request): void {
   const origin = request.headers.get("origin"); const host = request.headers.get("host");
-  if (!origin || !host || host.toLowerCase().includes("localhost")) throw new AdminBffError(403, "invalid_origin");
-  try { if (new URL(origin).host !== host || new URL(origin).protocol !== new URL(request.url).protocol) throw new AdminBffError(403, "invalid_origin"); }
+  if (!origin || !host) throw new AdminBffError(403, "invalid_origin");
+  try { const source = new URL(request.url); const claimed = new URL(origin); if (claimed.host !== host || claimed.protocol !== source.protocol || source.host !== host) throw new AdminBffError(403, "invalid_origin"); }
   catch (error) { if (error instanceof AdminBffError) throw error; throw new AdminBffError(403, "invalid_origin"); }
 }
 
 export function parseExactJson(request: Request, keys: readonly string[]): Promise<Record<string, unknown>> {
-  return request.json().then((value: unknown) => {
+  const contentType = request.headers.get("content-type")?.toLowerCase() ?? "";
+  const length = Number(request.headers.get("content-length"));
+  if (!contentType.startsWith("application/json") || (Number.isFinite(length) && length > MAX_JSON_BYTES)) return Promise.reject(new AdminBffError(422, "validation_failed"));
+  return request.text().then((text) => {
+    if (new TextEncoder().encode(text).byteLength > MAX_JSON_BYTES) throw new AdminBffError(422, "validation_failed");
+    let value: unknown; try { value = JSON.parse(text) as unknown; } catch { throw new AdminBffError(422, "validation_failed"); }
     if (!isRecord(value) || Object.keys(value).length !== keys.length || keys.some((key) => !(key in value))) throw new AdminBffError(422, "validation_failed");
     return value;
   }).catch((error: unknown) => { if (error instanceof AdminBffError) throw error; throw new AdminBffError(422, "validation_failed"); });
@@ -39,7 +44,7 @@ export function safeText(value: unknown, max = 255): string {
 
 export async function callAdminApi(request: Request, operation: AdminOperation, options: { body?: Record<string, string>; query?: URLSearchParams; slug?: string; bootstrap?: boolean } = {}): Promise<AdminUpstreamResult> {
   const spec = operations[operation];
-  const incomingCookie = request.headers.get("cookie") ?? "";
+  const incomingCookie = allowedCookieHeader(request.headers.get("cookie") ?? "");
   if (incomingCookie.length > 16_384 || /[\r\n]/.test(incomingCookie)) throw new AdminBffError(400, "invalid_request");
   let cookie = incomingCookie;
   const cookies: string[] = [];
@@ -72,7 +77,8 @@ async function fetchAdmin(path: string, method: "GET" | "POST" | "DELETE", cooki
 function baseUrl(): URL {
   const configured = process.env.BAGISTO_ADMIN_API_URL?.trim() || DEFAULT_BASE;
   let url: URL; try { url = new URL(configured); } catch { throw new AdminBffError(502, "upstream_unavailable"); }
-  if (!/^https?:$/.test(url.protocol) || url.username || url.password || url.search || url.hash || url.hostname === "localhost" || url.pathname.replace(/\/$/, "") !== "/api/b2b/admin/v1") throw new AdminBffError(502, "upstream_unavailable");
+  const loopback = url.hostname === "127.0.0.1" || url.hostname === "::1";
+  if ((!loopback && url.protocol !== "https:") || (loopback && !/^https?:$/.test(url.protocol)) || url.username || url.password || url.search || url.hash || url.pathname !== "/api/b2b/admin/v1") throw new AdminBffError(502, "upstream_unavailable");
   return url;
 }
 
@@ -86,7 +92,10 @@ async function responseJson(response: Response): Promise<unknown> {
 function responseCookies(response: Response): string[] {
   const headers = response.headers as Headers & { getSetCookie?: () => string[] };
   const values = headers.getSetCookie?.() ?? (response.headers.get("set-cookie") ? [response.headers.get("set-cookie") as string] : []);
-  return values.filter((value) => value.length <= 4096 && !/[\r\n]/.test(value) && /^[!#$%&'*+.^_`|~0-9A-Za-z-]+=/.test(value));
+  return values.filter((value) => {
+    const name = value.split("=", 1)[0];
+    return value.length <= 4096 && !/[\r\n]/.test(value) && allowedCookieNames().has(name);
+  });
 }
 
 function cookieJar(incoming: string, setCookies: string[]): string {
@@ -95,6 +104,15 @@ function cookieJar(incoming: string, setCookies: string[]): string {
   for (const cookie of setCookies) { const first = cookie.split(";", 1)[0]; const index = first.indexOf("="); if (index > 0) jar.set(first.slice(0, index).trim(), first.slice(index + 1).trim()); }
   return [...jar].map(([name, value]) => `${name}=${value}`).join("; ");
 }
+
+function allowedCookieHeader(header: string): string {
+  if (header.length > 16_384 || /[\r\n]/.test(header)) throw new AdminBffError(400, "invalid_request");
+  const allowed = allowedCookieNames();
+  return header.split(";").map((part) => part.trim()).filter((part) => allowed.has(part.split("=", 1)[0])).join("; ");
+}
+
+function allowedCookieNames(): Set<string> { return new Set(["XSRF-TOKEN", sessionCookieName()]); }
+function sessionCookieName(): string { const configured = process.env.BAGISTO_ADMIN_SESSION_COOKIE?.trim() || "laravel_session"; return /^[!#$%&'*+.^_`|~0-9A-Za-z-]{1,128}$/.test(configured) ? configured : "laravel_session"; }
 
 function xsrf(cookie: string): string | null {
   const encoded = cookie.split(";").map((part) => part.trim()).find((part) => part.startsWith("XSRF-TOKEN="))?.slice("XSRF-TOKEN=".length);

@@ -54,8 +54,13 @@ export function parseDashboard(payload: unknown): AdminDashboard {
 export function parseProductList(payload: unknown): AdminProductList {
   const root = exact(payload, ["data", "links", "meta"]);
   const meta = exact(root.meta, ["channel", "contract_version", "currency", "current_page", "from", "last_page", "locale", "path", "per_page", "to", "total"]);
+  const links = exact(root.links, ["first", "last", "prev", "next"]);
+  nullableText(links.first); nullableText(links.last); nullableText(links.prev); nullableText(links.next);
   version(meta);
-  return { data: list(root.data).map(parseProduct), meta: { current_page: positive(meta.current_page), last_page: positive(meta.last_page), per_page: positive(meta.per_page), total: nonNegative(meta.total) } };
+  const currentPage = positive(meta.current_page); const lastPage = positive(meta.last_page); const perPage = positive(meta.per_page); const total = nonNegative(meta.total);
+  nullablePositive(meta.from); nullablePositive(meta.to); nonEmpty(meta.path);
+  if (currentPage > lastPage || perPage > 48) bad();
+  return { data: list(root.data).map(parseProduct), meta: { current_page: currentPage, last_page: lastPage, per_page: perPage, total } };
 }
 
 export function parseProductDetail(payload: unknown): AdminProductDetail {
@@ -63,24 +68,27 @@ export function parseProductDetail(payload: unknown): AdminProductDetail {
   version(root.meta);
   const product = parseProduct(root.data);
   const detail = exact(root.data, ["id", "type", "sku", "slug", "name", "description", "image", "categories", "variant_count", "available_variant_count", "starting_price", "option_groups", "variant_index", "variants"]);
+  const groups = list(detail.option_groups).map((item) => {
+    const group = exact(item, ["attribute_id", "code", "label", "options"]);
+    return { attribute_id: positive(group.attribute_id), code: nonEmpty(group.code), label: nonEmpty(group.label), options: list(group.options).map((option) => {
+      const value = exact(option, ["option_id", "label", "variant_ids"]);
+      return { option_id: positive(value.option_id), label: nonEmpty(value.label), variant_ids: list(value.variant_ids).map(positive) };
+    }) };
+  });
+  const variants = list(detail.variants).map((item) => {
+    const value = exact(item, ["id", "sku", "name", "option_values", "image", "unit", "moq", "quantity_step", "contact_from_quantity", "availability", "tier_prices"]);
+    const availability = exact(value.availability, ["is_available"]);
+    return {
+      id: positive(value.id), sku: nonEmpty(value.sku), name: nonEmpty(value.name), unit: nonEmpty(value.unit), moq: positive(value.moq), quantity_step: positive(value.quantity_step), contact_from_quantity: positive(value.contact_from_quantity), availability: { is_available: bool(availability.is_available) },
+      tier_prices: list(value.tier_prices).map((tier) => { const price = exact(tier, ["min_quantity", "unit_price", "currency"]); if (text(price.currency) !== "VND") bad(); return { min_quantity: positive(price.min_quantity), unit_price: positive(price.unit_price), currency: "VND" as const }; }),
+      option_values: list(value.option_values).map((option) => { const selected = exact(option, ["attribute_id", "attribute_code", "option_id", "option_label"]); return { attribute_id: positive(selected.attribute_id), attribute_code: nonEmpty(selected.attribute_code), option_id: positive(selected.option_id), option_label: nonEmpty(selected.option_label) }; }),
+    };
+  });
+  validateVariantIndex(detail.variant_index, groups, variants);
   return {
     ...product,
-    option_groups: list(detail.option_groups).map((item) => {
-      const group = exact(item, ["attribute_id", "code", "label", "options"]);
-      return { attribute_id: positive(group.attribute_id), code: nonEmpty(group.code), label: nonEmpty(group.label), options: list(group.options).map((option) => {
-        const value = exact(option, ["option_id", "label", "variant_ids"]);
-        return { option_id: positive(value.option_id), label: nonEmpty(value.label), variant_ids: list(value.variant_ids).map(positive) };
-      }) };
-    }),
-    variants: list(detail.variants).map((item) => {
-      const value = exact(item, ["id", "sku", "name", "option_values", "image", "unit", "moq", "quantity_step", "contact_from_quantity", "availability", "tier_prices"]);
-      const availability = exact(value.availability, ["is_available"]);
-      return {
-        id: positive(value.id), sku: nonEmpty(value.sku), name: nonEmpty(value.name), unit: nonEmpty(value.unit), moq: positive(value.moq), quantity_step: positive(value.quantity_step), contact_from_quantity: positive(value.contact_from_quantity), availability: { is_available: bool(availability.is_available) },
-        tier_prices: list(value.tier_prices).map((tier) => { const price = exact(tier, ["min_quantity", "unit_price", "currency"]); if (text(price.currency) !== "VND") bad(); return { min_quantity: positive(price.min_quantity), unit_price: positive(price.unit_price), currency: "VND" }; }),
-        option_values: list(value.option_values).map((option) => { const selected = exact(option, ["attribute_id", "attribute_code", "option_id", "option_label"]); return { attribute_id: positive(selected.attribute_id), attribute_code: nonEmpty(selected.attribute_code), option_id: positive(selected.option_id), option_label: nonEmpty(selected.option_label) }; }),
-      };
-    }),
+    option_groups: groups,
+    variants,
   };
 }
 
@@ -96,8 +104,14 @@ function parseProduct(payload: unknown): AdminProduct {
   if (text(value.type) !== "configurable") bad();
   const price = value.starting_price === null ? null : exact(value.starting_price, ["unit_price", "currency"]);
   if (price && text(price.currency) !== "VND") bad();
-  return { id: positive(value.id), type: "configurable", sku: nonEmpty(value.sku), slug: nonEmpty(value.slug), name: nonEmpty(value.name), description: nullableText(value.description), categories: list(value.categories).map((category) => { const item = exact(category, ["id", "name", "slug", "description", "image", "parent_id"]); return { id: positive(item.id), name: nonEmpty(item.name), slug: nonEmpty(item.slug) }; }), variant_count: positive(value.variant_count), available_variant_count: nonNegative(value.available_variant_count), starting_price: price ? { unit_price: positive(price.unit_price), currency: "VND" } : null };
+  image(value.image);
+  const categories = list(value.categories).map((category) => { const item = exact(category, ["id", "name", "slug", "description", "image", "parent_id"]); nullableText(item.description); nullableInteger(item.parent_id); image(item.image); return { id: positive(item.id), name: nonEmpty(item.name), slug: nonEmpty(item.slug) }; });
+  const variantCount = positive(value.variant_count); const available = nonNegative(value.available_variant_count); if (available > variantCount) bad();
+  return { id: positive(value.id), type: "configurable", sku: nonEmpty(value.sku), slug: nonEmpty(value.slug), name: nonEmpty(value.name), description: nullableText(value.description), categories, variant_count: variantCount, available_variant_count: available, starting_price: price ? { unit_price: positive(price.unit_price), currency: "VND" } : null };
 }
+
+function validateVariantIndex(value: unknown, groups: AdminProductDetail["option_groups"], variants: AdminProductDetail["variants"]) { const index = record(value); const ids = variants.map((variant) => String(variant.id)); if (Object.keys(index).length !== ids.length || ids.some((id) => !(id in index))) bad(); for (const variant of variants) { const selected = record(index[String(variant.id)]); if (Object.keys(selected).length !== groups.length) bad(); for (const group of groups) { if (positive(selected[group.code]) !== variant.option_values.find((item) => item.attribute_id === group.attribute_id)?.option_id) bad(); } } }
+function image(value: unknown) { if (value === null) return; const item = exact(value, ["url", "alt"]); nonEmpty(item.url); nullableText(item.alt); }
 
 function version(value: unknown) { const meta = record(value); if (positive(meta.contract_version) !== 1 || text(meta.currency) !== "VND" || !nonEmpty(meta.channel) || !nonEmpty(meta.locale)) bad(); }
 function exact(value: unknown, keys: string[]) { const result = record(value); if (Object.keys(result).length !== keys.length || keys.some((key) => !(key in result))) bad(); return result; }
@@ -106,6 +120,8 @@ function list(value: unknown): unknown[] { if (!Array.isArray(value)) bad(); ret
 function text(value: unknown): string { if (typeof value !== "string") bad(); return value; }
 function nonEmpty(value: unknown): string { const result = text(value).trim(); if (!result) bad(); return result; }
 function nullableText(value: unknown): string | null { return value === null ? null : text(value); }
+function nullablePositive(value: unknown) { if (value !== null) positive(value); }
+function nullableInteger(value: unknown) { if (value !== null && (typeof value !== "number" || !Number.isInteger(value))) bad(); }
 function positive(value: unknown): number { if (typeof value !== "number" || !Number.isInteger(value) || value < 1) bad(); return value; }
 function nonNegative(value: unknown): number { if (typeof value !== "number" || !Number.isInteger(value) || value < 0) bad(); return value; }
 function bool(value: unknown): boolean { if (typeof value !== "boolean") bad(); return value; }
