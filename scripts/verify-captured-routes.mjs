@@ -521,40 +521,16 @@ try {
   await desktopMenu.evaluate(() => window.scrollTo(0, 0));
   assert.equal(await desktopMenu.locator("#menu-item-1742 > .nav-dropdown").count(), 0, "Product must be a direct link");
   assert.equal(await desktopMenu.locator("#menu-item-1742 > a").getAttribute("href"), "/san-pham/");
-  await desktopMenu.locator("#menu-item-5166 > a").hover();
-  const serviceMenuWidth = await desktopMenu.locator(
-    "#menu-item-5166 > .nav-dropdown",
-  ).evaluate((panel) => panel.getBoundingClientRect().width);
-  assert.ok(serviceMenuWidth >= 1000, `Desktop service mega menu is too narrow: ${serviceMenuWidth}px`);
   const serviceLink = desktopMenu.locator("#menu-item-5166 > a");
-  const serviceDisclosure = desktopMenu.locator("#menu-item-5166 > .clone-desktop-service-toggle");
   assert.equal(await serviceLink.getAttribute("href"), "/thue-gia-cong/");
   assert.equal(await serviceLink.getAttribute("aria-expanded"), null, "Service navigation link must not act as disclosure");
-  await serviceDisclosure.click();
   assert.equal(
-    await desktopMenu.locator("#menu-item-5166 > .nav-dropdown").isVisible(),
-    true,
-    "Clicking the Service disclosure did not keep its mega menu open",
+    await desktopMenu.locator("#menu-item-5166 > .nav-dropdown, #menu-item-5166 > .clone-desktop-service-toggle").count(),
+    0,
+    "Service must be a direct desktop link without a mega menu",
   );
-  assert.equal(await serviceDisclosure.getAttribute("aria-expanded"), "true");
-  await desktopMenu.mouse.move(10, 500);
-  await desktopMenu.keyboard.press("Escape");
-  await desktopMenu.waitForFunction(() => (
-    getComputedStyle(
-      document.querySelector("#menu-item-5166 > .nav-dropdown"),
-    ).visibility === "hidden"
-  ));
-  assert.equal(
-    await desktopMenu.locator("#menu-item-5166 > .nav-dropdown").isVisible(),
-    false,
-    "Escape must close an expanded desktop mega menu",
-  );
-  assert.equal(await serviceDisclosure.getAttribute("aria-expanded"), "false");
-  assert.equal(
-    await serviceDisclosure.evaluate((toggle) => document.activeElement === toggle),
-    true,
-    "Escape must return focus to the desktop service disclosure",
-  );
+  await serviceLink.focus();
+  assert.equal(await serviceLink.evaluate((link) => document.activeElement === link), true);
   assert.equal(
     await desktopMenu.locator(".echbay-sms-messenger").isVisible(),
     true,
@@ -600,7 +576,7 @@ try {
     await mobileMenu
       .locator("#main-menu .nav-sidebar > li > a > svg.clone-mobile-menu-icon")
       .count(),
-    6,
+    5,
     "Mobile menu does not use a complete, consistent SVG icon set",
   );
   assert.equal(
@@ -618,8 +594,6 @@ try {
     const firstLink = menu.querySelector("#menu-item-5465 > a");
     const firstLinkStyles = firstLink ? getComputedStyle(firstLink) : null;
     const firstLinkRect = firstLink?.getBoundingClientRect();
-    const toggle = menu.querySelector(".clone-toggle");
-    const toggleRect = toggle?.getBoundingClientRect();
     return {
       backgroundColor: styles.backgroundColor,
       height: rect.height,
@@ -637,10 +611,6 @@ try {
         fontWeight: Number(firstLinkStyles.fontWeight),
         height: firstLinkRect.height,
         textTransform: firstLinkStyles.textTransform,
-      } : null,
-      toggle: toggleRect ? {
-        left: toggleRect.left - rect.left,
-        text: toggle?.textContent?.trim(),
       } : null,
     };
   });
@@ -678,11 +648,6 @@ try {
     Math.abs((mobileMenuLayout.firstLink?.height ?? 0) - 52) <= 1,
     `Unexpected mobile menu row height: ${mobileMenuLayout.firstLink?.height}px`,
   );
-  assert.ok(
-    (mobileMenuLayout.toggle?.left ?? 0) >= 210,
-    "Mobile submenu chevron must be aligned to the right",
-  );
-  assert.notEqual(mobileMenuLayout.toggle?.text, "+", "Mobile submenu must not use a plus sign");
   assert.equal(
     await mobileMenu.locator(".clone-menu-backdrop").isVisible(),
     true,
@@ -710,31 +675,10 @@ try {
   const mobileServiceItem = mobileMenu.locator("#menu-item-5466");
   assert.equal(await mobileServiceItem.locator(":scope > a").getAttribute("href"), "/thue-gia-cong/");
   assert.equal(await mobileServiceItem.locator(":scope > a").getAttribute("aria-expanded"), null);
-  await mobileServiceItem.locator(":scope > .clone-toggle").tap();
   assert.equal(
-    await mobileMenu.locator("#menu-item-5466.clone-submenu-open > .sub-menu").isVisible(),
-    true,
-    "Tapping the Service disclosure did not expand its choices",
-  );
-  const serviceAccordionHeader = await mobileMenu.locator("#menu-item-5466").evaluate((item) => {
-    const link = item.querySelector(":scope > a")?.getBoundingClientRect();
-    const toggle = item.querySelector(":scope > .clone-toggle")?.getBoundingClientRect();
-    return {
-      linkTop: link?.top ?? -1,
-      toggleLeft: toggle?.left ?? -1,
-      toggleTop: toggle?.top ?? -1,
-    };
-  });
-  assert.ok(
-    Math.abs(serviceAccordionHeader.linkTop - serviceAccordionHeader.toggleTop) <= 1
-      && serviceAccordionHeader.toggleLeft >= 210,
-    `Service chevron moved away from its header row: ${JSON.stringify(serviceAccordionHeader)}`,
-  );
-  assert.equal(await mobileServiceItem.locator(":scope > .sub-menu > li").count(), 6, "Service menu must contain six families");
-  const firstServiceChoice = mobileMenu.locator("#menu-item-5466 > .sub-menu > li > a").first();
-  assert.ok(
-    (await firstServiceChoice.boundingBox())?.x >= 0,
-    "Mobile Service choices remain positioned off-screen",
+    await mobileServiceItem.locator(":scope > .clone-toggle, :scope > .sub-menu").count(),
+    0,
+    "Service must be a direct mobile link without an accordion",
   );
   await closeButton.click();
   assert.equal(await mobileMenu.locator("#main-menu").isVisible(), false, "Close button did not close menu");
@@ -768,32 +712,6 @@ try {
     "Mobile search escaped the local clone",
   );
   await mobileSearchPage.close();
-
-  for (const accordionSelector of ["#menu-item-5466"]) {
-    const choicePage = await browser.newPage({
-      viewport: { width: 390, height: 900 },
-      hasTouch: true,
-    });
-    await choicePage.goto(`${appUrl}/`, { waitUntil: "networkidle" });
-    await choicePage.locator("[data-open='#main-menu']").tap();
-    const accordion = choicePage.locator(`#main-menu ${accordionSelector}`);
-    await accordion.locator(":scope > .clone-toggle").tap();
-    const choiceHref = await accordion
-      .locator(":scope > .sub-menu > li > a")
-      .first()
-      .getAttribute("href");
-    assert.ok(choiceHref && choiceHref !== "#" && choiceHref !== "/");
-    await Promise.all([
-      choicePage.waitForURL((url) => url.pathname !== "/"),
-      accordion.locator(":scope > .sub-menu > li > a").first().tap(),
-    ]);
-    assert.equal(
-      new URL(choicePage.url()).origin,
-      appUrl,
-      `Mobile choice escaped the local clone from ${accordionSelector}`,
-    );
-    await choicePage.close();
-  }
 
   for (const width of [320, 430, 768]) {
     const page = await browser.newPage({ viewport: { width, height: 900 }, hasTouch: true });

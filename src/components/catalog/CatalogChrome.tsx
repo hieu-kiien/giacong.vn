@@ -6,9 +6,10 @@ import { getCatalogChrome } from "@/lib/catalog-chrome";
 
 interface CatalogChromeProps {
   children: ReactNode;
+  floatingContact?: boolean;
 }
 
-export async function CatalogChrome({ children }: CatalogChromeProps) {
+export async function CatalogChrome({ children, floatingContact = true }: CatalogChromeProps) {
   const chrome = await getCatalogChrome();
 
   return (
@@ -23,7 +24,7 @@ export async function CatalogChrome({ children }: CatalogChromeProps) {
         </div>
         <div dangerouslySetInnerHTML={{ __html: chrome.trailingMarkup }} />
       </div>
-      <CapturedFloatingContact />
+      {floatingContact ? <CapturedFloatingContact /> : null}
       <GiacongInteractions bodyClasses={chrome.bodyClasses} htmlClasses={chrome.htmlClasses} />
     </>
   );

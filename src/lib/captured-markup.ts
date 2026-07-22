@@ -1,5 +1,3 @@
-import { serviceFamilies } from "@/data/service-families";
-
 const localCtaRoutes: Record<string, string> = {
   "Liên hệ ngay": "/lien-he/",
   "Về chúng tôi": "/gioi-thieu-ve-gia-cong/",
@@ -19,6 +17,7 @@ export function normalizeCapturedMarkup(markup: string) {
     .replace(/Sản Phẩm(?=<i class="icon-angle-down"><\/i>)/g, "Mua hàng")
     .replace(/Dịch vụ(?=<i class="icon-angle-down"><\/i>)/g, "Thuê gia công")
     .replace(/Dịch Vụ Gia Công(?=<\/a>)/g, "Thuê gia công")
+    .replace(/Trang Chủ(?=<\/a>)/g, "Home")
     .replace(
     /<a\b([^>]*?)href=(["'])#\2([^>]*)>([\s\S]*?)<\/a>/gi,
     (link, beforeHref: string, quote: string, afterHref: string, content: string) => {
@@ -28,7 +27,7 @@ export function normalizeCapturedMarkup(markup: string) {
     },
     );
 
-  return replaceShoppingMenu(replaceServiceMenus(normalized));
+  return removeAboutMenuItems(replaceShoppingMenu(replaceServiceMenus(normalized)));
 }
 
 function replaceServiceMenus(markup: string): string {
@@ -40,25 +39,19 @@ function replaceServiceMenus(markup: string): string {
 }
 
 function desktopServiceMenu(): string {
-  const families = serviceFamilies.map((family) => `
-    <article class="clone-service-mega-card">
-      <a href="/thue-gia-cong/${family.slug}/">${family.name}</a>
-      <span>${family.summary}</span>
-    </article>`).join("");
-  return `<li class="menu-item menu-item-design-container-width menu-item-has-block has-dropdown clone-service-menu-item" id="menu-item-5166">
-    <a class="nav-top-link" href="/thue-gia-cong/">Thuê gia công</a>
-    <button aria-controls="clone-service-menu-desktop" aria-expanded="false" aria-label="Mở menu Thuê gia công" class="clone-desktop-service-toggle" type="button"><i aria-hidden="true" class="icon-angle-down"></i></button>
-    <div class="sub-menu nav-dropdown" id="clone-service-menu-desktop"><div class="clone-service-mega-grid">${families}</div></div>
-  </li>`;
+  return `<li class="menu-item menu-item-design-default" id="menu-item-5166"><a class="nav-top-link" href="/thue-gia-cong/">Thuê gia công</a></li>`;
 }
 
 function mobileServiceMenu(): string {
-  const families = serviceFamilies.map((family) => `
-    <li class="menu-item"><a href="/thue-gia-cong/${family.slug}/">${family.name}</a></li>`).join("");
-  return `<li class="menu-item menu-item-has-children has-icon-left clone-mobile-services" id="menu-item-5466">
-    <a href="/thue-gia-cong/">Thuê gia công</a>
-    <ul class="sub-menu nav-sidebar-ul children">${families}</ul>
-  </li>`;
+  return `<li class="menu-item has-icon-left clone-mobile-services" id="menu-item-5466"><a href="/thue-gia-cong/">Thuê gia công</a></li>`;
+}
+
+function removeAboutMenuItems(markup: string): string {
+  return replaceListItemById(
+    replaceListItemById(markup, "menu-item-5498", ""),
+    "menu-item-5496",
+    "",
+  );
 }
 
 function replaceListItemById(markup: string, id: string, replacement: string): string {

@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
 import { once } from "node:events";
+import { mkdtemp } from "node:fs/promises";
 import { createServer as createNetServer } from "node:net";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import { chromium } from "playwright";
 
 const families = [
@@ -13,6 +16,15 @@ const families = [
   ["dong-goi-hoan-thien", "Đóng gói & hoàn thiện", ["/gia-cong-dong-goi/", "/dich-vu-dong-goi-bao-jumbo/", "/dich-vu-dong-goi-bot-hoa-tan/", "/dich-vu-dong-goi-dang-long-goi-nho/", "/dich-vu-dong-goi-dang-ong-stick/", "/dich-vu-dong-goi-vien-nen-vien-nang/"]],
 ];
 
+const expectedHeaderLinks = [
+  ["Home", "/"],
+  ["Mua hàng", "/san-pham/"],
+  ["Thuê gia công", "/thue-gia-cong/"],
+  ["Tin tức", "/tin-tuc/"],
+  ["Liên hệ", "/lien-he/"],
+];
+
+const expectedOfferingPaths = families.flatMap(([, , routes]) => routes.map((route) => route.replace(/\/$/, "")));
 const delay = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
 
 async function port() {
@@ -46,8 +58,30 @@ async function stopChild(child) {
   }
 }
 
+function observeRuntime(page, label, issues) {
+  page.on("console", (message) => {
+    if (["error", "warning"].includes(message.type())) issues.push(`${label} console ${message.type()}: ${message.text()}`);
+  });
+  page.on("pageerror", (error) => issues.push(`${label} pageerror: ${error.message}`));
+  page.on("requestfailed", (request) => {
+    const failure = request.failure()?.errorText ?? "unknown";
+    if (!failure.includes("ERR_ABORTED")) issues.push(`${label} request failed: ${request.url()} (${failure})`);
+  });
+}
+
+async function assertDirectHeaderLinks(page, mobile = false) {
+  const scope = mobile ? page.locator("#main-menu") : page.locator("#header .header-nav-main");
+  for (const [name, href] of expectedHeaderLinks) {
+    const link = scope.getByRole("link", { name, exact: true });
+    assert.equal(await link.count(), 1, `${mobile ? "Mobile" : "Desktop"} header must expose one direct ${name} link`);
+    assert.equal(await link.getAttribute("href"), href, `${name} must link directly to ${href}`);
+  }
+  assert.equal(await scope.getByRole("link", { name: "Về Giacong.vn", exact: true }).count(), 0, "Header must contain exactly the requested five text links");
+}
+
 const appPort = await port();
 const logs = [];
+const screenshots = await mkdtemp(path.join(tmpdir(), "storefront-task-1-"));
 const app = spawn(process.execPath, ["node_modules/next/dist/bin/next", "start", "-p", String(appPort)], {
   env: { ...process.env, NODE_ENV: "production" },
   stdio: ["ignore", "pipe", "pipe"],
@@ -61,70 +95,118 @@ try {
   const origin = `http://127.0.0.1:${appPort}`;
   await waitForServer(origin, app, logs);
   assert.equal((await fetch(`${origin}/thue-gia-cong/khong-ton-tai`)).status, 404, "Unknown service family must be 404");
+  assert.equal((await fetch(`${origin}/thue-gia-cong/`)).status, 200, "Service directory must resolve");
 
-  browser = await chromium.launch({ headless: true });
-  const desktop = await browser.newPage({ viewport: { width: 1280, height: 900 } });
-  const runtimeIssues = [];
-  desktop.on("console", (message) => {
-    if (["error", "warning"].includes(message.type())) runtimeIssues.push(`desktop console ${message.type()}: ${message.text()}`);
-  });
-  desktop.on("pageerror", (error) => runtimeIssues.push(`desktop pageerror: ${error.message}`));
-  await desktop.goto(`${origin}/thue-gia-cong/`, { waitUntil: "domcontentloaded" });
-  await desktop.getByRole("heading", { level: 1, name: "Thuê gia công" }).waitFor();
-  const desktopServiceLink = desktop.locator("#header").getByRole("link", { name: "Thuê gia công", exact: true });
-  await desktopServiceLink.waitFor();
-  assert.equal(await desktopServiceLink.getAttribute("href"), "/thue-gia-cong/");
-  assert.equal(await desktopServiceLink.getAttribute("aria-expanded"), null, "Desktop navigation link must remain a plain link");
-  const desktopToggle = desktop.locator("#header").getByRole("button", { name: "Mở menu Thuê gia công" });
-  await desktopToggle.click();
-  assert.equal(await desktopToggle.getAttribute("aria-expanded"), "true");
-  await desktop.screenshot({ fullPage: true, path: "docs/design-references/service-landing-desktop.png" });
-  await desktopToggle.press("Escape");
-  assert.equal(await desktopToggle.getAttribute("aria-expanded"), "false", "Escape must collapse the desktop service menu");
-  assert.equal(
-    await desktopToggle.evaluate((toggle) => document.activeElement === toggle),
-    true,
-    "Escape must return focus to the desktop service disclosure",
-  );
-  for (const [slug, label] of families) {
-    await desktop.locator("#header").getByRole("link", { name: label, exact: true }).waitFor();
-    const familyUrl = `${origin}/thue-gia-cong/${slug}/`;
-    const response = await fetch(familyUrl);
-    assert.equal(response.status, 200, `${familyUrl} must resolve`);
-    await desktop.goto(familyUrl, { waitUntil: "domcontentloaded" });
-    await desktop.getByRole("heading", { level: 1, name: label }).waitFor();
-    for (const leaf of families.find(([candidate]) => candidate === slug)[2]) {
-      const renderedLeaf = leaf.replace(/\/$/, "");
-      const leafLink = desktop.locator(`#catalog-main a[href='${renderedLeaf}']`);
-      assert.equal(
-        await leafLink.count(),
-        1,
-        `${slug} must render one verified route ${leaf}; hrefs=${JSON.stringify(await desktop.locator("#catalog-main a").evaluateAll((links) => links.map((link) => link.getAttribute("href"))))}`,
-      );
-      const href = await leafLink.getAttribute("href");
-      assert.equal(href, renderedLeaf, `${slug} must link verified route ${leaf}`);
-      assert.equal((await fetch(`${origin}${leaf}`)).status, 200, `${leaf} must resolve`);
+  for (const [slug, , routes] of families) {
+    const familyResponse = await fetch(`${origin}/thue-gia-cong/${slug}/`);
+    assert.equal(familyResponse.status, 200, `${slug} must resolve`);
+    const familyMarkup = await familyResponse.text();
+    assert.match(familyMarkup, /href="\/thue-gia-cong"/, `${slug} must retain a directory backlink`);
+    for (const route of routes) {
+      assert.equal((await fetch(`${origin}${route}`)).status, 200, `${route} must resolve`);
+      assert.ok(familyMarkup.includes(`href="${route.replace(/\/$/, "")}"`), `${slug} must retain its verified offering link ${route}`);
     }
   }
 
-  const mobile = await browser.newPage({ viewport: { width: 390, height: 844 } });
-  mobile.on("console", (message) => {
-    if (["error", "warning"].includes(message.type())) runtimeIssues.push(`mobile console ${message.type()}: ${message.text()}`);
+  browser = await chromium.launch({ headless: true });
+  const runtimeIssues = [];
+  const desktop = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
+  observeRuntime(desktop, "desktop", runtimeIssues);
+  const initialRequests = [];
+  desktop.on("request", (request) => initialRequests.push(request.url()));
+  await desktop.goto(`${origin}/thue-gia-cong/`, { waitUntil: "networkidle" });
+  await desktop.getByRole("heading", { level: 1, name: "Thuê gia công" }).waitFor();
+  const landingRequestCount = initialRequests.length;
+  const landingDomNodes = await desktop.locator("*").count();
+  await assertDirectHeaderLinks(desktop);
+
+  const desktopServiceLink = desktop.locator("#header .header-nav-main").getByRole("link", { name: "Thuê gia công", exact: true });
+  assert.equal(await desktopServiceLink.getAttribute("aria-expanded"), null, "Desktop service navigation must be a plain link");
+  assert.equal(await desktop.locator("#header .clone-desktop-service-toggle, #clone-service-menu-desktop, #header .clone-service-mega-grid").count(), 0, "Desktop service mega-menu must be removed");
+  await desktopServiceLink.focus();
+  assert.equal(await desktopServiceLink.evaluate((link) => document.activeElement === link), true, "Desktop direct service link must accept keyboard focus");
+
+  const directory = desktop.locator("#service-directory");
+  await directory.waitFor();
+  const search = desktop.getByRole("searchbox", { name: "Bạn cần gia công gì?" });
+  await search.waitFor();
+  assert.equal(await directory.locator("[data-family-chip]").count(), 6, "Directory must expose six family chips");
+  for (const [, label] of families) {
+    assert.equal(await directory.getByRole("heading", { name: label, exact: true }).count(), 1, `Directory must group offerings under ${label}`);
+  }
+
+  const offeringLinks = directory.locator("[data-service-offering] a");
+  assert.equal(await offeringLinks.count(), 38, "Directory must render all 38 offerings on one page");
+  const renderedPaths = await offeringLinks.evaluateAll((links) => links.map((link) => new URL(link.href).pathname.replace(/\/$/, "")));
+  assert.deepEqual([...new Set(renderedPaths)].sort(), [...expectedOfferingPaths].sort(), "Directory must expose exactly the verified offering routes");
+  assert.equal(await directory.getByText("38 dịch vụ phù hợp", { exact: true }).getAttribute("aria-live"), "polite", "Result count must announce client-side changes");
+
+  const pathBeforeFilter = new URL(desktop.url()).pathname;
+  await search.fill("sữa hạt");
+  await directory.getByText("1 dịch vụ phù hợp", { exact: true }).waitFor();
+  assert.equal(new URL(desktop.url()).pathname, pathBeforeFilter, "Search must filter without reloading or changing route");
+  assert.equal(await directory.locator("[data-service-offering]:visible").count(), 1, "Search must narrow the directory");
+  await search.fill("");
+  await directory.getByText("38 dịch vụ phù hợp", { exact: true }).waitFor();
+
+  const familyChip = directory.locator("[data-family-chip='say-thuc-pham-say']");
+  await familyChip.click();
+  await directory.getByText("6 dịch vụ phù hợp", { exact: true }).waitFor();
+  assert.equal(new URL(desktop.url()).pathname, pathBeforeFilter, "Family filter must not navigate");
+  assert.equal(await directory.locator("[data-service-offering]:visible").count(), 6, "Family chip must reveal only its six offerings");
+
+  await search.fill("sấy lạnh");
+  const consultation = directory.getByRole("link", { name: "Chưa chắc? Liên hệ tư vấn", exact: true });
+  const consultationUrl = new URL(await consultation.getAttribute("href"), origin);
+  assert.equal(consultationUrl.pathname, "/lien-he");
+  assert.equal(consultationUrl.searchParams.get("service_family"), "say-thuc-pham-say", "CTA must carry selected family context");
+  assert.equal(consultationUrl.searchParams.get("service_query"), "sấy lạnh", "CTA must carry query context");
+
+  assert.equal(await desktop.locator(".echbay-sms-messenger, .bottom-contact").count(), 0, "Service directory must not render floating contact bubbles");
+  const directoryText = await directory.innerText();
+  assert.doesNotMatch(directoryText, /(?:₫|giỏ hàng|thêm vào giỏ|SKU)/iu, "Service directory must not use commerce UI");
+  const detailPrefetches = initialRequests.filter((url) => {
+    const parsed = new URL(url);
+    return parsed.searchParams.has("_rsc") && expectedOfferingPaths.includes(parsed.pathname.replace(/\/$/, ""));
   });
-  mobile.on("pageerror", (error) => runtimeIssues.push(`mobile pageerror: ${error.message}`));
-  await mobile.goto(`${origin}/thue-gia-cong/`, { waitUntil: "domcontentloaded" });
+  assert.deepEqual(detailPrefetches, [], "Offering detail routes must not be eagerly prefetched");
+
+  await search.fill("");
+  await directory.getByRole("button", { name: "Xóa bộ lọc", exact: true }).click();
+  const sampleOffering = directory.getByRole("link", { name: "Gia công sữa hạt", exact: true });
+  await Promise.all([
+    desktop.waitForURL((url) => url.pathname === "/gia-cong-sua-hat"),
+    sampleOffering.click(),
+  ]);
+  assert.equal(new URL(desktop.url()).pathname, "/gia-cong-sua-hat", "An offering must be reachable in one click from the directory");
+  await desktop.goto(`${origin}/thue-gia-cong/`, { waitUntil: "networkidle" });
+  await desktop.screenshot({ fullPage: true, path: path.join(screenshots, "service-landing-desktop.png") });
+
+  const mobile = await browser.newPage({ viewport: { width: 390, height: 844 } });
+  observeRuntime(mobile, "mobile", runtimeIssues);
+  await mobile.goto(`${origin}/thue-gia-cong/do-uong-sua/`, { waitUntil: "networkidle" });
   await mobile.locator("[data-open='#main-menu']").click();
+  await assertDirectHeaderLinks(mobile, true);
   const mobileServiceItem = mobile.locator("#main-menu #menu-item-5466");
-  const mobileLink = mobileServiceItem.getByRole("link", { name: "Thuê gia công", exact: true });
-  const mobileToggle = mobileServiceItem.getByRole("button", { name: "Mở menu con" });
-  assert.equal(await mobileLink.getAttribute("href"), "/thue-gia-cong/");
-  const mobilePathBeforeDisclosure = new URL(mobile.url()).pathname;
-  await mobileToggle.click();
-  assert.equal(await mobileToggle.getAttribute("aria-expanded"), "true");
-  assert.equal(new URL(mobile.url()).pathname, mobilePathBeforeDisclosure, "Mobile disclosure must not navigate");
-  assert.equal(await mobileServiceItem.locator(":scope > .sub-menu > li").count(), 6, "Mobile menu must expose six families");
-  await mobile.screenshot({ fullPage: true, path: "docs/design-references/service-landing-mobile.png" });
-  assert.deepEqual(runtimeIssues, [], `Browser console must be clean:\n${runtimeIssues.join("\n")}`);
+  const mobileServiceLink = mobileServiceItem.getByRole("link", { name: "Thuê gia công", exact: true });
+  assert.equal(await mobileServiceItem.locator(":scope > button, :scope > .sub-menu").count(), 0, "Mobile service entry must not contain a nested accordion");
+  await mobileServiceLink.focus();
+  assert.equal(await mobileServiceLink.evaluate((link) => document.activeElement === link), true, "Mobile service link must accept keyboard focus");
+  await Promise.all([
+    mobile.waitForURL((url) => url.pathname === "/thue-gia-cong"),
+    mobileServiceLink.press("Enter"),
+  ]);
+  await mobile.getByRole("heading", { level: 1, name: "Thuê gia công" }).waitFor();
+  await mobile.screenshot({ fullPage: true, path: path.join(screenshots, "service-landing-mobile.png") });
+
+  assert.deepEqual(runtimeIssues, [], `Browser runtime must be clean:\n${runtimeIssues.join("\n")}`);
+  console.log(JSON.stringify({
+    screenshots,
+    offerings: renderedPaths.length,
+    families: families.length,
+    landingRequestCount,
+    landingDomNodes,
+  }, null, 2));
 } finally {
   await browser?.close();
   await stopChild(app);
