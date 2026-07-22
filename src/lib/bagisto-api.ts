@@ -4,13 +4,6 @@ const DEFAULT_TIMEOUT_MS = 5_000;
 const MAX_TIMEOUT_MS = 30_000;
 const DEVELOPMENT_DEFAULT_ORIGIN = "http://127.0.0.1:8000";
 
-export const catalogFetchPolicy = {
-  // Next Data Cache: https://nextjs.org/docs/app/guides/caching#fetch
-  catalogList: { cache: "force-cache" as const, next: { revalidate: 30 } },
-  catalogCategories: { cache: "force-cache" as const, next: { revalidate: 300 } },
-  catalogDetail: { cache: "no-store" as const },
-} as const;
-
 export class BagistoApiConfigurationError extends Error {
   constructor(message = "BAGISTO_API_URL không hợp lệ.") {
     super(message);
@@ -57,11 +50,7 @@ export interface BagistoJsonResponse {
   response: Response;
 }
 
-type BagistoFetchInit = RequestInit & {
-  next?: { revalidate?: number | false };
-};
-
-export async function fetchBagistoJson(url: URL, init: BagistoFetchInit = {}): Promise<BagistoJsonResponse> {
+export async function fetchBagistoJson(url: URL, init: RequestInit = {}): Promise<BagistoJsonResponse> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), getBagistoApiTimeoutMs());
   try {
@@ -70,7 +59,7 @@ export async function fetchBagistoJson(url: URL, init: BagistoFetchInit = {}): P
       cache: init.cache ?? "no-store",
       redirect: "error",
       signal: controller.signal,
-    } as BagistoFetchInit);
+    });
     if (!response.ok) return { payload: null, response };
     try {
       return { payload: await response.json() as unknown, response };

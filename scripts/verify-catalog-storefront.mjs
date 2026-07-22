@@ -216,6 +216,7 @@ function json(response, body) {
 
 const seenQueries = [];
 const seenCatalogRequests = [];
+let malformedCategoryResponsesRemaining = 1;
 const fakeSockets = new Set();
 const fake = createServer((request, response) => {
   const url = new URL(request.url ?? "/", "http://127.0.0.1");
@@ -223,6 +224,10 @@ const fake = createServer((request, response) => {
     seenCatalogRequests.push({ pathname: url.pathname, query: url.search });
   }
   if (url.pathname === "/api/b2b/catalog/categories") {
+    if (malformedCategoryResponsesRemaining > 0) {
+      malformedCategoryResponsesRemaining -= 1;
+      return json(response, { data: [category] });
+    }
     return json(response, { data: [category], meta: { channel: "default", locale: "vi", contract_version: 2 } });
   }
   const slug = url.pathname.replace("/api/b2b/catalog/products/", "").replace(/\/$/, "");
@@ -256,6 +261,9 @@ const fake = createServer((request, response) => {
     return;
   }
   if (query === "bad-root") return json(response, { data: [] });
+  if (query === "recover-after-malformed" && seenQueries.filter((item) => item === query).length === 1) {
+    return json(response, { data: [] });
+  }
   if (query === "empty" || query === "không tồn tại") {
     return json(response, { data: [], links, meta: { ...listMeta, from: null, to: null, total: 0 } });
   }
@@ -294,6 +302,22 @@ app.stderr.on("data", (chunk) => logs.push(chunk.toString()));
 try {
   const origin = `http://127.0.0.1:${appPort}`;
   await waitForServer(`${origin}/`, app, logs);
+  const categoryRecoveryStart = seenCatalogRequests.length;
+  assert.equal(
+    (await fetchWithTimeout(`${origin}/san-pham/?q=category-recovery`, {}, "malformed category payload")).status,
+    500,
+    "Malformed category HTTP 200 must fail strict parsing",
+  );
+  assert.equal(
+    (await fetchWithTimeout(`${origin}/san-pham/?q=category-recovery`, {}, "valid category retry")).status,
+    200,
+    "Category retry must recover after a malformed HTTP 200",
+  );
+  assert.equal(
+    seenCatalogRequests.slice(categoryRecoveryStart).filter((item) => item.pathname === "/api/b2b/catalog/categories").length,
+    2,
+    "Malformed category HTTP 200 must not enter the validated cache",
+  );
   for (const [path, status] of [
     ["/san-pham/", 200],
     ["/san-pham/b2b-demo-bot-dinh-duong/", 200],
@@ -307,6 +331,7 @@ try {
     ["/san-pham/a/b/", 404], ["/sua-bot-cho-nguoi-gia/", 200],
     ["/san-pham/?q=empty", 200],
     ["/san-pham/?q=bad-root", 500],
+    ["/san-pham/?q=recover-after-malformed", 500],
     ["/san-pham/?q=bad-version", 500],
     ["/san-pham/?q=bad-currency", 500],
     ["/san-pham/?q=bad-parent-shape", 500],
@@ -330,9 +355,17 @@ try {
   const catalogSource = await readFile("src/lib/bagisto-catalog.ts", "utf8");
   assert.match(catalogSource, /searchParams\.set\("channel"/, "Public catalog cache key must include the channel");
   assert.match(catalogSource, /searchParams\.set\("locale"/, "Public catalog cache key must include the locale");
-  assert.match(apiSource, /catalogList:[\s\S]*?revalidate:\s*30/, "Product-list fetch needs a 30 second revalidation policy");
-  assert.match(apiSource, /catalogCategories:[\s\S]*?revalidate:\s*300/, "Category fetch needs a 300 second revalidation policy");
-  assert.match(apiSource, /catalogDetail:[\s\S]*?cache:\s*"no-store"/, "Product detail fetch must remain no-store");
+  assert.match(catalogSource, /catalog-products-v2[\s\S]*?revalidate:\s*30/, "Validated product DTOs need a 30 second cache wrapper");
+  assert.match(catalogSource, /catalog-categories-v2[\s\S]*?revalidate:\s*300/, "Validated category DTOs need a 300 second cache wrapper");
+  assert.match(catalogSource, /fetchBagistoJson\(url, \{ cache:\s*"no-store"/, "Raw catalog responses must never enter the fetch cache");
+  assert.doesNotMatch(apiSource, /force-cache/, "The shared Bagisto transport must not cache unvalidated responses");
+  const recovered = await fetchWithTimeout(`${origin}/san-pham/?q=recover-after-malformed`, {}, "validated retry after malformed payload");
+  assert.equal(recovered.status, 200, "A malformed HTTP 200 response must not poison the validated catalog cache");
+  assert.equal(
+    seenQueries.filter((item) => item === "recover-after-malformed").length,
+    2,
+    "Retry after malformed HTTP 200 must reach the upstream API again",
+  );
   const cachedListStart = seenCatalogRequests.length;
   await fetchWithTimeout(`${origin}/san-pham/?q=cache-probe`, {}, "first cached catalog request");
   await fetchWithTimeout(`${origin}/san-pham/?q=cache-probe`, {}, "second cached catalog request");
@@ -393,6 +426,28 @@ try {
     "Catalog discovery must not request product details before explicit intent",
   );
   assert.equal(await page.getByRole("button", { name: "Lọc sản phẩm" }).count(), 0, "Catalog filters must not require a separate submit action");
+  const combinedFilterStart = seenCatalogRequests.length;
+  await page.getByLabel("Tìm sản phẩm").fill("ngũ cốc");
+  await page.getByRole("button", { name: "Dinh dưỡng" }).click();
+  await page.waitForURL((url) => url.searchParams.get("q") === "ngũ cốc" && url.searchParams.get("category") === "dinh-duong");
+  await page.getByText("1 dòng sản phẩm", { exact: true }).waitFor();
+  assert.ok(
+    seenCatalogRequests.slice(combinedFilterStart).some((item) => {
+      const parameters = new URLSearchParams(item.query);
+      return parameters.get("q") === "ngũ cốc" && parameters.get("category") === "dinh-duong";
+    }),
+    "Category selection must submit the current search draft to the upstream API",
+  );
+  await page.goBack();
+  await page.getByText("3 dòng sản phẩm", { exact: true }).waitFor();
+  assert.equal(await page.getByLabel("Tìm sản phẩm").inputValue(), "", "Back must restore the previous search input");
+  assert.equal(await page.getByRole("button", { name: "Tất cả" }).getAttribute("aria-pressed"), "true", "Back must restore the previous category chip");
+  await page.goForward();
+  await page.getByText("1 dòng sản phẩm", { exact: true }).waitFor();
+  assert.equal(await page.getByLabel("Tìm sản phẩm").inputValue(), "ngũ cốc", "Forward must restore the submitted search draft");
+  assert.equal(await page.getByRole("button", { name: "Dinh dưỡng" }).getAttribute("aria-pressed"), "true", "Forward must restore the selected category chip");
+  await page.goBack();
+  await page.getByText("3 dòng sản phẩm", { exact: true }).waitFor();
   await page.getByLabel("Tìm sản phẩm").fill("ngũ cốc");
   await page.getByLabel("Tìm sản phẩm").press("Enter");
   await page.getByText("1 dòng sản phẩm", { exact: true }).waitFor();

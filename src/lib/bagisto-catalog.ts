@@ -1,8 +1,9 @@
 import "server-only";
 
+import { unstable_cache } from "next/cache";
 import { cache } from "react";
 
-import { catalogFetchPolicy, fetchBagistoJson, getBagistoApiUrl } from "@/lib/bagisto-api";
+import { fetchBagistoJson, getBagistoApiUrl } from "@/lib/bagisto-api";
 import type {
   CatalogCategory,
   CatalogFilters,
@@ -24,50 +25,95 @@ export class CatalogApiError extends Error {
 }
 
 export async function getCatalogProducts(filters: CatalogFilters): Promise<CatalogProductList> {
-  const url = getBagistoApiUrl("/api/b2b/catalog/products", true);
-  applyCatalogContext(url);
-  if (filters.query) url.searchParams.set("q", filters.query);
-  if (filters.category) url.searchParams.set("category", filters.category);
-  url.searchParams.set("page", String(filters.page));
-  url.searchParams.set("per_page", "12");
-  return parseProductList(await fetchJson(url, catalogFetchPolicy.catalogList));
+  const context = getCatalogContext();
+  return getValidatedCatalogProducts(
+    getBagistoApiUrl("/", true).toString(),
+    context.channel,
+    context.locale,
+    filters.query,
+    filters.category,
+    filters.page,
+    12,
+  );
 }
 
 export const getCatalogProduct = cache(async (slug: string): Promise<CatalogProductDetail | null> => {
   const url = getBagistoApiUrl(`/api/b2b/catalog/products/${encodeURIComponent(slug)}`, true);
-  applyCatalogContext(url);
-  const { payload, response } = await catalogJson(url, catalogFetchPolicy.catalogDetail);
+  applyCatalogContext(url, getCatalogContext());
+  const { payload, response } = await catalogJson(url);
   if (response.status === 404) return null;
   return parseProductResponse(responsePayload(response, payload));
 });
 
-export const getCatalogCategories = cache(async (): Promise<CatalogCategory[]> => {
-  const url = getBagistoApiUrl("/api/b2b/catalog/categories", true);
-  applyCatalogContext(url);
+export async function getCatalogCategories(): Promise<CatalogCategory[]> {
+  const context = getCatalogContext();
+  return getValidatedCatalogCategories(
+    getBagistoApiUrl("/", true).toString(),
+    context.channel,
+    context.locale,
+  );
+}
+
+const getValidatedCatalogProducts = unstable_cache(async (
+  apiBaseUrl: string,
+  channel: string,
+  locale: string,
+  query: string,
+  category: string,
+  page: number,
+  perPage: number,
+): Promise<CatalogProductList> => {
+  const url = new URL("/api/b2b/catalog/products", apiBaseUrl);
+  applyCatalogContext(url, { channel, locale });
+  if (query) url.searchParams.set("q", query);
+  if (category) url.searchParams.set("category", category);
+  url.searchParams.set("page", String(page));
+  url.searchParams.set("per_page", String(perPage));
+  return parseProductList(await fetchJson(url));
+}, ["catalog-products-v2"], { revalidate: 30 });
+
+const getValidatedCatalogCategories = unstable_cache(async (
+  apiBaseUrl: string,
+  channel: string,
+  locale: string,
+): Promise<CatalogCategory[]> => {
+  const url = new URL("/api/b2b/catalog/categories", apiBaseUrl);
+  applyCatalogContext(url, { channel, locale });
   const root = exactRecord(
-    await fetchJson(url, catalogFetchPolicy.catalogCategories),
+    await fetchJson(url),
     "Danh mục",
     ["data", "meta"],
   );
   validateBaseMeta(root.meta, "Danh mục.meta", false);
   return array(root.data, "Danh mục.data")
     .map((item, index) => parseCategory(item, `Danh mục.data[${index}]`));
-});
+}, ["catalog-categories-v2"], { revalidate: 300 });
 
-function applyCatalogContext(url: URL) {
-  // URL parameters form part of Next's fetch cache key. Defaults match contract-v2 fixtures.
-  url.searchParams.set("channel", process.env.BAGISTO_CHANNEL?.trim() || "default");
-  url.searchParams.set("locale", process.env.BAGISTO_LOCALE?.trim() || "vi");
+interface CatalogContext {
+  channel: string;
+  locale: string;
 }
 
-async function fetchJson(url: URL, init: RequestInit): Promise<unknown> {
-  const { payload, response } = await catalogJson(url, init);
+function getCatalogContext(): CatalogContext {
+  return {
+    channel: process.env.BAGISTO_CHANNEL?.trim() || "default",
+    locale: process.env.BAGISTO_LOCALE?.trim() || "vi",
+  };
+}
+
+function applyCatalogContext(url: URL, context: CatalogContext) {
+  url.searchParams.set("channel", context.channel);
+  url.searchParams.set("locale", context.locale);
+}
+
+async function fetchJson(url: URL): Promise<unknown> {
+  const { payload, response } = await catalogJson(url);
   return responsePayload(response, payload);
 }
 
-async function catalogJson(url: URL, init: RequestInit) {
+async function catalogJson(url: URL) {
   try {
-    return await fetchBagistoJson(url, { ...init, headers: { Accept: "application/json" } });
+    return await fetchBagistoJson(url, { cache: "no-store", headers: { Accept: "application/json" } });
   } catch (error) {
     if (error instanceof SyntaxError) throw new CatalogApiError("Dịch vụ danh mục trả về JSON không hợp lệ.");
     throw error;

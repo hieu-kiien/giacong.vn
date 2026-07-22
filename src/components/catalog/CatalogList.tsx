@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useTransition } from "react";
+import { useRef, useTransition } from "react";
 
 import { catalogHref } from "@/lib/catalog-query";
 import { CatalogProductCard } from "@/components/catalog/CatalogProductCard";
@@ -17,6 +17,7 @@ interface CatalogListProps {
 
 export function CatalogList({ categories, filters, result }: CatalogListProps) {
   const router = useRouter();
+  const queryInputRef = useRef<HTMLInputElement>(null);
   const [isPending, startTransition] = useTransition();
   const pages = paginationPages(result.pagination.currentPage, result.pagination.lastPage);
 
@@ -24,6 +25,7 @@ export function CatalogList({ categories, filters, result }: CatalogListProps) {
     const normalized = { ...nextFilters, page: 1 };
     startTransition(() => router.push(catalogHref(normalized), { scroll: false }));
   };
+  const currentQueryDraft = () => (queryInputRef.current?.value ?? filters.query).trim().slice(0, 100);
 
   return (
     <main id="catalog-main" className={styles.catalog}>
@@ -49,20 +51,21 @@ export function CatalogList({ categories, filters, result }: CatalogListProps) {
               key={filters.query}
               maxLength={100}
               name="q"
+              ref={queryInputRef}
               type="search"
             />
           </label>
           <fieldset className={styles.categoryFilters}>
             <legend>Danh mục</legend>
             <div className={styles.chips}>
-              <button aria-pressed={!filters.category} className={styles.chip} disabled={isPending} onClick={() => updateFilters({ ...filters, category: "" })} type="button">Tất cả</button>
+              <button aria-pressed={!filters.category} className={styles.chip} disabled={isPending} onClick={() => updateFilters({ ...filters, category: "", query: currentQueryDraft() })} type="button">Tất cả</button>
               {categories.map((category) => (
                 <button
                   aria-pressed={filters.category === category.slug}
                   className={styles.chip}
                   disabled={isPending}
                   key={category.id}
-                  onClick={() => updateFilters({ ...filters, category: category.slug })}
+                  onClick={() => updateFilters({ ...filters, category: category.slug, query: currentQueryDraft() })}
                   type="button"
                 >
                   {category.name}
