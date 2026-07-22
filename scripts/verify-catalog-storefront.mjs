@@ -309,6 +309,17 @@ app.stderr.on("data", (chunk) => logs.push(chunk.toString()));
 try {
   const origin = `http://127.0.0.1:${appPort}`;
   await waitForServer(`${origin}/`, app, logs);
+  const purchaseAlias = await fetchWithTimeout(
+    `${origin}/mua-hang?q=bot&category=dinh-duong`,
+    { redirect: "manual" },
+    "permanent purchase alias",
+  );
+  assert.equal(purchaseAlias.status, 308, "The /mua-hang alias must be a permanent redirect");
+  assert.equal(
+    purchaseAlias.headers.get("location"),
+    "/san-pham?q=bot&category=dinh-duong",
+    "The purchase alias must preserve catalog query parameters",
+  );
   for (const [slug, status, error] of [
     ["x".repeat(161), 422, "invalid_product"],
     ["missing", 404, "product_not_found"],
