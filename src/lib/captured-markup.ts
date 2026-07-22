@@ -17,7 +17,6 @@ export function normalizeCapturedMarkup(markup: string) {
     .replace(/Sản Phẩm(?=<i class="icon-angle-down"><\/i>)/g, "Mua hàng")
     .replace(/Dịch vụ(?=<i class="icon-angle-down"><\/i>)/g, "Thuê gia công")
     .replace(/Dịch Vụ Gia Công(?=<\/a>)/g, "Thuê gia công")
-    .replace(/Trang Chủ(?=<\/a>)/g, "Home")
     .replace(
     /<a\b([^>]*?)href=(["'])#\2([^>]*)>([\s\S]*?)<\/a>/gi,
     (link, beforeHref: string, quote: string, afterHref: string, content: string) => {
@@ -27,7 +26,31 @@ export function normalizeCapturedMarkup(markup: string) {
     },
     );
 
-  return removeAboutMenuItems(replaceShoppingMenu(replaceServiceMenus(normalized)));
+  return normalizeHomeMenuItems(
+    removeAboutMenuItems(replaceShoppingMenu(replaceServiceMenus(normalized))),
+  );
+}
+
+function normalizeHomeMenuItems(markup: string): string {
+  return normalizeHomeMenuItem(
+    normalizeHomeMenuItem(markup, "menu-item-4618"),
+    "menu-item-5465",
+  );
+}
+
+function normalizeHomeMenuItem(markup: string, id: string): string {
+  const opening = new RegExp(`<li\\b[^>]*\\bid=(["'])${id}\\1[^>]*>`, "i").exec(markup);
+  if (!opening || opening.index === undefined) return markup;
+  const end = matchingListItemEnd(markup, opening.index);
+  if (end < 0) return markup;
+
+  const item = markup.slice(opening.index, end);
+  const directAnchor = /^(<li\b[^>]*>\s*<a\b[^>]*>)([\s\S]*?)(<\/a>)/i.exec(item);
+  if (!directAnchor) return markup;
+  const label = directAnchor[2].replace(/Trang Chủ(\s*)$/i, "Home$1");
+  const normalizedItem = `${directAnchor[1]}${label}${directAnchor[3]}${item.slice(directAnchor[0].length)}`;
+
+  return `${markup.slice(0, opening.index)}${normalizedItem}${markup.slice(end)}`;
 }
 
 function replaceServiceMenus(markup: string): string {
