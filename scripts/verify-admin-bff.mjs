@@ -27,10 +27,15 @@ const upstreamPort = await port(); upstream.listen(upstreamPort, "127.0.0.1"); a
 const appPort = await port(); const logs = []; const app = spawn(process.execPath, ["node_modules/next/dist/bin/next", "start", "-p", String(appPort)], { env: { ...process.env, BAGISTO_ADMIN_API_URL: `http://127.0.0.1:${upstreamPort}/api/b2b/admin/v1` }, stdio: ["ignore", "pipe", "pipe"], windowsHide: true }); app.stdout.on("data", (chunk) => logs.push(String(chunk))); app.stderr.on("data", (chunk) => logs.push(String(chunk)));
 try {
   const origin = `http://127.0.0.1:${appPort}`; await waitFor(`${origin}/`, app, logs);
+  const loginPage = await fetch(`${origin}/quan-tri/dang-nhap`, { redirect: "manual" });
+  assert.equal(loginPage.status, 200, "The public login page must not be wrapped by the protected layout.");
+  const protectedPage = await fetch(`${origin}/quan-tri`, { redirect: "manual" });
+  assert.equal(protectedPage.status, 307, "An unauthenticated protected route must redirect.");
+  assert.match(protectedPage.headers.get("location") ?? "", /^\/quan-tri\/dang-nhap\?returnTo=/);
   const rejected = await fetch(`${origin}/api/quan-tri/session`, { method: "POST", headers: { "Content-Type": "application/json", Origin: "http://localhost:3000" }, body: JSON.stringify({ email: "a@example.test", password: "correct-password" }) }); assert.equal(rejected.status, 403);
   const login = await fetch(`${origin}/api/quan-tri/session`, { method: "POST", headers: { "Content-Type": "application/json", Origin: origin }, body: JSON.stringify({ email: "a@example.test", password: "correct-password" }) }); assert.equal(login.status, 202); const loginCookies = login.headers.getSetCookie(); assert.equal(loginCookies.length, 3); const cookie = loginCookies.map((value) => value.split(";", 1)[0]).join("; ");
   const twoFactor = await fetch(`${origin}/api/quan-tri/two-factor`, { method: "POST", headers: { "Content-Type": "application/json", Origin: origin, Cookie: cookie }, body: JSON.stringify({ code: "123456" }) }); assert.equal(twoFactor.status, 200); const verifiedCookie = [...loginCookies, ...twoFactor.headers.getSetCookie()].map((value) => value.split(";", 1)[0]).join("; ");
   const logout = await fetch(`${origin}/api/quan-tri/session`, { method: "DELETE", headers: { Origin: origin, Cookie: verifiedCookie } }); assert.equal(logout.status, 204); assert.equal(logout.headers.getSetCookie().length, 2);
-  assert.deepEqual(requests.map((request) => `${request.method} ${request.path}`), ["GET /api/b2b/admin/v1/me", "POST /api/b2b/admin/v1/session", "POST /api/b2b/admin/v1/two-factor", "DELETE /api/b2b/admin/v1/session"]);
+  assert.deepEqual(requests.map((request) => `${request.method} ${request.path}`), ["GET /api/b2b/admin/v1/me", "GET /api/b2b/admin/v1/me", "GET /api/b2b/admin/v1/me", "POST /api/b2b/admin/v1/session", "POST /api/b2b/admin/v1/two-factor", "DELETE /api/b2b/admin/v1/session"]);
   console.log("admin fake-upstream cookie, CSRF, 2FA, and logout handshake passed");
 } finally { await stop(app); await new Promise((resolve) => upstream.close(resolve)); }

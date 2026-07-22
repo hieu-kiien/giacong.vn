@@ -17,9 +17,10 @@ const required = [
   "src/app/api/quan-tri/san-pham/route.ts",
   "src/app/api/quan-tri/san-pham/[slug]/route.ts",
   "src/app/quan-tri/dang-nhap/page.tsx",
-  "src/app/quan-tri/page.tsx",
-  "src/app/quan-tri/san-pham/page.tsx",
-  "src/app/quan-tri/san-pham/[slug]/page.tsx",
+  "src/app/quan-tri/(protected)/layout.tsx",
+  "src/app/quan-tri/(protected)/page.tsx",
+  "src/app/quan-tri/(protected)/san-pham/page.tsx",
+  "src/app/quan-tri/(protected)/san-pham/[slug]/page.tsx",
 ];
 
 for (const path of required) {
@@ -39,7 +40,7 @@ assert.equal(routes.join("\n").includes("8000"), false);
 
 const login = await source("src/components/admin/LoginForm.tsx");
 assert.match(login, /two_factor_required/);
-assert.match(login, /localStorage|sessionStorage/, "Login must explicitly guard against browser credential persistence.");
+assert.doesNotMatch(login.replace(/\/\/.*$/gm, ""), /(?:localStorage|sessionStorage)\s*(?:\.|\[)/, "Login must not persist credentials in browser storage.");
 assert.doesNotMatch(login, /127\.0\.0\.1:8000/);
 
 console.log("admin static contract checks passed");
