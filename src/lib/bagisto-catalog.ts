@@ -2,7 +2,7 @@ import "server-only";
 
 import { cache } from "react";
 
-import { fetchBagistoJson, getBagistoApiUrl } from "@/lib/bagisto-api";
+import { catalogFetchPolicy, fetchBagistoJson, getBagistoApiUrl } from "@/lib/bagisto-api";
 import type {
   CatalogCategory,
   CatalogFilters,
@@ -25,23 +25,27 @@ export class CatalogApiError extends Error {
 
 export async function getCatalogProducts(filters: CatalogFilters): Promise<CatalogProductList> {
   const url = getBagistoApiUrl("/api/b2b/catalog/products", true);
+  applyCatalogContext(url);
   if (filters.query) url.searchParams.set("q", filters.query);
   if (filters.category) url.searchParams.set("category", filters.category);
   url.searchParams.set("page", String(filters.page));
   url.searchParams.set("per_page", "12");
-  return parseProductList(await fetchJson(url));
+  return parseProductList(await fetchJson(url, catalogFetchPolicy.catalogList));
 }
 
 export const getCatalogProduct = cache(async (slug: string): Promise<CatalogProductDetail | null> => {
   const url = getBagistoApiUrl(`/api/b2b/catalog/products/${encodeURIComponent(slug)}`, true);
-  const { payload, response } = await catalogJson(url);
+  applyCatalogContext(url);
+  const { payload, response } = await catalogJson(url, catalogFetchPolicy.catalogDetail);
   if (response.status === 404) return null;
   return parseProductResponse(responsePayload(response, payload));
 });
 
 export const getCatalogCategories = cache(async (): Promise<CatalogCategory[]> => {
+  const url = getBagistoApiUrl("/api/b2b/catalog/categories", true);
+  applyCatalogContext(url);
   const root = exactRecord(
-    await fetchJson(getBagistoApiUrl("/api/b2b/catalog/categories", true)),
+    await fetchJson(url, catalogFetchPolicy.catalogCategories),
     "Danh mục",
     ["data", "meta"],
   );
@@ -50,14 +54,20 @@ export const getCatalogCategories = cache(async (): Promise<CatalogCategory[]> =
     .map((item, index) => parseCategory(item, `Danh mục.data[${index}]`));
 });
 
-async function fetchJson(url: URL): Promise<unknown> {
-  const { payload, response } = await catalogJson(url);
+function applyCatalogContext(url: URL) {
+  // URL parameters form part of Next's fetch cache key. Defaults match contract-v2 fixtures.
+  url.searchParams.set("channel", process.env.BAGISTO_CHANNEL?.trim() || "default");
+  url.searchParams.set("locale", process.env.BAGISTO_LOCALE?.trim() || "vi");
+}
+
+async function fetchJson(url: URL, init: RequestInit): Promise<unknown> {
+  const { payload, response } = await catalogJson(url, init);
   return responsePayload(response, payload);
 }
 
-async function catalogJson(url: URL) {
+async function catalogJson(url: URL, init: RequestInit) {
   try {
-    return await fetchBagistoJson(url, { headers: { Accept: "application/json" } });
+    return await fetchBagistoJson(url, { ...init, headers: { Accept: "application/json" } });
   } catch (error) {
     if (error instanceof SyntaxError) throw new CatalogApiError("Dịch vụ danh mục trả về JSON không hợp lệ.");
     throw error;

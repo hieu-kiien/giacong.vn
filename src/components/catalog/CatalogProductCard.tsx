@@ -10,18 +10,15 @@ interface CatalogProductCardProps {
 
 export function CatalogProductCard({ product }: CatalogProductCardProps) {
   return (
-    <article className={styles.card}>
-      <Link href={`/san-pham/${encodeURIComponent(product.slug)}/`} aria-label={`Xem ${product.name}`}>
-        <CatalogProductImage alt={product.name} imageUrl={product.imageUrl} />
-      </Link>
+    <article className={styles.card} data-catalog-card>
+      <CatalogProductImage alt={product.name} imageUrl={product.imageUrl} />
       <div className={styles.cardContent}>
         {product.category ? <span className={styles.category}>{product.category.name}</span> : null}
-        <h2 className={styles.productName}>
-          <Link href={`/san-pham/${encodeURIComponent(product.slug)}/`}>{product.name}</Link>
-        </h2>
+        <h2 className={styles.productName}>{product.name}</h2>
         <span className={styles.price}>Từ {formatVnd(product.startingPrice.price)}</span>
-        <span className={styles.meta}>{product.variantCount} lựa chọn</span>
-        <span className={styles.contactPrice}>{product.availableVariantCount} lựa chọn đang sẵn sàng</span>
+        <span className={styles.meta}>{product.variantCount} phiên bản</span>
+        <span className={styles.availability}>{product.availableVariantCount}/{product.variantCount} phiên bản có sẵn</span>
+        <Link className={styles.cardAction} href={`/san-pham/${encodeURIComponent(product.slug)}/`} prefetch={false}>Xem chi tiết</Link>
       </div>
     </article>
   );

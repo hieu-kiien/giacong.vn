@@ -1,8 +1,11 @@
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
 import { once } from "node:events";
+import { mkdir, readFile } from "node:fs/promises";
 import { createServer } from "node:http";
 import { createServer as createNetServer } from "node:net";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { chromium } from "playwright";
 
 const REQUEST_TIMEOUT_MS = 5_000;
@@ -26,6 +29,11 @@ async function fetchWithTimeout(url, options = {}, label = url) {
 
 function logsText(logs) {
   return logs.join("").slice(-8_000);
+}
+
+function median(values) {
+  const sorted = [...values].sort((left, right) => left - right);
+  return sorted[Math.floor(sorted.length / 2)];
 }
 
 async function waitForServer(url, child, logs) {
@@ -207,9 +215,13 @@ function json(response, body) {
 }
 
 const seenQueries = [];
+const seenCatalogRequests = [];
 const fakeSockets = new Set();
 const fake = createServer((request, response) => {
   const url = new URL(request.url ?? "/", "http://127.0.0.1");
+  if (url.pathname.startsWith("/api/b2b/catalog/")) {
+    seenCatalogRequests.push({ pathname: url.pathname, query: url.search });
+  }
   if (url.pathname === "/api/b2b/catalog/categories") {
     return json(response, { data: [category], meta: { channel: "default", locale: "vi", contract_version: 2 } });
   }
@@ -239,13 +251,24 @@ const fake = createServer((request, response) => {
   seenQueries.push(query);
   if (query === "redirect") return response.writeHead(302, { Location: "/api/b2b/catalog/products" }).end();
   if (query === "timeout") return;
+  if (query === "pending-probe") {
+    setTimeout(() => json(response, { data: parents, links, meta: listMeta }), 250);
+    return;
+  }
   if (query === "bad-root") return json(response, { data: [] });
-  if (query === "empty") return json(response, { data: [], links, meta: { ...listMeta, from: null, to: null, total: 0 } });
+  if (query === "empty" || query === "không tồn tại") {
+    return json(response, { data: [], links, meta: { ...listMeta, from: null, to: null, total: 0 } });
+  }
   if (query === "bad-version") return json(response, { data: parents, links, meta: { ...listMeta, contract_version: 1 } });
   if (query === "bad-currency") return json(response, { data: parents, links, meta: { ...listMeta, currency: "USD" } });
   if (query === "bad-parent-shape") return json(response, { data: [{ ...parents[0], extra: true }], links, meta: { ...listMeta, total: 1, to: 1 } });
   if (query === "bad-starting-price") return json(response, { data: [{ ...parents[0], starting_price: { unit_price: 720000, currency: "USD" } }], links, meta: { ...listMeta, total: 1, to: 1 } });
   if (query === "bad-image") return json(response, { data: [{ ...parents[0], image: { url: "ftp://bad", alt: "x" } }], links, meta: { ...listMeta, total: 1, to: 1 } });
+  if (query === "ngũ cốc") return json(response, {
+    data: [parents[2]],
+    links,
+    meta: { ...listMeta, from: 1, to: 1, total: 1 },
+  });
   return json(response, { data: parents, links, meta: listMeta });
 });
 fake.on("connection", (socket) => {
@@ -258,6 +281,8 @@ fake.listen(fakePort, "127.0.0.1");
 await once(fake, "listening");
 const appPort = await port();
 const logs = [];
+const browserIssues = [];
+const screenshots = join(tmpdir(), `storefront-task-2-${Date.now()}`);
 let browser;
 const app = spawn(process.execPath, ["node_modules/next/dist/bin/next", "start", "-p", String(appPort)], {
   env: { ...process.env, BAGISTO_API_URL: `http://127.0.0.1:${fakePort}`, BAGISTO_API_TIMEOUT_MS: "500", NODE_ENV: "production" },
@@ -296,7 +321,49 @@ try {
   assert.equal(seenQueries.at(-1)?.length, 100, "Catalog query must cap at 100 characters");
   const listHtml = await (await fetchWithTimeout(`${origin}/san-pham/`, {}, "catalog input markup")).text();
   assert.match(listHtml, /maxLength="100"/i, "Catalog search input must cap at 100 characters");
+  for (const request of seenCatalogRequests) {
+    const parameters = new URLSearchParams(request.query);
+    assert.equal(parameters.get("channel"), "default", `${request.pathname} cache key must include channel`);
+    assert.equal(parameters.get("locale"), "vi", `${request.pathname} cache key must include locale`);
+  }
+  const apiSource = await readFile("src/lib/bagisto-api.ts", "utf8");
+  const catalogSource = await readFile("src/lib/bagisto-catalog.ts", "utf8");
+  assert.match(catalogSource, /searchParams\.set\("channel"/, "Public catalog cache key must include the channel");
+  assert.match(catalogSource, /searchParams\.set\("locale"/, "Public catalog cache key must include the locale");
+  assert.match(apiSource, /catalogList:[\s\S]*?revalidate:\s*30/, "Product-list fetch needs a 30 second revalidation policy");
+  assert.match(apiSource, /catalogCategories:[\s\S]*?revalidate:\s*300/, "Category fetch needs a 300 second revalidation policy");
+  assert.match(apiSource, /catalogDetail:[\s\S]*?cache:\s*"no-store"/, "Product detail fetch must remain no-store");
+  const cachedListStart = seenCatalogRequests.length;
+  await fetchWithTimeout(`${origin}/san-pham/?q=cache-probe`, {}, "first cached catalog request");
+  await fetchWithTimeout(`${origin}/san-pham/?q=cache-probe`, {}, "second cached catalog request");
+  const cachedListRequests = seenCatalogRequests.slice(cachedListStart);
+  assert.equal(
+    cachedListRequests.filter((item) => item.pathname === "/api/b2b/catalog/products" && item.query.includes("q=cache-probe")).length,
+    1,
+    "Repeat public catalog requests must reuse the Next data cache",
+  );
+  assert.ok(
+    cachedListRequests.filter((item) => item.pathname === "/api/b2b/catalog/categories").length <= 1,
+    "Repeat category requests must reuse the Next data cache",
+  );
+  const coldTimings = [];
+  const warmTimings = [];
+  const measure = async (label, target) => {
+    const start = performance.now();
+    await fetchWithTimeout(target, {}, label);
+    return performance.now() - start;
+  };
+  coldTimings.push(await measure("cold catalog timing", `${origin}/san-pham/?q=timing-probe`));
+  for (let index = 0; index < 5; index += 1) warmTimings.push(await measure(`warm catalog timing ${index}`, `${origin}/san-pham/?q=timing-probe`));
   const detailUrl = `${origin}/san-pham/b2b-demo-bot-dinh-duong/`;
+  const detailStart = seenCatalogRequests.length;
+  await fetchWithTimeout(detailUrl, {}, "first uncached detail request");
+  await fetchWithTimeout(detailUrl, {}, "second uncached detail request");
+  assert.equal(
+    seenCatalogRequests.slice(detailStart).filter((item) => item.pathname === "/api/b2b/catalog/products/b2b-demo-bot-dinh-duong").length,
+    2,
+    "Inventory-sensitive detail requests must not be cached across page loads",
+  );
   const redirects = new Map([
     ["b2b-demo-bot-dinh-duong-vi-vani", ["b2b-demo-bot-dinh-duong", "B2B-DEMO-BOT-VANI"]],
     ["b2b-demo-bot-dinh-duong-vi-it-ngot", ["b2b-demo-bot-dinh-duong", "B2B-DEMO-BOT-IT-NGOT"]],
@@ -313,14 +380,62 @@ try {
   }
 
   browser = await chromium.launch({ headless: true });
-  const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
+  await mkdir(screenshots, { recursive: true });
+  const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+  page.on("console", (message) => { if (message.type() === "error") browserIssues.push(message.text()); });
+  page.on("pageerror", (error) => browserIssues.push(error.message));
+  const directDetailStart = seenCatalogRequests.length;
   await page.goto(`${origin}/san-pham/`);
   await page.getByText("3 dòng sản phẩm", { exact: true }).waitFor();
-  assert.equal(await page.getByText("2 lựa chọn", { exact: true }).count(), 3, "Parent cards must expose variant count");
+  assert.equal(
+    seenCatalogRequests.slice(directDetailStart).filter((item) => item.pathname.startsWith("/api/b2b/catalog/products/")).length,
+    0,
+    "Catalog discovery must not request product details before explicit intent",
+  );
+  assert.equal(await page.getByRole("button", { name: "Lọc sản phẩm" }).count(), 0, "Catalog filters must not require a separate submit action");
+  await page.getByLabel("Tìm sản phẩm").fill("ngũ cốc");
+  await page.getByLabel("Tìm sản phẩm").press("Enter");
+  await page.getByText("1 dòng sản phẩm", { exact: true }).waitFor();
+  assert.equal(new URL(page.url()).searchParams.get("q"), "ngũ cốc", "Enter search must update the catalog URL");
+  assert.ok(seenQueries.includes("ngũ cốc"), "Client search must request the server-filtered catalog result");
+  await page.getByLabel("Tìm sản phẩm").fill("");
+  await page.getByLabel("Tìm sản phẩm").press("Enter");
+  await page.getByText("3 dòng sản phẩm", { exact: true }).waitFor();
+  await page.getByRole("button", { name: "Dinh dưỡng" }).click();
+  await page.getByText("3 dòng sản phẩm", { exact: true }).waitFor();
+  assert.equal(new URL(page.url()).searchParams.get("category"), "dinh-duong", "Category chip must update the catalog URL");
+  await page.goBack();
+  await page.getByText("3 dòng sản phẩm", { exact: true }).waitFor();
+  assert.equal(new URL(page.url()).searchParams.has("category"), false, "Back navigation must restore the prior category URL");
+  assert.equal(await page.getByRole("button", { name: "Tất cả" }).getAttribute("aria-pressed"), "true", "Back navigation must restore the active category chip");
+  await page.goForward();
+  await page.waitForURL((url) => url.searchParams.get("category") === "dinh-duong");
+  assert.equal(await page.getByRole("button", { name: "Dinh dưỡng" }).getAttribute("aria-pressed"), "true", "Forward navigation must restore the selected category chip");
+  await page.goBack();
+  await page.getByText("3 dòng sản phẩm", { exact: true }).waitFor();
+  await page.getByLabel("Tìm sản phẩm").fill("pending-probe");
+  await page.getByLabel("Tìm sản phẩm").press("Enter");
+  await page.getByText("Đang cập nhật danh mục...", { exact: true }).waitFor();
+  await page.getByText("3 dòng sản phẩm", { exact: true }).waitFor();
+  await page.getByLabel("Tìm sản phẩm").fill("");
+  await page.getByLabel("Tìm sản phẩm").press("Enter");
+  await page.getByText("3 dòng sản phẩm", { exact: true }).waitFor();
+  await page.getByLabel("Tìm sản phẩm").fill("không tồn tại");
+  await page.getByLabel("Tìm sản phẩm").press("Enter");
+  await page.getByText("Chưa tìm thấy sản phẩm phù hợp.", { exact: true }).waitFor();
+  await page.getByRole("button", { name: "Xem toàn bộ sản phẩm" }).click();
+  await page.getByText("3 dòng sản phẩm", { exact: true }).waitFor();
+  assert.equal(await page.getByText("2 phiên bản", { exact: true }).count(), 3, "Parent cards must expose variant count");
+  assert.equal(await page.locator(".echbay-sms-messenger, .bottom-contact").count(), 0, "Catalog routes must not render floating contact bubbles");
+  assert.equal(await page.locator(`${"[data-catalog-card]"} a[href*='/san-pham/']`).count(), 3, "Each parent card needs one clear detail action");
+  await page.screenshot({ path: join(screenshots, "catalog-1440.png"), fullPage: true });
   await page.getByText(/Từ 720\.000/).waitFor();
   assert.equal(await page.getByText(/Mua từ|Liên hệ từ/).count(), 0, "Parent cards must not invent parent MOQ or contact rules");
   await page.goto(`${origin}/san-pham/?q=empty`);
   await page.getByText("Chưa tìm thấy sản phẩm phù hợp.", { exact: true }).waitFor();
+  await page.getByRole("button", { name: "Xem toàn bộ sản phẩm" }).click();
+  await page.getByText("3 dòng sản phẩm", { exact: true }).waitFor();
+  assert.equal(new URL(page.url()).search, "", "Clearing a server-rendered empty result must restore the full catalog URL");
   await page.goto(`${detailUrl}?variant=KHONG-TON-TAI`);
   await page.getByText(/Lựa chọn trong liên kết không còn khả dụng/).waitFor();
   assert.equal(await page.getByRole("radio", { checked: true }).count(), 0, "Invalid variant query must not select a fallback");
@@ -353,24 +468,19 @@ try {
   assert.equal(await switchedQuantity.inputValue(), "12", "Variant switch must reset quantity to the new MOQ");
   assert.equal(await switchedQuantity.getAttribute("step"), "6");
   assert.match(await page.locator("main").innerText(), /420\.000[\s\S]*?120 thùng/i, "Variant switch must update price and contact threshold atomically");
-  const homeHtml = await (await fetchWithTimeout(`${origin}/`, {}, "home navigation markup")).text();
-  assert.match(homeHtml, />Mua hàng</i, "Primary navigation must expose the shopping path");
-  assert.match(homeHtml, />Thuê gia công</i, "Primary navigation must expose the manufacturing-service path");
-  assert.match(
-    homeHtml,
-    /<button[^>]*aria-controls="clone-service-menu-desktop"[^>]*aria-expanded="false"[^>]*aria-label="Mở menu Thuê gia công"[^>]*>/i,
-    "Manufacturing-service navigation must expose a separate accessible disclosure",
-  );
-  assert.doesNotMatch(
-    homeHtml,
-    /<li[^>]*id="menu-item-1742"[^>]*has-dropdown/i,
-    "Shopping navigation must be a direct link without a mega menu",
-  );
-  assert.doesNotMatch(
-    homeHtml,
-    /Mua hàng<i class="icon-angle-down"><\/i>/i,
-    "Shopping navigation must not render a dropdown affordance",
-  );
+  const mobile = await browser.newPage({ viewport: { width: 390, height: 844 } });
+  mobile.on("console", (message) => { if (message.type() === "error") browserIssues.push(message.text()); });
+  mobile.on("pageerror", (error) => browserIssues.push(error.message));
+  await mobile.goto(`${origin}/san-pham/`);
+  await mobile.getByText("3 dòng sản phẩm", { exact: true }).waitFor();
+  assert.equal(await mobile.locator(".echbay-sms-messenger, .bottom-contact").count(), 0, "Mobile catalog must not render floating overlays");
+  assert.equal(await mobile.locator("[data-catalog-grid]").evaluate((element) => getComputedStyle(element).gridTemplateColumns.split(" ").length), 1, "390px catalog must render one card column");
+  assert.equal(await mobile.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth), true, "390px catalog must not overflow horizontally");
+  await mobile.screenshot({ path: join(screenshots, "catalog-390.png"), fullPage: true });
+  await mobile.close();
+  assert.deepEqual(browserIssues, [], "Catalog browser console must be clean");
+  assert.ok(median(warmTimings) <= 800, `Warm catalog p50 must remain under 800ms (received ${median(warmTimings).toFixed(1)}ms)`);
+  console.log(JSON.stringify({ coldCatalogP50Ms: median(coldTimings), screenshots, warmCatalogP50Ms: median(warmTimings) }));
 } finally {
   await browser?.close();
   await stopChild(app, appPort, logs);

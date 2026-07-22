@@ -1,4 +1,8 @@
+"use client";
+
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useTransition } from "react";
 
 import { catalogHref } from "@/lib/catalog-query";
 import { CatalogProductCard } from "@/components/catalog/CatalogProductCard";
@@ -12,7 +16,14 @@ interface CatalogListProps {
 }
 
 export function CatalogList({ categories, filters, result }: CatalogListProps) {
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
   const pages = paginationPages(result.pagination.currentPage, result.pagination.lastPage);
+
+  const updateFilters = (nextFilters: CatalogFilters) => {
+    const normalized = { ...nextFilters, page: 1 };
+    startTransition(() => router.push(catalogHref(normalized), { scroll: false }));
+  };
 
   return (
     <main id="catalog-main" className={styles.catalog}>
@@ -20,31 +31,55 @@ export function CatalogList({ categories, filters, result }: CatalogListProps) {
         <nav className={styles.crumbs} aria-label="Breadcrumb">
           <Link href="/">Trang chủ</Link> <span aria-hidden="true">/</span> Sản phẩm
         </nav>
-        <h1 className={styles.title}>Danh mục sản phẩm</h1>
-        <p className={styles.intro}>Tìm nguyên liệu và sản phẩm gia công theo nhu cầu đặt hàng doanh nghiệp.</p>
+        <header className={styles.heading}>
+          <h1 className={styles.title}>Sản phẩm</h1>
+          <p className={styles.intro}>Xem các dòng sản phẩm đang có trong danh mục B2B, rồi chọn phiên bản phù hợp ở trang chi tiết.</p>
+        </header>
 
-        <form className={styles.filters} action="/san-pham/" method="get">
+        <form className={styles.filters} onSubmit={(event) => {
+          event.preventDefault();
+          const query = String(new FormData(event.currentTarget).get("q") ?? "").trim();
+          updateFilters({ ...filters, query });
+        }}>
           <label className={styles.field} htmlFor="catalog-query">
             Tìm sản phẩm
-            <input defaultValue={filters.query} id="catalog-query" maxLength={100} name="q" type="search" />
+            <input
+              id="catalog-query"
+              defaultValue={filters.query}
+              key={filters.query}
+              maxLength={100}
+              name="q"
+              type="search"
+            />
           </label>
-          <label className={styles.field} htmlFor="catalog-category">
-            Danh mục
-            <select defaultValue={filters.category} id="catalog-category" name="category">
-              <option value="">Tất cả danh mục</option>
-              {categories.map((category) => <option key={category.id} value={category.slug}>{category.name}</option>)}
-            </select>
-          </label>
-          <button className={styles.button} type="submit">Lọc sản phẩm</button>
+          <fieldset className={styles.categoryFilters}>
+            <legend>Danh mục</legend>
+            <div className={styles.chips}>
+              <button aria-pressed={!filters.category} className={styles.chip} disabled={isPending} onClick={() => updateFilters({ ...filters, category: "" })} type="button">Tất cả</button>
+              {categories.map((category) => (
+                <button
+                  aria-pressed={filters.category === category.slug}
+                  className={styles.chip}
+                  disabled={isPending}
+                  key={category.id}
+                  onClick={() => updateFilters({ ...filters, category: category.slug })}
+                  type="button"
+                >
+                  {category.name}
+                </button>
+              ))}
+            </div>
+          </fieldset>
         </form>
 
-        <p className={styles.resultCount} aria-live="polite">{result.pagination.total} dòng sản phẩm</p>
+        <p className={styles.resultCount} aria-live="polite">{isPending ? "Đang cập nhật danh mục..." : `${result.pagination.total} dòng sản phẩm`}</p>
         {result.products.length ? (
-          <div className={styles.grid}>{result.products.map((product) => <CatalogProductCard key={product.id} product={product} />)}</div>
+          <div aria-busy={isPending} className={styles.grid} data-catalog-grid>{result.products.map((product) => <CatalogProductCard key={product.id} product={product} />)}</div>
         ) : (
-          <div className={styles.empty}>
-            <p>Chưa tìm thấy sản phẩm phù hợp.</p>
-            <Link className={styles.button} href="/san-pham/">Xem toàn bộ sản phẩm</Link>
+          <div className={styles.empty} role="status">
+            <h2>Chưa tìm thấy sản phẩm phù hợp.</h2>
+            <p>Thử một từ khóa khác hoặc xem lại toàn bộ danh mục.</p>
+            <button className={styles.button} onClick={() => updateFilters({ category: "", page: 1, query: "" })} type="button">Xem toàn bộ sản phẩm</button>
           </div>
         )}
 
@@ -56,6 +91,7 @@ export function CatalogList({ categories, filters, result }: CatalogListProps) {
                 className={`${styles.pageLink} ${page === result.pagination.currentPage ? styles.activePage : ""}`}
                 href={catalogHref({ ...filters, page })}
                 key={page}
+                prefetch={false}
               >
                 {page}
               </Link>
