@@ -3,6 +3,7 @@ import { spawn, spawnSync } from "node:child_process";
 import { once } from "node:events";
 import { createServer } from "node:http";
 import { createServer as createNetServer } from "node:net";
+import { chromium } from "playwright";
 
 const ETAG = '"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"';
 const NEXT_ETAG = '"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"';
@@ -21,6 +22,17 @@ const snapshot = {
     ],
   }],
 };
+function detailPayload(version = ETAG, rules = snapshot) {
+  return {
+    data: {
+      id: 11, type: "configurable", sku: "BOT-001", slug: "bot-nghe", name: "Bột nghệ", description: null, image: null,
+      categories: [], variant_count: 1, available_variant_count: 1, starting_price: { unit_price: rules.variants[0].tier_prices[0].unit_price, currency: "VND" },
+      published: rules.published, resource_version: version, validation_errors: [], option_groups: [], variant_index: { 21: {} },
+      variants: [{ id: 21, sku: "BOT-001-100", name: "Bột nghệ 100g", published: rules.variants[0].published, option_values: [], image: null, unit: rules.variants[0].unit, moq: rules.variants[0].moq, quantity_step: rules.variants[0].quantity_step, contact_from_quantity: rules.variants[0].contact_from_quantity, availability: { is_available: true }, tier_prices: rules.variants[0].tier_prices.map((tier) => ({ ...tier, currency: "VND" })), validation_errors: [] }],
+    },
+    meta: { channel: "default", locale: "vi", currency: "VND", contract_version: 1, resource_version: version },
+  };
+}
 
 function delay(ms) { return new Promise((resolve) => setTimeout(resolve, ms)); }
 async function freePort() {
@@ -59,10 +71,29 @@ function errorPayload(code, fields) {
 }
 
 const writes = [];
+let catalogListRequests = 0;
 const upstream = createServer(async (request, response) => {
   const url = new URL(request.url ?? "/", "http://127.0.0.1");
+  if (url.pathname === "/api/b2b/catalog/categories") {
+    return json(response, 200, { data: [], meta: { channel: "default", locale: "vi", contract_version: 2 } });
+  }
+  if (url.pathname === "/api/b2b/catalog/products") {
+    catalogListRequests += 1;
+    return json(response, 200, { data: [], links: { first: null, last: null, prev: null, next: null }, meta: { current_page: 1, from: null, last_page: 1, path: "/api/b2b/catalog/products", per_page: 12, to: null, total: 0, channel: "default", locale: "vi", currency: "VND", contract_version: 2 } });
+  }
   if (url.pathname.endsWith("/me")) {
-    return json(response, 200, { data: { id: 8, name: "Biên tập", email: "writer@example.test", role: { id: 2, name: "Catalog writer" }, permissions: ["b2b.catalog.read", "b2b.catalog.write"] } });
+    if (!request.headers.cookie?.includes("laravel_session=")) return json(response, 401, errorPayload("unauthenticated"));
+    const readOnly = request.headers.cookie?.includes("laravel_session=readonly");
+    return json(response, 200, { data: { id: 8, name: readOnly ? "Chỉ đọc" : "Biên tập", email: "writer@example.test", role: { id: 2, name: "Catalog" }, permissions: readOnly ? ["b2b.catalog.read"] : ["b2b.catalog.read", "b2b.catalog.write"] } });
+  }
+  if (url.pathname.endsWith("/product-aggregates/bot-nghe") && request.method === "GET") {
+    const payload = detailPayload();
+    if (request.headers.cookie?.includes("laravel_session=readonly")) {
+      payload.data.starting_price = null;
+      payload.data.validation_errors = ["variant_configuration_invalid"];
+      Object.assign(payload.data.variants[0], { unit: null, moq: null, quantity_step: 0, contact_from_quantity: null, tier_prices: [{ min_quantity: 0, unit_price: null, currency: "VND" }], validation_errors: ["missing_b2b_config", "tier_prices_invalid"] });
+    }
+    return json(response, 200, payload, { ETag: ETAG });
   }
   if (!url.pathname.endsWith("/product-aggregates/bot-nghe/commercial-rules") || request.method !== "PUT") {
     response.writeHead(404).end();
@@ -80,22 +111,17 @@ const upstream = createServer(async (request, response) => {
   assert.doesNotMatch(received.cookie, /marketing=/);
   assert.match(received.cookie, /laravel_session=writer/);
   assert.equal(received.xsrf, "token value");
-  assert.deepEqual(received.payload, snapshot, "The BFF must strip the browser-only version field.");
+  assert.deepEqual(Object.keys(received.payload).sort(), ["published", "variants"], "The BFF must strip the browser-only version field.");
+  assert.deepEqual(Object.keys(received.payload.variants[0]).sort(), ["contact_from_quantity", "id", "moq", "published", "quantity_step", "tier_prices", "unit"]);
   const mode = request.headers.cookie?.match(/laravel_session=writer-([^;]+)/)?.[1];
   if (mode === "conflict") return json(response, 412, errorPayload("precondition_failed"), { ETag: NEXT_ETAG });
   if (mode === "precondition") return json(response, 428, errorPayload("precondition_required"));
   if (mode === "validation") return json(response, 422, errorPayload("validation_failed", { "variants.0.moq": ["Unsafe details must not pass through verbatim."] }));
   if (mode === "forbidden") return json(response, 403, errorPayload("forbidden"));
+  if (mode === "expired") return json(response, 419, errorPayload("csrf_mismatch"), { "Set-Cookie": ["laravel_session=; Path=/; Max-Age=0; HttpOnly", "XSRF-TOKEN=; Path=/; Max-Age=0"] });
   if (mode === "failure") return request.socket.destroy();
-  return json(response, 200, {
-    data: {
-      id: 11, type: "configurable", sku: "BOT-001", slug: "bot-nghe", name: "Bột nghệ", description: null, image: null,
-      categories: [], variant_count: 1, available_variant_count: 1, starting_price: { unit_price: 10000, currency: "VND" },
-      published: true, resource_version: NEXT_ETAG, validation_errors: [], option_groups: [], variant_index: { 21: {} },
-      variants: [{ id: 21, sku: "BOT-001-100", name: "Bột nghệ 100g", published: true, option_values: [], image: null, unit: "gói", moq: 10, quantity_step: 5, contact_from_quantity: 30, availability: { is_available: true }, tier_prices: [{ min_quantity: 10, unit_price: 10000, currency: "VND" }, { min_quantity: 20, unit_price: 9000, currency: "VND" }], validation_errors: [] }],
-    },
-    meta: { channel: "default", locale: "vi", currency: "VND", contract_version: 1, resource_version: NEXT_ETAG },
-  }, { ETag: NEXT_ETAG });
+  if (mode === "slow") await delay(350);
+  return json(response, 200, detailPayload(NEXT_ETAG, received.payload), { ETag: NEXT_ETAG });
 });
 
 const upstreamPort = await freePort();
@@ -104,7 +130,7 @@ await once(upstream, "listening");
 const appPort = await freePort();
 const logs = [];
 const app = spawn(process.execPath, ["node_modules/next/dist/bin/next", "start", "-p", String(appPort)], {
-  env: { ...process.env, BAGISTO_ADMIN_API_URL: `http://127.0.0.1:${upstreamPort}/api/b2b/admin/v1` },
+  env: { ...process.env, BAGISTO_API_URL: `http://127.0.0.1:${upstreamPort}`, BAGISTO_ADMIN_API_URL: `http://127.0.0.1:${upstreamPort}/api/b2b/admin/v1` },
   stdio: ["ignore", "pipe", "pipe"],
   windowsHide: true,
 });
@@ -128,6 +154,7 @@ try {
   assert.equal(success.status, 200);
   assert.equal(success.headers.get("etag"), NEXT_ETAG);
   assert.equal(writes.at(-1)?.ifMatch, ETAG);
+  assert.deepEqual(writes.at(-1)?.payload, snapshot, "The direct BFF request body must reach Bagisto exactly.");
   assert.equal((await success.json()).data.resource_version, NEXT_ETAG);
 
   for (const [mode, expectedStatus, expectedCode] of [
@@ -135,6 +162,7 @@ try {
     ["precondition", 428, "precondition_required"],
     ["validation", 422, "validation_failed"],
     ["forbidden", 403, "forbidden"],
+    ["expired", 419, "session_expired"],
     ["failure", 502, "upstream_unavailable"],
   ]) {
     const response = await fetch(`${origin}/api/quan-tri/san-pham/bot-nghe`, {
@@ -154,7 +182,91 @@ try {
   const tooLarge = await fetch(`${origin}/api/quan-tri/san-pham/bot-nghe`, { method: "PUT", headers: baseHeaders, body: oversized, duplex: "half" });
   assert.equal(tooLarge.status, 422);
 
-  console.log("admin commercial-rules BFF contract passed");
+  const catalogUrl = `${origin}/san-pham?q=mutation-cache-probe`;
+  assert.equal((await fetch(catalogUrl)).status, 200);
+  assert.equal((await fetch(catalogUrl)).status, 200);
+  assert.equal(catalogListRequests, 1, "The public catalog list should be warm before mutation.");
+  const cacheInvalidatingWrite = await fetch(`${origin}/api/quan-tri/san-pham/bot-nghe`, { method: "PUT", headers: baseHeaders, body: JSON.stringify({ version: ETAG, ...snapshot }) });
+  assert.equal(cacheInvalidatingWrite.status, 200);
+  assert.equal((await fetch(catalogUrl)).status, 200);
+  assert.equal(catalogListRequests, 2, "A successful admin write must immediately expire the public catalog list tag.");
+
+  const browser = await chromium.launch({ channel: "chrome", headless: true });
+  try {
+    const readOnly = await browser.newPage();
+    await readOnly.context().addCookies([{ name: "laravel_session", value: "readonly", domain: "localhost", path: "/" }]);
+    await readOnly.goto(`${origin}/quan-tri/san-pham/bot-nghe`, { waitUntil: "networkidle" });
+    assert.equal(await readOnly.getByRole("button", { name: "Lưu thay đổi" }).count(), 0, "Read-only users must not receive write controls.");
+    assert.equal(await readOnly.getByText(/Dữ liệu sản phẩm cần/).count(), 1, "Legacy null and invalid values must remain inspectable.");
+    await readOnly.close();
+
+    const writer = await browser.newPage();
+    await writer.context().addCookies([{ name: "laravel_session", value: "writer", domain: "localhost", path: "/" }, { name: "XSRF-TOKEN", value: "token%20value", domain: "localhost", path: "/" }]);
+    await writer.goto(`${origin}/quan-tri/san-pham/bot-nghe`, { waitUntil: "networkidle" });
+    const unit = writer.getByLabel("Đơn vị · Bột nghệ 100g");
+    await unit.fill("");
+    await writer.getByRole("button", { name: "Lưu thay đổi" }).click();
+    await writer.getByText("Nhập đơn vị bán.").waitFor();
+    await unit.fill("hộp");
+    await writer.getByRole("button", { name: "Lưu thay đổi" }).click();
+    await writer.getByText("Đã lưu thay đổi.").waitFor();
+    assert.equal(await unit.inputValue(), "hộp");
+    await writer.screenshot({ path: "docs/design-references/qa-admin-editor-desktop.png", fullPage: true });
+    await writer.close();
+
+    const conflict = await browser.newPage();
+    await conflict.context().addCookies([{ name: "laravel_session", value: "writer-conflict", domain: "localhost", path: "/" }, { name: "XSRF-TOKEN", value: "token%20value", domain: "localhost", path: "/" }]);
+    await conflict.goto(`${origin}/quan-tri/san-pham/bot-nghe`, { waitUntil: "networkidle" });
+    const conflictUnit = conflict.getByLabel("Đơn vị · Bột nghệ 100g");
+    await conflictUnit.fill("thùng");
+    await conflict.getByRole("button", { name: "Lưu thay đổi" }).click();
+    await conflict.getByText(/Dữ liệu đã thay đổi/).waitFor();
+    assert.equal(await conflictUnit.inputValue(), "thùng", "Conflicts must retain the current draft.");
+    assert.equal(await conflict.getByRole("button", { name: "Tải dữ liệu mới nhất" }).count(), 1);
+    await conflict.close();
+
+    const failure = await browser.newPage();
+    await failure.context().addCookies([{ name: "laravel_session", value: "writer-failure", domain: "localhost", path: "/" }, { name: "XSRF-TOKEN", value: "token%20value", domain: "localhost", path: "/" }]);
+    await failure.goto(`${origin}/quan-tri/san-pham/bot-nghe`, { waitUntil: "networkidle" });
+    const failureUnit = failure.getByLabel("Đơn vị · Bột nghệ 100g");
+    await failureUnit.fill("khay");
+    await failure.getByRole("button", { name: "Lưu thay đổi" }).click();
+    await failure.getByText(/tạm thời không khả dụng|Không thể kết nối/).waitFor();
+    assert.equal(await failureUnit.inputValue(), "khay", "Upstream failures must retain the current draft.");
+    await failure.close();
+
+    const expired = await browser.newPage();
+    await expired.context().addCookies([{ name: "laravel_session", value: "writer-expired", domain: "localhost", path: "/" }, { name: "XSRF-TOKEN", value: "token%20value", domain: "localhost", path: "/" }]);
+    await expired.goto(`${origin}/quan-tri/san-pham/bot-nghe`, { waitUntil: "networkidle" });
+    await expired.getByRole("button", { name: "Lưu thay đổi" }).click();
+    await expired.waitForURL(/\/quan-tri\/dang-nhap\?returnTo=/);
+    await expired.close();
+
+    const doubleSubmit = await browser.newPage();
+    await doubleSubmit.context().addCookies([{ name: "laravel_session", value: "writer-slow", domain: "localhost", path: "/" }, { name: "XSRF-TOKEN", value: "token%20value", domain: "localhost", path: "/" }]);
+    await doubleSubmit.goto(`${origin}/quan-tri/san-pham/bot-nghe`, { waitUntil: "networkidle" });
+    const slowWritesBefore = writes.filter((write) => write.cookie.includes("laravel_session=writer-slow")).length;
+    await doubleSubmit.getByRole("button", { name: "Lưu thay đổi" }).evaluate((button) => { button.click(); button.click(); });
+    await doubleSubmit.getByText("Đã lưu thay đổi.").waitFor();
+    assert.equal(writes.filter((write) => write.cookie.includes("laravel_session=writer-slow")).length, slowWritesBefore + 1, "Rapid double-submit must create one upstream write.");
+    await doubleSubmit.close();
+
+    const mobile = await browser.newPage({ viewport: { width: 390, height: 844 } });
+    await mobile.context().addCookies([{ name: "laravel_session", value: "writer", domain: "localhost", path: "/" }, { name: "XSRF-TOKEN", value: "token%20value", domain: "localhost", path: "/" }]);
+    await mobile.goto(`${origin}/quan-tri/san-pham/bot-nghe`, { waitUntil: "networkidle" });
+    const saveBar = mobile.locator('[data-admin-save-bar="true"]');
+    assert.equal(await saveBar.evaluate((element) => getComputedStyle(element).position), "sticky");
+    const addTier = mobile.getByRole("button", { name: "Thêm mức giá · Bột nghệ 100g" });
+    await addTier.focus();
+    await addTier.press("Enter");
+    assert.equal(await mobile.getByLabel(/Số lượng mức 3/).count(), 1);
+    await mobile.screenshot({ path: "docs/design-references/qa-admin-editor-mobile.png", fullPage: true });
+    await mobile.close();
+  } finally {
+    await browser.close();
+  }
+
+  console.log("admin commercial-rules BFF and editor flows passed");
 } finally {
   await stop(app);
   await new Promise((resolve) => upstream.close(resolve));

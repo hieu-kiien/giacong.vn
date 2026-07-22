@@ -20,7 +20,7 @@ export interface AdminDashboard {
 }
 
 export interface AdminTierPrice {
-  min_quantity: number;
+  min_quantity: number | null;
   unit_price: number | null;
   currency: "VND";
 }
@@ -266,16 +266,16 @@ function parseVariant(payload: unknown): AdminProductVariant {
     sku: nonEmpty(value.sku),
     name: nonEmpty(value.name),
     published: bool(value.published),
-    unit: nullableNonEmpty(value.unit),
-    moq: nullablePositiveInteger(value.moq),
-    quantity_step: nullablePositiveInteger(value.quantity_step),
-    contact_from_quantity: nullablePositiveInteger(value.contact_from_quantity),
+    unit: nullableBoundedText(value.unit, 256),
+    moq: nullableNonNegativeInteger(value.moq),
+    quantity_step: nullableNonNegativeInteger(value.quantity_step),
+    contact_from_quantity: nullableNonNegativeInteger(value.contact_from_quantity),
     availability: { is_available: bool(availability.is_available) },
     tier_prices: list(value.tier_prices).map((item) => {
       const tier = exact(item, ["min_quantity", "unit_price", "currency"]);
       if (text(tier.currency) !== "VND") bad();
       return {
-        min_quantity: positive(tier.min_quantity),
+        min_quantity: nullableNonNegativeInteger(tier.min_quantity),
         unit_price: nullablePositiveInteger(tier.unit_price),
         currency: "VND" as const,
       };
@@ -370,8 +370,11 @@ function nonEmpty(value: unknown): string {
   return result;
 }
 
-function nullableNonEmpty(value: unknown): string | null {
-  return value === null ? null : nonEmpty(value);
+function nullableBoundedText(value: unknown, maximum: number): string | null {
+  if (value === null) return null;
+  const result = text(value);
+  if (result.length > maximum) bad();
+  return result;
 }
 
 function nullableText(value: unknown): string | null {
@@ -388,6 +391,10 @@ function nullableInteger(value: unknown) {
 
 function nullablePositiveInteger(value: unknown): number | null {
   return value === null ? null : positive(value);
+}
+
+function nullableNonNegativeInteger(value: unknown): number | null {
+  return value === null ? null : nonNegative(value);
 }
 
 function positive(value: unknown): number {

@@ -37,7 +37,7 @@ export function ProductCommercialReadOnly({ product }: { product: AdminProductDe
                 <p className="text-sm font-medium">Giá theo số lượng</p>
                 {variant.tier_prices.length === 0
                   ? <p className="mt-1 text-sm text-[#8b2c16]">Chưa có mức giá.</p>
-                  : <ul className="mt-2 flex flex-wrap gap-2">{variant.tier_prices.map((tier, index) => <li className="rounded bg-[#eff0e5] px-2 py-1 text-xs" key={`${tier.min_quantity}-${index}`}>Từ {tier.min_quantity}: {money(tier.unit_price)}</li>)}</ul>}
+                  : <ul className="mt-2 flex flex-wrap gap-2">{variant.tier_prices.map((tier, index) => <li className="rounded bg-[#eff0e5] px-2 py-1 text-xs" key={`${tier.min_quantity}-${index}`}>Từ {tier.min_quantity ?? "chưa hợp lệ"}: {money(tier.unit_price)}</li>)}</ul>}
               </div>
               {variant.validation_errors.length > 0 && <p className="mt-3 text-xs text-[#8b2c16]">Cần kiểm tra: {variant.validation_errors.map(legacyErrorLabel).join("; ")}.</p>}
             </article>
