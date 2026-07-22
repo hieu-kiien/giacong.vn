@@ -35,6 +35,7 @@
     "qa:captured": "node scripts/verify-captured-routes.mjs",
     "qa:catalog": "node scripts/verify-catalog-storefront.mjs",
     "qa:services": "node scripts/verify-service-ia.mjs",
+    "qa:admin": "node scripts/verify-admin.mjs",
     "check": "npm run lint && npm run typecheck && npm run build"
   },
   "dependencies": {
