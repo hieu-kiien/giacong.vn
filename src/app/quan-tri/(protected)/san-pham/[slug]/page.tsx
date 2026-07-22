@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { can, getAdmin, getAdminProduct } from "@/lib/admin-server";
 
-const money = (value: number) => new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND", maximumFractionDigits: 0 }).format(value);
+const money = (value: number | null) => value === null ? "Chưa hợp lệ" : new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND", maximumFractionDigits: 0 }).format(value);
 
 export default async function ProductDetail({ params }: PageProps<"/quan-tri/san-pham/[slug]">) {
   const session = await getAdmin(); if (session.kind !== "authenticated" || !can(session.admin, "b2b.catalog.read")) notFound();

@@ -9,7 +9,7 @@ function delay(ms) { return new Promise((resolve) => setTimeout(resolve, ms)); }
 async function port() { const server = createNetServer(); server.listen(0, "127.0.0.1"); await once(server, "listening"); const value = server.address(); assert.ok(value && typeof value !== "string"); await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve())); return value.port; }
 async function waitFor(url, process, logs) { for (let index = 0; index < 300; index += 1) { try { if ((await fetch(url)).ok) return; } catch {} if (process.exitCode !== null) throw new Error(logs.join("")); await delay(100); } throw new Error("Admin Next server did not start."); }
 async function stop(process) { if (process.exitCode === null) process.kill("SIGTERM"); await Promise.race([once(process, "exit"), delay(3000)]); if (process.exitCode === null) spawnSync("taskkill", ["/pid", String(process.pid), "/t", "/f"], { windowsHide: true }); }
-function body(response, status, payload, cookies = []) { response.writeHead(status, { "Content-Type": "application/json", "Set-Cookie": cookies }); response.end(JSON.stringify(payload)); }
+function body(response, status, payload, cookies = [], headers = {}) { response.writeHead(status, { "Content-Type": "application/json", "Set-Cookie": cookies, ...headers }); response.end(JSON.stringify(payload)); }
 
 const requests = [];
 const catalogAdmin = { data: { id: 7, name: "Catalog", email: "catalog@example.test", role: { id: 1, name: "Catalog" }, permissions: ["b2b.catalog.read"] } };
@@ -17,12 +17,12 @@ const detail = {
   data: {
     id: 11, type: "configurable", sku: "BOT-001", slug: "bot-nghe", name: "Bột nghệ", description: null, image: null,
     categories: [{ id: 1, name: "Bột", slug: "bot", description: null, image: null, parent_id: null }],
-    variant_count: 1, available_variant_count: 1, starting_price: { unit_price: 10000, currency: "VND" },
+    variant_count: 1, available_variant_count: 1, starting_price: { unit_price: 10000, currency: "VND" }, published: true, resource_version: '"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"', validation_errors: [],
     option_groups: [{ attribute_id: 1, code: "size", label: "Kích cỡ", options: [{ option_id: 2, label: "100g", variant_ids: [21] }] }],
     variant_index: { 21: { size: 2 } },
-    variants: [{ id: 21, sku: "BOT-001-100", name: "Bột nghệ 100g", option_values: [{ attribute_id: 1, attribute_code: "size", option_id: 2, option_label: "100g" }], image: null, unit: "gói", moq: 1, quantity_step: 1, contact_from_quantity: 100, availability: { is_available: true }, tier_prices: [{ min_quantity: 1, unit_price: 10000, currency: "VND" }] }],
+    variants: [{ id: 21, sku: "BOT-001-100", name: "Bột nghệ 100g", published: true, option_values: [{ attribute_id: 1, attribute_code: "size", option_id: 2, option_label: "100g" }], image: null, unit: "gói", moq: 1, quantity_step: 1, contact_from_quantity: 100, availability: { is_available: true }, tier_prices: [{ min_quantity: 1, unit_price: 10000, currency: "VND" }], validation_errors: [] }],
   },
-  meta: { channel: "default", locale: "vi", currency: "VND", contract_version: 1 },
+  meta: { channel: "default", locale: "vi", currency: "VND", contract_version: 1, resource_version: '"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"' },
 };
 const upstream = createServer(async (request, response) => {
   const url = new URL(request.url ?? "/", "http://127.0.0.1"); const cookie = request.headers.cookie ?? ""; const xsrf = request.headers["x-xsrf-token"];
@@ -33,7 +33,7 @@ const upstream = createServer(async (request, response) => {
   if (url.pathname.endsWith("/me") && /laravel_session=catalog-(?:only|detail|product-network|list-extra)/.test(cookie)) return body(response, 200, catalogAdmin);
   if (url.pathname.endsWith("/me")) return body(response, 401, { code: "unauthenticated", message: "x", trace_id: "00000000-0000-4000-8000-000000000000" }, ["XSRF-TOKEN=abc%2520token; Path=/; SameSite=Lax", "laravel_session=pre-session; Path=/; HttpOnly", "marketing=must-not-propagate; Path=/"]);
   if (url.pathname.endsWith("/product-aggregates/bot-nghe") && cookie.includes("laravel_session=catalog-product-network")) return request.socket.destroy();
-  if (url.pathname.endsWith("/product-aggregates/bot-nghe")) return body(response, 200, detail);
+  if (url.pathname.endsWith("/product-aggregates/bot-nghe")) return body(response, 200, detail, [], { ETag: detail.meta.resource_version });
   if (url.pathname.endsWith("/product-aggregates/khong-co")) return body(response, 404, { code: "not_found", message: "x", trace_id: "00000000-0000-4000-8000-000000000000" });
   if (url.pathname.endsWith("/product-aggregates")) {
     const payload = { data: [], links: { first: null, last: null, prev: null, next: null }, meta: { current_page: 1, from: null, last_page: 1, path: "/api/b2b/admin/v1/product-aggregates", per_page: 12, to: null, total: 0, channel: "default", locale: "vi", currency: "VND", contract_version: 1 } };
