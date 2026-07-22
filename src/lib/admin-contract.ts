@@ -300,7 +300,14 @@ function validateVariantIndex(
 ) {
   const index = record(value);
   const ids = variants.map((variant) => String(variant.id));
-  if (Object.keys(index).length !== ids.length || ids.some((id) => !(id in index))) bad();
+  const uniqueIds = new Set(ids);
+  const indexIds = Object.keys(index);
+  if (
+    uniqueIds.size !== ids.length
+    || indexIds.length !== ids.length
+    || ids.some((id) => !(id in index))
+    || indexIds.some((id) => !uniqueIds.has(id))
+  ) bad();
   for (const variant of variants) {
     const selected = record(index[String(variant.id)]);
     if (Object.keys(selected).length !== groups.length) bad();

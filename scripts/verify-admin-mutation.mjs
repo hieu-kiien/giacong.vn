@@ -20,18 +20,36 @@ const snapshot = {
       { min_quantity: 10, unit_price: 10000 },
       { min_quantity: 20, unit_price: 9000 },
     ],
+  }, {
+    id: 22,
+    published: true,
+    unit: "hộp",
+    moq: 20,
+    quantity_step: 10,
+    contact_from_quantity: 60,
+    tier_prices: [
+      { min_quantity: 20, unit_price: 18000 },
+      { min_quantity: 40, unit_price: 16000 },
+    ],
   }],
 };
 function detailPayload(version = ETAG, rules = snapshot) {
   return {
     data: {
       id: 11, type: "configurable", sku: "BOT-001", slug: "bot-nghe", name: "Bột nghệ", description: null, image: null,
-      categories: [], variant_count: 1, available_variant_count: 1, starting_price: { unit_price: rules.variants[0].tier_prices[0].unit_price, currency: "VND" },
-      published: rules.published, resource_version: version, validation_errors: [], option_groups: [], variant_index: { 21: {} },
-      variants: [{ id: 21, sku: "BOT-001-100", name: "Bột nghệ 100g", published: rules.variants[0].published, option_values: [], image: null, unit: rules.variants[0].unit, moq: rules.variants[0].moq, quantity_step: rules.variants[0].quantity_step, contact_from_quantity: rules.variants[0].contact_from_quantity, availability: { is_available: true }, tier_prices: rules.variants[0].tier_prices.map((tier) => ({ ...tier, currency: "VND" })), validation_errors: [] }],
+      categories: [], variant_count: rules.variants.length, available_variant_count: rules.variants.length, starting_price: { unit_price: rules.variants[0].tier_prices[0].unit_price, currency: "VND" },
+      published: rules.published, resource_version: version, validation_errors: [], option_groups: [], variant_index: Object.fromEntries(rules.variants.map((variant) => [String(variant.id), {}])),
+      variants: rules.variants.map((variant, index) => ({ id: variant.id, sku: `BOT-001-${index === 0 ? "100" : "200"}`, name: `Bột nghệ ${index === 0 ? "100g" : "200g"}`, published: variant.published, option_values: [], image: null, unit: variant.unit, moq: variant.moq, quantity_step: variant.quantity_step, contact_from_quantity: variant.contact_from_quantity, availability: { is_available: true }, tier_prices: variant.tier_prices.map((tier) => ({ ...tier, currency: "VND" })), validation_errors: [] })),
     },
     meta: { channel: "default", locale: "vi", currency: "VND", contract_version: 1, resource_version: version },
   };
+}
+function parserFixture(mode) {
+  const payload = detailPayload();
+  if (mode === "duplicate") payload.data.variants[1].id = 21;
+  if (mode === "missing") delete payload.data.variant_index[22];
+  if (mode === "extra") payload.data.variant_index[23] = {};
+  return payload;
 }
 
 function delay(ms) { return new Promise((resolve) => setTimeout(resolve, ms)); }
@@ -72,6 +90,7 @@ function errorPayload(code, fields) {
 
 const writes = [];
 let catalogListRequests = 0;
+let browserTimeoutsRemaining = 1;
 const upstream = createServer(async (request, response) => {
   const url = new URL(request.url ?? "/", "http://127.0.0.1");
   if (url.pathname === "/api/b2b/catalog/categories") {
@@ -87,7 +106,8 @@ const upstream = createServer(async (request, response) => {
     return json(response, 200, { data: { id: 8, name: readOnly ? "Chỉ đọc" : "Biên tập", email: "writer@example.test", role: { id: 2, name: "Catalog" }, permissions: readOnly ? ["b2b.catalog.read"] : ["b2b.catalog.read", "b2b.catalog.write"] } });
   }
   if (url.pathname.endsWith("/product-aggregates/bot-nghe") && request.method === "GET") {
-    const payload = detailPayload();
+    const parserMode = request.headers.cookie?.match(/laravel_session=parser-([^;]+)/)?.[1];
+    const payload = parserMode ? parserFixture(parserMode) : detailPayload();
     if (request.headers.cookie?.includes("laravel_session=readonly")) {
       payload.data.starting_price = null;
       payload.data.validation_errors = ["variant_configuration_invalid"];
@@ -113,6 +133,7 @@ const upstream = createServer(async (request, response) => {
   assert.equal(received.xsrf, "token value");
   assert.deepEqual(Object.keys(received.payload).sort(), ["published", "variants"], "The BFF must strip the browser-only version field.");
   assert.deepEqual(Object.keys(received.payload.variants[0]).sort(), ["contact_from_quantity", "id", "moq", "published", "quantity_step", "tier_prices", "unit"]);
+  assert.deepEqual(received.payload.variants.map((variant) => variant.id), [21, 22], "Every upstream snapshot must contain the exact aggregate variant IDs.");
   const mode = request.headers.cookie?.match(/laravel_session=writer-([^;]+)/)?.[1];
   if (mode === "conflict") return json(response, 412, errorPayload("precondition_failed"), { ETag: NEXT_ETAG });
   if (mode === "precondition") return json(response, 428, errorPayload("precondition_required"));
@@ -120,6 +141,10 @@ const upstream = createServer(async (request, response) => {
   if (mode === "forbidden") return json(response, 403, errorPayload("forbidden"));
   if (mode === "expired") return json(response, 419, errorPayload("csrf_mismatch"), { "Set-Cookie": ["laravel_session=; Path=/; Max-Age=0; HttpOnly", "XSRF-TOKEN=; Path=/; Max-Age=0"] });
   if (mode === "failure") return request.socket.destroy();
+  if (mode === "timeout-direct" || (mode === "timeout" && browserTimeoutsRemaining-- > 0)) {
+    await delay(6_000);
+    return;
+  }
   if (mode === "slow") await delay(350);
   return json(response, 200, detailPayload(NEXT_ETAG, received.payload), { ETag: NEXT_ETAG });
 });
@@ -145,6 +170,10 @@ try {
     Origin: origin,
     Cookie: "laravel_session=writer; XSRF-TOKEN=token%20value; marketing=private",
   };
+  for (const [mode, expectedStatus] of [["valid", 200], ["duplicate", 502], ["missing", 502], ["extra", 502]]) {
+    const response = await fetch(`${origin}/api/quan-tri/san-pham/bot-nghe`, { headers: { Cookie: `laravel_session=parser-${mode}` } });
+    assert.equal(response.status, expectedStatus, `variant_index parser fixture: ${mode}`);
+  }
   const beforeInvalid = writes.length;
   const invalidVersion = await fetch(`${origin}/api/quan-tri/san-pham/bot-nghe`, { method: "PUT", headers: baseHeaders, body: JSON.stringify({ version: "not-an-etag", ...snapshot }) });
   assert.equal(invalidVersion.status, 422);
@@ -164,6 +193,7 @@ try {
     ["forbidden", 403, "forbidden"],
     ["expired", 419, "session_expired"],
     ["failure", 502, "upstream_unavailable"],
+    ["timeout-direct", 504, "upstream_timeout"],
   ]) {
     const response = await fetch(`${origin}/api/quan-tri/san-pham/bot-nghe`, {
       method: "PUT",
@@ -193,6 +223,13 @@ try {
 
   const browser = await chromium.launch({ channel: "chrome", headless: true });
   try {
+    const unsavable = await browser.newPage();
+    await unsavable.context().addCookies([{ name: "laravel_session", value: "parser-duplicate", domain: "localhost", path: "/" }]);
+    await unsavable.goto(`${origin}/quan-tri/san-pham/bot-nghe`, { waitUntil: "networkidle" });
+    assert.equal(await unsavable.getByText(/Dịch vụ quản trị tạm thời không khả dụng/).count(), 1, "An unsavable aggregate must fail closed before the editor loads.");
+    assert.equal(await unsavable.getByRole("button", { name: "Lưu thay đổi" }).count(), 0);
+    await unsavable.close();
+
     const readOnly = await browser.newPage();
     await readOnly.context().addCookies([{ name: "laravel_session", value: "readonly", domain: "localhost", path: "/" }]);
     await readOnly.goto(`${origin}/quan-tri/san-pham/bot-nghe`, { waitUntil: "networkidle" });
@@ -234,6 +271,19 @@ try {
     await failure.getByText(/tạm thời không khả dụng|Không thể kết nối/).waitFor();
     assert.equal(await failureUnit.inputValue(), "khay", "Upstream failures must retain the current draft.");
     await failure.close();
+
+    const timeout = await browser.newPage();
+    await timeout.context().addCookies([{ name: "laravel_session", value: "writer-timeout", domain: "localhost", path: "/" }, { name: "XSRF-TOKEN", value: "token%20value", domain: "localhost", path: "/" }]);
+    await timeout.goto(`${origin}/quan-tri/san-pham/bot-nghe`, { waitUntil: "networkidle" });
+    const timeoutUnit = timeout.getByLabel("Đơn vị · Bột nghệ 100g");
+    await timeoutUnit.fill("túi");
+    await timeout.getByRole("button", { name: "Lưu thay đổi" }).click();
+    await timeout.getByText(/phản hồi chậm/).waitFor();
+    assert.equal(await timeoutUnit.inputValue(), "túi", "Timeouts must retain the current draft.");
+    await timeout.getByRole("button", { name: "Lưu thay đổi" }).click();
+    await timeout.getByText("Đã lưu thay đổi.").waitFor();
+    assert.equal(await timeoutUnit.inputValue(), "túi", "Retry must save the retained timeout draft.");
+    await timeout.close();
 
     const expired = await browser.newPage();
     await expired.context().addCookies([{ name: "laravel_session", value: "writer-expired", domain: "localhost", path: "/" }, { name: "XSRF-TOKEN", value: "token%20value", domain: "localhost", path: "/" }]);
