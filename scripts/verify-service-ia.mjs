@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
 import { once } from "node:events";
-import { mkdtemp } from "node:fs/promises";
+import { mkdtemp, readFile } from "node:fs/promises";
 import { createServer as createNetServer } from "node:net";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -25,7 +25,14 @@ const expectedHeaderLinks = [
 ];
 
 const expectedOfferingPaths = families.flatMap(([, , routes]) => routes.map((route) => route.replace(/\/$/, "")));
+const expectedStaticFamilyPaths = families.map(([slug]) => `/thue-gia-cong/${slug}`).sort();
 const delay = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
+
+const prerenderManifest = JSON.parse(await readFile(".next/prerender-manifest.json", "utf8"));
+const prerenderedFamilies = Object.keys(prerenderManifest.routes)
+  .filter((route) => route.startsWith("/thue-gia-cong/"))
+  .sort();
+assert.deepEqual(prerenderedFamilies, expectedStaticFamilyPaths, "Every generated service family must be prerendered.");
 
 async function port() {
   const server = createNetServer();

@@ -35,6 +35,9 @@ assert.match(bff, /getSetCookie/);
 assert.match(bff, /no-store/);
 assert.doesNotMatch(bff, /process\.env\[[^\]]+\]/);
 
+const rootLayout = await source("src/app/layout.tsx");
+assert.doesNotMatch(rootLayout, /next\/headers|headers\(|cookies\(|x-pathname/, "Root layout must not access request-time APIs.");
+
 const routes = await Promise.all(required.filter((path) => path.includes("/api/")).map(source));
 assert.equal(routes.join("\n").includes("8000"), false);
 
