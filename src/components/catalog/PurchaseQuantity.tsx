@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 
-import { formatVnd } from "@/components/catalog/CatalogProductCard";
 import styles from "@/components/catalog/catalog.module.css";
+import { formatVnd } from "@/lib/format-vnd";
 import type { CatalogTierPrice } from "@/types/catalog";
 
 interface PurchaseQuantityProps {

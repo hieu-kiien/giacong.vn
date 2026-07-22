@@ -250,6 +250,11 @@ const fake = createServer((request, response) => {
     return json(response, { data: malformed, meta: detailMeta });
   }
   if (slug === "detail-bad-version") return json(response, { data: detail(families[0]), meta: { ...detailMeta, contract_version: 1 } });
+  if (slug === "preview-malformed") {
+    response.writeHead(200, { "Content-Type": "application/json" });
+    return response.end("{");
+  }
+  if (slug === "preview-timeout") return;
   if (url.pathname.startsWith("/api/b2b/catalog/products/")) return response.writeHead(404).end();
   if (url.pathname !== "/api/b2b/catalog/products") return response.writeHead(404).end();
   const query = url.searchParams.get("q") ?? "";
@@ -302,6 +307,17 @@ app.stderr.on("data", (chunk) => logs.push(chunk.toString()));
 try {
   const origin = `http://127.0.0.1:${appPort}`;
   await waitForServer(`${origin}/`, app, logs);
+  for (const [slug, status, error] of [
+    ["missing", 404, "product_not_found"],
+    ["preview-malformed", 502, "catalog_unavailable"],
+    ["detail-bad-option-index", 502, "catalog_unavailable"],
+    ["preview-timeout", 503, "catalog_unavailable"],
+  ]) {
+    const response = await fetchWithTimeout(`${origin}/api/catalog/products/${slug}`, {}, `safe quick preview ${slug}`);
+    assert.equal(response.status, status, `Quick preview must map ${slug} to a safe status`);
+    assert.equal(response.headers.get("cache-control"), "no-store", "Quick preview responses must be no-store");
+    assert.deepEqual(await response.json(), { error }, "Quick preview must not expose upstream errors or payloads");
+  }
   const categoryRecoveryStart = seenCatalogRequests.length;
   assert.equal(
     (await fetchWithTimeout(`${origin}/san-pham/?q=category-recovery`, {}, "malformed category payload")).status,
@@ -425,6 +441,20 @@ try {
     0,
     "Catalog discovery must not request product details before explicit intent",
   );
+  const initialMetrics = await page.evaluate(() => {
+    const scripts = performance.getEntriesByType("resource")
+      .filter((entry) => entry instanceof PerformanceResourceTiming && entry.initiatorType === "script");
+    const dialogs = [...document.querySelectorAll("[data-catalog-card] dialog")];
+    const quickPreviewDomNodes = dialogs
+      .reduce((total, dialog) => total + dialog.querySelectorAll("*").length + 1, dialogs.length);
+    return {
+      domNodes: document.querySelectorAll("*").length,
+      quickPreviewDomNodes,
+      scriptEncodedBodyBytes: scripts.reduce((total, entry) => total + entry.encodedBodySize, 0),
+      scriptRequests: scripts.length,
+      scriptTransferBytes: scripts.reduce((total, entry) => total + entry.transferSize, 0),
+    };
+  });
   assert.equal(await page.getByRole("button", { name: "Lọc sản phẩm" }).count(), 0, "Catalog filters must not require a separate submit action");
   const combinedFilterStart = seenCatalogRequests.length;
   await page.getByLabel("Tìm sản phẩm").fill("ngũ cốc");
@@ -508,6 +538,79 @@ try {
   assert.equal(await page.getByText("2 phiên bản", { exact: true }).count(), 3, "Parent cards must expose variant count");
   assert.equal(await page.locator(".echbay-sms-messenger, .bottom-contact").count(), 0, "Catalog routes must not render floating contact bubbles");
   assert.equal(await page.locator(`${"[data-catalog-card]"} a[href*='/san-pham/']`).count(), 3, "Each parent card needs one clear detail action");
+  assert.equal(await page.getByRole("button", { name: "Xem nhanh" }).count(), 3, "Each parent card needs an explicit 44px quick-preview action");
+  const previewIds = await page.locator("dialog[id], dialog [id]").evaluateAll((elements) => elements.map((element) => element.id));
+  assert.equal(new Set(previewIds).size, previewIds.length, "Quick-preview dialog IDs must remain unique across all product cards");
+  const quickStart = seenCatalogRequests.length;
+  await page.getByRole("button", { name: "Xem nhanh" }).first().click();
+  const quickDialog = page.getByRole("dialog");
+  await quickDialog.getByRole("heading", { level: 2, name: "Bột dinh dưỡng" }).waitFor();
+  await quickDialog.getByRole("radio", { name: "Vani" }).waitFor();
+  assert.equal(
+    seenCatalogRequests.slice(quickStart).filter((item) => item.pathname === "/api/b2b/catalog/products/b2b-demo-bot-dinh-duong").length,
+    1,
+    "A quick-preview click must make exactly one same-origin BFF-backed detail request",
+  );
+  assert.equal(await quickDialog.getByText(/SKU:|Số lượng đặt tối thiểu|Giá theo số lượng|Gửi yêu cầu đặt|Liên hệ nhận giá/).count(), 0, "Quick preview must hide commerce before an explicit selection");
+  assert.equal(await quickDialog.getByRole("radio", { name: "Ít ngọt" }).isDisabled(), true, "Quick preview must expose unavailable options with a disabled control");
+  await page.screenshot({ path: join(screenshots, "quick-preview-1440.png"), fullPage: true });
+  await quickDialog.getByRole("radio", { name: "Vani" }).check();
+  assert.equal(await quickDialog.getByLabel("Số lượng (thùng)").inputValue(), "10", "Quick preview selection must reset quantity to MOQ");
+  assert.equal(await quickDialog.getByLabel("Số lượng (thùng)").getAttribute("step"), "5", "Quick preview must preserve the selected variant quantity step");
+  assert.match(await quickDialog.innerText(), /25 thùng[\s\S]*690\.000/, "Quick preview must preserve the selected variant tier prices");
+  await quickDialog.getByLabel("Số lượng (thùng)").fill("95");
+  const quickOrderHref = await quickDialog.getByRole("link", { name: /Gửi yêu cầu đặt 95/ }).getAttribute("href");
+  assert.equal(new URL(quickOrderHref, origin).searchParams.get("intent"), "order", "Quick preview must keep the order path below the inclusive contact threshold");
+  await quickDialog.getByLabel("Số lượng (thùng)").fill("100");
+  const quickContact = quickDialog.getByRole("link", { name: /Liên hệ nhận giá/ });
+  assert.equal(new URL(await quickContact.getAttribute("href"), origin).searchParams.get("intent"), "quote", "Quick preview must switch to contact at the inclusive threshold");
+  assert.equal(new URL(await quickContact.getAttribute("href"), origin).searchParams.get("variant_sku"), "B2B-DEMO-BOT-VANI", "Quick preview CTA must retain exact variant SKU");
+  await quickContact.focus();
+  await page.keyboard.press("Tab");
+  assert.equal(await quickDialog.getByRole("button", { name: "Đóng xem nhanh" }).evaluate((element) => element === document.activeElement), true, "Dialog Tab from the last control must wrap to the first control");
+  await page.keyboard.press("Shift+Tab");
+  assert.equal(await quickContact.evaluate((element) => element === document.activeElement), true, "Dialog Shift+Tab from the first control must wrap to the last control");
+  await page.keyboard.press("Escape");
+  assert.equal(await quickDialog.count(), 0, "Escape must close the quick-preview dialog");
+  assert.equal(await page.getByRole("button", { name: "Xem nhanh" }).first().evaluate((element) => element === document.activeElement), true, "Closing quick preview must restore trigger focus");
+  let raceRequestCount = 0;
+  await page.route("**/api/catalog/products/b2b-demo-bot-dinh-duong", async (route) => {
+    raceRequestCount += 1;
+    const response = await route.fetch();
+    if (raceRequestCount === 1) await delay(150);
+    await route.fulfill({ response });
+  });
+  const abortedPreviewRequest = page.waitForRequest((request) => request.url().endsWith("/api/catalog/products/b2b-demo-bot-dinh-duong"));
+  await page.getByRole("button", { name: "Xem nhanh" }).first().click();
+  await abortedPreviewRequest;
+  await page.keyboard.press("Escape");
+  assert.equal(await page.getByRole("dialog").count(), 0, "Closing a loading preview must synchronously hide it");
+  await page.getByRole("button", { name: "Xem nhanh" }).first().click();
+  await page.getByRole("dialog").getByRole("radio", { name: "Vani" }).waitFor();
+  await delay(200);
+  assert.equal(raceRequestCount, 2, "Closing and reopening must abort the stale client flow and issue one fresh request");
+  assert.equal(await page.getByRole("dialog").getByRole("radio", { name: "Vani" }).count(), 1, "A delayed stale response must not replace the reopened preview");
+  await page.keyboard.press("Escape");
+  await page.unroute("**/api/catalog/products/b2b-demo-bot-dinh-duong");
+  for (const [cardIndex, labels] of [[1, ["Lúa mạch", "Sữa hạt"]], [2, ["Hạt", "Yến mạch"]]]) {
+    await page.getByRole("button", { name: "Xem nhanh" }).nth(cardIndex).click();
+    await page.getByRole("dialog").getByRole("radio", { name: labels[0] }).waitFor();
+    for (const label of labels) assert.equal(await page.getByRole("dialog").getByRole("radio", { name: label }).count(), 1, `Quick preview must preserve exact option label ${label}`);
+    await page.getByRole("dialog").getByRole("button", { name: "Đóng xem nhanh" }).focus();
+    await page.keyboard.press("Shift+Tab");
+    assert.equal(await page.getByRole("dialog").getByRole("radio", { name: labels[0] }).evaluate((element) => element === document.activeElement), true, "Dialog Shift+Tab from the first control must wrap to the last initial-state control");
+    await page.keyboard.press("Tab");
+    assert.equal(await page.getByRole("dialog").getByRole("button", { name: "Đóng xem nhanh" }).evaluate((element) => element === document.activeElement), true, "Dialog Tab from the last initial-state control must wrap to the first control");
+    for (let index = 0; index < 8; index += 1) await page.keyboard.press("Tab");
+    assert.equal(await page.getByRole("dialog").evaluate((dialog) => dialog.contains(document.activeElement)), true, "Dialog focus must remain contained while tabbing");
+    if (cardIndex === 1) {
+      await page.getByRole("dialog").getByRole("radio", { name: labels[0] }).check();
+      await page.getByRole("dialog").getByLabel("Số lượng (thùng)").fill("18");
+      await page.getByRole("dialog").getByRole("radio", { name: labels[1] }).check();
+      assert.equal(await page.getByRole("dialog").getByLabel("Số lượng (thùng)").inputValue(), "12", "Switching preview variants must reset quantity to the new MOQ");
+    }
+    await page.keyboard.press("Escape");
+  }
   await page.screenshot({ path: join(screenshots, "catalog-1440.png"), fullPage: true });
   await page.getByText(/Từ 720\.000/).waitFor();
   assert.equal(await page.getByText(/Mua từ|Liên hệ từ/).count(), 0, "Parent cards must not invent parent MOQ or contact rules");
@@ -557,10 +660,15 @@ try {
   assert.equal(await mobile.locator("[data-catalog-grid]").evaluate((element) => getComputedStyle(element).gridTemplateColumns.split(" ").length), 1, "390px catalog must render one card column");
   assert.equal(await mobile.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth), true, "390px catalog must not overflow horizontally");
   await mobile.screenshot({ path: join(screenshots, "catalog-390.png"), fullPage: true });
+  await mobile.getByRole("button", { name: "Xem nhanh" }).first().click();
+  await mobile.getByRole("dialog").getByRole("heading", { level: 2, name: "Bột dinh dưỡng" }).waitFor();
+  assert.equal(await mobile.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth), true, "390px quick preview must not overflow horizontally");
+  await mobile.screenshot({ path: join(screenshots, "quick-preview-390.png"), fullPage: true });
+  await mobile.keyboard.press("Escape");
   await mobile.close();
   assert.deepEqual(browserIssues, [], "Catalog browser console must be clean");
   assert.ok(median(warmTimings) <= 800, `Warm catalog p50 must remain under 800ms (received ${median(warmTimings).toFixed(1)}ms)`);
-  console.log(JSON.stringify({ coldCatalogP50Ms: median(coldTimings), screenshots, warmCatalogP50Ms: median(warmTimings) }));
+  console.log(JSON.stringify({ coldCatalogP50Ms: median(coldTimings), initialMetrics, screenshots, warmCatalogP50Ms: median(warmTimings) }));
 } finally {
   await browser?.close();
   await stopChild(app, appPort, logs);

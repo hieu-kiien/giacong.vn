@@ -3,9 +3,9 @@
 import { useState } from "react";
 
 import { CatalogProductImage } from "@/components/catalog/CatalogProductImage";
-import { formatVnd } from "@/components/catalog/CatalogProductCard";
 import { PurchaseQuantity } from "@/components/catalog/PurchaseQuantity";
 import styles from "@/components/catalog/catalog.module.css";
+import { formatVnd } from "@/lib/format-vnd";
 import type { CatalogProductDetail } from "@/types/catalog";
 
 interface ProductConfiguratorProps {
