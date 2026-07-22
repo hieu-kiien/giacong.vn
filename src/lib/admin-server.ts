@@ -11,8 +11,18 @@ export const getAdmin = cache(async (): Promise<AdminSession> => {
 });
 export async function getDashboard(): Promise<AdminDashboard | null> { return parseResult("dashboard", parseDashboard); }
 export async function getProducts(query: URLSearchParams): Promise<AdminProductList | null> { return parseResult("products", parseProductList, { query }); }
-export async function getProduct(slug: string): Promise<AdminProductDetail | null> { return parseResult("product", parseProductDetail, { slug }); }
+export async function getAdminProduct(slug: string): Promise<AdminProductResult> {
+  try {
+    const response = await result("product", { slug });
+    if (response.status === 404) return { kind: "not_found" };
+    if (response.status !== 200) return { kind: "unavailable" };
+    return { kind: "found", product: parseProductDetail(response.payload) };
+  } catch {
+    return { kind: "unavailable" };
+  }
+}
 export function can(admin: AdminIdentity, permission: "b2b.dashboard" | "b2b.catalog.read") { return admin.permissions.includes("*") || admin.permissions.includes(permission); }
 export function safeReturnTo(value: string | null): string { return value && /^\/quan-tri(?:\/san-pham(?:\/[a-z0-9-]+)?)?(?:\?[^#]*)?$/i.test(value) ? value : "/quan-tri"; }
 export type AdminSession = { kind: "authenticated"; admin: AdminIdentity } | { kind: "unauthenticated" } | { kind: "unavailable" };
+export type AdminProductResult = { kind: "found"; product: AdminProductDetail } | { kind: "not_found" } | { kind: "unavailable" };
 async function parseResult<T>(operation: "dashboard" | "products" | "product", parser: (payload: unknown) => T, options?: { query?: URLSearchParams; slug?: string }): Promise<T | null> { try { const response = await result(operation, options); return response.status === 200 ? parser(response.payload) : null; } catch { return null; } }

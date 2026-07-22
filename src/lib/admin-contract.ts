@@ -66,8 +66,8 @@ export function parseProductList(payload: unknown): AdminProductList {
 export function parseProductDetail(payload: unknown): AdminProductDetail {
   const root = exact(payload, ["data", "meta"]);
   version(root.meta);
-  const product = parseProduct(root.data);
   const detail = exact(root.data, ["id", "type", "sku", "slug", "name", "description", "image", "categories", "variant_count", "available_variant_count", "starting_price", "option_groups", "variant_index", "variants"]);
+  const product = parseProductBase(detail);
   const groups = list(detail.option_groups).map((item) => {
     const group = exact(item, ["attribute_id", "code", "label", "options"]);
     return { attribute_id: positive(group.attribute_id), code: nonEmpty(group.code), label: nonEmpty(group.label), options: list(group.options).map((option) => {
@@ -100,6 +100,10 @@ export function parseLogin(payload: unknown, status: number): { two_factor_requi
 
 function parseProduct(payload: unknown): AdminProduct {
   const value = exact(payload, ["id", "type", "sku", "slug", "name", "description", "image", "categories", "variant_count", "available_variant_count", "starting_price"]);
+  return parseProductBase(value);
+}
+
+function parseProductBase(value: Record<string, unknown>): AdminProduct {
   if (text(value.type) !== "configurable") bad();
   const price = value.starting_price === null ? null : exact(value.starting_price, ["unit_price", "currency"]);
   if (price && text(price.currency) !== "VND") bad();

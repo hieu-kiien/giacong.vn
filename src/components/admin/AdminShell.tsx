@@ -11,6 +11,7 @@ export function AdminShell({ name, dashboard, catalog, landing, children }: Prop
   const [open, setOpen] = useState(false);
   const [logoutError, setLogoutError] = useState("");
   const navRef = useRef<HTMLElement>(null);
+  const menuTriggerRef = useRef<HTMLButtonElement>(null);
   const pathname = usePathname();
   const router = useRouter();
   const nav = [
@@ -18,6 +19,17 @@ export function AdminShell({ name, dashboard, catalog, landing, children }: Prop
     { href: "/quan-tri/san-pham", label: "Danh mục", icon: Package, visible: catalog },
   ];
   useEffect(() => { if (open) navRef.current?.querySelector("a")?.focus(); }, [open]);
+  useEffect(() => {
+    if (!open) return;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      setOpen(false);
+      menuTriggerRef.current?.focus();
+    };
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [open]);
   async function logout() {
     setLogoutError("");
     try {
@@ -31,7 +43,7 @@ export function AdminShell({ name, dashboard, catalog, landing, children }: Prop
     <a className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:m-3 focus:rounded focus:bg-white focus:p-3" href="#admin-main">Bỏ qua điều hướng</a>
     {logoutError && <p role="status" aria-live="polite" className="fixed inset-x-4 top-3 z-50 rounded bg-[#fff9ed] p-3 text-sm text-[#8b2c16] lg:inset-x-auto lg:right-6">{logoutError}</p>}
     <header className="flex h-14 items-center justify-between border-b border-[#d7d8c9] bg-[#fbfbf5] px-4 lg:hidden">
-      <button aria-expanded={open} aria-controls="admin-nav" className="rounded p-2 focus-visible:outline-2" onClick={() => setOpen(!open)}><Menu aria-hidden /></button>
+      <button ref={menuTriggerRef} aria-expanded={open} aria-controls="admin-nav" aria-label={open ? "Đóng menu quản trị" : "Mở menu quản trị"} className="rounded p-2 focus-visible:outline-2" onClick={() => setOpen((value) => !value)}><Menu aria-hidden /></button>
       <strong className="text-sm tracking-wide">GIA CÔNG · QUẢN TRỊ</strong>
       <button onClick={logout} className="rounded p-2" aria-label="Đăng xuất"><LogOut aria-hidden size={18} /></button>
     </header>
