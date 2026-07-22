@@ -229,13 +229,11 @@ export function GiacongInteractions({
     };
     const handleDesktopMenuKeydown = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return;
+      const focusedMenu = desktopMegaMenus.find((item) => item.contains(document.activeElement));
       closeAllMegaMenus();
-      if (
-        document.activeElement instanceof HTMLElement
-        && desktopMegaMenus.some((item) => item.contains(document.activeElement))
-      ) {
-        document.activeElement.blur();
-      }
+      focusedMenu
+        ?.querySelector<HTMLButtonElement>(":scope > .clone-desktop-service-toggle")
+        ?.focus();
     };
     const updateStickyHeader = () => {
       headerWrapper?.classList.toggle("stuck", window.scrollY > 70);

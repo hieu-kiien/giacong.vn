@@ -549,6 +549,12 @@ try {
     false,
     "Escape must close an expanded desktop mega menu",
   );
+  assert.equal(await serviceDisclosure.getAttribute("aria-expanded"), "false");
+  assert.equal(
+    await serviceDisclosure.evaluate((toggle) => document.activeElement === toggle),
+    true,
+    "Escape must return focus to the desktop service disclosure",
+  );
   assert.equal(
     await desktopMenu.locator(".echbay-sms-messenger").isVisible(),
     true,

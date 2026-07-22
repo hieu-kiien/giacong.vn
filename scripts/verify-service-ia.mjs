@@ -69,7 +69,7 @@ try {
     if (["error", "warning"].includes(message.type())) runtimeIssues.push(`desktop console ${message.type()}: ${message.text()}`);
   });
   desktop.on("pageerror", (error) => runtimeIssues.push(`desktop pageerror: ${error.message}`));
-  await desktop.goto(`${origin}/thue-gia-cong/`);
+  await desktop.goto(`${origin}/thue-gia-cong/`, { waitUntil: "domcontentloaded" });
   await desktop.getByRole("heading", { level: 1, name: "Thuê gia công" }).waitFor();
   const desktopServiceLink = desktop.locator("#header").getByRole("link", { name: "Thuê gia công", exact: true });
   await desktopServiceLink.waitFor();
@@ -79,12 +79,19 @@ try {
   await desktopToggle.click();
   assert.equal(await desktopToggle.getAttribute("aria-expanded"), "true");
   await desktop.screenshot({ fullPage: true, path: "docs/design-references/service-landing-desktop.png" });
+  await desktopToggle.press("Escape");
+  assert.equal(await desktopToggle.getAttribute("aria-expanded"), "false", "Escape must collapse the desktop service menu");
+  assert.equal(
+    await desktopToggle.evaluate((toggle) => document.activeElement === toggle),
+    true,
+    "Escape must return focus to the desktop service disclosure",
+  );
   for (const [slug, label] of families) {
     await desktop.locator("#header").getByRole("link", { name: label, exact: true }).waitFor();
     const familyUrl = `${origin}/thue-gia-cong/${slug}/`;
     const response = await fetch(familyUrl);
     assert.equal(response.status, 200, `${familyUrl} must resolve`);
-    await desktop.goto(familyUrl);
+    await desktop.goto(familyUrl, { waitUntil: "domcontentloaded" });
     await desktop.getByRole("heading", { level: 1, name: label }).waitFor();
     for (const leaf of families.find(([candidate]) => candidate === slug)[2]) {
       const renderedLeaf = leaf.replace(/\/$/, "");
@@ -105,7 +112,7 @@ try {
     if (["error", "warning"].includes(message.type())) runtimeIssues.push(`mobile console ${message.type()}: ${message.text()}`);
   });
   mobile.on("pageerror", (error) => runtimeIssues.push(`mobile pageerror: ${error.message}`));
-  await mobile.goto(`${origin}/thue-gia-cong/`);
+  await mobile.goto(`${origin}/thue-gia-cong/`, { waitUntil: "domcontentloaded" });
   await mobile.locator("[data-open='#main-menu']").click();
   const mobileServiceItem = mobile.locator("#main-menu #menu-item-5466");
   const mobileLink = mobileServiceItem.getByRole("link", { name: "Thuê gia công", exact: true });
