@@ -358,8 +358,8 @@ try {
   assert.match(homeHtml, />Thuê gia công</i, "Primary navigation must expose the manufacturing-service path");
   assert.match(
     homeHtml,
-    /Thuê gia công<i class="icon-angle-down"><\/i>/i,
-    "Manufacturing-service navigation must retain its mega-menu affordance",
+    /<button[^>]*aria-controls="clone-service-menu-desktop"[^>]*aria-expanded="false"[^>]*aria-label="Mở menu Thuê gia công"[^>]*>/i,
+    "Manufacturing-service navigation must expose a separate accessible disclosure",
   );
   assert.doesNotMatch(
     homeHtml,

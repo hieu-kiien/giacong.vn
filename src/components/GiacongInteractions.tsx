@@ -188,11 +188,11 @@ export function GiacongInteractions({
     const openMegaMenu = (item: HTMLElement) => {
       positionMegaMenu(item);
       item.classList.add("current-dropdown");
-      item.querySelector<HTMLElement>(":scope > a")?.setAttribute("aria-expanded", "true");
+      item.querySelector<HTMLElement>(":scope > .clone-desktop-service-toggle")?.setAttribute("aria-expanded", "true");
     };
     const closeMegaMenu = (item: HTMLElement) => {
       item.classList.remove("clone-mega-menu-pinned", "current-dropdown");
-      item.querySelector<HTMLElement>(":scope > a")?.setAttribute("aria-expanded", "false");
+      item.querySelector<HTMLElement>(":scope > .clone-desktop-service-toggle")?.setAttribute("aria-expanded", "false");
     };
     const closeAllMegaMenus = () => desktopMegaMenus.forEach(closeMegaMenu);
     const openExclusiveMegaMenu = (item: HTMLElement, pinned: boolean) => {
@@ -201,7 +201,7 @@ export function GiacongInteractions({
       openMegaMenu(item);
     };
     const desktopMenuListeners = desktopMegaMenus.map((item) => {
-      const link = item.querySelector<HTMLElement>(":scope > a");
+      const disclosure = item.querySelector<HTMLElement>(":scope > .clone-desktop-service-toggle");
       const handleOpen = () => openExclusiveMegaMenu(item, false);
       const handleClose = () => {
         if (!item.classList.contains("clone-mega-menu-pinned")) closeMegaMenu(item);
@@ -220,8 +220,8 @@ export function GiacongInteractions({
       item.addEventListener("mouseleave", handleClose);
       item.addEventListener("focusin", handleOpen);
       item.addEventListener("focusout", handleFocusOut);
-      link?.addEventListener("click", handleClick);
-      return { item, link, handleOpen, handleClose, handleClick, handleFocusOut };
+      disclosure?.addEventListener("click", handleClick);
+      return { item, disclosure, handleOpen, handleClose, handleClick, handleFocusOut };
     });
     const handleDesktopMenuDocumentClick = (event: Event) => {
       if (desktopMegaMenus.some((item) => item.contains(event.target as Node))) return;
@@ -272,7 +272,7 @@ export function GiacongInteractions({
       window.removeEventListener("resize", repositionOpenMegaMenus);
       desktopMenuListeners.forEach(({
         item,
-        link,
+        disclosure,
         handleOpen,
         handleClose,
         handleClick,
@@ -282,7 +282,7 @@ export function GiacongInteractions({
         item.removeEventListener("mouseleave", handleClose);
         item.removeEventListener("focusin", handleOpen);
         item.removeEventListener("focusout", handleFocusOut);
-        link?.removeEventListener("click", handleClick);
+        disclosure?.removeEventListener("click", handleClick);
         closeMegaMenu(item);
         const panel = item.querySelector<HTMLElement>(":scope > .nav-dropdown");
         panel?.style.removeProperty("width");

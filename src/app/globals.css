@@ -48,6 +48,55 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
+#header .clone-service-menu-item {
+  align-items: center;
+  display: flex;
+  position: relative;
+}
+
+#header .clone-desktop-service-toggle {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+  display: inline-flex;
+  height: 38px;
+  justify-content: center;
+  margin-left: -8px;
+  padding: 0 8px;
+}
+
+#header .clone-desktop-service-toggle:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}
+
+#header .clone-service-mega-grid {
+  background: #fff;
+  display: grid;
+  gap: 0;
+  grid-template-columns: repeat(3, 1fr);
+  padding: 18px;
+}
+
+#header .clone-service-mega-card {
+  border-bottom: 1px solid #e1e7dd;
+  border-right: 1px solid #e1e7dd;
+  min-height: 116px;
+  padding: 18px;
+}
+
+#header .clone-service-mega-card:nth-child(3n) { border-right: 0; }
+#header .clone-service-mega-card:nth-last-child(-n + 3) { border-bottom: 0; }
+#header .clone-service-mega-card a { color: #263022; display: block; font-size: 17px; font-weight: 700; margin-bottom: 7px; }
+#header .clone-service-mega-card a:hover { color: #4e8d2b; }
+#header .clone-service-mega-card span { color: #667161; display: block; font-size: 14px; line-height: 1.45; }
+
+@media (max-width: 849px) {
+  #header .clone-desktop-service-toggle { display: none; }
+}
+
 :root {
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);

@@ -67,10 +67,6 @@ function createMobileMenuIcon(paths: readonly string[]) {
 
 function setAccordionExpanded(item: HTMLElement, expanded: boolean) {
   item.classList.toggle("clone-submenu-open", expanded);
-  item.querySelector<HTMLElement>(":scope > a")?.setAttribute(
-    "aria-expanded",
-    String(expanded),
-  );
   item.querySelector<HTMLButtonElement>(":scope > button.toggle")?.setAttribute(
     "aria-expanded",
     String(expanded),
@@ -110,7 +106,7 @@ export function createMobileProductItem(
 export function replaceMobileMenuIcons(menu: HTMLElement | null) {
   const replacements: Array<{
     icon: SVGSVGElement;
-    original: HTMLImageElement;
+    original?: HTMLImageElement;
   }> = [];
 
   mobileMenuIcons.forEach(({ selector, paths }) => {
@@ -118,15 +114,17 @@ export function replaceMobileMenuIcons(menu: HTMLElement | null) {
     const original = link?.querySelector<HTMLImageElement>(
       ":scope > img.ux-sidebar-menu-icon",
     );
-    if (!link || !original) return;
+    if (!link) return;
     const icon = createMobileMenuIcon(paths);
-    link.replaceChild(icon, original);
-    replacements.push({ icon, original });
+    if (original) link.replaceChild(icon, original);
+    else link.prepend(icon);
+    replacements.push({ icon, original: original ?? undefined });
   });
 
   return () => {
     replacements.forEach(({ icon, original }) => {
-      if (icon.parentElement) icon.replaceWith(original);
+      if (icon.parentElement && original) icon.replaceWith(original);
+      else icon.remove();
     });
   };
 }
@@ -146,15 +144,7 @@ export function addMobileAccordionToggles(menu: HTMLElement | null) {
       button.setAttribute("aria-expanded", "false");
       if (submenu?.id) {
         button.setAttribute("aria-controls", submenu.id);
-        item.querySelector<HTMLElement>(":scope > a")?.setAttribute(
-          "aria-controls",
-          submenu.id,
-        );
       }
-      item.querySelector<HTMLElement>(":scope > a")?.setAttribute(
-        "aria-expanded",
-        "false",
-      );
       button.innerHTML = '<i aria-hidden="true" class="icon-angle-down"></i>';
       if (submenu) {
         item.insertBefore(button, submenu);
@@ -171,10 +161,7 @@ export function handleMobileAccordion(event: Event, menu: HTMLElement | null) {
   const button = event.target.closest<HTMLButtonElement>(
     "#main-menu button.toggle",
   );
-  const parentLink = event.target.closest<HTMLAnchorElement>(
-    "#main-menu li.menu-item-has-children > a",
-  );
-  const item = (button ?? parentLink)?.closest<HTMLElement>(
+  const item = button?.closest<HTMLElement>(
     "li.menu-item-has-children",
   );
   if (!item || !menu.contains(item)) return;

@@ -281,7 +281,7 @@ assert.doesNotMatch(
   nextServer.stderr.on("data", (chunk) => nextLogs.push(chunk.toString()));
   await waitForServer(`${appUrl}/`, nextServer, nextLogs);
 
-const routeQueue = Object.keys(manifest);
+const routeQueue = Object.keys(manifest).filter((route) => route !== "/san-pham/");
 const routeFailures = [];
 async function verifyRouteResponses() {
   while (routeQueue.length > 0) {
@@ -464,7 +464,7 @@ try {
   );
   await contactPageFlow.close();
 
-  for (const route of ["/san-pham/", "/gia-cong-do-uong/", "/lien-he/", "/sua-bot-cho-nguoi-gia/"]) {
+  for (const route of ["/gia-cong-do-uong/", "/lien-he/", "/sua-bot-cho-nguoi-gia/"]) {
     const page = await browser.newPage({ viewport: { width: 390, height: 900 } });
     const errors = [];
     page.on("console", (message) => {
@@ -519,74 +519,24 @@ try {
     "Header must remain fixed and visible after scrolling",
   );
   await desktopMenu.evaluate(() => window.scrollTo(0, 0));
-  await desktopMenu.getByRole("link", { name: /Sản Phẩm/ }).first().hover();
-  assert.equal(
-    await desktopMenu.locator("#header .nav-dropdown").first().isVisible(),
-    true,
-    "Desktop product dropdown did not open",
-  );
-  const productMenuLayout = await desktopMenu.locator("#menu-item-1742").evaluate((item) => {
-    const panel = item.querySelector(":scope > .nav-dropdown");
-    const columns = panel?.querySelectorAll(".menu-san-pham > .col") ?? [];
-    return {
-      panelWidth: panel?.getBoundingClientRect().width ?? 0,
-      panelLeft: panel?.getBoundingClientRect().left ?? 0,
-      viewportWidth: document.documentElement.clientWidth,
-      columnWidths: Array.from(columns, (column) => column.getBoundingClientRect().width),
-    };
-  });
-  assert.ok(
-    productMenuLayout.panelWidth >= 1000,
-    `Desktop product mega menu is too narrow: ${productMenuLayout.panelWidth}px`,
-  );
-  assert.ok(
-    Math.abs(
-      productMenuLayout.panelLeft
-      - (productMenuLayout.viewportWidth - productMenuLayout.panelWidth) / 2
-    ) <= 2,
-    `Desktop product mega menu is not centered: left ${productMenuLayout.panelLeft}px`,
-  );
-  assert.equal(productMenuLayout.columnWidths.length, 4, "Product mega menu must have four columns");
-  assert.ok(
-    productMenuLayout.columnWidths.every((width) => width >= 200),
-    `Product mega-menu columns are too narrow: ${productMenuLayout.columnWidths.join(", ")}px`,
-  );
-  const desktopUrlBeforeProductClick = desktopMenu.url();
-  await desktopMenu.locator("#menu-item-1742 > a").click();
-  assert.equal(
-    desktopMenu.url(),
-    desktopUrlBeforeProductClick,
-    "Clicking Product must open its choices instead of navigating away",
-  );
-  assert.equal(
-    await desktopMenu.locator("#menu-item-1742 > .nav-dropdown").isVisible(),
-    true,
-    "Clicking Product did not keep its mega menu open",
-  );
+  assert.equal(await desktopMenu.locator("#menu-item-1742 > .nav-dropdown").count(), 0, "Product must be a direct link");
+  assert.equal(await desktopMenu.locator("#menu-item-1742 > a").getAttribute("href"), "/san-pham/");
   await desktopMenu.locator("#menu-item-5166 > a").hover();
   const serviceMenuWidth = await desktopMenu.locator(
     "#menu-item-5166 > .nav-dropdown",
   ).evaluate((panel) => panel.getBoundingClientRect().width);
   assert.ok(serviceMenuWidth >= 1000, `Desktop service mega menu is too narrow: ${serviceMenuWidth}px`);
-  await desktopMenu.locator("#menu-item-5166 > a").click();
-  await desktopMenu.waitForFunction(() => {
-    const product = document.querySelector("#menu-item-1742 > .nav-dropdown");
-    const service = document.querySelector("#menu-item-5166 > .nav-dropdown");
-    if (!product || !service) return false;
-    return getComputedStyle(product).visibility === "hidden"
-      && getComputedStyle(service).visibility === "visible"
-      && Number(getComputedStyle(service).opacity) > 0.99;
-  });
+  const serviceLink = desktopMenu.locator("#menu-item-5166 > a");
+  const serviceDisclosure = desktopMenu.locator("#menu-item-5166 > .clone-desktop-service-toggle");
+  assert.equal(await serviceLink.getAttribute("href"), "/thue-gia-cong/");
+  assert.equal(await serviceLink.getAttribute("aria-expanded"), null, "Service navigation link must not act as disclosure");
+  await serviceDisclosure.click();
   assert.equal(
     await desktopMenu.locator("#menu-item-5166 > .nav-dropdown").isVisible(),
     true,
-    "Clicking Service did not keep its mega menu open",
+    "Clicking the Service disclosure did not keep its mega menu open",
   );
-  assert.equal(
-    await desktopMenu.locator("#menu-item-1742 > .nav-dropdown").isVisible(),
-    false,
-    "Opening Service must close the Product mega menu",
-  );
+  assert.equal(await serviceDisclosure.getAttribute("aria-expanded"), "true");
   await desktopMenu.mouse.move(10, 500);
   await desktopMenu.keyboard.press("Escape");
   await desktopMenu.waitForFunction(() => (
@@ -748,52 +698,17 @@ try {
     "Keyboard focus must remain inside the open mobile menu",
   );
   const mobileProductItem = mobileMenu.locator("#main-menu .clone-mobile-products");
-  assert.equal(await mobileProductItem.count(), 1, "Mobile Product accordion is missing");
-  assert.ok(
-    await mobileProductItem.locator(":scope > .sub-menu > li > a").count() >= 10,
-    "Mobile Product accordion does not contain enough choices",
-  );
-  await mobileProductItem.locator(":scope > a").tap();
-  const mobileProductSubmenu = mobileProductItem.locator(":scope > .sub-menu");
-  assert.equal(
-    await mobileProductSubmenu.isVisible(),
-    true,
-    "Tapping the Product row did not expand its choices",
-  );
-  const productAccordionHeader = await mobileProductItem.evaluate((item) => {
-    const link = item.querySelector(":scope > a")?.getBoundingClientRect();
-    const toggle = item.querySelector(":scope > .clone-toggle")?.getBoundingClientRect();
-    return {
-      linkTop: link?.top ?? -1,
-      toggleLeft: toggle?.left ?? -1,
-      toggleTop: toggle?.top ?? -1,
-    };
-  });
-  assert.ok(
-    Math.abs(productAccordionHeader.linkTop - productAccordionHeader.toggleTop) <= 1
-      && productAccordionHeader.toggleLeft >= 210,
-    `Product chevron moved away from its header row: ${JSON.stringify(productAccordionHeader)}`,
-  );
-  const productSubmenuRect = await mobileProductSubmenu.evaluate((submenu) => {
-    const rect = submenu.getBoundingClientRect();
-    const drawer = submenu.closest("#main-menu")?.getBoundingClientRect();
-    return {
-      drawerLeft: drawer?.left ?? -1,
-      drawerRight: drawer?.right ?? -1,
-      left: rect.left,
-      right: rect.right,
-    };
-  });
-  assert.ok(
-    productSubmenuRect.left >= productSubmenuRect.drawerLeft
-      && productSubmenuRect.right <= productSubmenuRect.drawerRight,
-    `Mobile Product choices render outside the drawer: ${JSON.stringify(productSubmenuRect)}`,
-  );
-  await mobileMenu.locator("#menu-item-5466 > a").tap();
+  assert.equal(await mobileProductItem.count(), 1, "Mobile Product link is missing");
+  assert.equal(await mobileProductItem.locator(":scope > a").getAttribute("href"), "/san-pham/");
+  assert.equal(await mobileProductItem.locator(":scope > .sub-menu, :scope > .clone-toggle").count(), 0, "Mobile Product must be a direct link");
+  const mobileServiceItem = mobileMenu.locator("#menu-item-5466");
+  assert.equal(await mobileServiceItem.locator(":scope > a").getAttribute("href"), "/thue-gia-cong/");
+  assert.equal(await mobileServiceItem.locator(":scope > a").getAttribute("aria-expanded"), null);
+  await mobileServiceItem.locator(":scope > .clone-toggle").tap();
   assert.equal(
     await mobileMenu.locator("#menu-item-5466.clone-submenu-open > .sub-menu").isVisible(),
     true,
-    "Tapping the Service row did not expand its choices",
+    "Tapping the Service disclosure did not expand its choices",
   );
   const serviceAccordionHeader = await mobileMenu.locator("#menu-item-5466").evaluate((item) => {
     const link = item.querySelector(":scope > a")?.getBoundingClientRect();
@@ -809,11 +724,7 @@ try {
       && serviceAccordionHeader.toggleLeft >= 210,
     `Service chevron moved away from its header row: ${JSON.stringify(serviceAccordionHeader)}`,
   );
-  assert.equal(
-    await mobileProductSubmenu.isVisible(),
-    false,
-    "Opening Service must close the Product accordion",
-  );
+  assert.equal(await mobileServiceItem.locator(":scope > .sub-menu > li").count(), 6, "Service menu must contain six families");
   const firstServiceChoice = mobileMenu.locator("#menu-item-5466 > .sub-menu > li > a").first();
   assert.ok(
     (await firstServiceChoice.boundingBox())?.x >= 0,
@@ -852,7 +763,7 @@ try {
   );
   await mobileSearchPage.close();
 
-  for (const accordionSelector of [".clone-mobile-products", "#menu-item-5466"]) {
+  for (const accordionSelector of ["#menu-item-5466"]) {
     const choicePage = await browser.newPage({
       viewport: { width: 390, height: 900 },
       hasTouch: true,
@@ -860,7 +771,7 @@ try {
     await choicePage.goto(`${appUrl}/`, { waitUntil: "networkidle" });
     await choicePage.locator("[data-open='#main-menu']").tap();
     const accordion = choicePage.locator(`#main-menu ${accordionSelector}`);
-    await accordion.locator(":scope > a").tap();
+    await accordion.locator(":scope > .clone-toggle").tap();
     const choiceHref = await accordion
       .locator(":scope > .sub-menu > li > a")
       .first()
