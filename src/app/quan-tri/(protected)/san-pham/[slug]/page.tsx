@@ -1,13 +1,70 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { ProductCommercialEditor } from "@/components/admin/ProductCommercialEditor";
+import { ProductCommercialReadOnly } from "@/components/admin/ProductCommercialReadOnly";
 import { can, getAdmin, getAdminProduct } from "@/lib/admin-server";
 
-const money = (value: number | null) => value === null ? "Chưa hợp lệ" : new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND", maximumFractionDigits: 0 }).format(value);
+const money = (value: number) => new Intl.NumberFormat("vi-VN", {
+  style: "currency",
+  currency: "VND",
+  maximumFractionDigits: 0,
+}).format(value);
 
 export default async function ProductDetail({ params }: PageProps<"/quan-tri/san-pham/[slug]">) {
-  const session = await getAdmin(); if (session.kind !== "authenticated" || !can(session.admin, "b2b.catalog.read")) notFound();
-  const { slug } = await params; const result = await getAdminProduct(slug); if (result.kind === "not_found") notFound();
-  if (result.kind === "unavailable") return <section><h1 className="text-2xl font-semibold">Chi tiết sản phẩm</h1><p role="alert" className="mt-4 rounded border border-[#d5c3a2] bg-[#fff9ed] p-4">Dịch vụ quản trị tạm thời không khả dụng. Vui lòng thử lại sau.</p></section>;
+  const session = await getAdmin();
+  if (session.kind !== "authenticated" || !can(session.admin, "b2b.catalog.read")) notFound();
+  const { slug } = await params;
+  const result = await getAdminProduct(slug);
+  if (result.kind === "not_found") notFound();
+  if (result.kind === "unavailable") {
+    return (
+      <section>
+        <h1 className="text-2xl font-semibold">Chi tiết sản phẩm</h1>
+        <p role="alert" className="mt-4 rounded border border-[#d5c3a2] bg-[#fff9ed] p-4">Dịch vụ quản trị tạm thời không khả dụng. Vui lòng thử lại sau.</p>
+      </section>
+    );
+  }
   const product = result.product;
-  return <section><Link href="/quan-tri/san-pham" className="text-sm font-medium text-[#3f5712] hover:underline">← Danh mục</Link><div className="mt-4 flex flex-wrap items-start justify-between gap-3"><div><p className="text-xs font-semibold tracking-[0.14em] text-[#667151]">CHI TIẾT SẢN PHẨM</p><h1 className="mt-1 text-2xl font-semibold">{product.name}</h1><p className="mt-1 font-mono text-xs text-[#667151]">{product.sku}</p></div><span className="rounded-full bg-[#dfe8bd] px-3 py-1 text-xs font-semibold text-[#405b11]">Chỉ đọc</span></div><dl className="mt-6 grid gap-3 sm:grid-cols-3"><div className="rounded-md border border-[#d7d8c9] bg-[#fbfbf5] p-4"><dt className="text-sm text-[#667151]">Sản phẩm cha</dt><dd className="mt-1 font-semibold">{product.name}</dd></div><div className="rounded-md border border-[#d7d8c9] bg-[#fbfbf5] p-4"><dt className="text-sm text-[#667151]">Xuất bản / khả dụng</dt><dd className="mt-1 font-semibold">{product.available_variant_count}/{product.variant_count} biến thể</dd></div><div className="rounded-md border border-[#d7d8c9] bg-[#fbfbf5] p-4"><dt className="text-sm text-[#667151]">Giá khởi điểm</dt><dd className="mt-1 font-semibold">{product.starting_price ? money(product.starting_price.unit_price) : "Chưa có"}</dd></div></dl><section className="mt-6"><h2 className="text-lg font-semibold">Tuỳ chọn cấu hình</h2><div className="mt-3 grid gap-3 md:grid-cols-2">{product.option_groups.map((group) => <div className="rounded-md border border-[#d7d8c9] bg-[#fbfbf5] p-4" key={group.attribute_id}><h3 className="font-medium">{group.label}</h3><ul className="mt-2 flex flex-wrap gap-2">{group.options.map((option) => <li className="rounded border border-[#d7d8c9] px-2 py-1 text-sm" key={option.option_id}>{option.label}</li>)}</ul></div>)}</div></section><section className="mt-6"><h2 className="text-lg font-semibold">Biến thể, MOQ và giá bậc</h2><div className="mt-3 space-y-3">{product.variants.map((variant) => <article className="rounded-md border border-[#d7d8c9] bg-[#fbfbf5] p-4" key={variant.id}><div className="flex flex-wrap items-start justify-between gap-2"><div><h3 className="font-semibold">{variant.name}</h3><p className="font-mono text-xs text-[#667151]">{variant.sku}</p><p className="mt-1 text-sm text-[#59634d]">{variant.option_values.map((option) => option.option_label).join(" · ")}</p></div><span className={`rounded-full px-2 py-1 text-xs font-medium ${variant.availability.is_available ? "bg-[#dfe8bd] text-[#405b11]" : "bg-[#eee8df] text-[#725b3f]"}`}>{variant.availability.is_available ? "Khả dụng" : "Không khả dụng"}</span></div><dl className="mt-3 grid grid-cols-2 gap-3 text-sm sm:grid-cols-4"><div><dt className="text-[#667151]">Đơn vị</dt><dd>{variant.unit}</dd></div><div><dt className="text-[#667151]">MOQ</dt><dd>{variant.moq}</dd></div><div><dt className="text-[#667151]">Bước đặt</dt><dd>{variant.quantity_step}</dd></div><div><dt className="text-[#667151]">Liên hệ từ</dt><dd>{variant.contact_from_quantity}</dd></div></dl><div className="mt-3"><p className="text-sm font-medium">Tồn kho / giá bậc</p><ul className="mt-1 flex flex-wrap gap-2">{variant.tier_prices.map((tier) => <li className="rounded bg-[#eff0e5] px-2 py-1 text-xs" key={tier.min_quantity}>Từ {tier.min_quantity}: {money(tier.unit_price)}</li>)}</ul></div></article>)}</div></section></section>;
+  const canWrite = can(session.admin, "b2b.catalog.write");
+  return (
+    <section>
+      <Link href="/quan-tri/san-pham" className="text-sm font-medium text-[#3f5712] hover:underline">← Danh mục</Link>
+      <div className="mt-4 flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <p className="text-xs font-semibold tracking-[0.14em] text-[#667151]">CHI TIẾT SẢN PHẨM</p>
+          <h1 className="mt-1 text-2xl font-semibold">{product.name}</h1>
+          <p className="mt-1 font-mono text-xs text-[#667151]">{product.sku}</p>
+        </div>
+        <span className={`rounded-full px-3 py-1 text-xs font-semibold ${canWrite ? "bg-[#dfe8bd] text-[#405b11]" : "bg-[#eee8df] text-[#725b3f]"}`}>{canWrite ? "Có thể chỉnh sửa" : "Chỉ đọc"}</span>
+      </div>
+
+      <dl className="mt-6 grid gap-3 sm:grid-cols-3">
+        <Summary label="Trạng thái" value={product.published ? "Đã xuất bản" : "Chưa xuất bản"} />
+        <Summary label="Khả dụng" value={`${product.available_variant_count}/${product.variant_count} biến thể`} />
+        <Summary label="Giá khởi điểm" value={product.starting_price ? money(product.starting_price.unit_price) : "Chưa có"} />
+      </dl>
+
+      {product.option_groups.length > 0 && (
+        <section className="mt-6" aria-labelledby="configuration-options-title">
+          <h2 id="configuration-options-title" className="text-lg font-semibold">Tuỳ chọn sản phẩm</h2>
+          <div className="mt-3 grid gap-3 md:grid-cols-2">
+            {product.option_groups.map((group) => (
+              <div className="rounded-md border border-[#d7d8c9] bg-[#fbfbf5] p-4" key={group.attribute_id}>
+                <h3 className="font-medium">{group.label}</h3>
+                <ul className="mt-2 flex flex-wrap gap-2">{group.options.map((option) => <li className="rounded border border-[#d7d8c9] bg-white px-2 py-1 text-sm" key={option.option_id}>{option.label}</li>)}</ul>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {canWrite
+        ? <ProductCommercialEditor initialProduct={product} />
+        : <ProductCommercialReadOnly product={product} />}
+    </section>
+  );
+}
+
+function Summary({ label, value }: { label: string; value: string }) {
+  return <div className="rounded-md border border-[#d7d8c9] bg-[#fbfbf5] p-4"><dt className="text-sm text-[#667151]">{label}</dt><dd className="mt-1 font-semibold">{value}</dd></div>;
 }
