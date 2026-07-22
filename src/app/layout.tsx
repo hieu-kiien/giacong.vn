@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -6,17 +7,19 @@ export const metadata: Metadata = {
   description: "Giao diện giới thiệu dịch vụ gia công toàn diện.",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const isAdmin = (await headers()).get("x-pathname")?.startsWith("/quan-tri") ?? false;
   return (
     <html
       lang="vi"
       className="js"
     >
       <body>
+        {!isAdmin && <>
         {/* eslint-disable-next-line @next/next/no-css-tags */}
         <link rel="stylesheet" href="/styles/menu-icons.css" />
         {/* eslint-disable-next-line @next/next/no-css-tags */}
@@ -35,6 +38,7 @@ export default function RootLayout({
         <link rel="stylesheet" href="/styles/fixed-toc.css" />
         {/* eslint-disable-next-line @next/next/no-css-tags */}
         <link rel="stylesheet" href="/styles/contact-form.css" />
+        </>}
         {children}
       </body>
     </html>
