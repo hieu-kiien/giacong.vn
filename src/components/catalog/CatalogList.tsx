@@ -38,7 +38,7 @@ export function CatalogList({ categories, filters, result }: CatalogListProps) {
           <button className={styles.button} type="submit">Lọc sản phẩm</button>
         </form>
 
-        <p className={styles.resultCount} aria-live="polite">{result.pagination.total} sản phẩm</p>
+        <p className={styles.resultCount} aria-live="polite">{result.pagination.total} dòng sản phẩm</p>
         {result.products.length ? (
           <div className={styles.grid}>{result.products.map((product) => <CatalogProductCard key={product.id} product={product} />)}</div>
         ) : (

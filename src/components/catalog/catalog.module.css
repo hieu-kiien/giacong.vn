@@ -195,6 +195,24 @@
 
 .description { color: #525252; line-height: 1.7; margin: 0; white-space: pre-line; }
 
+.descriptionSection { border-top: 1px solid #e5e5e5; margin-top: 36px; padding-top: 28px; }
+.sectionTitle { color: #111; font-size: 22px; line-height: 1.3; margin: 0 0 12px; }
+.sku { color: #666; font-size: 12px; font-weight: 700; letter-spacing: .03em; margin: 0; }
+.selectedVariantName { color: #222; font-size: 18px; font-weight: 700; margin: 0; }
+
+.variantSelector { border: 0; margin: 4px 0 0; padding: 0; }
+.variantSelector legend { color: #222; font-size: 16px; font-weight: 700; margin-bottom: 10px; padding: 0; }
+.variantOptions { display: grid; gap: 10px; grid-template-columns: 1fr; }
+.variantOption { border: 1px solid #d7d7d7; min-width: 0; padding: 0 12px 10px; }
+.variantOption:has(input:checked) { border-color: #dc1f26; box-shadow: inset 0 0 0 1px #dc1f26; }
+.variantLabel { align-items: center; cursor: pointer; display: flex; font-size: 14px; font-weight: 700; gap: 10px; min-height: 44px; }
+.variantLabel input { accent-color: #dc1f26; height: 18px; margin: 0; width: 18px; }
+.variantLabel:focus-within { outline: 2px solid #111; outline-offset: 3px; }
+.unavailableVariant { color: #777; cursor: not-allowed; }
+.variantReason { color: #8c3a24; display: block; font-size: 12px; margin-left: 28px; }
+.selectionPrompt { background: #f7f7f7; border: 1px solid #e1e1e1; color: #555; line-height: 1.6; padding: 16px; }
+.variantCommerce { display: grid; gap: 14px; }
+
 .facts { border-collapse: collapse; font-size: 14px; width: 100%; }
 .facts th, .facts td { border: 1px solid #e1e1e1; padding: 11px; text-align: left; }
 .facts th { background: #f7f7f7; font-weight: 700; width: 46%; }
@@ -230,6 +248,7 @@
 @media (min-width: 640px) {
   .filters { grid-template-columns: minmax(0, 1fr) 220px auto; }
   .grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .variantOptions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 @media (min-width: 900px) {

@@ -9,21 +9,23 @@ import type { CatalogTierPrice } from "@/types/catalog";
 interface PurchaseQuantityProps {
   contactFromQuantity: number;
   minimumOrderQuantity: number;
+  parentSlug: string;
   productName: string;
   quantityStep: number;
-  slug: string;
   tierPrices: CatalogTierPrice[];
   unit: string;
+  variantSku: string;
 }
 
 export function PurchaseQuantity({
   contactFromQuantity,
   minimumOrderQuantity,
+  parentSlug,
   productName,
   quantityStep,
-  slug,
   tierPrices,
   unit,
+  variantSku,
 }: PurchaseQuantityProps) {
   const [quantity, setQuantity] = useState(minimumOrderQuantity);
   const isValid = Number.isInteger(quantity)
@@ -35,8 +37,9 @@ export function PurchaseQuantity({
     : undefined;
   const requestHref = `/lien-he/?${new URLSearchParams({
     intent: needsContact ? "quote" : "order",
-    product: slug,
+    product: parentSlug,
     quantity: String(quantity),
+    variant_sku: variantSku,
   })}`;
 
   return (

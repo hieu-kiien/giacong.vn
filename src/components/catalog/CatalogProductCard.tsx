@@ -2,10 +2,10 @@ import Link from "next/link";
 
 import { CatalogProductImage } from "@/components/catalog/CatalogProductImage";
 import styles from "@/components/catalog/catalog.module.css";
-import type { CatalogProduct } from "@/types/catalog";
+import type { CatalogProductParent } from "@/types/catalog";
 
 interface CatalogProductCardProps {
-  product: CatalogProduct;
+  product: CatalogProductParent;
 }
 
 export function CatalogProductCard({ product }: CatalogProductCardProps) {
@@ -19,9 +19,9 @@ export function CatalogProductCard({ product }: CatalogProductCardProps) {
         <h2 className={styles.productName}>
           <Link href={`/san-pham/${encodeURIComponent(product.slug)}/`}>{product.name}</Link>
         </h2>
-        <span className={styles.price}>Từ {formatVnd(product.price)}</span>
-        <span className={styles.meta}>Mua từ {product.minimumOrderQuantity} {product.unit}, bước {product.quantityStep}</span>
-        <span className={styles.contactPrice}>Liên hệ từ {product.contactFromQuantity} {product.unit}</span>
+        <span className={styles.price}>Từ {formatVnd(product.startingPrice.price)}</span>
+        <span className={styles.meta}>{product.variantCount} lựa chọn</span>
+        <span className={styles.contactPrice}>{product.availableVariantCount} lựa chọn đang sẵn sàng</span>
       </div>
     </article>
   );
