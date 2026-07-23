@@ -1,5 +1,7 @@
 # Kế hoạch Bagisto headless MVP
 
+> **Đã được thay thế ngày 2026-07-23.** Tài liệu này chỉ còn giá trị lịch sử. Kế hoạch chính thức hiện tại là [`COMMERCE_PLATFORM_MASTER_PLAN.md`](./COMMERCE_PLATFORM_MASTER_PLAN.md).
+
 ## Mục tiêu đã chốt
 
 Xây website tư vấn kết hợp bán sỉ cho doanh nghiệp. Khách không cần tài khoản, có thể xem sản phẩm, chọn số lượng lớn theo MOQ, nhận giá ưu đãi theo bậc, thêm vào giỏ và gửi yêu cầu đặt hàng. Website chưa thanh toán trực tuyến; nhân viên tiếp tục xác nhận và chốt đơn qua nền tảng tư vấn bên ngoài.
