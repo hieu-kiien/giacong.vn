@@ -25,6 +25,28 @@ function environment(overrides: Record<string, string | undefined> = {}) {
   };
 }
 
+const catalogProduct = {
+  name: "Bột dinh dưỡng",
+  variants: [{
+    contactFromQuantity: 20,
+    isAvailable: true,
+    label: "Vị vani",
+    minimumOrderQuantity: 10,
+    quantityStep: 5,
+    sku: "B2B-DEMO-VANILLA",
+  }],
+};
+
+function productFields(overrides: Record<string, string> = {}) {
+  return {
+    ...validSubmission,
+    product: "bot-dinh-duong",
+    qty: "10",
+    variant: "B2B-DEMO-VANILLA",
+    ...overrides,
+  };
+}
+
 test("forwards normalized contact fields and optional secret to an approved Apps Script webhook", async () => {
   let receivedUrl = "";
   let receivedInit: RequestInit | undefined;
@@ -81,53 +103,47 @@ test("does not include secret when it is not configured", async () => {
   assert.equal("secret" in JSON.parse(receivedBody), false);
 });
 
-test("derives a canonical large-quantity product request instead of trusting client request_type", async () => {
-  let receivedBody = "";
-  const response = await handleContactSubmission(requestWithForm({
-    ...validSubmission,
-    product: "bot-dinh-duong",
-    qty: "20",
-    request_type: "Đặt sản phẩm",
-    variant: "B2B-DEMO-VANILLA",
-  }), {
-    environment: environment(),
-    fetch: async (_url: string | URL | Request, init?: RequestInit) => {
-      receivedBody = String(init?.body);
-      return new Response(JSON.stringify({ ok: true, reference: "YC-PRODUCT" }), {
-        headers: { "Content-Type": "application/json" },
-      });
-    },
-    productResolver: async (slug: string) => {
-      assert.equal(slug, "bot-dinh-duong");
-      return {
-        name: "Bột dinh dưỡng",
-        variants: [{
-          contactFromQuantity: 20,
-          isAvailable: true,
-          label: "Vị vani",
-          minimumOrderQuantity: 10,
-          quantityStep: 5,
-          sku: "B2B-DEMO-VANILLA",
-        }],
-      };
-    },
-    timeoutMs: 100,
-  });
+test("derives canonical product requests at MOQ and the inclusive contact threshold", async () => {
+  const cases = [
+    { qty: "10", requestType: "Đặt sản phẩm" },
+    { qty: "20", requestType: "Tư vấn số lượng lớn" },
+  ] as const;
 
-  assert.equal(response.status, 202);
-  assert.deepEqual(JSON.parse(receivedBody), {
-    email: "customer@example.test",
-    message: "Cần tư vấn số lượng lớn.",
-    name: "Nguyễn Văn A",
-    phone: "0900 000 000",
-    product: "Bột dinh dưỡng",
-    qty: 20,
-    request_type: "Tư vấn số lượng lớn",
-    secret: "shared-secret",
-    service: "",
-    source: "/lien-he/",
-    variant: "Vị vani",
-  });
+  for (const sample of cases) {
+    let receivedBody = "";
+    const response = await handleContactSubmission(requestWithForm(productFields({
+      qty: sample.qty,
+      request_type: "Đặt sản phẩm",
+    })), {
+      environment: environment(),
+      fetch: async (_url: string | URL | Request, init?: RequestInit) => {
+        receivedBody = String(init?.body);
+        return new Response(JSON.stringify({ ok: true, reference: "YC-PRODUCT" }), {
+          headers: { "Content-Type": "application/json" },
+        });
+      },
+      productResolver: async (slug: string) => {
+        assert.equal(slug, "bot-dinh-duong");
+        return catalogProduct;
+      },
+      timeoutMs: 100,
+    });
+
+    assert.equal(response.status, 202, sample.qty);
+    assert.deepEqual(JSON.parse(receivedBody), {
+      email: "customer@example.test",
+      message: "Cần tư vấn số lượng lớn.",
+      name: "Nguyễn Văn A",
+      phone: "0900 000 000",
+      product: "Bột dinh dưỡng",
+      qty: Number(sample.qty),
+      request_type: sample.requestType,
+      secret: "shared-secret",
+      service: "",
+      source: "/lien-he/",
+      variant: "Vị vani",
+    }, sample.qty);
+  }
 });
 
 test("accepts the single canonical service and preserves legacy generic contact without context", async () => {
@@ -179,11 +195,13 @@ test("accepts the single canonical service and preserves legacy generic contact 
   });
 });
 
-test("rejects invalid contact context and safely fails if product resolution is unavailable", async () => {
+test("rejects malformed, incomplete, and mixed contact context without calling the webhook", async () => {
   const invalidContexts = [
-    { ...validSubmission, product: "bot-dinh-duong", variant: "B2B-DEMO-VANILLA" },
+    productFields({ product: "", qty: "10" }),
+    productFields({ qty: "10", variant: "" }),
+    productFields({ qty: "1.5" }),
     { ...validSubmission, service: "khong-ton-tai" },
-    { ...validSubmission, product: "bot-dinh-duong", service: "say-thuc-pham-say", variant: "B2B-DEMO-VANILLA", qty: "10" },
+    productFields({ service: "say-thuc-pham-say" }),
   ];
 
   for (const fields of invalidContexts) {
@@ -199,14 +217,42 @@ test("rejects invalid contact context and safely fails if product resolution is 
     assert.equal(response.status, 400);
     assert.equal(called, false);
   }
+});
 
+test("rejects invalid catalog product, variant, availability, and quantity rules without calling the webhook", async () => {
+  const cases = [
+    { fields: productFields(), productResolver: async () => null },
+    { fields: productFields({ variant: "UNKNOWN-SKU" }), productResolver: async () => catalogProduct },
+    {
+      fields: productFields(),
+      productResolver: async () => ({
+        ...catalogProduct,
+        variants: [{ ...catalogProduct.variants[0], isAvailable: false }],
+      }),
+    },
+    { fields: productFields({ qty: "5" }), productResolver: async () => catalogProduct },
+    { fields: productFields({ qty: "12" }), productResolver: async () => catalogProduct },
+  ];
+
+  for (const sample of cases) {
+    let called = false;
+    const response = await handleContactSubmission(requestWithForm(sample.fields), {
+      environment: environment(),
+      fetch: async () => {
+        called = true;
+        return new Response();
+      },
+      productResolver: sample.productResolver,
+      timeoutMs: 100,
+    });
+    assert.equal(response.status, 400);
+    assert.equal(called, false);
+  }
+});
+
+test("safely fails if product resolution is unavailable without calling the webhook", async () => {
   let called = false;
-  const unavailable = await handleContactSubmission(requestWithForm({
-    ...validSubmission,
-    product: "bot-dinh-duong",
-    qty: "10",
-    variant: "B2B-DEMO-VANILLA",
-  }), {
+  const response = await handleContactSubmission(requestWithForm(productFields()), {
     environment: environment(),
     fetch: async () => {
       called = true;
@@ -218,9 +264,9 @@ test("rejects invalid contact context and safely fails if product resolution is 
     timeoutMs: 100,
   });
 
-  assert.equal(unavailable.status, 502);
+  assert.equal(response.status, 502);
   assert.equal(called, false);
-  assert.deepEqual(await unavailable.json(), {
+  assert.deepEqual(await response.json(), {
     message: "Không thể xác thực sản phẩm. Vui lòng thử lại.",
     ok: false,
   });

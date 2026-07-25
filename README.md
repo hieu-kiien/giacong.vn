@@ -33,4 +33,4 @@ npm run check
 
 ## Bước kế tiếp
 
-Bắt đầu bằng test RED cho việc mở rộng `POST /api/contact` và Apps Script/Google Sheet sang schema 15 cột, gồm `request_type`, ngữ cảnh sản phẩm/dịch vụ và workflow bàn giao Google cho khách.
+Viết test RED cho workflow vận hành Google Sheet: protection A:K/O, dropdown/data validation, chuyển trạng thái bằng `onEdit`, tab `Tổng quan` và checklist bàn giao quyền kiểm soát Google cho khách. Việc nối ngữ cảnh product/service từ storefront/UI vào contract backend cũng vẫn chưa làm.
