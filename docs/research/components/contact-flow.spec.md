@@ -15,12 +15,15 @@
   forwards the normalized fields as JSON to a server-only Google Apps Script
   webhook. The browser contract remains `POST /api/contact`.
 - The contact email contract accepts RFC-syntax email addresses without a
-  synchronous DNS lookup; Bagisto is the final validation authority for this
-  syntactic rule.
+  synchronous DNS lookup; the Next.js route is the validation boundary before
+  forwarding to Google Apps Script.
 - `GOOGLE_SHEETS_WEBHOOK_URL` is required and must be an HTTPS URL hosted by
   `script.google.com` or `script.googleusercontent.com`; credentials and URL
   fragments are rejected. `GOOGLE_SHEETS_WEBHOOK_SECRET` is optional and, when
   configured, is added only to the server-to-server JSON body.
+- Redirects are handled manually for at most three hops. Every `Location` must
+  meet the same allowlist; 301/302/303 continue as GET without the JSON body or
+  secret, while 307/308 can retain the body only for an allowlisted destination.
 - A valid webhook response is exactly JSON `{ "ok": true, "reference": "..." }`;
   only then does the BFF return HTTP 202 with that reference.
 - Invalid submissions return HTTP 400 and a Vietnamese validation message.

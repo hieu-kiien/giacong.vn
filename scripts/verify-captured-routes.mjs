@@ -2,7 +2,6 @@ import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
 import { once } from "node:events";
 import { readFile } from "node:fs/promises";
-import { createServer } from "node:http";
 import { createServer as createNetServer } from "node:net";
 import { chromium } from "playwright";
 
@@ -57,92 +56,6 @@ async function waitForPortToClose(port) {
   throw new Error(`Port ${port} remained open after Next.js cleanup.`);
 }
 
-async function startFakeBagisto() {
-  const sockets = new Set();
-  const redirectTargetPath = "/redirect-target";
-  let origin = "";
-  let redirectTargetHits = 0;
-  const server = createServer((request, response) => {
-    if (request.method === "GET" && request.url === redirectTargetPath) {
-      redirectTargetHits += 1;
-      response.writeHead(200, { "Content-Type": "application/json" });
-      response.end(JSON.stringify({ ok: true, data: { reference: "BFF-REDIRECT-TARGET" } }));
-      return;
-    }
-    if (request.method !== "POST" || request.url !== "/api/b2b/briefs") {
-      response.writeHead(404).end();
-      return;
-    }
-
-    const chunks = [];
-    request.on("data", (chunk) => chunks.push(chunk));
-    request.on("end", () => {
-      const body = Buffer.concat(chunks).toString("utf8");
-      if (body.includes("__upstream_4xx__")) {
-        response.writeHead(422, { "Content-Type": "application/json" });
-        response.end(JSON.stringify({ ok: false, message: "upstream validation detail" }));
-        return;
-      }
-      if (body.includes("__unavailable__")) {
-        request.socket.destroy();
-        return;
-      }
-      if (body.includes("__redirect__")) {
-        response.writeHead(302, { Location: `${origin}${redirectTargetPath}` }).end();
-        return;
-      }
-      if (body.includes("__upstream_5xx__")) {
-        response.writeHead(500, { "Content-Type": "application/json" });
-        response.end(JSON.stringify({ ok: false, message: "secret upstream failure", url: "https://upstream.example/private" }));
-        return;
-      }
-      if (body.includes("__timeout__")) {
-        setTimeout(() => {
-          if (!response.destroyed) {
-            response.writeHead(201, { "Content-Type": "application/json" });
-            response.end(JSON.stringify({ ok: true, data: { reference: "BFF-LATE" } }));
-          }
-        }, 500);
-        return;
-      }
-      if (body.includes("__headers_then_hang__")) {
-        response.writeHead(201, { "Content-Type": "application/json" });
-        response.write('{"ok":true,"data":{"reference":"BFF-HANG');
-        return;
-      }
-      if (body.includes("__malformed_json__")) {
-        response.writeHead(201, { "Content-Type": "application/json" });
-        response.end("{");
-        return;
-      }
-      response.writeHead(201, { "Content-Type": "application/json" });
-      response.end(JSON.stringify(body.includes("__missing_reference__")
-        ? { ok: true, data: {} }
-        : body.includes("__blank_reference__")
-          ? { ok: true, data: { reference: "   " } }
-        : { ok: true, data: { reference: "BFF-REF-001" } }));
-    });
-  });
-  server.on("connection", (socket) => {
-    sockets.add(socket);
-    socket.on("close", () => sockets.delete(socket));
-  });
-
-  server.listen(0, "127.0.0.1");
-  await once(server, "listening");
-  const address = server.address();
-  assert.ok(address && typeof address !== "string", "Fake Bagisto did not bind a port");
-  origin = `http://127.0.0.1:${address.port}`;
-  return {
-    origin,
-    redirectTargetHits: () => redirectTargetHits,
-    stop: async () => {
-      sockets.forEach((socket) => socket.destroy());
-      await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
-    },
-  };
-}
-
 async function stopChild(child, port, logs) {
   if (!child) return;
   if (child.exitCode !== null || child.signalCode !== null) {
@@ -180,35 +93,6 @@ async function stopChild(child, port, logs) {
   await waitForPortToClose(port);
 }
 
-async function assertTimeoutFallback(fakeBagisto, configuredTimeout, label) {
-  const port = await findOpenPort();
-  const logs = [];
-  const child = spawn(process.execPath, ["node_modules/next/dist/bin/next", "dev", "-p", String(port)], {
-    env: {
-      ...process.env,
-      BAGISTO_API_TIMEOUT_MS: configuredTimeout,
-      BAGISTO_API_URL: fakeBagisto.origin,
-    },
-    stdio: ["ignore", "pipe", "pipe"],
-    windowsHide: true,
-  });
-  child.stdout.on("data", (chunk) => logs.push(chunk.toString()));
-  child.stderr.on("data", (chunk) => logs.push(chunk.toString()));
-  try {
-    const appUrl = `http://localhost:${port}`;
-    await waitForServer(`${appUrl}/`, child, logs);
-    const formData = new FormData();
-    formData.set("name", "Kiểm thử timeout");
-    formData.set("phone", "0900000000");
-    formData.set("message", "__timeout__");
-    const response = await fetch(`${appUrl}/api/contact`, { method: "POST", body: formData });
-    assert.equal(response.status, 202, `Invalid ${label} timeout must fall back to the default`);
-  } finally {
-    await stopChild(child, port, logs);
-  }
-}
-
-let fakeBagisto;
 let nextServer;
 let nextPort;
 let nextLogs = [];
@@ -233,20 +117,10 @@ assert.doesNotMatch(
   "Fixed TOC fonts must be served locally to avoid mobile CORS failures",
 );
 
-  fakeBagisto = await startFakeBagisto();
-  for (const [configuredTimeout, label] of [
-    ["99", "lower bound"],
-    ["30001", "upper bound"],
-    ["1.5", "float"],
-    ["NaN", "NaN"],
-  ]) {
-    await assertTimeoutFallback(fakeBagisto, configuredTimeout, label);
-  }
-
   const missingConfigPort = await findOpenPort();
   const missingConfigLogs = [];
-  const missingConfigServer = spawn(process.execPath, ["node_modules/next/dist/bin/next", "dev", "-p", String(missingConfigPort)], {
-    env: { ...process.env, BAGISTO_API_URL: "" },
+  const missingConfigServer = spawn(process.execPath, ["node_modules/next/dist/bin/next", "dev", "--webpack", "-p", String(missingConfigPort)], {
+    env: { ...process.env, GOOGLE_SHEETS_WEBHOOK_URL: "" },
     stdio: ["ignore", "pipe", "pipe"],
     windowsHide: true,
   });
@@ -268,11 +142,13 @@ assert.doesNotMatch(
   nextPort = appPort;
   const appUrl = `http://localhost:${appPort}`;
   nextLogs = [];
-  nextServer = spawn(process.execPath, ["node_modules/next/dist/bin/next", "dev", "-p", String(appPort)], {
+  nextServer = spawn(process.execPath, ["node_modules/next/dist/bin/next", "dev", "--webpack", "-p", String(appPort)], {
     env: {
       ...process.env,
-      BAGISTO_API_TIMEOUT_MS: "100",
-      BAGISTO_API_URL: fakeBagisto.origin,
+      CONTACT_WEBHOOK_TEST_MODE: "1",
+      GOOGLE_SHEETS_WEBHOOK_SECRET: "captured-test-secret",
+      GOOGLE_SHEETS_WEBHOOK_URL: "https://script.google.com/macros/s/captured-test/exec",
+      NODE_OPTIONS: `${process.env.NODE_OPTIONS ?? ""} --require=./scripts/contact-webhook-fetch-mock.cjs`,
     },
     stdio: ["ignore", "pipe", "pipe"],
     windowsHide: true,
@@ -306,7 +182,7 @@ const validContactResult = await validContactResponse.json();
 assert.equal(validContactResult.ok, true);
 assert.match(
   validContactResult.reference,
-  /^BFF-/,
+  /^YC-/,
   "BFF contact API did not return the upstream reference",
 );
 
@@ -324,7 +200,7 @@ for (const [message, expectedStatus, label] of [
   ["__missing_reference__", 502, "upstream success without a reference"],
   ["__blank_reference__", 502, "upstream success with a blank reference"],
   ["__malformed_json__", 502, "malformed upstream JSON"],
-  ["__upstream_4xx__", 422, "upstream client validation failure"],
+  ["__upstream_4xx__", 502, "upstream client validation failure"],
   ["__upstream_5xx__", 502, "upstream server failure"],
   ["__redirect__", 502, "upstream redirect"],
   ["__unavailable__", 502, "unavailable upstream"],
@@ -345,11 +221,6 @@ for (const [message, expectedStatus, label] of [
     `BFF leaked upstream details for ${label}`,
   );
 }
-assert.equal(
-  fakeBagisto.redirectTargetHits(),
-  0,
-  "BFF followed an upstream redirect instead of rejecting it",
-);
 
 const browser = await chromium.launch({ channel: "chrome", headless: true });
 try {
@@ -437,10 +308,10 @@ try {
   await detailedContactForm.locator("input[type='submit']").tap();
   assert.equal(
     (await upstreamValidationRequest).status(),
-    422,
-    "Detailed contact form did not surface upstream validation",
+    502,
+    "Detailed contact form did not surface an upstream failure",
   );
-  assert.equal(await detailedContactForm.getAttribute("data-status"), "invalid");
+  assert.equal(await detailedContactForm.getAttribute("data-status"), "failed");
   assert.equal(await detailedContactForm.locator("input[type='text']").inputValue(), "Khách hàng mobile");
   assert.equal(await detailedContactForm.locator("input[type='tel']").inputValue(), "0912345678");
   assert.equal(await detailedContactForm.locator("input[type='email']").inputValue(), "mobile@example.com");
@@ -459,7 +330,7 @@ try {
   assert.equal(await detailedContactForm.getAttribute("data-status"), "sent");
   assert.match(
     await detailedContactForm.locator(".wpcf7-response-output").textContent(),
-    /Mã:\s*BFF-/i,
+    /Mã:\s*YC-/i,
     "Detailed mobile contact form did not show the BFF reference",
   );
   await contactPageFlow.close();
@@ -747,5 +618,4 @@ try {
 console.log(`Verified ${Object.keys(manifest).length} mirrored routes, BFF cases, and responsive breakpoints.`);
 } finally {
   await stopChild(nextServer, nextPort, nextLogs);
-  await fakeBagisto?.stop();
 }

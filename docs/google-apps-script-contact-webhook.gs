@@ -23,16 +23,20 @@ function doPost(event) {
       return jsonResponse({ ok: false, reference: "" });
     }
 
+    if (!validSubmission(payload)) {
+      return jsonResponse({ ok: false, reference: "" });
+    }
+
     const sheet = getContactSheet();
     const reference = createReference();
     sheet.appendRow([
       reference,
       new Date(),
-      text(payload.name, 120),
-      text(payload.phone, 24),
-      text(payload.email, 254),
-      text(payload.message, 2000),
-      text(payload.source, 200),
+      safeText(payload.name, 120),
+      safeText(payload.phone, 24),
+      safeText(payload.email, 254),
+      safeText(payload.message, 2000),
+      safeText(payload.source, 200),
       "Mới",
     ]);
     return jsonResponse({ ok: true, reference });
@@ -61,8 +65,22 @@ function createReference() {
   return `YC-${timestamp}-${Utilities.getUuid().slice(0, 8).toUpperCase()}`;
 }
 
-function text(value, limit) {
+function validSubmission(payload) {
+  const name = rawText(payload.name, 120);
+  const phone = rawText(payload.phone, 24);
+  const email = rawText(payload.email, 254);
+  return name.length >= 2
+    && /^\+?\d{8,15}$/.test(phone.replace(/[\s().-]/g, ""))
+    && (!email || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email));
+}
+
+function rawText(value, limit) {
   return typeof value === "string" ? value.trim().slice(0, limit) : "";
+}
+
+function safeText(value, limit) {
+  const normalized = rawText(value, limit);
+  return /^[=+\-@]/.test(normalized) ? `'${normalized}` : normalized;
 }
 
 function jsonResponse(body) {

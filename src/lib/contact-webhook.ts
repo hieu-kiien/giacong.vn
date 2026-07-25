@@ -19,6 +19,7 @@ interface WebhookResponse {
 }
 
 const DEFAULT_TIMEOUT_MS = 5_000;
+const MAX_REDIRECTS = 3;
 const ALLOWED_WEBHOOK_HOSTS = new Set([
   "script.google.com",
   "script.googleusercontent.com",
@@ -75,6 +76,15 @@ function webhookUrl(value: string | undefined): URL | null {
   }
 }
 
+function redirectUrl(location: string | null, currentUrl: URL): URL | null {
+  if (!location) return null;
+  try {
+    return webhookUrl(new URL(location, currentUrl).toString());
+  } catch {
+    return null;
+  }
+}
+
 function validWebhookResponse(value: unknown): value is WebhookResponse {
   if (!isRecord(value) || Object.keys(value).length !== 2) return false;
   return value.ok === true
@@ -93,6 +103,24 @@ function hasJsonContentType(response: Response): boolean {
 
 function failure(message: string, status: number): Response {
   return Response.json({ ok: false, message }, { status });
+}
+
+async function readJsonBeforeTimeout(response: Response, signal: AbortSignal): Promise<unknown> {
+  let removeAbortListener = () => {};
+  const aborted = new Promise<never>((_resolve, reject) => {
+    const abort = () => reject(new Error("webhook_timeout"));
+    if (signal.aborted) {
+      abort();
+      return;
+    }
+    signal.addEventListener("abort", abort, { once: true });
+    removeAbortListener = () => signal.removeEventListener("abort", abort);
+  });
+  try {
+    return await Promise.race([response.json(), aborted]);
+  } finally {
+    removeAbortListener();
+  }
 }
 
 export async function handleContactSubmission(
@@ -131,36 +159,63 @@ export async function handleContactSubmission(
     dependencies.timeoutMs ?? DEFAULT_TIMEOUT_MS,
   );
   try {
-    const response = await (dependencies.fetch ?? globalThis.fetch)(url, {
+    let requestUrl = url;
+    let requestInit: RequestInit = {
       body: JSON.stringify(payload),
       cache: "no-store",
       headers: { Accept: "application/json", "Content-Type": "application/json" },
       method: "POST",
-      redirect: "follow",
-      signal: controller.signal,
-    });
-    if (!response.ok || !hasJsonContentType(response)) {
-      return failure("Không thể tiếp nhận yêu cầu. Vui lòng thử lại.", 502);
-    }
+    };
 
-    let result: unknown;
-    try {
-      result = await response.json();
-    } catch {
-      return failure("Dịch vụ tiếp nhận yêu cầu trả về dữ liệu không hợp lệ.", 502);
-    }
-    if (!validWebhookResponse(result)) {
-      return failure("Dịch vụ tiếp nhận yêu cầu trả về dữ liệu không hợp lệ.", 502);
-    }
+    for (let redirects = 0; redirects <= MAX_REDIRECTS; redirects += 1) {
+      const response = await (dependencies.fetch ?? globalThis.fetch)(requestUrl, {
+        ...requestInit,
+        redirect: "manual",
+        signal: controller.signal,
+      });
+      if ([301, 302, 303, 307, 308].includes(response.status)) {
+        if (redirects === MAX_REDIRECTS) {
+          return failure("Không thể tiếp nhận yêu cầu. Vui lòng thử lại.", 502);
+        }
+        const destination = redirectUrl(response.headers.get("location"), requestUrl);
+        if (!destination) {
+          return failure("Không thể tiếp nhận yêu cầu. Vui lòng thử lại.", 502);
+        }
+        requestUrl = destination;
+        if ([301, 302, 303].includes(response.status)) {
+          requestInit = {
+            cache: "no-store",
+            headers: { Accept: "application/json" },
+            method: "GET",
+          };
+        }
+        continue;
+      }
+      if (!response.ok || !hasJsonContentType(response)) {
+        return failure("Không thể tiếp nhận yêu cầu. Vui lòng thử lại.", 502);
+      }
 
-    return Response.json(
-      {
-        ok: true,
-        message: "Yêu cầu của bạn đã được tiếp nhận.",
-        reference: result.reference.trim(),
-      },
-      { headers: { "Cache-Control": "no-store" }, status: 202 },
-    );
+      let result: unknown;
+      try {
+        result = await readJsonBeforeTimeout(response, controller.signal);
+      } catch {
+        if (controller.signal.aborted) throw new Error("webhook_timeout");
+        return failure("Dịch vụ tiếp nhận yêu cầu trả về dữ liệu không hợp lệ.", 502);
+      }
+      if (!validWebhookResponse(result)) {
+        return failure("Dịch vụ tiếp nhận yêu cầu trả về dữ liệu không hợp lệ.", 502);
+      }
+
+      return Response.json(
+        {
+          ok: true,
+          message: "Yêu cầu của bạn đã được tiếp nhận.",
+          reference: result.reference.trim(),
+        },
+        { headers: { "Cache-Control": "no-store" }, status: 202 },
+      );
+    }
+    return failure("Không thể tiếp nhận yêu cầu. Vui lòng thử lại.", 502);
   } catch {
     return failure(
       controller.signal.aborted

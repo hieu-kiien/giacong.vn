@@ -147,3 +147,71 @@ test("returns a timeout without exposing upstream details", async () => {
     ok: false,
   });
 });
+
+test("follows an allowlisted 302 manually without forwarding the JSON body", async () => {
+  const requests: Array<{ url: string; init: RequestInit | undefined }> = [];
+  const response = await handleContactSubmission(requestWithForm(), {
+    environment: environment(),
+    fetch: async (url: string | URL | Request, init?: RequestInit) => {
+      requests.push({ url: String(url), init });
+      if (requests.length === 1) {
+        return new Response(null, {
+          headers: { Location: "https://script.googleusercontent.com/macros/redirect" },
+          status: 302,
+        });
+      }
+      return new Response(JSON.stringify({ ok: true, reference: "YC-REDIRECT" }), {
+        headers: { "Content-Type": "application/json" },
+      });
+    },
+    timeoutMs: 100,
+  });
+
+  assert.equal(response.status, 202);
+  assert.equal(requests.length, 2);
+  assert.equal(requests[0].init?.method, "POST");
+  assert.equal(requests[0].init?.redirect, "manual");
+  assert.equal(requests[1].url, "https://script.googleusercontent.com/macros/redirect");
+  assert.equal(requests[1].init?.method, "GET");
+  assert.equal(requests[1].init?.body, undefined);
+  assert.equal(new Headers(requests[1].init?.headers).get("content-type"), null);
+});
+
+test("rejects a redirect outside the allowlist before it can receive the JSON body", async () => {
+  let calls = 0;
+  const response = await handleContactSubmission(requestWithForm(), {
+    environment: environment(),
+    fetch: async () => {
+      calls += 1;
+      return new Response(null, {
+        headers: { Location: "https://attacker.example/collect" },
+        status: 307,
+      });
+    },
+    timeoutMs: 100,
+  });
+
+  assert.equal(response.status, 502);
+  assert.equal(calls, 1);
+});
+
+test("returns 504 when a JSON response starts but its body never completes", { timeout: 200 }, async () => {
+  const body = new ReadableStream<Uint8Array>({
+    start(controller) {
+      controller.enqueue(new TextEncoder().encode('{"ok":true,"reference":"'));
+    },
+  });
+  const response = await handleContactSubmission(requestWithForm(), {
+    environment: environment(),
+    fetch: async () => new Response(body, {
+      headers: { "Content-Type": "application/json" },
+    }),
+    timeoutMs: 1,
+  });
+
+  assert.equal(response.status, 504);
+  assert.deepEqual(await response.json(), {
+    message: "Dịch vụ tiếp nhận yêu cầu phản hồi quá chậm.",
+    ok: false,
+  });
+});

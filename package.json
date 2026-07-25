@@ -32,6 +32,7 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "next typegen && tsc --noEmit",
+    "test:contact": "node --no-warnings --experimental-strip-types --test scripts/contact-webhook.test.mts scripts/development-port.test.mjs scripts/google-apps-script-template.test.mjs",
     "qa:captured": "node scripts/verify-captured-routes.mjs",
     "qa:catalog": "node scripts/verify-catalog-storefront.mjs",
     "qa:services": "node scripts/verify-service-ia.mjs",
