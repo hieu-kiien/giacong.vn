@@ -24,3 +24,8 @@ test("runs focused contact tests before lint in the standard check contract", as
     "npm run test:contact && npm run lint && npm run typecheck && npm run build",
   );
 });
+
+test("uses Webpack for builds inside a Git worktree", async () => {
+  const packageJson = JSON.parse(await readFile(new URL("package.json", root), "utf8"));
+  assert.equal(packageJson.scripts.build, "next build --webpack");
+});
