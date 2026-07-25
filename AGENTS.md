@@ -44,5 +44,3 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - Use isolated worktrees for implementation work. Review order is Terra implementation → Luna independent review → Gemini simplicity/routing review.
 - Keep scope small; do not add dependencies or speculative architecture.
 - After editing this file, run `bash scripts/sync-agent-rules.sh` and inspect only its generated changes. Do not edit generated agent-rule files directly.
-
-@docs/research/INSPECTION_GUIDE.md

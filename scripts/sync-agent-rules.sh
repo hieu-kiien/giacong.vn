@@ -31,7 +31,7 @@ if [[ ! -f "$SOURCE" ]]; then
 fi
 
 # Resolve @file imports (Claude Code syntax) into inline content.
-# Lines like "@docs/research/INSPECTION_GUIDE.md" become the file's contents.
+# Lines like "@relative/path.md" become the file's contents.
 resolve_imports() {
   while IFS= read -r line || [[ -n "$line" ]]; do
     line="${line%$'\r'}"
@@ -74,7 +74,7 @@ write_file "$REPO_ROOT/.clinerules" "$RESOLVED_CONTENT"
 
 # Continue — .continue/rules/project.md
 CONTINUE_FRONTMATTER="---
-description: Project conventions for AI Website Clone Template
+description: Project conventions for Giacong Lean Commerce
 alwaysApply: true
 ---"
 write_file "$REPO_ROOT/.continue/rules/project.md" "$CONTINUE_FRONTMATTER
