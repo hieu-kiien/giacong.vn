@@ -32,7 +32,7 @@ Không có tài khoản khách. `administrator` là loại tài khoản nội b�
 | Yêu cầu Sheet — tạo | Gửi form; submit được chấp nhận tạo dòng riêng | Apps Script thêm dòng, không qua Bagisto order |
 | Yêu cầu Sheet — xem, lọc, xử lý, phân công, ghi chú | Không | CRUD xử lý trong L:N: **Trạng thái**, **Người phụ trách**, **Ghi chú** |
 | Yêu cầu Sheet — xóa hoặc đổi thứ tự dòng/cột | Không | Không trong V1; cấu trúc được bảo vệ |
-| Tài khoản nội bộ | Không | Quản lý các tài khoản cùng loại `administrator` trong Bagisto theo khả năng đã audit; không có granular role |
+| Tài khoản nội bộ | Không | Sau audit/cấu hình **Cần làm**, xem/quản lý, tạo, vô hiệu hóa và đặt lại mật khẩu các tài khoản cùng loại `administrator` trong Bagisto; không có granular role |
 
 Tab `Yêu cầu` có đúng 15 cột A:O. Administrator chỉ sửa L:N; A:K và O được bảo vệ, O (**Cập nhật lần cuối**) do Apps Script cập nhật sau chỉnh sửa hợp lệ. Chủ sở hữu Sheet cấu hình protection/range và dropdown; Apps Script chạy dưới tài khoản chủ sở hữu để thêm dòng. Tài khoản Google/Workspace khách hàng sở hữu Sheet và Apps Script là **Chờ xác nhận**.
 
@@ -50,7 +50,7 @@ Mỗi submit được chấp nhận luôn tạo một `Mã`/dòng Apps Script ri
 | Một service family **Sấy & thực phẩm sấy**; CTA form và webhook Sheet | Nhiều service family public trong V1; dù vậy cơ chế quản trị content cần hỗ trợ family/page theo autonomy đã chốt |
 | Mở rộng Apps Script/Sheet từ tab `Yeu cau` 8 cột hiện tại sang tab `Yêu cầu` 15 cột và tab **Tổng quan** | Dashboard Next/Bagisto, API summary, request inbox Bagisto, đồng bộ order external |
 | Administrator xử lý L:N; A:K/O và cấu trúc Sheet được bảo vệ | Xóa cứng dòng Sheet, merge/dedup engine |
-| Bagisto admin cho catalog, giá, tồn và nội dung vận hành sau phần mở rộng **Cần làm** | Mở rộng `/quan-tri`, `b2b_briefs`, `b2b_catalog_audits`, full audit |
+| Bagisto admin cho catalog, giá, tồn, nội dung vận hành và vòng đời tài khoản `administrator` sau audit/cấu hình **Cần làm** | Mở rộng `/quan-tri`, `b2b_briefs`, `b2b_catalog_audits`, full audit |
 | Di trú/ánh xạ có chọn lọc serviceFamilies/captured content sang Bagisto CMS/read API **Cần làm** | Cam kết sẵn có của Bagisto CMS cho Next trước khi triển khai/audit |
 | Tiếng Việt, VND, giữ storefront/contact hiện có và thay giao diện dần | Đa kênh, đa locale, đa tiền tệ, promotion, redesign toàn diện |
 
@@ -164,11 +164,12 @@ Trạng thái chính của route chỉ là **Hiện có**, **Chuyển tiếp**, 
 | GET | `/api/catalog/products/[slug]` | Khách | BFF catalog hiện có cho product/variant/rules | Giữ BFF cho product flow; xác thực MOQ/bước/ngưỡng ở server. | Hiện có |
 | GET | `/api/b2b/catalog/categories`, `/api/b2b/catalog/products`, `/api/b2b/catalog/products/{slug}` | Storefront | Nguồn catalog B2B hiện có | Giữ như legacy/transitional catalog routes; không biến thành CMS dịch vụ. | Chuyển tiếp |
 | Chưa audit | Endpoint đọc service family/page/content/media | Storefront | `src/data/service-families.ts` và captured content còn tĩnh | Thiết kế/triển khai read API + mapping/di trú có chọn lọc từ Bagisto CMS; không tự đặt path khi chưa audit. | Cần làm |
-| Bagisto admin product screens | Administrator | Là bề mặt quản trị catalog đích dài hạn | Extension các field policy B2B (MOQ, step, threshold và field liên quan) trong chính màn hình hiện có; không UI quản trị mới, không direct core writes. | Cần làm |
-| Bagisto admin CMS screens | Administrator | Chưa có bằng chứng Next đang được CMS Bagisto cấp dữ liệu | Cho phép quản lý service families/pages/content/media, homepage/business/contact designated editable và cấp read API cho storefront. | Cần làm |
-| `/api/quan-tri/*` | Nội bộ cũ | Có BFF/phiên/aggregate cũ | Chỉ security/compatibility; không thêm quyền, CRUD hay dashboard. | Đóng băng |
-| `/api/b2b/admin/v1/*` | Nội bộ cũ | Session, identity, dashboard và product aggregate cũ | Chỉ tương thích trong quá trình chuyển sang Bagisto admin; không mở rộng, không gắn hàng đợi Sheet. | Chuyển tiếp |
-| `/api/operations/v1/products...` | Không dùng V1 | Chỉ có ở nhánh sạch chưa merge theo bằng chứng hiện có | Không làm/không merge cho V1. | Đóng băng |
+| Màn quản trị | Bagisto admin › Sản phẩm (màn hình hiện có) | Administrator | Là bề mặt quản trị catalog đích dài hạn | Extension các field policy B2B (MOQ, step, threshold và field liên quan) trong chính màn hình hiện có; không UI quản trị mới, không direct core writes. | Cần làm |
+| Màn quản trị | Bagisto admin › CMS/content (cần audit) | Administrator | Chưa có bằng chứng Next đang được CMS Bagisto cấp dữ liệu | Cho phép quản lý service families/pages/content/media, homepage/business/contact designated editable và cấp read API cho storefront. | Cần làm |
+| Màn quản trị | Bagisto admin › Tài khoản `administrator` (cần audit) | Administrator | Chưa xác nhận bề mặt/quy trình native cho toàn bộ vòng đời tài khoản | Audit, cấu hình và bàn giao thao tác xem/quản lý, tạo, vô hiệu hóa, đặt lại mật khẩu cho các tài khoản cùng quyền `administrator`, theo phương án số lượng tài khoản đã chốt; không granular RBAC hoặc UI mới. | Cần làm |
+| BFF legacy | `/api/quan-tri/*` | Nội bộ cũ | Có BFF/phiên/aggregate cũ | Chỉ security/compatibility; không thêm quyền, CRUD hay dashboard. | Đóng băng |
+| API chuyển tiếp | `/api/b2b/admin/v1/*` | Nội bộ cũ | Session, identity, dashboard và product aggregate cũ | Chỉ tương thích trong quá trình chuyển sang Bagisto admin; không mở rộng, không gắn hàng đợi Sheet. | Chuyển tiếp |
+| GET, POST, PUT | `/api/operations/v1/products...` | Không dùng V1 | Chỉ có ở nhánh sạch chưa merge theo bằng chứng hiện có | Không làm/không merge cho V1. | Đóng băng |
 
 Không có API checkout, cart, order, payment, shipping, đồng bộ order external hoặc API summary trong V1. Không hứa một endpoint CMS cụ thể trước khi audit Bagisto và integration cần thiết.
 
@@ -181,6 +182,7 @@ Không có API checkout, cart, order, payment, shipping, đồng bộ order exte
 | Mở rộng `/api/contact` và Apps Script/Sheet | Terra implement | Chưa bắt đầu | Contract mới, Google account/Workspace chủ sở hữu **Chờ xác nhận** | 15 cột, Mã riêng từng submit, validation, protection, Tổng quan |
 | Cấu hình vận hành Sheet | Administrator/chủ sở hữu Sheet | Chưa bắt đầu | Quyền Google Sheet | Dropdown, A:K/O bảo vệ, L:N editable, workflow và quy tắc đánh dấu trùng |
 | Mở rộng Bagisto product admin cho policy B2B | Terra implement | Chưa bắt đầu | Audit extension point Bagisto | MOQ/step/threshold và field B2B trong màn hình product hiện có |
+| Audit, cấu hình và bàn giao vòng đời tài khoản `administrator` | Terra implement + administrator/chủ sở hữu | Chưa bắt đầu | Phương án một tài khoản dùng chung hay các tài khoản định danh riêng **Chờ xác nhận**; audit Bagisto admin | Hướng dẫn và kiểm thử xem/quản lý, tạo, vô hiệu hóa, đặt lại mật khẩu các tài khoản cùng quyền qua Bagisto, không granular RBAC/UI mới |
 | Di trú/ánh xạ serviceFamilies và captured content | Terra implement + người duyệt nội dung | Chưa bắt đầu | Audit Bagisto CMS/read API, content được duyệt | Service/page/content/media và homepage/business/contact designated editable qua Bagisto; status **Cần làm** |
 | Giữ `/quan-tri` frozen, đưa vận hành về Bagisto admin | Terra implement | Chưa bắt đầu | Bagisto admin extension + CMS/read API | Không có bề mặt quản trị Next mới |
 | Xác định ranh giới no-code sau bàn giao | Người quyết định sản phẩm | Chưa bắt đầu | Quyết định layout/navigation/new features **Chờ xác nhận** | Xác nhận data/content only hoặc scope page builder mở rộng |
@@ -201,6 +203,7 @@ Terra là vai trò triển khai. Thay đổi hành vi bắt đầu bằng test R
 | Hàng đợi Sheet | A:K/O và cấu trúc Sheet được bảo vệ; administrator chỉ sửa L:N. Dropdown chặn giá trị ngoài danh sách; rời **Mới** thiếu **Người phụ trách** bị từ chối; Apps Script cập nhật O. |
 | Trạng thái và Tổng quan | Chỉ cho phép các chuyển trạng thái phần 2; **Đã hoàn tất**/**Không tiếp tục** không mở lại. Tab **Tổng quan** đếm đúng Đơn mới và Yêu cầu mới; không có dashboard Next/Bagisto hay API summary. |
 | Autonomy catalog | Administrator trong Bagisto admin có thể thêm/sửa/ẩn/sắp xếp product/variant, giá, stock, MOQ, step, threshold bằng màn hình product hiện có được extension. Không direct core write, không UI `/quan-tri` mới. |
+| Autonomy tài khoản | Sau audit/cấu hình và theo phương án số lượng tài khoản còn **Chờ xác nhận**, administrator bàn giao có thể xem/quản lý, tạo, vô hiệu hóa và đặt lại mật khẩu các tài khoản cùng quyền `administrator` qua Bagisto/quy trình native đã kiểm thử. Bằng chứng kiểm thử xác nhận tài khoản mới có cùng quyền, tài khoản vô hiệu hóa không đăng nhập được và mật khẩu đặt lại áp dụng được. Không granular RBAC, không UI quản trị mới và `/quan-tri` vẫn frozen. |
 | Autonomy content | Service family/page/content/media, homepage/business/contact designated editable được di trú/ánh xạ có chọn lọc và quản lý qua Bagisto CMS/read API. Cho đến khi hoàn tất, đây là **Cần làm**, không được mô tả là năng lực hiện có. |
 | Ranh giới no-code | Data/content hằng ngày không cần lập trình viên. Việc layout/navigation/chức năng mới chỉ được đưa vào autonomy nếu quyết định **Chờ xác nhận** yêu cầu page builder và scope mở rộng. |
 | Ranh giới vĩnh viễn | Không có customer account/portal, cart, checkout, tạo Bagisto order, payment, shipping, order completion, quote engine hay API tương ứng. `/quan-tri` frozen; B2B routes cũ chỉ legacy/transitional. |
