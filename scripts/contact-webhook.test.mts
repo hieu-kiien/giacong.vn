@@ -54,8 +54,13 @@ test("forwards normalized contact fields and optional secret to an approved Apps
     message: "Cần tư vấn số lượng lớn.",
     name: "Nguyễn Văn A",
     phone: "0900 000 000",
+    product: "",
+    qty: "",
+    request_type: "Tư vấn dịch vụ",
     secret: "shared-secret",
+    service: "",
     source: "/lien-he/",
+    variant: "",
   });
 });
 

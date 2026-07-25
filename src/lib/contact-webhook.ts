@@ -2,15 +2,43 @@
 export interface ContactWebhookDependencies {
   environment: Readonly<Record<string, string | undefined>>;
   fetch?: typeof globalThis.fetch;
+  productResolver?: ContactProductResolver;
   timeoutMs?: number;
 }
+
+export interface ContactProductResolution {
+  name: string;
+  variants: ContactProductVariantResolution[];
+}
+
+export interface ContactProductVariantResolution {
+  contactFromQuantity: number;
+  isAvailable: boolean;
+  label: string;
+  minimumOrderQuantity: number;
+  quantityStep: number;
+  sku: string;
+}
+
+export type ContactProductResolver = (slug: string) => Promise<ContactProductResolution | null>;
+
+type ContactRequestType = "Đặt sản phẩm" | "Tư vấn số lượng lớn" | "Tư vấn dịch vụ";
 
 interface ContactSubmission {
   email: string;
   message: string;
   name: string;
   phone: string;
+  product: string;
+  qty: string;
+  service: string;
   source: string;
+  variant: string;
+}
+
+interface ContactWebhookPayload extends Omit<ContactSubmission, "qty"> {
+  qty: number | "";
+  request_type: ContactRequestType;
 }
 
 interface WebhookResponse {
@@ -36,7 +64,11 @@ function parseSubmission(formData: FormData): ContactSubmission {
     message: readField(formData, "message", 2_000),
     name: readField(formData, "name", 120),
     phone: readField(formData, "phone", 24),
+    product: readField(formData, "product", 160),
+    qty: readField(formData, "qty", 24),
+    service: readField(formData, "service", 80),
     source: readField(formData, "source", 200),
+    variant: readField(formData, "variant", 160),
   };
 }
 
@@ -55,6 +87,44 @@ function validateSubmission(submission: ContactSubmission): Partial<Record<keyof
   }
 
   return errors;
+}
+
+function hasProductContext(submission: ContactSubmission): boolean {
+  return Boolean(submission.product || submission.variant || submission.qty);
+}
+
+function validateContext(submission: ContactSubmission): Partial<Record<keyof ContactSubmission, string>> {
+  const errors: Partial<Record<keyof ContactSubmission, string>> = {};
+  const productContext = hasProductContext(submission);
+
+  if (productContext && submission.service) {
+    errors.product = "Chỉ được gửi một ngữ cảnh sản phẩm hoặc dịch vụ.";
+    errors.service = "Chỉ được gửi một ngữ cảnh sản phẩm hoặc dịch vụ.";
+    return errors;
+  }
+
+  if (productContext) {
+    if (!submission.product) errors.product = "Vui lòng chọn sản phẩm.";
+    if (!submission.variant) errors.variant = "Vui lòng chọn biến thể.";
+    if (!submission.qty) {
+      errors.qty = "Vui lòng nhập số lượng.";
+    } else if (!/^[1-9]\d*$/.test(submission.qty) || !Number.isSafeInteger(Number(submission.qty))) {
+      errors.qty = "Số lượng phải là số nguyên dương.";
+    }
+    return errors;
+  }
+
+  if (submission.service && submission.service !== "say-thuc-pham-say") {
+    errors.service = "Dịch vụ không hợp lệ.";
+  }
+  return errors;
+}
+
+function validationFailure(errors: Partial<Record<keyof ContactSubmission, string>>): Response {
+  return Response.json(
+    { ok: false, message: "Vui lòng kiểm tra lại thông tin liên hệ.", errors },
+    { status: 400 },
+  );
 }
 
 function webhookUrl(value: string | undefined): URL | null {
@@ -105,6 +175,55 @@ function failure(message: string, status: number): Response {
   return Response.json({ ok: false, message }, { status });
 }
 
+async function resolvePayload(
+  submission: ContactSubmission,
+  productResolver: ContactProductResolver | undefined,
+): Promise<ContactWebhookPayload | Response> {
+  if (!hasProductContext(submission)) {
+    return {
+      ...submission,
+      product: "",
+      qty: "",
+      request_type: "Tư vấn dịch vụ",
+      service: submission.service ? "Sấy & thực phẩm sấy" : "",
+      variant: "",
+    };
+  }
+
+  if (!productResolver) {
+    return failure("Không thể xác thực sản phẩm. Vui lòng thử lại.", 502);
+  }
+
+  let product: ContactProductResolution | null;
+  try {
+    product = await productResolver(submission.product);
+  } catch {
+    return failure("Không thể xác thực sản phẩm. Vui lòng thử lại.", 502);
+  }
+  if (!product) return validationFailure({ product: "Sản phẩm không tồn tại." });
+
+  const variant = product.variants.find((item) => item.sku === submission.variant);
+  if (!variant) return validationFailure({ variant: "Biến thể không hợp lệ." });
+  if (!variant.isAvailable) return validationFailure({ variant: "Biến thể hiện không khả dụng." });
+
+  const qty = Number(submission.qty);
+  if (qty < variant.minimumOrderQuantity) {
+    return validationFailure({ qty: "Số lượng chưa đạt mức tối thiểu." });
+  }
+  if ((qty - variant.minimumOrderQuantity) % variant.quantityStep !== 0) {
+    return validationFailure({ qty: "Số lượng không đúng bước đặt hàng." });
+  }
+
+  return {
+    ...submission,
+    product: product.name,
+    qty,
+    request_type: qty >= variant.contactFromQuantity ? "Tư vấn số lượng lớn" : "Đặt sản phẩm",
+    service: "",
+    variant: variant.label,
+  };
+}
+
 async function readJsonBeforeTimeout(response: Response, signal: AbortSignal): Promise<unknown> {
   let removeAbortListener = () => {};
   const aborted = new Promise<never>((_resolve, reject) => {
@@ -135,13 +254,13 @@ export async function handleContactSubmission(
   }
 
   const submission = parseSubmission(formData);
-  const errors = validateSubmission(submission);
+  const errors = { ...validateSubmission(submission), ...validateContext(submission) };
   if (Object.keys(errors).length > 0) {
-    return Response.json(
-      { ok: false, message: "Vui lòng kiểm tra lại thông tin liên hệ.", errors },
-      { status: 400 },
-    );
+    return validationFailure(errors);
   }
+
+  const resolved = await resolvePayload(submission, dependencies.productResolver);
+  if (resolved instanceof Response) return resolved;
 
   const environment = dependencies.environment;
   const url = webhookUrl(environment.GOOGLE_SHEETS_WEBHOOK_URL);
@@ -149,7 +268,7 @@ export async function handleContactSubmission(
     return failure("Dịch vụ tiếp nhận yêu cầu chưa được cấu hình.", 503);
   }
 
-  const payload: ContactSubmission & { secret?: string } = { ...submission };
+  const payload: ContactWebhookPayload & { secret?: string } = { ...resolved };
   const secret = environment.GOOGLE_SHEETS_WEBHOOK_SECRET?.trim();
   if (secret) payload.secret = secret;
 
