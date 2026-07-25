@@ -105,7 +105,7 @@ export function ProductConfigurator({ initialVariantSku, product, variantQueryWa
           </div>
         ) : (
           <div className={styles.selectionPrompt} role="status">
-            Chọn {selectionLabel} để xem giá, số lượng tối thiểu và gửi yêu cầu tư vấn.
+            Chọn {selectionLabel} để xem giá, số lượng tối thiểu và gửi yêu cầu mua hàng.
           </div>
         )}
       </div>

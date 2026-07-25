@@ -1,3 +1,7 @@
-export default function CatalogLayout({ children }: { children: React.ReactNode }) {
-  return children;
+import type { ReactNode } from "react";
+
+import { CatalogChrome } from "@/components/catalog/CatalogChrome";
+
+export default function CatalogLayout({ children }: { children: ReactNode }) {
+  return <CatalogChrome floatingContact={false}>{children}</CatalogChrome>;
 }

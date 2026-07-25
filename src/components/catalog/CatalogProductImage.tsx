@@ -14,7 +14,7 @@ export function CatalogProductImage({ alt, className, imageUrl }: CatalogProduct
         // eslint-disable-next-line @next/next/no-img-element
         <img alt={alt} src={imageUrl} />
       ) : (
-        <span className={styles.imageFallback} aria-label="Sản phẩm chưa có hình ảnh">Ảnh sản phẩm sẽ được cập nhật trong Bagisto</span>
+        <span className={styles.imageFallback} aria-label="Sản phẩm chưa có hình ảnh">Chưa có hình ảnh</span>
       )}
     </div>
   );
