@@ -1,7 +1,7 @@
 # Hồ sơ sản phẩm và kỹ thuật — Lean V1
 
 **Trạng thái:** nguồn quyết định hiện hành và hồ sơ Lean V1 duy nhất.
-**Ranh giới tài liệu:** [BAGISTO_HEADLESS_MVP.md](./BAGISTO_HEADLESS_MVP.md) là lưu trữ; [GOOGLE_SHEETS_CONTACT_WEBHOOK.md](./GOOGLE_SHEETS_CONTACT_WEBHOOK.md) mô tả webhook hiện tại. `docs/research/PAGE_TOPOLOGY.md` chỉ là bố cục clone, không phải sitemap đích.
+**Ranh giới tài liệu:** [GOOGLE_SHEETS_CONTACT_WEBHOOK.md](./GOOGLE_SHEETS_CONTACT_WEBHOOK.md) mô tả webhook hiện tại. `docs/research/PAGE_TOPOLOGY.md` chỉ là bố cục clone, không phải sitemap đích.
 **Ranh giới triển khai:** hồ sơ này không sửa code/UI/Bagisto, không ghi trực tiếp bảng core Bagisto, không đổi cổng `3000`, `8000`, `8001`. Backend Bagisto nội bộ dùng `127.0.0.1:18001`. Không push.
 
 ## 1. Bài toán Lean V1
