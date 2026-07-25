@@ -44,9 +44,9 @@ export function PurchaseQuantity({
 
   return (
     <section className={styles.purchase} aria-labelledby="purchase-title">
-      <h2 className={styles.purchaseTitle} id="purchase-title">Chọn số lượng mua</h2>
+      <h2 className={styles.purchaseTitle} id="purchase-title">Chọn số lượng cần tư vấn</h2>
       <p className={styles.purchaseRule}>
-        Mua tối thiểu {minimumOrderQuantity} {unit}, tăng mỗi lần {quantityStep} {unit}.
+        Số lượng tối thiểu {minimumOrderQuantity} {unit}, tăng mỗi lần {quantityStep} {unit}.
       </p>
       <div className={styles.quantityControl}>
         <button
@@ -94,7 +94,7 @@ export function PurchaseQuantity({
       )}
       {isValid ? (
         <a className={styles.button} href={requestHref}>
-          {needsContact ? "Liên hệ nhận giá số lượng lớn" : `Gửi yêu cầu đặt ${quantity} ${unit} ${productName}`}
+          {needsContact ? "Yêu cầu tư vấn số lượng lớn" : `Yêu cầu tư vấn ${quantity} ${unit} ${productName}`}
         </a>
       ) : (
         <button className={`${styles.button} ${styles.disabledButton}`} disabled type="button">

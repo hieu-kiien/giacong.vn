@@ -120,7 +120,7 @@
 
 .image {
   align-items: center;
-  aspect-ratio: 1;
+  aspect-ratio: 4 / 3;
   background: #ecefe4;
   display: flex;
   justify-content: center;
