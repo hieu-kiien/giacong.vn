@@ -76,6 +76,151 @@ test("does not include secret when it is not configured", async () => {
   assert.equal("secret" in JSON.parse(receivedBody), false);
 });
 
+test("derives a canonical large-quantity product request instead of trusting client request_type", async () => {
+  let receivedBody = "";
+  const response = await handleContactSubmission(requestWithForm({
+    ...validSubmission,
+    product: "bot-dinh-duong",
+    qty: "20",
+    request_type: "Đặt sản phẩm",
+    variant: "B2B-DEMO-VANILLA",
+  }), {
+    environment: environment(),
+    fetch: async (_url: string | URL | Request, init?: RequestInit) => {
+      receivedBody = String(init?.body);
+      return new Response(JSON.stringify({ ok: true, reference: "YC-PRODUCT" }), {
+        headers: { "Content-Type": "application/json" },
+      });
+    },
+    productResolver: async (slug: string) => {
+      assert.equal(slug, "bot-dinh-duong");
+      return {
+        name: "Bột dinh dưỡng",
+        variants: [{
+          contactFromQuantity: 20,
+          isAvailable: true,
+          label: "Vị vani",
+          minimumOrderQuantity: 10,
+          quantityStep: 5,
+          sku: "B2B-DEMO-VANILLA",
+        }],
+      };
+    },
+    timeoutMs: 100,
+  });
+
+  assert.equal(response.status, 202);
+  assert.deepEqual(JSON.parse(receivedBody), {
+    email: "customer@example.test",
+    message: "Cần tư vấn số lượng lớn.",
+    name: "Nguyễn Văn A",
+    phone: "0900 000 000",
+    product: "Bột dinh dưỡng",
+    qty: 20,
+    request_type: "Tư vấn số lượng lớn",
+    secret: "shared-secret",
+    service: "",
+    source: "/lien-he/",
+    variant: "Vị vani",
+  });
+});
+
+test("accepts the single canonical service and preserves legacy generic contact without context", async () => {
+  const bodies: string[] = [];
+  const fetch = async (_url: string | URL | Request, init?: RequestInit) => {
+    bodies.push(String(init?.body));
+    return new Response(JSON.stringify({ ok: true, reference: `YC-${bodies.length}` }), {
+      headers: { "Content-Type": "application/json" },
+    });
+  };
+
+  const serviceResponse = await handleContactSubmission(requestWithForm({
+    ...validSubmission,
+    service: "say-thuc-pham-say",
+  }), { environment: environment(), fetch, timeoutMs: 100 });
+  const genericResponse = await handleContactSubmission(requestWithForm(), {
+    environment: environment(),
+    fetch,
+    timeoutMs: 100,
+  });
+
+  assert.equal(serviceResponse.status, 202);
+  assert.equal(genericResponse.status, 202);
+  assert.deepEqual(JSON.parse(bodies[0]), {
+    email: "customer@example.test",
+    message: "Cần tư vấn số lượng lớn.",
+    name: "Nguyễn Văn A",
+    phone: "0900 000 000",
+    product: "",
+    qty: "",
+    request_type: "Tư vấn dịch vụ",
+    secret: "shared-secret",
+    service: "Sấy & thực phẩm sấy",
+    source: "/lien-he/",
+    variant: "",
+  });
+  assert.deepEqual(JSON.parse(bodies[1]), {
+    email: "customer@example.test",
+    message: "Cần tư vấn số lượng lớn.",
+    name: "Nguyễn Văn A",
+    phone: "0900 000 000",
+    product: "",
+    qty: "",
+    request_type: "Tư vấn dịch vụ",
+    secret: "shared-secret",
+    service: "",
+    source: "/lien-he/",
+    variant: "",
+  });
+});
+
+test("rejects invalid contact context and safely fails if product resolution is unavailable", async () => {
+  const invalidContexts = [
+    { ...validSubmission, product: "bot-dinh-duong", variant: "B2B-DEMO-VANILLA" },
+    { ...validSubmission, service: "khong-ton-tai" },
+    { ...validSubmission, product: "bot-dinh-duong", service: "say-thuc-pham-say", variant: "B2B-DEMO-VANILLA", qty: "10" },
+  ];
+
+  for (const fields of invalidContexts) {
+    let called = false;
+    const response = await handleContactSubmission(requestWithForm(fields), {
+      environment: environment(),
+      fetch: async () => {
+        called = true;
+        return new Response();
+      },
+      timeoutMs: 100,
+    });
+    assert.equal(response.status, 400);
+    assert.equal(called, false);
+  }
+
+  let called = false;
+  const unavailable = await handleContactSubmission(requestWithForm({
+    ...validSubmission,
+    product: "bot-dinh-duong",
+    qty: "10",
+    variant: "B2B-DEMO-VANILLA",
+  }), {
+    environment: environment(),
+    fetch: async () => {
+      called = true;
+      return new Response();
+    },
+    productResolver: async () => {
+      throw new Error("catalog unavailable");
+    },
+    timeoutMs: 100,
+  });
+
+  assert.equal(unavailable.status, 502);
+  assert.equal(called, false);
+  assert.deepEqual(await unavailable.json(), {
+    message: "Không thể xác thực sản phẩm. Vui lòng thử lại.",
+    ok: false,
+  });
+});
+
 test("rejects missing or unsafe webhook configuration without calling upstream", async () => {
   const unsafeUrls = [
     undefined,
