@@ -1,6 +1,6 @@
 import "server-only";
 
-const DEFAULT_BASE = "http://127.0.0.1:8000/api/b2b/admin/v1";
+const DEFAULT_BASE = "http://127.0.0.1:18001/api/b2b/admin/v1";
 const MAX_JSON_BYTES = 1_000_000;
 export const MAX_COMMERCIAL_RULES_BYTES = 262_144;
 const TIMEOUT_MS = 5_000;

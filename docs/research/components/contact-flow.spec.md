@@ -6,24 +6,28 @@
 - `Liên hệ ngay` links to `/lien-he/`.
 - Both destinations stay on the local clone and return HTTP 200.
 
-## Bagisto BFF intake
+## Google Sheets intake
 
 - Captured Contact Form 7 forms submit `POST /api/contact`.
 - The client normalizes captured field names into `name`, `phone`, `email`,
   `message`, and `source`.
 - The Next.js route validates name, phone, and optional email server-side, then
-  forwards only normalized fields to Bagisto at `POST /api/b2b/briefs`.
+  forwards the normalized fields as JSON to a server-only Google Apps Script
+  webhook. The browser contract remains `POST /api/contact`.
 - The contact email contract accepts RFC-syntax email addresses without a
   synchronous DNS lookup; Bagisto is the final validation authority for this
   syntactic rule.
-- `BAGISTO_API_URL` and `BAGISTO_API_TIMEOUT_MS` remain server-only variables;
-  a missing configuration returns HTTP 503.
-- Valid Bagisto responses must include `ok: true` and a non-empty reference;
+- `GOOGLE_SHEETS_WEBHOOK_URL` is required and must be an HTTPS URL hosted by
+  `script.google.com` or `script.googleusercontent.com`; credentials and URL
+  fragments are rejected. `GOOGLE_SHEETS_WEBHOOK_SECRET` is optional and, when
+  configured, is added only to the server-to-server JSON body.
+- A valid webhook response is exactly JSON `{ "ok": true, "reference": "..." }`;
   only then does the BFF return HTTP 202 with that reference.
 - Invalid submissions return HTTP 400 and a Vietnamese validation message.
-- Upstream validation 4xx responses keep their status, unavailable upstreams
-  return 502, and a BFF timeout returns 504 without exposing upstream details.
-- The browser-facing form contract remains stable while Bagisto owns persistence.
+- Unavailable or malformed upstream responses return 502, and a BFF timeout
+  returns 504 without exposing configuration, secrets, or upstream details.
+- Google Sheets is the staff processing inbox; this route never falls back to
+  Bagisto.
 
 ## Form states
 

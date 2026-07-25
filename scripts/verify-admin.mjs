@@ -29,7 +29,7 @@ for (const path of required) {
 
 const bff = await source("src/lib/admin-bff.ts");
 assert.match(bff, /BAGISTO_ADMIN_API_URL/);
-assert.match(bff, /127\.0\.0\.1:8000\/api\/b2b\/admin\/v1/);
+assert.match(bff, /127\.0\.0\.1:18001\/api\/b2b\/admin\/v1/);
 assert.match(bff, /X-XSRF-TOKEN/);
 assert.match(bff, /getSetCookie/);
 assert.match(bff, /no-store/);

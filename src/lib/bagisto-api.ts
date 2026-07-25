@@ -2,7 +2,7 @@ import "server-only";
 
 const DEFAULT_TIMEOUT_MS = 5_000;
 const MAX_TIMEOUT_MS = 30_000;
-const DEVELOPMENT_DEFAULT_ORIGIN = "http://127.0.0.1:8000";
+const DEVELOPMENT_DEFAULT_ORIGIN = "http://127.0.0.1:18001";
 
 export class BagistoApiConfigurationError extends Error {
   constructor(message = "BAGISTO_API_URL không hợp lệ.") {
