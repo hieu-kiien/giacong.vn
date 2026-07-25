@@ -156,9 +156,9 @@ Legacy, không mở rộng: b2b_briefs; b2b_catalog_audits
 
 ## 8. API và trạng thái chuyển tiếp
 
-Trạng thái chính của route chỉ là **Hiện có**, **Chuyển tiếp**, **Cần làm** hoặc **Đóng băng**. Với BFF Next, `502/504` là lỗi upstream không sẵn sàng/quá thời gian.
+Trạng thái chính của mỗi route hoặc bề mặt chỉ là **Hiện có**, **Chuyển tiếp**, **Cần làm** hoặc **Đóng băng**. Với BFF Next, `502/504` là lỗi upstream không sẵn sàng/quá thời gian.
 
-| Method | Path | Người dùng | Hiện có | Cần làm / ranh giới V1 | Trạng thái |
+| Phương thức / loại bề mặt | Đường dẫn / đích | Người dùng | Hiện có | Cần làm / ranh giới V1 | Trạng thái |
 | --- | --- | --- | --- | --- | --- |
 | POST | `/api/contact` | Khách | Nhận `name, phone, email, message, source`; webhook hướng dẫn hiện ghi 8 cột | Thêm/xác thực `request_type, product?, service?, variant?, qty?`; server gán loại theo ngưỡng; Apps Script ghi 15 cột và Mã riêng cho mỗi submit được chấp nhận. Không tạo Bagisto order, không dedup/merge. | Cần làm |
 | GET | `/api/catalog/products/[slug]` | Khách | BFF catalog hiện có cho product/variant/rules | Giữ BFF cho product flow; xác thực MOQ/bước/ngưỡng ở server. | Hiện có |
