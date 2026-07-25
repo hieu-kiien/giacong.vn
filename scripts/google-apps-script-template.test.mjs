@@ -41,6 +41,11 @@ function submit(context, payload) {
   return context.doPost({ postData: { contents: JSON.stringify(payload) } });
 }
 
+function assertTimestamp(value) {
+  assert.equal(Object.prototype.toString.call(value), "[object Date]");
+  assert.equal(Number.isFinite(value.getTime()), true);
+}
+
 const validProductPayload = {
   email: "customer@example.test",
   message: "Cần tư vấn.",
@@ -87,6 +92,8 @@ test("stores user-controlled values as safe plain text instead of spreadsheet fo
   ]);
   assert.equal(rows[1].length, 15);
   assert.equal(response.reference, rows[1][0]);
+  assertTimestamp(rows[1][1]);
+  assertTimestamp(rows[1][14]);
   assert.equal(rows[1][1], rows[1][14]);
   assert.deepEqual(Array.from(rows[1].slice(2, 11)), [
     "Tư vấn số lượng lớn",
@@ -115,6 +122,11 @@ test("creates a distinct reference and row for every accepted submit", async () 
   assert.equal(first.reference, rows[1][0]);
   assert.equal(second.reference, rows[2][0]);
   assert.notEqual(first.reference, second.reference);
+  assertTimestamp(rows[1][1]);
+  assertTimestamp(rows[1][14]);
+  assert.equal(rows[1][1], rows[1][14]);
+  assertTimestamp(rows[2][1]);
+  assertTimestamp(rows[2][14]);
   assert.equal(rows[2][1], rows[2][14]);
 });
 
