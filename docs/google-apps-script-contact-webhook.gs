@@ -20,6 +20,9 @@ const CONTACT_HEADERS = [
   "Ghi chú",
   "Cập nhật lần cuối",
 ];
+const REQUEST_TYPES = ["Đặt sản phẩm", "Tư vấn số lượng lớn", "Tư vấn dịch vụ"];
+const REQUEST_STATUSES = ["Mới", "Đang tư vấn", "Chờ khách phản hồi", "Đã hoàn tất", "Không tiếp tục"];
+const SUMMARY_SHEET_NAME = "Tổng quan";
 
 function doPost(event) {
   try {
@@ -69,6 +72,80 @@ function getContactSheet() {
     sheet.setFrozenRows(1);
   }
   return sheet;
+}
+
+function setupRequestWorkbook() {
+  const sheet = getContactSheet();
+  sheet.getRange(1, 1, 1, CONTACT_HEADERS.length).setValues([CONTACT_HEADERS]);
+  sheet.setFrozenRows(1);
+  const typeRule = SpreadsheetApp.newDataValidation()
+    .requireValueInList(REQUEST_TYPES, true).setAllowInvalid(false).build();
+  const statusRule = SpreadsheetApp.newDataValidation()
+    .requireValueInList(REQUEST_STATUSES, true).setAllowInvalid(false).build();
+  const dataRows = Math.max(sheet.getMaxRows() - 1, 1);
+  sheet.getRange(2, 3, dataRows, 1).setDataValidation(typeRule);
+  sheet.getRange(2, 12, dataRows, 1).setDataValidation(statusRule);
+  // Sheet.protect() reuses the sheet's existing protection when present.
+  // https://developers.google.com/apps-script/reference/spreadsheet/sheet
+  const protection = sheet.protect().setDescription("Lean V1: Chỉ vận hành L:N");
+  configureProtection(protection);
+  protection.setUnprotectedRanges([sheet.getRange(2, 12, dataRows, 3)]);
+  setupSummarySheet();
+}
+
+function setupSummarySheet() {
+  const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = spreadsheet.getSheetByName(SUMMARY_SHEET_NAME)
+    || spreadsheet.insertSheet(SUMMARY_SHEET_NAME);
+  sheet.clear();
+  sheet.getRange(1, 1, 2, 2).setValues([
+    ["Chỉ số", "Số lượng"],
+    ["Đơn mới", '=COUNTIFS(\'Yêu cầu\'!C:C,"Đặt sản phẩm",\'Yêu cầu\'!L:L,"Mới")'],
+  ]);
+  sheet.getRange(3, 1, 1, 2).setValues([[
+    "Yêu cầu mới",
+    '=COUNTIFS(\'Yêu cầu\'!C:C,"Tư vấn số lượng lớn",\'Yêu cầu\'!L:L,"Mới")+COUNTIFS(\'Yêu cầu\'!C:C,"Tư vấn dịch vụ",\'Yêu cầu\'!L:L,"Mới")',
+  ]]);
+  const protection = sheet.protect().setDescription("Lean V1: Tổng quan chỉ đọc");
+  configureProtection(protection);
+}
+
+function configureProtection(protection) {
+  // Keep the effective user as a direct editor before removing group-derived editors.
+  // https://developers.google.com/apps-script/reference/spreadsheet/protection
+  protection.addEditor(Session.getEffectiveUser());
+  protection.removeEditors(protection.getEditors());
+  if (protection.canDomainEdit()) protection.setDomainEdit(false);
+  protection.setWarningOnly(false);
+  protection.getTargetAudiences().forEach((audienceId) => protection.removeTargetAudience(audienceId));
+}
+
+function onEdit(event) {
+  if (!event || !event.range) return;
+  const range = event.range;
+  const sheet = range.getSheet();
+  const row = range.getRow();
+  const column = range.getColumn();
+  if (sheet.getName() !== CONTACT_SHEET_NAME || row < 2 || column < 12 || column > 14) return;
+  if (column === 12) {
+    const previous = event.oldValue || "Mới";
+    const next = String(event.value || "").trim();
+    const assignee = String(sheet.getRange(row, 13).getValue() || "").trim();
+    if (!validStatusChange(previous, next, assignee)) {
+      range.setValue(previous);
+      SpreadsheetApp.getActiveSpreadsheet().toast("Trạng thái hoặc người phụ trách không hợp lệ.");
+      return;
+    }
+  }
+  sheet.getRange(row, 15).setValue(new Date());
+}
+
+function validStatusChange(previous, next, assignee) {
+  if (previous === next) return true;
+  if (previous === "Mới") return next === "Đang tư vấn" && Boolean(assignee);
+  if (previous === "Đang tư vấn") return ["Chờ khách phản hồi", "Đã hoàn tất", "Không tiếp tục"].includes(next);
+  if (previous === "Chờ khách phản hồi") return ["Đang tư vấn", "Đã hoàn tất", "Không tiếp tục"].includes(next);
+  return false;
 }
 
 function createReference() {

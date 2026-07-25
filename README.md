@@ -33,4 +33,4 @@ npm run check
 
 ## Bước kế tiếp
 
-Viết test RED cho workflow vận hành Google Sheet: protection A:K/O, dropdown/data validation, chuyển trạng thái bằng `onEdit`, tab `Tổng quan` và checklist bàn giao quyền kiểm soát Google cho khách. Việc nối ngữ cảnh product/service từ storefront/UI vào contract backend cũng vẫn chưa làm.
+Xác minh setup/protection/trigger trong Google account của user hoặc khách, rồi hoàn tất handoff ownership/quyền kiểm soát. Việc nối ngữ cảnh product/service từ storefront/UI vào contract backend cũng vẫn chưa làm.

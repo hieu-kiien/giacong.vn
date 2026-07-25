@@ -32,13 +32,13 @@ Không có tài khoản khách. `administrator` là loại tài khoản nội b�
 | Service family, trang dịch vụ, nội dung, media | Đọc nội dung public | CRUD vận hành qua Bagisto CMS/read API sau khi di trú/ánh xạ có chọn lọc **Cần làm** |
 | Trang chủ, nội dung doanh nghiệp và thông tin liên hệ được chỉ định editable | Đọc | Sửa nội dung/media/contact qua Bagisto CMS/read API sau khi thiết lập **Cần làm** |
 | Yêu cầu Sheet — tạo | Gửi form; submit được chấp nhận tạo dòng riêng | Apps Script thêm dòng, không qua Bagisto order |
-| Yêu cầu Sheet — xem, lọc, xử lý, phân công, ghi chú | Không | Mục tiêu **Cần làm**: xử lý trong L:N: **Trạng thái**, **Người phụ trách**, **Ghi chú** |
-| Yêu cầu Sheet — xóa hoặc đổi thứ tự dòng/cột | Không | Không trong V1; protection cấu trúc vẫn **Cần làm** |
+| Yêu cầu Sheet — xem, lọc, xử lý, phân công, ghi chú | Không | Template Apps Script đã triển khai xử lý trong L:N: **Trạng thái**, **Người phụ trách**, **Ghi chú**; owner-run authorization và live verification vẫn **Chờ xác nhận** |
+| Yêu cầu Sheet — xóa hoặc đổi thứ tự dòng/cột | Không | Không trong V1; template Apps Script đã triển khai protection cấu trúc, còn owner-run/live verification **Chờ xác nhận** |
 | Tài khoản nội bộ | Không | Có đúng một tài khoản dùng chung `administrator`; sau audit/cấu hình **Cần làm**, người được giao tự đổi/khôi phục mật khẩu hoặc chủ/ông chủ chuyển giao người sử dụng theo quy trình Bagisto. Không tạo/vô hiệu hóa nhiều tài khoản, không granular role. |
 
-Tab `Yêu cầu` hiện có đúng 15 cột A:O cho intake. Mục tiêu **Cần làm** là administrator chỉ sửa L:N, A:K/O được bảo vệ và O (**Cập nhật lần cuối**) do Apps Script cập nhật sau chỉnh sửa hợp lệ. Giai đoạn hiện tại, user/chủ dự án là chủ sở hữu Google Sheet và Apps Script. Trước bàn giao, ownership/quyền kiểm soát được chuyển hoặc migration/redeploy sang tài khoản Google/Workspace do khách sở hữu theo audit Google; chủ sở hữu cuối cùng cấu hình protection/range và dropdown.
+Template Apps Script giữ đúng 15 cột A:O cho intake; `setupRequestWorkbook()` cấu hình validation/protection và `onEdit` cập nhật O cho single-cell operational edit. Cần xác minh trong Google account thật trước bàn giao. Giai đoạn hiện tại, user/chủ dự án là chủ sở hữu Google Sheet và Apps Script; ownership/quyền kiểm soát, trigger authorization và live verification vẫn **Chờ xác nhận**.
 
-Dropdown/data validation và chuyển trạng thái sau là mục tiêu **Cần làm**: `Loại` chỉ nhận **Đặt sản phẩm**, **Tư vấn số lượng lớn**, **Tư vấn dịch vụ**; `Trạng thái` chỉ nhận **Mới**, **Đang tư vấn**, **Chờ khách phản hồi**, **Đã hoàn tất**, **Không tiếp tục**. Khi rời **Mới**, `Người phụ trách` bắt buộc không rỗng. Chuyển trạng thái hợp lệ: **Mới → Đang tư vấn**; **Đang tư vấn → Chờ khách phản hồi | Đã hoàn tất | Không tiếp tục**; **Chờ khách phản hồi → Đang tư vấn | Đã hoàn tất | Không tiếp tục**. **Đã hoàn tất** và **Không tiếp tục** là kết thúc, không mở lại trong V1.
+Dropdown/data validation và chuyển trạng thái sau đã được triển khai trong template Apps Script, nhưng chưa live verified: `Loại` chỉ nhận **Đặt sản phẩm**, **Tư vấn số lượng lớn**, **Tư vấn dịch vụ**; `Trạng thái` chỉ nhận **Mới**, **Đang tư vấn**, **Chờ khách phản hồi**, **Đã hoàn tất**, **Không tiếp tục**. Khi rời **Mới**, `Người phụ trách` bắt buộc không rỗng. Chuyển trạng thái hợp lệ: **Mới → Đang tư vấn**; **Đang tư vấn → Chờ khách phản hồi | Đã hoàn tất | Không tiếp tục**; **Chờ khách phản hồi → Đang tư vấn | Đã hoàn tất | Không tiếp tục**. **Đã hoàn tất** và **Không tiếp tục** là kết thúc, không mở lại trong V1. Owner-run authorization, ownership/quyền kiểm soát và live verification vẫn **Chờ xác nhận**.
 
 Mỗi submit được chấp nhận luôn tạo một `Mã`/dòng Apps Script riêng. Không có merge hoặc dedup engine. Nếu administrator kết luận một dòng trùng, đặt `Trạng thái=Không tiếp tục` và ghi `Trùng mã <reference>` ở `Ghi chú`.
 
@@ -50,13 +50,13 @@ Mỗi submit được chấp nhận luôn tạo một `Mã`/dòng Apps Script ri
 | Hiển thị MOQ, bước số lượng, giá bậc và ngưỡng liên hệ | Quote engine, báo giá tự động, vòng đời báo giá |
 | Hai CTA theo ngưỡng, đều `POST /api/contact` rồi chuyển yêu cầu vào Sheet | Customer account/portal, cart, checkout, tạo Bagisto order, payment, shipping, order completion |
 | Một service family **Sấy & thực phẩm sấy**; CTA form và webhook Sheet | Nhiều service family public trong V1; dù vậy cơ chế quản trị content cần hỗ trợ family/page theo autonomy đã chốt |
-| Intake Apps Script/Sheet `Yêu cầu` 15 cột đã thay legacy `Yeu cau` 8 cột; tab **Tổng quan**, protection và bàn giao quyền kiểm soát Google còn **Cần làm** | Dashboard Next/Bagisto, API summary, request inbox Bagisto, đồng bộ order external |
-| Mục tiêu **Cần làm**: administrator xử lý L:N; A:K/O và cấu trúc Sheet được bảo vệ | Xóa cứng dòng Sheet, merge/dedup engine |
+| Intake Apps Script/Sheet `Yêu cầu` 15 cột, protection, validation, `onEdit` và tab **Tổng quan** đã có trong script; owner-run authorization/live verification và bàn giao Google còn **Chờ xác nhận** | Dashboard Next/Bagisto, API summary, request inbox Bagisto, đồng bộ order external |
+| Template Apps Script đã triển khai: administrator xử lý L:N; A:K/O và cấu trúc Sheet được bảo vệ. Owner-run authorization/live verification còn **Chờ xác nhận** | Xóa cứng dòng Sheet, merge/dedup engine |
 | Bagisto admin cho catalog, giá, tồn, nội dung vận hành và một tài khoản `administrator` dùng chung sau audit/cấu hình **Cần làm** | Mở rộng `/quan-tri`, `b2b_briefs`, `b2b_catalog_audits`, full audit |
 | Di trú/ánh xạ có chọn lọc serviceFamilies/captured content sang Bagisto CMS/read API **Cần làm** | Cam kết sẵn có của Bagisto CMS cho Next trước khi triển khai/audit |
 | Tiếng Việt, VND, giữ storefront/contact hiện có và thay giao diện dần | Đa kênh, đa locale, đa tiền tệ, promotion, redesign toàn diện |
 
-Hiện `POST /api/contact` nhận cả `name, phone, email, message, source` và ngữ cảnh tùy chọn `product, service, variant, qty`. Server đọc catalog để xác thực ngữ cảnh sản phẩm, gán `request_type` theo ngưỡng và chỉ gửi giá trị canonical sang Apps Script; client-supplied `request_type` không quyết định loại. Apps Script hiện thêm dòng/Mã riêng vào tab `Yêu cầu` với đúng 15 cột A:O. Storefront/UI chưa nối ngữ cảnh sản phẩm/dịch vụ vào contract này. Protection A:K/O, dropdown/data validation, `onEdit` cho workflow, tab **Tổng quan** và bàn giao ownership/quyền kiểm soát Google vẫn là **Cần làm**.
+Hiện `POST /api/contact` nhận cả `name, phone, email, message, source` và ngữ cảnh tùy chọn `product, service, variant, qty`. Server đọc catalog để xác thực ngữ cảnh sản phẩm, gán `request_type` theo ngưỡng và chỉ gửi giá trị canonical sang Apps Script; client-supplied `request_type` không quyết định loại. Template Apps Script thêm dòng/Mã riêng vào tab `Yêu cầu` với đúng 15 cột A:O, setup protection/validation, workflow `onEdit` và **Tổng quan**. Storefront/UI chưa nối ngữ cảnh sản phẩm/dịch vụ. Owner-run authorization, live verification và ownership/quyền kiểm soát Google vẫn **Chờ xác nhận**.
 
 Custom B2B product policy fields phải xuất hiện trong màn hình product admin hiện có của Bagisto qua extension; không tạo UI quản trị mới hoặc mở rộng `/quan-tri`. No-code chỉ áp dụng vận hành dữ liệu/nội dung hằng ngày; đổi bố cục, điều hướng hoặc chức năng mới cần kỹ thuật và ngoài V1.
 
@@ -83,12 +83,12 @@ Không có sitemap customer login/account/portal, cart, checkout, payment, shipp
 
 ## 5. User flows ưu tiên
 
-Các flow là đích Lean V1. Riêng flow 4 vẫn **Cần làm**: schema intake A:O hiện có, nhưng protection, dropdown, `onEdit`, **Tổng quan** và handoff Google chưa được triển khai/cấu hình.
+Các flow là đích Lean V1. Flow 4 đã có script setup/protection/validation/`onEdit`/ **Tổng quan**; owner-run authorization, live verification và handoff Google vẫn **Chờ xác nhận**.
 
 1. **Sản phẩm, dưới ngưỡng → Đặt sản phẩm.** Khách mở `/san-pham/[slug]`, chọn vani hoặc ít ngọt, nhập số lượng thỏa MOQ và bước số lượng. Storefront hiển thị giá bậc VND từ Bagisto. Dưới `contact_from_quantity`, CTA **Yêu cầu tư vấn đặt mua** mở `/lien-he`; phần **Cần làm** gửi `product`, `variant`, `qty`, nguồn và `request_type=Đặt sản phẩm` tới `/api/contact`. Mỗi submit được chấp nhận tạo một dòng Sheet riêng.
 2. **Sản phẩm, từ ngưỡng → Tư vấn số lượng lớn.** Cùng quy tắc chọn; khi số lượng bằng hoặc lớn hơn ngưỡng, server thực thi quy tắc và CTA đổi thành **Liên hệ số lượng lớn**. Phần **Cần làm** gửi `request_type=Tư vấn số lượng lớn` cùng ngữ cảnh; mỗi submit được chấp nhận tạo một dòng Sheet riêng.
 3. **Dịch vụ → Tư vấn dịch vụ.** Khách vào `/thue-gia-cong/say-thuc-pham-say`, đọc content public và gửi form. Phần **Cần làm** gửi `service=Sấy & thực phẩm sấy`, nguồn service và `request_type=Tư vấn dịch vụ`; mỗi submit được chấp nhận tạo một dòng riêng, không tạo brief hoặc Bagisto order.
-4. **Administrator xử lý Sheet và bàn giao Google.** Administrator dùng một shared account để lọc các dòng **Mới**, điền **Người phụ trách** và chuyển **Đang tư vấn**, sau đó chỉ đi theo chuyển trạng thái ở phần 2. Administrator chỉ sửa L:N; Apps Script cập nhật O; Sheet/range chặn xóa hoặc đổi thứ tự dòng/cột. Nếu đánh giá trùng, administrator chuyển **Không tiếp tục** và ghi `Trùng mã <reference>`. Tab **Tổng quan** đếm **Đơn mới** là `Loại=Đặt sản phẩm` + `Trạng thái=Mới`; **Yêu cầu mới** là hai loại tư vấn + `Trạng thái=Mới`. Hiện Sheet/Apps Script thuộc user/chủ dự án; trước bàn giao, chuyển ownership/quyền kiểm soát hoặc migration/redeploy sang Google/Workspace của khách và xác minh owner cuối.
+4. **Administrator xử lý Sheet và bàn giao Google.** Sau khi chủ sở hữu chạy setup và xác minh live (đang **Chờ xác nhận**), administrator dùng một shared account để lọc các dòng **Mới**, điền **Người phụ trách** và chuyển **Đang tư vấn**, sau đó chỉ đi theo chuyển trạng thái ở phần 2. Administrator chỉ sửa L:N; template Apps Script cập nhật O; protection Sheet/range chặn xóa hoặc đổi thứ tự dòng/cột. Nếu đánh giá trùng, administrator chuyển **Không tiếp tục** và ghi `Trùng mã <reference>`. Tab **Tổng quan** đếm **Đơn mới** là `Loại=Đặt sản phẩm` + `Trạng thái=Mới`; **Yêu cầu mới** là hai loại tư vấn + `Trạng thái=Mới`. Hiện Sheet/Apps Script thuộc user/chủ dự án; trước bàn giao, chuyển ownership/quyền kiểm soát hoặc migration/redeploy sang Google/Workspace của khách và xác minh owner cuối.
 5. **Administrator quản trị catalog, content và shared account.** Administrator dùng Bagisto admin để thêm/sửa/ẩn/sắp xếp sản phẩm, biến thể, giá, tồn, MOQ, bước số lượng, ngưỡng liên hệ; rồi kiểm tra storefront. Qua CMS/read API **Cần làm**, administrator cũng quản lý service family/page/content/media, homepage, thông tin doanh nghiệp và liên hệ được chỉ định editable. Sau audit Bagisto, người dùng shared account tự đổi/khôi phục mật khẩu hoặc chủ/ông chủ chuyển giao người sử dụng. Các field B2B nằm trong màn hình product admin hiện có qua extension; không dùng ghi thẳng MySQL hoặc endpoint `/quan-tri`/`operations/v1` mới.
 
 ## 6. Wireframe low-fi
@@ -112,10 +112,10 @@ Wireframe chỉ diễn tả các luồng ở phần 5, không tạo ngôn ngữ 
  [Gửi yêu cầu] → Apps Script tạo Mã riêng → thêm một dòng Sheet
 
 [Google Sheet]
- [Yêu cầu] A:K,O khóa | L:N administrator sửa | dropdown Loại/Trạng thái
+ [Yêu cầu template] A:K,O khóa | L:N administrator sửa | dropdown Loại/Trạng thái
  Mới → Đang tư vấn → [Chờ khách phản hồi | Đã hoàn tất | Không tiếp tục]
  Trùng đã đánh giá → Không tiếp tục + Ghi chú “Trùng mã <reference>”
- [Tổng quan] Đơn mới | Yêu cầu mới
+ [Tổng quan template] Đơn mới | Yêu cầu mới
  Owner hiện tại: user/chủ dự án → bàn giao: Google/Workspace do khách kiểm soát
 
 [Bagisto admin]
@@ -127,7 +127,7 @@ Wireframe chỉ diễn tả các luồng ở phần 5, không tạo ngôn ngữ 
 
 Bagisto core được đọc/ghi qua service, repository hoặc API Bagisto; code mới không ghi trực tiếp bảng core. `b2b_product_configs` là cấu hình B2B hiện có theo biến thể. Google Sheets là đích duy nhất của hàng đợi yêu cầu. Không thiết kế bảng khách, cart, checkout, payment, shipping hoặc order cho website V1.
 
-Trong sơ đồ dưới, Apps Script intake và schema 15 cột A:O là hiện có; protection A:K/O, quyền sửa L:N, `onEdit`, **Tổng quan** và handoff Google là mục tiêu **Cần làm**.
+Trong sơ đồ dưới, Apps Script intake, schema 15 cột A:O, protection A:K/O với L:N, `onEdit` và **Tổng quan** đã có trong script; handoff/authorization/live verification Google vẫn **Chờ xác nhận**.
 
 ```text
 Bagisto core (qua service/repository/admin UI hiện có)
@@ -169,7 +169,7 @@ Trạng thái chính của mỗi route hoặc bề mặt chỉ là **Hiện có*
 
 | Phương thức / loại bề mặt | Đường dẫn / đích | Người dùng | Hiện có | Cần làm / ranh giới V1 | Trạng thái |
 | --- | --- | --- | --- | --- | --- |
-| POST | `/api/contact` | Khách | Nhận base fields và context tùy chọn `product?, service?, variant?, qty?`; server xác thực catalog, tự gán loại theo MOQ/step/ngưỡng và gửi payload canonical. Apps Script tạo Mã/dòng riêng đúng 15 cột A:O trong `Yêu cầu`; URL/secret chỉ ở server. | Nối context từ storefront/UI; cấu hình A:K/O protection, dropdown/data validation, `onEdit`, **Tổng quan** và ownership/quyền kiểm soát Google. Không tạo Bagisto order, không dedup/merge. | Chuyển tiếp |
+| POST | `/api/contact` | Khách | Nhận base fields và context tùy chọn `product?, service?, variant?, qty?`; server xác thực catalog, tự gán loại theo MOQ/step/ngưỡng và gửi payload canonical. Apps Script tạo Mã/dòng riêng đúng 15 cột A:O trong `Yêu cầu`; template script đã có A:K/O protection, dropdown/data validation, `onEdit` và **Tổng quan**; URL/secret chỉ ở server. | Nối context từ storefront/UI. Owner-run authorization, ownership/quyền kiểm soát và live verification Google còn **Chờ xác nhận**. Không tạo Bagisto order, không dedup/merge. | Chuyển tiếp |
 | GET | `/api/catalog/products/[slug]` | Khách | BFF catalog hiện có cho product/variant/rules | Giữ BFF cho product flow; xác thực MOQ/bước/ngưỡng ở server. | Hiện có |
 | GET | `/api/b2b/catalog/categories`, `/api/b2b/catalog/products`, `/api/b2b/catalog/products/{slug}` | Storefront | Nguồn catalog B2B hiện có | Giữ như legacy/transitional catalog routes; không biến thành CMS dịch vụ. | Chuyển tiếp |
 | Chưa audit | Endpoint đọc service family/page/content/media | Storefront | `src/data/service-families.ts` và captured content còn tĩnh | Thiết kế/triển khai read API + mapping/di trú có chọn lọc từ Bagisto CMS; không tự đặt path khi chưa audit. | Cần làm |
@@ -188,8 +188,8 @@ Không có API checkout, cart, order, payment, shipping, đồng bộ order exte
 | --- | --- | --- | --- | --- |
 | Xác thực dữ liệu public cho family/biến thể đã chọn | Người quyết định sản phẩm | Chưa bắt đầu | SKU, ảnh, nội dung, giá thật **Chờ xác nhận** | Dữ liệu được duyệt, không dùng `B2B-DEMO` public |
 | Chuẩn hóa catalog, giá bậc, CTA và server validation | Terra implement | Hoàn thành một phần | Dữ liệu public, quy tắc Bagisto | Server validation cho contact context đã có; còn catalog production, storefront CTA/context wiring, giá bậc và luồng sản phẩm rộng hơn |
-| Mở rộng `/api/contact` và Apps Script/Sheet | Terra implement | Hoàn thành một phần | Contract mới; giai đoạn hiện tại dùng Google account của user/chủ dự án | Backend validation/derivation và tab `Yêu cầu` 15 cột với Mã riêng đã có; còn nối context storefront/UI, protection, dropdown, workflow và Tổng quan |
-| Cấu hình vận hành Sheet và bàn giao quyền Google | Terra implement + chủ sở hữu | Chưa bắt đầu | Audit Google; tài khoản Google/Workspace khách cần sẵn sàng trước bàn giao | Dropdown, A:K/O bảo vệ, L:N editable, workflow, checklist chuyển ownership/quyền kiểm soát hoặc migration/redeploy; khách mở/sửa Sheet, cấu hình protection/dropdown, mở/sửa/deploy Apps Script và xác nhận user/chủ dự án không còn là bên kiểm soát duy nhất |
+| Mở rộng `/api/contact` và Apps Script/Sheet | Terra implement | Hoàn thành một phần | Contract mới; giai đoạn hiện tại dùng Google account của user/chủ dự án | Backend validation/derivation và tab `Yêu cầu` 15 cột với Mã riêng; template script đã triển khai protection, dropdown, workflow và Tổng quan. Còn nối context storefront/UI; owner-run authorization/live verification Google **Chờ xác nhận** |
+| Cấu hình vận hành Sheet và bàn giao quyền Google | Terra implement + chủ sở hữu | **Chờ xác nhận** | Audit Google; tài khoản Google/Workspace khách cần sẵn sàng trước bàn giao | Template đã có dropdown, A:K/O protection, L:N editable và workflow; khách/chủ sở hữu phải mở/sửa/deploy Apps Script, chạy setup, kiểm tra protection/dropdown và xác nhận ownership/quyền kiểm soát cuối cùng hoặc migration/redeploy |
 | Mở rộng Bagisto product admin cho policy B2B | Terra implement | Chưa bắt đầu | Audit extension point Bagisto | MOQ/step/threshold và field B2B trong màn hình product hiện có |
 | Audit, cấu hình và bàn giao một shared account `administrator` | Terra implement + chủ/ông chủ | Chưa bắt đầu | Audit Bagisto admin | Hướng dẫn và kiểm thử đổi/khôi phục mật khẩu hoặc chuyển giao người dùng theo quy trình native; không tạo/vô hiệu hóa nhiều tài khoản, không granular RBAC/UI mới |
 | Di trú/ánh xạ serviceFamilies và captured content | Terra implement + người duyệt nội dung | Chưa bắt đầu | Audit Bagisto CMS/read API, content được duyệt | Service/page/content/media và homepage/business/contact designated editable qua Bagisto; status **Cần làm** |
@@ -209,8 +209,8 @@ Terra là vai trò triển khai. Thay đổi hành vi bắt đầu bằng test R
 | Service flow | Server chỉ chấp nhận service slug `say-thuc-pham-say` và gán **Tư vấn dịch vụ**, không tạo brief/order. Storefront/UI CTA chưa nối ngữ cảnh service vào contract. |
 | Contact → Sheet | Contract backend được kiểm thử cho `request_type`, `product`, `service`, `variant`, `qty`, cùng gán loại server; Apps Script tạo Mã riêng và thêm đúng 15 cột. URL/secret chỉ ở server; không fallback Bagisto. Việc nối ngữ cảnh storefront/UI vẫn **Cần làm**. |
 | Submit trùng | Mỗi submit được chấp nhận tạo dòng/Mã riêng. Không có merge/dedup engine. Administrator có thể đặt **Không tiếp tục** và ghi chính xác `Trùng mã <reference>`. |
-| Hàng đợi Sheet | Tab `Yêu cầu` đã có schema A:O và dòng mới đặt **Mới**/để trống M:N; protection A:K/O, quyền sửa L:N và dropdown vẫn **Cần làm**. |
-| Trạng thái và Tổng quan | Chuyển trạng thái bằng `onEdit` và tab **Tổng quan** vẫn **Cần làm**; không có dashboard Next/Bagisto hay API summary. |
+| Hàng đợi Sheet | Tab `Yêu cầu` có schema A:O và dòng mới đặt **Mới**/để trống M:N; template Apps Script đã triển khai protection A:K/O, quyền sửa L:N và dropdown. Owner-run authorization/live verification vẫn **Chờ xác nhận**. |
+| Trạng thái và Tổng quan | Script đã có transition `onEdit` và tab **Tổng quan**; owner-run authorization/live verification vẫn **Chờ xác nhận**; không có dashboard Next/Bagisto hay API summary. |
 | Autonomy catalog | Administrator trong Bagisto admin có thể thêm/sửa/ẩn/sắp xếp product/variant, giá, stock, MOQ, step, threshold bằng màn hình product hiện có được extension. Không direct core write, không UI `/quan-tri` mới. |
 | Autonomy tài khoản | Có đúng một shared account `administrator` do chủ/ông chủ giao cho một người sử dụng. Sau audit/cấu hình, bằng chứng kiểm thử xác nhận người dùng đổi/khôi phục mật khẩu hoặc chủ/ông chủ chuyển giao người dùng theo quy trình Bagisto native đã audit. Không tạo/vô hiệu hóa nhiều tài khoản, không granular RBAC, không UI quản trị mới và `/quan-tri` vẫn frozen. |
 | Autonomy content | Service family/page/content/media, homepage/business/contact designated editable được di trú/ánh xạ có chọn lọc và quản lý qua Bagisto CMS/read API. Cho đến khi hoàn tất, đây là **Cần làm**, không được mô tả là năng lực hiện có. |

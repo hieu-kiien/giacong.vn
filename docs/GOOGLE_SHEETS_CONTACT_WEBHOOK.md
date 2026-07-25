@@ -14,6 +14,8 @@ Mỗi submit được server chấp nhận tạo một `Mã` và dòng mới. Se
 
 Template kiểm tra cơ bản tên, điện thoại, email và contract context do server gửi; đồng thời ép mọi dữ liệu text thành text an toàn trước khi ghi Sheet để không thực thi công thức bắt đầu bằng `=`, `+`, `-` hoặc `@`. Next.js chỉ chấp nhận phản hồi JSON chính xác dạng `{ "ok": true, "reference": "..." }`. Khi thay đổi deployment hoặc secret, cập nhật biến môi trường trên host rồi redeploy Next.js.
 
-## Việc vận hành còn lại
+## Thiết lập vận hành bởi owner
 
-Increment này chỉ triển khai intake và schema 15 cột. Chưa triển khai protection A:K/O, dropdown/data validation, `onEdit` cho workflow trạng thái hoặc tab `Tổng quan`; các bước đó cần cấu hình/triển khai riêng trước bàn giao vận hành.
+Sau khi dán script, owner chạy một lần `setupRequestWorkbook()` trong Apps Script. Hàm này tạo/làm mới validation cho `Loại` và `Trạng thái`, bảo vệ sheet với vùng L:N là vùng vận hành, và tạo `Tổng quan` với hai số đếm. `onEdit(event)` là simple trigger cho sửa một ô L:N: kiểm tra transition trạng thái, yêu cầu người phụ trách khi rời `Mới`, rồi cập nhật cột O.
+
+Checklist trước bàn giao: owner chạy setup, cấp quyền/deploy Web app, thử intake và một transition hợp lệ, kiểm tra protection/validation/Tổng quan, rồi xác nhận tài khoản Google/Workspace của khách là bên kiểm soát cuối. Protection không phải biện pháp bảo mật tuyệt đối: owner có thể override hoặc gỡ protection. Với tài khoản work/school, chuyển owner chỉ trong cùng tổ chức; khi không chuyển trực tiếp được cần copy/migration/redeploy dưới tài khoản khách. Các việc authorization trigger thực, chuyển ownership/migration và live verification vẫn **Chờ xác nhận** cho tới khi làm trong Google account của user/khách. [Google Sheets protections](https://support.google.com/docs/answer/1218656?hl=en-gb), [Google Drive ownership](https://support.google.com/drive/answer/2494892?hl=en-IN), [Apps Script triggers](https://developers.google.com/apps-script/guides/triggers/).
