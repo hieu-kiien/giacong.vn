@@ -10,7 +10,7 @@ Lean V1 phục vụ khách B2B đang cần tìm hiểu, mua một sản phẩm t
 
 V1 chỉ chứng minh hai việc có ích cho vận hành. Việc thứ nhất là một **product family đại diện — Chờ xác nhận** có thể đi từ xem sản phẩm, chọn biến thể và số lượng đúng quy tắc, đến đặt mua trực tiếp khi số lượng dưới ngưỡng liên hệ. Việc thứ hai là một **service family đại diện — Chờ xác nhận** có thể đưa khách đến liên hệ, ghi yêu cầu vào Google Sheets và để nhân viên xử lý. Giá theo số lượng, MOQ, bước số lượng và ngưỡng liên hệ là dữ liệu thương mại của Bagisto. Khi lượng khách chọn đạt ngưỡng cấu hình, storefront không tính hay tạo báo giá; nó mở liên hệ với ngữ cảnh sản phẩm, biến thể và số lượng đã chọn.
 
-Vận hành phải có một nơi sở hữu dữ liệu rõ ràng. Bagisto admin là back office dài hạn cho sản phẩm, giá, tồn kho, đơn hàng và hai loại tài khoản nội bộ cố định. Google Sheets là hàng đợi yêu cầu liên hệ, không phải inbox Bagisto. Dashboard V1 chỉ cần hai số: yêu cầu mới và đơn mới. Cách lấy số yêu cầu mới từ Sheet bằng link hay API đếm là **Chờ xác nhận**; trạng thái xử lý trong Sheet cũng là **Chờ xác nhận**. Mục tiêu là nhân viên biết có việc mới và biết xử lý ở đâu, không tạo một hệ thống vận hành song song trong Next.js.
+Vận hành phải có một nơi sở hữu dữ liệu rõ ràng. Bagisto admin là back office dài hạn cho sản phẩm, giá, tồn kho, đơn hàng và hai loại tài khoản nội bộ cố định. Google Sheets là hàng đợi yêu cầu liên hệ, không phải inbox Bagisto. Dashboard V1 chỉ cần hai số: yêu cầu mới và đơn mới. Cách lấy số yêu cầu mới từ Sheet bằng link hay API đếm là **Chờ xác nhận**; chỉ có link tới Sheet không đáp ứng yêu cầu hiển thị số. Trạng thái xử lý Sheet là **Chờ xác nhận**. Định nghĩa "đơn mới" — trạng thái nguồn, mốc thời gian, việc đánh dấu đã xem và thời điểm bộ đếm giảm — đều là **Chờ xác nhận**. Mục tiêu là nhân viên biết có việc mới và biết xử lý ở đâu, không tạo một hệ thống vận hành song song trong Next.js.
 
 Một V1 thành công khi khách có thể xem và chọn đúng dữ liệu thực; số lượng dưới ngưỡng đi vào luồng mua trực tiếp; số lượng từ ngưỡng đi vào luồng liên hệ có đủ ngữ cảnh; yêu cầu dịch vụ tạo đúng một dòng Sheet; nhân viên thấy yêu cầu mới và đơn mới; quản trị viên cập nhật được dữ liệu sản phẩm theo quyền đã chốt; và các luồng đó có tiêu chí nghiệm thu cụ thể ở phần 10. Hình thức thanh toán, giao hàng và trạng thái nào được coi là hoàn tất đơn đều **Chờ xác nhận**, nên V1 không được tự gán trạng thái hoặc hứa một phương thức chưa được duyệt. Khách mua không tài khoản hay có tài khoản cũng **Chờ xác nhận**.
 
@@ -18,17 +18,30 @@ Ngoài phạm vi V1 là quote engine, vòng đời báo giá, chuyển báo giá
 
 ## 2. Người dùng và ma trận quyền
 
-Chỉ có hai loại tài khoản nội bộ: `administrator` và `employee`. Không có company, team, role con hay quyền chi tiết theo người dùng. Khách mua có cần tài khoản là **Chờ xác nhận**; quyết định đó không tạo thêm loại tài khoản nội bộ.
+Chỉ có hai loại tài khoản nội bộ: `administrator` và `employee`. Không có company, team, role con hay quyền chi tiết theo người dùng. Khách mua có cần tài khoản là **Chờ xác nhận**; quyết định đó không tạo thêm loại tài khoản nội bộ. Khách chỉ tạo contact hoặc order theo flow V1 và không xem dữ liệu của khách khác.
 
-| Việc | Khách | Employee | Administrator |
+| Dữ liệu / thao tác | Khách | Employee | Administrator |
 | --- | --- | --- | --- |
-| Xem storefront, sản phẩm, giá VND, dịch vụ | Có | Có | Có |
-| Chọn biến thể/số lượng; mua trực tiếp dưới ngưỡng | Có, theo quyết định tài khoản **Chờ xác nhận** | Không phải luồng chính | Không phải luồng chính |
-| Gửi liên hệ sản phẩm/dịch vụ | Có | Có thể kiểm tra kết quả | Có thể kiểm tra kết quả |
-| Xử lý yêu cầu trong Google Sheets | Không | Có | Có |
-| Xem đơn và tồn kho trong Bagisto admin | Không | Có | Có |
-| Sửa sản phẩm/giá trong Bagisto admin | Không | **Chờ xác nhận**; đề xuất mặc định: không | Có |
-| Quản lý hai loại tài khoản nội bộ | Không | Không | Có |
+| Catalog — xem | Có | Có | Có |
+| Catalog — tạo | Không | Không | Có trong Bagisto admin |
+| Catalog — sửa sản phẩm, biến thể, giá | Không | Không; quyền sửa product/price đã khóa cho admin | Có trong Bagisto admin |
+| Catalog — xóa | Không | **Chờ xác nhận** | **Chờ xác nhận**; đề xuất an toàn: không hard-delete trong V1 |
+| Catalog — xử lý riêng | Không áp dụng; tạo/sửa trong Bagisto là thao tác quản trị | Không áp dụng | Không áp dụng |
+| Đơn — xem | Chỉ đơn của mình nếu mô hình tài khoản cho phép; **Chờ xác nhận** | Có | Có |
+| Đơn — tạo | Chỉ direct order dưới ngưỡng | Không phải flow V1 | Không phải flow V1 |
+| Đơn — sửa/hủy | Không | **Chờ xác nhận** | **Chờ xác nhận** |
+| Đơn — xóa | Không | **Chờ xác nhận** | **Chờ xác nhận**; đề xuất an toàn: không hard-delete trong V1 |
+| Đơn — xử lý (fulfillment/trạng thái) | Không | **Chờ xác nhận** | **Chờ xác nhận** |
+| Yêu cầu Sheet — xem | Không; chỉ nhận mã tham chiếu của lần gửi | Có | Có |
+| Yêu cầu Sheet — tạo | Chỉ `contact` theo flow | Không phải flow V1 | Không phải flow V1 |
+| Yêu cầu Sheet — sửa | Không | Có; trạng thái **Chờ xác nhận** | Có; trạng thái **Chờ xác nhận** |
+| Yêu cầu Sheet — xóa | Không | **Chờ xác nhận** | **Chờ xác nhận**; đề xuất an toàn: không hard-delete trong V1 |
+| Yêu cầu Sheet — xử lý | Không | Có; trạng thái **Chờ xác nhận** | Có; trạng thái **Chờ xác nhận** |
+| Tài khoản nội bộ — xem | Không | Chỉ tài khoản của mình nếu Bagisto hỗ trợ; **Chờ xác nhận** | Có |
+| Tài khoản nội bộ — tạo | Không | Không | Có, chỉ `administrator`/`employee` |
+| Tài khoản nội bộ — sửa | Không | Chỉ tài khoản của mình nếu Bagisto hỗ trợ; **Chờ xác nhận** | Có |
+| Tài khoản nội bộ — xóa | Không | **Chờ xác nhận** | **Chờ xác nhận**; đề xuất an toàn: vô hiệu hóa thay vì hard-delete trong V1 |
+| Tài khoản nội bộ — xử lý (reset/khóa/vô hiệu hóa) | Không | **Chờ xác nhận** | **Chờ xác nhận**; ưu tiên vô hiệu hóa thay hard-delete |
 | Dashboard hai số | Không | Có | Có |
 
 `/quan-tri` Next.js và BFF của nó là bề mặt chuyển tiếp đã đóng băng: chỉ duy trì tương thích và bảo mật, không cấp thêm quyền hay tính năng. Bagisto admin là đích quản trị dài hạn.
@@ -70,8 +83,8 @@ Màn hình tài khoản khách và đường dẫn checkout cụ thể phụ thu
 1. **Sản phẩm, số lượng dưới ngưỡng → mua trực tiếp.** Khách mở `/san-pham/[slug]`, chọn biến thể, nhập số lượng thỏa MOQ và bước số lượng. Storefront hiển thị giá bậc VND từ Bagisto. Nếu số lượng nhỏ hơn `contact_from_quantity`, CTA đi đến luồng checkout Bagisto. Việc khách mua có/không có tài khoản, thanh toán/giao hàng và trạng thái hoàn tất đơn là **Chờ xác nhận**.
 2. **Sản phẩm, từ ngưỡng → liên hệ.** Cùng bước chọn trên, nếu số lượng bằng hoặc lớn hơn ngưỡng, server thực thi quy tắc và CTA chuyển sang `/lien-he`. Form mang theo product, variant, quantity và nguồn; khách gửi tên, điện thoại, email tùy chọn, nội dung. `POST /api/contact` chuyển dữ liệu chuẩn hóa tới Google Sheets và trả mã tham chiếu.
 3. **Dịch vụ → Google Sheets.** Khách vào `/thue-gia-cong/[family]` của service family đại diện, đọc nội dung/lựa chọn cần thiết, nhấn liên hệ và gửi form. Cách khách tự thêm service bằng Bagisto CMS hay cần developer là **Chờ xác nhận**. Mỗi lần gửi thành công tạo một dòng trong Sheet, không tạo brief trong Bagisto.
-4. **Nhân viên xử lý.** Employee mở dashboard để thấy yêu cầu mới và đơn mới, rồi mở Google Sheet để nhận và cập nhật yêu cầu. Cách dashboard lấy số yêu cầu mới từ Sheet (link hay API đếm) và các trạng thái xử lý Sheet là **Chờ xác nhận**. Nhân viên không dùng `/quan-tri` để có tính năng mới.
-5. **Quản trị sửa dữ liệu sản phẩm/giá.** Administrator vào Bagisto admin, sửa sản phẩm, biến thể, giá bậc/ngưỡng theo cơ chế Bagisto rồi kiểm tra storefront đọc đúng dữ liệu. Employee có được sửa sản phẩm/giá không là **Chờ xác nhận**; mặc định đề xuất chỉ administrator được sửa. Không dùng ghi thẳng MySQL hay endpoint `operations/v1` chưa nhập.
+4. **Nhân viên xử lý.** Employee mở dashboard Bagisto admin để thấy yêu cầu mới và đơn mới, rồi mở Google Sheet để nhận và cập nhật yêu cầu. Dashboard phải có số đếm; link Sheet đơn thuần không đủ. Cách lấy số yêu cầu mới (link kèm cơ chế đếm hay API đếm), các trạng thái Sheet, và định nghĩa đơn mới (trạng thái/mốc thời gian/đã xem/thời điểm giảm đếm) là **Chờ xác nhận**. Nhân viên không dùng `/quan-tri` để có tính năng mới.
+5. **Quản trị sửa dữ liệu sản phẩm/giá.** Administrator vào Bagisto admin, sửa sản phẩm, biến thể, giá bậc/ngưỡng theo cơ chế Bagisto rồi kiểm tra storefront đọc đúng dữ liệu. Employee không sửa product/price trong V1. Không dùng ghi thẳng MySQL hay endpoint `operations/v1` chưa nhập.
 
 ## 6. Wireframe low-fi
 
@@ -105,7 +118,7 @@ Bagisto core được đọc/ghi qua service hoặc repository/API của Bagisto
 ```text
 Bagisto core (qua service/repository)
   products (parent) 1 ── * products (variant)
-  products (variant) 1 ── 1 b2b_product_configs
+  products (variant) 1 ── 0..1 b2b_product_configs
                                   ├─ unit
                                   ├─ moq
                                   ├─ quantity_step
@@ -120,36 +133,36 @@ Next POST /api/contact ──webhook──> Google Sheets / "Yeu cau"
 Legacy, không mở rộng: b2b_briefs; b2b_catalog_audits
 ```
 
-`b2b_briefs` không phải hàng đợi V1; `/api/b2b/briefs` không dùng. `b2b_catalog_audits` là legacy, không biến thành full audit. Không tạo bảng quote, company, team, approval, request inbox hoặc audit mới.
+Migration hiện chỉ ép **tối đa một** `b2b_product_configs` cho mỗi `product_id`; nó không ép mọi variant phải có config, vì vậy quan hệ là `0..1`. `b2b_briefs` không phải hàng đợi V1; `/api/b2b/briefs` không dùng. `b2b_catalog_audits` là legacy, không biến thành full audit. Không tạo bảng quote, company, team, approval, request inbox hoặc audit mới.
 
 ## 8. API và trạng thái chuyển tiếp
 
-Ký hiệu trạng thái: **hiện có** = route đã audit trong Next hoặc Bagisto; **chuyển tiếp** = chỉ giữ tương thích/bảo mật khi chuyển sang Bagisto admin; **cần làm** = cần triển khai sau khi câu hỏi liên quan được chốt; **đóng băng** = không mở rộng trong Lean V1. Bagisto admin API bên dưới được audit từ checkout Bagisto hiện có; checkout đó đang dirty và không bị sửa trong task này.
+Trạng thái chính chỉ có một giá trị mỗi route: **hiện có**, **chuyển tiếp**, **cần làm** hoặc **đóng băng**. Các lỗi dưới đây là nhóm lỗi chính đã đối chiếu code, **không phải danh sách exhaustive**. Với BFF Next, `502/504` là lỗi upstream không sẵn sàng/quá thời gian; các status còn lại được ghi khi route có đường trả về đó. Bagisto admin API bên dưới được audit từ checkout Bagisto hiện có; checkout đó đang dirty và không bị sửa trong task này.
 
-| Method | Path | Người dùng | Input → output | Quyền | Lỗi chính | Hiện có | Chuyển tiếp | Cần làm | Đóng băng |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| POST | `/api/contact` | Khách | Form `name, phone, email, message, source` → `202 {ok, reference}` | Public | 400 dữ liệu; 502/503/504 webhook | Có, Next → Apps Script/Sheet | Giữ contract trình duyệt | Bổ sung ngữ cảnh sản phẩm/dịch vụ theo flow | Không fallback Bagisto |
-| GET | `/api/catalog/products/[slug]` | Khách | `slug` → `{product}` | Public | 422/404/502/504 | Có, BFF catalog | Giữ cho storefront | Xác nhận family đại diện | Không thành admin API |
-| GET | `/api/quan-tri/dashboard` | Nội bộ | — → số liệu catalog hiện tại | Phiên/permission cũ | 401/403/502/504 | Có | Đưa quản trị về Bagisto admin | Dashboard chỉ yêu cầu mới + đơn mới | Có |
-| GET | `/api/quan-tri/me` | Nội bộ | — → danh tính/permission cũ | Phiên cũ | 401/403/502 | Có | Chỉ tương thích | Không thêm role | Có |
-| POST, DELETE | `/api/quan-tri/session` | Nội bộ | đăng nhập/đăng xuất → session | Phiên cũ | 403/419/422/502 | Có | Chỉ tương thích | Không thêm luồng | Có |
-| POST | `/api/quan-tri/two-factor` | Nội bộ | mã 6 số → xác thực | Phiên cũ | 403/419/422/502 | Có | Chỉ tương thích | Không mở rộng | Có |
-| GET | `/api/quan-tri/san-pham` | Nội bộ | lọc trang → danh sách aggregate | `b2b.catalog.read` cũ | 401/403/422/502 | Có | Chuyển sang Bagisto admin | Không thêm bộ lọc/tính năng | Có |
-| GET | `/api/quan-tri/san-pham/[slug]` | Nội bộ | `slug` → chi tiết aggregate | `b2b.catalog.read` cũ | 401/403/404/502 | Có | Chuyển sang Bagisto admin | Không mở rộng | Có |
-| PUT | `/api/quan-tri/san-pham/[slug]` | Nội bộ | commercial rules + version → product | `b2b.catalog.write` cũ | 401/403/409/422/502 | Có | Chuyển sang Bagisto admin | Quyền employee **Chờ xác nhận** | Có |
-| POST, DELETE | `/api/b2b/admin/v1/session` | Nội bộ | credentials/session → session | Admin API | 401/419/422 | Có, Bagisto | Bagisto admin dài hạn | Chuẩn hóa chỉ admin/employee | Không thêm role |
-| POST | `/api/b2b/admin/v1/two-factor` | Nội bộ | mã → đã xác thực | Phiên admin | 401/419/422 | Có, Bagisto | Bagisto admin dài hạn | Chỉ duy trì nếu cần | Không thêm flow |
-| GET | `/api/b2b/admin/v1/me` | Nội bộ | — → danh tính | Phiên admin | 401/403 | Có, Bagisto | Bagisto admin dài hạn | Map hai loại tài khoản | Không granular RBAC |
-| GET | `/api/b2b/admin/v1/dashboard` | Nội bộ | — → dashboard catalog hiện tại | `b2b.dashboard` | 401/403 | Có, Bagisto | Mục tiêu chỉ hai số V1 | Nguồn Sheet **Chờ xác nhận** | Không dashboard phân tích |
-| GET | `/api/b2b/admin/v1/product-aggregates` | Nội bộ | lọc → danh sách sản phẩm | `b2b.catalog.read` | 401/403/422 | Có, Bagisto | Dùng/tiến về Bagisto admin | Family đại diện | Không API quản trị Next mới |
-| GET | `/api/b2b/admin/v1/product-aggregates/{slug}` | Nội bộ | `slug` → chi tiết | `b2b.catalog.read` | 401/403/404 | Có, Bagisto | Dùng/tiến về Bagisto admin | — | Không mở rộng contract V1 |
-| PUT | `/api/b2b/admin/v1/product-aggregates/{slug}/commercial-rules` | Nội bộ | version, published, variants → product | `b2b.catalog.write` | 401/403/409/422 | Có, Bagisto | Dùng/tiến về Bagisto admin | Employee sửa giá **Chờ xác nhận** | Không viết thẳng core tables |
-| GET | `/api/b2b/catalog/categories` | Storefront | — → categories | Public, throttled | 429/5xx | Có, Bagisto | Nguồn catalog | Chỉ dùng khi sitemap cần | Không thành CMS service |
-| GET | `/api/b2b/catalog/products` | Storefront | lọc → products | Public, throttled | 429/5xx | Có, Bagisto | Nguồn catalog | Family đại diện | Không quote data |
-| GET | `/api/b2b/catalog/products/{slug}` | Storefront | `slug` → product/variant/rules | Public, throttled | 404/429/5xx | Có, Bagisto | Nguồn product flow | Enforce ngưỡng server | Không bypass Bagisto |
-| POST | `/api/b2b/briefs` | Không dùng | brief → legacy record | Public, throttled | 4xx/429/5xx | Có, Bagisto | Không chuyển tiếp | Không làm | Có; không dùng |
-| GET, POST, PUT | `/api/operations/v1/products...` | Không dùng V1 | product snapshot/create/variant/policy | Phiên + `b2b.catalog.*` | 401/403/405/409/422 | Chỉ ở nhánh sạch `codex/slice1-product-application-contract`, chưa merge | Không chuyển tiếp vào V1 | Không làm/không merge | Có |
-| — | Luồng checkout/direct order | Khách | giỏ/checkout → đơn Bagisto | **Chờ xác nhận** | **Chờ xác nhận** | Chưa audit được route V1 trong Next | Phải qua Bagisto, không ghi core trực tiếp | Chốt tài khoản, thanh toán/giao hàng, trạng thái hoàn tất | Không tự dựng endpoint ghi DB |
+| Method | Path | Người dùng | Input → output | Quyền | Lỗi chính | Trạng thái chính | Hành động V1 |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| POST | `/api/contact` | Khách | Form `name, phone, email, message, source` → `202 {ok, reference}` | Public | 400; 502/503/504 webhook | Hiện có | Giữ contract; bổ sung ngữ cảnh product/service theo flow; không fallback Bagisto. |
+| GET | `/api/catalog/products/[slug]` | Khách | `slug` → `{product}` | Public | 422/404/502/504 | Hiện có | Giữ BFF catalog cho storefront; xác nhận family đại diện. |
+| GET | `/api/quan-tri/dashboard` | Nội bộ cũ | — → số liệu catalog hiện tại | Phiên/permission cũ | 401/403/404/419/422/429/502/504 | Đóng băng | Chỉ security/compat; không làm dashboard hai số ở đây. |
+| GET | `/api/quan-tri/me` | Nội bộ cũ | — → danh tính/permission cũ | Phiên cũ | 401/403/404/419/422/429/502/504 | Đóng băng | Chỉ security/compat; không thêm role. |
+| POST, DELETE | `/api/quan-tri/session` | Nội bộ cũ | đăng nhập/đăng xuất → session | Phiên cũ | 401/403/419/422/429/502/504 | Đóng băng | Chỉ security/compat; không thêm luồng. |
+| POST | `/api/quan-tri/two-factor` | Nội bộ cũ | mã 6 số → xác thực | Phiên cũ | 401/403/419/422/429/502/504 | Đóng băng | Chỉ security/compat; không mở rộng. |
+| GET | `/api/quan-tri/san-pham` | Nội bộ cũ | lọc trang → danh sách aggregate | Permission cũ | 401/403/404/419/422/429/502/504 | Đóng băng | Chỉ security/compat; không thêm bộ lọc/tính năng. |
+| GET | `/api/quan-tri/san-pham/[slug]` | Nội bộ cũ | `slug` → chi tiết aggregate | Permission cũ | 401/403/404/419/422/429/502/504 | Đóng băng | Chỉ security/compat; không mở rộng. |
+| PUT | `/api/quan-tri/san-pham/[slug]` | Nội bộ cũ | commercial rules + version → product | Permission cũ | 401/403/404/412/419/422/428/429/502/504 | Đóng băng | Chỉ security/compat; không dùng cho quyền employee hay tính năng mới. |
+| POST, DELETE | `/api/b2b/admin/v1/session` | Nội bộ | credentials/session → session | Admin API | 401/419/422/429 | Chuyển tiếp | Chỉ phục vụ bề mặt Next cũ trong khi chuyển sang Bagisto admin; chuẩn hóa đúng hai loại tài khoản. |
+| POST | `/api/b2b/admin/v1/two-factor` | Nội bộ | mã → đã xác thực | Phiên admin | 401/419/422/429 | Chuyển tiếp | Chỉ duy trì tương thích cho bề mặt cũ; không thêm flow. |
+| GET | `/api/b2b/admin/v1/me` | Nội bộ | — → danh tính | Phiên admin | 401/403/419/429 | Chuyển tiếp | Chỉ duy trì tương thích; không granular RBAC. |
+| GET | `/api/b2b/admin/v1/dashboard` | Nội bộ | — → dashboard catalog hiện tại | `b2b.dashboard` | 401/403/419/429 | Chuyển tiếp | Không phải dashboard V1 đích và không mở rộng. Dashboard Bagisto native hai số là task cần làm sau khi chốt nguồn/định nghĩa số, không giả định route ngoài. |
+| GET | `/api/b2b/admin/v1/product-aggregates` | Nội bộ | lọc → danh sách sản phẩm | `b2b.catalog.read` | 401/403/419/422/429 | Chuyển tiếp | Chỉ duy trì bề mặt cũ trong khi vận hành sản phẩm chuyển về Bagisto admin. |
+| GET | `/api/b2b/admin/v1/product-aggregates/{slug}` | Nội bộ | `slug` → chi tiết | `b2b.catalog.read` | 401/403/404/419/429 | Chuyển tiếp | Chỉ duy trì tương thích; không mở rộng contract. |
+| PUT | `/api/b2b/admin/v1/product-aggregates/{slug}/commercial-rules` | Nội bộ | version, published, variants → product | `b2b.catalog.write` | 401/403/404/412/419/422/428/429 | Chuyển tiếp | Chỉ administrator sửa product/price; thiếu `If-Match` là 428, version cũ là 412; không ghi core tables trực tiếp. |
+| GET | `/api/b2b/catalog/categories` | Storefront | — → categories | Public, throttled | 429/5xx | Hiện có | Là nguồn catalog khi sitemap cần; không thành CMS service. |
+| GET | `/api/b2b/catalog/products` | Storefront | lọc → products | Public, throttled | 429/5xx | Hiện có | Là nguồn catalog cho family đại diện; không có quote data. |
+| GET | `/api/b2b/catalog/products/{slug}` | Storefront | `slug` → product/variant/rules | Public, throttled | 404/429/5xx | Hiện có | Dùng cho product flow; enforce ngưỡng ở server. |
+| POST | `/api/b2b/briefs` | Không dùng V1 | brief → legacy record | Public, throttled | 4xx/429/5xx | Đóng băng | Không gọi, không mở rộng `b2b_briefs`. |
+| GET, POST, PUT | `/api/operations/v1/products...` | Không dùng V1 | product snapshot/create/variant/policy | Phiên + `b2b.catalog.*` | 401/403/404/405/409/422 | Đóng băng | Chỉ ở nhánh sạch `codex/slice1-product-application-contract`, chưa merge; không làm/không merge. |
+| — | Luồng checkout/direct order | Khách | giỏ/checkout → đơn Bagisto | **Chờ xác nhận** | **Chờ xác nhận** | Cần làm | Chốt tài khoản, payment/shipping, trạng thái hoàn tất và định nghĩa đơn mới; đi qua Bagisto, không tự dựng endpoint ghi DB. |
 
 ## 9. Công việc, vai trò và phụ thuộc
 
@@ -158,8 +171,8 @@ Ký hiệu trạng thái: **hiện có** = route đã audit trong Next hoặc Ba
 | Chốt product family và service family đại diện | Người quyết định sản phẩm **Chờ xác nhận** | Luna review phạm vi | Chờ xác nhận | Danh mục/nội dung thật | Hai family được ghi rõ, không thêm family khác |
 | Chuẩn hóa luồng catalog, ngưỡng và direct order | Terra implement | Luna independent review; Gemini/agy simplicity/router | Chưa bắt đầu | Family, tài khoản khách, payment/shipping/order completion | Luồng đại diện + test |
 | Hoàn chỉnh trang dịch vụ và contact → Sheet | Terra implement | Luna independent review; Gemini/agy simplicity/router | Chưa bắt đầu | Service family, nguồn/ trạng thái Sheet | Trang + webhook vận hành |
-| Thiết lập vận hành Sheet và dashboard hai số | Terra implement | Luna independent review; Gemini/agy simplicity/router | Chưa bắt đầu | Cách đếm Sheet, trạng thái xử lý | Quy trình nhân viên + dashboard tối giản |
-| Chuyển quản trị về Bagisto admin; giữ `/quan-tri` frozen | Terra implement | Luna independent review; Gemini/agy simplicity/router | Chưa bắt đầu | Quyền employee sửa sản phẩm/giá | Đường vận hành Bagisto admin |
+| Thiết lập vận hành Sheet và dashboard Bagisto native hai số | Terra implement | Luna independent review; Gemini/agy simplicity/router | Chưa bắt đầu | Cách đếm Sheet, trạng thái xử lý, định nghĩa đơn mới | Quy trình nhân viên + dashboard tối giản; không mở rộng dashboard Next/B2B cũ |
+| Chuyển quản trị về Bagisto admin; giữ `/quan-tri` frozen | Terra implement | Luna independent review; Gemini/agy simplicity/router | Chưa bắt đầu | Luồng Bagisto admin và quyền destructive **Chờ xác nhận** | Đường vận hành Bagisto admin |
 | Kiểm thử và bàn giao | Terra implement | Luna independent review; Gemini/agy simplicity/router | Chưa bắt đầu | Các mục trên | Bằng chứng theo phần 10 |
 
 Terra là vai trò triển khai; Luna thực hiện review độc lập; Gemini/agy giữ vai trò kiểm tra độ đơn giản và routing. Không giả tên khách, nhân viên hay quản trị viên. Mọi thay đổi đáng kể đi theo router Terra → Luna → Gemini/agy; thay đổi hành vi bắt đầu bằng test RED, rồi code GREEN tối thiểu, sau đó lint, typecheck, build và review phù hợp.
@@ -172,9 +185,9 @@ Terra là vai trò triển khai; Luna thực hiện review độc lập; Gemini/
 | Quy tắc số lượng | Chọn số lượng dưới MOQ hoặc sai bước bị chặn; số lượng dưới `contact_from_quantity` chỉ hiện/mở luồng mua; số lượng bằng hoặc trên ngưỡng chỉ hiện/mở luồng liên hệ có product, variant, quantity. Kiểm tra cả phía server. |
 | Mua trực tiếp | Khách hoàn tất direct order qua Bagisto mà không có ghi trực tiếp core tables từ Next. Cách xác thực khách, payment/shipping và trạng thái hoàn tất phải được chốt trước test nghiệm thu; nếu còn **Chờ xác nhận**, hạng mục chưa đạt. |
 | Service family đại diện | Có đúng một family được chốt, CTA đi tới liên hệ và ngữ cảnh nguồn là service family đó. Cách thêm service bằng CMS/developer phải được chốt trước khi mở rộng. |
-| Contact → Sheet | Gửi `name`, `phone`, `email` tùy chọn, `message`, `source` hợp lệ nhận `202`, mã tham chiếu và đúng một dòng Sheet; dữ liệu không hợp lệ nhận `400`; URL/secret chỉ ở server; không có fallback Bagisto. |
-| Nhân viên xử lý | Employee nhìn thấy hai số yêu cầu mới/đơn mới và mở được Sheet để xử lý. Cách đếm, link/API và trạng thái Sheet phải được chốt và có một kịch bản kiểm tra trạng thái mới → đã xử lý. |
-| Quản trị sản phẩm/giá | Administrator sửa được dữ liệu đã cho phép trong Bagisto admin và storefront phản ánh dữ liệu đó. Employee không sửa được cho đến khi có quyết định khác; nếu được phép thì test đúng giới hạn đã chốt. |
+| Contact → Sheet | Một lần gửi thành công `name`, `phone`, `email` tùy chọn, `message`, `source` nhận `202`, mã tham chiếu và tạo một dòng Sheet; dữ liệu không hợp lệ nhận `400`; URL/secret chỉ ở server; không có fallback Bagisto. Retry/dedup là **Chờ xác nhận**; không thiết kế queue hay bảng mới cho việc này trong V1. |
+| Nhân viên xử lý | Employee nhìn thấy hai số yêu cầu mới/đơn mới trên dashboard Bagisto native và mở được Sheet để xử lý. Link Sheet đơn thuần không đạt tiêu chí số đếm. Cách đếm, trạng thái Sheet, và định nghĩa đơn mới (trạng thái nguồn, mốc thời gian, đã xem, thời điểm giảm đếm) phải được chốt; sau đó có kịch bản kiểm tra trạng thái mới → đã xử lý và bộ đếm giảm đúng quy tắc. |
+| Quản trị sản phẩm/giá | Administrator sửa được dữ liệu đã cho phép trong Bagisto admin và storefront phản ánh dữ liệu đó. Employee không sửa product/price trong V1; kiểm tra bị từ chối. |
 | Ranh giới quản trị | Không có tính năng mới trên `/quan-tri` hoặc BFF Next; Bagisto admin là đường quản trị được hướng dẫn. Chỉ tồn tại admin/employee, không có granular RBAC/company/team/approval. |
 | Phạm vi hoãn | Không có route, bảng hay luồng V1 mới cho quote engine, `b2b_briefs`, full audit, `operations/v1`, company/team/approval. Không có direct core table write. |
 | Chất lượng bàn giao | Focused tests, lint, typecheck, build và independent review chạy theo thay đổi thực tế; kiểm tra `git diff --check` không lỗi; không push. |
@@ -193,7 +206,8 @@ Terra là vai trò triển khai; Luna thực hiện review độc lập; Gemini/
 5. Khách tự thêm service bằng Bagisto CMS hay cần developer?
 6. Dashboard lấy số yêu cầu mới từ Sheet bằng link hay API đếm?
 7. Các trạng thái xử lý trong Sheet là gì?
+8. "Đơn mới" được định nghĩa bằng trạng thái nguồn và mốc thời gian nào; có đánh dấu đã xem không; bộ đếm giảm khi nào?
 
 **Ưu tiên 3 — chặn quyền sửa dữ liệu:**
 
-8. Employee có được sửa product/price không? Đề xuất mặc định: chỉ administrator được sửa.
+9. Employee/administrator được sửa, hủy hay xóa đơn; xóa catalog, Sheet và tài khoản theo cách nào? Đề xuất an toàn: không hard-delete trong V1, ưu tiên vô hiệu hóa khi cần.
