@@ -1,5 +1,5 @@
 import { GiacongInteractions } from "@/components/GiacongInteractions";
-import { normalizeCapturedMarkup } from "@/lib/captured-markup";
+import { layerCapturedStyles, normalizeCapturedMarkup } from "@/lib/captured-markup";
 import type { CapturedPageData } from "@/types/captured-page";
 
 type CapturedPageProps = Pick<
@@ -17,7 +17,7 @@ export function CapturedPage({
 
   return (
     <>
-      <style dangerouslySetInnerHTML={{ __html: pageStyles }} />
+      <style dangerouslySetInnerHTML={{ __html: layerCapturedStyles(pageStyles) }} />
       <div
         className={bodyClasses}
         suppressHydrationWarning

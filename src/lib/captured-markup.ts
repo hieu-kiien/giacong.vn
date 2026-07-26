@@ -12,6 +12,25 @@ function readLinkLabel(content: string) {
     .trim();
 }
 
+/**
+ * Wraps a captured page's inline stylesheet in the `captured` cascade layer.
+ *
+ * This is the third route captured CSS takes into the document, alongside the
+ * `public/styles/` sheets imported by `(storefront)/captured-layers.css` and this
+ * project's own overrides in `globals.css`. All three have to sit in the same
+ * layer: an unlayered sheet beats every layered one regardless of specificity, so
+ * leaving this one out silently overrides both the other two — the captured
+ * mobile-menu link colour comes from here, and `globals.css` is what makes it
+ * white.
+ *
+ * Safe to wrap unconditionally: `@layer` may contain `@font-face`, `@media` and
+ * `@keyframes`, which is everything the captured sheets use, and none of them
+ * contain `@import` or `@charset` (which would have to stay at the top level).
+ */
+export function layerCapturedStyles(pageStyles: string): string {
+  return `@layer captured {\n${pageStyles}\n}`;
+}
+
 export function normalizeCapturedMarkup(markup: string) {
   const normalized = markup
     .replace(/Sản Phẩm(?=<i class="icon-angle-down"><\/i>)/g, "Mua hàng")

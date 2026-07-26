@@ -1,0 +1,37 @@
+/*
+ * Layer order, restated here because it has to hold in *this* stylesheet too:
+ * cascade layer order is per-document and fixed by first appearance, and the
+ * bundler emits this file separately from `globals.css`.
+ */
+@layer theme, base, captured, components, utilities;
+
+/*
+ * The captured Flatsome stylesheets, placed in the `captured` cascade layer.
+ *
+ * They used to ship as plain `<link>` tags, which made them *unlayered*: every
+ * rule in them — including bare element selectors like `button{background-color}`
+ * — outranked every Tailwind utility, because unlayered styles beat layered ones
+ * regardless of specificity or source order. No amount of renaming avoids an
+ * element selector, so new Tailwind UI on storefront routes could not be styled
+ * reliably at all.
+ *
+ * `globals.css` declares the order `theme, base, captured, components,
+ * utilities`, so captured CSS still overrides Tailwind's preflight (keeping the
+ * captured footer and the 237 captured routes looking the same) while losing to
+ * Tailwind utilities and components.
+ *
+ * The paths are relative so the bundler inlines them into the route stylesheet.
+ * An absolute-URL `@import` also works in production, but dev keeps it as a
+ * second round trip: the captured CSS then lands after first paint and the page
+ * reflows. Inlining keeps one render-blocking stylesheet, as before, and the same
+ * bytes — they are simply no longer requested from `public/`.
+ */
+@import "../../../public/styles/menu-icons.css" layer(captured);
+@import "../../../public/styles/woocommerce-blocks.css" layer(captured);
+@import "../../../public/styles/star-ratings.css" layer(captured);
+@import "../../../public/styles/quick-buy.css" layer(captured);
+@import "../../../public/styles/flatsome.css" layer(captured);
+@import "../../../public/styles/flatsome-shop.css" layer(captured);
+@import "../../../public/styles/giacong.css" layer(captured);
+@import "../../../public/styles/fixed-toc.css" layer(captured);
+@import "../../../public/styles/contact-form.css" layer(captured);

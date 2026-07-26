@@ -1,3 +1,24 @@
+/*
+ * Cascade layer order for the whole app. This declaration must come first — layer
+ * order is fixed by first appearance, and `@import "tailwindcss"` declares its
+ * own layers.
+ *
+ * `captured` holds the Flatsome stylesheets imported by
+ * `(storefront)/captured-layers.css`. It sits above Tailwind's `base` so captured
+ * CSS still wins over preflight (the captured footer and the 237 captured routes
+ * are unchanged), and below `components`/`utilities` so new Tailwind UI can
+ * override it.
+ *
+ * This file's own captured overrides (the mobile-menu rules at the bottom) join
+ * that same `captured` layer rather than getting one of their own. Inside a
+ * single layer normal specificity applies, which is exactly the relationship they
+ * had when both were unlayered — `#main-menu.clone-menu-open` still beats
+ * `.mfp-hide`, and `.clone-menu-close` still beats flatsome's bare `button`
+ * selector. Giving them a separate layer breaks one side or the other: a later
+ * layer loses `!important` contests, an earlier one loses normal ones.
+ */
+@layer theme, base, captured, components, utilities;
+
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
@@ -151,18 +172,19 @@
 /*
  * Captured-CSS collision hazard for new Tailwind UI.
  *
- * `src/app/(storefront)/layout.tsx` injects nine captured stylesheets as plain
- * `<link>` tags. Those are *unlayered*, so every rule in them outranks Tailwind
- * utilities, which live in `@layer utilities` — specificity and source order are
- * irrelevant. 33 bare class names overlap; most set the identical value and are
- * harmless. These four are not, and must not be used as bare utilities here:
+ * The `captured` layer now ranks below `utilities`, so normal Tailwind utilities
+ * win. What layering cannot fix is `!important` in the captured sheets: for
+ * important declarations the layer order is *reversed*, so an important captured
+ * rule still beats a normal utility. 33 bare class names overlap; the ones that
+ * declare `!important` and a value Tailwind does not set are the hazard:
  *
- *   .hidden      → adds `visibility:hidden!important`, so no responsive utility
- *                  can reveal the element. Use `max-md:hidden` / `sr-only`, or
- *                  the `hidden` *attribute*, which resolves through preflight.
- *   .flex-col    → adds `max-height:100%`
- *   .text-center → adds `padding-left/right:10px`
- *   .uppercase   → adds `line-height:1.2`
+ *   .hidden   → also `visibility:hidden!important`, which no responsive utility
+ *               can undo. Use `max-md:hidden` / `sr-only`, or the `hidden`
+ *               *attribute*, which resolves through preflight.
+ *   .relative
+ *   .absolute
+ *   .fixed    → `position` is important, so a responsive position change needs
+ *               the `!` modifier (`md:relative!`).
  *
  * Variant-prefixed forms (`max-md:hidden`, `md:hidden`) emit distinct class
  * tokens the captured rules cannot match, so they behave normally.
@@ -181,6 +203,12 @@
   }
   body { overflow-x: hidden; }
 }
+
+/*
+ * Everything below overrides captured CSS, so it joins the `captured` layer and
+ * competes with it on specificity alone. See the layer-order comment at the top.
+ */
+@layer captured {
 
 #main-menu.clone-menu-open {
   background: #5aa400;
@@ -371,4 +399,6 @@ body.clone-menu-active {
 
 #main-menu li.clone-submenu-open > .clone-toggle i {
   transform: rotate(-180deg);
+}
+
 }

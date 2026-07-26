@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { CapturedFloatingContact } from "@/components/CapturedPage";
 import { GiacongInteractions } from "@/components/GiacongInteractions";
 import { StorefrontHeader } from "@/components/storefront/StorefrontHeader";
+import { layerCapturedStyles } from "@/lib/captured-markup";
 import { getCatalogChrome, getStorefrontNavCategories } from "@/lib/catalog-chrome";
 
 interface CatalogChromeProps {
@@ -15,7 +16,7 @@ export async function CatalogChrome({ children, floatingContact = true }: Catalo
 
   return (
     <>
-      <style dangerouslySetInnerHTML={{ __html: chrome.pageStyles }} />
+      <style dangerouslySetInnerHTML={{ __html: layerCapturedStyles(chrome.pageStyles) }} />
       <div className={chrome.bodyClasses} suppressHydrationWarning>
         <a className="skip-link screen-reader-text" href="#catalog-main">Bỏ qua nội dung</a>
         <StorefrontHeader categories={categories} />

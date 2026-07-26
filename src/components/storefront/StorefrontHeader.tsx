@@ -32,7 +32,7 @@ export function StorefrontHeader({ categories }: StorefrontHeaderProps) {
         </Link>
         <nav aria-label="Điều hướng chính" className="max-md:hidden">
           <ul className="flex items-center">
-            {STOREFRONT_NAV_ITEMS.filter((item) => item.href !== "/").map((item) => (
+            {STOREFRONT_NAV_ITEMS.map((item) => (
               <li key={item.href}>
                 <Link
                   className="flex min-h-11 items-center px-3 text-sm font-bold tracking-wide text-white hover:text-brand-100 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-white"

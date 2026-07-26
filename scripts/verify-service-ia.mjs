@@ -78,12 +78,23 @@ function observeRuntime(page, label, issues) {
   });
 }
 
+// The React storefront header replaced the captured Flatsome one, so these scope
+// to it instead of `#header .header-nav-main` / `#main-menu`. The contract itself
+// is unchanged: the same five direct text links, no service mega-menu.
 async function assertDirectHeaderLinks(page, mobile = false) {
-  const scope = mobile ? page.locator("#main-menu") : page.locator("#header .header-nav-main");
+  const scope = mobile
+    ? page.getByRole("dialog", { name: "Điều hướng" })
+    : page.locator("header[data-storefront-header] nav[aria-label='Điều hướng chính']");
   for (const [name, href] of expectedHeaderLinks) {
     const link = scope.getByRole("link", { name, exact: true });
     assert.equal(await link.count(), 1, `${mobile ? "Mobile" : "Desktop"} header must expose one direct ${name} link`);
-    assert.equal(await link.getAttribute("href"), href, `${name} must link directly to ${href}`);
+    // `next/link` normalises the authored trailing slash away (`trailingSlash`
+    // is false), so compare against the canonical form of the same target.
+    assert.equal(
+      await link.getAttribute("href"),
+      href === "/" ? "/" : href.replace(/\/$/, ""),
+      `${name} must link directly to ${href}`,
+    );
   }
   assert.equal(await scope.getByRole("link", { name: "Về Giacong.vn", exact: true }).count(), 0, "Header must contain exactly the requested five text links");
 }
@@ -129,9 +140,21 @@ try {
   const landingDomNodes = await desktop.locator("*").count();
   await assertDirectHeaderLinks(desktop);
 
-  const desktopServiceLink = desktop.locator("#header .header-nav-main").getByRole("link", { name: "Thuê gia công", exact: true });
+  const desktopServiceLink = desktop
+    .locator("header[data-storefront-header] nav[aria-label='Điều hướng chính']")
+    .getByRole("link", { name: "Thuê gia công", exact: true });
   assert.equal(await desktopServiceLink.getAttribute("aria-expanded"), null, "Desktop service navigation must be a plain link");
   assert.equal(await desktop.locator("#header .clone-desktop-service-toggle, #clone-service-menu-desktop, #header .clone-service-mega-grid").count(), 0, "Desktop service mega-menu must be removed");
+  // The only header disclosure is the product category menu; services stay a
+  // direct link, and no service group may appear inside that menu.
+  const categoryTrigger = desktop.getByRole("button", { name: "Danh mục sản phẩm" });
+  await categoryTrigger.click();
+  assert.doesNotMatch(
+    await desktop.locator(`#${await categoryTrigger.getAttribute("aria-controls")}`).innerText(),
+    /gia công/i,
+    "The product category menu must not list gia công services",
+  );
+  await desktop.keyboard.press("Escape");
   await desktopServiceLink.focus();
   assert.equal(await desktopServiceLink.evaluate((link) => document.activeElement === link), true, "Desktop direct service link must accept keyboard focus");
 
@@ -194,11 +217,12 @@ try {
   const mobile = await browser.newPage({ viewport: { width: 390, height: 844 } });
   observeRuntime(mobile, "mobile", runtimeIssues);
   await mobile.goto(`${origin}/thue-gia-cong/do-uong-sua/`, { waitUntil: "networkidle" });
-  await mobile.locator("[data-open='#main-menu']").click();
+  await mobile.getByRole("button", { name: "Mở menu" }).click();
   await assertDirectHeaderLinks(mobile, true);
-  const mobileServiceItem = mobile.locator("#main-menu #menu-item-5466");
+  const mobileDrawer = mobile.getByRole("dialog", { name: "Điều hướng" });
+  const mobileServiceItem = mobileDrawer.getByRole("listitem").filter({ hasText: "Thuê gia công" });
   const mobileServiceLink = mobileServiceItem.getByRole("link", { name: "Thuê gia công", exact: true });
-  assert.equal(await mobileServiceItem.locator(":scope > button, :scope > .sub-menu").count(), 0, "Mobile service entry must not contain a nested accordion");
+  assert.equal(await mobileServiceItem.locator(":scope > button, :scope > ul").count(), 0, "Mobile service entry must not contain a nested accordion");
   await mobileServiceLink.focus();
   assert.equal(await mobileServiceLink.evaluate((link) => document.activeElement === link), true, "Mobile service link must accept keyboard focus");
   await Promise.all([

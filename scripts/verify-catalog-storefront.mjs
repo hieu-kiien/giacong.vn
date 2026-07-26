@@ -33,6 +33,14 @@ function logsText(logs) {
   return logs.join("").slice(-8_000);
 }
 
+/** Upstream product-list requests recorded after `start`, filtered by query. */
+function listRequestsSince(start, predicate) {
+  return seenCatalogRequests
+    .slice(start)
+    .filter((item) => item.pathname === "/api/b2b/catalog/products")
+    .filter((item) => predicate(new URLSearchParams(item.query)));
+}
+
 function median(values) {
   const sorted = [...values].sort((left, right) => left - right);
   return sorted[Math.floor(sorted.length / 2)];
@@ -485,11 +493,6 @@ try {
     cachedListRequests.filter((item) => item.pathname === "/api/b2b/catalog/categories").length <= 1,
     "Repeat category requests must reuse the Next data cache",
   );
-  const listRequestsSince = (start, predicate) => seenCatalogRequests
-    .slice(start)
-    .filter((item) => item.pathname === "/api/b2b/catalog/products")
-    .filter((item) => predicate(new URLSearchParams(item.query)));
-
   const sortStart = seenCatalogRequests.length;
   assert.equal(
     (await fetchWithTimeout(`${origin}/san-pham/?sort=starting_price&direction=desc`, {}, "sorted catalog")).status,
@@ -630,7 +633,8 @@ try {
     );
   }
   // `trailingSlash` is false, so Next normalises the authored `/san-pham/` href.
-  assert.equal(await header.getByRole("link", { name: "Sản phẩm", exact: true }).getAttribute("href"), "/san-pham", "Header must route product navigation to the catalog");
+  // The label is "Mua hàng" — the five header labels are locked by qa:services.
+  assert.equal(await header.getByRole("link", { name: "Mua hàng", exact: true }).getAttribute("href"), "/san-pham", "Header must route product navigation to the catalog");
 
   const megaTrigger = page.getByRole("button", { name: "Danh mục sản phẩm" });
   assert.equal(await megaTrigger.getAttribute("aria-expanded"), "false", "The category mega menu must start collapsed");
@@ -680,6 +684,90 @@ try {
   await page.evaluate(() => localStorage.removeItem("giacong.request-cart.v1"));
   await page.reload();
   await page.getByText("3 dòng sản phẩm", { exact: true }).waitFor();
+
+  // Catalog list hierarchy. Breadcrumb → H1 → count → search → filters → grid,
+  // with sort and page size in the URL so a filtered list is shareable.
+  assert.equal(await page.locator("h1").innerText(), "Danh sách sản phẩm", "The catalog needs the list heading from the approved reference");
+  const sidebar = page.getByRole("complementary", { name: "Bộ lọc sản phẩm" });
+  assert.equal(await sidebar.count(), 1, "1440px must render the filter sidebar");
+  assert.equal(
+    await page.getByRole("button", { name: "Tất cả" }).evaluate((element) => getComputedStyle(element).backgroundColor),
+    "rgb(50, 118, 0)",
+    "The active category chip must use the brand green, not a generic grayscale fill",
+  );
+
+  // `getByLabel` does not filter hidden elements the way `getByRole` does, so
+  // these are scoped to the sidebar — the closed filter drawer holds a second
+  // copy of the same panel.
+  const sortStart2 = seenCatalogRequests.length;
+  // `variant_count` and `per_page=48` are values no earlier assertion fetches, so
+  // these must miss the validated cache and prove the control reaches upstream.
+  await sidebar.getByLabel("Sắp xếp").selectOption("variant_count:desc");
+  await page.waitForURL((url) => url.searchParams.get("sort") === "variant_count" && url.searchParams.get("direction") === "desc");
+  assert.ok(
+    listRequestsSince(sortStart2, (parameters) => (
+      parameters.get("sort") === "variant_count" && parameters.get("direction") === "desc"
+    )).length >= 1,
+    "The sort control must reach the upstream catalog API",
+  );
+  const ascendingSortStart = seenCatalogRequests.length;
+  await sidebar.getByLabel("Sắp xếp").selectOption("name:asc");
+  // `catalogHref` omits the default sort and direction to keep one canonical URL
+  // per result set; the upstream request still carries both explicitly.
+  await page.waitForURL((url) => !url.searchParams.has("sort") && !url.searchParams.has("direction"));
+  assert.ok(
+    listRequestsSince(ascendingSortStart, (parameters) => (
+      parameters.get("sort") === "name" && parameters.get("direction") === "asc"
+    )).length <= 1,
+    "Returning to the default sort must reuse the canonical cache entry",
+  );
+  const pageSizeStart2 = seenCatalogRequests.length;
+  await sidebar.getByLabel("Số sản phẩm mỗi trang").selectOption("48");
+  await page.waitForURL((url) => url.searchParams.get("per_page") === "48");
+  assert.ok(
+    listRequestsSince(pageSizeStart2, (parameters) => parameters.get("per_page") === "48").length >= 1,
+    "The page-size control must reach the upstream catalog API",
+  );
+  await sidebar.getByRole("button", { name: "Xóa bộ lọc" }).click();
+  await page.waitForURL((url) => url.search === "");
+  assert.equal(new URL(page.url()).search, "", "Clearing filters must restore the canonical catalog URL");
+
+  // Responsive sweep on a throwaway page so the locked 1440px flow is untouched.
+  const responsive = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+  responsive.on("pageerror", (error) => browserIssues.push(error.message));
+  await responsive.goto(`${origin}/san-pham/`);
+  await responsive.getByText("3 dòng sản phẩm", { exact: true }).waitFor();
+  for (const [width, columns] of [[1440, 4], [1024, 3], [768, 2], [320, 1]]) {
+    await responsive.setViewportSize({ width, height: 900 });
+    assert.equal(
+      await responsive.locator("[data-catalog-grid]").evaluate((element) => getComputedStyle(element).gridTemplateColumns.split(" ").length),
+      columns,
+      `${width}px catalog must render ${columns} card column(s)`,
+    );
+    // `body { overflow-x: hidden }` masks document overflow, so measure children.
+    assert.deepEqual(
+      await responsive.locator("#catalog-main *").evaluateAll((elements) => elements
+        .filter((element) => element.scrollWidth > element.clientWidth + 1)
+        .map((element) => `${element.tagName.toLowerCase()}.${element.className}`.slice(0, 60))
+        .slice(0, 5)),
+      [],
+      `${width}px catalog must not overflow horizontally inside the page`,
+    );
+    if (width <= 768) {
+      assert.equal(await responsive.getByRole("complementary", { name: "Bộ lọc sản phẩm" }).count(), 0, `${width}px must move filters into the drawer`);
+    }
+  }
+  await responsive.setViewportSize({ width: 390, height: 844 });
+  const filterTrigger = responsive.getByRole("button", { name: "Bộ lọc" });
+  assert.equal(await filterTrigger.getAttribute("aria-expanded"), "false", "The mobile filter trigger must start collapsed");
+  await filterTrigger.click();
+  const filterDrawer = responsive.getByRole("dialog", { name: "Bộ lọc sản phẩm" });
+  await filterDrawer.getByRole("button", { name: "Dinh dưỡng" }).waitFor();
+  assert.equal(await filterDrawer.getByLabel("Sắp xếp").count(), 1, "The mobile filter drawer must expose sort");
+  await responsive.keyboard.press("Escape");
+  assert.equal(await filterDrawer.count(), 0, "Escape must close the mobile filter drawer");
+  assert.equal(await filterTrigger.evaluate((element) => element === document.activeElement), true, "Closing the filter drawer must restore trigger focus");
+  await responsive.close();
 
   assert.equal(await page.getByRole("button", { name: "Lọc sản phẩm" }).count(), 0, "Catalog filters must not require a separate submit action");
   const combinedFilterStart = seenCatalogRequests.length;
@@ -926,7 +1014,7 @@ try {
   assert.equal(await drawerTrigger.getAttribute("aria-expanded"), "false", "The mobile drawer trigger must start collapsed");
   await drawerTrigger.click();
   const drawer = mobile.getByRole("dialog", { name: "Điều hướng" });
-  await drawer.getByRole("link", { name: "Sản phẩm", exact: true }).waitFor();
+  await drawer.getByRole("link", { name: "Mua hàng", exact: true }).waitFor();
   assert.equal(await drawerTrigger.getAttribute("aria-expanded"), "true", "Opening the drawer must update the trigger state");
   assert.equal(await drawer.getByRole("link", { name: "Dinh dưỡng" }).count(), 1, "The mobile drawer must list real catalog categories");
   assert.equal(await drawer.locator("a[href='#'], a[href='']").count(), 0, "The mobile drawer must not ship dead links");
