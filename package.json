@@ -22,8 +22,9 @@
     "qa:services": "node scripts/verify-service-ia.mjs",
     "qa:admin": "node scripts/verify-admin.mjs && node scripts/verify-admin-bff.mjs && node scripts/verify-admin-mutation.mjs",
     "qa:cart": "node scripts/verify-request-cart.mjs",
-    "check": "npm run test:contact && npm run test:catalog && npm run test:commerce && npm run lint && npm run typecheck && npm run build",
-    "test:detail": "node --no-warnings --experimental-strip-types --test scripts/product-detail.test.mts"
+    "check": "npm run test:contact && npm run test:catalog && npm run test:commerce && npm run test:listing && npm run lint && npm run typecheck && npm run build",
+    "test:detail": "node --no-warnings --experimental-strip-types --test scripts/product-detail.test.mts",
+    "test:listing": "node --no-warnings --experimental-strip-types --test scripts/catalog-listing.test.mts"
   },
   "dependencies": {
     "@base-ui/react": "^1.3.0",

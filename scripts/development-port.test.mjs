@@ -21,7 +21,8 @@ test("runs focused contact and catalog tests before lint in the standard check c
   const packageJson = JSON.parse(await readFile(new URL("package.json", root), "utf8"));
   assert.equal(
     packageJson.scripts.check,
-    "npm run test:contact && npm run test:catalog && npm run test:commerce && npm run lint && npm run typecheck && npm run build",
+    "npm run test:contact && npm run test:catalog && npm run test:commerce && npm run test:listing"
+      + " && npm run lint && npm run typecheck && npm run build",
   );
 });
 

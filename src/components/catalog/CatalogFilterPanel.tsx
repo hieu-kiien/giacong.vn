@@ -9,6 +9,10 @@ import {
 import type { CatalogCategory, CatalogFilters, CatalogPageSize } from "@/types/catalog";
 
 interface CatalogFilterPanelProps {
+  /** Per-category product counts when the source publishes them; the sidebar in
+   * `SCR-02` shows a count beside each group. The Bagisto list contract has none,
+   * so the number is rendered only when it is real. */
+  categoryCounts?: Record<string, number>;
   categories: CatalogCategory[];
   filters: CatalogFilters;
   isPending: boolean;
@@ -29,11 +33,12 @@ const SORT_OPTIONS: readonly { label: string; value: string }[] = [
   { label: "Tên Z → A", value: "name:desc" },
   { label: "Giá từ thấp đến cao", value: "starting_price:asc" },
   { label: "Giá từ cao đến thấp", value: "starting_price:desc" },
-  { label: "Nhiều phiên bản nhất", value: "variant_count:desc" },
+  { label: "Nhiều quy cách nhất", value: "variant_count:desc" },
 ];
 
 export function CatalogFilterPanel({
   categories,
+  categoryCounts,
   filters,
   isPending,
   onClear,
@@ -46,32 +51,37 @@ export function CatalogFilterPanel({
     || filters.pageSize !== DEFAULT_CATALOG_PAGE_SIZE;
 
   return (
-    <div className="grid gap-6">
+    <div className="grid gap-5">
       <fieldset className="min-w-0 border-0 p-0">
-        <legend className="mb-3 text-sm font-bold text-brand-800">Danh mục</legend>
-        <div className="flex flex-wrap gap-2">
-          <CategoryChip
-            isActive={!filters.category}
-            isPending={isPending}
-            label="Tất cả"
-            onSelect={() => onUpdate({ category: "" })}
-          />
-          {categories.map((category) => (
-            <CategoryChip
-              isActive={filters.category === category.slug}
+        <legend className="mb-2 text-sm font-bold text-commerce-body">Danh mục</legend>
+        <ul className="grid">
+          <li>
+            <CategoryRow
+              count={categoryCounts ? Object.values(categoryCounts).reduce((total, value) => total + value, 0) : undefined}
+              isActive={!filters.category}
               isPending={isPending}
-              key={category.id}
-              label={category.name}
-              onSelect={() => onUpdate({ category: category.slug })}
+              label="Tất cả sản phẩm"
+              onSelect={() => onUpdate({ category: "" })}
             />
+          </li>
+          {categories.map((category) => (
+            <li key={category.id}>
+              <CategoryRow
+                count={categoryCounts?.[category.slug]}
+                isActive={filters.category === category.slug}
+                isPending={isPending}
+                label={category.name}
+                onSelect={() => onUpdate({ category: category.slug })}
+              />
+            </li>
           ))}
-        </div>
+        </ul>
       </fieldset>
 
-      <label className="grid gap-2 text-sm font-bold text-brand-800">
+      <label className="grid gap-1.5 text-sm font-bold text-commerce-body">
         Sắp xếp
         <select
-          className="min-h-11 rounded-md border border-hairline-strong bg-white px-3 text-sm font-normal text-ink focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-focus"
+          className="min-h-11 rounded-commerce-control border border-commerce-border bg-white px-3 text-sm font-normal text-commerce-body focus-visible:commerce-focus-ring"
           disabled={isPending}
           onChange={(event) => {
             const [sort, direction] = event.target.value.split(":");
@@ -88,10 +98,10 @@ export function CatalogFilterPanel({
         </select>
       </label>
 
-      <label className="grid gap-2 text-sm font-bold text-brand-800">
+      <label className="grid gap-1.5 text-sm font-bold text-commerce-body">
         Số sản phẩm mỗi trang
         <select
-          className="min-h-11 rounded-md border border-hairline-strong bg-white px-3 text-sm font-normal text-ink focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-focus"
+          className="min-h-11 rounded-commerce-control border border-commerce-border bg-white px-3 text-sm font-normal text-commerce-body focus-visible:commerce-focus-ring"
           disabled={isPending}
           onChange={(event) => onUpdate({ pageSize: Number(event.target.value) as CatalogPageSize })}
           value={String(filters.pageSize)}
@@ -103,7 +113,7 @@ export function CatalogFilterPanel({
       </label>
 
       <button
-        className="min-h-11 rounded-md border border-brand-700 px-4 text-sm font-bold text-brand-800 hover:bg-brand-50 disabled:opacity-45 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-focus"
+        className="min-h-11 rounded-commerce-control border border-commerce-brand px-4 text-sm font-bold text-commerce-brand-dark hover:bg-commerce-active-surface disabled:opacity-45 focus-visible:commerce-focus-ring"
         disabled={isPending || !hasFilters}
         onClick={onClear}
         type="button"
@@ -114,12 +124,19 @@ export function CatalogFilterPanel({
   );
 }
 
-function CategoryChip({
+/**
+ * Sidebar category row. A 3px leading edge marks the active group, matching the
+ * active-state treatment the behaviour spec defines for the mega menu, so the two
+ * navigation surfaces read the same way.
+ */
+function CategoryRow({
+  count,
   isActive,
   isPending,
   label,
   onSelect,
 }: {
+  count?: number;
   isActive: boolean;
   isPending: boolean;
   label: string;
@@ -128,16 +145,17 @@ function CategoryChip({
   return (
     <button
       aria-pressed={isActive}
-      className={`min-h-11 rounded-full border px-4 text-sm font-semibold disabled:opacity-45 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-focus ${
+      className={`flex min-h-11 w-full items-center justify-between gap-2 border-l-3 px-3 text-left text-sm disabled:opacity-45 focus-visible:commerce-focus-ring ${
         isActive
-          ? "border-brand-700 bg-brand-700 text-white"
-          : "border-hairline-strong bg-white text-ink hover:border-brand-700 hover:text-brand-800"
+          ? "border-l-commerce-brand bg-commerce-active-surface font-bold text-commerce-brand-dark"
+          : "border-l-transparent font-medium text-commerce-body hover:bg-commerce-active-surface"
       }`}
       disabled={isPending}
       onClick={onSelect}
       type="button"
     >
-      {label}
+      <span className="min-w-0">{label}</span>
+      {count === undefined ? null : <span className="text-xs text-commerce-secondary">{count}</span>}
     </button>
   );
 }
