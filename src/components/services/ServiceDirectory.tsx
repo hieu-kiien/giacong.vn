@@ -16,11 +16,9 @@ function normalizeSearch(value: string) {
 
 export function ServiceDirectory() {
   const [query, setQuery] = useState("");
-  const [selectedFamily, setSelectedFamily] = useState<string | null>(null);
   const normalizedQuery = normalizeSearch(query);
   const filteredFamilies = useMemo(
     () => serviceFamilies
-      .filter((family) => selectedFamily === null || family.slug === selectedFamily)
       .map((family) => ({
         ...family,
         offerings: family.offerings.filter((offering) => (
@@ -29,16 +27,12 @@ export function ServiceDirectory() {
         )),
       }))
       .filter((family) => family.offerings.length > 0),
-    [normalizedQuery, selectedFamily],
+    [normalizedQuery],
   );
   const resultCount = filteredFamilies.reduce((count, family) => count + family.offerings.length, 0);
-  const contactParams = new URLSearchParams({ intent: "service" });
-  if (selectedFamily) contactParams.set("service_family", selectedFamily);
-  if (query.trim()) contactParams.set("service_query", query.trim());
 
   const clearFilters = () => {
     setQuery("");
-    setSelectedFamily(null);
   };
 
   return (
@@ -49,7 +43,7 @@ export function ServiceDirectory() {
             <p className={styles.eyebrow}>Danh mục dịch vụ</p>
             <h2 id="service-directory-title">Tìm đúng năng lực gia công</h2>
           </div>
-          <p>Tra cứu theo nhu cầu hoặc lọc nhanh theo sáu nhóm chuyên môn.</p>
+          <p>Tra cứu theo nhu cầu hoặc phương pháp sấy để chọn hướng tư vấn phù hợp.</p>
         </div>
 
         <div className={styles.filterPanel}>
@@ -64,26 +58,12 @@ export function ServiceDirectory() {
             />
             <button
               className={styles.clearButton}
-              disabled={!query && selectedFamily === null}
+              disabled={!query}
               onClick={clearFilters}
               type="button"
             >
               Xóa bộ lọc
             </button>
-          </div>
-          <div className={styles.familyChips} aria-label="Lọc theo nhóm dịch vụ">
-            {serviceFamilies.map((family) => (
-              <button
-                aria-pressed={selectedFamily === family.slug}
-                className={styles.familyChip}
-                data-family-chip={family.slug}
-                key={family.slug}
-                onClick={() => setSelectedFamily((current) => current === family.slug ? null : family.slug)}
-                type="button"
-              >
-                {family.name}
-              </button>
-            ))}
           </div>
         </div>
 
@@ -91,7 +71,7 @@ export function ServiceDirectory() {
           <p aria-live="polite">{resultCount} dịch vụ phù hợp</p>
           <Link
             className={styles.consultationLink}
-            href={`/lien-he/?${contactParams.toString()}`}
+            href="/lien-he/?service=say-thuc-pham-say"
             prefetch={false}
           >
             Chưa chắc? Liên hệ tư vấn

@@ -44,8 +44,8 @@ export function PurchaseQuantity({
   const unitPrice = isValid && !needsContact
     ? [...tierPrices].reverse().find((tier) => tier.minQuantity <= quantity)?.price
     : undefined;
-  function continueToRequestCart() {
-    if (!isValid) return;
+  function addToRequestCart(): boolean {
+    if (!isValid) return false;
     const storage = window.localStorage;
     const mutation = upsertRequestCartLine(readRequestCart(storage).state, {
       parentSlug,
@@ -56,7 +56,7 @@ export function PurchaseQuantity({
       setCartNotice(mutation.status === "line_limit"
         ? "Giỏ yêu cầu đã đủ số dòng. Hãy gửi yêu cầu hiện tại trước."
         : "Không thể thêm lựa chọn này vào giỏ yêu cầu. Vui lòng thử lại.");
-      return;
+      return false;
     }
     writeRequestCart(storage, mutation.state);
     window.dispatchEvent(new StorageEvent("storage", {
@@ -64,7 +64,12 @@ export function PurchaseQuantity({
       newValue: storage.getItem(REQUEST_CART_STORAGE_KEY),
       storageArea: storage,
     }));
-    router.push("/gui-yeu-cau/");
+    setCartNotice(`Đã thêm ${productName} (${quantity} ${unit}) vào giỏ yêu cầu.`);
+    return true;
+  }
+
+  function continueToRequestCart() {
+    if (addToRequestCart()) router.push("/gui-yeu-cau/");
   }
 
   return (
@@ -118,15 +123,24 @@ export function PurchaseQuantity({
         </div>
       )}
       {isValid ? (
-        <button className={styles.button} onClick={continueToRequestCart} type="button">
-          {needsContact ? "Liên hệ nhận giá số lượng lớn" : `Gửi yêu cầu đặt ${quantity} ${unit} ${productName}`}
-        </button>
+        <div className={styles.purchaseActions}>
+          <button className={styles.secondaryButton} onClick={addToRequestCart} type="button">
+            Thêm vào giỏ yêu cầu
+          </button>
+          <button className={styles.button} onClick={continueToRequestCart} type="button">
+            {needsContact ? "Gửi yêu cầu tư vấn" : "Gửi yêu cầu ngay"}
+          </button>
+        </div>
       ) : (
         <button className={`${styles.button} ${styles.disabledButton}`} disabled type="button">
           Nhập số lượng hợp lệ để tiếp tục
         </button>
       )}
-      {cartNotice ? <p className={styles.quantityError} role="alert">{cartNotice}</p> : null}
+      {cartNotice ? (
+        <p className={cartNotice.startsWith("Đã thêm") ? styles.purchaseNotice : styles.quantityError} role={cartNotice.startsWith("Đã thêm") ? "status" : "alert"}>
+          {cartNotice}
+        </p>
+      ) : null}
     </section>
   );
 }

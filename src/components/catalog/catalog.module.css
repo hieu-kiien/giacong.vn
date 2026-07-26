@@ -278,12 +278,18 @@
 .quantityControl button:disabled { cursor: not-allowed; opacity: .45; }
 .quantityError { color: #b42318; font-size: 13px; margin: 0; }
 .purchaseSummary { display: grid; font-size: 14px; gap: 4px; }
+.purchaseNotice { color: #3d6531; font-size: 13px; margin: 0; }
+.purchaseActions { display: grid; gap: 8px; }
+.secondaryButton { background: #fff; border: 1px solid #465c35; border-radius: 4px; color: #3d5130; cursor: pointer; font-size: 13px; font-weight: 700; min-height: 44px; padding: 10px 20px; }
+.secondaryButton:hover { background: #edf1e8; }
+.secondaryButton:focus-visible { outline: 3px solid #243c66; outline-offset: 2px; }
 .disabledButton { opacity: .5; pointer-events: none; }
 
 @media (min-width: 640px) {
   .filters { grid-template-columns: minmax(0, 1fr) minmax(260px, .8fr); }
   .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .variantOptions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .purchaseActions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 @media (min-width: 900px) {

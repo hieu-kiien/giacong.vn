@@ -12,6 +12,14 @@ const formStatuses = [
   "submitting",
 ] as const;
 
+const APPROVED_SERVICE_SLUG = "say-thuc-pham-say";
+
+export function getContactServiceContext(search: string): string {
+  return new URLSearchParams(search).get("service") === APPROVED_SERVICE_SLUG
+    ? APPROVED_SERVICE_SLUG
+    : "";
+}
+
 function readControlValue(
   form: HTMLFormElement,
   selector: string,
@@ -37,6 +45,8 @@ function createContactPayload(form: HTMLFormElement) {
   payload.set("email", readControlValue(form, 'input[type="email"]', 254));
   payload.set("message", readControlValue(form, "textarea", 2000));
   payload.set("source", window.location.pathname);
+  const service = getContactServiceContext(window.location.search);
+  if (service) payload.set("service", service);
   return payload;
 }
 

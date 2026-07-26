@@ -23,7 +23,7 @@ export function ContactBand() {
     <section className={styles.contactBand} aria-labelledby="service-contact-title">
       <div className={`${styles.inner} ${styles.contactInner}`}>
         <div><p className={styles.eyebrow}>Chưa xác định đúng nhóm?</p><h2 id="service-contact-title">Trao đổi nhu cầu gia công</h2></div>
-        <Link className={styles.primaryAction} href="/lien-he/">Liên hệ tư vấn</Link>
+        <Link className={styles.primaryAction} href="/lien-he/?service=say-thuc-pham-say">Liên hệ tư vấn</Link>
       </div>
     </section>
   );

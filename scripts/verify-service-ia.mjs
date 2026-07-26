@@ -10,12 +10,7 @@ import { chromium } from "playwright";
 import { nextBinPath } from "./next-bin.mjs";
 
 const families = [
-  ["do-uong-sua", "Đồ uống & sữa", ["/gia-cong-do-uong/", "/gia-cong-sua/", "/gia-cong-sua-bot/", "/gia-cong-sua-tuoi/", "/gia-cong-sua-hat/", "/gia-cong-sua-thuc-vat/", "/gia-cong-sua-chua/", "/gia-cong-nuoc-ep-trai-cay/", "/gia-cong-nuoc-giai-khat-co-ga/", "/gia-cong-tra-dong-chai/", "/gia-cong-nuoc-uong-dong-chai/", "/gia-cong-ruou/"]],
   ["say-thuc-pham-say", "Sấy & thực phẩm sấy", ["/dich-vu-say/", "/say-thang-hoa/", "/say-nong/", "/say-lanh/", "/say-chan-khong/", "/say-hong-ngoai/"]],
-  ["thuc-pham-bot-gia-vi", "Thực phẩm, bột & gia vị", ["/gia-cong-thuc-pham/", "/thuc-pham-chuc-nang/", "/bot-gia-vi/", "/gia-cong-bot/", "/gia-cong-bot-pha-che/", "/gia-cong-sot-cham/"]],
-  ["tra-ca-phe-duoc-lieu", "Trà, cà phê & dược liệu", ["/gia-cong-tra/", "/gia-cong-ca-phe/", "/gia-cong-duoc-lieu/", "/rang-gia-cong-ca-phe/", "/gia-cong-ca-phe-hoa-tan/", "/gia-cong-ca-phe-qua-tang/", "/gia-cong-tra-tui-loc/"]],
-  ["my-pham-cham-soc-ca-nhan", "Mỹ phẩm & chăm sóc cá nhân", ["/gia-cong-my-pham/"]],
-  ["dong-goi-hoan-thien", "Đóng gói & hoàn thiện", ["/gia-cong-dong-goi/", "/dich-vu-dong-goi-bao-jumbo/", "/dich-vu-dong-goi-bot-hoa-tan/", "/dich-vu-dong-goi-dang-long-goi-nho/", "/dich-vu-dong-goi-dang-ong-stick/", "/dich-vu-dong-goi-vien-nen-vien-nang/"]],
 ];
 
 const expectedHeaderLinks = [
@@ -162,37 +157,26 @@ try {
   await directory.waitFor();
   const search = desktop.getByRole("searchbox", { name: "Bạn cần gia công gì?" });
   await search.waitFor();
-  assert.equal(await directory.locator("[data-family-chip]").count(), 6, "Directory must expose six family chips");
+  assert.equal(await directory.locator("[data-family-chip]").count(), 0, "Directory must not expose unapproved family filters");
   for (const [, label] of families) {
     assert.equal(await directory.getByRole("heading", { name: label, exact: true }).count(), 1, `Directory must group offerings under ${label}`);
   }
 
   const offeringLinks = directory.locator("[data-service-offering] a");
-  assert.equal(await offeringLinks.count(), 38, "Directory must render all 38 offerings on one page");
+  assert.equal(await offeringLinks.count(), 6, "Directory must render the six approved drying offerings");
   const renderedPaths = await offeringLinks.evaluateAll((links) => links.map((link) => new URL(link.href).pathname.replace(/\/$/, "")));
   assert.deepEqual([...new Set(renderedPaths)].sort(), [...expectedOfferingPaths].sort(), "Directory must expose exactly the verified offering routes");
-  assert.equal(await directory.getByText("38 dịch vụ phù hợp", { exact: true }).getAttribute("aria-live"), "polite", "Result count must announce client-side changes");
+  assert.equal(await directory.getByText("6 dịch vụ phù hợp", { exact: true }).getAttribute("aria-live"), "polite", "Result count must announce client-side changes");
 
   const pathBeforeFilter = new URL(desktop.url()).pathname;
-  await search.fill("sữa hạt");
+  await search.fill("sấy lạnh");
   await directory.getByText("1 dịch vụ phù hợp", { exact: true }).waitFor();
   assert.equal(new URL(desktop.url()).pathname, pathBeforeFilter, "Search must filter without reloading or changing route");
   assert.equal(await directory.locator("[data-service-offering]:visible").count(), 1, "Search must narrow the directory");
-  await search.fill("");
-  await directory.getByText("38 dịch vụ phù hợp", { exact: true }).waitFor();
-
-  const familyChip = directory.locator("[data-family-chip='say-thuc-pham-say']");
-  await familyChip.click();
-  await directory.getByText("6 dịch vụ phù hợp", { exact: true }).waitFor();
-  assert.equal(new URL(desktop.url()).pathname, pathBeforeFilter, "Family filter must not navigate");
-  assert.equal(await directory.locator("[data-service-offering]:visible").count(), 6, "Family chip must reveal only its six offerings");
-
-  await search.fill("sấy lạnh");
   const consultation = directory.getByRole("link", { name: "Chưa chắc? Liên hệ tư vấn", exact: true });
   const consultationUrl = new URL(await consultation.getAttribute("href"), origin);
   assert.equal(consultationUrl.pathname, "/lien-he");
-  assert.equal(consultationUrl.searchParams.get("service_family"), "say-thuc-pham-say", "CTA must carry selected family context");
-  assert.equal(consultationUrl.searchParams.get("service_query"), "sấy lạnh", "CTA must carry query context");
+  assert.equal(consultationUrl.searchParams.get("service"), "say-thuc-pham-say", "CTA must carry approved service context");
 
   assert.equal(await desktop.locator(".echbay-sms-messenger, .bottom-contact").count(), 0, "Service directory must not render floating contact bubbles");
   const directoryText = await directory.innerText();
@@ -204,19 +188,18 @@ try {
   assert.deepEqual(detailPrefetches, [], "Offering detail routes must not be eagerly prefetched");
 
   await search.fill("");
-  await directory.getByRole("button", { name: "Xóa bộ lọc", exact: true }).click();
-  const sampleOffering = directory.getByRole("link", { name: "Gia công sữa hạt", exact: true });
+  const sampleOffering = directory.getByRole("link", { name: "Sấy lạnh", exact: true });
   await Promise.all([
-    desktop.waitForURL((url) => url.pathname === "/gia-cong-sua-hat"),
+    desktop.waitForURL((url) => url.pathname === "/say-lanh"),
     sampleOffering.click(),
   ]);
-  assert.equal(new URL(desktop.url()).pathname, "/gia-cong-sua-hat", "An offering must be reachable in one click from the directory");
+  assert.equal(new URL(desktop.url()).pathname, "/say-lanh", "An offering must be reachable in one click from the directory");
   await desktop.goto(`${origin}/thue-gia-cong/`, { waitUntil: "networkidle" });
   await desktop.screenshot({ fullPage: true, path: path.join(screenshots, "service-landing-desktop.png") });
 
   const mobile = await browser.newPage({ viewport: { width: 390, height: 844 } });
   observeRuntime(mobile, "mobile", runtimeIssues);
-  await mobile.goto(`${origin}/thue-gia-cong/do-uong-sua/`, { waitUntil: "networkidle" });
+  await mobile.goto(`${origin}/thue-gia-cong/say-thuc-pham-say/`, { waitUntil: "networkidle" });
   await mobile.getByRole("button", { name: "Mở menu" }).click();
   await assertDirectHeaderLinks(mobile, true);
   const mobileDrawer = mobile.getByRole("dialog", { name: "Điều hướng" });
