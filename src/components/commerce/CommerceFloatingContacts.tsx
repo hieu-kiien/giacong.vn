@@ -19,19 +19,20 @@ const CHANNEL_ICON: Record<CommerceContactKind, LucideIcon> = {
 };
 
 /**
- * Floating contact cluster, bottom-right on desktop.
+ * Floating contact cluster in the desktop viewport's outer gutter.
+ *
+ * The 1,344px content rail leaves 48px on either side at the first supported
+ * viewport where this cluster appears (1,440px). Keeping every link to 44px and
+ * pinning the column flush-right lets it stay fixed without sitting over the last
+ * product card. At narrower widths the same links live in the support strip in
+ * normal flow.
  *
  * The container is `pointer-events-none` and only the links re-enable pointer
- * events, so the cluster cannot swallow a click on the page behind it — the
- * topology's requirement that floating contacts never cover primary content. It is
- * a narrow column pinned to one corner rather than an overlay.
- *
- * Each row shows the reference itself next to the icon, so the target is legible
- * without hovering and works when icons fail to load.
+ * events, so the unused gutter never swallows a page click.
  */
 export function CommerceFloatingContacts() {
   return (
-    <div className="pointer-events-none fixed bottom-4 right-4 z-30 flex flex-col items-end gap-2 max-sm:bottom-3 max-sm:right-3">
+    <div className="pointer-events-none fixed bottom-4 right-0 z-30 hidden flex-col items-end gap-2 min-[1440px]:flex">
       <p className="sr-only" id="commerce-floating-contacts-label">
         Liên hệ nhanh
       </p>
@@ -39,14 +40,15 @@ export function CommerceFloatingContacts() {
         {COMMERCE_CONTACT_CHANNELS.map((channel) => (
           <li key={channel.kind}>
             <a
-              className="pointer-events-auto group flex commerce-target items-center gap-2 rounded-full border border-commerce-border bg-white px-3 shadow-commerce-card transition-colors hover:bg-commerce-active-surface focus-visible:commerce-focus-ring motion-reduce:transition-none"
+              className="pointer-events-auto flex size-11 items-center justify-center rounded-l-full border border-r-0 border-commerce-border bg-white shadow-commerce-card transition-colors hover:bg-commerce-active-surface focus-visible:commerce-focus-ring motion-reduce:transition-none"
               href={channel.href}
               {...(channel.isExternal ? { rel: "noreferrer", target: "_blank" } : {})}
             >
               <CommerceIcon className="text-commerce-brand-dark" icon={CHANNEL_ICON[channel.kind]} size="md" />
-              <span className="text-sm font-semibold text-commerce-body max-sm:sr-only">
+              <span className="sr-only">
                 {channel.label}
-                <span className="block text-xs font-normal text-commerce-secondary">{channel.contact}</span>
+                {" — "}
+                {channel.contact}
               </span>
             </a>
           </li>

@@ -23,6 +23,7 @@ import {
   DEMO_CATALOG_PRODUCTS,
   demoCatalogCategoryCounts,
 } from "../../data/demo-catalog.ts";
+import { demoProductImage } from "../../data/demo-product-images.ts";
 import type {
   CatalogCategory,
   CatalogFilters,
@@ -32,24 +33,6 @@ import type {
   CatalogTierPrice,
   CatalogVariant,
 } from "../../types/catalog.ts";
-
-/**
- * Local packshots used when a product has no image of its own. The approved
- * references show an image-led card, and a gray placeholder box is explicitly
- * ruled out by the design tokens, so cards rotate through these four assets by
- * grid position — a four-column row never repeats one.
- */
-export const DEMO_CARD_IMAGES = [
-  "/images/products/demo-powder-pouches.png",
-  "/images/products/demo-dried-fruit-pouches.png",
-  "/images/products/demo-sauce-bottles.png",
-  "/images/products/demo-fruit-drinks.png",
-] as const;
-
-export function demoCardImage(index: number): string {
-  const position = Number.isFinite(index) ? Math.trunc(index) : 0;
-  return DEMO_CARD_IMAGES[((position % DEMO_CARD_IMAGES.length) + DEMO_CARD_IMAGES.length) % DEMO_CARD_IMAGES.length];
-}
 
 /**
  * Benefits in the heading row of SCR-02. Each one is a claim the catalog can
@@ -129,7 +112,7 @@ export function buildCatalogCard(product: CatalogCardSource, index = 0): Catalog
     categoryName: product.category?.name.trim() ?? null,
     contactFromQuantity: priceVariant?.contactFromQuantity ?? null,
     detailHref: detailHref(product.slug),
-    fallbackImageUrl: demoCardImage(index),
+    fallbackImageUrl: demoProductImage(index),
     id: product.id,
     imageUrl: product.imageUrl,
     isAvailable,

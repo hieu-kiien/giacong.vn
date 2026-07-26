@@ -1,8 +1,14 @@
 import "server-only";
 
+import { DEMO_CATALOG_CATEGORIES, DEMO_CATALOG_PRODUCTS } from "@/data/demo-catalog";
+import { demoProductImage } from "@/data/demo-product-images";
 import { getCatalogCategories, getCatalogProducts } from "@/lib/bagisto-catalog";
 import { DEFAULT_CATALOG_PAGE_SIZE, DEFAULT_CATALOG_SORT, DEFAULT_CATALOG_SORT_DIRECTION } from "@/lib/catalog-query";
 import type { CatalogCategory, CatalogProductParent } from "@/types/catalog";
+
+function demoNavigationAllowed(): boolean {
+  return process.env.NODE_ENV !== "production";
+}
 
 /**
  * Categories for header and menu navigation only.
@@ -20,7 +26,7 @@ export async function getCommerceNavCategories(): Promise<CatalogCategory[]> {
   try {
     return await getCatalogCategories();
   } catch {
-    return [];
+    return demoNavigationAllowed() ? [...DEMO_CATALOG_CATEGORIES] : [];
   }
 }
 
@@ -45,6 +51,11 @@ export async function getCommerceNavProducts(): Promise<CatalogProductParent[]> 
     });
     return products;
   } catch {
-    return [];
+    return demoNavigationAllowed()
+      ? DEMO_CATALOG_PRODUCTS.map((product, index) => ({
+          ...product,
+          imageUrl: demoProductImage(index),
+        }))
+      : [];
   }
 }

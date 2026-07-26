@@ -12,6 +12,7 @@ const repoRoot = path.join(import.meta.dirname, "..");
 
 const listing = await import("../src/components/catalog/catalog-listing" + ".ts");
 const demoCatalog = await import("../src/data/demo-catalog" + ".ts");
+const demoImages = await import("../src/data/demo-product-images" + ".ts");
 
 const FORBIDDEN_SURFACE_PATTERN =
   /\b(rating|review|favorite|wishlist|checkout|payment|shipping|thanh-toan|gio-hang)\b/i;
@@ -27,23 +28,23 @@ const catalogSource = (file: string) => readSource("src", "components", "catalog
 // ---------------------------------------------------------------------------
 
 test("the demo packshot fallbacks are the four local product assets", () => {
-  const { DEMO_CARD_IMAGES } = listing;
+  const { DEMO_PRODUCT_IMAGES } = demoImages;
 
-  assert.equal(DEMO_CARD_IMAGES.length, 4, "all four approved demo packshots are used");
-  for (const source of DEMO_CARD_IMAGES) {
+  assert.equal(DEMO_PRODUCT_IMAGES.length, 4, "all four approved demo packshots are used");
+  for (const source of DEMO_PRODUCT_IMAGES) {
     assert.match(source, /^\/images\/products\/demo-[a-z-]+\.png$/, `${source} must be a local demo asset`);
   }
-  assert.equal(new Set(DEMO_CARD_IMAGES).size, 4, "each packshot appears once");
+  assert.equal(new Set(DEMO_PRODUCT_IMAGES).size, 4, "each packshot appears once");
 });
 
 test("cards rotate through the demo packshots and never repeat inside one row", () => {
-  const { DEMO_CARD_IMAGES, demoCardImage } = listing;
+  const { DEMO_PRODUCT_IMAGES, demoProductImage } = demoImages;
 
   for (let index = 0; index < 12; index += 1) {
-    assert.equal(demoCardImage(index), DEMO_CARD_IMAGES[index % 4], `index ${index} rotates`);
+    assert.equal(demoProductImage(index), DEMO_PRODUCT_IMAGES[index % 4], `index ${index} rotates`);
   }
   // A four-column row must not show the same packshot twice.
-  assert.equal(new Set([0, 1, 2, 3].map(demoCardImage)).size, 4);
+  assert.equal(new Set([0, 1, 2, 3].map(demoProductImage)).size, 4);
 });
 
 test("a real catalog image wins over the demo fallback", () => {
@@ -53,7 +54,7 @@ test("a real catalog image wins over the demo fallback", () => {
   }]);
 
   assert.equal(product.imageUrl, "https://cdn.example.test/anh-that.png");
-  assert.equal(product.fallbackImageUrl, listing.DEMO_CARD_IMAGES[0], "the fallback stays available for onError");
+  assert.equal(product.fallbackImageUrl, demoImages.DEMO_PRODUCT_IMAGES[0], "the fallback stays available for onError");
 });
 
 test("every card carries the approved anatomy fields and no forbidden one", () => {

@@ -1,11 +1,8 @@
 import Link from "next/link";
-import { Phone } from "lucide-react";
 
-import { CommerceIcon } from "@/components/commerce/CommerceIcon";
 import { CommerceRail } from "@/components/commerce/CommerceRail";
 import {
-  COMMERCE_HOTLINE,
-  COMMERCE_HOTLINE_HREF,
+  COMMERCE_CONTACT_CHANNELS,
   COMMERCE_QUOTE_LABEL,
   COMMERCE_REQUEST_HREF,
 } from "@/components/commerce/commerce-navigation";
@@ -30,13 +27,17 @@ export function CommerceSupportStrip() {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <a
-            className="flex commerce-target items-center gap-2 rounded-commerce-control px-3 text-sm font-bold text-commerce-brand-dark hover:bg-white focus-visible:commerce-focus-ring"
-            href={COMMERCE_HOTLINE_HREF}
-          >
-            <CommerceIcon icon={Phone} size="sm" />
-            {COMMERCE_HOTLINE}
-          </a>
+          {COMMERCE_CONTACT_CHANNELS.map((channel) => (
+            <a
+              className="flex commerce-target items-center rounded-commerce-control px-3 text-sm font-bold text-commerce-brand-dark hover:bg-white focus-visible:commerce-focus-ring"
+              href={channel.href}
+              key={channel.kind}
+              {...(channel.isExternal ? { rel: "noreferrer", target: "_blank" } : {})}
+            >
+              {channel.label}
+              <span className="sr-only"> — {channel.contact}</span>
+            </a>
+          ))}
           <Link
             className="flex commerce-target items-center justify-center rounded-commerce-control bg-commerce-brand px-4 text-sm font-bold text-white transition-colors hover:bg-commerce-brand-dark focus-visible:commerce-focus-ring motion-reduce:transition-none"
             href={COMMERCE_REQUEST_HREF}

@@ -416,11 +416,33 @@ test("floating contacts publish all four channels as real links", async () => {
 
 test("floating contacts never cover primary content", async () => {
   const contacts = await chromeSource("CommerceFloatingContacts.tsx");
+  const strip = await chromeSource("CommerceSupportStrip.tsx");
 
   assert.match(contacts, /fixed/, "the cluster is pinned to the viewport");
   assert.doesNotMatch(contacts, /inset-0/, "the cluster must not span the viewport");
   assert.match(contacts, /pointer-events-none/, "the container must not swallow clicks on the page");
   assert.match(contacts, /pointer-events-auto/, "the links themselves stay clickable");
+  assert.match(
+    contacts,
+    /hidden[^"]*min-\[1440px\]:flex/,
+    "the fixed cluster must only appear when the outer gutter can contain it",
+  );
+  assert.match(contacts, /right-0/, "the fixed cluster stays inside the outer gutter");
+  assert.match(contacts, /className="sr-only"/, "gutter links stay icon-only instead of covering the last card");
+  assert.match(
+    strip,
+    /COMMERCE_CONTACT_CHANNELS/,
+    "all contact channels remain available in normal flow when the fixed cluster is hidden",
+  );
+});
+
+test("the navigation feed uses the isolated demo catalog only outside production", async () => {
+  const source = await readSource("src", "lib", "commerce-nav.ts");
+
+  assert.match(source, /DEMO_CATALOG_CATEGORIES/, "the demo preview keeps the category column populated");
+  assert.match(source, /DEMO_CATALOG_PRODUCTS/, "the demo preview keeps product and featured columns populated");
+  assert.match(source, /demoProductImage/, "demo menu cards reuse the approved local packshots instead of blank panels");
+  assert.match(source, /NODE_ENV\s*!==\s*"production"/, "production still fails closed to the empty menu state");
 });
 
 test("the support strip is the pale B2B band and carries the hotline", async () => {
@@ -428,7 +450,7 @@ test("the support strip is the pale B2B band and carries the hotline", async () 
 
   assert.match(strip, /export function CommerceSupportStrip/);
   assert.match(strip, /bg-commerce-support-strip/, "the strip uses the measured pale band token");
-  assert.match(strip, /COMMERCE_HOTLINE/, "the strip repeats the hotline");
+  assert.match(strip, /COMMERCE_CONTACT_CHANNELS/, "the strip repeats the hotline and the other approved channels");
   assert.match(strip, /CommerceRail/, "the strip sits on the shared rail");
 });
 
