@@ -6,6 +6,9 @@
     "skipLibCheck": true,
     "strict": true,
     "noEmit": true,
+    // Lets the Node-tested request-cart modules import each other with the explicit .ts specifier
+    // that `node --experimental-strip-types` requires. Safe because this project never emits.
+    "allowImportingTsExtensions": true,
     "esModuleInterop": true,
     "module": "esnext",
     "moduleResolution": "bundler",

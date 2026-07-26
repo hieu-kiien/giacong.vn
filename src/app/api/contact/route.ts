@@ -1,8 +1,10 @@
 import { handleContactSubmission } from "@/lib/contact-webhook";
 import { getCatalogProduct } from "@/lib/bagisto-catalog";
+import { resolveCartProduct } from "@/lib/request-cart-resolver";
 
 export async function POST(request: Request) {
   return handleContactSubmission(request, {
+    cartResolver: resolveCartProduct,
     environment: process.env,
     productResolver: async (slug) => {
       const product = await getCatalogProduct(slug);

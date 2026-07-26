@@ -1,5 +1,18 @@
 // This module intentionally has no framework dependency for Node behavior tests.
+// Relative .ts specifiers keep it loadable under `node --experimental-strip-types`.
+import {
+  CONTACT_MAX_BODY_BYTES,
+  exactKeys,
+  isJsonRequest,
+  isRecord,
+  parseRequestCartLines,
+  readJsonBody,
+  resolveRequestCart,
+} from "./request-cart.ts";
+import type { RequestCartResolver, ResolvedRequestCart } from "../types/request-cart.ts";
+
 export interface ContactWebhookDependencies {
+  cartResolver?: RequestCartResolver;
   environment: Readonly<Record<string, string | undefined>>;
   fetch?: typeof globalThis.fetch;
   productResolver?: ContactProductResolver;
@@ -41,6 +54,24 @@ interface ContactWebhookPayload extends Omit<ContactSubmission, "qty"> {
   request_type: ContactRequestType;
 }
 
+interface ContactCartWebhookLine {
+  index: number;
+  line_total: number | "";
+  note: string;
+  product: string;
+  qty: number;
+  unit: string;
+  unit_price: number | "";
+  variant: string;
+}
+
+interface ContactCartWebhookPayload extends ContactWebhookPayload {
+  cart: ContactCartWebhookLine[];
+  cart_price_incomplete: boolean;
+  cart_subtotal: number | "";
+  request_id: string;
+}
+
 interface WebhookResponse {
   ok: true;
   reference: string;
@@ -52,6 +83,8 @@ const ALLOWED_WEBHOOK_HOSTS = new Set([
   "script.google.com",
   "script.googleusercontent.com",
 ]);
+const REQUEST_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+const SNAPSHOT_TOKEN_PATTERN = /^[0-9a-f]{64}$/;
 
 function readField(formData: FormData, name: string, maxLength: number): string {
   const value = formData.get(name);
@@ -162,10 +195,6 @@ function validWebhookResponse(value: unknown): value is WebhookResponse {
     && value.reference.trim().length > 0;
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
 function hasJsonContentType(response: Response): boolean {
   const contentType = response.headers.get("content-type")?.trim() ?? "";
   return /^application\/json(?:\s*;\s*charset=(?:utf-8|utf8))?$/i.test(contentType);
@@ -246,6 +275,18 @@ export async function handleContactSubmission(
   request: Request,
   dependencies: ContactWebhookDependencies,
 ): Promise<Response> {
+  const resolved = isJsonRequest(request)
+    ? await resolveCartPayload(request, dependencies)
+    : await resolveFormPayload(request, dependencies);
+  if (resolved instanceof Response) return resolved;
+
+  return deliverToWebhook(resolved, dependencies);
+}
+
+async function resolveFormPayload(
+  request: Request,
+  dependencies: ContactWebhookDependencies,
+): Promise<ContactWebhookPayload | Response> {
   let formData: FormData;
   try {
     formData = await request.formData();
@@ -259,9 +300,121 @@ export async function handleContactSubmission(
     return validationFailure(errors);
   }
 
-  const resolved = await resolvePayload(submission, dependencies.productResolver);
-  if (resolved instanceof Response) return resolved;
+  return resolvePayload(submission, dependencies.productResolver);
+}
 
+/**
+ * Multi-line request cart. The server re-reads the catalog, recomputes unit price and totals,
+ * and refuses the submit when the priced state drifted from what the customer approved.
+ */
+async function resolveCartPayload(
+  request: Request,
+  dependencies: ContactWebhookDependencies,
+): Promise<ContactCartWebhookPayload | Response> {
+  const body = await readJsonBody(request, CONTACT_MAX_BODY_BYTES);
+  if (!body.ok) return failure(body.message, body.status);
+
+  const payload = body.value;
+  if (!isRecord(payload) || !exactKeys(payload, [
+    "email", "lines", "message", "name", "phone", "requestId", "snapshotToken", "source",
+  ])) {
+    return failure("Dữ liệu gửi lên không hợp lệ.", 400);
+  }
+  if (typeof payload.requestId !== "string" || !REQUEST_ID_PATTERN.test(payload.requestId)) {
+    return failure("Dữ liệu gửi lên không hợp lệ.", 400);
+  }
+  if (typeof payload.snapshotToken !== "string" || !SNAPSHOT_TOKEN_PATTERN.test(payload.snapshotToken)) {
+    return failure("Dữ liệu gửi lên không hợp lệ.", 400);
+  }
+
+  const parsedLines = parseRequestCartLines(payload.lines);
+  if (!parsedLines.ok) return failure(parsedLines.message, 400);
+
+  const submission = parseJsonSubmission(payload);
+  const errors = validateSubmission(submission);
+  if (Object.keys(errors).length > 0) return validationFailure(errors);
+
+  const resolver = dependencies.cartResolver;
+  if (!resolver) return failure("Không thể xác thực giỏ yêu cầu. Vui lòng thử lại.", 502);
+
+  let cart: ResolvedRequestCart;
+  try {
+    cart = await resolveRequestCart(parsedLines.lines, resolver);
+  } catch {
+    return failure("Không thể xác thực giỏ yêu cầu. Vui lòng thử lại.", 502);
+  }
+
+  if (!cart.isSubmittable) {
+    return cartConflict(
+      "Một số dòng trong giỏ chưa hợp lệ. Vui lòng xem lại giỏ yêu cầu.",
+      "CART_NOT_SUBMITTABLE",
+      cart,
+    );
+  }
+  if (cart.snapshotToken !== payload.snapshotToken) {
+    return cartConflict(
+      "Giá hoặc tình trạng hàng đã thay đổi. Vui lòng xem lại giỏ yêu cầu.",
+      "CART_DRIFTED",
+      cart,
+    );
+  }
+
+  return {
+    cart: cart.lines.map((line, index) => ({
+      index: index + 1,
+      line_total: line.lineTotal ?? "",
+      note: line.priceOnRequest ? `SKU ${line.variantSku} · Liên hệ báo giá` : `SKU ${line.variantSku}`,
+      product: line.productName,
+      qty: line.quantity,
+      unit: line.unit,
+      unit_price: line.unitPrice ?? "",
+      variant: line.variantLabel,
+    })),
+    cart_price_incomplete: cart.hasPriceOnRequest,
+    cart_subtotal: cart.pricedSubtotal,
+    email: submission.email,
+    message: submission.message,
+    name: submission.name,
+    phone: submission.phone,
+    product: `Giỏ hàng (${cart.lineCount} dòng)`,
+    qty: "",
+    request_id: payload.requestId,
+    request_type: cart.requestType,
+    service: "",
+    source: submission.source,
+    variant: "",
+  };
+}
+
+function parseJsonSubmission(payload: Record<string, unknown>): ContactSubmission {
+  return {
+    email: readJsonField(payload.email, 254),
+    message: readJsonField(payload.message, 2_000),
+    name: readJsonField(payload.name, 120),
+    phone: readJsonField(payload.phone, 24),
+    product: "",
+    qty: "",
+    service: "",
+    source: readJsonField(payload.source, 200),
+    variant: "",
+  };
+}
+
+function readJsonField(value: unknown, maxLength: number): string {
+  return typeof value === "string" ? value.trim().slice(0, maxLength) : "";
+}
+
+function cartConflict(message: string, code: string, cart: ResolvedRequestCart): Response {
+  return Response.json(
+    { cart, code, message, ok: false },
+    { headers: { "Cache-Control": "no-store" }, status: 409 },
+  );
+}
+
+async function deliverToWebhook(
+  resolved: ContactWebhookPayload | ContactCartWebhookPayload,
+  dependencies: ContactWebhookDependencies,
+): Promise<Response> {
   const environment = dependencies.environment;
   const url = webhookUrl(environment.GOOGLE_SHEETS_WEBHOOK_URL);
   if (!url) {

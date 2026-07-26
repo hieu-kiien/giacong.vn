@@ -24,7 +24,7 @@ Trong giai đoạn hiện tại, Google Sheet và Apps Script thuộc tài kho�
 
 Ngoài phạm vi vĩnh viễn: customer account/portal, checkout và `/thanh-toan`, tạo Bagisto order, payment, shipping, order completion, quote engine, vòng đời báo giá, company/team/approval, granular RBAC, request inbox Bagisto, wizard gia công phức tạp, tệp đính kèm, BOM/nguyên liệu/QC/tiến độ xưởng, đa kênh, đa ngôn ngữ, đa tiền tệ, payment gateway, carrier, promotion, rating/review/favorite và thay thế toàn bộ captured markup. Cart phía server (bảng cart, session giỏ hàng, cart API có state) cũng ngoài phạm vi; chỉ có guest cart `localStorage` nêu trên. `b2b_briefs` và `b2b_catalog_audits` là legacy, không mở rộng.
 
-Tích hợp CRM là **optional**, ngoài đường tới hạn V1. Nếu làm, CRM chỉ nhận bản sao yêu cầu sau khi Sheet đã ghi thành công; Sheet vẫn là hàng đợi vận hành duy nhất và lỗi CRM không được chặn submit.
+Tích hợp CRM là **optional**, ngoài đường tới hạn V1. Nếu làm, CRM chỉ nhận bản sao yêu cầu sau khi Sheet đã ghi thành công; Sheet vẫn là hàng đợi vận hành duy nhất và lỗi CRM không được chặn submit. Hiện **hoãn có chủ ý**: chưa có CRM đích, chưa có contract endpoint/auth và chưa có quyết định xử lý PII của chủ dự án. Không có tham chiếu CRM nào trong code hay contract; không giả lập một CRM chưa tồn tại.
 
 ## 2. Người dùng và ma trận quyền
 
@@ -62,8 +62,8 @@ Mỗi submit được chấp nhận luôn tạo một `Mã` và một dòng `Yê
 | Nội dung demo giai đoạn hiện tại: trust claim demo được phép, asset demo tạm thời, kênh liên hệ demo Zalo/Messenger/email/hotline | Coi dữ liệu demo là dữ liệu production; duyệt public trước khi thay bằng dữ liệu thật |
 | Một service family **Sấy & thực phẩm sấy**; CTA form và webhook Sheet | Nhiều service family public trong V1; dù vậy cơ chế quản trị content cần hỗ trợ family/page theo autonomy đã chốt |
 | Intake Apps Script/Sheet `Yêu cầu` 15 cột, protection, validation, `onEdit` và tab **Tổng quan** đã có trong script; owner-run authorization/live verification và bàn giao Google còn **Chờ xác nhận** | Dashboard Next/Bagisto, API summary, request inbox Bagisto, đồng bộ order external |
-| Tab `Chi tiết giỏ hàng` khóa theo `Mã`, chỉ đọc với administrator, do server/Apps Script ghi — **Cần làm** | Trạng thái/phân công theo từng dòng giỏ; vận hành chỉ ở dòng `Yêu cầu` |
-| CRM **optional**, ngoài đường tới hạn: nếu làm thì chỉ nhận bản sao sau khi Sheet ghi thành công | CRM là điều kiện bắt buộc để submit, hoặc CRM thay Sheet làm hàng đợi |
+| Tab `Chi tiết giỏ hàng` khóa theo `Mã` (A:I), chỉ đọc với administrator, do server/Apps Script ghi — đã có trong template | Trạng thái/phân công theo từng dòng giỏ; vận hành chỉ ở dòng `Yêu cầu` |
+| CRM **optional**, ngoài đường tới hạn: hiện hoãn, nếu làm thì chỉ nhận bản sao sau khi Sheet ghi thành công | CRM là điều kiện bắt buộc để submit, hoặc CRM thay Sheet làm hàng đợi |
 | Template Apps Script đã triển khai: administrator xử lý L:N; A:K/O và cấu trúc Sheet được bảo vệ. Owner-run authorization/live verification còn **Chờ xác nhận** | Xóa cứng dòng Sheet, merge/dedup engine |
 | Bagisto admin cho catalog, giá, tồn, nội dung vận hành và một tài khoản `administrator` dùng chung sau audit/cấu hình **Cần làm** | Mở rộng `/quan-tri`, `b2b_briefs`, `b2b_catalog_audits`, full audit |
 | Di trú/ánh xạ có chọn lọc serviceFamilies/captured content sang Bagisto CMS/read API **Cần làm** | Cam kết sẵn có của Bagisto CMS cho Next trước khi triển khai/audit |
@@ -82,6 +82,7 @@ Sitemap là đích Lean V1, không suy diễn từ `docs/research/PAGE_TOPOLOGY.
 ├─ /san-pham                           Danh sách nhiều danh mục/sản phẩm; danh mục, tìm kiếm, lọc, sắp xếp, phân trang bằng query param
 │  └─ /san-pham/[slug]                 Chi tiết, biến thể, giá bậc, số lượng, thêm vào giỏ, CTA form
 ├─ /gui-yeu-cau                        Giỏ hàng khách (localStorage) + form gửi yêu cầu; server xác thực lại với Bagisto
+│  └─ POST /api/gui-yeu-cau/xac-thuc   Xác thực lại giỏ stateless, trả đơn giá/tạm tính canonical + snapshotToken
 ├─ /thue-gia-cong
 │  └─ /thue-gia-cong/say-thuc-pham-say Dịch vụ đại diện, CTA form
 ├─ /lien-he                            Form chung, nhận ngữ cảnh sản phẩm/dịch vụ
@@ -172,9 +173,12 @@ Bagisto core (qua service/repository/admin UI hiện có)
   products/variants ── giá bậc, tồn kho (core Bagisto)
 
 Giỏ hàng khách — không có bảng, không có state phía server
-  browser localStorage: [{ product, variant, qty }]  ← chỉ để preview
-  /gui-yeu-cau ──đọc lại Bagisto──> xác thực từng dòng + tính đơn giá/tạm tính canonical
-                                    client-supplied giá/tổng tiền bị bỏ qua
+  browser localStorage "giacong.request-cart.v1" (schemaVersion 1, tối đa 20 dòng, 32 KB)
+    [{ parentSlug, variantSku, quantity }]  ← chỉ để preview; không PII, không giá, không tổng tiền
+    đọc lại từ storage luôn được coi là untrusted: sai schema → reset, dòng lỗi → drop
+  POST /api/gui-yeu-cau/xac-thuc ──đọc lại Bagisto──> xác thực từng dòng + đơn giá/tạm tính canonical
+  POST /api/contact (JSON)       ──đọc lại Bagisto──> xác thực lại lần hai + so snapshotToken
+                                    client-supplied giá/tổng tiền/loại bị từ chối, không bao giờ được đọc
 
 Bagisto CMS/content model — Cần làm, sau audit
   service family/page/content/media ──> Next storefront read API
@@ -190,10 +194,12 @@ Next POST /api/contact ──webhook──> Apps Script (owner hiện tại: use
                                       N Ghi chú | O Cập nhật lần cuối
                                       A:K,O bảo vệ; L:N administrator sửa
 
-Google Sheet / “Chi tiết giỏ hàng” — Cần làm
+Google Sheet / “Chi tiết giỏ hàng” — đã triển khai trong template (live verification Chờ xác nhận)
   Yêu cầu.Mã 1 ── * Chi tiết giỏ hàng.Mã           (submit giỏ nhiều dòng)
-  Mã | Dòng | Sản phẩm | Biến thể | Đơn vị | Số lượng | Đơn giá | Thành tiền | Ghi chú hệ thống
+  A Mã | B Dòng | C Sản phẩm | D Biến thể | E Đơn vị | F Số lượng | G Đơn giá | H Thành tiền | I Ghi chú hệ thống
   Toàn bộ cột do server/Apps Script ghi và được bảo vệ; không trạng thái/phân công theo dòng
+  Thứ tự ghi: N dòng chi tiết bằng một setValues, rồi dòng Yêu cầu làm commit marker
+  LockService tryLock(2000ms) < abort 5s của Next; CacheService map request_id → Mã chống retry trùng
 
 Google Sheet / “Tổng quan”
   Đơn mới     = COUNTIFS('Yêu cầu'!C:C, “Đặt sản phẩm”, 'Yêu cầu'!L:L, “Mới”)
@@ -211,8 +217,8 @@ Trạng thái chính của mỗi route hoặc bề mặt chỉ là **Hiện có*
 
 | Phương thức / loại bề mặt | Đường dẫn / đích | Người dùng | Hiện có | Cần làm / ranh giới V1 | Trạng thái |
 | --- | --- | --- | --- | --- | --- |
-| POST | `/api/contact` | Khách | Nhận base fields và context tùy chọn `product?, service?, variant?, qty?`; server xác thực catalog, tự gán loại theo MOQ/step/ngưỡng và gửi payload canonical. Apps Script tạo Mã/dòng riêng đúng 15 cột A:O trong `Yêu cầu`; template script đã có A:K/O protection, dropdown/data validation, `onEdit` và **Tổng quan**; URL/secret chỉ ở server. | Nối context từ storefront/UI. Mở rộng contract cho danh sách dòng giỏ: server xác thực lại từng dòng với Bagisto, tự tính đơn giá/thành tiền, gán `Loại` theo mức cao nhất cả giỏ, ghi 1 dòng `Yêu cầu` + N dòng `Chi tiết giỏ hàng` cùng `Mã`. Owner-run authorization, ownership/quyền kiểm soát và live verification Google còn **Chờ xác nhận**. Không tạo Bagisto order, không dedup/merge. | Chuyển tiếp |
-| Chưa chốt path | Xác thực lại giỏ hàng khi mở/sửa `/gui-yeu-cau` | Khách | Chưa có; giỏ chỉ ở `localStorage` | Đọc Bagisto để xác thực từng dòng và trả đơn giá/tạm tính canonical cùng cảnh báo hết hàng/đổi giá/sai MOQ/sai bước. Không lưu giỏ phía server, không state, không tạo order. Path chốt khi lock app-layer contract. | Cần làm |
+| POST | `/api/contact` | Khách | Hai nhánh theo `Content-Type`. **FormData** (giữ nguyên): base fields và context tùy chọn `product?, service?, variant?, qty?`; server xác thực catalog, tự gán loại theo MOQ/step/ngưỡng. **JSON** (giỏ nhiều dòng): `{ name, phone, email, message, source, requestId, snapshotToken, lines[] }` — server đọc lại Bagisto, tự tính đơn giá/thành tiền/tạm tính, gán `Loại` theo mức cao nhất cả giỏ, ghi `Giỏ hàng (N dòng)` vào D và để trống E:F. Body tối đa 64 KB; `requestId` là UUID v4; lệch `snapshotToken` → `409 CART_DRIFTED` kèm snapshot mới; dòng sai → `409 CART_NOT_SUBMITTABLE`. Payload mang giá/tổng tiền/`request_type` do client gửi bị từ chối `400`. Apps Script tạo Mã/dòng riêng đúng 15 cột A:O trong `Yêu cầu` + N dòng `Chi tiết giỏ hàng` cùng `Mã`; URL/secret chỉ ở server. | Nối context và giỏ từ storefront/UI. Owner-run authorization, ownership/quyền kiểm soát và live verification Google còn **Chờ xác nhận**. Không tạo Bagisto order, không dedup/merge. | Chuyển tiếp |
+| POST | `/api/gui-yeu-cau/xac-thuc` | Khách | Xác thực lại giỏ stateless: nhận `{ lines: [{ parentSlug, variantSku, quantity }] }`, đọc Bagisto một lần cho mỗi `parentSlug`, trả `ResolvedCart` gồm đơn giá/thành tiền/tạm tính canonical, `adjustments` theo dòng (`PRODUCT_NOT_FOUND`, `VARIANT_NOT_FOUND`, `VARIANT_UNAVAILABLE`, `QUANTITY_BELOW_MOQ`, `QUANTITY_OFF_STEP`, `PRICE_ON_REQUEST`) và `snapshotToken`. Không lưu giỏ phía server, không state, không tạo order. Body tối đa 16 KB, tối đa 20 dòng. | Nối UI `/gui-yeu-cau` vào endpoint này. | Hiện có |
 | GET | `/api/catalog/products/[slug]` | Khách | BFF catalog hiện có cho product/variant/rules | Giữ BFF cho product flow; xác thực MOQ/bước/ngưỡng ở server. | Hiện có |
 | GET | `/api/b2b/catalog/categories`, `/api/b2b/catalog/products`, `/api/b2b/catalog/products/{slug}` | Storefront | Nguồn catalog B2B hiện có | Nguồn đọc cho catalog nhiều danh mục/sản phẩm; cần hỗ trợ tìm kiếm, lọc, sắp xếp, phân trang server-side. Không biến thành CMS dịch vụ. | Chuyển tiếp |
 | Chưa audit | Endpoint đọc service family/page/content/media | Storefront | `src/data/service-families.ts` và captured content còn tĩnh | Thiết kế/triển khai read API + mapping/di trú có chọn lọc từ Bagisto CMS; không tự đặt path khi chưa audit. | Cần làm |
@@ -231,9 +237,9 @@ Không có API checkout, cart có state, order, payment, shipping, rating/review
 | --- | --- | --- | --- | --- |
 | Xác thực dữ liệu public: taxonomy danh mục, sản phẩm, trust claim, asset và kênh liên hệ | Người quyết định sản phẩm | Chưa bắt đầu | Taxonomy, SKU, ảnh, nội dung, giá thật **Chờ xác nhận**; nhóm demo (trust claim, asset, Zalo/Messenger/email/hotline) cần xác nhận và thay | Dữ liệu được duyệt, không dùng `B2B-DEMO` hay dữ liệu demo public |
 | Chuẩn hóa catalog nhiều danh mục/sản phẩm, giá bậc, CTA và server validation | Terra implement | Hoàn thành một phần | Dữ liệu public, quy tắc Bagisto | Server validation cho contact context đã có; còn catalog production, danh sách có tìm kiếm/lọc/sắp xếp/phân trang, storefront CTA/context wiring, giá bậc và luồng sản phẩm rộng hơn |
-| Guest cart `localStorage` và `/gui-yeu-cau` | Terra implement | Chưa bắt đầu | App-layer contract được lock; catalog read API | Giỏ preview client, trang giỏ + form, xác thực lại từng dòng với Bagisto, đơn giá/tạm tính canonical, cảnh báo dòng sai. Không cart phía server, không checkout |
+| Guest cart `localStorage` và `/gui-yeu-cau` | Terra implement | Hoàn thành một phần | App-layer contract đã lock; catalog read API | App layer xong: storage versioned có sanitize, `POST /api/gui-yeu-cau/xac-thuc`, đơn giá/tạm tính canonical, cảnh báo dòng sai. Còn trang giỏ + form UI. Không cart phía server, không checkout |
 | Mở rộng `/api/contact` và Apps Script/Sheet | Terra implement | Hoàn thành một phần | Contract mới; giai đoạn hiện tại dùng Google account của user/chủ dự án | Backend validation/derivation và tab `Yêu cầu` 15 cột với Mã riêng; template script đã triển khai protection, dropdown, workflow và Tổng quan. Còn nối context storefront/UI; owner-run authorization/live verification Google **Chờ xác nhận** |
-| Tab `Chi tiết giỏ hàng` khóa theo `Mã` | Terra implement | Chưa bắt đầu | Contract giỏ hàng; setup Apps Script | Ghi N dòng chi tiết cùng `Mã`, bảo vệ toàn bộ cột, chỉ đọc với administrator, không trạng thái theo dòng; giữ nguyên schema A:O của `Yêu cầu` |
+| Tab `Chi tiết giỏ hàng` khóa theo `Mã` | Terra implement | Hoàn thành trong template | Contract giỏ hàng; owner chạy lại `setupRequestWorkbook()` | Template ghi N dòng chi tiết cùng `Mã` (A:I), bảo vệ toàn bộ cột không có vùng vận hành, giữ nguyên schema A:O của `Yêu cầu`. Owner-run authorization/live verification **Chờ xác nhận** |
 | Cấu hình vận hành Sheet và bàn giao quyền Google | Terra implement + chủ sở hữu | **Chờ xác nhận** | Audit Google; tài khoản Google/Workspace khách cần sẵn sàng trước bàn giao | Template đã có dropdown, A:K/O protection, L:N editable và workflow; khách/chủ sở hữu phải mở/sửa/deploy Apps Script, chạy setup, kiểm tra protection/dropdown và xác nhận ownership/quyền kiểm soát cuối cùng hoặc migration/redeploy |
 | Mở rộng Bagisto product admin cho policy B2B | Terra implement | Chưa bắt đầu | Audit extension point Bagisto | MOQ/step/threshold và field B2B trong màn hình product hiện có |
 | Audit, cấu hình và bàn giao một shared account `administrator` | Terra implement + chủ/ông chủ | Chưa bắt đầu | Audit Bagisto admin | Hướng dẫn và kiểm thử đổi/khôi phục mật khẩu hoặc chuyển giao người dùng theo quy trình native; không tạo/vô hiệu hóa nhiều tài khoản, không granular RBAC/UI mới |
@@ -250,8 +256,8 @@ Terra là vai trò triển khai. Thay đổi hành vi bắt đầu bằng test R
 | --- | --- |
 | Scope sản phẩm | Catalog nhiều danh mục và nhiều sản phẩm đọc từ Bagisto; danh sách có tìm kiếm, lọc, sắp xếp, phân trang đồng bộ query param và giữ trạng thái khi reload. Taxonomy, SKU, ảnh, nội dung và giá thật còn **Chờ xác nhận** phải được duyệt trước public; không hard-code catalog trong component. |
 | Giá và quy tắc số lượng | Storefront đọc MOQ, bước số lượng, giá bậc VND và `contact_from_quantity` từ Bagisto. Số lượng dưới MOQ hoặc sai bước bị chặn cả client/server. |
-| Guest cart và `/gui-yeu-cau` | Giỏ chỉ ghi ở `localStorage`, không tài khoản khách, không state server, không bảng cart. `/gui-yeu-cau` là route giỏ hàng duy nhất; không có `/gio-hang` hay `/thanh-toan`. Server đọc lại Bagisto để xác thực từng dòng và tự tính đơn giá/thành tiền/tạm tính; giá và tổng tiền do client gửi bị bỏ qua. Dòng hết hàng, dưới MOQ, sai bước hoặc đổi giá được cảnh báo và chặn gửi tới khi sửa. Logic đơn giá và số lượng có test. |
-| Yêu cầu nhiều dòng | Một submit giỏ được chấp nhận tạo một `Mã` với đúng một dòng `Yêu cầu` và N dòng `Chi tiết giỏ hàng` cùng `Mã`. `Loại` do server gán theo mức cao nhất cả giỏ: có dòng đạt ngưỡng → **Tư vấn số lượng lớn**, ngược lại **Đặt sản phẩm**. Dòng `Yêu cầu` ghi `Giỏ hàng (N dòng)` ở D và để trống E:F; schema 15 cột A:O không đổi. Không tạo order/thanh toán/giao hàng. |
+| Guest cart và `/gui-yeu-cau` | Giỏ chỉ ghi ở `localStorage` khóa `giacong.request-cart.v1`, không tài khoản khách, không state server, không bảng cart. Storage chỉ mang `parentSlug`, `variantSku`, `quantity` — không PII, không giá, không tổng tiền — và nội dung đọc lại luôn được sanitize như untrusted input (sai schema → reset, dòng lỗi → drop, quá 20 dòng hoặc 32 KB → cắt/reset). `/gui-yeu-cau` là route giỏ hàng duy nhất; không có `/gio-hang` hay `/thanh-toan`. Server đọc lại Bagisto ở cả `POST /api/gui-yeu-cau/xac-thuc` và submit, tự tính đơn giá/thành tiền/tạm tính; payload mang giá hoặc tổng tiền do client gửi bị từ chối `400`. Dòng hết hàng, dưới MOQ, sai bước hoặc đổi giá được cảnh báo và chặn gửi tới khi sửa. Logic đơn giá và số lượng có test. |
+| Yêu cầu nhiều dòng | Một submit giỏ được chấp nhận tạo một `Mã` với đúng một dòng `Yêu cầu` và N dòng `Chi tiết giỏ hàng` cùng `Mã`. `Loại` do server gán theo mức cao nhất cả giỏ: có dòng đạt ngưỡng → **Tư vấn số lượng lớn**, ngược lại **Đặt sản phẩm**. Dòng `Yêu cầu` ghi `Giỏ hàng (N dòng)` ở D và để trống E:F; schema 15 cột A:O không đổi. Apps Script ghi N dòng chi tiết trước rồi dòng `Yêu cầu` làm commit marker, giữ `LockService.tryLock(2000ms)` dưới ngưỡng abort 5s của Next, và trả lại đúng `Mã` cũ khi cùng `request_id` được gửi lại. Không tạo order/thanh toán/giao hàng. |
 | Không rating/review/favorite | Không có UI, data model, API hay structured data cho rating, review, favorite ở bất kỳ bề mặt nào, kể cả khi bộ handoff mô tả. |
 | Nội dung demo | Trust claim demo và asset demo được phép ở giai đoạn hiện tại và được đánh dấu là tạm thời. Kênh liên hệ demo đúng giá trị đã chốt: Zalo `06408115`, Messenger `https://m.me/qtudepdai`, email `qtu1053@gmail.com`, hotline `0868408115`. Trước khi duyệt public, chủ dự án xác nhận và thay bằng dữ liệu thật. |
 | Hai product flows | Khi nhận product/variant/qty, server chặn MOQ/bước và gán dưới ngưỡng là **Đặt sản phẩm**, bằng/trên ngưỡng là **Tư vấn số lượng lớn**; không tạo báo giá hoặc Bagisto order. Storefront/UI chưa gửi ngữ cảnh này. |

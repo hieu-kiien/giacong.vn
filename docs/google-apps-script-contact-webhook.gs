@@ -23,6 +23,23 @@ const CONTACT_HEADERS = [
 const REQUEST_TYPES = ["Đặt sản phẩm", "Tư vấn số lượng lớn", "Tư vấn dịch vụ"];
 const REQUEST_STATUSES = ["Mới", "Đang tư vấn", "Chờ khách phản hồi", "Đã hoàn tất", "Không tiếp tục"];
 const SUMMARY_SHEET_NAME = "Tổng quan";
+const CART_DETAIL_SHEET_NAME = "Chi tiết giỏ hàng";
+const CART_DETAIL_HEADERS = [
+  "Mã",
+  "Dòng",
+  "Sản phẩm",
+  "Biến thể",
+  "Đơn vị",
+  "Số lượng",
+  "Đơn giá",
+  "Thành tiền",
+  "Ghi chú hệ thống",
+];
+const CART_MAX_LINES = 20;
+// Must stay well under the 5s abort on the Next side, otherwise the lock itself manufactures 504s.
+const CART_LOCK_TIMEOUT_MS = 2000;
+const CART_REPLAY_TTL_SECONDS = 21600;
+const UUID_V4_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 
 function doPost(event) {
   try {
@@ -33,6 +50,8 @@ function doPost(event) {
       return jsonResponse({ ok: false, reference: "" });
     }
 
+    if (isCartSubmission(payload)) return appendCartSubmission(payload);
+
     if (!validSubmission(payload)) {
       return jsonResponse({ ok: false, reference: "" });
     }
@@ -40,27 +59,104 @@ function doPost(event) {
     const sheet = getContactSheet();
     const reference = createReference();
     const timestamp = new Date();
-    sheet.appendRow([
+    sheet.appendRow(contactRow(
+      payload,
       reference,
       timestamp,
-      safeText(payload.request_type, 50),
       safeText(payload.product || payload.service, 200),
       safeText(payload.variant, 160),
       safeQuantity(payload.qty),
-      safeText(payload.name, 120),
-      safeText(payload.phone, 24),
-      safeText(payload.email, 254),
-      safeText(payload.message, 2000),
-      safeText(payload.source, 200),
-      "Mới",
-      "",
-      "",
-      timestamp,
-    ]);
+    ));
     return jsonResponse({ ok: true, reference });
   } catch (_error) {
     return jsonResponse({ ok: false, reference: "" });
   }
+}
+
+function contactRow(payload, reference, timestamp, product, variant, quantity) {
+  return [
+    reference,
+    timestamp,
+    safeText(payload.request_type, 50),
+    product,
+    variant,
+    quantity,
+    safeText(payload.name, 120),
+    safeText(payload.phone, 24),
+    safeText(payload.email, 254),
+    safeText(payload.message, 2000),
+    safeText(payload.source, 200),
+    "Mới",
+    "",
+    "",
+    timestamp,
+  ];
+}
+
+function isCartSubmission(payload) {
+  return Object.prototype.hasOwnProperty.call(payload, "cart");
+}
+
+/**
+ * Multi-line cart intake. Detail rows are written first and the `Yêu cầu` row commits them:
+ * dying in between leaves orphan detail rows the operator never sees, which is the harmless
+ * direction. The reverse order would promise N lines that do not exist.
+ */
+function appendCartSubmission(payload) {
+  if (!validCartSubmission(payload)) return jsonResponse({ ok: false, reference: "" });
+
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(CART_LOCK_TIMEOUT_MS)) return jsonResponse({ ok: false, reference: "" });
+  try {
+    const cache = CacheService.getScriptCache();
+    const replayKey = `cart-request:${payload.request_id}`;
+    const replayed = cache.get(replayKey);
+    if (replayed) return jsonResponse({ ok: true, reference: replayed });
+
+    const reference = createReference();
+    const timestamp = new Date();
+    const detailSheet = getCartDetailSheet();
+    const startRow = Math.max(detailSheet.getLastRow(), 1) + 1;
+    detailSheet
+      .getRange(startRow, 1, payload.cart.length, CART_DETAIL_HEADERS.length)
+      .setValues(payload.cart.map((line, index) => [
+        reference,
+        index + 1,
+        safeText(line.product, 200),
+        safeText(line.variant, 160),
+        safeText(line.unit, 24),
+        safeQuantity(line.qty),
+        safeMoney(line.unit_price),
+        safeMoney(line.line_total),
+        safeText(line.note, 200),
+      ]));
+
+    getContactSheet().appendRow(contactRow(
+      payload,
+      reference,
+      timestamp,
+      safeText(payload.product, 200),
+      "",
+      "",
+    ));
+    cache.put(replayKey, reference, CART_REPLAY_TTL_SECONDS);
+    return jsonResponse({ ok: true, reference });
+  } catch (_error) {
+    return jsonResponse({ ok: false, reference: "" });
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function getCartDetailSheet() {
+  const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = spreadsheet.getSheetByName(CART_DETAIL_SHEET_NAME)
+    || spreadsheet.insertSheet(CART_DETAIL_SHEET_NAME);
+  if (sheet.getLastRow() === 0) {
+    sheet.appendRow(CART_DETAIL_HEADERS);
+    sheet.setFrozenRows(1);
+  }
+  return sheet;
 }
 
 function getContactSheet() {
@@ -90,7 +186,18 @@ function setupRequestWorkbook() {
   const protection = sheet.protect().setDescription("Lean V1: Chỉ vận hành L:N");
   configureProtection(protection);
   protection.setUnprotectedRanges([sheet.getRange(2, 12, dataRows, 3)]);
+  setupCartDetailSheet();
   setupSummarySheet();
+}
+
+function setupCartDetailSheet() {
+  const sheet = getCartDetailSheet();
+  sheet.getRange(1, 1, 1, CART_DETAIL_HEADERS.length).setValues([CART_DETAIL_HEADERS]);
+  sheet.setFrozenRows(1);
+  // No unprotected range: every column is written by the server, the administrator only reads.
+  const protection = sheet.protect().setDescription("Lean V1: Chi tiết giỏ hàng chỉ đọc");
+  configureProtection(protection);
+  protection.setUnprotectedRanges([]);
 }
 
 function setupSummarySheet() {
@@ -178,6 +285,41 @@ function validSubmission(payload) {
     && !variant
     && payload.qty === ""
     && (!service || service === "Sấy & thực phẩm sấy");
+}
+
+function validCartSubmission(payload) {
+  const name = rawText(payload.name, 120);
+  const phone = rawText(payload.phone, 24);
+  const email = rawText(payload.email, 254);
+  const requestType = rawText(payload.request_type, 50);
+  const validContact = name.length >= 2
+    && /^\+?\d{8,15}$/.test(phone.replace(/[\s().-]/g, ""))
+    && (!email || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email));
+  if (!validContact) return false;
+  if (requestType !== "Đặt sản phẩm" && requestType !== "Tư vấn số lượng lớn") return false;
+  if (!UUID_V4_PATTERN.test(rawText(payload.request_id, 36))) return false;
+  // A cart row summarizes in D and leaves E:F empty; variant, qty and service must stay blank.
+  if (!rawText(payload.product, 200)) return false;
+  if (rawText(payload.variant, 160) || rawText(payload.service, 80)) return false;
+  if (payload.qty !== "") return false;
+  if (!Array.isArray(payload.cart) || payload.cart.length < 1 || payload.cart.length > CART_MAX_LINES) return false;
+  return payload.cart.every(validCartLine);
+}
+
+function validCartLine(line) {
+  if (!line || typeof line !== "object") return false;
+  if (!validQuantity(line.index) || line.index > CART_MAX_LINES) return false;
+  if (!validQuantity(line.qty)) return false;
+  if (!rawText(line.product, 200) || !rawText(line.unit, 24)) return false;
+  return validMoney(line.unit_price) && validMoney(line.line_total);
+}
+
+function validMoney(value) {
+  return value === "" || (typeof value === "number" && Number.isSafeInteger(value) && value > 0);
+}
+
+function safeMoney(value) {
+  return typeof value === "number" && Number.isSafeInteger(value) && value > 0 ? value : "";
 }
 
 function rawText(value, limit) {

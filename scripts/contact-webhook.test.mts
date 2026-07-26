@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 const { handleContactSubmission } = await import("../src/lib/contact-webhook" + ".ts");
+const { CONTACT_MAX_BODY_BYTES, resolveRequestCart } = await import("../src/lib/request-cart" + ".ts");
 
 const validSubmission = {
   email: "  customer@example.test  ",
@@ -410,4 +411,384 @@ test("returns 504 when a JSON response starts but its body never completes", { t
     message: "Dịch vụ tiếp nhận yêu cầu phản hồi quá chậm.",
     ok: false,
   });
+});
+
+const vanillaVariant = {
+  contactFromQuantity: 30,
+  isAvailable: true,
+  label: "Vị vani",
+  minimumOrderQuantity: 10,
+  quantityStep: 5,
+  sku: "B2B-DEMO-VANILLA",
+  tierPrices: [{ minQuantity: 10, price: 90_000 }, { minQuantity: 25, price: 84_000 }],
+  unit: "gói",
+};
+
+const lowSugarVariant = {
+  ...vanillaVariant,
+  label: "Vị ít ngọt",
+  sku: "B2B-DEMO-LOWSUGAR",
+  tierPrices: [{ minQuantity: 10, price: 95_000 }],
+};
+
+const cartCatalog = {
+  name: "Bột dinh dưỡng",
+  slug: "b2b-demo-bot-dinh-duong",
+  variants: [vanillaVariant, lowSugarVariant],
+};
+
+const cartResolver = async () => cartCatalog;
+
+const REQUEST_ID = "6b1e0f7a-6c2f-4c1a-9c3e-8f5b2d0a1e44";
+
+function cartLine(variantSku: string, quantity: number, parentSlug = "b2b-demo-bot-dinh-duong") {
+  return { parentSlug, quantity, variantSku };
+}
+
+const twoLineCart = [cartLine("B2B-DEMO-VANILLA", 25), cartLine("B2B-DEMO-LOWSUGAR", 10)];
+
+async function snapshotFor(lines = twoLineCart, resolver = cartResolver) {
+  return (await resolveRequestCart(lines, resolver)).snapshotToken;
+}
+
+function requestWithJson(body: unknown, contentType = "application/json"): Request {
+  return new Request("http://localhost/api/contact", {
+    body: typeof body === "string" ? body : JSON.stringify(body),
+    headers: { "Content-Type": contentType },
+    method: "POST",
+  });
+}
+
+async function cartBody(overrides: Record<string, unknown> = {}) {
+  return {
+    email: "customer@example.test",
+    lines: twoLineCart,
+    message: "Cần báo giá cho 2 vị.",
+    name: "Nguyễn Văn A",
+    phone: "0900 000 000",
+    requestId: REQUEST_ID,
+    snapshotToken: await snapshotFor(),
+    source: "/gui-yeu-cau/",
+    ...overrides,
+  };
+}
+
+test("forwards a canonical multi-line cart with server-computed prices and totals", async () => {
+  let receivedBody = "";
+  const response = await handleContactSubmission(requestWithJson(await cartBody()), {
+    cartResolver,
+    environment: environment(),
+    fetch: async (_url: string | URL | Request, init?: RequestInit) => {
+      receivedBody = String(init?.body);
+      return new Response(JSON.stringify({ ok: true, reference: "YC-CART" }), {
+        headers: { "Content-Type": "application/json" },
+      });
+    },
+    timeoutMs: 100,
+  });
+
+  assert.equal(response.status, 202);
+  assert.deepEqual(await response.json(), {
+    message: "Yêu cầu của bạn đã được tiếp nhận.",
+    ok: true,
+    reference: "YC-CART",
+  });
+  assert.deepEqual(JSON.parse(receivedBody), {
+    cart: [
+      {
+        index: 1,
+        line_total: 2_100_000,
+        note: "SKU B2B-DEMO-VANILLA",
+        product: "Bột dinh dưỡng",
+        qty: 25,
+        unit: "gói",
+        unit_price: 84_000,
+        variant: "Vị vani",
+      },
+      {
+        index: 2,
+        line_total: 950_000,
+        note: "SKU B2B-DEMO-LOWSUGAR",
+        product: "Bột dinh dưỡng",
+        qty: 10,
+        unit: "gói",
+        unit_price: 95_000,
+        variant: "Vị ít ngọt",
+      },
+    ],
+    cart_price_incomplete: false,
+    cart_subtotal: 3_050_000,
+    email: "customer@example.test",
+    message: "Cần báo giá cho 2 vị.",
+    name: "Nguyễn Văn A",
+    phone: "0900 000 000",
+    product: "Giỏ hàng (2 dòng)",
+    qty: "",
+    request_id: REQUEST_ID,
+    request_type: "Đặt sản phẩm",
+    secret: "shared-secret",
+    service: "",
+    source: "/gui-yeu-cau/",
+    variant: "",
+  });
+});
+
+test("assigns the highest cart tier and blanks price on request lines", async () => {
+  const lines = [cartLine("B2B-DEMO-VANILLA", 30), cartLine("B2B-DEMO-LOWSUGAR", 10)];
+  let receivedBody = "";
+  const response = await handleContactSubmission(requestWithJson(await cartBody({
+    lines,
+    snapshotToken: await snapshotFor(lines),
+  })), {
+    cartResolver,
+    environment: environment(),
+    fetch: async (_url: string | URL | Request, init?: RequestInit) => {
+      receivedBody = String(init?.body);
+      return new Response(JSON.stringify({ ok: true, reference: "YC-BULK" }), {
+        headers: { "Content-Type": "application/json" },
+      });
+    },
+    timeoutMs: 100,
+  });
+
+  assert.equal(response.status, 202);
+  const payload = JSON.parse(receivedBody);
+  assert.equal(payload.request_type, "Tư vấn số lượng lớn");
+  assert.equal(payload.product, "Giỏ hàng (2 dòng)");
+  assert.equal(payload.variant, "");
+  assert.equal(payload.qty, "");
+  assert.equal(payload.cart[0].unit_price, "");
+  assert.equal(payload.cart[0].line_total, "");
+  assert.equal(payload.cart[0].note, "SKU B2B-DEMO-VANILLA · Liên hệ báo giá");
+  assert.equal(payload.cart_subtotal, 950_000);
+  assert.equal(payload.cart_price_incomplete, true);
+});
+
+test("refuses any client-supplied price, total, or request type instead of trusting it", async () => {
+  const pricedBodies = [
+    { ...await cartBody(), cart_subtotal: 1 },
+    { ...await cartBody(), request_type: "Tư vấn dịch vụ" },
+    { ...await cartBody(), service: "say-thuc-pham-say" },
+    { ...await cartBody(), lines: twoLineCart.map((line) => ({ ...line, unitPrice: 1 })) },
+    { ...await cartBody(), lines: twoLineCart.map((line) => ({ ...line, lineTotal: 1 })) },
+  ];
+
+  for (const body of pricedBodies) {
+    let called = false;
+    const response = await handleContactSubmission(requestWithJson(body), {
+      cartResolver,
+      environment: environment(),
+      fetch: async () => {
+        called = true;
+        return new Response();
+      },
+      timeoutMs: 100,
+    });
+    assert.equal(response.status, 400, JSON.stringify(body).slice(0, 100));
+    assert.equal(called, false, JSON.stringify(body).slice(0, 100));
+  }
+});
+
+test("derives the forwarded price from the catalog, never from the request body", async () => {
+  let receivedBody = "";
+  const response = await handleContactSubmission(requestWithJson(await cartBody()), {
+    cartResolver,
+    environment: environment(),
+    fetch: async (_url: string | URL | Request, init?: RequestInit) => {
+      receivedBody = String(init?.body);
+      return new Response(JSON.stringify({ ok: true, reference: "YC-SERVER-PRICED" }), {
+        headers: { "Content-Type": "application/json" },
+      });
+    },
+    timeoutMs: 100,
+  });
+
+  assert.equal(response.status, 202);
+  const payload = JSON.parse(receivedBody);
+  assert.equal(payload.request_type, "Đặt sản phẩm");
+  assert.equal(payload.cart_subtotal, 3_050_000);
+  assert.equal(payload.service, "");
+  assert.equal(payload.cart[0].unit_price, 84_000);
+});
+
+test("returns 409 with a fresh snapshot when the cart drifted, without calling the webhook", async () => {
+  let called = false;
+  const response = await handleContactSubmission(requestWithJson(await cartBody({
+    snapshotToken: "0".repeat(64),
+  })), {
+    cartResolver,
+    environment: environment(),
+    fetch: async () => {
+      called = true;
+      return new Response();
+    },
+    timeoutMs: 100,
+  });
+
+  assert.equal(response.status, 409);
+  assert.equal(called, false);
+  const body = await response.json();
+  assert.equal(body.ok, false);
+  assert.equal(body.code, "CART_DRIFTED");
+  assert.equal(body.cart.snapshotToken, await snapshotFor());
+  assert.equal(body.cart.pricedSubtotal, 3_050_000);
+});
+
+test("returns 409 when a price changes between revalidation and submit", async () => {
+  const staleToken = await snapshotFor();
+  let called = false;
+  const response = await handleContactSubmission(requestWithJson(await cartBody({ snapshotToken: staleToken })), {
+    cartResolver: async () => ({
+      ...cartCatalog,
+      variants: [
+        { ...vanillaVariant, tierPrices: [{ minQuantity: 10, price: 90_000 }, { minQuantity: 25, price: 80_000 }] },
+        lowSugarVariant,
+      ],
+    }),
+    environment: environment(),
+    fetch: async () => {
+      called = true;
+      return new Response();
+    },
+    timeoutMs: 100,
+  });
+
+  assert.equal(response.status, 409);
+  assert.equal(called, false);
+  assert.equal((await response.json()).cart.lines[0].unitPrice, 80_000);
+});
+
+test("blocks a cart submit whose lines fail validation and reports every failing line", async () => {
+  const lines = [cartLine("B2B-DEMO-VANILLA", 12), cartLine("B2B-DEMO-LOWSUGAR", 5)];
+  let called = false;
+  const response = await handleContactSubmission(requestWithJson(await cartBody({
+    lines,
+    snapshotToken: await snapshotFor(lines),
+  })), {
+    cartResolver,
+    environment: environment(),
+    fetch: async () => {
+      called = true;
+      return new Response();
+    },
+    timeoutMs: 100,
+  });
+
+  assert.equal(response.status, 409);
+  assert.equal(called, false);
+  const body = await response.json();
+  assert.equal(body.code, "CART_NOT_SUBMITTABLE");
+  assert.deepEqual(body.cart.lines.map((line: { adjustments: Array<{ code: string }> }) => line.adjustments[0].code), [
+    "QUANTITY_OFF_STEP",
+    "QUANTITY_BELOW_MOQ",
+  ]);
+});
+
+test("reports every invalid contact field of a cart submit in one error map", async () => {
+  let called = false;
+  const response = await handleContactSubmission(requestWithJson(await cartBody({
+    email: "not-an-email",
+    name: "x",
+    phone: "12",
+  })), {
+    cartResolver,
+    environment: environment(),
+    fetch: async () => {
+      called = true;
+      return new Response();
+    },
+    timeoutMs: 100,
+  });
+
+  assert.equal(response.status, 400);
+  assert.equal(called, false);
+  assert.deepEqual(await response.json(), {
+    errors: {
+      email: "Địa chỉ email không hợp lệ.",
+      name: "Vui lòng nhập họ và tên.",
+      phone: "Số điện thoại không hợp lệ.",
+    },
+    message: "Vui lòng kiểm tra lại thông tin liên hệ.",
+    ok: false,
+  });
+});
+
+test("requires a well-formed request id and snapshot token before contacting the webhook", async () => {
+  const invalidBodies = [
+    await cartBody({ requestId: undefined }),
+    await cartBody({ requestId: "not-a-uuid" }),
+    await cartBody({ requestId: `${REQUEST_ID} ` }),
+    await cartBody({ snapshotToken: undefined }),
+    await cartBody({ snapshotToken: "short" }),
+    await cartBody({ snapshotToken: "Z".repeat(64) }),
+    await cartBody({ lines: [] }),
+    await cartBody({ lines: Array.from({ length: 21 }, (_, index) => cartLine(`B2B-DEMO-${index}`, 10)) }),
+    await cartBody({ lines: [cartLine("B2B-DEMO-VANILLA", 25), cartLine("B2B-DEMO-VANILLA", 25)] }),
+    await cartBody({ lines: [{ parentSlug: "b2b-demo-bot-dinh-duong", quantity: 25 }] }),
+    await cartBody({ extra: "field" }),
+  ];
+
+  for (const body of invalidBodies) {
+    let called = false;
+    const response = await handleContactSubmission(requestWithJson(body), {
+      cartResolver,
+      environment: environment(),
+      fetch: async () => {
+        called = true;
+        return new Response();
+      },
+      timeoutMs: 100,
+    });
+    assert.equal(response.status, 400, JSON.stringify(body).slice(0, 120));
+    assert.equal(called, false, JSON.stringify(body).slice(0, 120));
+  }
+});
+
+test("rejects a cart body above the byte cap without parsing or resolving it", async () => {
+  let called = false;
+  const padded = `{"padding":"${"a".repeat(CONTACT_MAX_BODY_BYTES)}"}`;
+  const response = await handleContactSubmission(requestWithJson(padded), {
+    cartResolver: async () => {
+      called = true;
+      return cartCatalog;
+    },
+    environment: environment(),
+    fetch: async () => new Response(),
+    timeoutMs: 100,
+  });
+
+  assert.equal(response.status, 413);
+  assert.equal(called, false);
+});
+
+test("fails a cart submit closed with 502 when the catalog cannot be re-read", async () => {
+  let called = false;
+  const response = await handleContactSubmission(requestWithJson(await cartBody()), {
+    cartResolver: async () => {
+      throw new Error("catalog unavailable");
+    },
+    environment: environment(),
+    fetch: async () => {
+      called = true;
+      return new Response();
+    },
+    timeoutMs: 100,
+  });
+
+  assert.equal(response.status, 502);
+  assert.equal(called, false);
+  assert.equal(JSON.stringify(await response.json()).includes("catalog unavailable"), false);
+});
+
+test("keeps the cart request id out of the client response", async () => {
+  const response = await handleContactSubmission(requestWithJson(await cartBody()), {
+    cartResolver,
+    environment: environment(),
+    fetch: async () => new Response(JSON.stringify({ ok: true, reference: "YC-CART" }), {
+      headers: { "Content-Type": "application/json" },
+    }),
+    timeoutMs: 100,
+  });
+
+  assert.deepEqual(Object.keys(await response.json()).sort(), ["message", "ok", "reference"]);
 });
