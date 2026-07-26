@@ -4,7 +4,8 @@ import { CapturedFloatingContact } from "@/components/CapturedPage";
 import { GiacongInteractions } from "@/components/GiacongInteractions";
 import { StorefrontHeader } from "@/components/storefront/StorefrontHeader";
 import { layerCapturedStyles } from "@/lib/captured-markup";
-import { getCatalogChrome, getStorefrontNavCategories } from "@/lib/catalog-chrome";
+import { getCatalogChrome } from "@/lib/catalog-chrome";
+import { getCommerceNavCategories } from "@/lib/commerce-nav";
 
 interface CatalogChromeProps {
   children: ReactNode;
@@ -12,7 +13,7 @@ interface CatalogChromeProps {
 }
 
 export async function CatalogChrome({ children, floatingContact = true }: CatalogChromeProps) {
-  const [chrome, categories] = await Promise.all([getCatalogChrome(), getStorefrontNavCategories()]);
+  const [chrome, categories] = await Promise.all([getCatalogChrome(), getCommerceNavCategories()]);
 
   return (
     <>

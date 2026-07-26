@@ -12,7 +12,7 @@ interface CatalogDetailProps {
 
 export function CatalogDetail({ initialVariantSku, product, variantQueryWarning }: CatalogDetailProps) {
   return (
-    <main id="catalog-main" className={styles.catalog}>
+    <div className={styles.catalog}>
       <div className={styles.inner}>
         <nav className={styles.crumbs} aria-label="Breadcrumb">
           <Link href="/">Trang chủ</Link> <span aria-hidden="true">/</span> <Link href="/san-pham/">Sản phẩm</Link>
@@ -31,6 +31,6 @@ export function CatalogDetail({ initialVariantSku, product, variantQueryWarning 
           </section>
         ) : null}
       </div>
-    </main>
+    </div>
   );
 }

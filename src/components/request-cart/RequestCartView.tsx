@@ -150,11 +150,12 @@ export function RequestCartView() {
   const lines = cart?.lines ?? [];
 
   return (
-    <main className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 lg:px-8" id="catalog-main">
+    <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
       {/*
-        The captured Flatsome CSS is unlayered, so its bare `a` and `input:focus` rules outrank
-        Tailwind's `@layer utilities`. The `!` modifier is what makes our colour, underline and
-        focus-ring utilities actually apply on this page.
+        The `!` modifiers below date from when the cloned stylesheets were unlayered and outranked
+        every utility. This route now renders in the `(commerce)` group, which loads none of them,
+        so the modifiers are redundant rather than load-bearing. They are left in place because
+        dropping them is a visual change to verify on its own.
       */}
       <nav aria-label="Đường dẫn" className="mb-3 text-sm text-neutral-700">
         <Link
@@ -235,7 +236,7 @@ export function RequestCartView() {
         ) : null}
         </>
       )}
-    </main>
+    </div>
   );
 }
 

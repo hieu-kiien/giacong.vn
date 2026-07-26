@@ -67,7 +67,7 @@ export function CatalogList({ categories, filters, result }: CatalogListProps) {
   );
 
   return (
-    <main className="bg-white text-ink" id="catalog-main">
+    <div className="bg-white text-ink">
       <div className="mx-auto w-full max-w-[1280px] px-4 py-6 md:px-5 lg:px-6 lg:py-8">
         <nav aria-label="Breadcrumb" className="mb-3 text-[13px] text-ink-soft">
           <Link className="underline-offset-3 hover:text-brand-800" href="/">Trang chủ</Link>
@@ -167,7 +167,7 @@ export function CatalogList({ categories, filters, result }: CatalogListProps) {
           </div>
         </div>
       </div>
-    </main>
+    </div>
   );
 }
 
