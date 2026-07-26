@@ -258,6 +258,15 @@ try {
     return page;
   };
 
+  const submitOneRequest = async (target) => {
+    await openCart(target, storedCart([vanilla]));
+    await target.locator("[data-cart-subtotal]").waitFor();
+    await target.getByLabel(/^Họ và tên/).fill("Trần Thị B");
+    await target.getByLabel(/^Số điện thoại/).fill("0868408115");
+    await target.getByRole("button", { name: "Gửi yêu cầu đặt hàng" }).click();
+    await target.locator("[data-request-reference]").waitFor();
+  };
+
   const page = await newPage();
 
   // A priced, submittable cart renders server money only.
@@ -538,7 +547,72 @@ try {
     [["parentSlug", "quantity", "variantSku"], ["parentSlug", "quantity", "variantSku"]],
     "Submitted lines must carry no price and no total",
   );
-  await page.getByText("YC-CAPTURED-001").waitFor();
+  // The accepted state: the Mã, the demo channels, and a cart cleared only now.
+  await page.locator("[data-request-reference]").waitFor();
+  assert.equal(await page.locator("[data-request-reference]").innerText(), "YC-CAPTURED-001", "The Mã must be shown verbatim");
+  assert.deepEqual(
+    JSON.parse(await page.evaluate((key) => window.localStorage.getItem(key), STORAGE_KEY)).lines,
+    [],
+    "A 202 must clear the cart",
+  );
+  assert.equal(await page.getByRole("button", { name: "Gửi yêu cầu đặt hàng" }).count(), 0, "The form must not remain after acceptance");
+  for (const [channel, href] of [
+    ["email", "mailto:qtu1053@gmail.com"],
+    ["hotline", "tel:0868408115"],
+  ]) {
+    const link = page.locator(`a[data-channel="${channel}"]`);
+    assert.equal(await link.count(), 1, `${channel} must be a direct link`);
+    assert.ok(
+      (await link.getAttribute("href")).startsWith(href),
+      `${channel} must use the locked demo target ${href}`,
+    );
+  }
+  for (const channel of ["zalo", "messenger"]) {
+    assert.equal(
+      await page.locator(`button[data-channel="${channel}"]`).count(),
+      1,
+      `${channel} must copy prepared content before opening`,
+    );
+  }
+  assert.match(
+    await page.locator("main").innerText(),
+    /dữ liệu demo/i,
+    "The demo channels must be labelled as demo data",
+  );
+  const mailtoHref = await page.locator('a[data-channel="email"]').getAttribute("href");
+  const mailtoBody = decodeURIComponent(new URL(mailtoHref).search.replace(/^\?/, "").split("body=")[1] ?? "");
+  assert.match(mailtoBody, /YC-CAPTURED-001/, "The prepared email must carry the Mã");
+  for (const pii of [/Trần/, /0868 408 115/, /ha@example\.com/]) {
+    assert.doesNotMatch(mailtoBody, pii, `Prepared content must not carry ${pii}`);
+  }
+
+  // Copy then open, with a working clipboard and with a blocked one.
+  const copyPage = await newPage();
+  await copyPage.context().grantPermissions(["clipboard-read", "clipboard-write"]);
+  await submitOneRequest(copyPage);
+  await copyPage.locator('button[data-channel="zalo"]').click();
+  await copyPage.locator("[data-copy-status]").filter({ hasText: "Đã sao chép" }).waitFor();
+  assert.match(
+    await copyPage.evaluate(() => navigator.clipboard.readText()),
+    /YC-CAPTURED-001/,
+    "Copy then open must place the Mã on the clipboard",
+  );
+  await copyPage.close();
+
+  const clipboardBlockedPage = await newPage();
+  await clipboardBlockedPage.addInitScript(() => {
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: { writeText: () => Promise.reject(new Error("blocked")) },
+    });
+  });
+  await submitOneRequest(clipboardBlockedPage);
+  await clipboardBlockedPage.locator('button[data-channel="messenger"]').click();
+  await clipboardBlockedPage.locator("[data-copy-status]").filter({ hasText: "Không sao chép được" }).waitFor();
+  const fallback = clipboardBlockedPage.locator("[data-copy-fallback]");
+  await fallback.waitFor();
+  assert.match(await fallback.inputValue(), /YC-CAPTURED-001/, "The fallback must expose the content to copy by hand");
+  await clipboardBlockedPage.close();
 
   // A blocked cart cannot be submitted at all.
   const blockedPage = await newPage();

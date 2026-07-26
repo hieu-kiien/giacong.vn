@@ -11,6 +11,7 @@ import {
   hydrationNotice,
   parseRevalidateResponse,
 } from "@/lib/request-cart-client";
+import { RequestAccepted } from "@/components/request-cart/RequestAccepted";
 import { RequestForm } from "@/components/request-cart/RequestForm";
 import {
   emptyRequestCart,
@@ -33,7 +34,7 @@ export function RequestCartView() {
   const [pending, setPending] = useState(false);
   const [refreshNonce, setRefreshNonce] = useState(0);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
-  const [reference, setReference] = useState<string | null>(null);
+  const [accepted, setAccepted] = useState<{ cart: ResolvedRequestCart; reference: string } | null>(null);
   const lastResolved = useRef<ResolvedRequestCart | null>(null);
 
   useEffect(() => {
@@ -120,11 +121,14 @@ export function RequestCartView() {
     setCart(next);
   }, [cart]);
 
-  /** Only a 202 clears the cart: any other outcome keeps every line so nothing is silently lost. */
-  const acceptRequest = useCallback((accepted: string) => {
+  /**
+   * Only a 202 clears the cart: any other outcome keeps every line so nothing is silently lost.
+   * The priced cart is kept in component state so the accepted panel can still summarise it.
+   */
+  const acceptRequest = useCallback((reference: string, submitted: ResolvedRequestCart) => {
     const empty = emptyRequestCart();
     writeRequestCart(window.localStorage, empty);
-    setReference(accepted);
+    setAccepted({ cart: submitted, reference });
     setResolved(null);
     setDrift(null);
     setError(null);
@@ -165,8 +169,8 @@ export function RequestCartView() {
         </p>
       ) : null}
 
-      {reference !== null ? (
-        <RequestAccepted reference={reference} />
+      {accepted !== null ? (
+        <RequestAccepted cart={accepted.cart} reference={accepted.reference} />
       ) : cart === null ? (
         <p className="mt-6 text-sm text-neutral-700" role="status">Đang đọc giỏ yêu cầu...</p>
       ) : lines.length === 0 ? (
@@ -213,25 +217,20 @@ export function RequestCartView() {
 
           {resolved ? <CartSummary cart={resolved} pending={pending} onRefresh={() => setRefreshNonce((value) => value + 1)} /> : null}
         </div>
-        {resolved ? <RequestForm cart={resolved} onAccepted={acceptRequest} onConflict={applyConflict} /> : null}
+        {resolved ? (
+          <RequestForm
+            cart={resolved}
+            onAccepted={(reference) => acceptRequest(reference, resolved)}
+            onConflict={applyConflict}
+          />
+        ) : null}
         </>
       )}
     </main>
   );
 }
 
-function RequestAccepted({ reference }: { reference: string }) {
-  return (
-    <div className="mt-6 rounded-lg border border-[#16883e] bg-[#f2fbf5] p-4 sm:p-6" role="status">
-      <h2 className="text-xl font-bold text-neutral-900 sm:text-2xl">Đã tiếp nhận yêu cầu của bạn</h2>
-      <p className="mt-2 text-sm text-neutral-700">Vui lòng lưu Mã bên dưới để đối chiếu khi chúng tôi liên hệ lại.</p>
-      <p className="mt-3 text-base text-neutral-900">
-        <span className="text-neutral-700">Mã: </span>
-        <strong className="font-mono text-lg tracking-wide" data-request-reference>{reference}</strong>
-      </p>
-    </div>
-  );
-}
+// Rendered from the last resolved cart, which is captured before the cart is cleared.
 
 function EmptyCart() {
   return (

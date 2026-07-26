@@ -296,3 +296,81 @@ test("503 and other statuses are plain failures", () => {
   assert.equal(parsed.status, "failed");
   assert.equal(parsed.status === "failed" ? parsed.message : null, "Dịch vụ tiếp nhận yêu cầu chưa được cấu hình.");
 });
+
+type Channel = { contact: string; copyFirst: boolean; demo: true; href: string; id: string; label: string };
+
+const channelModule = await import("../src/lib/request-cart-channels" + ".ts");
+const REQUEST_CART_CHANNELS = channelModule.REQUEST_CART_CHANNELS as readonly Channel[];
+const buildHandoffMessage = channelModule.buildHandoffMessage as (reference: string, cart: never) => string;
+
+test("the demo contact channels are exactly the locked values", () => {
+  assert.deepEqual(
+    REQUEST_CART_CHANNELS.map((channel) => channel.id),
+    ["zalo", "messenger", "email", "hotline"],
+  );
+
+  const byId = new Map<string, Channel>(REQUEST_CART_CHANNELS.map((channel) => [channel.id, channel]));
+  assert.equal(byId.get("zalo")?.href, "https://zalo.me/06408115");
+  assert.equal(byId.get("zalo")?.contact, "06408115");
+  assert.equal(byId.get("messenger")?.href, "https://m.me/qtudepdai");
+  assert.equal(byId.get("email")?.href, "mailto:qtu1053@gmail.com");
+  assert.equal(byId.get("hotline")?.href, "tel:0868408115");
+  assert.equal(byId.get("hotline")?.contact, "0868408115");
+});
+
+test("only the chat channels need prepared content copied first", () => {
+  const copyFirst = REQUEST_CART_CHANNELS.filter((channel) => channel.copyFirst).map((channel) => channel.id);
+  assert.deepEqual(copyFirst, ["zalo", "messenger"], "mailto and tel carry the reference themselves");
+});
+
+test("every channel is marked as demo data pending owner confirmation", () => {
+  for (const channel of REQUEST_CART_CHANNELS) {
+    assert.equal(channel.demo, true, `${channel.id} must be flagged as demo`);
+  }
+});
+
+test("prepared handoff content carries the reference and the lines but no PII", () => {
+  const cart = resolvedCart({
+    hasPriceOnRequest: true,
+    lineCount: 2,
+    lines: [
+      resolvedLine(),
+      resolvedLine({
+        adjustments: [{ code: "PRICE_ON_REQUEST", message: "Từ 100 thùng, giá được báo riêng theo số lượng." }],
+        lineTotal: null,
+        parentSlug: "b2b-demo-ngu-coc",
+        priceOnRequest: true,
+        productName: "Ngũ cốc dinh dưỡng",
+        quantity: 120,
+        unitPrice: null,
+        variantLabel: "Hạt",
+        variantSku: "B2B-DEMO-OAT",
+      }),
+    ],
+    requestType: "Tư vấn số lượng lớn",
+  }) as unknown as never;
+
+  const message = buildHandoffMessage("YC-2607-0042", cart);
+
+  assert.match(message, /YC-2607-0042/, "the reference is the whole point of the handoff");
+  assert.match(message, /Bột dinh dưỡng/);
+  assert.match(message, /Vani/);
+  assert.match(message, /15 thùng/);
+  assert.match(message, /Ngũ cốc dinh dưỡng/);
+  assert.match(message, /120 thùng/);
+  assert.match(message, /[Ll]iên hệ báo giá/, "a price-on-request line must say so instead of showing a total");
+  for (const pii of [/Trần/, /0868/, /@example\.com/, /ha@/i]) {
+    assert.doesNotMatch(message, pii, `prepared content must not carry ${pii}`);
+  }
+});
+
+test("prepared handoff content stays inside a chat-safe length", () => {
+  const manyLines = Array.from({ length: 20 }, (_unused, index) => resolvedLine({
+    parentSlug: "b2b-demo-bot-dinh-duong",
+    variantSku: `B2B-DEMO-SKU-${index}`,
+  }));
+  const message = buildHandoffMessage("YC-2607-0042", resolvedCart({ lineCount: 20, lines: manyLines }) as unknown as never);
+
+  assert.ok(message.length <= 1_800, `prepared content must stay short enough to paste (received ${message.length})`);
+  assert.match(message, /YC-2607-0042/, "truncation must never drop the reference");
+});
