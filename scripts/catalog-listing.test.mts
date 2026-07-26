@@ -290,6 +290,14 @@ test("the desktop sidebar is the measured 230px rail", async () => {
   assert.match(source, /max-lg:hidden/, "below 1024 the sidebar gives way to the drawer");
 });
 
+test("the filter panel keeps sorting and page size but removes the duplicate category list", async () => {
+  const panel = await catalogSource("CatalogFilterPanel.tsx");
+
+  assert.match(panel, /Sắp xếp/, "sorting remains available in the compact sidebar");
+  assert.match(panel, /Số sản phẩm mỗi trang/, "page-size selection remains available");
+  assert.doesNotMatch(panel, /CategoryRow|CatalogCategory|Danh mục/, "category selection lives only in the quick chips above the catalog");
+});
+
 test("loading, empty and error states keep the grid region intact", async () => {
   const source = await catalogSource("CatalogList.tsx");
 

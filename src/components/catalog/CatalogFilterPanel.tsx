@@ -6,14 +6,9 @@ import {
   DEFAULT_CATALOG_SORT,
   DEFAULT_CATALOG_SORT_DIRECTION,
 } from "@/lib/catalog-query";
-import type { CatalogCategory, CatalogFilters, CatalogPageSize } from "@/types/catalog";
+import type { CatalogFilters, CatalogPageSize } from "@/types/catalog";
 
 interface CatalogFilterPanelProps {
-  /** Per-category product counts when the source publishes them; the sidebar in
-   * `SCR-02` shows a count beside each group. The Bagisto list contract has none,
-   * so the number is rendered only when it is real. */
-  categoryCounts?: Record<string, number>;
-  categories: CatalogCategory[];
   filters: CatalogFilters;
   isPending: boolean;
   onClear: () => void;
@@ -21,7 +16,7 @@ interface CatalogFilterPanelProps {
 }
 
 /**
- * Only sort, page size and category are offered. The handoff also lists price
+ * Only sort and page size are offered. The handoff also lists price
  * range, stock, quy cách and thương hiệu facets, but the catalog contract has no
  * upstream support for them, and a control that cannot filter is worse than no
  * control. One instance renders in the desktop sidebar and one inside the mobile
@@ -37,8 +32,6 @@ const SORT_OPTIONS: readonly { label: string; value: string }[] = [
 ];
 
 export function CatalogFilterPanel({
-  categories,
-  categoryCounts,
   filters,
   isPending,
   onClear,
@@ -52,33 +45,7 @@ export function CatalogFilterPanel({
 
   return (
     <div className="grid gap-5">
-      <fieldset className="min-w-0 border-0 p-0">
-        <legend className="mb-2 text-sm font-bold text-commerce-body">Danh mục</legend>
-        <ul className="grid">
-          <li>
-            <CategoryRow
-              count={categoryCounts ? Object.values(categoryCounts).reduce((total, value) => total + value, 0) : undefined}
-              isActive={!filters.category}
-              isPending={isPending}
-              label="Tất cả sản phẩm"
-              onSelect={() => onUpdate({ category: "" })}
-            />
-          </li>
-          {categories.map((category) => (
-            <li key={category.id}>
-              <CategoryRow
-                count={categoryCounts?.[category.slug]}
-                isActive={filters.category === category.slug}
-                isPending={isPending}
-                label={category.name}
-                onSelect={() => onUpdate({ category: category.slug })}
-              />
-            </li>
-          ))}
-        </ul>
-      </fieldset>
-
-      <label className="grid gap-1.5 text-sm font-bold text-commerce-body">
+      <label className="grid gap-1.5 border-t border-commerce-border pt-5 text-sm font-bold text-commerce-body">
         Sắp xếp
         <select
           className="min-h-11 rounded-commerce-control border border-commerce-border bg-white px-3 text-sm font-normal text-commerce-body focus-visible:commerce-focus-ring"
@@ -121,41 +88,5 @@ export function CatalogFilterPanel({
         Xóa bộ lọc
       </button>
     </div>
-  );
-}
-
-/**
- * Sidebar category row. A 3px leading edge marks the active group, matching the
- * active-state treatment the behaviour spec defines for the mega menu, so the two
- * navigation surfaces read the same way.
- */
-function CategoryRow({
-  count,
-  isActive,
-  isPending,
-  label,
-  onSelect,
-}: {
-  count?: number;
-  isActive: boolean;
-  isPending: boolean;
-  label: string;
-  onSelect: () => void;
-}) {
-  return (
-    <button
-      aria-pressed={isActive}
-      className={`flex min-h-11 w-full items-center justify-between gap-2 border-l-3 px-3 text-left text-sm disabled:opacity-45 focus-visible:commerce-focus-ring ${
-        isActive
-          ? "border-l-commerce-brand bg-commerce-active-surface font-bold text-commerce-brand-dark"
-          : "border-l-transparent font-medium text-commerce-body hover:bg-commerce-active-surface"
-      }`}
-      disabled={isPending}
-      onClick={onSelect}
-      type="button"
-    >
-      <span className="min-w-0">{label}</span>
-      {count === undefined ? null : <span className="text-xs text-commerce-secondary">{count}</span>}
-    </button>
   );
 }

@@ -21,7 +21,6 @@ import type { CommerceCardAction } from "../../lib/commerce-ui.ts";
 import {
   DEMO_CATALOG_CATEGORIES,
   DEMO_CATALOG_PRODUCTS,
-  demoCatalogCategoryCounts,
 } from "../../data/demo-catalog.ts";
 import { demoProductImage } from "../../data/demo-product-images.ts";
 import type {
@@ -176,10 +175,6 @@ export const DEMO_CATALOG_NOTICE =
 
 export function demoCatalogCategories(): CatalogCategory[] {
   return [...DEMO_CATALOG_CATEGORIES];
-}
-
-export function demoCatalogCounts(): Record<string, number> {
-  return demoCatalogCategoryCounts();
 }
 
 /**

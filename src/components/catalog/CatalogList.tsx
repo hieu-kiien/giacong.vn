@@ -27,7 +27,6 @@ import type { CatalogCategory, CatalogFilters, CatalogPagination } from "@/types
 interface CatalogListProps {
   cards: CatalogCardView[];
   categories: CatalogCategory[];
-  categoryCounts?: Record<string, number>;
   filters: CatalogFilters;
   /** True when the demo fixture answered because the catalog feed was unreachable. */
   isDemoData?: boolean;
@@ -56,7 +55,6 @@ const TRUST_ICONS: Record<CatalogTrustIcon, typeof BadgePercent> = {
 export function CatalogList({
   cards,
   categories,
-  categoryCounts,
   filters,
   isDemoData = false,
   pagination,
@@ -96,8 +94,6 @@ export function CatalogList({
   });
   const filterPanel = (
     <CatalogFilterPanel
-      categories={categories}
-      categoryCounts={categoryCounts}
       filters={filters}
       isPending={isPending}
       onClear={clearFilters}

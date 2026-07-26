@@ -4,7 +4,6 @@ import { CatalogList } from "@/components/catalog/CatalogList";
 import {
   buildCatalogCards,
   demoCatalogCategories,
-  demoCatalogCounts,
   demoCatalogList,
 } from "@/components/catalog/catalog-listing";
 import { getCatalogCategories, getCatalogProducts } from "@/lib/bagisto-catalog";
@@ -20,7 +19,6 @@ export const metadata: Metadata = {
 interface CatalogPageData {
   cards: ReturnType<typeof buildCatalogCards>;
   categories: CatalogCategory[];
-  categoryCounts?: Record<string, number>;
   isDemoData: boolean;
   pagination: CatalogPagination;
 }
@@ -33,7 +31,6 @@ export default async function CatalogPage({ searchParams }: PageProps<"/san-pham
     <CatalogList
       cards={data.cards}
       categories={data.categories}
-      categoryCounts={data.categoryCounts}
       filters={filters}
       isDemoData={data.isDemoData}
       pagination={data.pagination}
@@ -67,7 +64,6 @@ async function loadCatalog(filters: CatalogFilters): Promise<CatalogPageData> {
     return {
       cards: buildCatalogCards(demo.products),
       categories: demoCatalogCategories(),
-      categoryCounts: demoCatalogCounts(),
       isDemoData: true,
       pagination: demo.pagination,
     };
