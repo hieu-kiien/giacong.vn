@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { CatalogCardPurchase } from "@/components/catalog/CatalogCardPurchase";
 import { CatalogProductImage } from "@/components/catalog/CatalogProductImage";
 import { ProductQuickPreview } from "@/components/catalog/ProductQuickPreview";
 import styles from "@/components/catalog/catalog.module.css";
@@ -21,6 +22,7 @@ export function CatalogProductCard({ product }: CatalogProductCardProps) {
         <span className={styles.meta}>{product.variantCount} phiên bản</span>
         <span className={styles.availability}>{product.availableVariantCount}/{product.variantCount} phiên bản có sẵn</span>
         <Link className={styles.cardAction} href={`/san-pham/${encodeURIComponent(product.slug)}/`} prefetch={false}>Xem chi tiết</Link>
+        <CatalogCardPurchase productName={product.name} slug={product.slug} />
         <ProductQuickPreview productName={product.name} slug={product.slug} />
       </div>
     </article>
