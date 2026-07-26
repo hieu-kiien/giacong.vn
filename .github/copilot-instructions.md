@@ -13,6 +13,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 - [docs/COMMERCE_PLATFORM_MASTER_PLAN.md](docs/COMMERCE_PLATFORM_MASTER_PLAN.md) is the only current decision source.
 - `docs/research/` and `docs/design-references/` are historical research evidence, not target scope or product decisions.
+- [docs/UI_CURRENT_MAP.md](docs/UI_CURRENT_MAP.md) and [docs/ORIGINAL_GIACONG_VN_MAP.md](docs/ORIGINAL_GIACONG_VN_MAP.md) describe the current and pre-clone interfaces as observed. They are descriptive only; the target sitemap is in the master plan.
 - [docs/GOOGLE_SHEETS_CONTACT_WEBHOOK.md](docs/GOOGLE_SHEETS_CONTACT_WEBHOOK.md) describes the current webhook and its implemented 15-column intake schema; Sheet operations and handoff remain in the master plan.
 
 ## Commands
@@ -47,3 +48,4 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - Use isolated worktrees for implementation work. Review order is Terra implementation → Luna independent review → Gemini simplicity/routing review.
 - Keep scope small; do not add dependencies or speculative architecture.
 - After editing this file, run `bash scripts/sync-agent-rules.sh` and inspect only its generated changes. Do not edit generated agent-rule files directly.
+- The `clone-website` skill is kept as identical copies in `.claude/`, `.codex/` and `.github/skills/`. There is no generator for them; edit all three together or they drift.

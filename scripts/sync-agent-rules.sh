@@ -3,22 +3,16 @@
 # sync-agent-rules.sh — Generate AI agent config files from AGENTS.md
 #
 # AGENTS.md is the single source of truth. This script creates copies
-# for agents that don't read AGENTS.md natively (Cline, Continue,
-# Amazon Q, GitHub Copilot Chat).
+# for agents that don't read AGENTS.md natively (GitHub Copilot Chat).
 #
 # Usage:
 #   bash scripts/sync-agent-rules.sh
 #
 # Agents that DON'T need generated files (they read AGENTS.md natively):
-#   Codex CLI, OpenCode, Cursor, Windsurf, Copilot Coding Agent,
-#   Roo Code, Aider, Augment Code
+#   Codex CLI, Copilot Coding Agent
 #
 # Agents with their own thin pointer files (created manually):
 #   Claude Code  → CLAUDE.md (@AGENTS.md import)
-#   Gemini CLI   → GEMINI.md (@AGENTS.md import)
-#   Cursor       → .cursor/rules/project.mdc (pointer)
-#   Windsurf     → .windsurfrules (pointer)
-#   Aider        → .aider.conf.yml (read: [AGENTS.md])
 
 set -euo pipefail
 
@@ -68,20 +62,6 @@ echo "Syncing agent rules from AGENTS.md..."
 
 # GitHub Copilot Chat — .github/copilot-instructions.md
 write_file "$REPO_ROOT/.github/copilot-instructions.md" "$RESOLVED_CONTENT"
-
-# Cline / Roo Code — .clinerules
-write_file "$REPO_ROOT/.clinerules" "$RESOLVED_CONTENT"
-
-# Continue — .continue/rules/project.md
-CONTINUE_FRONTMATTER="---
-description: Project conventions for Giacong Lean Commerce
-alwaysApply: true
----"
-write_file "$REPO_ROOT/.continue/rules/project.md" "$CONTINUE_FRONTMATTER
-$RESOLVED_CONTENT"
-
-# Amazon Q Developer — .amazonq/rules/project.md
-write_file "$REPO_ROOT/.amazonq/rules/project.md" "$RESOLVED_CONTENT"
 
 echo ""
 echo "Done. Generated files are committed to the repo but sourced from AGENTS.md."

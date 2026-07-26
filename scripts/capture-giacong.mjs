@@ -214,7 +214,6 @@ for (const file of htmlFiles) {
 await writeOutput(resolve(pagesRoot, "manifest.json"), JSON.stringify(manifest, null, 2));
 
 const home = JSON.parse(await readFile(resolve(pagesRoot, manifest["/"]), "utf8"));
-await writeOutput("src/data/giacong.html", home.markup);
 await writeOutput(`${publicStylesRoot}/giacong-sections.css`, home.pageStyles);
 
 function rewriteStylesheetAssets(css, stylesheetUrl) {
