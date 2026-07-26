@@ -265,6 +265,15 @@ test("the header shares the storefront green tone and desktop rhythm on the cont
   assert.match(header, /flex h-commerce-header-compact/, "the structure follows the storefront header's simple horizontal rail");
 });
 
+test("the desktop header carries the 4326 source hierarchy without importing its logo asset", async () => {
+  const header = await chromeSource("CommerceHeader.tsx");
+
+  assert.match(header, /lg:grid-cols-\[1fr_auto_1fr\]/, "desktop navigation balances around a centred wordmark");
+  assert.match(header, /justify-self-center/, "the wordmark stays centred independently of side actions");
+  assert.match(header, /sourceLeftNavItems/, "the source's left navigation group is explicit");
+  assert.match(header, /sourceRightNavItems/, "the source's right navigation group is explicit");
+});
+
 test("the wordmark is set as text, so no third-party logo asset ships", async () => {
   const header = await chromeSource("CommerceHeader.tsx");
 

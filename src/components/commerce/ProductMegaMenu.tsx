@@ -111,7 +111,7 @@ export function ProductMegaMenu({ menu }: ProductMegaMenuProps) {
         ref={triggerRef}
         type="button"
       >
-        Danh mục sản phẩm
+        Sản phẩm
         <ChevronDown
           aria-hidden="true"
           className={`size-4 transition-transform motion-reduce:transition-none ${open ? "rotate-180" : ""}`}
