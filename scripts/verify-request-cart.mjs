@@ -741,7 +741,161 @@ try {
     "Local storage must never hold price, total or PII",
   );
 
-  // No horizontal overflow at the required widths.
+  // Every interactive control must carry a programmatic name, not just visual context.
+  const unnamed = await page.evaluate(() => {
+    const named = (control) => {
+      if (control.getAttribute("aria-label")?.trim()) return true;
+      const labelledBy = control.getAttribute("aria-labelledby");
+      if (labelledBy && labelledBy.split(/\s+/).some((id) => document.getElementById(id)?.textContent?.trim())) return true;
+      if (control.labels && control.labels.length > 0) return true;
+      return control.tagName === "BUTTON" && (control.textContent ?? "").trim() !== "";
+    };
+    return Array.from(document.querySelectorAll("main button, main input, main textarea, main select"))
+      .filter((control) => !named(control))
+      .map((control) => `${control.tagName.toLowerCase()}#${control.id || "(no id)"}`);
+  });
+  assert.deepEqual(unnamed, [], "Every cart control must expose an accessible name");
+
+  /** Computes the WCAG contrast of every visible text run inside `main`. */
+  const contrastFailures = (target) => target.evaluate(() => {
+    const parse = (value) => {
+      const parts = value.match(/rgba?\(([^)]+)\)/)?.[1].split(/[,\s/]+/).filter(Boolean).map(Number);
+      return parts ? { a: parts.length > 3 ? parts[3] : 1, b: parts[2], g: parts[1], r: parts[0] } : null;
+    };
+    const channel = (value) => {
+      const ratio = value / 255;
+      return ratio <= 0.03928 ? ratio / 12.92 : ((ratio + 0.055) / 1.055) ** 2.4;
+    };
+    const luminance = (colour) => 0.2126 * channel(colour.r) + 0.7152 * channel(colour.g) + 0.0722 * channel(colour.b);
+    const backdrop = (element) => {
+      for (let node = element; node; node = node.parentElement) {
+        const colour = parse(getComputedStyle(node).backgroundColor);
+        if (colour && colour.a > 0) return colour;
+      }
+      return { a: 1, b: 255, g: 255, r: 255 };
+    };
+    const failures = [];
+    for (const element of document.querySelectorAll("main *")) {
+      const own = Array.from(element.childNodes)
+        .filter((node) => node.nodeType === Node.TEXT_NODE && (node.textContent ?? "").trim() !== "")
+        .map((node) => (node.textContent ?? "").trim())
+        .join(" ");
+      if (own === "") continue;
+      const style = getComputedStyle(element);
+      if (style.visibility === "hidden" || style.display === "none") continue;
+      const opacity = Number(style.opacity);
+      if (opacity === 0) continue;
+      // Fractional opacity would make the computed colour a lie, so it is banned outright.
+      if (opacity < 1) {
+        failures.push({ ratio: null, reason: "opacity", text: own.slice(0, 40) });
+        continue;
+      }
+      const foreground = parse(style.color);
+      if (!foreground) continue;
+      const size = Number.parseFloat(style.fontSize);
+      const large = size >= 24 || (Number(style.fontWeight) >= 700 && size >= 18.66);
+      const first = luminance(foreground);
+      const second = luminance(backdrop(element));
+      const ratio = (Math.max(first, second) + 0.05) / (Math.min(first, second) + 0.05);
+      const required = large ? 3 : 4.5;
+      if (ratio + 0.005 < required) {
+        failures.push({ ratio: Number(ratio.toFixed(2)), reason: `needs ${required}`, text: own.slice(0, 40) });
+      }
+    }
+    return failures;
+  });
+  assert.deepEqual(await contrastFailures(page), [], "Every text run in a priced cart must meet WCAG AA contrast");
+
+  // Brand green carries the primary action; the warning accent is the handoff's only warm token.
+  const brandGreen = "rgb(50, 118, 0)";
+  assert.equal(
+    await page.getByRole("button", { name: "Gửi yêu cầu đặt hàng" }).evaluate((node) => getComputedStyle(node).backgroundColor),
+    brandGreen,
+    "The primary CTA must use the brand green",
+  );
+
+  // A keyboard user must see where focus is.
+  const outlineWidth = async (locator) => Number.parseFloat(await locator.evaluate((node) => {
+    const style = getComputedStyle(node);
+    return style.outlineStyle === "none" ? "0" : style.outlineWidth;
+  }));
+  await page.getByLabel(/^Họ và tên/).focus();
+  assert.ok(await outlineWidth(page.getByLabel(/^Họ và tên/)) >= 2, "A focused field must show a visible focus ring");
+  await page.locator("#noi-dung-yeu-cau").focus();
+  await page.keyboard.press("Tab");
+  const focusedCta = page.getByRole("button", { name: "Gửi yêu cầu đặt hàng" });
+  assert.equal(await focusedCta.evaluate((node) => node === document.activeElement), true, "Tab must reach the CTA from the message field");
+  assert.ok(await outlineWidth(focusedCta) >= 2, "The focused CTA must show a visible focus ring");
+
+  assert.equal(
+    await page.locator("main [style]").count(),
+    0,
+    "Cart markup must style through Tailwind utilities, not inline styles",
+  );
+  assert.equal(
+    await page.locator("[aria-live='polite'] [data-cart-subtotal]").count(),
+    1,
+    "A recomputed subtotal must be announced to assistive technology",
+  );
+
+  /**
+   * The sticky summary must never cover the content a customer is trying to reach. Checked
+   * geometrically against the summary itself: the captured header is also sticky, and that is
+   * pre-existing chrome outside this route's scope.
+   */
+  const summaryOverlaps = (target, selector) => target.evaluate((other) => {
+    const aside = document.querySelector("main aside");
+    const subject = document.querySelector(other);
+    if (!aside || !subject) return "missing";
+    const first = aside.getBoundingClientRect();
+    const second = subject.getBoundingClientRect();
+    const overlaps = first.right > second.left && first.left < second.right
+      && first.bottom > second.top && first.top < second.bottom;
+    return overlaps ? `overlaps ${other}` : "clear";
+  }, selector);
+
+  await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+  assert.equal(await summaryOverlaps(page, "main form"), "clear", "The sticky summary must not overlap the confirmation form");
+  assert.equal(
+    await summaryOverlaps(page, "form button[type='submit']"),
+    "clear",
+    "The sticky summary must not cover the CTA once the page is scrolled",
+  );
+  assert.equal(
+    await summaryOverlaps(page, "main ul li[data-cart-line]"),
+    "clear",
+    "The sticky summary must not cover a cart line",
+  );
+
+  // Warning surfaces keep the accent colour and stay readable.
+  await openCart(page, storedCart([vanilla, { ...vanilla, quantity: 5, variantSku: "B2B-DEMO-BOT-IT-NGOT" }]));
+  await page.locator("[data-cart-blocked]").waitFor();
+  assert.equal(
+    await page.locator("[data-cart-line-warning] li").first().evaluate((node) => getComputedStyle(node).borderTopColor),
+    "rgb(181, 71, 8)",
+    "Warning surfaces must use the handoff warning accent",
+  );
+  assert.deepEqual(
+    await contrastFailures(page),
+    [],
+    "Warning, blocked and disabled states must also meet WCAG AA contrast",
+  );
+
+  // A short viewport must not trap the summary off screen.
+  const shortPage = await newPage({ width: 1024, height: 640 });
+  await openCart(shortPage, storedCart([vanilla, oats, { ...vanilla, quantity: 5, variantSku: "B2B-DEMO-BOT-IT-NGOT" }]));
+  await shortPage.locator("[data-cart-subtotal]").waitFor();
+  assert.equal(
+    await shortPage.evaluate(() => {
+      const aside = document.querySelector("main aside");
+      return aside !== null && aside.getBoundingClientRect().height <= window.innerHeight - 32;
+    }),
+    true,
+    "A sticky summary must fit inside a short viewport instead of hiding its own controls",
+  );
+  await shortPage.close();
+
+  // No horizontal overflow, and touch targets stay reachable, at the required widths.
   for (const width of [320, 768, 1024, 1440]) {
     const viewportPage = await newPage({ width, height: 900 });
     await openCart(viewportPage, storedCart([vanilla, oats, { ...vanilla, quantity: 5, variantSku: "B2B-DEMO-BOT-IT-NGOT" }]));
@@ -751,9 +905,37 @@ try {
       true,
       `${width}px cart must not overflow horizontally`,
     );
+    const smallTargets = await viewportPage.evaluate(() => Array.from(
+      document.querySelectorAll("main button, main input, main textarea, main [data-cta]"),
+    )
+      .filter((control) => control.getBoundingClientRect().height < 44)
+      .map((control) => {
+        const height = Math.round(control.getBoundingClientRect().height * 100) / 100;
+        return `${control.tagName.toLowerCase()}#${control.id || "(no id)"} is ${height}px`;
+      }));
+    assert.deepEqual(smallTargets, [], `${width}px controls must stay at least 44px tall`);
+    if (width < 1024) {
+      assert.equal(
+        await viewportPage.evaluate(() => getComputedStyle(document.querySelector("main aside")).position),
+        "static",
+        `${width}px must lay the summary out in flow so it cannot obscure anything`,
+      );
+    }
     await viewportPage.screenshot({ path: join(screenshots, `cart-${width}.png`), fullPage: true });
     await viewportPage.close();
   }
+
+  // The accepted state is held to the same bar.
+  const acceptedPage = await newPage({ width: 390, height: 844 });
+  await submitOneRequest(acceptedPage);
+  assert.deepEqual(await contrastFailures(acceptedPage), [], "The accepted state must meet WCAG AA contrast");
+  assert.equal(
+    await acceptedPage.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth),
+    true,
+    "The accepted state must not overflow on a phone",
+  );
+  await acceptedPage.screenshot({ path: join(screenshots, "accepted-390.png"), fullPage: true });
+  await acceptedPage.close();
 
   await page.close();
   // The 400, 409 and 502 submits above are deliberate, and the browser logs each one.

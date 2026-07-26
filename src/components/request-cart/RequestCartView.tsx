@@ -151,15 +151,24 @@ export function RequestCartView() {
 
   return (
     <main className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 lg:px-8" id="catalog-main">
-      <nav aria-label="Đường dẫn" className="mb-3 text-sm text-neutral-600">
-        <Link className="underline hover:text-[#3e7a00] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#2e90fa]" href="/san-pham/">
+      {/*
+        The captured Flatsome CSS is unlayered, so its bare `a` and `input:focus` rules outrank
+        Tailwind's `@layer utilities`. The `!` modifier is what makes our colour, underline and
+        focus-ring utilities actually apply on this page.
+      */}
+      <nav aria-label="Đường dẫn" className="mb-3 text-sm text-neutral-700">
+        <Link
+          className="text-neutral-700! underline! hover:text-[#327600]! focus-visible:outline-2! focus-visible:outline-offset-2 focus-visible:outline-[#2e90fa]!"
+          href="/san-pham/"
+        >
           Sản phẩm
         </Link>
         <span aria-hidden="true"> / </span>
         <span>Giỏ yêu cầu</span>
       </nav>
       <h1 className="text-[28px] font-bold leading-tight text-neutral-900 sm:text-[36px]">Giỏ yêu cầu đặt hàng</h1>
-      <p className="mt-2 max-w-2xl text-sm text-neutral-700 sm:text-base">
+      <span aria-hidden="true" className="mt-3 block h-1 w-16 rounded-full bg-[#b54708]" />
+      <p className="mt-3 max-w-2xl text-sm text-neutral-700 sm:text-base">
         Đơn giá và tạm tính bên dưới do hệ thống tính lại theo dữ liệu mới nhất, không lấy từ máy của bạn.
       </p>
 
@@ -188,7 +197,7 @@ export function RequestCartView() {
               <div className="rounded-md border border-red-300 bg-red-50 px-4 py-3" role="alert">
                 <p className="text-sm text-red-800">{error}</p>
                 <button
-                  className="mt-3 min-h-11 rounded-md bg-[#5aa400] px-4 text-sm font-semibold text-white hover:bg-[#4a8a00] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#2e90fa]"
+                  className="mt-3 min-h-11! rounded-md bg-[#327600]! px-4 text-sm font-semibold text-white! hover:bg-[#285f00]! focus-visible:outline-2! focus-visible:outline-offset-2 focus-visible:outline-[#2e90fa]!"
                   onClick={() => setRefreshNonce((value) => value + 1)}
                   type="button"
                 >
@@ -238,7 +247,8 @@ function EmptyCart() {
       <p className="text-base font-semibold text-neutral-900">Giỏ yêu cầu đang trống.</p>
       <p className="mt-2 text-sm text-neutral-700">Chọn sản phẩm và số lượng để thêm vào giỏ yêu cầu.</p>
       <Link
-        className="mt-4 inline-flex min-h-11 items-center rounded-md bg-[#5aa400] px-5 text-sm font-semibold text-white hover:bg-[#4a8a00] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#2e90fa]"
+        className="mt-4 inline-flex min-h-11! items-center rounded-md bg-[#327600]! px-5 text-sm font-semibold text-white! hover:bg-[#285f00]! focus-visible:outline-2! focus-visible:outline-offset-2 focus-visible:outline-[#2e90fa]!"
+        data-cta
         href="/san-pham/"
       >
         Xem sản phẩm
@@ -273,7 +283,7 @@ function CartLine({ draft, line, onCommit, onDraft, onRemove }: CartLineProps) {
         </div>
         <button
           aria-label={`Xóa ${label}${line.variantLabel ? ` - ${line.variantLabel}` : ""} khỏi giỏ yêu cầu`}
-          className="min-h-11 rounded-md border border-neutral-300 px-3 text-sm font-medium text-neutral-800 hover:border-red-400 hover:text-red-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#2e90fa]"
+          className="min-h-11! rounded-md border border-neutral-300 px-3 text-sm font-medium text-neutral-800! hover:border-red-400 hover:text-red-700! focus-visible:outline-2! focus-visible:outline-offset-2 focus-visible:outline-[#2e90fa]!"
           onClick={() => onRemove(line.variantSku)}
           type="button"
         >
@@ -287,7 +297,7 @@ function CartLine({ draft, line, onCommit, onDraft, onRemove }: CartLineProps) {
             {`Số lượng${line.unit ? ` (${line.unit})` : ""}`}
           </label>
           <input
-            className="mt-1 h-11 w-28 rounded-md border border-neutral-300 px-3 text-base text-neutral-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#2e90fa]"
+            className="mt-1 h-11! w-28 rounded-md border border-neutral-300 px-3 text-base text-neutral-900 focus-visible:outline-2! focus-visible:outline-offset-2 focus-visible:outline-[#2e90fa]!"
             id={quantityId}
             inputMode="numeric"
             min={line.minimumOrderQuantity ?? 1}
@@ -342,11 +352,18 @@ interface CartSummaryProps {
   pending: boolean;
 }
 
+/**
+ * Sticky only from `lg`, and never taller than the viewport, so it can never hide its own
+ * controls or the content beside it. Below `lg` it stays in flow.
+ */
 function CartSummary({ cart, onRefresh, pending }: CartSummaryProps) {
   return (
-    <aside aria-label="Tạm tính giỏ yêu cầu" className="rounded-lg border border-neutral-200 bg-white p-4 lg:sticky lg:top-4">
+    <aside
+      aria-label="Tạm tính giỏ yêu cầu"
+      className="rounded-lg border border-neutral-200 bg-white p-4 lg:sticky lg:top-4 lg:max-h-[calc(100vh-2rem)] lg:overflow-y-auto"
+    >
       <h2 className="text-lg font-bold text-neutral-900">Tạm tính</h2>
-      <dl className="mt-3 flex flex-col gap-2 text-sm">
+      <dl aria-live="polite" className="mt-3 flex flex-col gap-2 text-sm">
         <div className="flex items-baseline justify-between gap-3">
           <dt className="text-neutral-700">Số dòng</dt>
           <dd className="font-medium text-neutral-900">{cart.lineCount}</dd>
@@ -374,7 +391,7 @@ function CartSummary({ cart, onRefresh, pending }: CartSummaryProps) {
         </p>
       )}
       <button
-        className="mt-4 min-h-11 w-full rounded-md border border-neutral-300 px-4 text-sm font-semibold text-neutral-800 hover:border-[#5aa400] hover:text-[#3e7a00] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#2e90fa] disabled:opacity-60"
+        className="mt-4 min-h-11! w-full rounded-md border border-neutral-300 px-4 text-sm font-semibold text-neutral-800! hover:border-[#5aa400] hover:text-[#327600]! focus-visible:outline-2! focus-visible:outline-offset-2 focus-visible:outline-[#2e90fa]! disabled:border-neutral-200 disabled:text-neutral-600! disabled:opacity-100!"
         disabled={pending}
         onClick={onRefresh}
         type="button"

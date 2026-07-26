@@ -155,7 +155,7 @@ export function RequestForm({ cart, onAccepted, onConflict }: RequestFormProps) 
           <textarea
             aria-describedby={errors.message ? "noi-dung-yeu-cau-loi" : undefined}
             aria-invalid={errors.message ? true : undefined}
-            className="mt-1 w-full rounded-md border border-neutral-300 px-3 py-2 text-base text-neutral-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#2e90fa]"
+            className="mt-1 w-full rounded-md border border-neutral-300 px-3 py-2 text-base text-neutral-900 focus-visible:outline-2! focus-visible:outline-offset-2 focus-visible:outline-[#2e90fa]!"
             id="noi-dung-yeu-cau"
             maxLength={2000}
             onChange={(event) => update("message", event.target.value)}
@@ -169,7 +169,7 @@ export function RequestForm({ cart, onAccepted, onConflict }: RequestFormProps) 
 
         <div className="sm:col-span-2">
           <button
-            className="min-h-12 w-full rounded-md bg-[#5aa400] px-6 text-base font-semibold text-white hover:bg-[#4a8a00] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#2e90fa] disabled:cursor-not-allowed disabled:bg-neutral-400 sm:w-auto"
+            className="min-h-12! w-full rounded-md bg-[#327600]! px-6 text-base font-semibold text-white! hover:bg-[#285f00]! focus-visible:outline-2! focus-visible:outline-offset-2 focus-visible:outline-[#2e90fa]! disabled:cursor-not-allowed disabled:bg-neutral-200! disabled:text-neutral-700! disabled:opacity-100! sm:w-auto"
             disabled={submitting || !cart.isSubmittable}
             type="submit"
           >
@@ -208,7 +208,7 @@ function Field({ error, id, inputMode, label, onChange, optionalHint, required, 
         aria-describedby={error ? `${id}-loi` : undefined}
         aria-invalid={error ? true : undefined}
         aria-required={required ? true : undefined}
-        className="mt-1 h-11 w-full rounded-md border border-neutral-300 px-3 text-base text-neutral-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#2e90fa]"
+        className="mt-1 h-11! w-full rounded-md border border-neutral-300 px-3 text-base text-neutral-900 focus-visible:outline-2! focus-visible:outline-offset-2 focus-visible:outline-[#2e90fa]!"
         id={id}
         inputMode={inputMode}
         onChange={(event) => onChange(event.target.value)}

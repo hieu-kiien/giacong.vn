@@ -70,7 +70,7 @@ export function RequestAccepted({ cart, reference }: RequestAcceptedProps) {
             <li key={channel.id}>
               {channel.copyFirst ? (
                 <button
-                  className="flex min-h-12 w-full items-center justify-between gap-3 rounded-md border border-neutral-300 px-4 text-left text-sm font-semibold text-neutral-900 hover:border-[#5aa400] hover:text-[#3e7a00] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#2e90fa]"
+                  className="flex min-h-12! w-full items-center justify-between gap-3 rounded-md border border-neutral-300 px-4 text-left text-sm font-semibold text-neutral-900! hover:border-[#5aa400] hover:text-[#327600]! focus-visible:outline-2! focus-visible:outline-offset-2 focus-visible:outline-[#2e90fa]!"
                   data-channel={channel.id}
                   onClick={() => void openChannel(channel)}
                   type="button"
@@ -80,8 +80,9 @@ export function RequestAccepted({ cart, reference }: RequestAcceptedProps) {
                 </button>
               ) : (
                 <a
-                  className="flex min-h-12 w-full items-center justify-between gap-3 rounded-md border border-neutral-300 px-4 text-sm font-semibold text-neutral-900 hover:border-[#5aa400] hover:text-[#3e7a00] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#2e90fa]"
+                  className="flex min-h-12! w-full items-center justify-between gap-3 rounded-md border border-neutral-300 px-4 text-sm font-semibold text-neutral-900! hover:border-[#5aa400] hover:text-[#327600]! focus-visible:outline-2! focus-visible:outline-offset-2 focus-visible:outline-[#2e90fa]!"
                   data-channel={channel.id}
+                  data-cta
                   href={channelHref(channel, reference, message)}
                 >
                   <span>{channel.label}</span>
@@ -99,7 +100,7 @@ export function RequestAccepted({ cart, reference }: RequestAcceptedProps) {
         {copyState?.status === "manual" ? (
           <textarea
             aria-label="Nội dung cần sao chép"
-            className="mt-2 w-full rounded-md border border-neutral-300 px-3 py-2 font-mono text-sm text-neutral-900"
+            className="mt-2 w-full rounded-md border border-neutral-300 px-3 py-2 font-mono text-sm text-neutral-900 focus-visible:outline-2! focus-visible:outline-offset-2 focus-visible:outline-[#2e90fa]!"
             data-copy-fallback
             readOnly
             ref={manualRef}
@@ -110,7 +111,8 @@ export function RequestAccepted({ cart, reference }: RequestAcceptedProps) {
       </section>
 
       <Link
-        className="mt-6 inline-flex min-h-11 items-center rounded-md border border-neutral-300 px-5 text-sm font-semibold text-neutral-800 hover:border-[#5aa400] hover:text-[#3e7a00] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#2e90fa]"
+        className="mt-6 inline-flex min-h-11! items-center rounded-md border border-neutral-300 px-5 text-sm font-semibold text-neutral-800! hover:border-[#5aa400] hover:text-[#327600]! focus-visible:outline-2! focus-visible:outline-offset-2 focus-visible:outline-[#2e90fa]!"
+        data-cta
         href="/san-pham/"
       >
         Tiếp tục xem sản phẩm
