@@ -265,37 +265,29 @@ test("the listing renders the approved page structure on an off-white page", asy
   assert.match(source, /Danh sách sản phẩm/, "the approved H1");
   assert.match(source, /CATALOG_TRUST_BENEFITS/, "the trust row is data-driven, not hand-repeated");
   assert.match(source, /Tìm sản phẩm/, "the search label the QA flow drives");
-  assert.match(source, /CatalogFilterDrawer/, "mobile filters live in the drawer");
+  assert.doesNotMatch(source, /CatalogFilterDrawer|CatalogFilterPanel|Bộ lọc sản phẩm/, "the separate filter controls are removed");
   assert.match(source, /B2B|doanh nghiệp/, "the support strip closes the page");
   assert.doesNotMatch(source, /gradient|backdrop-blur/, "no gradient or glass treatment");
   assert.doesNotMatch(source, FORBIDDEN_SURFACE_PATTERN, "the listing must not render a forbidden surface");
 });
 
-test("the grid is 4/3/2/1 columns across the implementation viewports", async () => {
+test("the full-width grid is 4/2/1 columns across the implementation viewports", async () => {
   const source = await catalogSource("CatalogList.tsx");
 
   assert.match(source, /data-catalog-grid/, "the QA hook stays on the grid");
   assert.match(
     source,
-    /grid-cols-1 min-\[360px\]:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4/,
-    "1 column at 320, 2 at 390/768, 3 at 1024, 4 at 1440",
+    /grid-cols-1 min-\[360px\]:grid-cols-2 lg:grid-cols-4/,
+    "1 column at 320, 2 at 390/768, 4 at 1024 and larger",
   );
 });
 
-test("the desktop sidebar is the measured 230px rail", async () => {
+test("the catalog removes its separate filter rail and drawer", async () => {
   const source = await catalogSource("CatalogList.tsx");
 
-  assert.match(source, /lg:grid-cols-\[230px_minmax\(0,1fr\)\]/, "230px sidebar beside the grid");
-  assert.match(source, /aria-label="Bộ lọc sản phẩm"/, "the sidebar is a labelled complementary region");
-  assert.match(source, /max-lg:hidden/, "below 1024 the sidebar gives way to the drawer");
-});
-
-test("the filter panel keeps sorting and page size but removes the duplicate category list", async () => {
-  const panel = await catalogSource("CatalogFilterPanel.tsx");
-
-  assert.match(panel, /Sắp xếp/, "sorting remains available in the compact sidebar");
-  assert.match(panel, /Số sản phẩm mỗi trang/, "page-size selection remains available");
-  assert.doesNotMatch(panel, /CategoryRow|CatalogCategory|Danh mục/, "category selection lives only in the quick chips above the catalog");
+  assert.doesNotMatch(source, /lg:grid-cols-\[230px_minmax\(0,1fr\)\]/, "no desktop sidebar remains");
+  assert.doesNotMatch(source, /<aside aria-label="Bộ lọc sản phẩm"/, "no filter complementary region remains");
+  assert.doesNotMatch(source, /activeFilterCount|filterPanel/, "no drawer-only filter state remains");
 });
 
 test("loading, empty and error states keep the grid region intact", async () => {

@@ -5,8 +5,6 @@ import { useRouter } from "next/navigation";
 import { BadgePercent, FileCheck2, MessagesSquare, Package, Search } from "lucide-react";
 import { useRef, useTransition } from "react";
 
-import { CatalogFilterDrawer } from "@/components/catalog/CatalogFilterDrawer";
-import { CatalogFilterPanel } from "@/components/catalog/CatalogFilterPanel";
 import { CatalogProductCard } from "@/components/catalog/CatalogProductCard";
 import {
   CATALOG_TRUST_BENEFITS,
@@ -42,15 +40,15 @@ const TRUST_ICONS: Record<CatalogTrustIcon, typeof BadgePercent> = {
 
 /**
  * `/san-pham`, following `SCR-02-product-list`: breadcrumb, heading with the
- * trust row beside it, search and category chips, a result toolbar, then a 230 px
- * sidebar next to the product grid, and the B2B support strip last.
+ * trust row beside it, search and category chips, the result count, then a
+ * full-width product grid and the B2B support strip last.
  *
  * Every filter is URL state. One `updateFilters` path owns the URL, the upstream
  * request and the cache key, so a filtered list is always shareable and the
  * uncommitted search draft rides along with whatever else changes.
  *
  * Grid columns follow the approved responsive table: one at 320, two from 360
- * (covering 390 and 768), three at 1024, four at 1440.
+ * (covering 390 and 768), and four from 1024.
  */
 export function CatalogList({
   cards,
@@ -69,17 +67,11 @@ export function CatalogList({
     filters.page,
     pagination.perPage,
   ]);
-  const activeFilterCount = [
-    Boolean(filters.category),
-    filters.sort !== DEFAULT_CATALOG_SORT || filters.direction !== DEFAULT_CATALOG_SORT_DIRECTION,
-    filters.pageSize !== DEFAULT_CATALOG_PAGE_SIZE,
-  ].filter(Boolean).length;
-
   const currentQueryDraft = () => (queryInputRef.current?.value ?? filters.query).trim().slice(0, 100);
   /**
    * Every control commits through here so one code path owns the URL, the
    * upstream request and the cache key. The uncommitted search draft rides along
-   * with any other filter change; `overrides` wins so "Xóa bộ lọc" can clear it.
+   * with a category change.
    */
   const updateFilters = (overrides: Partial<CatalogFilters>) => {
     const next: CatalogFilters = { ...filters, query: currentQueryDraft(), ...overrides, page: 1 };
@@ -92,15 +84,6 @@ export function CatalogList({
     query: "",
     sort: DEFAULT_CATALOG_SORT,
   });
-  const filterPanel = (
-    <CatalogFilterPanel
-      filters={filters}
-      isPending={isPending}
-      onClear={clearFilters}
-      onUpdate={updateFilters}
-    />
-  );
-
   return (
     <div className="bg-[#f7f8f4] text-commerce-body">
       <CommerceRail className="pb-12 pt-5 lg:pt-7">
@@ -187,77 +170,71 @@ export function CatalogList({
           ))}
         </div>
 
-        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-b border-commerce-border pb-4">
+        <div className="mt-4 border-b border-commerce-border pb-4">
           <p aria-live="polite" className="text-sm font-bold text-commerce-body" id="catalog-result-status">
             {isPending ? "Đang cập nhật danh mục..." : `${pagination.total} dòng sản phẩm`}
           </p>
-          <CatalogFilterDrawer activeFilterCount={activeFilterCount}>{filterPanel}</CatalogFilterDrawer>
         </div>
 
-        <div className="mt-6 grid gap-6 lg:grid-cols-[230px_minmax(0,1fr)] lg:gap-7">
-          <aside aria-label="Bộ lọc sản phẩm" className="max-lg:hidden">{filterPanel}</aside>
-          <div className="min-w-0">
-            {cards.length ? (
-              <div
-                aria-busy={isPending}
-                className={`grid grid-cols-1 min-[360px]:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 lg:gap-[18px] ${isPending ? "opacity-60" : ""}`}
-                data-catalog-grid
+        <div className="mt-6 min-w-0">
+          {cards.length ? (
+            <div
+              aria-busy={isPending}
+              className={`grid grid-cols-1 min-[360px]:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-[18px] ${isPending ? "opacity-60" : ""}`}
+              data-catalog-grid
+            >
+              {cards.map((card) => <CatalogProductCard card={card} key={card.id} />)}
+            </div>
+          ) : isPending ? (
+            <div
+              aria-busy="true"
+              className="grid grid-cols-1 min-[360px]:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-[18px]"
+              data-catalog-grid
+            >
+              {Array.from({ length: 4 }, (_, index) => (
+                <div
+                  aria-hidden="true"
+                  className="commerce-card-surface h-[340px] animate-pulse"
+                  data-catalog-skeleton
+                  key={index}
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="commerce-card-surface p-6" role="status">
+              <h2 className={COMMERCE_TYPOGRAPHY.sectionTitle}>Chưa tìm thấy sản phẩm phù hợp.</h2>
+              <p className="mt-1.5 text-sm text-commerce-secondary">
+                Thử một từ khóa khác hoặc xem lại toàn bộ danh mục.
+              </p>
+              <button
+                className="mt-4 min-h-11 rounded-commerce-control bg-commerce-brand px-5 text-sm font-bold text-white hover:bg-commerce-brand-dark focus-visible:commerce-focus-ring"
+                onClick={clearFilters}
+                type="button"
               >
-                {cards.map((card) => <CatalogProductCard card={card} key={card.id} />)}
-              </div>
-            ) : isPending ? (
-              // A commit with no rows yet keeps the grid geometry instead of
-              // collapsing the page and shifting the filters up.
-              <div
-                aria-busy="true"
-                className="grid grid-cols-1 min-[360px]:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 lg:gap-[18px]"
-                data-catalog-grid
-              >
-                {Array.from({ length: 4 }, (_, index) => (
-                  <div
-                    aria-hidden="true"
-                    className="commerce-card-surface h-[340px] animate-pulse"
-                    data-catalog-skeleton
-                    key={index}
-                  />
-                ))}
-              </div>
-            ) : (
-              <div className="commerce-card-surface p-6" role="status">
-                <h2 className={COMMERCE_TYPOGRAPHY.sectionTitle}>Chưa tìm thấy sản phẩm phù hợp.</h2>
-                <p className="mt-1.5 text-sm text-commerce-secondary">
-                  Thử một từ khóa khác hoặc xem lại toàn bộ danh mục.
-                </p>
-                <button
-                  className="mt-4 min-h-11 rounded-commerce-control bg-commerce-brand px-5 text-sm font-bold text-white hover:bg-commerce-brand-dark focus-visible:commerce-focus-ring"
-                  onClick={clearFilters}
-                  type="button"
-                >
-                  Xem toàn bộ sản phẩm
-                </button>
-              </div>
-            )}
+                Xem toàn bộ sản phẩm
+              </button>
+            </div>
+          )}
 
-            {pagination.lastPage > 1 ? (
-              <nav aria-label="Phân trang" className="mt-7 flex flex-wrap gap-2">
-                {pages.map((page) => (
-                  <Link
-                    aria-current={page === pagination.currentPage ? "page" : undefined}
-                    className={`flex min-h-11 min-w-11 items-center justify-center rounded-commerce-control border px-3 text-sm font-semibold focus-visible:commerce-focus-ring ${
-                      page === pagination.currentPage
-                        ? "border-commerce-brand bg-commerce-brand text-white"
-                        : "border-commerce-border text-commerce-body hover:border-commerce-brand hover:text-commerce-brand-dark"
-                    }`}
-                    href={catalogHref({ ...filters, page })}
-                    key={page}
-                    prefetch={false}
-                  >
-                    {page}
-                  </Link>
-                ))}
-              </nav>
-            ) : null}
-          </div>
+          {pagination.lastPage > 1 ? (
+            <nav aria-label="Phân trang" className="mt-7 flex flex-wrap gap-2">
+              {pages.map((page) => (
+                <Link
+                  aria-current={page === pagination.currentPage ? "page" : undefined}
+                  className={`flex min-h-11 min-w-11 items-center justify-center rounded-commerce-control border px-3 text-sm font-semibold focus-visible:commerce-focus-ring ${
+                    page === pagination.currentPage
+                      ? "border-commerce-brand bg-commerce-brand text-white"
+                      : "border-commerce-border text-commerce-body hover:border-commerce-brand hover:text-commerce-brand-dark"
+                  }`}
+                  href={catalogHref({ ...filters, page })}
+                  key={page}
+                  prefetch={false}
+                >
+                  {page}
+                </Link>
+              ))}
+            </nav>
+          ) : null}
         </div>
 
         <aside className="mt-10 flex flex-wrap items-center justify-between gap-3 rounded-commerce-control bg-commerce-support-strip px-5 py-4">
