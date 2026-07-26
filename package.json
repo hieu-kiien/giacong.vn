@@ -14,11 +14,12 @@
     "lint": "eslint",
     "typecheck": "next typegen && tsc --noEmit",
     "test:catalog": "node --no-warnings --experimental-strip-types --test scripts/catalog-contract.test.mts",
-    "test:contact": "node --no-warnings --experimental-strip-types --test scripts/contact-webhook.test.mts scripts/development-port.test.mjs scripts/google-apps-script-template.test.mjs scripts/request-cart-storage.test.mts scripts/request-cart.test.mts",
+    "test:contact": "node --no-warnings --experimental-strip-types --test scripts/contact-webhook.test.mts scripts/development-port.test.mjs scripts/google-apps-script-template.test.mjs scripts/request-cart-client.test.mts scripts/request-cart-storage.test.mts scripts/request-cart.test.mts",
     "qa:captured": "node scripts/verify-captured-routes.mjs",
     "qa:catalog": "node scripts/verify-catalog-storefront.mjs",
     "qa:services": "node scripts/verify-service-ia.mjs",
     "qa:admin": "node scripts/verify-admin.mjs && node scripts/verify-admin-bff.mjs && node scripts/verify-admin-mutation.mjs",
+    "qa:cart": "node scripts/verify-request-cart.mjs",
     "check": "npm run test:contact && npm run test:catalog && npm run lint && npm run typecheck && npm run build"
   },
   "dependencies": {
