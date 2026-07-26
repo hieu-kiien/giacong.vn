@@ -440,9 +440,9 @@ test("the navigation feed uses the isolated demo catalog only outside production
   const source = await readSource("src", "lib", "commerce-nav.ts");
 
   assert.match(source, /DEMO_CATALOG_CATEGORIES/, "the demo preview keeps the category column populated");
-  assert.match(source, /DEMO_CATALOG_PRODUCTS/, "the demo preview keeps product and featured columns populated");
+  assert.match(source, /DEMO_CATALOG_LIST/, "the demo preview uses the canonical list projection");
   assert.match(source, /demoProductImage/, "demo menu cards reuse the approved local packshots instead of blank panels");
-  assert.match(source, /NODE_ENV\s*!==\s*"production"/, "production still fails closed to the empty menu state");
+  assert.match(source, /demoCatalogFallbackAllowed/, "production uses the shared fail-closed demo policy");
 });
 
 test("the support strip is the pale B2B band and carries the hotline", async () => {

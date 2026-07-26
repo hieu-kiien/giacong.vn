@@ -1,17 +1,27 @@
+param(
+  [int]$Port = 0
+)
+
 $Host.UI.RawUI.WindowTitle = "GIACONG UI - PREVIEW"
 [Console]::InputEncoding = [System.Text.UTF8Encoding]::new($false)
 [Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false)
 $OutputEncoding = [System.Text.UTF8Encoding]::new($false)
 
 chcp 65001 | Out-Null
-Set-Location -LiteralPath "C:\Users\hieuk\Desktop\giacong-ui-standalone"
 
-$env:ALLOW_DEMO_CATALOG = "1"
-$env:CATALOG_DEMO_FALLBACK = "1"
-$env:BAGISTO_API_URL = "http://127.0.0.1:19999"
+$projectRoot = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot "..")).Path
+$configuredPort = 0
+if ($env:COMMERCE_PREVIEW_PORT) {
+  [void][int]::TryParse($env:COMMERCE_PREVIEW_PORT, [ref]$configuredPort)
+}
+$previewPort = if ($Port -gt 0) { $Port } elseif ($configuredPort -gt 0) { $configuredPort } else { 4310 }
+$logDirectory = Join-Path $env:TEMP "giacong-ui-logs"
+New-Item -ItemType Directory -Path $logDirectory -Force | Out-Null
+$logPath = Join-Path $logDirectory "preview-server.log"
 
-Start-Transcript -LiteralPath "C:\Users\hieuk\Desktop\giacong-ui-logs\05-preview-server.log" -Append
-Write-Host "Đang chạy giao diện tại http://localhost:4310" -ForegroundColor Green
-npm run dev -- -p 4310
+Set-Location -LiteralPath $projectRoot
+Start-Transcript -LiteralPath $logPath -Append
+Write-Host "Đang chạy giao diện tại http://localhost:$previewPort" -ForegroundColor Green
+npm run dev -- -p $previewPort
 Write-Host "Server đã dừng với mã $LASTEXITCODE" -ForegroundColor Yellow
 Stop-Transcript

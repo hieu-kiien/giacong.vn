@@ -1,8 +1,8 @@
 // Contract for `/san-pham/[slug]` — the product detail page.
 //
 // Two halves, matching what Node can and cannot import:
-//  - the view model (`src/lib/product-detail-view.ts`) and the demo-fallback gate
-//    (`src/lib/catalog-detail-fallback.ts`) are exercised as modules;
+//  - the view model (`src/lib/product-detail-view.ts`) and the shared demo policy
+//    (`src/lib/demo-catalog-policy.ts`) are exercised as modules;
 //  - the `.tsx` components and the CSS module are asserted as source text, which is
 //    how `scripts/commerce-foundation.test.mts` already covers presentation files.
 //
@@ -17,7 +17,7 @@ import test from "node:test";
 const repoRoot = path.join(import.meta.dirname, "..");
 
 const detailView = await import("../src/lib/product-detail-view" + ".ts");
-const detailFallback = await import("../src/lib/catalog-detail-fallback" + ".ts");
+const demoPolicy = await import("../src/lib/demo-catalog-policy" + ".ts");
 const demoCatalog = await import("../src/data/demo-catalog" + ".ts");
 
 /** Forbidden V1 surfaces, as `scripts/commerce-foundation.test.mts` defines them. */
@@ -35,7 +35,7 @@ const DETAIL_SOURCES = [
   ["src", "components", "catalog", "RelatedProductCard.tsx"],
   ["src", "components", "catalog", "product-detail.module.css"],
   ["src", "lib", "product-detail-view.ts"],
-  ["src", "lib", "catalog-detail-fallback.ts"],
+  ["src", "lib", "demo-catalog-policy.ts"],
   ["src", "lib", "catalog-detail-source.ts"],
   ["src", "data", "demo-product-gallery.ts"],
   ["src", "app", "(commerce)", "san-pham", "[slug]", "page.tsx"],
@@ -277,11 +277,11 @@ test("related products are compact cards with no social proof and no invented va
 // ---------------------------------------------------------------------------
 
 test("the demo detail fallback is refused in production", () => {
-  assert.equal(detailFallback.isDemoDetailFallbackAllowed({ nodeEnv: "production" }), false);
-  assert.equal(detailFallback.isDemoDetailFallbackAllowed({ nodeEnv: "development" }), true);
-  assert.equal(detailFallback.isDemoDetailFallbackAllowed({ nodeEnv: "test" }), true);
+  assert.equal(demoPolicy.demoCatalogFallbackAllowed({ NODE_ENV: "production" }), false);
+  assert.equal(demoPolicy.demoCatalogFallbackAllowed({ NODE_ENV: "development" }), true);
+  assert.equal(demoPolicy.demoCatalogFallbackAllowed({ NODE_ENV: "test" }), true);
   assert.equal(
-    detailFallback.isDemoDetailFallbackAllowed({ nodeEnv: "production", allowDemoCatalog: "1" }),
+    demoPolicy.demoCatalogFallbackAllowed({ NODE_ENV: "production", CATALOG_DEMO_FALLBACK: "1" }),
     false,
     "no environment flag may re-enable demo data in production",
   );
@@ -290,7 +290,7 @@ test("the demo detail fallback is refused in production", () => {
 test("the demo fallback is labelled so it can never read as production data", async () => {
   const source = await readSource("src", "lib", "catalog-detail-source.ts");
 
-  assert.match(source, /isDemoDetailFallbackAllowed/, "the source must consult the gate");
+  assert.match(source, /demoCatalogFallbackAllowed/, "the source must consult the shared gate");
   assert.match(source, /isDemo/, "the loader must report whether it served demo data");
   const shell = await readSource("src", "components", "catalog", "ProductDetailPage.tsx");
   assert.match(shell, /isDemo/, "the page must be able to mark demo content in the UI");

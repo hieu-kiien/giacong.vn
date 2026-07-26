@@ -34,8 +34,10 @@ export function CommerceSupportStrip() {
               key={channel.kind}
               {...(channel.isExternal ? { rel: "noreferrer", target: "_blank" } : {})}
             >
-              {channel.label}
-              <span className="sr-only"> — {channel.contact}</span>
+              <span>
+                {channel.label}
+                <span className="block text-xs font-normal text-commerce-secondary">{channel.contact}</span>
+              </span>
             </a>
           ))}
           <Link

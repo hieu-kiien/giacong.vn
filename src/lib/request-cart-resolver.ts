@@ -2,10 +2,10 @@ import "server-only";
 
 import { getCatalogProduct } from "@/lib/bagisto-catalog";
 import {
-  demoCartFallbackAllowed,
   resolveDemoCartProduct,
   toRequestCartProductResolution,
 } from "@/lib/request-cart-demo";
+import { demoCatalogFallbackAllowed } from "@/lib/demo-catalog-policy";
 import type { RequestCartProductResolution } from "@/types/request-cart";
 
 /**
@@ -15,14 +15,14 @@ import type { RequestCartProductResolution } from "@/types/request-cart";
  * rethrows an upstream failure and never validates a cart against demo prices.
  */
 export async function resolveCartProduct(slug: string): Promise<RequestCartProductResolution | null> {
-  const demoAllowed = demoCartFallbackAllowed(process.env.NODE_ENV);
+  const demoAllowed = demoCatalogFallbackAllowed(process.env);
 
   try {
     const product = await getCatalogProduct(slug);
-    if (product) return toRequestCartProductResolution(product);
+    return product ? toRequestCartProductResolution(product) : null;
   } catch (error) {
     if (!demoAllowed) throw error;
   }
 
-  return demoAllowed ? resolveDemoCartProduct(slug) : null;
+  return resolveDemoCartProduct(slug);
 }

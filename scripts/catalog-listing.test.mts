@@ -13,6 +13,7 @@ const repoRoot = path.join(import.meta.dirname, "..");
 const listing = await import("../src/components/catalog/catalog-listing" + ".ts");
 const demoCatalog = await import("../src/data/demo-catalog" + ".ts");
 const demoImages = await import("../src/data/demo-product-images" + ".ts");
+const demoPolicy = await import("../src/lib/demo-catalog-policy" + ".ts");
 
 const FORBIDDEN_SURFACE_PATTERN =
   /\b(rating|review|favorite|wishlist|checkout|payment|shipping|thanh-toan|gio-hang)\b/i;
@@ -208,26 +209,31 @@ test("the demo fallback paginates without dropping or duplicating a product", ()
   assert.equal(beyond.pagination.total, demoCatalog.DEMO_CATALOG_PRODUCTS.length);
 });
 
-test("the demo fallback is refused in production unless explicitly opted in", () => {
-  assert.equal(listing.shouldUseDemoCatalog({ NODE_ENV: "development" }), true);
-  assert.equal(listing.shouldUseDemoCatalog({ NODE_ENV: "test" }), true);
+test("the demo fallback is refused in production and can be disabled outside it", () => {
+  assert.equal(demoPolicy.demoCatalogFallbackAllowed({ NODE_ENV: "development" }), true);
+  assert.equal(demoPolicy.demoCatalogFallbackAllowed({ NODE_ENV: "test" }), true);
   assert.equal(
-    listing.shouldUseDemoCatalog({ NODE_ENV: "production" }),
+    demoPolicy.demoCatalogFallbackAllowed({ NODE_ENV: "production" }),
     false,
     "a production build must show the error state rather than demo rows",
   );
   assert.equal(
-    listing.shouldUseDemoCatalog({ CATALOG_DEMO_FALLBACK: "1", NODE_ENV: "production" }),
-    true,
-    "an explicit opt-in is the only way demo data reaches a production build",
+    demoPolicy.demoCatalogFallbackAllowed({ CATALOG_DEMO_FALLBACK: "1", NODE_ENV: "production" }),
+    false,
+    "no flag may re-enable demo catalog data in production",
   );
-  assert.equal(listing.shouldUseDemoCatalog({ CATALOG_DEMO_FALLBACK: "0", NODE_ENV: "production" }), false);
+  assert.equal(
+    demoPolicy.demoCatalogFallbackAllowed({ CATALOG_DEMO_FALLBACK: "0", NODE_ENV: "development" }),
+    false,
+  );
 });
 
 test("the listing module names no forbidden V1 surface and adds no dependency", async () => {
   const source = await catalogSource("catalog-listing.ts");
+  const imageSource = await readSource("src", "data", "demo-product-images.ts");
 
   assert.doesNotMatch(source, FORBIDDEN_SURFACE_PATTERN, "the listing module must not model a forbidden surface");
+  assert.doesNotMatch(imageSource, FORBIDDEN_SURFACE_PATTERN, "the shared demo image source stays in the same guard");
   assert.doesNotMatch(source, /^import .*from ["'](?!\.|@\/)/m, "no new runtime dependency may be imported");
 });
 
@@ -380,7 +386,7 @@ test("/san-pham prefers the real feed and falls back to demo data visibly", asyn
   const source = await readSource("src", "app", "(commerce)", "san-pham", "page.tsx");
 
   assert.match(source, /getCatalogProducts/, "the real Bagisto feed is attempted first");
-  assert.match(source, /shouldUseDemoCatalog/, "the fallback is gated, not automatic");
+  assert.match(source, /demoCatalogFallbackAllowed/, "the fallback is gated, not automatic");
   assert.match(source, /demoCatalogList/, "the isolated demo fallback answers when Bagisto is down");
   assert.match(source, /buildCatalogCards/, "cards are built server-side from the locked view model");
   assert.match(source, /isDemoData/, "a demo-backed listing must say so in the UI");

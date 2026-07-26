@@ -6,9 +6,11 @@ const {
   handleCartRevalidation,
 } = await import("../src/lib/request-cart" + ".ts");
 const {
-  demoCartFallbackAllowed,
   resolveDemoCartProduct,
 } = await import("../src/lib/request-cart-demo" + ".ts");
+const {
+  demoCatalogFallbackAllowed,
+} = await import("../src/lib/demo-catalog-policy" + ".ts");
 
 interface CartVariantFixture {
   contactFromQuantity: number;
@@ -43,9 +45,9 @@ const lowSugar: CartVariantFixture = {
 };
 
 test("the demo cart resolver is available outside production and refuses production", () => {
-  assert.equal(demoCartFallbackAllowed("development"), true);
-  assert.equal(demoCartFallbackAllowed("test"), true);
-  assert.equal(demoCartFallbackAllowed("production"), false);
+  assert.equal(demoCatalogFallbackAllowed({ NODE_ENV: "development" }), true);
+  assert.equal(demoCatalogFallbackAllowed({ NODE_ENV: "test" }), true);
+  assert.equal(demoCatalogFallbackAllowed({ NODE_ENV: "production" }), false);
 });
 
 test("the demo cart resolver projects the same canonical product and price fields", () => {

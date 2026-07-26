@@ -171,27 +171,6 @@ function availabilityLabel(product: CatalogCardSource, isAvailable: boolean): st
 // Demo fallback
 // ---------------------------------------------------------------------------
 
-/** Both keys are optional, exactly as `process.env` reports them. */
-export interface CatalogFallbackEnvironment {
-  CATALOG_DEMO_FALLBACK?: string | undefined;
-  NODE_ENV?: string | undefined;
-}
-
-/**
- * Whether a failed catalog read may be answered with the demo fixture.
- *
- * Off in production so a real outage shows the error state instead of prices no
- * customer can order against; `CATALOG_DEMO_FALLBACK=1` is the explicit opt-in
- * for a production-mode preview build. Reads an injected environment record so
- * the rule is testable without mutating `process.env`.
- */
-export function shouldUseDemoCatalog(environment: CatalogFallbackEnvironment = process.env): boolean {
-  const optIn = environment.CATALOG_DEMO_FALLBACK?.trim();
-  if (optIn === "1" || optIn === "true") return true;
-  if (optIn === "0" || optIn === "false") return false;
-  return environment.NODE_ENV !== "production";
-}
-
 export const DEMO_CATALOG_NOTICE =
   "Đang hiển thị dữ liệu mẫu vì chưa kết nối được danh mục. Giá và quy cách chỉ để xem trước.";
 

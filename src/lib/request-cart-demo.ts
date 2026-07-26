@@ -2,10 +2,6 @@ import { findDemoCatalogProduct } from "../data/demo-catalog.ts";
 import type { CatalogProductDetail } from "../types/catalog.ts";
 import type { RequestCartProductResolution } from "../types/request-cart.ts";
 
-export function demoCartFallbackAllowed(nodeEnv: string | undefined): boolean {
-  return nodeEnv !== "production";
-}
-
 export function toRequestCartProductResolution(
   product: CatalogProductDetail,
 ): RequestCartProductResolution {

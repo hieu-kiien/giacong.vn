@@ -8,7 +8,7 @@ import {
   findDemoCatalogProduct,
 } from "@/data/demo-catalog";
 import { getCatalogProduct, getCatalogProducts } from "@/lib/bagisto-catalog";
-import { isDemoDetailFallbackAllowed } from "@/lib/catalog-detail-fallback";
+import { demoCatalogFallbackAllowed } from "@/lib/demo-catalog-policy";
 import type { CatalogProductDetail, CatalogProductParent } from "@/types/catalog";
 
 /** How many related products the detail rail asks for. */
@@ -36,10 +36,7 @@ export interface CatalogDetailSourceResult {
  * Returns `null` for "no such product", which the route turns into `notFound()`.
  */
 export const loadCatalogProductDetail = cache(async (slug: string): Promise<CatalogDetailSourceResult | null> => {
-  const demoAllowed = isDemoDetailFallbackAllowed({
-    allowDemoCatalog: process.env.ALLOW_DEMO_CATALOG,
-    nodeEnv: process.env.NODE_ENV,
-  });
+  const demoAllowed = demoCatalogFallbackAllowed(process.env);
 
   try {
     const product = await getCatalogProduct(slug);

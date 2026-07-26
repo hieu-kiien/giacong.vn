@@ -21,11 +21,10 @@ const CHANNEL_ICON: Record<CommerceContactKind, LucideIcon> = {
 /**
  * Floating contact cluster in the desktop viewport's outer gutter.
  *
- * The 1,344px content rail leaves 48px on either side at the first supported
- * viewport where this cluster appears (1,440px). Keeping every link to 44px and
- * pinning the column flush-right lets it stay fixed without sitting over the last
- * product card. At narrower widths the same links live in the support strip in
- * normal flow.
+ * At the first supported viewport (1,440px), the rail's desktop padding keeps the
+ * actual content edge clear of a 44px link pinned flush-right. Browser QA checks
+ * that the cluster and the last product card do not intersect. At narrower widths
+ * the same links live in the support strip in normal flow.
  *
  * The container is `pointer-events-none` and only the links re-enable pointer
  * events, so the unused gutter never swallows a page click.
@@ -42,6 +41,7 @@ export function CommerceFloatingContacts() {
             <a
               className="pointer-events-auto flex size-11 items-center justify-center rounded-l-full border border-r-0 border-commerce-border bg-white shadow-commerce-card transition-colors hover:bg-commerce-active-surface focus-visible:commerce-focus-ring motion-reduce:transition-none"
               href={channel.href}
+              title={`${channel.label}: ${channel.contact}`}
               {...(channel.isExternal ? { rel: "noreferrer", target: "_blank" } : {})}
             >
               <CommerceIcon className="text-commerce-brand-dark" icon={CHANNEL_ICON[channel.kind]} size="md" />
