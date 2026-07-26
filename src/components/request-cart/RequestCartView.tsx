@@ -37,6 +37,11 @@ export function RequestCartView() {
   const [accepted, setAccepted] = useState<{ cart: ResolvedRequestCart; reference: string } | null>(null);
   const lastResolved = useRef<ResolvedRequestCart | null>(null);
 
+  /*
+   * This is deliberately post-hydration: localStorage is unavailable during the server render,
+   * so the first client render must stay neutral and then mirror the browser-owned cart.
+   */
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     const read = readRequestCart(window.localStorage);
     setStorageNotice(hydrationNotice(read));
@@ -91,6 +96,7 @@ export function RequestCartView() {
     // `linesKey` is the value identity of the cart lines; `cart` itself changes on every write.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [linesKey, refreshNonce]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const commitQuantity = useCallback((variantSku: string, raw: string) => {
     if (!cart) return;

@@ -1,9 +1,16 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import styles from "@/components/catalog/catalog.module.css";
 import { formatVnd } from "@/lib/format-vnd";
+import {
+  REQUEST_CART_STORAGE_KEY,
+  readRequestCart,
+  upsertRequestCartLine,
+  writeRequestCart,
+} from "@/lib/request-cart-storage";
 import type { CatalogTierPrice } from "@/types/catalog";
 
 interface PurchaseQuantityProps {
@@ -27,7 +34,9 @@ export function PurchaseQuantity({
   unit,
   variantSku,
 }: PurchaseQuantityProps) {
+  const router = useRouter();
   const [quantity, setQuantity] = useState(minimumOrderQuantity);
+  const [cartNotice, setCartNotice] = useState<string | null>(null);
   const isValid = Number.isInteger(quantity)
     && quantity >= minimumOrderQuantity
     && (quantity - minimumOrderQuantity) % quantityStep === 0;
@@ -35,12 +44,28 @@ export function PurchaseQuantity({
   const unitPrice = isValid && !needsContact
     ? [...tierPrices].reverse().find((tier) => tier.minQuantity <= quantity)?.price
     : undefined;
-  const requestHref = `/lien-he/?${new URLSearchParams({
-    intent: needsContact ? "quote" : "order",
-    product: parentSlug,
-    quantity: String(quantity),
-    variant_sku: variantSku,
-  })}`;
+  function continueToRequestCart() {
+    if (!isValid) return;
+    const storage = window.localStorage;
+    const mutation = upsertRequestCartLine(readRequestCart(storage).state, {
+      parentSlug,
+      quantity,
+      variantSku,
+    });
+    if (mutation.status !== "ok") {
+      setCartNotice(mutation.status === "line_limit"
+        ? "Giỏ yêu cầu đã đủ số dòng. Hãy gửi yêu cầu hiện tại trước."
+        : "Không thể thêm lựa chọn này vào giỏ yêu cầu. Vui lòng thử lại.");
+      return;
+    }
+    writeRequestCart(storage, mutation.state);
+    window.dispatchEvent(new StorageEvent("storage", {
+      key: REQUEST_CART_STORAGE_KEY,
+      newValue: storage.getItem(REQUEST_CART_STORAGE_KEY),
+      storageArea: storage,
+    }));
+    router.push("/gui-yeu-cau/");
+  }
 
   return (
     <section className={styles.purchase} aria-labelledby="purchase-title">
@@ -93,14 +118,15 @@ export function PurchaseQuantity({
         </div>
       )}
       {isValid ? (
-        <a className={styles.button} href={requestHref}>
+        <button className={styles.button} onClick={continueToRequestCart} type="button">
           {needsContact ? "Liên hệ nhận giá số lượng lớn" : `Gửi yêu cầu đặt ${quantity} ${unit} ${productName}`}
-        </a>
+        </button>
       ) : (
         <button className={`${styles.button} ${styles.disabledButton}`} disabled type="button">
           Nhập số lượng hợp lệ để tiếp tục
         </button>
       )}
+      {cartNotice ? <p className={styles.quantityError} role="alert">{cartNotice}</p> : null}
     </section>
   );
 }
