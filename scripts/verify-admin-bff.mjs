@@ -5,6 +5,8 @@ import { createServer } from "node:http";
 import { createServer as createNetServer } from "node:net";
 import { chromium } from "playwright";
 
+import { nextBinPath } from "./next-bin.mjs";
+
 function delay(ms) { return new Promise((resolve) => setTimeout(resolve, ms)); }
 async function port() { const server = createNetServer(); server.listen(0, "127.0.0.1"); await once(server, "listening"); const value = server.address(); assert.ok(value && typeof value !== "string"); await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve())); return value.port; }
 async function waitFor(url, process, logs) { for (let index = 0; index < 300; index += 1) { try { if ((await fetch(url)).ok) return; } catch {} if (process.exitCode !== null) throw new Error(logs.join("")); await delay(100); } throw new Error("Admin Next server did not start."); }
@@ -51,7 +53,7 @@ const upstream = createServer(async (request, response) => {
   response.writeHead(404).end();
 });
 const upstreamPort = await port(); upstream.listen(upstreamPort, "127.0.0.1"); await once(upstream, "listening");
-const appPort = await port(); const logs = []; const app = spawn(process.execPath, ["node_modules/next/dist/bin/next", "start", "-p", String(appPort)], { env: { ...process.env, BAGISTO_ADMIN_API_URL: `http://127.0.0.1:${upstreamPort}/api/b2b/admin/v1` }, stdio: ["ignore", "pipe", "pipe"], windowsHide: true }); app.stdout.on("data", (chunk) => logs.push(String(chunk))); app.stderr.on("data", (chunk) => logs.push(String(chunk)));
+const appPort = await port(); const logs = []; const app = spawn(process.execPath, [nextBinPath, "start", "-p", String(appPort)], { env: { ...process.env, BAGISTO_ADMIN_API_URL: `http://127.0.0.1:${upstreamPort}/api/b2b/admin/v1` }, stdio: ["ignore", "pipe", "pipe"], windowsHide: true }); app.stdout.on("data", (chunk) => logs.push(String(chunk))); app.stderr.on("data", (chunk) => logs.push(String(chunk)));
 try {
   const origin = `http://localhost:${appPort}`; await waitFor(`http://127.0.0.1:${appPort}/`, app, logs);
   const loginPage = await fetch(`${origin}/quan-tri/dang-nhap`, { redirect: "manual" });

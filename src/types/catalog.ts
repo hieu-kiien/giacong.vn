@@ -81,8 +81,19 @@ export interface CatalogProductList {
   products: CatalogProductParent[];
 }
 
+/** Sort columns the Bagisto catalog service exposes, by contract. */
+export type CatalogSort = "available_variant_count" | "id" | "name" | "starting_price" | "variant_count";
+
+export type CatalogSortDirection = "asc" | "desc";
+
+/** Page sizes the catalog contract accepts; anything else falls back to the default. */
+export type CatalogPageSize = 12 | 24 | 48;
+
 export interface CatalogFilters {
   category: string;
+  direction: CatalogSortDirection;
   page: number;
+  pageSize: CatalogPageSize;
   query: string;
+  sort: CatalogSort;
 }

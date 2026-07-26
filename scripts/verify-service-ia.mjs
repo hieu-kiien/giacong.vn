@@ -7,6 +7,8 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { chromium } from "playwright";
 
+import { nextBinPath } from "./next-bin.mjs";
+
 const families = [
   ["do-uong-sua", "Đồ uống & sữa", ["/gia-cong-do-uong/", "/gia-cong-sua/", "/gia-cong-sua-bot/", "/gia-cong-sua-tuoi/", "/gia-cong-sua-hat/", "/gia-cong-sua-thuc-vat/", "/gia-cong-sua-chua/", "/gia-cong-nuoc-ep-trai-cay/", "/gia-cong-nuoc-giai-khat-co-ga/", "/gia-cong-tra-dong-chai/", "/gia-cong-nuoc-uong-dong-chai/", "/gia-cong-ruou/"]],
   ["say-thuc-pham-say", "Sấy & thực phẩm sấy", ["/dich-vu-say/", "/say-thang-hoa/", "/say-nong/", "/say-lanh/", "/say-chan-khong/", "/say-hong-ngoai/"]],
@@ -89,7 +91,7 @@ async function assertDirectHeaderLinks(page, mobile = false) {
 const appPort = await port();
 const logs = [];
 const screenshots = await mkdtemp(path.join(tmpdir(), "storefront-task-1-"));
-const app = spawn(process.execPath, ["node_modules/next/dist/bin/next", "start", "-p", String(appPort)], {
+const app = spawn(process.execPath, [nextBinPath, "start", "-p", String(appPort)], {
   env: { ...process.env, NODE_ENV: "production" },
   stdio: ["ignore", "pipe", "pipe"],
   windowsHide: true,

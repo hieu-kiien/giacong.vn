@@ -10,9 +10,12 @@ import type {
   CatalogOption,
   CatalogOptionGroup,
   CatalogOptionValue,
+  CatalogPageSize,
   CatalogProductDetail,
   CatalogProductList,
   CatalogProductParent,
+  CatalogSort,
+  CatalogSortDirection,
   CatalogTierPrice,
   CatalogVariant,
 } from "@/types/catalog";
@@ -35,7 +38,9 @@ export async function getCatalogProducts(filters: CatalogFilters): Promise<Catal
     filters.query,
     filters.category,
     filters.page,
-    12,
+    filters.pageSize,
+    filters.sort,
+    filters.direction,
   );
 }
 
@@ -56,6 +61,11 @@ export async function getCatalogCategories(): Promise<CatalogCategory[]> {
   );
 }
 
+/**
+ * `unstable_cache` derives its cache key from the arguments, so every parameter
+ * that changes the upstream result must be passed in. Adding a parameter to the
+ * request without adding it here would let two different queries share one entry.
+ */
 const getValidatedCatalogProducts = unstable_cache(async (
   apiBaseUrl: string,
   channel: string,
@@ -63,7 +73,9 @@ const getValidatedCatalogProducts = unstable_cache(async (
   query: string,
   category: string,
   page: number,
-  perPage: number,
+  perPage: CatalogPageSize,
+  sort: CatalogSort,
+  direction: CatalogSortDirection,
 ): Promise<CatalogProductList> => {
   const url = new URL("/api/b2b/catalog/products", apiBaseUrl);
   applyCatalogContext(url, { channel, locale });
@@ -71,6 +83,8 @@ const getValidatedCatalogProducts = unstable_cache(async (
   if (category) url.searchParams.set("category", category);
   url.searchParams.set("page", String(page));
   url.searchParams.set("per_page", String(perPage));
+  url.searchParams.set("sort", sort);
+  url.searchParams.set("direction", direction);
   return parseProductList(await fetchJson(url));
 }, ["catalog-products-v2"], { revalidate: 30, tags: [CATALOG_PRODUCTS_CACHE_TAG] });
 

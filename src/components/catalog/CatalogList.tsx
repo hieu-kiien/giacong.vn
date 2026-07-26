@@ -91,7 +91,7 @@ export function CatalogList({ categories, filters, result }: CatalogListProps) {
           <div className={styles.empty} role="status">
             <h2>Chưa tìm thấy sản phẩm phù hợp.</h2>
             <p>Thử một từ khóa khác hoặc xem lại toàn bộ danh mục.</p>
-            <button className={styles.button} onClick={() => updateFilters({ category: "", page: 1, query: "" })} type="button">Xem toàn bộ sản phẩm</button>
+            <button className={styles.button} onClick={() => updateFilters({ ...filters, category: "", page: 1, query: "" })} type="button">Xem toàn bộ sản phẩm</button>
           </div>
         )}
 

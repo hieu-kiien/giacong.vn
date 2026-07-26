@@ -5,6 +5,8 @@ import { createServer } from "node:http";
 import { createServer as createNetServer } from "node:net";
 import { chromium } from "playwright";
 
+import { nextBinPath } from "./next-bin.mjs";
+
 const ETAG = '"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"';
 const NEXT_ETAG = '"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"';
 const snapshot = {
@@ -154,7 +156,7 @@ upstream.listen(upstreamPort, "127.0.0.1");
 await once(upstream, "listening");
 const appPort = await freePort();
 const logs = [];
-const app = spawn(process.execPath, ["node_modules/next/dist/bin/next", "start", "-p", String(appPort)], {
+const app = spawn(process.execPath, [nextBinPath, "start", "-p", String(appPort)], {
   env: { ...process.env, BAGISTO_API_URL: `http://127.0.0.1:${upstreamPort}`, BAGISTO_ADMIN_API_URL: `http://127.0.0.1:${upstreamPort}/api/b2b/admin/v1` },
   stdio: ["ignore", "pipe", "pipe"],
   windowsHide: true,

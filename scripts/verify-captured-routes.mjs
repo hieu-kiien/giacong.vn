@@ -5,6 +5,8 @@ import { readFile } from "node:fs/promises";
 import { createServer as createNetServer } from "node:net";
 import { chromium } from "playwright";
 
+import { nextBinPath } from "./next-bin.mjs";
+
 async function findOpenPort() {
   const server = createNetServer();
   server.listen(0, "127.0.0.1");
@@ -119,7 +121,7 @@ assert.doesNotMatch(
 
   const missingConfigPort = await findOpenPort();
   const missingConfigLogs = [];
-  const missingConfigServer = spawn(process.execPath, ["node_modules/next/dist/bin/next", "dev", "--webpack", "-p", String(missingConfigPort)], {
+  const missingConfigServer = spawn(process.execPath, [nextBinPath, "dev", "--webpack", "-p", String(missingConfigPort)], {
     env: { ...process.env, GOOGLE_SHEETS_WEBHOOK_URL: "" },
     stdio: ["ignore", "pipe", "pipe"],
     windowsHide: true,
@@ -142,7 +144,7 @@ assert.doesNotMatch(
   nextPort = appPort;
   const appUrl = `http://localhost:${appPort}`;
   nextLogs = [];
-  nextServer = spawn(process.execPath, ["node_modules/next/dist/bin/next", "dev", "--webpack", "-p", String(appPort)], {
+  nextServer = spawn(process.execPath, [nextBinPath, "dev", "--webpack", "-p", String(appPort)], {
     env: {
       ...process.env,
       CONTACT_WEBHOOK_TEST_MODE: "1",

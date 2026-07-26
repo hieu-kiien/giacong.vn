@@ -8,6 +8,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { chromium } from "playwright";
 
+import { nextBinPath } from "./next-bin.mjs";
+
 const REQUEST_TIMEOUT_MS = 5_000;
 const SERVER_START_TIMEOUT_MS = 30_000;
 
@@ -193,6 +195,73 @@ const detail = (family) => ({
 });
 const parents = families.map(parent);
 const detailBySlug = new Map(families.map((family) => [family.slug, detail(family)]));
+
+/**
+ * A flavour x size matrix. Bagisto can serve this today: `product_super_attributes`
+ * is many-to-many, `CatalogProductResource::optionGroups()` maps every super
+ * attribute, and the variant SQL counts option values against the parent's full
+ * super-attribute set. The Next parser and `ProductConfigurator` are single-axis,
+ * so the contract rejects the payload rather than rendering a selector that would
+ * resolve the wrong SKU. Locked deliberately until the configurator is multi-axis.
+ */
+const twoAxisAttributes = [
+  { attribute_id: 50, code: "b2b_variant", label: "Hương vị", options: [[501, "Vani"], [502, "Ít ngọt"]] },
+  { attribute_id: 51, code: "b2b_size", label: "Quy cách", options: [[601, "500g"], [602, "1kg"]] },
+];
+const twoAxisVariants = [
+  [501, "Vani", 601, "500g"],
+  [501, "Vani", 602, "1kg"],
+  [502, "Ít ngọt", 601, "500g"],
+  [502, "Ít ngọt", 602, "1kg"],
+].map(([flavourId, flavourLabel, sizeId, sizeLabel], index) => ({
+  id: 401 + index,
+  sku: `B2B-DEMO-MATRIX-${401 + index}`,
+  name: `Bột dinh dưỡng ${flavourLabel} ${sizeLabel}`,
+  option_values: [
+    { attribute_id: 50, attribute_code: "b2b_variant", option_id: flavourId, option_label: flavourLabel },
+    { attribute_id: 51, attribute_code: "b2b_size", option_id: sizeId, option_label: sizeLabel },
+  ],
+  image: null,
+  unit: "thùng",
+  moq: 10,
+  quantity_step: 5,
+  contact_from_quantity: 100,
+  availability: { is_available: true },
+  tier_prices: [tier(10, 720000 + index * 1000), tier(25, 690000 + index * 1000)],
+}));
+const twoAxisDetail = {
+  id: 40,
+  type: "configurable",
+  sku: "B2B-DEMO-MATRIX",
+  slug: "detail-two-axis",
+  name: "Bột dinh dưỡng ma trận",
+  description: "Bột dinh dưỡng với hai trục lựa chọn.",
+  image: null,
+  categories: [category],
+  variant_count: twoAxisVariants.length,
+  available_variant_count: twoAxisVariants.length,
+  starting_price: {
+    unit_price: Math.min(...twoAxisVariants.map((item) => item.tier_prices[0].unit_price)),
+    currency: "VND",
+  },
+  option_groups: twoAxisAttributes.map((attribute) => ({
+    attribute_id: attribute.attribute_id,
+    code: attribute.code,
+    label: attribute.label,
+    options: attribute.options.map(([optionId, label]) => ({
+      option_id: optionId,
+      label,
+      variant_ids: twoAxisVariants
+        .filter((item) => item.option_values.some((value) => value.option_id === optionId))
+        .map((item) => item.id),
+    })),
+  })),
+  variant_index: Object.fromEntries(twoAxisVariants.map((item) => [
+    String(item.id),
+    Object.fromEntries(item.option_values.map((value) => [value.attribute_code, value.option_id])),
+  ])),
+  variants: twoAxisVariants,
+};
 const listMeta = {
   current_page: 1,
   from: 1,
@@ -250,6 +319,7 @@ const fake = createServer((request, response) => {
     return json(response, { data: malformed, meta: detailMeta });
   }
   if (slug === "detail-bad-version") return json(response, { data: detail(families[0]), meta: { ...detailMeta, contract_version: 1 } });
+  if (slug === "detail-two-axis") return json(response, { data: twoAxisDetail, meta: detailMeta });
   if (slug === "preview-invalid-upstream") return response.writeHead(422).end();
   if (slug === "preview-malformed") {
     response.writeHead(200, { "Content-Type": "application/json" });
@@ -284,7 +354,10 @@ const fake = createServer((request, response) => {
     links,
     meta: { ...listMeta, from: 1, to: 1, total: 1 },
   });
-  return json(response, { data: parents, links, meta: listMeta });
+  const requestedPerPage = Number(url.searchParams.get("per_page"));
+  const perPage = Number.isInteger(requestedPerPage) && requestedPerPage > 0 ? requestedPerPage : listMeta.per_page;
+  const ordered = url.searchParams.get("direction") === "desc" ? [...parents].reverse() : parents;
+  return json(response, { data: ordered, links, meta: { ...listMeta, per_page: perPage } });
 });
 fake.on("connection", (socket) => {
   fakeSockets.add(socket);
@@ -299,7 +372,7 @@ const logs = [];
 const browserIssues = [];
 const screenshots = join(tmpdir(), `storefront-task-2-${Date.now()}`);
 let browser;
-const app = spawn(process.execPath, ["node_modules/next/dist/bin/next", "start", "-p", String(appPort)], {
+const app = spawn(process.execPath, [nextBinPath, "start", "-p", String(appPort)], {
   env: { ...process.env, BAGISTO_API_URL: `http://127.0.0.1:${fakePort}`, BAGISTO_API_TIMEOUT_MS: "500", NODE_ENV: "production" },
   stdio: ["ignore", "pipe", "pipe"], windowsHide: true,
 });
@@ -360,6 +433,7 @@ try {
     ["/san-pham/detail-duplicate-sku/", 500],
     ["/san-pham/detail-bad-contact/", 500],
     ["/san-pham/detail-bad-version/", 500],
+    ["/san-pham/detail-two-axis/", 500],
     ["/san-pham/a/b/", 404], ["/sua-bot-cho-nguoi-gia/", 200],
     ["/san-pham/?q=empty", 200],
     ["/san-pham/?q=bad-root", 500],
@@ -411,6 +485,74 @@ try {
     cachedListRequests.filter((item) => item.pathname === "/api/b2b/catalog/categories").length <= 1,
     "Repeat category requests must reuse the Next data cache",
   );
+  const listRequestsSince = (start, predicate) => seenCatalogRequests
+    .slice(start)
+    .filter((item) => item.pathname === "/api/b2b/catalog/products")
+    .filter((item) => predicate(new URLSearchParams(item.query)));
+
+  const sortStart = seenCatalogRequests.length;
+  assert.equal(
+    (await fetchWithTimeout(`${origin}/san-pham/?sort=starting_price&direction=desc`, {}, "sorted catalog")).status,
+    200,
+    "A sorted catalog request must render",
+  );
+  assert.equal(
+    listRequestsSince(sortStart, (parameters) => (
+      parameters.get("sort") === "starting_price" && parameters.get("direction") === "desc"
+    )).length,
+    1,
+    "Sort and direction must reach the upstream catalog API",
+  );
+
+  const ascendingStart = seenCatalogRequests.length;
+  await fetchWithTimeout(`${origin}/san-pham/?sort=starting_price&direction=asc`, {}, "ascending catalog");
+  assert.equal(
+    listRequestsSince(ascendingStart, (parameters) => parameters.get("direction") === "asc").length,
+    1,
+    "A different direction must miss the cache instead of reusing the descending entry",
+  );
+  const repeatSortStart = seenCatalogRequests.length;
+  await fetchWithTimeout(`${origin}/san-pham/?sort=starting_price&direction=desc`, {}, "repeat sorted catalog");
+  assert.equal(
+    listRequestsSince(repeatSortStart, () => true).length,
+    0,
+    "An identical sorted request must reuse the validated cache entry",
+  );
+
+  const pageSizeStart = seenCatalogRequests.length;
+  await fetchWithTimeout(`${origin}/san-pham/?per_page=24`, {}, "explicit page size");
+  assert.equal(
+    listRequestsSince(pageSizeStart, (parameters) => parameters.get("per_page") === "24").length,
+    1,
+    "An allowlisted page size must reach the upstream catalog API",
+  );
+
+  const rejectedStart = seenCatalogRequests.length;
+  await fetchWithTimeout(
+    `${origin}/san-pham/?q=reject-probe&sort=catalog_name%3B+DROP+TABLE+products&direction=rand()&per_page=7`,
+    {},
+    "rejected catalog parameters",
+  );
+  const rejected = listRequestsSince(rejectedStart, (parameters) => parameters.get("q") === "reject-probe");
+  assert.equal(rejected.length, 1, "A request with unsupported parameters must still reach the upstream API once");
+  const rejectedParameters = new URLSearchParams(rejected[0].query);
+  assert.equal(rejectedParameters.get("sort"), "name", "An unsupported sort column must normalise to the default");
+  assert.equal(rejectedParameters.get("direction"), "asc", "An unsupported direction must normalise to the default");
+  assert.equal(rejectedParameters.get("per_page"), "12", "An unsupported page size must normalise to the default");
+  assert.doesNotMatch(rejected[0].query, /DROP\+TABLE|DROP%20TABLE|rand\(\)/, "Rejected values must never be forwarded");
+
+  const collapseStart = seenCatalogRequests.length;
+  await fetchWithTimeout(
+    `${origin}/san-pham/?sort=not-a-column&direction=sideways&per_page=99&page=0`,
+    {},
+    "unsupported parameters collapsing onto the canonical entry",
+  );
+  assert.equal(
+    listRequestsSince(collapseStart, () => true).length,
+    0,
+    "Unsupported parameters must collapse onto the canonical cache entry instead of adding cache keys",
+  );
+
   const coldTimings = [];
   const warmTimings = [];
   const measure = async (label, target) => {
