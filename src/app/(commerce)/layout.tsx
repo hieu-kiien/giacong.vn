@@ -1,8 +1,11 @@
 import type { ReactNode } from "react";
 
+import { CommerceFloatingContacts } from "@/components/commerce/CommerceFloatingContacts";
+import { CommerceHeader } from "@/components/commerce/CommerceHeader";
 import { CommerceShell } from "@/components/commerce/CommerceShell";
-import { StorefrontHeader } from "@/components/storefront/StorefrontHeader";
-import { getCommerceNavCategories } from "@/lib/commerce-nav";
+import { CommerceSupportStrip } from "@/components/commerce/CommerceSupportStrip";
+import { buildCommerceMegaMenu } from "@/components/commerce/commerce-navigation";
+import { getCommerceNavCategories, getCommerceNavProducts } from "@/lib/commerce-nav";
 
 /**
  * Layout for the commerce routes (`/san-pham`, `/san-pham/[slug]`,
@@ -20,15 +23,35 @@ import { getCommerceNavCategories } from "@/lib/commerce-nav";
  * first viewport as the topology requires, and the routes stop shipping ~9 cloned
  * stylesheets they never used.
  *
- * `StorefrontHeader` is reused as-is. It is already a React component with no
- * dependency on the cloned CSS, and rebuilding the header is a later step — this
- * layout only has to establish the clean boundary it will be rebuilt inside.
+ * The chrome is now the commerce header, mega-menu and mobile drawer built against
+ * the approved reference, replacing the reused storefront header this layout
+ * mounted while the clean boundary was being established.
+ *
+ * Navigation data is read here rather than per page so the header renders once per
+ * route. Both reads degrade to an empty menu instead of throwing: navigation is not
+ * the content of any route, and a statically prerendered page must still build with
+ * no upstream available.
  */
 export default async function CommerceLayout({ children }: { children: ReactNode }) {
-  const categories = await getCommerceNavCategories();
+  const [categories, products] = await Promise.all([getCommerceNavCategories(), getCommerceNavProducts()]);
+
+  /**
+   * The leading category is chosen by the menu itself: a layout cannot read the
+   * request's search parameters, so the active group cannot come from the URL here.
+   * Hovering or focusing a group switches it on the client.
+   */
+  const menu = buildCommerceMegaMenu({ activeCategorySlug: "", categories, products });
 
   return (
-    <CommerceShell header={<StorefrontHeader categories={categories} />}>
+    <CommerceShell
+      header={<CommerceHeader menu={menu} />}
+      support={
+        <>
+          <CommerceSupportStrip />
+          <CommerceFloatingContacts />
+        </>
+      }
+    >
       {children}
     </CommerceShell>
   );

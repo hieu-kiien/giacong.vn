@@ -1,7 +1,8 @@
 import "server-only";
 
-import { getCatalogCategories } from "@/lib/bagisto-catalog";
-import type { CatalogCategory } from "@/types/catalog";
+import { getCatalogCategories, getCatalogProducts } from "@/lib/bagisto-catalog";
+import { DEFAULT_CATALOG_PAGE_SIZE, DEFAULT_CATALOG_SORT, DEFAULT_CATALOG_SORT_DIRECTION } from "@/lib/catalog-query";
+import type { CatalogCategory, CatalogProductParent } from "@/types/catalog";
 
 /**
  * Categories for header and menu navigation only.
@@ -18,6 +19,31 @@ import type { CatalogCategory } from "@/types/catalog";
 export async function getCommerceNavCategories(): Promise<CatalogCategory[]> {
   try {
     return await getCatalogCategories();
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Products for the mega-menu's item and featured columns.
+ *
+ * Uses the catalog's own default filters, so this is the same upstream read
+ * `/san-pham` already performs on its first page and shares its cache entry rather
+ * than adding a second one. It degrades the same way its sibling does: an
+ * unavailable feed leaves the menu's product columns empty instead of failing the
+ * route around it.
+ */
+export async function getCommerceNavProducts(): Promise<CatalogProductParent[]> {
+  try {
+    const { products } = await getCatalogProducts({
+      category: "",
+      direction: DEFAULT_CATALOG_SORT_DIRECTION,
+      page: 1,
+      pageSize: DEFAULT_CATALOG_PAGE_SIZE,
+      query: "",
+      sort: DEFAULT_CATALOG_SORT,
+    });
+    return products;
   } catch {
     return [];
   }
