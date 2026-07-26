@@ -15,6 +15,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - `docs/research/` and `docs/design-references/` are historical research evidence, not target scope or product decisions.
 - [docs/UI_CURRENT_MAP.md](docs/UI_CURRENT_MAP.md) and [docs/ORIGINAL_GIACONG_VN_MAP.md](docs/ORIGINAL_GIACONG_VN_MAP.md) describe the current and pre-clone interfaces as observed. They are descriptive only; the target sitemap is in the master plan.
 - [docs/GOOGLE_SHEETS_CONTACT_WEBHOOK.md](docs/GOOGLE_SHEETS_CONTACT_WEBHOOK.md) describes the current webhook and its implemented 15-column intake schema; Sheet operations and handoff remain in the master plan.
+- The `giacong-product-ai-handoff` pack is design input (business rules, IA, component specs, data models, reference images), not a decision source. Where it conflicts with the master plan, the master plan wins — it drops `/gio-hang`, `/thanh-toan`, checkout and rating/review/favorite.
 
 ## Commands
 
@@ -35,7 +36,9 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 - Bagisto admin is the long-term administration surface. `/quan-tri` is frozen for compatibility/security; do not expand it.
 - Never write directly to Bagisto core tables.
-- There are no customer accounts, cart, checkout, payment, Bagisto order, shipping or quote engine in V1.
+- There are no customer accounts, checkout, `/thanh-toan`, payment, Bagisto order, shipping or quote engine in V1.
+- The guest cart is in scope but preview-only: `localStorage` on the client, no server cart state and no cart table. `/gui-yeu-cau` is the only cart route. The server re-reads Bagisto to revalidate every cart line and computes unit price and totals itself; never trust client-supplied prices or totals.
+- Do not add rating, review or favorite in any form.
 - There is one shared `administrator` account only; no `employee` type and no granular RBAC.
 - Google Sheet + Apps Script is the request queue. Keep its ownership-handoff requirements in the master plan.
 - Do not create UI before the app-layer contract is locked. Do not add a new admin UI.

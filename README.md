@@ -4,7 +4,7 @@ Storefront B2B dùng Next.js, Bagisto admin cho catalog/nội dung, và Google S
 
 ## Lean V1
 
-Khách xem catalog, chọn biến thể/số lượng hoặc gửi yêu cầu dịch vụ. Mỗi submit được chấp nhận tạo một dòng Google Sheet riêng. V1 không có customer account, cart, checkout, payment, Bagisto order, vận chuyển hay quote engine.
+Khách xem catalog nhiều danh mục/sản phẩm, chọn biến thể/số lượng, gom nhiều mặt hàng vào giỏ hàng khách hoặc gửi yêu cầu dịch vụ. Mỗi submit được chấp nhận tạo một dòng Google Sheet riêng. Giỏ hàng khách chỉ là bước gom yêu cầu: `localStorage` phía client, không state phía server, `/gui-yeu-cau` là route giỏ hàng duy nhất và server đọc lại Bagisto để xác thực từng dòng. V1 không có customer account, checkout, `/thanh-toan`, cart phía server, payment, Bagisto order, vận chuyển, quote engine hay rating/review/favorite.
 
 Chỉ có một tài khoản `administrator` dùng chung. Bagisto admin là đích quản trị dài hạn; `/quan-tri` chỉ là bề mặt chuyển tiếp frozen. Không ghi trực tiếp bảng core Bagisto.
 

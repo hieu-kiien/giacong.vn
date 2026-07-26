@@ -4,6 +4,8 @@ Template [google-apps-script-contact-webhook.gs](google-apps-script-contact-webh
 
 Mỗi submit được server chấp nhận tạo một `Mã` và dòng mới. Server tự gán `request_type`; Apps Script ghi giá trị canonical vào C:F, `Mới` vào L, để trống M:N và ghi timestamp vào B:O. `Số lượng` là số hoặc rỗng. Các text do request cung cấp vẫn được ép text an toàn để không chạy công thức Sheet.
 
+Tab thứ hai `Chi tiết giỏ hàng` cho submit giỏ nhiều dòng là **Cần làm**, chưa có trong template hiện tại. Theo [COMMERCE_PLATFORM_MASTER_PLAN.md](./COMMERCE_PLATFORM_MASTER_PLAN.md), tab này khóa theo `Mã` của dòng `Yêu cầu`, mang các cột `Mã | Dòng | Sản phẩm | Biến thể | Đơn vị | Số lượng | Đơn giá | Thành tiền | Ghi chú hệ thống`, do server/Apps Script ghi toàn bộ, được bảo vệ toàn cột và không mang trạng thái hay người phụ trách. Khi triển khai, schema 15 cột A:O của `Yêu cầu` không đổi; submit giỏ nhiều dòng ghi `Giỏ hàng (N dòng)` vào D và để trống E:F.
+
 ## Thiết lập thủ công
 
 1. Tạo Google Sheet của đội ngũ, mở **Extensions → Apps Script** và dán template.
