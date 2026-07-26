@@ -17,11 +17,11 @@ test("uses the reserved Bagisto development port instead of stale port 8000", as
   assert.doesNotMatch(environment + bagistoApi + adminBff, /127\.0\.0\.1:8000/);
 });
 
-test("runs focused contact and catalog tests before lint in the standard check contract", async () => {
+test("runs focused contact, catalog, and service tests before lint in the standard check contract", async () => {
   const packageJson = JSON.parse(await readFile(new URL("package.json", root), "utf8"));
   assert.equal(
     packageJson.scripts.check,
-    "npm run test:contact && npm run test:catalog && npm run test:catalog-purchase-ui && npm run lint && npm run typecheck && npm run build",
+    "npm run test:contact && npm run test:catalog && npm run test:catalog-purchase-ui && npm run test:service && npm run lint && npm run typecheck && npm run build",
   );
 });
 
