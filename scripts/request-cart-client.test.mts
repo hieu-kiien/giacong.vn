@@ -3,12 +3,18 @@ import test from "node:test";
 
 const {
   REQUEST_CART_DRIFT_MESSAGE,
+  REQUEST_CART_INDETERMINATE_MESSAGE,
   REQUEST_CART_REVALIDATE_ENDPOINT,
+  REQUEST_CART_SOURCE,
+  REQUEST_CART_SUBMIT_ENDPOINT,
   buildRevalidateBody,
+  buildSubmitBody,
+  createRequestId,
   driftNotice,
   hydrationNotice,
   isResolvedRequestCart,
   parseRevalidateResponse,
+  parseSubmitResponse,
 } = await import("../src/lib/request-cart-client" + ".ts");
 
 const line = { parentSlug: "b2b-demo-bot-dinh-duong", quantity: 15, variantSku: "B2B-DEMO-VANILLA" };
@@ -172,4 +178,121 @@ test("a repaired or reset local cart explains itself to the customer", () => {
       reason,
     );
   }
+});
+
+const UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+const contact = { email: " Ha@Example.com ", message: " 500 thung mỗi tháng ", name: " Trần Thị B ", phone: " 0868 408 115 " };
+
+test("the submit endpoint and source identify the cart route", () => {
+  assert.equal(REQUEST_CART_SUBMIT_ENDPOINT, "/api/contact");
+  assert.equal(REQUEST_CART_SOURCE, "/gui-yeu-cau/");
+});
+
+test("a request id is a v4 UUID and is fresh on every call", () => {
+  const first = createRequestId();
+  assert.match(first, UUID_V4);
+  assert.notEqual(first, createRequestId());
+});
+
+test("a request id still works without crypto.randomUUID", () => {
+  const withoutRandomUuid = {
+    getRandomValues: (target: Uint8Array) => {
+      for (let index = 0; index < target.length; index += 1) target[index] = (index * 37 + 11) % 256;
+      return target;
+    },
+  };
+  const generated = createRequestId(withoutRandomUuid as never);
+  assert.match(generated, UUID_V4, "a non-secure context must still produce a valid v4 UUID");
+});
+
+test("the submit body carries exactly the eight contract keys", () => {
+  const body = buildSubmitBody({
+    contact,
+    lines: [line],
+    requestId: "3f2504e0-4f89-41d3-9a0c-0305e82c3301",
+    snapshotToken: "a".repeat(64),
+  });
+
+  assert.deepEqual(
+    Object.keys(body).sort(),
+    ["email", "lines", "message", "name", "phone", "requestId", "snapshotToken", "source"],
+    "the JSON branch of /api/contact rejects any other key set",
+  );
+  assert.equal(body.name, "Trần Thị B", "contact fields are trimmed");
+  assert.equal(body.email, "Ha@Example.com");
+  assert.equal(body.phone, "0868 408 115", "the server normalises phone punctuation itself");
+  assert.equal(body.source, REQUEST_CART_SOURCE);
+  assert.deepEqual(body.lines, [line], "submitted lines carry no price and no total");
+  assert.deepEqual(Object.keys(body.lines[0]).sort(), ["parentSlug", "quantity", "variantSku"]);
+});
+
+test("an accepted submit returns the reference to show as Mã", () => {
+  const parsed = parseSubmitResponse(202, { message: "Yêu cầu của bạn đã được tiếp nhận.", ok: true, reference: "YC-2607-0042" });
+
+  assert.equal(parsed.status, "accepted");
+  assert.equal(parsed.status === "accepted" ? parsed.reference : null, "YC-2607-0042");
+});
+
+test("an accepted submit without a usable reference is not treated as success", () => {
+  for (const body of [{ ok: true }, { ok: true, reference: "" }, { ok: true, reference: 7 }, null]) {
+    assert.notEqual(parseSubmitResponse(202, body).status, "accepted", JSON.stringify(body));
+  }
+});
+
+test("field errors are returned per field so inputs keep their values", () => {
+  const parsed = parseSubmitResponse(400, {
+    errors: { name: "Vui lòng nhập họ và tên.", phone: "Số điện thoại không hợp lệ." },
+    message: "Vui lòng kiểm tra lại thông tin liên hệ.",
+    ok: false,
+  });
+
+  assert.equal(parsed.status, "invalid");
+  assert.deepEqual(
+    parsed.status === "invalid" ? parsed.errors : null,
+    { name: "Vui lòng nhập họ và tên.", phone: "Số điện thoại không hợp lệ." },
+  );
+  assert.equal(parsed.status === "invalid" ? parsed.message : null, "Vui lòng kiểm tra lại thông tin liên hệ.");
+});
+
+test("a 400 with unusable errors still reports a message without inventing fields", () => {
+  const parsed = parseSubmitResponse(400, { errors: { name: 5, nope: "x" }, message: "Dữ liệu gửi lên không hợp lệ.", ok: false });
+
+  assert.equal(parsed.status, "invalid");
+  assert.deepEqual(parsed.status === "invalid" ? parsed.errors : null, {});
+});
+
+test("a 409 returns the fresh cart so the customer reviews the real state", () => {
+  const cart = resolvedCart({ snapshotToken: "f".repeat(64) });
+  for (const code of ["CART_DRIFTED", "CART_NOT_SUBMITTABLE"]) {
+    const parsed = parseSubmitResponse(409, { cart, code, message: "Giá hoặc tình trạng hàng đã thay đổi. Vui lòng xem lại giỏ yêu cầu.", ok: false });
+    assert.equal(parsed.status, "conflict", code);
+    assert.equal(parsed.status === "conflict" ? parsed.code : null, code);
+    assert.equal(parsed.status === "conflict" ? parsed.cart?.snapshotToken : null, "f".repeat(64));
+  }
+});
+
+test("a 409 whose cart fails the contract still blocks the submit", () => {
+  const parsed = parseSubmitResponse(409, { cart: { currency: "USD" }, code: "CART_DRIFTED", message: "Giá đã thay đổi.", ok: false });
+
+  assert.equal(parsed.status, "conflict");
+  assert.equal(parsed.status === "conflict" ? parsed.cart : "not-null", null, "an untrusted cart is dropped, not rendered");
+});
+
+test("502 and 504 are indeterminate: the request may already be recorded", () => {
+  for (const status of [502, 504]) {
+    const parsed = parseSubmitResponse(status, { message: "Dịch vụ tiếp nhận yêu cầu phản hồi quá chậm.", ok: false });
+    assert.equal(parsed.status, "indeterminate", String(status));
+    assert.match(
+      parsed.status === "indeterminate" ? parsed.message : "",
+      /không rõ|chưa rõ|có thể đã/i,
+      "an indeterminate outcome must not be reported as a plain failure",
+    );
+  }
+  assert.match(REQUEST_CART_INDETERMINATE_MESSAGE, /Mã|liên hệ/i, "the indeterminate copy must tell the customer what to do next");
+});
+
+test("503 and other statuses are plain failures", () => {
+  const parsed = parseSubmitResponse(503, { message: "Dịch vụ tiếp nhận yêu cầu chưa được cấu hình.", ok: false });
+  assert.equal(parsed.status, "failed");
+  assert.equal(parsed.status === "failed" ? parsed.message : null, "Dịch vụ tiếp nhận yêu cầu chưa được cấu hình.");
 });

@@ -209,7 +209,16 @@ const browserIssues = [];
 const screenshots = join(tmpdir(), `request-cart-${process.pid}`);
 let browser;
 const app = spawn(process.execPath, [nextBinPath, "start", "-p", String(appPort)], {
-  env: { ...process.env, BAGISTO_API_URL: `http://127.0.0.1:${fakePort}`, BAGISTO_API_TIMEOUT_MS: "500", NODE_ENV: "production" },
+  env: {
+    ...process.env,
+    BAGISTO_API_URL: `http://127.0.0.1:${fakePort}`,
+    BAGISTO_API_TIMEOUT_MS: "500",
+    CONTACT_WEBHOOK_TEST_MODE: "1",
+    GOOGLE_SHEETS_WEBHOOK_SECRET: "request-cart-test-secret",
+    GOOGLE_SHEETS_WEBHOOK_URL: "https://script.google.com/macros/s/request-cart-test/exec",
+    NODE_ENV: "production",
+    NODE_OPTIONS: `${process.env.NODE_OPTIONS ?? ""} --require=./scripts/contact-webhook-fetch-mock.cjs`,
+  },
   stdio: ["ignore", "pipe", "pipe"],
   windowsHide: true,
 });
@@ -469,6 +478,171 @@ try {
   await openCart(page, storedCart([vanilla], { schemaVersion: 99 }));
   await page.getByText("Giỏ yêu cầu đang trống.").waitFor();
 
+  // The confirmation form: real labels, and a payload that matches the locked JSON contract.
+  await openCart(page, storedCart([vanilla, oats]));
+  await page.locator("[data-cart-subtotal]").waitFor();
+  await page.getByRole("heading", { level: 2, name: "Xác nhận yêu cầu đặt hàng" }).waitFor();
+  for (const [label, required] of [["Họ và tên", true], ["Số điện thoại", true], ["Email", false], ["Nội dung yêu cầu", false]]) {
+    const field = page.getByLabel(new RegExp(`^${label}`));
+    assert.equal(await field.count(), 1, `${label} must be a real labelled field`);
+    assert.equal(
+      await field.getAttribute("aria-required"),
+      required ? "true" : null,
+      `${label} must declare whether it is required`,
+    );
+  }
+  const submitButton = page.getByRole("button", { name: "Gửi yêu cầu đặt hàng" });
+  assert.equal(await submitButton.count(), 1, "The CTA must be the request wording, never a checkout wording");
+
+  // Empty required fields are caught on the client without losing what was typed.
+  await page.getByLabel(/^Nội dung yêu cầu/).fill("Cần báo giá sớm.");
+  await submitButton.click();
+  const nameField = page.getByLabel(/^Họ và tên/);
+  await page.getByText("Vui lòng nhập họ và tên.").waitFor();
+  assert.equal(await nameField.getAttribute("aria-invalid"), "true", "An invalid field must be marked for assistive tech");
+  assert.equal(
+    await page.getByLabel(/^Nội dung yêu cầu/).inputValue(),
+    "Cần báo giá sớm.",
+    "A validation error must never clear what the customer typed",
+  );
+
+  // A server rejected phone number comes back per field.
+  await nameField.fill("Trần Thị B");
+  await page.getByLabel(/^Số điện thoại/).fill("12");
+  const invalidSubmit = page.waitForResponse((response) => response.url().endsWith("/api/contact") && response.request().method() === "POST");
+  await submitButton.click();
+  assert.equal((await invalidSubmit).status(), 400, "A malformed phone must reach the server and be rejected there");
+  await page.getByText("Số điện thoại không hợp lệ.").waitFor();
+  assert.equal(await page.getByLabel(/^Số điện thoại/).getAttribute("aria-invalid"), "true");
+
+  // A valid submit sends exactly the eight contract keys and no money.
+  await page.getByLabel(/^Số điện thoại/).fill("0868 408 115");
+  await page.getByLabel(/^Email/).fill("ha@example.com");
+  const submitRequest = page.waitForRequest((request) => request.url().endsWith("/api/contact") && request.method() === "POST");
+  await submitButton.click();
+  const submitted = JSON.parse((await submitRequest).postData() ?? "{}");
+  assert.deepEqual(
+    Object.keys(submitted).sort(),
+    ["email", "lines", "message", "name", "phone", "requestId", "snapshotToken", "source"],
+    "The submit payload must match the locked JSON contract exactly",
+  );
+  assert.match(
+    submitted.requestId,
+    /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
+    "requestId must be a v4 UUID",
+  );
+  assert.match(submitted.snapshotToken, /^[0-9a-f]{64}$/, "snapshotToken must be the server digest");
+  assert.equal(submitted.source, "/gui-yeu-cau/");
+  assert.deepEqual(
+    submitted.lines.map((line) => Object.keys(line).sort()),
+    [["parentSlug", "quantity", "variantSku"], ["parentSlug", "quantity", "variantSku"]],
+    "Submitted lines must carry no price and no total",
+  );
+  await page.getByText("YC-CAPTURED-001").waitFor();
+
+  // A blocked cart cannot be submitted at all.
+  const blockedPage = await newPage();
+  let blockedSubmits = 0;
+  await blockedPage.route("**/api/contact", async (route) => {
+    blockedSubmits += 1;
+    await route.fallback();
+  });
+  await openCart(blockedPage, storedCart([{ ...vanilla, quantity: 5 }]));
+  await blockedPage.locator("[data-cart-blocked]").waitFor();
+  assert.equal(
+    await blockedPage.getByRole("button", { name: "Gửi yêu cầu đặt hàng" }).isDisabled(),
+    true,
+    "An invalid line must disable sending",
+  );
+  await delay(200);
+  assert.equal(blockedSubmits, 0, "A blocked cart must never reach the submit endpoint");
+  await blockedPage.close();
+
+  // A 409 returns the fresh cart and blocks the submit until it is reviewed.
+  const conflictPage = await newPage();
+  await conflictPage.route("**/api/contact", async (route) => {
+    const fresh = await (await fetch(`${origin}/api/gui-yeu-cau/xac-thuc`, {
+      body: JSON.stringify({ lines: [{ ...vanilla, quantity: 25 }] }),
+      headers: { "Content-Type": "application/json" },
+      method: "POST",
+    })).json();
+    await route.fulfill({
+      body: JSON.stringify({
+        cart: fresh.cart,
+        code: "CART_DRIFTED",
+        message: "Giá hoặc tình trạng hàng đã thay đổi. Vui lòng xem lại giỏ yêu cầu.",
+        ok: false,
+      }),
+      contentType: "application/json",
+      headers: { "Cache-Control": "no-store" },
+      status: 409,
+    });
+  });
+  await openCart(conflictPage, storedCart([{ ...vanilla, quantity: 25 }]));
+  await conflictPage.locator("[data-cart-subtotal]").waitFor();
+  await conflictPage.getByLabel(/^Họ và tên/).fill("Trần Thị B");
+  await conflictPage.getByLabel(/^Số điện thoại/).fill("0868408115");
+  await conflictPage.getByRole("button", { name: "Gửi yêu cầu đặt hàng" }).click();
+  await conflictPage.getByRole("alert").filter({ hasText: "Giá hoặc tình trạng hàng đã thay đổi" }).waitFor();
+  assert.match(
+    await conflictPage.locator('[data-cart-line="B2B-DEMO-BOT-VANI"] [data-cart-unit-price]').innerText(),
+    /690\.000/,
+    "A 409 must repaint the cart from the fresh server snapshot",
+  );
+  assert.notEqual(
+    await conflictPage.evaluate((key) => window.localStorage.getItem(key), STORAGE_KEY),
+    null,
+    "A rejected submit must never clear the cart",
+  );
+  await conflictPage.close();
+
+  // 502 is indeterminate: the request may already be recorded, so the cart is kept.
+  const indeterminatePage = await newPage();
+  await openCart(indeterminatePage, storedCart([vanilla]));
+  await indeterminatePage.locator("[data-cart-subtotal]").waitFor();
+  await indeterminatePage.getByLabel(/^Họ và tên/).fill("Trần Thị B");
+  await indeterminatePage.getByLabel(/^Số điện thoại/).fill("0868408115");
+  await indeterminatePage.getByLabel(/^Nội dung yêu cầu/).fill("__upstream_5xx__");
+  const firstRequestId = await (async () => {
+    const captured = indeterminatePage.waitForRequest((request) => request.url().endsWith("/api/contact") && request.method() === "POST");
+    await indeterminatePage.getByRole("button", { name: "Gửi yêu cầu đặt hàng" }).click();
+    return JSON.parse((await captured).postData() ?? "{}").requestId;
+  })();
+  await indeterminatePage.getByRole("alert").filter({ hasText: "Chưa rõ yêu cầu đã được tiếp nhận" }).waitFor();
+  assert.notEqual(
+    await indeterminatePage.evaluate((key) => window.localStorage.getItem(key), STORAGE_KEY),
+    null,
+    "An indeterminate submit must keep the cart so nothing is silently lost",
+  );
+
+  // Retrying an indeterminate submit reuses the same requestId, so the Sheet cannot duplicate it.
+  const retriedRequestId = await (async () => {
+    const captured = indeterminatePage.waitForRequest((request) => request.url().endsWith("/api/contact") && request.method() === "POST");
+    await indeterminatePage.getByRole("button", { name: "Gửi yêu cầu đặt hàng" }).click();
+    return JSON.parse((await captured).postData() ?? "{}").requestId;
+  })();
+  assert.equal(retriedRequestId, firstRequestId, "A retry must reuse the idempotency key of the same attempt");
+  await indeterminatePage.close();
+
+  // Double submit: a second click while in flight must not produce a second request.
+  const doublePage = await newPage();
+  let contactSubmits = 0;
+  await doublePage.route("**/api/contact", async (route) => {
+    contactSubmits += 1;
+    await delay(400);
+    await route.fallback();
+  });
+  await openCart(doublePage, storedCart([vanilla]));
+  await doublePage.locator("[data-cart-subtotal]").waitFor();
+  await doublePage.getByLabel(/^Họ và tên/).fill("Trần Thị B");
+  await doublePage.getByLabel(/^Số điện thoại/).fill("0868408115");
+  const doubleButton = doublePage.getByRole("button", { name: /Gửi yêu cầu đặt hàng|Đang gửi/ });
+  await doubleButton.click();
+  assert.equal(await doubleButton.isDisabled(), true, "The CTA must be disabled while a submit is in flight");
+  await doublePage.getByText("YC-CAPTURED-001").waitFor();
+  assert.equal(contactSubmits, 1, "A double click must produce exactly one submit");
+  await doublePage.close();
+
   // Scope guards: no checkout, payment, order, shipping, rating, review or favorite surface.
   await openCart(page, storedCart([vanilla, oats]));
   await page.locator("[data-cart-subtotal]").waitFor();
@@ -508,7 +682,12 @@ try {
   }
 
   await page.close();
-  assert.deepEqual(browserIssues, [], "The cart browser console must be clean");
+  // The 400, 409 and 502 submits above are deliberate, and the browser logs each one.
+  assert.deepEqual(
+    browserIssues.filter((issue) => !/Failed to load resource: the server responded with a status of (400|409|502)/.test(issue)),
+    [],
+    "The cart browser console must be clean apart from the intentional error responses",
+  );
   console.log(JSON.stringify({ screenshots, upstreamDetailReads: seenDetailRequests.length }));
 } finally {
   await browser?.close();
