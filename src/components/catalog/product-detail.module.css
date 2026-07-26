@@ -1,0 +1,774 @@
+/*
+ * Product detail page.
+ *
+ * Values are the measured tokens in `docs/research/DESIGN_TOKENS.md`: price #ef1726,
+ * body #191919, secondary #6f7177, border #dfe3df, brand #2f9e0b / #237a08, card
+ * radius 11px, control radius 8px, subtle card shadow, 1390px rail with 12/16/24px
+ * padding, and a 44px minimum interactive target.
+ *
+ * Scoped to this page on purpose: `catalog.module.css` styles the list page and the
+ * quick preview, so detail keeps its own file and cannot restyle either.
+ *
+ * No gradient anywhere, per the effects token.
+ */
+
+.page {
+  --detail-target: 44px;
+  --detail-border: #dfe3df;
+  --detail-secondary: #6f7177;
+  --detail-price: #ef1726;
+  --detail-brand: #2f9e0b;
+  --detail-brand-dark: #237a08;
+  --detail-active-surface: #f1f8ec;
+
+  background: #fff;
+  color: #191919;
+  padding-bottom: 48px;
+}
+
+.page :global(*) {
+  box-sizing: border-box;
+}
+
+.rail {
+  margin: 0 auto;
+  max-width: 1390px;
+  padding: 16px 12px 0;
+  width: 100%;
+}
+
+/* Breadcrumb ------------------------------------------------------------- */
+
+.crumbs {
+  font-size: 13px;
+  margin-bottom: 14px;
+}
+
+.crumbs ol {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.crumbs li + li::before {
+  color: var(--detail-secondary);
+  content: "/";
+  margin-right: 6px;
+}
+
+.crumbs a {
+  color: var(--detail-brand-dark);
+  text-decoration: none;
+  text-underline-offset: 3px;
+}
+
+.crumbs a:hover {
+  text-decoration: underline;
+}
+
+.crumbs [aria-current="page"] {
+  color: var(--detail-secondary);
+}
+
+.crumbs a:focus-visible,
+.thumb:focus-visible,
+.stepButton:focus-visible,
+.quantityInput:focus-visible,
+.primaryAction:focus-visible,
+.secondaryAction:focus-visible,
+.variantOption:focus-within,
+.relatedName a:focus-visible {
+  outline: 3px solid var(--detail-brand-dark);
+  outline-offset: 2px;
+}
+
+.demoNotice {
+  background: #f4faea;
+  border: 1px solid #cfe3b4;
+  border-radius: 8px;
+  color: #33500f;
+  font-size: 13px;
+  margin: 0 0 16px;
+  padding: 10px 14px;
+}
+
+/* Hero: mobile-first single column, so the gallery stacks above the info ---- */
+
+.hero {
+  display: grid;
+  gap: 24px;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+/* Gallery ---------------------------------------------------------------- */
+
+.gallery {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+
+.mainImage {
+  align-items: center;
+  aspect-ratio: 67 / 46;
+  background: #fdf6ee;
+  border: 1px solid var(--detail-border);
+  border-radius: 11px;
+  display: flex;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.mainImage img {
+  height: 100%;
+  object-fit: cover;
+  width: 100%;
+}
+
+.thumbRail {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.thumb {
+  background: #fdf6ee;
+  border: 1px solid var(--detail-border);
+  border-radius: 8px;
+  cursor: pointer;
+  display: block;
+  height: 72px;
+  min-height: var(--detail-target);
+  min-width: var(--detail-target);
+  overflow: hidden;
+  padding: 0;
+  width: 72px;
+}
+
+.thumb img {
+  height: 100%;
+  object-fit: cover;
+  width: 100%;
+}
+
+.thumb[aria-current="true"] {
+  border-color: var(--detail-brand);
+  box-shadow: inset 0 0 0 2px var(--detail-brand);
+}
+
+/* Commercial column ------------------------------------------------------ */
+
+.commercial {
+  display: grid;
+  gap: 12px;
+  align-content: start;
+  min-width: 0;
+}
+
+.category {
+  color: var(--detail-secondary);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: .05em;
+  margin: 0;
+  text-transform: uppercase;
+}
+
+.title {
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -.01em;
+  line-height: 1.2;
+  margin: 0;
+}
+
+.identity {
+  color: var(--detail-secondary);
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 13px;
+  gap: 16px;
+  margin: 0;
+}
+
+.price {
+  align-items: baseline;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+}
+
+.priceValue {
+  color: var(--detail-price);
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.priceUnit {
+  color: var(--detail-secondary);
+  font-size: 14px;
+}
+
+.availability {
+  color: #237a08;
+  font-size: 14px;
+  font-weight: 700;
+  margin: 0;
+}
+
+.availability[data-unavailable="true"] {
+  color: #8c3a24;
+}
+
+.lede {
+  color: #3f4147;
+  line-height: 1.6;
+  margin: 0;
+}
+
+/* Purchase panel --------------------------------------------------------- */
+
+.purchase {
+  border: 1px solid var(--detail-border);
+  border-radius: 11px;
+  box-shadow: 0 2px 10px rgb(0 0 0 / 8%);
+  display: grid;
+  gap: 16px;
+  margin-top: 4px;
+  padding: 16px;
+}
+
+.variantGroup {
+  border: 0;
+  margin: 0;
+  min-width: 0;
+  padding: 0;
+}
+
+.variantGroup legend {
+  font-size: 14px;
+  font-weight: 700;
+  margin-bottom: 8px;
+  padding: 0;
+}
+
+.variantOptions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.variantOption {
+  align-items: center;
+  border: 1px solid var(--detail-border);
+  border-radius: 8px;
+  cursor: pointer;
+  display: inline-flex;
+  font-size: 14px;
+  font-weight: 600;
+  gap: 8px;
+  min-height: var(--detail-target);
+  padding: 8px 14px;
+}
+
+.variantOption input {
+  accent-color: var(--detail-brand);
+  height: 18px;
+  margin: 0;
+  width: 18px;
+}
+
+.variantOption:has(input:checked) {
+  background: var(--detail-active-surface);
+  border-color: var(--detail-brand);
+  box-shadow: inset 0 0 0 1px var(--detail-brand);
+}
+
+.variantOption[data-unavailable="true"] {
+  color: var(--detail-secondary);
+  cursor: not-allowed;
+}
+
+.variantOption small {
+  font-size: 11px;
+  font-weight: 400;
+}
+
+.warning {
+  color: #8c3a24;
+  font-size: 13px;
+  margin: 0;
+}
+
+.selectedVariant {
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 15px;
+  font-weight: 700;
+  gap: 12px;
+  margin: 0;
+}
+
+.variantSku {
+  color: var(--detail-secondary);
+  font-size: 12px;
+  font-weight: 400;
+}
+
+/* Tier price table ------------------------------------------------------- */
+
+.tierTable {
+  border-collapse: collapse;
+  font-size: 14px;
+  width: 100%;
+}
+
+.tierTable caption {
+  font-size: 14px;
+  font-weight: 700;
+  margin-bottom: 8px;
+  text-align: left;
+}
+
+.tierTable th,
+.tierTable td {
+  border: 1px solid var(--detail-border);
+  padding: 10px 12px;
+  text-align: left;
+}
+
+.tierTable thead th {
+  background: #f7f8f6;
+  font-size: 13px;
+}
+
+.tierTable tbody th {
+  font-weight: 600;
+}
+
+.tierTable tbody tr[data-active="true"] {
+  background: var(--detail-active-surface);
+}
+
+.tierTable tbody tr[data-contact="true"] td:first-of-type {
+  font-weight: 700;
+}
+
+/* Quantity, summary and actions ------------------------------------------ */
+
+.quantityRow {
+  display: grid;
+  gap: 8px;
+}
+
+.quantityLabel {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.stepper {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: var(--detail-target) minmax(88px, 140px) var(--detail-target);
+}
+
+.stepButton {
+  background: #fff;
+  border: 1px solid #b6bcb4;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 20px;
+  line-height: 1;
+  min-height: var(--detail-target);
+  min-width: var(--detail-target);
+}
+
+.stepButton:disabled {
+  cursor: not-allowed;
+  opacity: .45;
+}
+
+.quantityInput {
+  border: 1px solid #b6bcb4;
+  border-radius: 8px;
+  font: inherit;
+  min-height: var(--detail-target);
+  padding: 8px 10px;
+  text-align: center;
+  width: 100%;
+}
+
+.quantityRule {
+  color: var(--detail-secondary);
+  font-size: 13px;
+  margin: 0;
+}
+
+.summary {
+  border-top: 1px solid var(--detail-border);
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding-top: 14px;
+}
+
+.summary div {
+  align-items: baseline;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.summary dt {
+  color: var(--detail-secondary);
+  font-size: 14px;
+}
+
+.summary dd {
+  font-size: 15px;
+  font-weight: 700;
+  margin: 0;
+  text-align: right;
+}
+
+.subtotalValue {
+  color: var(--detail-price);
+  font-size: 20px;
+}
+
+.contactNote {
+  background: #f7f8f6;
+  border-radius: 8px;
+  color: #3f4147;
+  font-size: 13px;
+  line-height: 1.55;
+  margin: 0;
+  padding: 10px 12px;
+}
+
+.actions {
+  display: grid;
+  gap: 10px;
+}
+
+.primaryAction {
+  background: var(--detail-brand);
+  border: 1px solid var(--detail-brand);
+  border-radius: 8px;
+  color: #fff;
+  cursor: pointer;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 700;
+  min-height: var(--detail-target);
+  padding: 11px 20px;
+}
+
+.primaryAction:hover:not(:disabled) {
+  background: var(--detail-brand-dark);
+}
+
+.primaryAction:disabled {
+  cursor: not-allowed;
+  opacity: .5;
+}
+
+.secondaryAction {
+  align-items: center;
+  background: #fff;
+  border: 1px solid var(--detail-brand-dark);
+  border-radius: 8px;
+  color: var(--detail-brand-dark);
+  display: inline-flex;
+  font-size: 15px;
+  font-weight: 700;
+  justify-content: center;
+  min-height: var(--detail-target);
+  padding: 11px 20px;
+  text-decoration: none;
+}
+
+.secondaryAction:hover {
+  background: var(--detail-active-surface);
+}
+
+/*
+ * Reserved in `rem`, not `px`: this is a text line holding the add-to-cart
+ * confirmation, not an interactive target, and it should grow with the font size.
+ * Every actual control sizes itself from `--detail-target`.
+ */
+.addFeedback {
+  font-size: 13px;
+  font-weight: 600;
+  margin: 0;
+  min-height: 1.25rem;
+}
+
+/* Facts panel ------------------------------------------------------------ */
+
+.factsPanel {
+  border: 1px solid var(--detail-border);
+  border-radius: 11px;
+  padding: 16px;
+}
+
+.factsTitle {
+  font-size: 15px;
+  font-weight: 700;
+  margin: 0 0 10px;
+}
+
+.facts {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+}
+
+.facts div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: space-between;
+}
+
+.facts dt {
+  color: var(--detail-secondary);
+  font-size: 13px;
+}
+
+.facts dd {
+  font-size: 13px;
+  font-weight: 700;
+  margin: 0;
+  text-align: right;
+}
+
+/* Second row: description and related rail -------------------------------- */
+
+.sectionTitle {
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.3;
+  margin: 0 0 12px;
+}
+
+.descriptionPanel,
+.relatedSection {
+  border-top: 1px solid var(--detail-border);
+  margin-top: 32px;
+  padding-top: 24px;
+}
+
+.description {
+  color: #3f4147;
+  line-height: 1.7;
+  margin: 0;
+  max-width: 76ch;
+  white-space: pre-line;
+}
+
+.relatedRail {
+  display: grid;
+  gap: 18px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.relatedCard {
+  background: #fff;
+  border: 1px solid var(--detail-border);
+  border-radius: 11px;
+  box-shadow: 0 2px 10px rgb(0 0 0 / 8%);
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.relatedImage {
+  aspect-ratio: 5 / 4;
+  background: #fdf6ee;
+  display: block;
+  overflow: hidden;
+}
+
+.relatedImage img {
+  height: 100%;
+  object-fit: cover;
+  width: 100%;
+}
+
+.relatedBody {
+  display: grid;
+  gap: 6px;
+  padding: 14px;
+}
+
+.relatedCategory {
+  color: var(--detail-secondary);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+}
+
+.relatedName {
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.35;
+  margin: 0;
+}
+
+.relatedName a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.relatedName a:hover {
+  text-decoration: underline;
+}
+
+.relatedPrice {
+  color: var(--detail-price);
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.relatedMeta {
+  color: var(--detail-secondary);
+  font-size: 13px;
+}
+
+.relatedAvailability {
+  color: #237a08;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+/* Not-found and error states for the detail route -------------------------- */
+
+.notice {
+  border: 1px solid var(--detail-border);
+  border-radius: 11px;
+  display: grid;
+  gap: 12px;
+  justify-items: start;
+  margin: 24px 0 40px;
+  max-width: 640px;
+  padding: 24px;
+}
+
+.noticeTitle {
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1.25;
+  margin: 0;
+}
+
+.noticeText {
+  color: #3f4147;
+  line-height: 1.6;
+  margin: 0;
+}
+
+/* Mobile: the tier table reflows into stacked rows rather than scrolling --- */
+
+@media (max-width: 639px) {
+  .tierTable,
+  .tierTable caption,
+  .tierTable tbody,
+  .tierTable tbody tr,
+  .tierTable tbody th,
+  .tierTable tbody td {
+    display: block;
+    width: 100%;
+  }
+
+  .tierTable thead {
+    border: 0;
+    clip-path: inset(50%);
+    height: 1px;
+    overflow: hidden;
+    position: absolute;
+    white-space: nowrap;
+    width: 1px;
+  }
+
+  .tierTable tbody tr {
+    border: 1px solid var(--detail-border);
+    border-radius: 8px;
+    margin-bottom: 10px;
+    padding: 4px 0;
+  }
+
+  .tierTable tbody th,
+  .tierTable tbody td {
+    border: 0;
+    display: flex;
+    gap: 12px;
+    justify-content: space-between;
+    padding: 6px 12px;
+    text-align: right;
+  }
+
+  .tierTable tbody th::before,
+  .tierTable tbody td::before {
+    color: var(--detail-secondary);
+    content: attr(data-label);
+    font-weight: 400;
+    text-align: left;
+  }
+}
+
+@media (min-width: 640px) {
+  .rail {
+    padding: 20px 16px 0;
+  }
+
+  .actions {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+
+  .relatedRail {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+/* Desktop: gallery left, commercial information right ---------------------- */
+
+@media (min-width: 1024px) {
+  .hero {
+    gap: 32px;
+    grid-template-columns: minmax(0, 47fr) minmax(0, 53fr);
+  }
+
+  .rail {
+    padding: 24px 24px 0;
+  }
+
+  .title {
+    font-size: 32px;
+  }
+
+  .relatedRail {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+/* 1280px adds the compact facts panel as a third column. */
+@media (min-width: 1280px) {
+  .hero {
+    grid-template-columns: minmax(0, 47fr) minmax(0, 43fr) minmax(210px, 10fr);
+  }
+}
