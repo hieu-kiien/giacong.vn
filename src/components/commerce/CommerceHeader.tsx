@@ -20,8 +20,8 @@ interface CommerceHeaderProps {
 }
 
 /**
- * Commerce header: a flat brand-green band, 65 px on desktop and 56 px compact, on
- * the shared 1390 px rail.
+ * Commerce header: the same deep-green storefront band and desktop rhythm as the
+ * service and information tabs, with a compact 56 px mobile form on the shared rail.
  *
  * The wordmark is set as text. No third-party logo asset is verified for this
  * project, so bundling one would put an unlicensed brand mark in the UI.
@@ -36,7 +36,7 @@ interface CommerceHeaderProps {
 export function CommerceHeader({ menu }: CommerceHeaderProps) {
   return (
     <header
-      className="sticky top-0 z-40 bg-commerce-brand text-white"
+      className="sticky top-0 z-40 bg-brand-700 text-white"
       data-commerce-header
       data-storefront-header
     >
@@ -55,7 +55,7 @@ export function CommerceHeader({ menu }: CommerceHeaderProps) {
             {COMMERCE_NAV_ITEMS.map((item) => (
               <li key={item.href}>
                 <Link
-                  className="flex commerce-target items-center rounded-commerce-control px-2.5 text-sm font-semibold text-white transition-colors hover:bg-white/12 focus-visible:commerce-focus-ring motion-reduce:transition-none"
+                  className="flex commerce-target items-center rounded-commerce-control px-2.5 text-sm font-bold text-white transition-colors hover:bg-white/12 focus-visible:commerce-focus-ring motion-reduce:transition-none"
                   href={item.href}
                   prefetch={false}
                 >
@@ -83,7 +83,7 @@ export function CommerceHeader({ menu }: CommerceHeaderProps) {
           </a>
 
           <Link
-            className="flex commerce-target items-center justify-center rounded-commerce-control border border-white px-4 text-sm font-bold text-white transition-colors max-sm:hidden hover:bg-white hover:text-commerce-brand-dark focus-visible:commerce-focus-ring motion-reduce:transition-none"
+            className="flex commerce-target items-center justify-center rounded-commerce-control border border-white px-4 text-sm font-bold text-white transition-colors max-sm:hidden hover:bg-white hover:text-brand-800 focus-visible:commerce-focus-ring motion-reduce:transition-none"
             href={COMMERCE_REQUEST_HREF}
             prefetch={false}
           >

@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useId, useState } from "react";
 
 import { TierPriceTable } from "@/components/catalog/TierPriceTable";
@@ -41,6 +41,7 @@ const INVALID_MESSAGE = "Không thêm được lựa chọn này. Vui lòng th�
  * and computes the canonical unit price and subtotal itself.
  */
 export function ProductPurchasePanel({ initialVariantSku, variantQueryWarning, view }: ProductPurchasePanelProps) {
+  const router = useRouter();
   const quantityFieldId = useId();
   const [selectedSku, setSelectedSku] = useState(initialVariantSku ?? view.defaultVariantSku);
   const selected = view.variants.find((variant) => variant.sku === selectedSku)
@@ -65,7 +66,7 @@ export function ProductPurchasePanel({ initialVariantSku, variantQueryWarning, v
     setAddState({ kind: "idle" });
   }
 
-  function addToRequestCart() {
+  function addToRequestCart(): boolean {
     const stored = readRequestCart(window.localStorage);
     const mutation = upsertRequestCartLine(stored.state, {
       parentSlug: view.slug,
@@ -75,11 +76,11 @@ export function ProductPurchasePanel({ initialVariantSku, variantQueryWarning, v
 
     if (mutation.status === "line_limit") {
       setAddState({ kind: "error", message: LINE_LIMIT_MESSAGE });
-      return;
+      return false;
     }
     if (mutation.status !== "ok") {
       setAddState({ kind: "error", message: INVALID_MESSAGE });
-      return;
+      return false;
     }
 
     writeRequestCart(window.localStorage, mutation.state);
@@ -92,6 +93,11 @@ export function ProductPurchasePanel({ initialVariantSku, variantQueryWarning, v
       storageArea: window.localStorage,
     }));
     setAddState({ kind: "added", quantity: pricing.quantity, unit: selected.unit });
+    return true;
+  }
+
+  function buyNow() {
+    if (addToRequestCart()) router.push("/gui-yeu-cau/");
   }
 
   return (
@@ -204,9 +210,9 @@ export function ProductPurchasePanel({ initialVariantSku, variantQueryWarning, v
         >
           {view.addToCartLabel}
         </button>
-        <Link className={styles.secondaryAction} href={view.requestHref} prefetch={false}>
-          {view.requestLabel}
-        </Link>
+        <button className={styles.secondaryAction} disabled={!canOrder} onClick={buyNow} type="button">
+          Mua ngay
+        </button>
       </div>
 
       <p aria-live="polite" className={styles.addFeedback} role="status">

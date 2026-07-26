@@ -253,15 +253,16 @@ test("the menu never invents a variant key for its featured cards", () => {
 // 3. Header: geometry, density and the actions the reference shows
 // ---------------------------------------------------------------------------
 
-test("the header is a flat green band at the measured height on the content rail", async () => {
+test("the header shares the storefront green tone and desktop rhythm on the content rail", async () => {
   const header = await chromeSource("CommerceHeader.tsx");
 
   assert.match(header, /export function CommerceHeader/);
-  assert.match(header, /bg-commerce-brand\b/, "the band uses the flat brand-green token");
-  assert.match(header, /h-commerce-header\b/, "desktop keeps the measured 65px band");
+  assert.match(header, /bg-brand-700\b/, "the band uses the same storefront green token as the other tabs");
+  assert.match(header, /h-commerce-header\b/, "desktop uses the shared storefront-height rhythm");
   assert.match(header, /h-commerce-header-compact/, "390/320 keeps the compact band so the header never overflows");
   assert.match(header, /CommerceRail/, "the header content sits on the shared 1390px rail");
   assert.match(header, /sticky/, "the header is sticky per the interaction model");
+  assert.match(header, /flex h-commerce-header-compact/, "the structure follows the storefront header's simple horizontal rail");
 });
 
 test("the wordmark is set as text, so no third-party logo asset ships", async () => {

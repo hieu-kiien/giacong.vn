@@ -13,6 +13,7 @@ export default function RootLayout({
 }>) {
   return (
     <html
+      data-scroll-behavior="smooth"
       lang="vi"
       className="js"
     >

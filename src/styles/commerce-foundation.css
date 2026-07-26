@@ -28,8 +28,8 @@
 
   /* Content rail: 1390 px measured on the 1672 px reference canvas. */
   --spacing-commerce-rail: 1390px;
-  /* Desktop header band, 65 px; the compact header keeps 56 px at 390/320. */
-  --spacing-commerce-header: 65px;
+  /* Matches the established storefront chrome; compact header stays 56 px at 390/320. */
+  --spacing-commerce-header: 90px;
   --spacing-commerce-header-compact: 56px;
   /* Minimum interactive target. */
   --spacing-commerce-target: 44px;

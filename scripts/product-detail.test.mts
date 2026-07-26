@@ -393,8 +393,9 @@ test("the purchase panel wires the CTA to the existing request cart", async () =
   assert.match(panel, /request-cart-storage/, "the CTA must use the locked storage contract");
   assert.match(panel, /upsertRequestCartLine/, "adding a line goes through the storage contract");
   assert.match(panel, /writeRequestCart/);
+  assert.match(panel, /Mua ngay/, "the selected variant can continue directly after it is added");
+  assert.match(panel, /router\.push\("\/gui-yeu-cau\/"\)/, "buy now keeps the user on the one request route");
   assert.doesNotMatch(panel, /unitPrice:|subtotal:|price:/, "no price is ever written into the cart");
-  assert.match(panel, /requestHref/, "the secondary action links to the request route from the view model");
   assert.match(
     await readSource("src", "lib", "product-detail-view.ts"),
     /REQUEST_ROUTE = "\/gui-yeu-cau\/"/,

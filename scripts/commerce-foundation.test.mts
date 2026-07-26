@@ -124,7 +124,7 @@ test("no commerce source reaches for the captured footer or global captured CSS"
 test("design tokens carry the measured commerce geometry", () => {
   const { COMMERCE_GEOMETRY } = commerceTokens;
 
-  assert.equal(COMMERCE_GEOMETRY.headerHeightDesktop, 65);
+  assert.equal(COMMERCE_GEOMETRY.headerHeightDesktop, 90);
   assert.equal(COMMERCE_GEOMETRY.railMaxWidth, 1390);
   assert.equal(COMMERCE_GEOMETRY.minimumTouchTarget, 44);
   assert.equal(COMMERCE_GEOMETRY.productImageAspectRatio, "5 / 4");
@@ -161,6 +161,16 @@ test("the CSS foundation publishes those tokens as Tailwind theme variables", as
 
   const globals = await readSource("src", "app", "globals.css");
   assert.match(globals, /commerce-foundation\.css/, "the foundation must load from the global stylesheet");
+});
+
+test("the root layout declares the smooth-scroll behavior used by the global stylesheet", async () => {
+  const [layout, globals] = await Promise.all([
+    readSource("src", "app", "layout.tsx"),
+    readSource("src", "app", "globals.css"),
+  ]);
+
+  assert.match(globals, /scroll-behavior:\s*smooth/, "the global stylesheet opts into smooth route scrolling");
+  assert.match(layout, /data-scroll-behavior="smooth"/, "Next receives the matching document declaration");
 });
 
 test("typography tokens cover every text level in the specification", () => {

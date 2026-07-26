@@ -364,6 +364,8 @@ test("the quantity stepper and cart action reuse the locked contracts", async ()
   assert.match(source, /writeRequestCart/, "the line is persisted through the locked contract");
   assert.match(source, /REQUEST_CART_STORAGE_KEY/, "the badge is notified on the contract's own key");
   assert.match(source, /StorageEvent/, "a same-tab add must still update the shared header badge");
+  assert.match(source, /Mua ngay/, "a ready-to-order card exposes the fast purchase action");
+  assert.match(source, /router\.push\("\/gui-yeu-cau\/"\)/, "buy now adds the chosen line before continuing to the one request route");
   assert.match(source, /aria-live/, "the confirmation is announced, not colour-only");
   assert.match(source, /min-h-11|commerce-target/, "every target clears 44px");
   // An emptied number field leaves the state at 0, so the add path must clamp

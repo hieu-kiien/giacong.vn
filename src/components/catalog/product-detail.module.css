@@ -487,7 +487,9 @@
   border: 1px solid var(--detail-brand-dark);
   border-radius: 8px;
   color: var(--detail-brand-dark);
+  cursor: pointer;
   display: inline-flex;
+  font: inherit;
   font-size: 15px;
   font-weight: 700;
   justify-content: center;
@@ -496,8 +498,13 @@
   text-decoration: none;
 }
 
-.secondaryAction:hover {
+.secondaryAction:hover:not(:disabled) {
   background: var(--detail-active-surface);
+}
+
+.secondaryAction:disabled {
+  cursor: not-allowed;
+  opacity: .5;
 }
 
 /*

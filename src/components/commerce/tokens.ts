@@ -6,8 +6,9 @@
  * time. `scripts/commerce-foundation.test.mts` asserts both files agree, so the
  * stylesheet stays the single place a value is *changed*.
  *
- * Every value is measured from the approved 1672 × 941 screenshots and recorded in
- * `docs/research/DESIGN_TOKENS.md`.
+ * The commerce-only values began as screenshot measurements. Header height now
+ * follows the established storefront chrome so the catalog and service tabs share
+ * one visual rhythm.
  */
 
 export const COMMERCE_COLORS = {
@@ -24,8 +25,8 @@ export const COMMERCE_COLORS = {
 export type CommerceColorToken = keyof typeof COMMERCE_COLORS;
 
 export const COMMERCE_GEOMETRY = {
-  /** Desktop header band. */
-  headerHeightDesktop: 65,
+  /** Desktop header band, aligned to the existing storefront tabs. */
+  headerHeightDesktop: 90,
   /** Compact header at 390/320 px, where 65 px would crowd the viewport. */
   headerHeightMobile: 56,
   /** Smallest interactive target anywhere in the commerce UI. */

@@ -1,6 +1,7 @@
 "use client";
 
-import { Check, Minus, Plus } from "lucide-react";
+import { Check, Minus, Plus, ShoppingCart } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { clampCommerceQuantity, stepCommerceQuantity } from "@/lib/commerce-ui";
@@ -39,6 +40,7 @@ type AddState =
  * can ever reach storage.
  */
 export function CatalogCardPurchase({ parentSlug, productName, purchase }: CatalogCardPurchaseProps) {
+  const router = useRouter();
   const [quantity, setQuantity] = useState(() => clampCommerceQuantity(purchase.minimumOrderQuantity, purchase));
   const [state, setState] = useState<AddState>({ kind: "idle" });
   const needsQuote = quantity >= purchase.contactFromQuantity;
@@ -48,7 +50,7 @@ export function CatalogCardPurchase({ parentSlug, productName, purchase }: Catal
     setState({ kind: "idle" });
   }
 
-  function addToRequestCart() {
+  function addToRequestCart(): boolean {
     // Clamped here rather than relying on the input's blur firing first: an emptied
     // number field leaves `quantity` at 0, and the stored line must satisfy the
     // storage contract no matter which event order got us here.
@@ -66,7 +68,7 @@ export function CatalogCardPurchase({ parentSlug, productName, purchase }: Catal
 
     if (mutation.status !== "ok") {
       setState({ kind: mutation.status === "line_limit" ? "limit" : "rejected" });
-      return;
+      return false;
     }
 
     writeRequestCart(storage, mutation.state);
@@ -78,6 +80,11 @@ export function CatalogCardPurchase({ parentSlug, productName, purchase }: Catal
       storageArea: storage,
     }));
     setState({ kind: "added", quantity: requested });
+    return true;
+  }
+
+  function buyNow() {
+    if (addToRequestCart()) router.push("/gui-yeu-cau/");
   }
 
   return (
@@ -128,14 +135,25 @@ export function CatalogCardPurchase({ parentSlug, productName, purchase }: Catal
         </span>
       </div>
 
-      <button
-        aria-label={`Thêm ${productName} vào giỏ yêu cầu`}
-        className="min-h-11 rounded-commerce-control bg-commerce-brand px-4 text-sm font-bold text-white hover:bg-commerce-brand-dark focus-visible:commerce-focus-ring"
-        onClick={addToRequestCart}
-        type="button"
-      >
-        Thêm vào giỏ yêu cầu
-      </button>
+      <div className="grid grid-cols-[auto_minmax(0,1fr)] gap-2">
+        <button
+          aria-label={`Thêm ${productName} vào giỏ yêu cầu`}
+          className="flex min-h-11 min-w-11 items-center justify-center rounded-commerce-control border border-commerce-brand px-3 text-commerce-brand-dark hover:bg-commerce-active-surface focus-visible:commerce-focus-ring"
+          onClick={addToRequestCart}
+          title="Thêm vào giỏ yêu cầu"
+          type="button"
+        >
+          <ShoppingCart aria-hidden="true" className="size-4" />
+          <span className="sr-only">Thêm vào giỏ yêu cầu</span>
+        </button>
+        <button
+          className="min-h-11 rounded-commerce-control bg-commerce-brand px-3 text-sm font-bold text-white hover:bg-commerce-brand-dark focus-visible:commerce-focus-ring"
+          onClick={buyNow}
+          type="button"
+        >
+          Mua ngay
+        </button>
+      </div>
 
       <p aria-live="polite" className="min-h-5 text-xs font-semibold">
         {state.kind === "added" ? (
