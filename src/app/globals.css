@@ -4,6 +4,37 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/*
+ * Storefront brand palette. Values come from the handoff design tokens
+ * (`tokens/design-tokens.json`). That file has no orange ramp, so the accent is
+ * built around its `semantic.warning` (#B54708) with tints derived for surfaces
+ * only — no new hues are invented. `brand-700`/`brand-800` are the text-safe
+ * greens (7.8:1 white-on-800); `brand-500`/`600` are surface and hover greens.
+ */
+@theme {
+  --color-brand-50: #f3f9ec;
+  --color-brand-100: #e4f3d2;
+  --color-brand-200: #cbe8a8;
+  --color-brand-500: #4ca600;
+  --color-brand-600: #3e9000;
+  --color-brand-700: #327600;
+  --color-brand-800: #285f00;
+  --color-brand-accent-50: #fff6ed;
+  --color-brand-accent-100: #ffead5;
+  --color-brand-accent-600: #c2530a;
+  --color-brand-accent-700: #b54708;
+  --color-ink: #202124;
+  --color-ink-soft: #667085;
+  --color-ink-muted: #98a2b3;
+  --color-hairline: #e4e7ec;
+  --color-hairline-strong: #d0d5dd;
+  --color-surface-subtle: #f8fafc;
+  --color-surface-tinted: #f5faef;
+  --color-price: #e11919;
+  --color-stock: #16883e;
+  --color-focus: #2e90fa;
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -116,6 +147,26 @@
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
 }
+
+/*
+ * Captured-CSS collision hazard for new Tailwind UI.
+ *
+ * `src/app/(storefront)/layout.tsx` injects nine captured stylesheets as plain
+ * `<link>` tags. Those are *unlayered*, so every rule in them outranks Tailwind
+ * utilities, which live in `@layer utilities` — specificity and source order are
+ * irrelevant. 33 bare class names overlap; most set the identical value and are
+ * harmless. These four are not, and must not be used as bare utilities here:
+ *
+ *   .hidden      → adds `visibility:hidden!important`, so no responsive utility
+ *                  can reveal the element. Use `max-md:hidden` / `sr-only`, or
+ *                  the `hidden` *attribute*, which resolves through preflight.
+ *   .flex-col    → adds `max-height:100%`
+ *   .text-center → adds `padding-left/right:10px`
+ *   .uppercase   → adds `line-height:1.2`
+ *
+ * Variant-prefixed forms (`max-md:hidden`, `md:hidden`) emit distinct class
+ * tokens the captured rules cannot match, so they behave normally.
+ */
 
 @layer base {
   * {

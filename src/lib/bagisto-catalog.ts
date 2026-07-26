@@ -52,14 +52,19 @@ export const getCatalogProduct = cache(async (slug: string): Promise<CatalogProd
   return parseProductResponse(responsePayload(response, payload));
 });
 
-export async function getCatalogCategories(): Promise<CatalogCategory[]> {
+/**
+ * `cache` dedupes within one render so the chrome header and the page body share
+ * a single upstream category read; `unstable_cache` still owns cross-request
+ * caching and keeps a malformed HTTP 200 out of the validated cache.
+ */
+export const getCatalogCategories = cache(async (): Promise<CatalogCategory[]> => {
   const context = getCatalogContext();
   return getValidatedCatalogCategories(
     getBagistoApiUrl("/", true).toString(),
     context.channel,
     context.locale,
   );
-}
+});
 
 /**
  * `unstable_cache` derives its cache key from the arguments, so every parameter

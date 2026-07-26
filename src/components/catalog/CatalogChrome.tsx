@@ -2,7 +2,8 @@ import type { ReactNode } from "react";
 
 import { CapturedFloatingContact } from "@/components/CapturedPage";
 import { GiacongInteractions } from "@/components/GiacongInteractions";
-import { getCatalogChrome } from "@/lib/catalog-chrome";
+import { StorefrontHeader } from "@/components/storefront/StorefrontHeader";
+import { getCatalogChrome, getStorefrontNavCategories } from "@/lib/catalog-chrome";
 
 interface CatalogChromeProps {
   children: ReactNode;
@@ -10,19 +11,18 @@ interface CatalogChromeProps {
 }
 
 export async function CatalogChrome({ children, floatingContact = true }: CatalogChromeProps) {
-  const chrome = await getCatalogChrome();
+  const [chrome, categories] = await Promise.all([getCatalogChrome(), getStorefrontNavCategories()]);
 
   return (
     <>
       <style dangerouslySetInnerHTML={{ __html: chrome.pageStyles }} />
       <div className={chrome.bodyClasses} suppressHydrationWarning>
         <a className="skip-link screen-reader-text" href="#catalog-main">Bỏ qua nội dung</a>
+        <StorefrontHeader categories={categories} />
         <div id="wrapper">
-          <div dangerouslySetInnerHTML={{ __html: chrome.headerMarkup }} />
           {children}
           <div dangerouslySetInnerHTML={{ __html: chrome.footerMarkup }} />
         </div>
-        <div dangerouslySetInnerHTML={{ __html: chrome.trailingMarkup }} />
       </div>
       {floatingContact ? <CapturedFloatingContact /> : null}
       <GiacongInteractions bodyClasses={chrome.bodyClasses} htmlClasses={chrome.htmlClasses} />

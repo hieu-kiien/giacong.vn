@@ -613,6 +613,74 @@ try {
       scriptTransferBytes: scripts.reduce((total, entry) => total + entry.transferSize, 0),
     };
   });
+  // Storefront chrome. The captured header shipped a service-only "Sản Phẩm"
+  // dropdown whose entries were `href="#"`, so the React chrome has to own
+  // catalog navigation and every link has to resolve to a master-plan route.
+  const header = page.locator("header[data-storefront-header]");
+  assert.equal(await header.count(), 1, "Catalog routes must render exactly one React storefront header");
+  assert.equal(await page.locator("#masthead, .header-wrapper").count(), 0, "The captured header must not ship alongside the React header");
+  const headerHrefs = await header.locator("a[href]")
+    .evaluateAll((links) => links.map((link) => link.getAttribute("href") ?? ""));
+  assert.ok(headerHrefs.length >= 4, "Storefront header must expose the master-plan navigation");
+  for (const href of headerHrefs) {
+    assert.match(
+      href,
+      /^(\/[a-z0-9?=/-]*|tel:0\d+)$/,
+      `Header link "${href}" must target an in-app master-plan route or a real contact channel`,
+    );
+  }
+  // `trailingSlash` is false, so Next normalises the authored `/san-pham/` href.
+  assert.equal(await header.getByRole("link", { name: "Sản phẩm", exact: true }).getAttribute("href"), "/san-pham", "Header must route product navigation to the catalog");
+
+  const megaTrigger = page.getByRole("button", { name: "Danh mục sản phẩm" });
+  assert.equal(await megaTrigger.getAttribute("aria-expanded"), "false", "The category mega menu must start collapsed");
+  const megaPanelId = await megaTrigger.getAttribute("aria-controls");
+  assert.ok(megaPanelId, "The mega menu trigger must reference the panel it controls");
+  const megaPanel = page.locator(`#${megaPanelId}`);
+  await megaTrigger.click();
+  assert.equal(await megaTrigger.getAttribute("aria-expanded"), "true", "Click must open the category mega menu");
+  await megaPanel.getByRole("link", { name: "Dinh dưỡng" }).waitFor();
+  assert.equal(await megaPanel.getByRole("link", { name: "Xem tất cả sản phẩm" }).count(), 1, "The mega menu needs an explicit catalog entry point");
+  assert.doesNotMatch(await megaPanel.innerText(), /gia công/i, "The product mega menu must not list gia công services");
+  assert.equal(await megaPanel.locator("a[href='#'], a[href=''], a[href='/']").count(), 0, "The mega menu must not ship dead links");
+  assert.ok(
+    await megaPanel.locator("[data-mega-columns]").evaluate((element) => (
+      getComputedStyle(element).gridTemplateColumns.split(" ").length >= 2
+    )),
+    "The 1440px mega menu must lay categories out in multiple columns",
+  );
+  await page.keyboard.press("Escape");
+  assert.equal(await megaTrigger.getAttribute("aria-expanded"), "false", "Escape must close the mega menu");
+  assert.equal(await megaTrigger.evaluate((element) => element === document.activeElement), true, "Escape must return focus to the mega menu trigger");
+  await megaTrigger.press("Enter");
+  assert.equal(await megaTrigger.getAttribute("aria-expanded"), "true", "Enter must open the mega menu");
+  await page.keyboard.press("Tab");
+  assert.equal(await megaPanel.evaluate((element) => element.contains(document.activeElement)), true, "Tab from the trigger must move into the open mega menu");
+  await megaTrigger.press(" ");
+  assert.equal(await megaTrigger.getAttribute("aria-expanded"), "false", "Space must close the mega menu");
+  await megaTrigger.click();
+  await page.locator("h1").click();
+  assert.equal(await megaTrigger.getAttribute("aria-expanded"), "false", "An outside click must close the mega menu");
+
+  const badge = page.locator("[data-request-cart-count]");
+  assert.equal(await badge.count(), 1, "The header must expose exactly one request-cart badge hook");
+  assert.equal(await badge.getAttribute("data-request-cart-count"), "0", "An empty request cart must report zero lines");
+  await page.evaluate(() => localStorage.setItem("giacong.request-cart.v1", JSON.stringify({
+    lines: [{ parentSlug: "b2b-demo-bot-dinh-duong", quantity: 10, variantSku: "B2B-DEMO-BOT-VANI" }],
+    schemaVersion: 1,
+    updatedAt: "2026-01-01T00:00:00.000Z",
+  })));
+  await page.reload();
+  await page.getByText("3 dòng sản phẩm", { exact: true }).waitFor();
+  assert.equal(
+    await page.locator("[data-request-cart-count]").getAttribute("data-request-cart-count"),
+    "1",
+    "The header badge must read the existing request-cart storage contract",
+  );
+  await page.evaluate(() => localStorage.removeItem("giacong.request-cart.v1"));
+  await page.reload();
+  await page.getByText("3 dòng sản phẩm", { exact: true }).waitFor();
+
   assert.equal(await page.getByRole("button", { name: "Lọc sản phẩm" }).count(), 0, "Catalog filters must not require a separate submit action");
   const combinedFilterStart = seenCatalogRequests.length;
   await page.getByLabel("Tìm sản phẩm").fill("ngũ cốc");
@@ -850,6 +918,29 @@ try {
   assert.equal(await mobile.locator("[data-catalog-grid]").evaluate((element) => getComputedStyle(element).gridTemplateColumns.split(" ").length), 1, "390px catalog must render one card column");
   assert.equal(await mobile.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth), true, "390px catalog must not overflow horizontally");
   await mobile.screenshot({ path: join(screenshots, "catalog-390.png"), fullPage: true });
+
+  // Mobile chrome. The desktop mega menu must not render off-viewport; the drawer
+  // owns navigation below the tablet breakpoint.
+  assert.equal(await mobile.getByRole("button", { name: "Danh mục sản phẩm" }).count(), 0, "390px must not expose the desktop mega menu trigger");
+  const drawerTrigger = mobile.getByRole("button", { name: "Mở menu" });
+  assert.equal(await drawerTrigger.getAttribute("aria-expanded"), "false", "The mobile drawer trigger must start collapsed");
+  await drawerTrigger.click();
+  const drawer = mobile.getByRole("dialog", { name: "Điều hướng" });
+  await drawer.getByRole("link", { name: "Sản phẩm", exact: true }).waitFor();
+  assert.equal(await drawerTrigger.getAttribute("aria-expanded"), "true", "Opening the drawer must update the trigger state");
+  assert.equal(await drawer.getByRole("link", { name: "Dinh dưỡng" }).count(), 1, "The mobile drawer must list real catalog categories");
+  assert.equal(await drawer.locator("a[href='#'], a[href='']").count(), 0, "The mobile drawer must not ship dead links");
+  assert.match(
+    await drawer.getByRole("link", { name: "Dinh dưỡng" }).getAttribute("href") ?? "",
+    /^\/san-pham\?category=dinh-duong$/,
+    "Drawer category links must filter the catalog instead of pointing at the site root",
+  );
+  assert.equal(await mobile.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth), true, "390px drawer must not overflow horizontally");
+  await mobile.screenshot({ path: join(screenshots, "chrome-drawer-390.png"), fullPage: true });
+  await mobile.keyboard.press("Escape");
+  assert.equal(await drawer.count(), 0, "Escape must close the mobile drawer");
+  assert.equal(await drawerTrigger.evaluate((element) => element === document.activeElement), true, "Closing the drawer must restore trigger focus");
+
   await mobile.getByRole("button", { name: "Xem nhanh" }).first().click();
   await mobile.getByRole("dialog").getByRole("heading", { level: 2, name: "Bột dinh dưỡng" }).waitFor();
   assert.equal(await mobile.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth), true, "390px quick preview must not overflow horizontally");
