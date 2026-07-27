@@ -14,6 +14,9 @@ const eslintConfig = defineConfig([
     "bagisto/**",
     ".worktrees/**",
     "next-env.d.ts",
+    // GitNexus writes its index and CommonJS runner here. Untracked via
+    // .git/info/exclude, which ESLint does not read.
+    ".gitnexus/**",
   ]),
 ]);
 
