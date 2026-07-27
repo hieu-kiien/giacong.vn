@@ -1,27 +1,28 @@
 import "server-only";
 
 import { getCatalogProduct } from "@/lib/bagisto-catalog";
+import {
+  resolveDemoCartProduct,
+  toRequestCartProductResolution,
+} from "@/lib/request-cart-demo";
+import { demoCatalogFallbackAllowed } from "@/lib/demo-catalog-policy";
 import type { RequestCartProductResolution } from "@/types/request-cart";
 
 /**
  * Single Bagisto projection shared by the revalidate endpoint and the cart submit.
  * `getCatalogProduct` is request-deduplicated, so one slug costs one upstream read per request.
+ * A non-production demo may fall back to the isolated fixture; production always
+ * rethrows an upstream failure and never validates a cart against demo prices.
  */
 export async function resolveCartProduct(slug: string): Promise<RequestCartProductResolution | null> {
-  const product = await getCatalogProduct(slug);
-  if (!product) return null;
-  return {
-    name: product.name,
-    slug: product.slug,
-    variants: product.variants.map((variant) => ({
-      contactFromQuantity: variant.contactFromQuantity,
-      isAvailable: variant.isAvailable,
-      label: variant.name,
-      minimumOrderQuantity: variant.minimumOrderQuantity,
-      quantityStep: variant.quantityStep,
-      sku: variant.sku,
-      tierPrices: variant.tierPrices.map((tier) => ({ minQuantity: tier.minQuantity, price: tier.price })),
-      unit: variant.unit,
-    })),
-  };
+  const demoAllowed = demoCatalogFallbackAllowed(process.env);
+
+  try {
+    const product = await getCatalogProduct(slug);
+    return product ? toRequestCartProductResolution(product) : null;
+  } catch (error) {
+    if (!demoAllowed) throw error;
+  }
+
+  return resolveDemoCartProduct(slug);
 }

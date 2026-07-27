@@ -23,6 +23,14 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
+/*
+ * Commerce design foundation (tokens + shared utilities). It has to be imported
+ * here, not from the commerce layout: Tailwind only reads `@theme`/`@utility` out
+ * of the stylesheet that imports `tailwindcss`. It only declares
+ * `commerce-*`-namespaced names, so the captured routes are unaffected.
+ */
+@import "../styles/commerce-foundation.css";
+
 @custom-variant dark (&:is(.dark *));
 
 /*

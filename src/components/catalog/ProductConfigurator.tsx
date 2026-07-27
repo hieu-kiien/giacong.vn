@@ -73,7 +73,7 @@ export function ProductConfigurator({ initialVariantSku, product, variantQueryWa
             <p className={styles.sku}>SKU: {selectedVariant.sku}</p>
             <span className={styles.price}>{formatVnd(selectedVariant.tierPrices[0].price)}</span>
             <table className={styles.facts}>
-              <caption className="screen-reader-text">Thông tin đặt hàng của lựa chọn đã chọn</caption>
+              <caption className="sr-only">Thông tin đặt hàng của lựa chọn đã chọn</caption>
               <tbody>
                 <tr><th scope="row">Số lượng đặt tối thiểu</th><td>{selectedVariant.minimumOrderQuantity} {selectedVariant.unit}</td></tr>
                 <tr><th scope="row">Bước số lượng</th><td>{selectedVariant.quantityStep} {selectedVariant.unit}</td></tr>
@@ -94,7 +94,7 @@ export function ProductConfigurator({ initialVariantSku, product, variantQueryWa
             <section>
               <h2 className={styles.sectionTitle}>Giá theo số lượng</h2>
               <table className={styles.tierTable}>
-                <caption className="screen-reader-text">Bảng giá theo số lượng của lựa chọn đã chọn</caption>
+                <caption className="sr-only">Bảng giá theo số lượng của lựa chọn đã chọn</caption>
                 <thead><tr><th scope="col">Số lượng từ</th><th scope="col">Đơn giá</th></tr></thead>
                 <tbody>
                   {selectedVariant.tierPrices.map((tier) => <tr key={tier.minQuantity}><td>{tier.minQuantity} {selectedVariant.unit}</td><td>{formatVnd(tier.price)}</td></tr>)}

@@ -21,8 +21,25 @@ test("runs focused contact, catalog, and service tests before lint in the standa
   const packageJson = JSON.parse(await readFile(new URL("package.json", root), "utf8"));
   assert.equal(
     packageJson.scripts.check,
-    "npm run test:contact && npm run test:catalog && npm run test:catalog-purchase-ui && npm run test:service && npm run lint && npm run typecheck && npm run build",
+    "npm run test:contact && npm run test:catalog && npm run test:catalog-purchase-ui && npm run test:service"
+      + " && npm run test:commerce && npm run test:header"
+      + " && npm run test:listing && npm run test:detail"
+      + " && npm run lint && npm run typecheck && npm run build",
   );
+});
+
+test("the visible preview launcher is portable and reads its tracked preview port", async () => {
+  const [environment, launcher] = await Promise.all([
+    readFile(new URL(".env.example", root), "utf8"),
+    readFile(new URL("scripts/start-visible-preview.ps1", root), "utf8"),
+  ]);
+
+  assert.match(environment, /COMMERCE_PREVIEW_PORT=4310/);
+  assert.match(launcher, /\$env:COMMERCE_PREVIEW_PORT/);
+  assert.match(launcher, /\$PSScriptRoot/);
+  assert.match(launcher, /\$env:TEMP/);
+  assert.doesNotMatch(launcher, /C:\\Users\\/i);
+  assert.doesNotMatch(launcher, /19999|(?:^|\D)(?:3000|8000|8001)(?:\D|$)/);
 });
 
 test("uses Webpack for builds inside a Git worktree", async () => {

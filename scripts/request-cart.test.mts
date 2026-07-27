@@ -5,6 +5,12 @@ const {
   REQUEST_CART_MAX_BODY_BYTES,
   handleCartRevalidation,
 } = await import("../src/lib/request-cart" + ".ts");
+const {
+  resolveDemoCartProduct,
+} = await import("../src/lib/request-cart-demo" + ".ts");
+const {
+  demoCatalogFallbackAllowed,
+} = await import("../src/lib/demo-catalog-policy" + ".ts");
 
 interface CartVariantFixture {
   contactFromQuantity: number;
@@ -37,6 +43,23 @@ const lowSugar: CartVariantFixture = {
   sku: "B2B-DEMO-LOWSUGAR",
   tierPrices: [{ minQuantity: 10, price: 95_000 }],
 };
+
+test("the demo cart resolver is available outside production and refuses production", () => {
+  assert.equal(demoCatalogFallbackAllowed({ NODE_ENV: "development" }), true);
+  assert.equal(demoCatalogFallbackAllowed({ NODE_ENV: "test" }), true);
+  assert.equal(demoCatalogFallbackAllowed({ NODE_ENV: "production" }), false);
+});
+
+test("the demo cart resolver projects the same canonical product and price fields", () => {
+  const product = resolveDemoCartProduct("la-tia-to-say-lanh");
+
+  assert.ok(product);
+  assert.equal(product.slug, "la-tia-to-say-lanh");
+  assert.equal(product.variants.length, 1);
+  assert.equal(product.variants[0]?.sku, "B2B-DEMO-LTT-03");
+  assert.equal(product.variants[0]?.tierPrices[0]?.price, 742_000);
+  assert.equal(resolveDemoCartProduct("khong-ton-tai"), null);
+});
 
 interface CartProductFixture {
   name: string;

@@ -1,33 +1,38 @@
 import type { Metadata } from "next";
 import { notFound, permanentRedirect } from "next/navigation";
 
-import { CatalogDetail } from "@/components/catalog/CatalogDetail";
-import { getCatalogProduct } from "@/lib/bagisto-catalog";
+import { ProductDetailPage } from "@/components/catalog/ProductDetailPage";
 import { legacyProductRedirects } from "@/lib/catalog-legacy-redirects";
+import { loadCatalogProductDetail } from "@/lib/catalog-detail-source";
 
 type CatalogDetailPageProps = PageProps<"/san-pham/[slug]">;
 
 export async function generateMetadata({ params }: CatalogDetailPageProps): Promise<Metadata> {
   const { slug } = await params;
   redirectLegacyProduct(slug);
-  const product = await getCatalogProduct(slug);
-  if (!product) return { title: "Không tìm thấy sản phẩm | Giacong.vn" };
+  const source = await loadCatalogProductDetail(slug);
+  if (!source) return { title: "Không tìm thấy sản phẩm | Giacong.vn" };
+  const { product } = source;
   return { title: `${product.name} | Giacong.vn`, description: product.shortDescription || product.name };
 }
 
 export default async function CatalogDetailPage({ params, searchParams }: CatalogDetailPageProps) {
   const { slug } = await params;
   redirectLegacyProduct(slug);
-  const product = await getCatalogProduct(slug);
-  if (!product) notFound();
+  const source = await loadCatalogProductDetail(slug);
+  if (!source) notFound();
+
+  // A `?variant=` link only preselects a variant that is actually usable; anything
+  // else falls back to the default selection and says so.
   const requestedVariant = firstValue((await searchParams).variant);
-  const selectedVariant = product.variants.find((variant) => (
+  const selectedVariant = source.product.variants.find((variant) => (
     variant.sku === requestedVariant && variant.isAvailable
   ));
+
   return (
-    <CatalogDetail
+    <ProductDetailPage
       initialVariantSku={selectedVariant?.sku ?? null}
-      product={product}
+      source={source}
       variantQueryWarning={Boolean(requestedVariant && !selectedVariant)}
     />
   );
