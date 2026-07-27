@@ -28,7 +28,22 @@ test("a catalog card adds its sole available variant without trusting price data
 
   assert.match(source, /upsertRequestCartLine/, "the card must use the locked cart mutation");
   assert.match(source, /writeRequestCart/, "the card must persist only a successful mutation");
-  assert.match(source, /availableVariants\.length !== 1/, "cards with multiple choices must not invent a variant");
-  assert.match(source, /router\.push\(`\/san-pham\/\$\{encodeURIComponent\(slug\)\}\/`\)/, "cards with multiple choices must open detail");
+  assert.match(source, /parentSlug,[\s\S]*quantity,[\s\S]*variantSku/, "the stored line must contain only the three permitted keys");
   assert.doesNotMatch(source, /unitPrice|lineTotal|pricedSubtotal/, "cards must never put money into browser storage");
+});
+
+// The single-variant guard moved out of this component. `buildCatalogCards` sets
+// `purchase` to null unless exactly one variant is usable, and the card renders the
+// stepper only when it is non-null, so a fabricated SKU cannot reach storage. The
+// behaviour is covered by catalog-listing.test.mts; these two assert the wiring that
+// keeps the guard load-bearing.
+test("the stepper is rendered only behind a proven purchase rule", async () => {
+  const [card, listing] = await Promise.all([
+    readFile(path.join(repoRoot, "src", "components", "catalog", "CatalogProductCard.tsx"), "utf8"),
+    readFile(path.join(repoRoot, "src", "components", "catalog", "catalog-listing.ts"), "utf8"),
+  ]);
+
+  assert.match(card, /\{purchase \?/, "the card must gate the stepper on a non-null purchase rule");
+  assert.match(listing, /purchase: CatalogCardPurchaseRule \| null/, "the rule must stay nullable");
+  assert.match(listing, /function purchaseRule\(/, "the listing must own the single-variant decision");
 });
