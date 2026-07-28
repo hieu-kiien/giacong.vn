@@ -1,6 +1,19 @@
+/*
+ * Catalog stylesheet, now serving only the `/san-pham` error and not-found routes and
+ * the `detail` image frame in `CatalogProductImage`. The listing itself moved to
+ * Tailwind utilities on the commerce tokens (`CatalogProductCard`), so the filter,
+ * chip, grid, card, preview-dialog, variant, pagination and purchase rules below are
+ * reachable only through `CatalogDetail`, `ProductConfigurator`, `PurchaseQuantity`
+ * and `ProductQuickPreview` — none of which anything imports. Those rules are left
+ * exactly as they were rather than repointed: phase G deletes them with their
+ * components, and retokenising dead CSS only makes that diff harder to read.
+ *
+ * The live rules resolve to `src/styles/commerce-foundation.css`.
+ */
+
 .catalog {
-  background: #fbfaf4;
-  color: #293228;
+  background: #fff;
+  color: var(--color-commerce-body);
 }
 
 .catalog :global(*) {
@@ -27,7 +40,7 @@
 .heading { max-width: 720px; }
 
 .title {
-  color: #334429;
+  color: var(--color-commerce-body);
   font-size: clamp(27px, 4vw, 36px);
   font-weight: 700;
   letter-spacing: -.02em;
@@ -72,9 +85,9 @@
 }
 
 .button {
-  background: #465c35;
-  border: 1px solid #465c35;
-  border-radius: 4px;
+  background: var(--color-commerce-brand);
+  border: 1px solid var(--color-commerce-brand);
+  border-radius: var(--radius-commerce-control);
   color: #fff;
   cursor: pointer;
   font-size: 13px;
@@ -85,7 +98,13 @@
   text-decoration: none;
 }
 
-.button:focus-visible, .chip:focus-visible, .cardAction:focus-visible, .pageLink:focus-visible, .field input:focus-visible {
+.button:focus-visible {
+  outline: 3px solid var(--color-commerce-brand-dark);
+  outline-offset: 2px;
+}
+
+/* Dead selectors, kept on the old ring until phase G removes them with their components. */
+.chip:focus-visible, .cardAction:focus-visible, .pageLink:focus-visible, .field input:focus-visible {
   outline: 3px solid #243c66;
   outline-offset: 2px;
 }
@@ -121,7 +140,7 @@
 .image {
   align-items: center;
   aspect-ratio: 1;
-  background: #ecefe4;
+  background: var(--color-commerce-active-surface);
   display: flex;
   justify-content: center;
   overflow: hidden;
@@ -134,7 +153,7 @@
 }
 
 .imageFallback {
-  color: #66705e;
+  color: var(--color-commerce-secondary);
   font-size: 12px;
   padding: 12px;
   text-align: center;
@@ -198,8 +217,9 @@
 .previewError p { margin: 0; }
 
 .empty, .notice {
-  background: #f2f3e9;
-  border: 1px solid #d5dac5;
+  background: var(--color-commerce-active-surface);
+  border: 1px solid var(--color-commerce-border);
+  border-radius: var(--radius-commerce-card);
   padding: 24px;
 }
 .empty h2 { color: #334429; font-size: 20px; margin: 0 0 8px; }

@@ -1,0 +1,28 @@
+.detailMain {
+  margin-top: 0 !important;
+  position: relative;
+}
+
+/*
+ * The captured header is transparent because its original page supplied a hero
+ * underneath it. Direct product and service pages do not have that hero, so this
+ * flat surface fills exactly the measured header box without changing the shared
+ * captured shell used by archive pages.
+ */
+.detailMain::before {
+  background: #5aa400;
+  content: "";
+  height: 75px;
+  left: 0;
+  pointer-events: none;
+  position: absolute;
+  right: 0;
+  top: -75px;
+}
+
+@media (max-width: 479px) {
+  .detailMain::before {
+    height: 70px;
+    top: -70px;
+  }
+}

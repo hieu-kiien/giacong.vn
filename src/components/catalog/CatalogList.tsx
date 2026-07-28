@@ -2,25 +2,21 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { BadgePercent, FileCheck2, MessagesSquare, Package, Search } from "lucide-react";
-import { useRef, useTransition } from "react";
+import { Grid2X2, List, Search } from "lucide-react";
+import { useRef, useState, useTransition } from "react";
 
 import { CatalogProductCard } from "@/components/catalog/CatalogProductCard";
-import {
-  CATALOG_TRUST_BENEFITS,
-  DEMO_CATALOG_NOTICE,
-  type CatalogCardView,
-  type CatalogTrustIcon,
-} from "@/components/catalog/catalog-listing";
+import { DEMO_CATALOG_NOTICE, type CatalogCardView } from "@/components/catalog/catalog-listing";
 import { CommerceRail } from "@/components/commerce/CommerceRail";
 import { COMMERCE_TYPOGRAPHY } from "@/components/commerce/typography";
-import {
-  catalogHref,
-  DEFAULT_CATALOG_PAGE_SIZE,
-  DEFAULT_CATALOG_SORT,
-  DEFAULT_CATALOG_SORT_DIRECTION,
-} from "@/lib/catalog-query";
-import type { CatalogCategory, CatalogFilters, CatalogPagination } from "@/types/catalog";
+import { catalogHref, DEFAULT_CATALOG_PAGE_SIZE, DEFAULT_CATALOG_SORT, DEFAULT_CATALOG_SORT_DIRECTION } from "@/lib/catalog-query";
+import type {
+  CatalogCategory,
+  CatalogFilters,
+  CatalogPagination,
+  CatalogSort,
+  CatalogSortDirection,
+} from "@/types/catalog";
 
 interface CatalogListProps {
   cards: CatalogCardView[];
@@ -29,26 +25,64 @@ interface CatalogListProps {
   /** True when the demo fixture answered because the catalog feed was unreachable. */
   isDemoData?: boolean;
   pagination: CatalogPagination;
+  /** The captured green title strip owns this on the catalog route. */
+  showPageHeading?: boolean;
 }
 
-const TRUST_ICONS: Record<CatalogTrustIcon, typeof BadgePercent> = {
-  document: FileCheck2,
-  moq: Package,
-  support: MessagesSquare,
-  tier: BadgePercent,
-};
+/**
+ * The archive's `select.orderby`, mapped onto the sort columns the catalog contract
+ * actually allows (`CATALOG_SORTS` in `@/lib/catalog-query`).
+ *
+ * Two departures from the captured control. Its sixth option orders by a score the
+ * master plan forbids this project to carry in any form, so it is dropped rather than
+ * mapped onto something else. And its `popularity` has no
+ * upstream column here, so the nearest honest thing the feed can order by is how many
+ * quy cách a product has — labelled as that rather than as popularity, which would
+ * claim a signal this data does not carry.
+ */
+const CATALOG_ORDERINGS = [
+  { direction: "asc", label: "Sắp xếp mặc định", sort: "name", value: "name:asc" },
+  {
+    direction: "desc",
+    label: "Nhiều quy cách nhất",
+    sort: "available_variant_count",
+    value: "available_variant_count:desc",
+  },
+  { direction: "desc", label: "Mới nhất", sort: "id", value: "id:desc" },
+  { direction: "asc", label: "Giá thấp đến cao", sort: "starting_price", value: "starting_price:asc" },
+  { direction: "desc", label: "Giá cao đến thấp", sort: "starting_price", value: "starting_price:desc" },
+] as const satisfies readonly {
+  direction: CatalogSortDirection;
+  label: string;
+  sort: CatalogSort;
+  value: string;
+}[];
 
 /**
- * `/san-pham`, following `SCR-02-product-list`: breadcrumb, heading with the
- * trust row beside it, search and category chips, the result count, then a
- * full-width product grid and the B2B support strip last.
+ * `/san-pham`, in the shape of the shop archive giacong.vn serves — read from
+ * `src/data/pages/san-pham.json`, which is the page this route mirrors.
+ *
+ * The archive's own order: a white page, an H1 at 35px, the breadcrumb *below* it,
+ * and the sort control on the same row at the right. Then a full-width grid with no
+ * sidebar — the source markup is `col large-12`, so the 230px filter rail that
+ * `SCR-02` drew never existed on the real page.
+ *
+ * Geometry taken from the captured `pageStyles`: `.archive .shop-page-title`
+ * 35px, its `.page-title-inner` 30px bottom padding, the breadcrumb 16px with no
+ * uppercasing, `.archive .woocommerce-ordering` 16px with a 5px radius, and
+ * `.row.row-small` capped at 1262.5px — narrower than the 1390px chrome rail, which
+ * is why the grid gets its own width rather than reusing `CommerceRail`'s.
+ *
+ * What the archive does not have, and this page keeps: the search box, the category
+ * chips and the result count. They are working filters, so they sit in one compact
+ * toolbar below the title band rather than being dropped to match.
  *
  * Every filter is URL state. One `updateFilters` path owns the URL, the upstream
  * request and the cache key, so a filtered list is always shareable and the
  * uncommitted search draft rides along with whatever else changes.
  *
- * Grid columns follow the approved responsive table: one at 320, two from 360
- * (covering 390 and 768), and four from 1024.
+ * Grid columns mirror the archive's `small-columns-2 medium-columns-4
+ * large-columns-6`, with its 9.8/19.6px gutters.
  */
 export function CatalogList({
   cards,
@@ -56,11 +90,15 @@ export function CatalogList({
   filters,
   isDemoData = false,
   pagination,
+  showPageHeading = true,
 }: CatalogListProps) {
   const router = useRouter();
   const queryInputRef = useRef<HTMLInputElement>(null);
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [isPending, startTransition] = useTransition();
   const pages = paginationPages(pagination.currentPage, pagination.lastPage);
+  const resultRangeStart = pagination.total === 0 ? 0 : ((pagination.currentPage - 1) * pagination.perPage) + 1;
+  const resultRangeEnd = Math.min(pagination.currentPage * pagination.perPage, pagination.total);
   const committedFilterKey = JSON.stringify([
     filters.query,
     filters.category,
@@ -68,6 +106,14 @@ export function CatalogList({
     pagination.perPage,
   ]);
   const currentQueryDraft = () => (queryInputRef.current?.value ?? filters.query).trim().slice(0, 100);
+  /**
+   * A `sort`/`direction` pair the ordering table does not list — reachable by hand in
+   * the URL, and valid upstream — falls back to the default option rather than
+   * leaving the control blank.
+   */
+  const activeOrdering =
+    CATALOG_ORDERINGS.find((option) => option.sort === filters.sort && option.direction === filters.direction)
+      ?.value ?? CATALOG_ORDERINGS[0].value;
   /**
    * Every control commits through here so one code path owns the URL, the
    * upstream request and the cache key. The uncommitted search draft rides along
@@ -77,6 +123,16 @@ export function CatalogList({
     const next: CatalogFilters = { ...filters, query: currentQueryDraft(), ...overrides, page: 1 };
     startTransition(() => router.push(catalogHref(next), { scroll: false }));
   };
+  /**
+   * Whether anything is narrowing the list. Drives the `Xóa bộ lọc` control, which is
+   * only meaningful when there is something to clear — matching the sort control's
+   * own fallback, a non-default `sort`/`direction` pair counts.
+   */
+  const hasActiveFilters = Boolean(filters.query)
+    || Boolean(filters.category)
+    || filters.sort !== DEFAULT_CATALOG_SORT
+    || filters.direction !== DEFAULT_CATALOG_SORT_DIRECTION
+    || filters.pageSize !== DEFAULT_CATALOG_PAGE_SIZE;
   const clearFilters = () => updateFilters({
     category: "",
     direction: DEFAULT_CATALOG_SORT_DIRECTION,
@@ -85,102 +141,147 @@ export function CatalogList({
     sort: DEFAULT_CATALOG_SORT,
   });
   return (
-    <div className="bg-[#f7f8f4] text-commerce-body">
-      <CommerceRail className="pb-12 pt-5 lg:pt-7">
-        <nav aria-label="Breadcrumb" className="mb-3 text-[13px] text-commerce-secondary">
-          <Link className="underline-offset-4 hover:text-commerce-brand-dark hover:underline" href="/">Trang chủ</Link>
-          <span aria-hidden="true"> / </span>
-          <span aria-current="page">Sản phẩm</span>
-        </nav>
-
-        <div className="flex flex-wrap items-start justify-between gap-x-8 gap-y-4">
-          <header className="max-w-[560px]">
-            <h1 className={COMMERCE_TYPOGRAPHY.pageTitle}>Danh sách sản phẩm</h1>
-            <p className="mt-1.5 text-sm leading-6 text-commerce-secondary">
-              Nguyên liệu và bao bì cho đơn hàng doanh nghiệp, có sẵn quy cách và giá theo số lượng.
-            </p>
-          </header>
-          <ul className="grid gap-x-6 gap-y-1.5 max-md:grid-cols-1 md:grid-cols-2">
-            {CATALOG_TRUST_BENEFITS.map((benefit) => {
-              const Icon = TRUST_ICONS[benefit.icon];
-              return (
-                <li className="flex items-center gap-2 text-[13px] text-commerce-body" key={benefit.label}>
-                  <Icon aria-hidden="true" className="size-4 shrink-0 text-commerce-brand" />
-                  {benefit.label}
-                </li>
-              );
-            })}
-          </ul>
-        </div>
-
-        {isDemoData ? (
-          <p className="mt-5 rounded-commerce-control border border-commerce-border bg-white px-4 py-3 text-[13px] text-commerce-body" role="status">
-            {DEMO_CATALOG_NOTICE}
-          </p>
+    <div className="bg-white text-commerce-body">
+      <CommerceRail className="-mt-6 max-w-4xl pb-12 pt-0">
+        {showPageHeading ? (
+          <section className="pb-6">
+          {showPageHeading ? (
+            <header className="min-w-0">
+              <h1 className="text-[35px] font-bold leading-tight">Danh sách sản phẩm</h1>
+              <nav aria-label="Breadcrumb" className="mt-2 text-base text-commerce-secondary">
+                <Link className="underline-offset-4 hover:text-commerce-brand-dark hover:underline" href="/">Trang chủ</Link>
+                <span aria-hidden="true"> / </span>
+                <span aria-current="page">Danh sách sản phẩm</span>
+              </nav>
+            </header>
+          ) : null}
+          </section>
         ) : null}
 
-        <form
-          className="mt-5"
-          onSubmit={(event) => {
-            event.preventDefault();
-            updateFilters({ query: String(new FormData(event.currentTarget).get("q") ?? "").trim() });
-          }}
-        >
-          <label className="grid max-w-[520px] gap-1.5 text-sm font-bold text-commerce-body" htmlFor="catalog-query">
-            Tìm sản phẩm
-            <span className="relative flex items-center">
-              <Search aria-hidden="true" className="pointer-events-none absolute left-3 size-4 text-commerce-secondary" />
-              <input
-                aria-busy={isPending}
-                aria-describedby="catalog-result-status"
-                className="min-h-11 w-full rounded-commerce-control border border-commerce-border bg-white pl-9 pr-3 text-sm font-normal text-commerce-body placeholder:text-commerce-secondary focus-visible:commerce-focus-ring"
-                defaultValue={filters.query}
-                id="catalog-query"
-                key={committedFilterKey}
-                maxLength={100}
-                name="q"
-                placeholder="Tên sản phẩm hoặc dòng sản phẩm"
-                readOnly={isPending}
-                ref={queryInputRef}
-                type="search"
-              />
-            </span>
-          </label>
-        </form>
-
-        {/*
-          Category chips scroll horizontally rather than wrapping into a tall block,
-          per the responsive note in the catalog specification.
-        */}
-        <div className="mt-4 flex gap-2 overflow-x-auto pb-1" role="group" aria-label="Danh mục nhanh">
-          <CategoryChip
-            isActive={!filters.category}
-            isPending={isPending}
-            label="Tất cả"
-            onSelect={() => updateFilters({ category: "" })}
-          />
-          {categories.map((category) => (
+        <section className="pt-4" aria-label="Điều khiển danh sách sản phẩm">
+          {/* The reference leads with categories, then keeps search and display controls compact. */}
+          <div className="flex gap-2 overflow-x-auto border-b border-commerce-border pb-3 lg:overflow-visible" data-catalog-category-nav role="group" aria-label="Danh mục nhanh">
             <CategoryChip
-              isActive={filters.category === category.slug}
+              isActive={!filters.category}
               isPending={isPending}
-              key={category.id}
-              label={category.name}
-              onSelect={() => updateFilters({ category: category.slug })}
+              label="Tất cả"
+              onSelect={() => updateFilters({ category: "" })}
             />
-          ))}
-        </div>
+            {categories.map((category) => (
+              <CategoryChip
+                isActive={filters.category === category.slug}
+                isPending={isPending}
+                key={category.id}
+                label={category.name}
+                onSelect={() => updateFilters({ category: category.slug })}
+              />
+            ))}
+          </div>
 
-        <div className="mt-4 border-b border-commerce-border pb-4">
-          <p aria-live="polite" className="text-sm font-bold text-commerce-body" id="catalog-result-status">
-            {isPending ? "Đang cập nhật danh mục..." : `${pagination.total} dòng sản phẩm`}
-          </p>
-        </div>
+          <div className="mt-3 flex flex-col gap-3 md:flex-row md:items-center">
+            <form
+              className="flex min-w-0 w-full md:flex-1"
+              onSubmit={(event) => {
+                event.preventDefault();
+                updateFilters({ query: String(new FormData(event.currentTarget).get("q") ?? "").trim() });
+              }}
+            >
+              <label className="sr-only" htmlFor="catalog-query">Tìm sản phẩm</label>
+              <span className="relative flex min-w-0 flex-1 items-center">
+                <Search aria-hidden="true" className="pointer-events-none absolute left-3 size-4 text-commerce-secondary" />
+                <input
+                  aria-busy={isPending}
+                  aria-describedby="catalog-result-status"
+                  className="min-h-11 w-full rounded-l-[5px] border border-r-0 border-commerce-border bg-white pl-9 pr-3 text-sm font-normal text-commerce-body placeholder:text-commerce-secondary focus-visible:commerce-focus-ring"
+                  defaultValue={filters.query}
+                  id="catalog-query"
+                  key={committedFilterKey}
+                  maxLength={100}
+                  name="q"
+                  placeholder="Tìm kiếm sản phẩm, thương hiệu..."
+                  readOnly={isPending}
+                  ref={queryInputRef}
+                  type="search"
+                />
+              </span>
+              <button
+                aria-label="Tìm sản phẩm"
+                className="!m-0 !p-0 flex min-h-11 w-11 shrink-0 items-center justify-center rounded-r-[5px] bg-commerce-brand text-white hover:bg-commerce-brand-dark focus-visible:commerce-focus-ring disabled:opacity-45"
+                data-catalog-search-submit
+                disabled={isPending}
+                type="submit"
+              >
+                <Search aria-hidden="true" className="size-5" />
+              </button>
+            </form>
 
-        <div className="mt-6 min-w-0">
+            <div className="flex w-full items-center gap-2 md:w-auto">
+              <label className="shrink-0 text-sm font-medium text-commerce-secondary" htmlFor="catalog-orderby">Sắp xếp:</label>
+              <select
+                className="min-h-11 min-w-0 flex-1 rounded-[5px] border border-commerce-border bg-white px-3 text-sm font-semibold text-commerce-body focus-visible:commerce-focus-ring md:w-64 md:flex-none"
+                disabled={isPending}
+                id="catalog-orderby"
+                onChange={(event) => {
+                  const option = CATALOG_ORDERINGS.find((entry) => entry.value === event.target.value);
+                  if (option) updateFilters({ direction: option.direction, sort: option.sort });
+                }}
+                value={activeOrdering}
+              >
+                {CATALOG_ORDERINGS.map((option) => (
+                  <option key={option.value} value={option.value}>{option.label}</option>
+                ))}
+              </select>
+
+              <div className="flex w-24 shrink-0 overflow-hidden rounded-[5px] border border-commerce-border" data-catalog-view-toggle role="group" aria-label="Chế độ hiển thị">
+                <button
+                  aria-label="Hiển thị dạng lưới"
+                  aria-pressed={viewMode === "grid"}
+                  className={`!m-0 !p-0 flex min-h-11 min-w-11 flex-1 items-center justify-center focus-visible:commerce-focus-ring ${viewMode === "grid" ? "bg-commerce-brand text-white" : "bg-white text-commerce-secondary hover:text-commerce-brand-dark"}`}
+                  onClick={() => setViewMode("grid")}
+                  type="button"
+                >
+                  <Grid2X2 aria-hidden="true" className="size-4" />
+                </button>
+                <button
+                  aria-label="Hiển thị dạng danh sách"
+                  aria-pressed={viewMode === "list"}
+                  className={`!m-0 !p-0 flex min-h-11 min-w-11 flex-1 items-center justify-center border-l border-commerce-border focus-visible:commerce-focus-ring ${viewMode === "list" ? "bg-commerce-brand text-white" : "bg-white text-commerce-secondary hover:text-commerce-brand-dark"}`}
+                  onClick={() => setViewMode("list")}
+                  type="button"
+                >
+                  <List aria-hidden="true" className="size-4" />
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-2">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+              <p aria-live="polite" className="!mb-0 text-[11px] text-commerce-secondary" data-catalog-result-count id="catalog-result-status">
+                {isPending ? "Đang cập nhật danh mục..." : `Hiển thị ${resultRangeStart}–${resultRangeEnd} trong ${pagination.total} sản phẩm`}
+                {isDemoData ? (
+                  <span aria-label={DEMO_CATALOG_NOTICE} className="ml-2 text-commerce-secondary" title={DEMO_CATALOG_NOTICE}>· Dữ liệu mẫu</span>
+                ) : null}
+              </p>
+              {hasActiveFilters ? (
+                <button
+                  className="!m-0 min-h-11 text-sm font-semibold text-commerce-brand-dark underline-offset-4 hover:underline disabled:opacity-45 focus-visible:commerce-focus-ring"
+                  disabled={isPending}
+                  onClick={clearFilters}
+                  type="button"
+                >
+                  Xóa bộ lọc
+                </button>
+              ) : null}
+            </div>
+          </div>
+        </section>
+
+        <div className="mt-1 min-w-0">
           {cards.length ? (
             <div
               aria-busy={isPending}
-              className={`grid grid-cols-1 min-[360px]:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-[18px] ${isPending ? "opacity-60" : ""}`}
+              className={`${viewMode === "grid" ? "grid grid-cols-1 gap-3 min-[440px]:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 lg:gap-5" : "grid grid-cols-1 gap-3"} ${isPending ? "opacity-60" : ""}`}
               data-catalog-grid
             >
               {cards.map((card) => <CatalogProductCard card={card} key={card.id} />)}
@@ -188,13 +289,14 @@ export function CatalogList({
           ) : isPending ? (
             <div
               aria-busy="true"
-              className="grid grid-cols-1 min-[360px]:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-[18px]"
+              className="grid grid-cols-1 gap-3 min-[440px]:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 lg:gap-5"
               data-catalog-grid
             >
-              {Array.from({ length: 4 }, (_, index) => (
+              {/* One skeleton per column of the widest row, so the grid keeps its shape. */}
+              {Array.from({ length: 6 }, (_, index) => (
                 <div
                   aria-hidden="true"
-                  className="commerce-card-surface h-[340px] animate-pulse"
+                  className="h-[300px] animate-pulse rounded-[10px] bg-commerce-active-surface"
                   data-catalog-skeleton
                   key={index}
                 />
@@ -268,7 +370,7 @@ function CategoryChip({
   return (
     <button
       aria-pressed={isActive}
-      className={`min-h-11 shrink-0 whitespace-nowrap rounded-full border px-4 text-sm font-semibold disabled:opacity-45 focus-visible:commerce-focus-ring ${
+      className={`!m-0 !px-4 !py-0 min-h-11 shrink-0 whitespace-nowrap rounded-full border text-sm font-semibold disabled:opacity-45 focus-visible:commerce-focus-ring ${
         isActive
           ? "border-commerce-brand bg-commerce-brand text-white"
           : "border-commerce-border bg-white text-commerce-body hover:border-commerce-brand hover:text-commerce-brand-dark"

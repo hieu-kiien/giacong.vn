@@ -46,7 +46,7 @@ export function normalizeCapturedMarkup(markup: string) {
     );
 
   return normalizeHomeMenuItems(
-    removeAboutMenuItems(replaceShoppingMenu(replaceServiceMenus(normalized))),
+    replaceShoppingMenu(replaceServiceMenus(normalized)),
   );
 }
 
@@ -86,14 +86,6 @@ function desktopServiceMenu(): string {
 
 function mobileServiceMenu(): string {
   return `<li class="menu-item has-icon-left clone-mobile-services" id="menu-item-5466"><a href="/thue-gia-cong/">Thuê gia công</a></li>`;
-}
-
-function removeAboutMenuItems(markup: string): string {
-  return replaceListItemById(
-    replaceListItemById(markup, "menu-item-5498", ""),
-    "menu-item-5496",
-    "",
-  );
 }
 
 function replaceListItemById(markup: string, id: string, replacement: string): string {

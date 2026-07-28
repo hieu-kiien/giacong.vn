@@ -8,7 +8,7 @@ import {
   findDemoCatalogProduct,
 } from "@/data/demo-catalog";
 import { getCatalogProduct, getCatalogProducts } from "@/lib/bagisto-catalog";
-import { demoCatalogFallbackAllowed } from "@/lib/demo-catalog-policy";
+import { demoCatalogFallbackAllowed, waitForDemoCatalogFallback } from "@/lib/demo-catalog-policy";
 import type { CatalogProductDetail, CatalogProductParent } from "@/types/catalog";
 
 /** How many related products the detail rail asks for. */
@@ -39,7 +39,7 @@ export const loadCatalogProductDetail = cache(async (slug: string): Promise<Cata
   const demoAllowed = demoCatalogFallbackAllowed(process.env);
 
   try {
-    const product = await getCatalogProduct(slug);
+    const product = await waitForDemoCatalogFallback(getCatalogProduct(slug), process.env);
     if (product) {
       return { isDemo: false, product, related: await readLiveRelated(product) };
     }

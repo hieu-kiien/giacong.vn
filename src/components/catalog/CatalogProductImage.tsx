@@ -15,9 +15,9 @@ interface CatalogProductImageProps {
   fallbackSrc?: string;
   imageUrl: string | null;
   /**
-   * `card` renders the 1.25:1 frame the approved product card uses. `detail`
-   * (the default) keeps the square `catalog.module.css` frame the detail page and
-   * quick preview already rely on.
+   * `card` renders the landscape ratio of the approved product-list reference.
+   * `detail` (the default) retains the detail surface's independent square frame.
+   * They stay separate so the list can change without affecting product detail.
    */
   variant?: "card" | "detail";
 }
@@ -34,11 +34,12 @@ export function CatalogProductImage({
   const [failed, setFailed] = useState(false);
   const source = !imageUrl || failed ? fallbackSrc : imageUrl;
 
-  // The frame utility owns the 1.25:1 ratio; only the bottom radius is dropped so
-  // the image meets the card body on a straight edge.
+  // The list card overrides the shared square utility with the reference's
+  // landscape ratio; only the bottom radius is dropped so it meets the card body
+  // on a straight edge.
   if (variant === "card") {
     return (
-      <div className={`commerce-image-frame rounded-b-none bg-commerce-active-surface ${className ?? ""}`}>
+      <div className={`commerce-image-frame !aspect-[10/7] rounded-b-none bg-commerce-active-surface ${className ?? ""}`}>
         {source ? (
           // Content-owned URLs from Bagisto plus local packshots; the native img
           // avoids remote-host configuration for the upstream case.

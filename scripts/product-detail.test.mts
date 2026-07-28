@@ -34,11 +34,13 @@ const DETAIL_SOURCES = [
   ["src", "components", "catalog", "TierPriceTable.tsx"],
   ["src", "components", "catalog", "RelatedProductCard.tsx"],
   ["src", "components", "catalog", "product-detail.module.css"],
+  ["src", "components", "site", "CapturedStorefrontTabFrame.tsx"],
+  ["src", "components", "site", "CapturedStorefrontTabFrame.module.css"],
   ["src", "lib", "product-detail-view.ts"],
   ["src", "lib", "demo-catalog-policy.ts"],
   ["src", "lib", "catalog-detail-source.ts"],
   ["src", "data", "demo-product-gallery.ts"],
-  ["src", "app", "(commerce)", "san-pham", "[slug]", "page.tsx"],
+  ["src", "app", "(storefront)", "san-pham", "[slug]", "page.tsx"],
 ] as const;
 
 function readSource(...segments: string[]): Promise<string> {
@@ -317,9 +319,22 @@ test("the detail page owns its stylesheet and leaves the catalog module alone", 
   assert.match(shell, /product-detail\.module\.css/, "detail must use its own stylesheet");
   assert.doesNotMatch(shell, /catalog\.module\.css/, "detail must not restyle through the shared catalog module");
 
-  const page = await readSource("src", "app", "(commerce)", "san-pham", "[slug]", "page.tsx");
+  const page = await readSource("src", "app", "(storefront)", "san-pham", "[slug]", "page.tsx");
   assert.match(page, /ProductDetailPage/, "the route must render the new detail page");
   assert.doesNotMatch(page, /CatalogDetail\b/, "the route must no longer render the old detail shell");
+});
+
+test("the direct-detail frame keeps the captured header visible and content below it", async () => {
+  const frame = await readSource("src", "components", "site", "CapturedStorefrontTabFrame.tsx");
+  const css = await readSource("src", "components", "site", "CapturedStorefrontTabFrame.module.css");
+
+  assert.match(frame, /CapturedStorefrontTabFrame\.module\.css/, "direct routes own their header correction");
+  assert.match(frame, /className=\{styles\.detailMain\}/, "the correction is scoped to direct-route content");
+  assert.match(frame, /data-storefront-detail-main/, "browser QA can locate the corrected detail frame");
+  assert.match(css, /\.detailMain\s*\{[^}]*margin-top:\s*0\s*!important/, "captured negative page offset is neutralised");
+  assert.match(css, /\.detailMain::before\s*\{[^}]*background:\s*#5aa400/, "the transparent captured header receives its green surface");
+  assert.match(css, /\.detailMain::before\s*\{[^}]*height:\s*75px/, "the surface covers the measured desktop header");
+  assert.doesNotMatch(css, /gradient/, "the header correction stays a flat brand surface");
 });
 
 test("desktop is two columns with the gallery left and commercial info right", async () => {

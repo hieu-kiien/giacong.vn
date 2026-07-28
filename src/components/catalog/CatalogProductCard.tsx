@@ -1,6 +1,5 @@
 import Link from "next/link";
 
-import { CatalogCardPurchase } from "@/components/catalog/CatalogCardPurchase";
 import { CatalogProductImage } from "@/components/catalog/CatalogProductImage";
 import type { CatalogCardView } from "@/components/catalog/catalog-listing";
 import { COMMERCE_TYPOGRAPHY } from "@/components/commerce/typography";
@@ -11,24 +10,13 @@ interface CatalogProductCardProps {
 }
 
 /**
- * Product card from `SCR-03-product-card`: image-led, with the category pill
- * inside the image, then name, red price with its unit, specification,
- * availability, a tier-price disclosure and the purchase actions.
- *
- * A server component apart from `CatalogCardPurchase`, which is the single
- * interactive island. `h-full` with the actions pushed down by `mt-auto` inside
- * the island is what keeps every card in a row the same height regardless of how
- * long a product name wraps.
- *
- * The card carries no social-proof or saved-item affordance of any kind, per the
- * card specification and the master plan. Both the image and the name link to
- * detail, and nothing else on the card navigates.
+ * Compact product card for the catalog grid. Every product uses the same detail
+ * action; variant selection and request-cart actions live on product detail.
+ * `h-full` and `mt-auto` keep the action aligned across each responsive grid row.
  */
 export function CatalogProductCard({ card }: CatalogProductCardProps) {
-  const { action, purchase } = card;
-
   return (
-    <article className="commerce-card-surface flex h-full flex-col overflow-hidden" data-catalog-card>
+    <article className="flex h-full flex-col overflow-hidden rounded-[10px] border border-commerce-border bg-white text-left transition-colors hover:border-commerce-brand" data-catalog-card>
       <div className="relative">
         {/*
           The image links to detail as the specification requires, but takes no tab
@@ -37,7 +25,7 @@ export function CatalogProductCard({ card }: CatalogProductCardProps) {
           still names the link for assistive technology.
         */}
         <Link
-          className="block focus-visible:commerce-focus-ring"
+          className="block overflow-hidden focus-visible:commerce-focus-ring"
           href={card.detailHref}
           prefetch={false}
           tabIndex={-1}
@@ -51,7 +39,7 @@ export function CatalogProductCard({ card }: CatalogProductCardProps) {
         </Link>
         {card.categoryName ? (
           <span
-            className="absolute left-3 top-3 rounded-full bg-white/95 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-commerce-brand-dark"
+            className="absolute left-2 top-2 rounded-full border border-commerce-brand/40 bg-commerce-active-surface px-2 py-0.5 text-[9px] font-semibold leading-3 text-commerce-brand-dark"
             data-catalog-category-pill
           >
             {card.categoryName}
@@ -59,9 +47,9 @@ export function CatalogProductCard({ card }: CatalogProductCardProps) {
         ) : null}
       </div>
 
-      <div className="flex flex-1 flex-col gap-1.5 p-4">
-        <h2 className={COMMERCE_TYPOGRAPHY.productTitle}>
-          <Link className="hover:text-commerce-brand-dark focus-visible:commerce-focus-ring" href={card.detailHref} prefetch={false}>
+      <div className="flex flex-1 flex-col items-start gap-1 px-2.5 py-2">
+        <h2 className={`${COMMERCE_TYPOGRAPHY.productTitle} !mb-0 line-clamp-2 w-full !text-[12px] !leading-4 !text-commerce-body`}>
+          <Link className="!text-commerce-body hover:text-commerce-brand-dark focus-visible:commerce-focus-ring" href={card.detailHref} prefetch={false}>
             {card.name}
           </Link>
         </h2>
@@ -72,77 +60,43 @@ export function CatalogProductCard({ card }: CatalogProductCardProps) {
           would read as the price at MOQ, which it is not. The number itself is
           passed through exactly as the feed published it; the card computes no money.
         */}
-        <p className="flex flex-wrap items-baseline gap-1.5">
-          <span className="text-xs text-commerce-secondary">Từ</span>
-          <span className={COMMERCE_TYPOGRAPHY.price}>{formatVnd(card.startingPrice)}</span>
-          {card.unitLabel ? <span className="text-xs text-commerce-secondary">/ {card.unitLabel}</span> : null}
-        </p>
-
-        <p className="text-xs text-commerce-secondary">{card.specLabel}</p>
-        <p className={`text-xs font-semibold ${card.isAvailable ? "text-commerce-brand-dark" : "text-commerce-secondary"}`}>
-          {card.availabilityLabel}
-        </p>
-
-        {card.tierPrices.length > 1 ? (
-          <details className="mt-0.5 text-xs text-commerce-secondary">
-            <summary className="cursor-pointer font-semibold text-commerce-brand-dark focus-visible:commerce-focus-ring">
-              Giá theo số lượng
-            </summary>
-            <ul className="mt-1.5 grid gap-0.5">
-              {card.tierPrices.map((tier) => (
-                <li key={tier.minQuantity}>
-                  Từ {tier.minQuantity} {card.unitLabel ?? "đơn vị"}: {formatVnd(tier.price)}
-                </li>
-              ))}
-              {card.contactFromQuantity ? (
-                <li>Từ {card.contactFromQuantity} {card.unitLabel ?? "đơn vị"}: liên hệ báo giá</li>
-              ) : null}
-            </ul>
-          </details>
-        ) : null}
-
         {/*
-          The specification's last card slot is one action: `Xem chi tiết` when the
-          product could be added directly, `Chọn quy cách` when it needs a choice.
-          Both lead to the same route, so only one of them is ever rendered.
+          The `{" "}` separators are text, not decoration. Without them the three spans
+          concatenate to `Từ720.000 ₫/ bao` in the accessible name and in any text
+          extraction, because the visible spacing comes from the flex gap rather than
+          from the content. A whitespace-only text node between flex items is not
+          rendered, so these restore the reading without changing the layout.
         */}
-        {purchase ? (
-          <>
-            <CatalogCardPurchase parentSlug={card.slug} productName={card.name} purchase={purchase} />
-            <Link
-              className="text-center text-xs font-semibold text-commerce-brand-dark underline-offset-4 hover:underline focus-visible:commerce-focus-ring"
-              href={card.detailHref}
-              prefetch={false}
-            >
-              Xem chi tiết
-            </Link>
-          </>
-        ) : (
-          <div className="mt-auto grid gap-2 pt-3">
-            {action.kind === "unavailable" ? (
-              <>
-                <span className="flex min-h-11 items-center justify-center rounded-commerce-control border border-commerce-border px-4 text-sm font-semibold text-commerce-secondary">
-                  {action.label}
-                </span>
-                <Link
-                  className="text-center text-xs font-semibold text-commerce-brand-dark underline-offset-4 hover:underline focus-visible:commerce-focus-ring"
-                  href={card.detailHref}
-                  prefetch={false}
-                >
-                  Xem chi tiết
-                </Link>
-              </>
-            ) : (
-              <Link
-                className="flex min-h-11 items-center justify-center rounded-commerce-control bg-commerce-brand px-4 text-sm font-bold text-white hover:bg-commerce-brand-dark focus-visible:commerce-focus-ring"
-                href={card.detailHref}
-                prefetch={false}
-              >
-                {action.label}
-              </Link>
-            )}
-          </div>
-        )}
+        <p className="!mb-0 text-[10px] !leading-4 text-commerce-secondary" data-catalog-spec>
+          {card.specLabel}
+        </p>
+
+        <p className="!mb-0 flex flex-wrap items-baseline justify-start gap-0.5 !leading-4" data-catalog-price>
+          <span className="text-[10px] text-commerce-secondary">Từ</span>{" "}
+          <span className={`${COMMERCE_TYPOGRAPHY.price} !text-[15px] !leading-4`}>{formatVnd(card.startingPrice)}</span>
+          {card.unitLabel ? <>{" "}<span className="text-[10px] text-commerce-secondary">/ {card.unitLabel}</span></> : null}
+        </p>
+
+        <p
+          className={`!mb-0 text-[10px] !leading-4 font-semibold ${card.isAvailable ? "text-commerce-brand-dark" : "text-commerce-secondary"}`}
+          data-catalog-stock
+        >
+          {card.isAvailable ? <span aria-hidden className="mr-1 inline-block size-1.5 rounded-full bg-commerce-brand" /> : null}
+          {card.isAvailable ? "Còn hàng" : card.availabilityLabel}
+        </p>
+
+        <div className="mt-auto w-full pt-2" data-catalog-action-tray>
+          <Link
+            aria-label={`Xem chi tiết ${card.name}`}
+            className="flex min-h-11 w-full items-center justify-center rounded-commerce-control bg-commerce-brand px-3 text-[13px] font-bold text-white transition-colors hover:bg-commerce-brand-dark focus-visible:commerce-focus-ring min-[520px]:min-h-8 min-[520px]:text-[11px]"
+            data-catalog-detail-action
+            href={card.detailHref}
+            prefetch={false}
+          >
+            Xem chi tiết
+          </Link>
+        </div>
+
       </div>
     </article>
   );

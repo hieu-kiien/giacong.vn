@@ -1,10 +1,11 @@
 /*
  * Product detail page.
  *
- * Values are the measured tokens in `docs/research/DESIGN_TOKENS.md`: price #ef1726,
- * body #191919, secondary #6f7177, border #dfe3df, brand #2f9e0b / #237a08, card
- * radius 11px, control radius 8px, subtle card shadow, 1390px rail with 12/16/24px
- * padding, and a 44px minimum interactive target.
+ * Every colour, radius and shadow here resolves to `src/styles/commerce-foundation.css`
+ * — that file is the single source of the commerce palette, and `tokens.ts` mirrors it
+ * for code that needs the numbers. The `--detail-*` names below are kept as local
+ * aliases rather than deleted: they read shorter than the theme names at ~40 use sites,
+ * and one indirection here is cheaper than 40 edits if the palette moves again.
  *
  * Scoped to this page on purpose: `catalog.module.css` styles the list page and the
  * quick preview, so detail keeps its own file and cannot restyle either.
@@ -13,16 +14,17 @@
  */
 
 .page {
+  /* Literal, not `var(--spacing-commerce-target)`: the test asserts the measured value here. */
   --detail-target: 44px;
-  --detail-border: #dfe3df;
-  --detail-secondary: #6f7177;
-  --detail-price: #ef1726;
-  --detail-brand: #2f9e0b;
-  --detail-brand-dark: #237a08;
-  --detail-active-surface: #f1f8ec;
+  --detail-border: var(--color-commerce-border);
+  --detail-secondary: var(--color-commerce-secondary);
+  --detail-price: var(--color-commerce-price);
+  --detail-brand: var(--color-commerce-brand);
+  --detail-brand-dark: var(--color-commerce-brand-dark);
+  --detail-active-surface: var(--color-commerce-active-surface);
 
   background: #fff;
-  color: #191919;
+  color: var(--color-commerce-body);
   padding-bottom: 48px;
 }
 
@@ -32,7 +34,7 @@
 
 .rail {
   margin: 0 auto;
-  max-width: 1390px;
+  max-width: var(--spacing-commerce-rail);
   padding: 16px 12px 0;
   width: 100%;
 }
@@ -86,9 +88,9 @@
 }
 
 .demoNotice {
-  background: #f4faea;
+  background: var(--color-commerce-support-strip);
   border: 1px solid #cfe3b4;
-  border-radius: 8px;
+  border-radius: var(--radius-commerce-control);
   color: #33500f;
   font-size: 13px;
   margin: 0 0 16px;
@@ -116,7 +118,7 @@
   aspect-ratio: 67 / 46;
   background: #fdf6ee;
   border: 1px solid var(--detail-border);
-  border-radius: 11px;
+  border-radius: var(--radius-commerce-card);
   display: flex;
   justify-content: center;
   overflow: hidden;
@@ -140,7 +142,7 @@
 .thumb {
   background: #fdf6ee;
   border: 1px solid var(--detail-border);
-  border-radius: 8px;
+  border-radius: var(--radius-commerce-control);
   cursor: pointer;
   display: block;
   height: 72px;
@@ -218,7 +220,7 @@
 }
 
 .availability {
-  color: #237a08;
+  color: var(--detail-brand-dark);
   font-size: 14px;
   font-weight: 700;
   margin: 0;
@@ -238,8 +240,8 @@
 
 .purchase {
   border: 1px solid var(--detail-border);
-  border-radius: 11px;
-  box-shadow: 0 2px 10px rgb(0 0 0 / 8%);
+  border-radius: var(--radius-commerce-card);
+  box-shadow: var(--shadow-commerce-card);
   display: grid;
   gap: 16px;
   margin-top: 4px;
@@ -269,7 +271,7 @@
 .variantOption {
   align-items: center;
   border: 1px solid var(--detail-border);
-  border-radius: 8px;
+  border-radius: var(--radius-commerce-control);
   cursor: pointer;
   display: inline-flex;
   font-size: 14px;
@@ -383,7 +385,7 @@
 .stepButton {
   background: #fff;
   border: 1px solid #b6bcb4;
-  border-radius: 8px;
+  border-radius: var(--radius-commerce-control);
   cursor: pointer;
   font-size: 20px;
   line-height: 1;
@@ -398,7 +400,7 @@
 
 .quantityInput {
   border: 1px solid #b6bcb4;
-  border-radius: 8px;
+  border-radius: var(--radius-commerce-control);
   font: inherit;
   min-height: var(--detail-target);
   padding: 8px 10px;
@@ -446,7 +448,7 @@
 
 .contactNote {
   background: #f7f8f6;
-  border-radius: 8px;
+  border-radius: var(--radius-commerce-control);
   color: #3f4147;
   font-size: 13px;
   line-height: 1.55;
@@ -462,7 +464,7 @@
 .primaryAction {
   background: var(--detail-brand);
   border: 1px solid var(--detail-brand);
-  border-radius: 8px;
+  border-radius: var(--radius-commerce-control);
   color: #fff;
   cursor: pointer;
   font: inherit;
@@ -485,7 +487,7 @@
   align-items: center;
   background: #fff;
   border: 1px solid var(--detail-brand-dark);
-  border-radius: 8px;
+  border-radius: var(--radius-commerce-control);
   color: var(--detail-brand-dark);
   cursor: pointer;
   display: inline-flex;
@@ -523,7 +525,7 @@
 
 .factsPanel {
   border: 1px solid var(--detail-border);
-  border-radius: 11px;
+  border-radius: var(--radius-commerce-card);
   padding: 16px;
 }
 
@@ -594,8 +596,8 @@
 .relatedCard {
   background: #fff;
   border: 1px solid var(--detail-border);
-  border-radius: 11px;
-  box-shadow: 0 2px 10px rgb(0 0 0 / 8%);
+  border-radius: var(--radius-commerce-card);
+  box-shadow: var(--shadow-commerce-card);
   display: flex;
   flex-direction: column;
   height: 100%;
@@ -658,7 +660,7 @@
 }
 
 .relatedAvailability {
-  color: #237a08;
+  color: var(--detail-brand-dark);
   font-size: 13px;
   font-weight: 700;
 }
@@ -667,7 +669,7 @@
 
 .notice {
   border: 1px solid var(--detail-border);
-  border-radius: 11px;
+  border-radius: var(--radius-commerce-card);
   display: grid;
   gap: 12px;
   justify-items: start;
@@ -714,7 +716,7 @@
 
   .tierTable tbody tr {
     border: 1px solid var(--detail-border);
-    border-radius: 8px;
+    border-radius: var(--radius-commerce-control);
     margin-bottom: 10px;
     padding: 4px 0;
   }

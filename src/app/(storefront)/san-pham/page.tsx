@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
 import { CatalogList } from "@/components/catalog/CatalogList";
+import { CapturedNewsFrame } from "@/components/CapturedNewsFrame";
 import {
   buildCatalogCards,
   demoCatalogCategories,
@@ -8,7 +9,7 @@ import {
 } from "@/components/catalog/catalog-listing";
 import { getCatalogCategories, getCatalogProducts } from "@/lib/bagisto-catalog";
 import { parseCatalogFilters } from "@/lib/catalog-query";
-import { demoCatalogFallbackAllowed } from "@/lib/demo-catalog-policy";
+import { demoCatalogFallbackAllowed, waitForDemoCatalogFallback } from "@/lib/demo-catalog-policy";
 import type { CatalogCategory, CatalogFilters, CatalogPagination } from "@/types/catalog";
 
 export const metadata: Metadata = {
@@ -28,13 +29,16 @@ export default async function CatalogPage({ searchParams }: PageProps<"/san-pham
   const data = await loadCatalog(filters);
 
   return (
-    <CatalogList
-      cards={data.cards}
-      categories={data.categories}
-      filters={filters}
-      isDemoData={data.isDemoData}
-      pagination={data.pagination}
-    />
+    <CapturedNewsFrame activePath="/san-pham" title="Sản phẩm">
+      <CatalogList
+        cards={data.cards}
+        categories={data.categories}
+        filters={filters}
+        isDemoData={data.isDemoData}
+        pagination={data.pagination}
+        showPageHeading={false}
+      />
+    </CapturedNewsFrame>
   );
 }
 
@@ -50,7 +54,10 @@ export default async function CatalogPage({ searchParams }: PageProps<"/san-pham
  */
 async function loadCatalog(filters: CatalogFilters): Promise<CatalogPageData> {
   try {
-    const [categories, result] = await Promise.all([getCatalogCategories(), getCatalogProducts(filters)]);
+    const [categories, result] = await waitForDemoCatalogFallback(
+      Promise.all([getCatalogCategories(), getCatalogProducts(filters)]),
+      process.env,
+    );
     return {
       cards: buildCatalogCards(result.products),
       categories,

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound, permanentRedirect } from "next/navigation";
 
 import { ProductDetailPage } from "@/components/catalog/ProductDetailPage";
+import { CapturedStorefrontTabFrame } from "@/components/site/CapturedStorefrontTabFrame";
 import { legacyProductRedirects } from "@/lib/catalog-legacy-redirects";
 import { loadCatalogProductDetail } from "@/lib/catalog-detail-source";
 
@@ -22,19 +23,19 @@ export default async function CatalogDetailPage({ params, searchParams }: Catalo
   const source = await loadCatalogProductDetail(slug);
   if (!source) notFound();
 
-  // A `?variant=` link only preselects a variant that is actually usable; anything
-  // else falls back to the default selection and says so.
   const requestedVariant = firstValue((await searchParams).variant);
   const selectedVariant = source.product.variants.find((variant) => (
     variant.sku === requestedVariant && variant.isAvailable
   ));
 
   return (
-    <ProductDetailPage
-      initialVariantSku={selectedVariant?.sku ?? null}
-      source={source}
-      variantQueryWarning={Boolean(requestedVariant && !selectedVariant)}
-    />
+    <CapturedStorefrontTabFrame activePath="/san-pham">
+      <ProductDetailPage
+        initialVariantSku={selectedVariant?.sku ?? null}
+        source={source}
+        variantQueryWarning={Boolean(requestedVariant && !selectedVariant)}
+      />
+    </CapturedStorefrontTabFrame>
   );
 }
 

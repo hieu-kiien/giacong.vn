@@ -241,7 +241,7 @@ test("the listing module names no forbidden V1 surface and adds no dependency", 
 // 3. Listing page geometry, per SCR-02 and PAGE_TOPOLOGY §/san-pham
 // ---------------------------------------------------------------------------
 
-test("the trust row carries exactly the four approved benefits", () => {
+test("the trust benefits remain defined for other commerce surfaces", () => {
   const { CATALOG_TRUST_BENEFITS } = listing;
 
   assert.equal(CATALOG_TRUST_BENEFITS.length, 4, "the heading row shows four trust benefits");
@@ -256,14 +256,15 @@ test("the trust row carries exactly the four approved benefits", () => {
   }
 });
 
-test("the listing renders the approved page structure on an off-white page", async () => {
+// The approved product reference uses a denser four-column catalogue card system.
+test("the listing renders the archive page structure on a white page", async () => {
   const source = await catalogSource("CatalogList.tsx");
 
-  assert.match(source, /bg-\[#f7f8f4\]/, "the catalog body sits on the off-white page surface");
-  assert.match(source, /aria-label="Breadcrumb"/, "breadcrumb first");
+  assert.doesNotMatch(source, /bg-\[#f7f8f4\]/, "the archive page surface is white, not off-white");
+  assert.match(source, /aria-label="Breadcrumb"/, "the breadcrumb is present");
   assert.match(source, /Trang chủ/, "breadcrumb links home");
-  assert.match(source, /Danh sách sản phẩm/, "the approved H1");
-  assert.match(source, /CATALOG_TRUST_BENEFITS/, "the trust row is data-driven, not hand-repeated");
+  assert.match(source, /Danh sách sản phẩm/, "the H1 the QA flow drives");
+  assert.match(source, /text-\[35px\]/, "the archive H1 is 35px");
   assert.match(source, /Tìm sản phẩm/, "the search label the QA flow drives");
   assert.doesNotMatch(source, /CatalogFilterDrawer|CatalogFilterPanel|Bộ lọc sản phẩm/, "the separate filter controls are removed");
   assert.match(source, /B2B|doanh nghiệp/, "the support strip closes the page");
@@ -271,14 +272,55 @@ test("the listing renders the approved page structure on an off-white page", asy
   assert.doesNotMatch(source, FORBIDDEN_SURFACE_PATTERN, "the listing must not render a forbidden surface");
 });
 
-test("the full-width grid is 4/2/1 columns across the implementation viewports", async () => {
+test("the product controls follow the compact captured toolbar", async () => {
   const source = await catalogSource("CatalogList.tsx");
 
+  assert.match(source, /data-catalog-category-nav/, "category navigation leads the product controls");
+  assert.match(source, /data-catalog-search-submit/, "the search has a visible green submit control");
+  assert.match(source, /data-catalog-view-toggle/, "the display-mode control sits beside sorting");
+  assert.match(source, /data-catalog-result-count/, "the compact result line stays directly below the controls");
+  assert.match(source, /resultRangeStart/, "the result summary derives its first visible row from pagination");
+  assert.match(source, /resultRangeEnd/, "the result summary derives its last visible row from pagination");
+  assert.match(source, /Hiển thị \$\{resultRangeStart\}–\$\{resultRangeEnd\} trong \$\{pagination\.total\} sản phẩm/, "the displayed result range is never hard-coded");
+  assert.match(source, /className="!mb-0 text-\[11px\]/, "captured page styles cannot add a margin below the result line");
+  assert.match(source, /md:flex-1/, "the search expands with the available toolbar space instead of using a screenshot width");
+  assert.match(source, /md:w-64/, "the sort control has a responsive desktop basis");
+  assert.match(source, /w-24/, "the two display controls share a compact semantic control width");
+  assert.match(source, /overflow-x-auto[^"`]*lg:overflow-visible/, "category pills scroll only on narrow screens and never create desktop overflow");
+  assert.match(source, /border-b border-commerce-border pb-3/, "category pills end with the reference's quiet divider");
+  assert.match(source, /!m-0 !p-0/, "local icon controls reset the captured frame's global button spacing");
+  assert.match(source, /className="mt-1 min-w-0"/, "the card grid begins immediately after the result line");
+  assert.doesNotMatch(source, /data-catalog-trust-row/, "the captured toolbar does not add a second trust line");
+});
+
+test("the product grid follows the reference's fixed four-card rhythm", async () => {
+  const source = await catalogSource("CatalogList.tsx");
+
+  assert.match(source, /max-w-4xl/, "the catalogue uses the compact responsive rail from the reference without a screenshot-sized container");
+  assert.doesNotMatch(source, /max-w-5xl/, "the product toolbar is not left overly wide on desktop");
+  assert.doesNotMatch(source, /max-w-\[958px\]/, "the page does not lock its desktop width to the reference screenshot");
   assert.match(source, /data-catalog-grid/, "the QA hook stays on the grid");
   assert.match(
     source,
-    /grid-cols-1 min-\[360px\]:grid-cols-2 lg:grid-cols-4/,
-    "1 column at 320, 2 at 390/768, 4 at 1024 and larger",
+    /grid-cols-1[^"`]*min-\[440px\]:grid-cols-2[^"`]*md:grid-cols-3[^"`]*lg:grid-cols-4/,
+    "the grid progresses from one to four columns across real responsive breakpoints",
+  );
+  assert.match(source, /gap-3[^"`]*lg:gap-5/, "desktop card gutters grow without fixing card widths");
+});
+
+test("the sort control offers five of the archive's six orderings", async () => {
+  const source = await catalogSource("CatalogList.tsx");
+
+  assert.match(source, /Sắp xếp mặc định/, "the archive's default ordering label");
+  assert.match(source, /<select/, "sorting is a select, as on the source archive");
+  assert.match(source, /rounded-\[5px\]/, "the archive's 5px control radius");
+  // The captured control offers six orderings. Only five are rebuilt: the sixth
+  // sorts by a score the master plan forbids this project to carry, so it is
+  // dropped rather than mapped onto another column. Five options, five values.
+  assert.equal(
+    (source.match(/\bvalue: "[a-z_]+:(?:asc|desc)"/g) ?? []).length,
+    5,
+    "exactly the five allowed orderings are offered",
   );
 });
 
@@ -311,31 +353,61 @@ test("every filter stays canonical URL state", async () => {
 // 4. Product card, per SCR-03 and the ProductCard specification
 // ---------------------------------------------------------------------------
 
-test("the card is image-led, equal-height and carries the approved anatomy", async () => {
+test("the card uses the compact captured catalogue anatomy", async () => {
   const source = await catalogSource("CatalogProductCard.tsx");
 
   assert.match(source, /data-catalog-card/, "the QA hook stays on the card");
-  assert.match(source, /flex h-full flex-col/, "cards keep equal heights within a row");
-  assert.match(source, /commerce-card-surface/, "1px border, 10-12px radius and the subtle shadow");
+  assert.match(source, /flex h-full flex-col/, "cards fill their responsive grid track so actions align");
+  assert.match(source, /border-commerce-border/, "the reference card has a clear border");
+  assert.match(source, /rounded-commerce-control/, "the reference card uses the shared compact radius");
+  assert.match(source, /text-left/, "the reference card aligns product information to the left");
   assert.match(source, /CatalogProductImage/, "the image leads the card");
   assert.match(source, /data-catalog-category-pill/, "the category pill sits inside the image");
   assert.match(source, /COMMERCE_TYPOGRAPHY\.price/, "the price uses the red price token");
+  assert.match(source, /!text-\[12px\]/, "the title remains readable in the widened four-column capture");
+  assert.match(source, /className="!text-commerce-body hover:text-commerce-brand-dark/, "the product title stays black instead of inheriting the captured link green");
+  assert.match(source, /h-full/, "cards fill their responsive grid track so actions align without a screenshot height");
+  assert.doesNotMatch(source, /min-\[520px\]:min-h-\[291px\]/, "card height is not locked to one reference viewport");
+  assert.match(source, /px-2\.5 py-2\b/, "the widened cards use compact content padding instead of a blank interior");
+  assert.match(source, /!mb-0/, "captured page typography cannot reintroduce vertical margins inside the compact card");
+  assert.doesNotMatch(source, /shadow-sm/, "the reference card relies on its thin border, not a visible shadow");
+  assert.match(source, /line-clamp-2/, "long product names cannot make a row uneven");
+  assert.match(source, /mt-auto w-full pt-2/, "the action row is pinned to the bottom of every card");
   assert.match(source, /unitLabel/, "the price carries its gray unit");
   // `startingPrice` is the lowest price across usable variants, not the price at
   // MOQ, so the card must qualify it rather than present it as *the* price.
   assert.match(source, /Từ<\/span>/, "the floor price is labelled as a floor");
   assert.match(source, /specLabel/, "the specification line is rendered");
   assert.match(source, /availabilityLabel/, "availability is rendered");
-  assert.match(source, /<details/, "tier prices are a progressive disclosure, not always-on noise");
-  assert.match(source, /CatalogCardPurchase/, "the stepper and cart action are delegated to the client island");
-  assert.match(source, /action\.label/, "a product needing a choice asks for the quy cách");
+  assert.match(source, /size-1\.5 rounded-full/, "available products have the requested green stock dot");
+  assert.match(source, /Xem chi tiết/, "every product card uses the same detail action");
+  assert.doesNotMatch(source, /CatalogCardPurchase/, "the listing card no longer embeds purchase controls");
+  assert.doesNotMatch(source, /ProductQuickPreview/, "the captured card has no extra quick-preview control");
 });
 
-test("the card links to detail from both the image and the name, and nothing else", async () => {
+test("every card keeps one consistent product-information and action rhythm", async () => {
+  const card = await catalogSource("CatalogProductCard.tsx");
+
+  assert.ok(
+    card.indexOf("data-catalog-spec") < card.indexOf("data-catalog-price"),
+    "the specification must sit between the product name and price",
+  );
+  assert.ok(
+    card.indexOf("data-catalog-price") < card.indexOf("data-catalog-stock"),
+    "availability must follow the price",
+  );
+  assert.match(card, /data-catalog-action-tray/, "all card actions share one aligned bottom tray");
+  assert.match(card, /data-catalog-detail-action/, "the one card action has an explicit QA hook");
+  assert.match(card, /Xem chi tiết/, "the one card action has one consistent label");
+  assert.doesNotMatch(card, /SlidersHorizontal|ShoppingCart|Minus|Plus/, "the listing has no mixed purchase controls");
+  assert.doesNotMatch(card, /data-catalog-action-helper/, "the removed action helper leaves no blank row");
+});
+
+test("the card links to detail from its image, name and one consistent action", async () => {
   const source = await catalogSource("CatalogProductCard.tsx");
 
   assert.match(source, /detailHref/, "the card links to detail");
-  assert.ok((source.match(/<Link\b/g) ?? []).length >= 2, "image and name both link to detail");
+  assert.equal((source.match(/<Link\b/g) ?? []).length, 3, "image, name and the detail action are the only links");
 });
 
 test("the card renders no rating, review, favorite or quick-add SKU", async () => {
@@ -346,38 +418,14 @@ test("the card renders no rating, review, favorite or quick-add SKU", async () =
   assert.doesNotMatch(source, /gradient/, "no gradient treatment");
 });
 
-test("the card image holds a stable 1.25:1 ratio and falls back to a local packshot", async () => {
+test("the card image uses the supplied reference's landscape ratio and falls back to a local packshot", async () => {
   const source = await catalogSource("CatalogProductImage.tsx");
 
   assert.match(source, /fallbackSrc/, "the card passes a local demo packshot as the fallback");
   assert.match(source, /onError/, "a broken upstream image degrades to the packshot instead of a gray box");
-  assert.match(source, /aspect-\[5\/4\]|commerce-image-frame/, "the card image area is 1.25:1");
+  assert.match(source, /commerce-image-frame/, "the card image area uses the shared ratio utility");
+  assert.match(source, /!aspect-\[10\/7\]/, "the listing card overrides the shared square frame with the reference's landscape image ratio");
   assert.doesNotMatch(source, /gradient/, "no gradient placeholder");
-});
-
-test("the quantity stepper and cart action reuse the locked contracts", async () => {
-  const source = await catalogSource("CatalogCardPurchase.tsx");
-
-  assert.match(source, /"use client"/, "the stepper is the only interactive island on the card");
-  assert.match(source, /clampCommerceQuantity|stepCommerceQuantity/, "quantity respects MOQ and step through the shared rule");
-  assert.match(source, /upsertRequestCartLine/, "adding a line goes through the locked storage contract");
-  assert.match(source, /writeRequestCart/, "the line is persisted through the locked contract");
-  assert.match(source, /REQUEST_CART_STORAGE_KEY/, "the badge is notified on the contract's own key");
-  assert.match(source, /StorageEvent/, "a same-tab add must still update the shared header badge");
-  assert.match(source, /Mua ngay/, "a ready-to-order card exposes the fast purchase action");
-  assert.match(source, /router\.push\("\/gui-yeu-cau\/"\)/, "buy now adds the chosen line before continuing to the one request route");
-  assert.match(source, /aria-live/, "the confirmation is announced, not colour-only");
-  assert.match(source, /min-h-11|commerce-target/, "every target clears 44px");
-  // An emptied number field leaves the state at 0, so the add path must clamp
-  // rather than depend on the input's blur landing first.
-  assert.match(
-    source,
-    /const requested = clampCommerceQuantity/,
-    "the stored quantity is clamped at add time, not only on blur",
-  );
-  assert.match(source, /quantity: requested/, "the clamped value is what reaches storage");
-  assert.doesNotMatch(source, /formatVnd/, "the card never computes money for the cart");
-  assert.doesNotMatch(source, FORBIDDEN_SURFACE_PATTERN, "the island must not reach a forbidden surface");
 });
 
 // ---------------------------------------------------------------------------
@@ -385,7 +433,7 @@ test("the quantity stepper and cart action reuse the locked contracts", async ()
 // ---------------------------------------------------------------------------
 
 test("/san-pham prefers the real feed and falls back to demo data visibly", async () => {
-  const source = await readSource("src", "app", "(commerce)", "san-pham", "page.tsx");
+  const source = await readSource("src", "app", "(storefront)", "san-pham", "page.tsx");
 
   assert.match(source, /getCatalogProducts/, "the real Bagisto feed is attempted first");
   assert.match(source, /demoCatalogFallbackAllowed/, "the fallback is gated, not automatic");
