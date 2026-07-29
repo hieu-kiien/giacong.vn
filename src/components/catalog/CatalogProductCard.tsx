@@ -72,9 +72,13 @@ export function CatalogProductCard({ card }: CatalogProductCardProps) {
         </p>
 
         <p className="!mb-0 flex flex-wrap items-baseline justify-start gap-0.5 !leading-4" data-catalog-price>
-          <span className="text-[10px] text-commerce-secondary">Từ</span>{" "}
-          <span className={`${COMMERCE_TYPOGRAPHY.price} !text-[15px] !leading-4`}>{formatVnd(card.startingPrice)}</span>
-          {card.unitLabel ? <>{" "}<span className="text-[10px] text-commerce-secondary">/ {card.unitLabel}</span></> : null}
+          {card.startingPrice === null ? (
+            <span className={`${COMMERCE_TYPOGRAPHY.price} !text-[15px] !leading-4`}>Liên hệ</span>
+          ) : <>
+            <span className="text-[10px] text-commerce-secondary">Từ</span>{" "}
+            <span className={`${COMMERCE_TYPOGRAPHY.price} !text-[15px] !leading-4`}>{formatVnd(card.startingPrice)}</span>
+            {card.unitLabel ? <>{" "}<span className="text-[10px] text-commerce-secondary">/ {card.unitLabel}</span></> : null}
+          </>}
         </p>
 
         <p

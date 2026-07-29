@@ -8,7 +8,7 @@ import {
   findDemoCatalogProduct,
 } from "@/data/demo-catalog";
 import { getCatalogProduct, getCatalogProducts } from "@/lib/bagisto-catalog";
-import { demoCatalogFallbackAllowed, waitForDemoCatalogFallback } from "@/lib/demo-catalog-policy";
+import { demoCatalogFallbackAllowed, demoCatalogForced, waitForDemoCatalogFallback } from "@/lib/demo-catalog-policy";
 import type { CatalogProductDetail, CatalogProductParent } from "@/types/catalog";
 
 /** How many related products the detail rail asks for. */
@@ -37,6 +37,7 @@ export interface CatalogDetailSourceResult {
  */
 export const loadCatalogProductDetail = cache(async (slug: string): Promise<CatalogDetailSourceResult | null> => {
   const demoAllowed = demoCatalogFallbackAllowed(process.env);
+  if (demoCatalogForced(process.env)) return readDemoProduct(slug);
 
   try {
     const product = await waitForDemoCatalogFallback(getCatalogProduct(slug), process.env);
@@ -51,10 +52,14 @@ export const loadCatalogProductDetail = cache(async (slug: string): Promise<Cata
 
   if (!demoAllowed) return null;
 
+  return readDemoProduct(slug);
+});
+
+function readDemoProduct(slug: string): CatalogDetailSourceResult | null {
   const demoProduct = findDemoCatalogProduct(slug);
   if (!demoProduct) return null;
   return { isDemo: true, product: demoProduct, related: readDemoRelated(demoProduct) };
-});
+}
 
 /**
  * Related products from the same category. A failure here is not worth failing the

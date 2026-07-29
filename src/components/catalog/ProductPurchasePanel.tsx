@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { useId, useState } from "react";
 
 import { TierPriceTable } from "@/components/catalog/TierPriceTable";
@@ -11,11 +12,13 @@ import type { ProductDetailView } from "@/lib/product-detail-view";
 import {
   REQUEST_CART_STORAGE_KEY,
   readRequestCart,
+  removeRequestCartLine,
   upsertRequestCartLine,
   writeRequestCart,
 } from "@/lib/request-cart-storage";
 
 interface ProductPurchasePanelProps {
+  editingCartVariantSku: string | null;
   initialVariantSku: string | null;
   variantQueryWarning: boolean;
   view: ProductDetailView;
@@ -40,7 +43,7 @@ const INVALID_MESSAGE = "Không thêm được lựa chọn này. Vui lòng th�
  * server already sent. They are never submitted: the request route re-reads Bagisto
  * and computes the canonical unit price and subtotal itself.
  */
-export function ProductPurchasePanel({ initialVariantSku, variantQueryWarning, view }: ProductPurchasePanelProps) {
+export function ProductPurchasePanel({ editingCartVariantSku, initialVariantSku, variantQueryWarning, view }: ProductPurchasePanelProps) {
   const router = useRouter();
   const quantityFieldId = useId();
   const [selectedSku, setSelectedSku] = useState(initialVariantSku ?? view.defaultVariantSku);
@@ -51,7 +54,8 @@ export function ProductPurchasePanel({ initialVariantSku, variantQueryWarning, v
   const [addState, setAddState] = useState<AddState>({ kind: "idle" });
 
   const pricing = resolveQuantityPricing(selected, quantity);
-  const canOrder = selected.isAvailable;
+  const contactOnly = selected.tierPrices.length === 0;
+  const canOrder = selected.isAvailable && !contactOnly;
 
   function selectVariant(sku: string) {
     const next = view.variants.find((variant) => variant.sku === sku);
@@ -68,7 +72,10 @@ export function ProductPurchasePanel({ initialVariantSku, variantQueryWarning, v
 
   function addToRequestCart(): boolean {
     const stored = readRequestCart(window.localStorage);
-    const mutation = upsertRequestCartLine(stored.state, {
+    const state = editingCartVariantSku
+      ? removeRequestCartLine(stored.state, editingCartVariantSku)
+      : stored.state;
+    const mutation = upsertRequestCartLine(state, {
       parentSlug: view.slug,
       quantity: pricing.quantity,
       variantSku: selected.sku,
@@ -96,15 +103,21 @@ export function ProductPurchasePanel({ initialVariantSku, variantQueryWarning, v
     return true;
   }
 
-  function buyNow() {
+  function requestQuote() {
     if (addToRequestCart()) router.push("/gui-yeu-cau/");
   }
 
   return (
     <div className={styles.purchase}>
+      <div className={styles.currentPrice} aria-live="polite">
+        <p>Đơn giá hiện tại</p>
+        <strong>{pricing.unitPriceLabel}</strong>
+        <span>Giá chưa bao gồm VAT và phí vận chuyển.</span>
+      </div>
+
       {view.variantChoices.length > 1 ? (
         <fieldset className={styles.variantGroup}>
-          <legend>{view.variantAxisLabel}</legend>
+          <legend><span className={styles.purchaseStep}>1</span> Chọn {view.variantAxisLabel.toLowerCase()}</legend>
           <div className={styles.variantOptions}>
             {view.variantChoices.map((choice) => (
               <label
@@ -147,7 +160,7 @@ export function ProductPurchasePanel({ initialVariantSku, variantQueryWarning, v
 
       <div className={styles.quantityRow}>
         <label className={styles.quantityLabel} htmlFor={quantityFieldId}>
-          Số lượng ({selected.unit})
+          <span className={styles.purchaseStep}>3</span> Chọn số lượng
         </label>
         <div className={styles.stepper}>
           <button
@@ -202,17 +215,21 @@ export function ProductPurchasePanel({ initialVariantSku, variantQueryWarning, v
       ) : null}
 
       <div className={styles.actions}>
-        <button
-          className={styles.primaryAction}
-          disabled={!canOrder}
-          onClick={addToRequestCart}
-          type="button"
-        >
-          {view.addToCartLabel}
-        </button>
-        <button className={styles.secondaryAction} disabled={!canOrder} onClick={buyNow} type="button">
-          Mua ngay
-        </button>
+        {contactOnly ? (
+          <Link className={styles.primaryAction} href="/lien-he/">Liên hệ tư vấn</Link>
+        ) : <>
+          <button
+            className={styles.secondaryAction}
+            disabled={!canOrder}
+            onClick={addToRequestCart}
+            type="button"
+          >
+            {editingCartVariantSku ? "Cập nhật giỏ hàng" : view.addToCartLabel}
+          </button>
+          <button className={styles.primaryAction} disabled={!canOrder} onClick={requestQuote} type="button">
+            {editingCartVariantSku ? "Cập nhật và xem giỏ hàng" : view.requestLabel}
+          </button>
+        </>}
       </div>
 
       <p aria-live="polite" className={styles.addFeedback} role="status">
@@ -223,9 +240,9 @@ export function ProductPurchasePanel({ initialVariantSku, variantQueryWarning, v
             : ""}
       </p>
 
-      {canOrder ? null : (
+      {!canOrder && !contactOnly ? (
         <p className={styles.warning}>Quy cách này tạm hết hàng. Hãy chọn quy cách khác hoặc gửi yêu cầu tư vấn.</p>
-      )}
+      ) : null}
     </div>
   );
 }

@@ -127,12 +127,12 @@ export function buildProductDetailView({ product, related = [] }: ProductDetailI
     }),
     isAvailable,
     name: product.name,
-    priceLabel: formatVnd(product.startingPrice.price),
+    priceLabel: product.startingPrice ? formatVnd(product.startingPrice.price) : CONTACT_PRICE_LABEL,
     relatedProducts: related
       .filter((item) => item.slug !== product.slug)
       .map(buildRelatedCard),
     requestHref: REQUEST_ROUTE,
-    requestLabel: "Gửi yêu cầu tư vấn",
+    requestLabel: "Yêu cầu báo giá",
     shortDescription: product.shortDescription,
     sku: product.sku,
     slug: product.slug,
@@ -177,6 +177,7 @@ function buildFacts(
     { label: "Đặt tối thiểu", value: `${variant.minimumOrderQuantity} ${variant.unit}` },
     { label: "Bước số lượng", value: `${variant.quantityStep} ${variant.unit}` },
     { label: "Đơn vị tính", value: variant.unit },
+    { label: "Danh mục", value: product.category?.name ?? "Đang cập nhật" },
   ];
 }
 
@@ -208,6 +209,16 @@ function buildVariantView(
  * the first band itself therefore reports no saving.
  */
 function buildTierRows(variant: CatalogProductDetail["variants"][number]): ProductDetailTierRow[] {
+  if (variant.tierPrices.length === 0) {
+    return [{
+      minQuantity: variant.minimumOrderQuantity,
+      price: null,
+      priceLabel: CONTACT_PRICE_LABEL,
+      quantityLabel: "Báo giá theo yêu cầu",
+      savingPercent: null,
+    }];
+  }
+
   const baseline = variant.tierPrices[0]?.price;
   const rows: ProductDetailTierRow[] = variant.tierPrices.map((tier, index) => ({
     minQuantity: tier.minQuantity,
@@ -240,7 +251,7 @@ function buildRelatedCard(product: CatalogProductParent): ProductDetailRelatedCa
       productName: product.name,
     })[0].url,
     name: product.name,
-    priceLabel: `Từ ${formatVnd(product.startingPrice.price)}`,
+    priceLabel: product.startingPrice ? `Từ ${formatVnd(product.startingPrice.price)}` : CONTACT_PRICE_LABEL,
     slug: product.slug,
     specificationLabel: `${product.variantCount} quy cách`,
   };
@@ -272,6 +283,17 @@ export function resolveQuantityPricing(
     minimumOrderQuantity: variant.minimumOrderQuantity,
     quantityStep: variant.quantityStep,
   });
+
+  if (variant.tierPrices.length === 0) {
+    return {
+      needsContact: true,
+      quantity,
+      subtotal: null,
+      subtotalLabel: CONTACT_PRICE_LABEL,
+      unitPrice: null,
+      unitPriceLabel: CONTACT_PRICE_LABEL,
+    };
+  }
 
   if (quantity >= variant.contactFromQuantity) {
     return {

@@ -86,7 +86,7 @@ export function isResolvedRequestCart(value: unknown): value is ResolvedRequestC
 
 function isResolvedRequestCartLine(value: unknown): value is ResolvedRequestCartLine {
   if (!isRecord(value) || !exactKeys(value, [
-    "adjustments", "contactFromQuantity", "isAvailable", "isSubmittable", "lineTotal",
+    "adjustments", "contactFromQuantity", "imageUrl", "isAvailable", "isSubmittable", "lineTotal",
     "minimumOrderQuantity", "parentSlug", "priceOnRequest", "productName", "quantity",
     "quantityStep", "unit", "unitPrice", "variantLabel", "variantSku",
   ])) {
@@ -105,6 +105,7 @@ function isResolvedRequestCartLine(value: unknown): value is ResolvedRequestCart
   for (const key of ["productName", "unit", "variantLabel"] as const) {
     if (typeof value[key] !== "string") return false;
   }
+  if (value.imageUrl !== null && typeof value.imageUrl !== "string") return false;
   for (const key of ["contactFromQuantity", "minimumOrderQuantity", "quantityStep"] as const) {
     if (value[key] !== null && !isCount(value[key])) return false;
   }

@@ -24,7 +24,8 @@ export interface CatalogProductParent {
   shortDescription: string;
   sku: string;
   slug: string;
-  startingPrice: CatalogStartingPrice;
+  /** Null when the Bagisto product is available for consultation but has no price yet. */
+  startingPrice: CatalogStartingPrice | null;
   type: "configurable";
   variantCount: number;
 }

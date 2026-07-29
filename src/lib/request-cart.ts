@@ -20,6 +20,7 @@ export const REQUEST_CART_MAX_BODY_BYTES = 16_384;
 export const CONTACT_MAX_BODY_BYTES = 65_536;
 
 export interface CartRevalidationDependencies {
+  cartBatchResolver?: (lines: RequestCartLineKey[]) => Promise<ResolvedRequestCart>;
   cartResolver?: RequestCartResolver;
 }
 
@@ -96,12 +97,15 @@ export async function handleCartRevalidation(
   const parsed = parseRequestCartLines(payload.lines);
   if (!parsed.ok) return cartFailure(parsed.message, 400);
 
-  const resolver = dependencies.cartResolver;
-  if (!resolver) return cartFailure("Không thể xác thực giỏ yêu cầu. Vui lòng thử lại.", 502);
-
   let cart: ResolvedRequestCart;
   try {
-    cart = await resolveRequestCart(parsed.lines, resolver);
+    if (dependencies.cartBatchResolver) {
+      cart = await dependencies.cartBatchResolver(parsed.lines);
+    } else if (dependencies.cartResolver) {
+      cart = await resolveRequestCart(parsed.lines, dependencies.cartResolver);
+    } else {
+      return cartFailure("Không thể xác thực giỏ yêu cầu. Vui lòng thử lại.", 502);
+    }
   } catch {
     return cartFailure("Không thể xác thực giỏ yêu cầu. Vui lòng thử lại.", 502);
   }
@@ -177,6 +181,7 @@ function resolveLine(
   const base: ResolvedRequestCartLine = {
     adjustments: [],
     contactFromQuantity: variant.contactFromQuantity,
+    imageUrl: product.imageUrl,
     isAvailable: variant.isAvailable,
     isSubmittable: true,
     lineTotal: null,
@@ -266,6 +271,7 @@ function unresolvedLine(line: RequestCartLineKey, adjustment: RequestCartAdjustm
   return {
     adjustments: [adjustment],
     contactFromQuantity: null,
+    imageUrl: null,
     isAvailable: false,
     isSubmittable: false,
     lineTotal: null,

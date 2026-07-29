@@ -632,19 +632,25 @@ try {
       `Header link "${href}" must target an in-app master-plan route or a real contact channel`,
     );
   }
-  // `trailingSlash` is false, so Next normalises the authored `/san-pham/` href.
-  // The label is "Mua hàng" — the five header labels are locked by qa:services.
-  assert.equal(await header.getByRole("link", { name: "Mua hàng", exact: true }).getAttribute("href"), "/san-pham", "Header must route product navigation to the catalog");
-
-  const megaTrigger = page.getByRole("button", { name: "Danh mục sản phẩm" });
+  // `CommerceHeader` filters the `Mua hàng` nav item out of both link rails and renders
+  // it as the mega-menu trigger instead, so the catalog entry point is the explicit
+  // link inside the panel. `trailingSlash` is false, so Next normalises `/san-pham/`.
+  const megaTrigger = header.getByRole("button", { name: "Sản phẩm", exact: true });
   assert.equal(await megaTrigger.getAttribute("aria-expanded"), "false", "The category mega menu must start collapsed");
   const megaPanelId = await megaTrigger.getAttribute("aria-controls");
   assert.ok(megaPanelId, "The mega menu trigger must reference the panel it controls");
   const megaPanel = page.locator(`#${megaPanelId}`);
   await megaTrigger.click();
   assert.equal(await megaTrigger.getAttribute("aria-expanded"), "true", "Click must open the category mega menu");
-  await megaPanel.getByRole("link", { name: "Dinh dưỡng" }).waitFor();
-  assert.equal(await megaPanel.getByRole("link", { name: "Xem tất cả sản phẩm" }).count(), 1, "The mega menu needs an explicit catalog entry point");
+  // Matched by href rather than by category name: the row renders its label and its
+  // count as sibling spans, so the accessible name is "Bột và nguyên liệu khô3", and
+  // the category list itself comes from the catalog feed rather than being fixed.
+  // `trailingSlash` is false, so the authored `/san-pham/?category=` normalises with
+  // no slash before the query.
+  await megaPanel.locator("a[href^='/san-pham?category=']").first().waitFor();
+  const catalogEntry = megaPanel.getByRole("link", { name: "Xem tất cả sản phẩm" });
+  assert.equal(await catalogEntry.count(), 1, "The mega menu needs an explicit catalog entry point");
+  assert.equal(await catalogEntry.getAttribute("href"), "/san-pham", "Header must route product navigation to the catalog");
   assert.doesNotMatch(await megaPanel.innerText(), /gia công/i, "The product mega menu must not list gia công services");
   assert.equal(await megaPanel.locator("a[href='#'], a[href=''], a[href='/']").count(), 0, "The mega menu must not ship dead links");
   assert.ok(
@@ -663,7 +669,10 @@ try {
   await megaTrigger.press(" ");
   assert.equal(await megaTrigger.getAttribute("aria-expanded"), "false", "Space must close the mega menu");
   await megaTrigger.click();
-  await page.locator("h1").click();
+  // Pressed at the page gutter rather than on the H1: the open panel spans the whole
+  // 1390px rail and covers the heading, so a click there would land on the panel and
+  // never be the outside press this asserts. The gutter is left of the rail edge.
+  await page.mouse.click(8, 700);
   assert.equal(await megaTrigger.getAttribute("aria-expanded"), "false", "An outside click must close the mega menu");
 
   const badge = page.locator("[data-request-cart-count]");
@@ -688,30 +697,37 @@ try {
   // Catalog list hierarchy. Breadcrumb → H1 → count → search → filters → grid,
   // with sort and page size in the URL so a filtered list is shareable.
   assert.equal(await page.locator("h1").innerText(), "Danh sách sản phẩm", "The catalog needs the list heading from the approved reference");
+  // giacong.vn's shop archive is full width — its markup is `col large-12`, with no
+  // filter rail at any breakpoint. The 230px sidebar this harness used to require was
+  // drawn for `SCR-02` before the captured pages became the reference, and
+  // `scripts/catalog-listing.test.mts` now forbids that element outright. The filters
+  // live in a toolbar above the grid instead, so what is asserted here is that the
+  // rail is gone and the controls are still reachable.
   const sidebar = page.getByRole("complementary", { name: "Bộ lọc sản phẩm" });
-  assert.equal(await sidebar.count(), 1, "1440px must render the filter sidebar");
+  assert.equal(await sidebar.count(), 0, "1440px must not render a filter sidebar the real archive lacks");
+  const toolbar = page.locator("form:has(#catalog-query)").locator("..");
   assert.equal(
     await page.getByRole("button", { name: "Tất cả" }).evaluate((element) => getComputedStyle(element).backgroundColor),
-    "rgb(50, 118, 0)",
+    "rgb(90, 164, 0)",
     "The active category chip must use the brand green, not a generic grayscale fill",
   );
-
-  // `getByLabel` does not filter hidden elements the way `getByRole` does, so
-  // these are scoped to the sidebar — the closed filter drawer holds a second
-  // copy of the same panel.
   const sortStart2 = seenCatalogRequests.length;
-  // `variant_count` and `per_page=48` are values no earlier assertion fetches, so
-  // these must miss the validated cache and prove the control reaches upstream.
-  await sidebar.getByLabel("Sắp xếp").selectOption("variant_count:desc");
-  await page.waitForURL((url) => url.searchParams.get("sort") === "variant_count" && url.searchParams.get("direction") === "desc");
+  // `available_variant_count` and `per_page=48` are values no earlier assertion
+  // fetches, so these must miss the validated cache and prove the control reaches
+  // upstream. The sort control now offers the archive's own ordering set, in which
+  // `available_variant_count` is the column behind `Nhiều quy cách nhất`; the plain
+  // `variant_count` this used to select is still a valid upstream column but no
+  // longer one the UI exposes.
+  await page.getByLabel("Sắp xếp").selectOption("available_variant_count:desc");
+  await page.waitForURL((url) => url.searchParams.get("sort") === "available_variant_count" && url.searchParams.get("direction") === "desc");
   assert.ok(
     listRequestsSince(sortStart2, (parameters) => (
-      parameters.get("sort") === "variant_count" && parameters.get("direction") === "desc"
+      parameters.get("sort") === "available_variant_count" && parameters.get("direction") === "desc"
     )).length >= 1,
     "The sort control must reach the upstream catalog API",
   );
   const ascendingSortStart = seenCatalogRequests.length;
-  await sidebar.getByLabel("Sắp xếp").selectOption("name:asc");
+  await page.getByLabel("Sắp xếp").selectOption("name:asc");
   // `catalogHref` omits the default sort and direction to keep one canonical URL
   // per result set; the upstream request still carries both explicitly.
   await page.waitForURL((url) => !url.searchParams.has("sort") && !url.searchParams.has("direction"));
@@ -722,13 +738,13 @@ try {
     "Returning to the default sort must reuse the canonical cache entry",
   );
   const pageSizeStart2 = seenCatalogRequests.length;
-  await sidebar.getByLabel("Số sản phẩm mỗi trang").selectOption("48");
+  await page.getByLabel("Số sản phẩm mỗi trang").selectOption("48");
   await page.waitForURL((url) => url.searchParams.get("per_page") === "48");
   assert.ok(
     listRequestsSince(pageSizeStart2, (parameters) => parameters.get("per_page") === "48").length >= 1,
     "The page-size control must reach the upstream catalog API",
   );
-  await sidebar.getByRole("button", { name: "Xóa bộ lọc" }).click();
+  await toolbar.getByRole("button", { name: "Xóa bộ lọc" }).click();
   await page.waitForURL((url) => url.search === "");
   assert.equal(new URL(page.url()).search, "", "Clearing filters must restore the canonical catalog URL");
 
@@ -737,7 +753,8 @@ try {
   responsive.on("pageerror", (error) => browserIssues.push(error.message));
   await responsive.goto(`${origin}/san-pham/`);
   await responsive.getByText("3 dòng sản phẩm", { exact: true }).waitFor();
-  for (const [width, columns] of [[1440, 4], [1024, 3], [768, 2], [320, 1]]) {
+  // The archive's own ladder: `small-columns-2 medium-columns-4 large-columns-6`.
+  for (const [width, columns] of [[1440, 6], [1024, 4], [768, 4], [320, 2]]) {
     await responsive.setViewportSize({ width, height: 900 });
     assert.equal(
       await responsive.locator("[data-catalog-grid]").evaluate((element) => getComputedStyle(element).gridTemplateColumns.split(" ").length),
@@ -745,28 +762,39 @@ try {
       `${width}px catalog must render ${columns} card column(s)`,
     );
     // `body { overflow-x: hidden }` masks document overflow, so measure children.
+    // Visually-hidden labels are skipped: `sr-only` clips content to a 1px box on
+    // purpose, so its scrollWidth always exceeds its clientWidth without any of it
+    // being layout overflow.
     assert.deepEqual(
       await responsive.locator("#catalog-main *").evaluateAll((elements) => elements
+        .filter((element) => !element.classList.contains("sr-only"))
         .filter((element) => element.scrollWidth > element.clientWidth + 1)
         .map((element) => `${element.tagName.toLowerCase()}.${element.className}`.slice(0, 60))
         .slice(0, 5)),
       [],
       `${width}px catalog must not overflow horizontally inside the page`,
     );
-    if (width <= 768) {
-      assert.equal(await responsive.getByRole("complementary", { name: "Bộ lọc sản phẩm" }).count(), 0, `${width}px must move filters into the drawer`);
-    }
+    // No filter rail at any width, and none behind a disclosure either.
+    assert.equal(
+      await responsive.getByRole("complementary", { name: "Bộ lọc sản phẩm" }).count(),
+      0,
+      `${width}px must not render a filter sidebar`,
+    );
   }
+
+  // With no drawer to hide behind, every filter has to be directly reachable at the
+  // narrowest width — that is the whole reason the rail could be dropped.
   await responsive.setViewportSize({ width: 390, height: 844 });
-  const filterTrigger = responsive.getByRole("button", { name: "Bộ lọc" });
-  assert.equal(await filterTrigger.getAttribute("aria-expanded"), "false", "The mobile filter trigger must start collapsed");
-  await filterTrigger.click();
-  const filterDrawer = responsive.getByRole("dialog", { name: "Bộ lọc sản phẩm" });
-  await filterDrawer.getByRole("button", { name: "Dinh dưỡng" }).waitFor();
-  assert.equal(await filterDrawer.getByLabel("Sắp xếp").count(), 1, "The mobile filter drawer must expose sort");
-  await responsive.keyboard.press("Escape");
-  assert.equal(await filterDrawer.count(), 0, "Escape must close the mobile filter drawer");
-  assert.equal(await filterTrigger.evaluate((element) => element === document.activeElement), true, "Closing the filter drawer must restore trigger focus");
+  assert.equal(await responsive.getByRole("dialog", { name: "Bộ lọc sản phẩm" }).count(), 0, "390px must not gate filters behind a drawer");
+  assert.equal(await responsive.getByRole("button", { name: "Bộ lọc" }).count(), 0, "390px must not need a filter drawer trigger");
+  await responsive.getByLabel("Tìm sản phẩm").waitFor({ state: "visible" });
+  await responsive.getByLabel("Sắp xếp").waitFor({ state: "visible" });
+  await responsive.getByLabel("Số sản phẩm mỗi trang").waitFor({ state: "visible" });
+  assert.equal(
+    await responsive.getByRole("button", { name: "Dinh dưỡng" }).isVisible(),
+    true,
+    "390px must keep the category chips visible inline",
+  );
   await responsive.close();
 
   assert.equal(await page.getByRole("button", { name: "Lọc sản phẩm" }).count(), 0, "Catalog filters must not require a separate submit action");
@@ -849,9 +877,21 @@ try {
   await page.getByText("Chưa tìm thấy sản phẩm phù hợp.", { exact: true }).waitFor();
   await page.getByRole("button", { name: "Xem toàn bộ sản phẩm" }).click();
   await page.getByText("3 dòng sản phẩm", { exact: true }).waitFor();
-  assert.equal(await page.getByText("2 phiên bản", { exact: true }).count(), 3, "Parent cards must expose variant count");
+  // The card still publishes its variant count, but `catalog-listing.ts` words it as
+  // `quy cách` — the unit the rest of the catalog uses — rather than `phiên bản`.
+  assert.equal(
+    await page.getByText(/\d+ quy cách/).count() >= 3,
+    true,
+    "Parent cards must expose variant count",
+  );
   assert.equal(await page.locator(".echbay-sms-messenger, .bottom-contact").count(), 0, "Catalog routes must not render floating contact bubbles");
-  assert.equal(await page.locator(`${"[data-catalog-card]"} a[href*='/san-pham/']`).count(), 3, "Each parent card needs one clear detail action");
+  // The card links to detail from the image, the name and `Xem chi tiết` — three
+  // affordances, one destination, which is what the card specification asks for. So
+  // the contract is that a card offers exactly one detail target, not one link.
+  const detailTargetsPerCard = await page.locator("[data-catalog-card]").evaluateAll((cards) => cards.map((card) => [
+    ...new Set([...card.querySelectorAll("a[href*='/san-pham/']")].map((link) => new URL(link.href).pathname)),
+  ].length));
+  assert.deepEqual(detailTargetsPerCard, [1, 1, 1], "Each parent card needs exactly one detail destination");
   assert.equal(await page.getByRole("button", { name: "Xem nhanh" }).count(), 3, "Each parent card needs an explicit 44px quick-preview action");
   const previewIds = await page.locator("dialog[id], dialog [id]").evaluateAll((elements) => elements.map((element) => element.id));
   assert.equal(new Set(previewIds).size, previewIds.length, "Quick-preview dialog IDs must remain unique across all product cards");
@@ -897,20 +937,38 @@ try {
     1,
     "A quick-preview click must make exactly one same-origin BFF-backed detail request",
   );
-  assert.equal(await quickDialog.getByText(/SKU:|Số lượng đặt tối thiểu|Giá theo số lượng|Gửi yêu cầu đặt|Liên hệ nhận giá/).count(), 0, "Quick preview must hide commerce before an explicit selection");
+  assert.equal(
+    await quickDialog.getByText(/SKU:|Số lượng đặt tối thiểu|Đơn giá:|Tạm tính:|Thêm vào giỏ yêu cầu/).count(),
+    0,
+    "Quick preview must hide commerce before an explicit selection",
+  );
   assert.equal(await quickDialog.getByRole("radio", { name: "Ít ngọt" }).isDisabled(), true, "Quick preview must expose unavailable options with a disabled control");
   await page.screenshot({ path: join(screenshots, "quick-preview-1440.png"), fullPage: true });
   await quickDialog.getByRole("radio", { name: "Vani" }).check();
   assert.equal(await quickDialog.getByLabel("Số lượng (thùng)").inputValue(), "10", "Quick preview selection must reset quantity to MOQ");
   assert.equal(await quickDialog.getByLabel("Số lượng (thùng)").getAttribute("step"), "5", "Quick preview must preserve the selected variant quantity step");
   assert.match(await quickDialog.innerText(), /25 thùng[\s\S]*690\.000/, "Quick preview must preserve the selected variant tier prices");
+  // Below the contact threshold the dialog quotes a unit price and a running subtotal,
+  // and its primary action commits to the request cart. The `?intent=order` /
+  // `?intent=quote` contact links this used to assert were replaced when
+  // `/gui-yeu-cau` became the only cart route, so the threshold is now visible in the
+  // copy and the action label rather than in a query parameter.
   await quickDialog.getByLabel("Số lượng (thùng)").fill("95");
-  const quickOrderHref = await quickDialog.getByRole("link", { name: /Gửi yêu cầu đặt 95/ }).getAttribute("href");
-  assert.equal(new URL(quickOrderHref, origin).searchParams.get("intent"), "order", "Quick preview must keep the order path below the inclusive contact threshold");
+  await quickDialog.getByText(/Đơn giá:/).waitFor();
+  assert.equal(
+    await quickDialog.getByRole("button", { name: "Gửi yêu cầu ngay" }).count(),
+    1,
+    "Quick preview must keep the order path below the inclusive contact threshold",
+  );
   await quickDialog.getByLabel("Số lượng (thùng)").fill("100");
-  const quickContact = quickDialog.getByRole("link", { name: /Liên hệ nhận giá/ });
-  assert.equal(new URL(await quickContact.getAttribute("href"), origin).searchParams.get("intent"), "quote", "Quick preview must switch to contact at the inclusive threshold");
-  assert.equal(new URL(await quickContact.getAttribute("href"), origin).searchParams.get("variant_sku"), "B2B-DEMO-BOT-VANI", "Quick preview CTA must retain exact variant SKU");
+  await quickDialog.getByText(/Giá riêng cho đơn từ 100 thùng/).waitFor();
+  const quickContact = quickDialog.getByRole("button", { name: "Gửi yêu cầu tư vấn" });
+  assert.equal(await quickContact.count(), 1, "Quick preview must switch to contact at the inclusive threshold");
+  assert.equal(
+    await quickDialog.getByText(/Đơn giá:/).count(),
+    0,
+    "At the contact threshold the dialog must stop quoting a unit price",
+  );
   await quickContact.focus();
   await page.keyboard.press("Tab");
   assert.equal(await quickDialog.getByRole("button", { name: "Đóng xem nhanh" }).evaluate((element) => element === document.activeElement), true, "Dialog Tab from the last control must wrap to the first control");
@@ -958,36 +1016,51 @@ try {
     await page.keyboard.press("Escape");
   }
   await page.screenshot({ path: join(screenshots, "catalog-1440.png"), fullPage: true });
-  await page.getByText(/Từ 720\.000/).waitFor();
-  assert.equal(await page.getByText(/Mua từ|Liên hệ từ/).count(), 0, "Parent cards must not invent parent MOQ or contact rules");
+  // Scoped to the listing: the header mega-menu renders its own featured-product
+  // price, so a page-wide match resolves to two elements.
+  await page.locator("[data-catalog-card]").getByText(/Từ 720\.000/).first().waitFor();
+  assert.equal(
+    await page.locator("[data-catalog-card]").getByText(/Mua từ|Liên hệ từ/).count(),
+    0,
+    "Parent cards must not invent parent MOQ or contact rules",
+  );
   await page.goto(`${origin}/san-pham/?q=empty`);
   await page.getByText("Chưa tìm thấy sản phẩm phù hợp.", { exact: true }).waitFor();
   await page.getByRole("button", { name: "Xem toàn bộ sản phẩm" }).click();
   await page.getByText("3 dòng sản phẩm", { exact: true }).waitFor();
   assert.equal(new URL(page.url()).search, "", "Clearing a server-rendered empty result must restore the full catalog URL");
+  // `/san-pham/[slug]` is served by `ProductPurchasePanel`, not by the `CatalogDetail`
+  // this block used to describe — nothing imports that component any more. Two of its
+  // expectations inverted with the replacement: the panel deliberately falls back to a
+  // usable variant (`product-detail.test.mts` locks that as `defaultVariantSku`, and
+  // the panel's own warning says so), and its CTAs commit to the request cart instead
+  // of linking with `?intent=order` / `?intent=quote`. The behavioural contract for
+  // this surface now lives in `scripts/product-detail.test.mts`, inside `npm run
+  // check`; what stays here is what only a browser can show.
   await page.goto(`${detailUrl}?variant=KHONG-TON-TAI`);
   await page.getByText(/Lựa chọn trong liên kết không còn khả dụng/).waitFor();
-  assert.equal(await page.getByRole("radio", { checked: true }).count(), 0, "Invalid variant query must not select a fallback");
+  assert.equal(
+    await page.getByRole("radio", { checked: true }).count(),
+    1,
+    "An unusable variant query must fall back to one usable selection, as the warning states",
+  );
   await page.goto(`${detailUrl}?variant=B2B-DEMO-BOT-VANI`);
   assert.equal(await page.getByLabel("Số lượng (thùng)").getAttribute("min"), "10", "Valid variant query must preselect and expose MOQ");
   await page.goto(detailUrl);
-  await page.getByText("Chọn Hương vị", { exact: true }).waitFor();
-  assert.equal(await page.getByText(/720\.000|Số lượng đặt tối thiểu|Giá theo số lượng|Gửi yêu cầu đặt|Liên hệ nhận giá/).count(), 0, "Unselected detail must hide variant commerce data");
   assert.equal(await page.getByRole("radio", { name: "Ít ngọt" }).isDisabled(), true, "Unavailable variant must remain visible and disabled");
   assert.equal(await page.getByText("Tạm hết hàng").count(), 1, "Unavailable variant needs a reason");
-  assert.equal(await page.getByRole("link", { name: /Gửi yêu cầu đặt|Liên hệ nhận giá/ }).count(), 0, "No purchase CTA may exist before selection");
+  assert.equal(
+    await page.getByRole("link", { name: /Gửi yêu cầu đặt|Liên hệ nhận giá/ }).count(),
+    0,
+    "The replaced intent-link CTAs must not reappear",
+  );
   await page.getByRole("radio", { name: "Vani" }).check();
   const quantity = page.getByLabel("Số lượng (thùng)");
   assert.equal(await quantity.inputValue(), "10", "Selecting a variant resets quantity to its MOQ");
   await quantity.fill("95");
-  const orderHref = await page.getByRole("link", { name: /Gửi yêu cầu đặt/ }).getAttribute("href");
-  assert.equal(new URL(orderHref, origin).searchParams.get("intent"), "order");
-  assert.equal(new URL(orderHref, origin).searchParams.get("product"), "b2b-demo-bot-dinh-duong");
-  assert.equal(new URL(orderHref, origin).searchParams.get("variant_sku"), "B2B-DEMO-BOT-VANI");
-  assert.equal(new URL(orderHref, origin).searchParams.get("quantity"), "95");
+  assert.equal(await page.getByText(/Số lượng từ 100 thùng được báo giá riêng/).count(), 0, "Below the threshold the panel must price the order");
   await quantity.fill("100");
-  const quoteHref = await page.getByRole("link", { name: /Liên hệ nhận giá/ }).getAttribute("href");
-  assert.equal(new URL(quoteHref, origin).searchParams.get("intent"), "quote", "Contact threshold must be inclusive");
+  await page.getByText(/Số lượng từ 100 thùng được báo giá riêng/).waitFor();
 
   await page.goto(`${origin}/san-pham/b2b-demo-ngu-coc-dinh-duong/`);
   await page.getByRole("radio", { name: "Hạt" }).check();
@@ -1003,7 +1076,8 @@ try {
   await mobile.goto(`${origin}/san-pham/`);
   await mobile.getByText("3 dòng sản phẩm", { exact: true }).waitFor();
   assert.equal(await mobile.locator(".echbay-sms-messenger, .bottom-contact").count(), 0, "Mobile catalog must not render floating overlays");
-  assert.equal(await mobile.locator("[data-catalog-grid]").evaluate((element) => getComputedStyle(element).gridTemplateColumns.split(" ").length), 1, "390px catalog must render one card column");
+  // `small-columns-2` — the archive shows two cards per row at mobile widths.
+  assert.equal(await mobile.locator("[data-catalog-grid]").evaluate((element) => getComputedStyle(element).gridTemplateColumns.split(" ").length), 2, "390px catalog must render two card columns");
   assert.equal(await mobile.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth), true, "390px catalog must not overflow horizontally");
   await mobile.screenshot({ path: join(screenshots, "catalog-390.png"), fullPage: true });
 
@@ -1016,10 +1090,12 @@ try {
   const drawer = mobile.getByRole("dialog", { name: "Điều hướng" });
   await drawer.getByRole("link", { name: "Mua hàng", exact: true }).waitFor();
   assert.equal(await drawerTrigger.getAttribute("aria-expanded"), "true", "Opening the drawer must update the trigger state");
-  assert.equal(await drawer.getByRole("link", { name: "Dinh dưỡng" }).count(), 1, "The mobile drawer must list real catalog categories");
+  // `exact`: the drawer's expanded group also lists product rows whose labels contain
+  // the category name, so a substring match resolves to all of them.
+  assert.equal(await drawer.getByRole("link", { name: "Dinh dưỡng", exact: true }).count(), 1, "The mobile drawer must list real catalog categories");
   assert.equal(await drawer.locator("a[href='#'], a[href='']").count(), 0, "The mobile drawer must not ship dead links");
   assert.match(
-    await drawer.getByRole("link", { name: "Dinh dưỡng" }).getAttribute("href") ?? "",
+    await drawer.getByRole("link", { name: "Dinh dưỡng", exact: true }).getAttribute("href") ?? "",
     /^\/san-pham\?category=dinh-duong$/,
     "Drawer category links must filter the catalog instead of pointing at the site root",
   );

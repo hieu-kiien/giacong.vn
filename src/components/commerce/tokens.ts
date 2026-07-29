@@ -6,17 +6,18 @@
  * time. `scripts/commerce-foundation.test.mts` asserts both files agree, so the
  * stylesheet stays the single place a value is *changed*.
  *
- * The commerce-only values began as screenshot measurements. Header height now
- * follows the established storefront chrome so the catalog and service tabs share
- * one visual rhythm.
+ * The commerce-only values began as screenshot measurements. `brand` is now the real
+ * giacong.vn green instead, and `brandDark` is derived from it — see the header comment
+ * in `commerce-foundation.css` for why. Header height follows the established
+ * storefront chrome so the catalog and service tabs share one visual rhythm.
  */
 
 export const COMMERCE_COLORS = {
   activeSurface: "#f1f8ec",
   body: "#191919",
   border: "#dfe3df",
-  brand: "#2f9e0b",
-  brandDark: "#237a08",
+  brand: "#5aa400",
+  brandDark: "#457f00",
   price: "#ef1726",
   secondary: "#6f7177",
   supportStrip: "#f4faea",
@@ -31,10 +32,13 @@ export const COMMERCE_GEOMETRY = {
   headerHeightMobile: 56,
   /** Smallest interactive target anywhere in the commerce UI. */
   minimumTouchTarget: 44,
-  /** Card image area: 1.25:1 landscape, written as a CSS ratio. */
-  productImageAspectRatio: "5 / 4",
-  /** Grid gap between product cards. */
-  productGridGap: 18,
+  /** Card image area: square, as the shop archive serves it. */
+  productImageAspectRatio: "1 / 1",
+  /**
+   * Grid gap between product cards, from the archive's `.row-small > .col`
+   * padding of `0 9.8px 19.6px` — so the column gap is half the row gap.
+   */
+  productGridGap: { column: 9.8, row: 19.6 },
   /** Centred content rail on the reference canvas. */
   railMaxWidth: 1390,
   /** Horizontal rail padding per breakpoint. */
@@ -49,5 +53,9 @@ export const COMMERCE_GEOMETRY = {
  */
 export const COMMERCE_VIEWPORTS = [1440, 1024, 768, 390, 320] as const;
 
-/** Product grid columns per viewport, per the catalog and card specifications. */
-export const COMMERCE_GRID_COLUMNS = { 320: 1, 390: 2, 768: 2, 1024: 3, 1440: 4 } as const;
+/**
+ * Product grid columns per viewport, as the shop archive giacong.vn serves them:
+ * `small-columns-2 medium-columns-4 large-columns-6`. This supersedes the 1/2/2/3/4
+ * ladder the catalog specification drew before the captured pages were the reference.
+ */
+export const COMMERCE_GRID_COLUMNS = { 320: 2, 390: 2, 768: 4, 1024: 4, 1440: 6 } as const;

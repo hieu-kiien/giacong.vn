@@ -87,16 +87,6 @@
   outline-offset: 2px;
 }
 
-.demoNotice {
-  background: var(--color-commerce-support-strip);
-  border: 1px solid #cfe3b4;
-  border-radius: var(--radius-commerce-control);
-  color: #33500f;
-  font-size: 13px;
-  margin: 0 0 16px;
-  padding: 10px 14px;
-}
-
 /* Hero: mobile-first single column, so the gallery stacks above the info ---- */
 
 .hero {
@@ -199,37 +189,6 @@
   margin: 0;
 }
 
-.price {
-  align-items: baseline;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin: 0;
-}
-
-.priceValue {
-  color: var(--detail-price);
-  font-size: 24px;
-  font-weight: 700;
-  line-height: 1.2;
-}
-
-.priceUnit {
-  color: var(--detail-secondary);
-  font-size: 14px;
-}
-
-.availability {
-  color: var(--detail-brand-dark);
-  font-size: 14px;
-  font-weight: 700;
-  margin: 0;
-}
-
-.availability[data-unavailable="true"] {
-  color: #8c3a24;
-}
-
 .lede {
   color: #3f4147;
   line-height: 1.6;
@@ -246,6 +205,37 @@
   gap: 16px;
   margin-top: 4px;
   padding: 16px;
+}
+
+.currentPrice {
+  display: grid;
+  gap: 4px;
+}
+
+.currentPrice p,
+.currentPrice span {
+  color: var(--detail-secondary);
+  font-size: 13px;
+  margin: 0;
+}
+
+.currentPrice strong {
+  color: var(--detail-price);
+  font-size: 24px;
+  line-height: 1.2;
+}
+
+.purchaseStep {
+  align-items: center;
+  background: var(--detail-brand);
+  border-radius: 999px;
+  color: #fff;
+  display: inline-flex;
+  font-size: 12px;
+  height: 20px;
+  justify-content: center;
+  margin-right: 6px;
+  width: 20px;
 }
 
 .variantGroup {
@@ -338,6 +328,11 @@
   font-weight: 700;
   margin-bottom: 8px;
   text-align: left;
+}
+
+.tierSaving {
+  color: var(--detail-brand-dark);
+  font-weight: 700;
 }
 
 .tierTable th,
@@ -558,6 +553,31 @@
   font-weight: 700;
   margin: 0;
   text-align: right;
+}
+
+.assurances {
+  border-top: 1px solid var(--detail-border);
+  display: grid;
+  gap: 14px;
+  list-style: none;
+  margin: 18px 0 0;
+  padding: 18px 0 0;
+}
+
+.assurances li {
+  display: grid;
+  gap: 3px;
+}
+
+.assurances strong {
+  color: var(--detail-brand-dark);
+  font-size: 13px;
+}
+
+.assurances span {
+  color: var(--detail-secondary);
+  font-size: 12px;
+  line-height: 1.45;
 }
 
 /* Second row: description and related rail -------------------------------- */

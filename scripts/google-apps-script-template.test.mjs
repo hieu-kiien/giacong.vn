@@ -44,6 +44,13 @@ async function loadTemplate(uuids = ["abcd1234-0000-0000-0000-000000000000"]) {
     }
 
     getValue() { return this.sheet.getCell(this.row, this.column); }
+    getValues() {
+      return Array.from({ length: this.numRows }, (_unused, rowOffset) => (
+        Array.from({ length: this.numColumns }, (_unused, columnOffset) => (
+          this.sheet.getCell(this.row + rowOffset, this.column + columnOffset)
+        ))
+      ));
+    }
     setValue(value) { this.sheet.setCell(this.row, this.column, value); return this; }
     getSheet() { return this.sheet; }
     getRow() { return this.row; }
@@ -346,9 +353,21 @@ test("reuses one native sheet protection and leaves Yêu cầu L:N editable", as
   assert.deepEqual(summaryProtection.unprotectedRanges, []);
 });
 
-test("writes the exact Tổng quan labels and count formulas", async () => {
-  const { context, sheets } = await loadTemplate();
+test("writes locale-independent numeric Tổng quan counts and refreshes them after submits", async () => {
+  const { context, sheets } = await loadTemplate([
+    "abcd1234-0000-0000-0000-000000000000",
+    "dcba4321-0000-0000-0000-000000000000",
+  ]);
   context.setupRequestWorkbook();
+
+  submit(context, { ...validProductPayload, request_type: "Đặt sản phẩm" });
+  submit(context, validProductPayload);
+
+  const requestSheet = sheets.get("Yêu cầu");
+  assert.deepEqual([
+    requestSheet.getCell(2, 3), requestSheet.getCell(2, 12),
+    requestSheet.getCell(3, 3), requestSheet.getCell(3, 12),
+  ], ["Đặt sản phẩm", "Mới", "Tư vấn số lượng lớn", "Mới"]);
 
   const summarySheet = sheets.get("Tổng quan");
   assert.deepEqual([
@@ -357,8 +376,8 @@ test("writes the exact Tổng quan labels and count formulas", async () => {
     [summarySheet.getCell(3, 1), summarySheet.getCell(3, 2)],
   ], [
     ["Chỉ số", "Số lượng"],
-    ["Đơn mới", '=COUNTIFS(\'Yêu cầu\'!C:C,"Đặt sản phẩm",\'Yêu cầu\'!L:L,"Mới")'],
-    ["Yêu cầu mới", '=COUNTIFS(\'Yêu cầu\'!C:C,"Tư vấn số lượng lớn",\'Yêu cầu\'!L:L,"Mới")+COUNTIFS(\'Yêu cầu\'!C:C,"Tư vấn dịch vụ",\'Yêu cầu\'!L:L,"Mới")'],
+    ["Đơn mới", 1],
+    ["Yêu cầu mới", 1],
   ]);
 });
 

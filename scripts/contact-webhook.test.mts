@@ -713,6 +713,40 @@ test("reports every invalid contact field of a cart submit in one error map", as
   });
 });
 
+test("uses the canonical batch resolver for cart submission before any per-product resolver", async () => {
+  const canonical = await resolveRequestCart(twoLineCart, cartResolver);
+  let perProductResolverCalled = false;
+  const response = await handleContactSubmission(requestWithJson(await cartBody({
+    snapshotToken: canonical.snapshotToken,
+  })), {
+    cartBatchResolver: async () => canonical,
+    cartResolver: async () => {
+      perProductResolverCalled = true;
+      return cartCatalog;
+    },
+    environment: environment(),
+    fetch: async () => new Response(JSON.stringify({ ok: true, reference: "YC-BATCH" }), {
+      headers: { "Content-Type": "application/json" },
+      status: 200,
+    }),
+  } as never);
+
+  assert.equal(response.status, 202);
+  assert.equal(perProductResolverCalled, false);
+});
+
+test("requires an email address for a cart quote request", async () => {
+  const response = await handleContactSubmission(requestWithJson(await cartBody({ email: "" })), {
+    cartResolver,
+    environment: environment(),
+    fetch: async () => new Response(),
+    timeoutMs: 100,
+  });
+
+  assert.equal(response.status, 400);
+  assert.deepEqual((await response.json()).errors, { email: "Vui lòng nhập địa chỉ email." });
+});
+
 test("requires a well-formed request id and snapshot token before contacting the webhook", async () => {
   const invalidBodies = [
     await cartBody({ requestId: undefined }),

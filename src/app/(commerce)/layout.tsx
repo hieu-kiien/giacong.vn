@@ -1,7 +1,8 @@
 import type { ReactNode } from "react";
 
 import { CommerceFloatingContacts } from "@/components/commerce/CommerceFloatingContacts";
-import { CommerceHeader } from "@/components/commerce/CommerceHeader";
+import { CommerceFooter } from "@/components/commerce/CommerceFooter";
+import { ScopedCommerceHeader } from "@/components/commerce/ScopedCommerceHeader";
 import { CommerceShell } from "@/components/commerce/CommerceShell";
 import { CommerceSupportStrip } from "@/components/commerce/CommerceSupportStrip";
 import { buildCommerceMegaMenu } from "@/components/commerce/commerce-navigation";
@@ -44,7 +45,8 @@ export default async function CommerceLayout({ children }: { children: ReactNode
 
   return (
     <CommerceShell
-      header={<CommerceHeader menu={menu} />}
+      footer={<CommerceFooter />}
+      header={<ScopedCommerceHeader menu={menu} />}
       support={
         <>
           <CommerceSupportStrip />

@@ -392,6 +392,9 @@ try {
     "Header must remain fixed and visible after scrolling",
   );
   await desktopMenu.evaluate(() => window.scrollTo(0, 0));
+  const desktopAboutLink = desktopMenu.locator("#menu-item-5498 > a");
+  assert.equal(await desktopAboutLink.getAttribute("href"), "/gioi-thieu-ve-gia-cong/");
+  assert.equal((await desktopAboutLink.innerText()).trim(), "Về Giacong.vn");
   assert.equal(await desktopMenu.locator("#menu-item-1742 > .nav-dropdown").count(), 0, "Product must be a direct link");
   assert.equal(await desktopMenu.locator("#menu-item-1742 > a").getAttribute("href"), "/san-pham/");
   const serviceLink = desktopMenu.locator("#menu-item-5166 > a");
@@ -416,6 +419,11 @@ try {
     hasTouch: true,
   });
   await mobileMenu.goto(`${appUrl}/`, { waitUntil: "networkidle" });
+  assert.equal(
+    await mobileMenu.locator(".echbay-sms-messenger").isVisible(),
+    false,
+    "Mobile quick-contact bubbles must not cover primary page content",
+  );
   const mobileHeaderSearch = mobileMenu.locator(
     ".mobile-nav.nav-right .header-search > a",
   );
@@ -449,7 +457,7 @@ try {
     await mobileMenu
       .locator("#main-menu .nav-sidebar > li > a > svg.clone-mobile-menu-icon")
       .count(),
-    5,
+    6,
     "Mobile menu does not use a complete, consistent SVG icon set",
   );
   assert.equal(
@@ -545,6 +553,9 @@ try {
   assert.equal(await mobileProductItem.count(), 1, "Mobile Product link is missing");
   assert.equal(await mobileProductItem.locator(":scope > a").getAttribute("href"), "/san-pham/");
   assert.equal(await mobileProductItem.locator(":scope > .sub-menu, :scope > .clone-toggle").count(), 0, "Mobile Product must be a direct link");
+  const mobileAboutLink = mobileMenu.locator("#menu-item-5496 > a");
+  assert.equal(await mobileAboutLink.getAttribute("href"), "/gioi-thieu-ve-gia-cong/");
+  assert.equal((await mobileAboutLink.innerText()).trim(), "Về Giacong.vn");
   const mobileServiceItem = mobileMenu.locator("#menu-item-5466");
   assert.equal(await mobileServiceItem.locator(":scope > a").getAttribute("href"), "/thue-gia-cong/");
   assert.equal(await mobileServiceItem.locator(":scope > a").getAttribute("aria-expanded"), null);

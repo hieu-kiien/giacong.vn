@@ -110,11 +110,20 @@ test("the view model carries the category, title, SKU and unit for the info colu
   assert.equal(view.unitLabel, "bao", "the unit comes from the variant, not from prose");
 });
 
-test("the price label is the starting price and is rendered in the price red", () => {
+test("the view model keeps the catalog starting price for non-interactive contexts", () => {
   const view = buildView(multiVariantProduct());
 
   assert.match(view.priceLabel, /71\.000/, "starting price is the lowest available tier price");
   assert.match(view.priceLabel, /₫|VND/, "price is formatted as VND");
+});
+
+test("the purchase panel presents the unit price for the selected quantity, not the catalog starting price", async () => {
+  const panel = await readSource("src", "components", "catalog", "ProductPurchasePanel.tsx");
+  const shell = await readSource("src", "components", "catalog", "ProductDetailPage.tsx");
+
+  assert.match(panel, /Đơn giá hiện tại/, "the current-price label must sit beside the active selection");
+  assert.match(panel, /pricing\.unitPriceLabel/, "the displayed price must follow the selected variant and quantity tier");
+  assert.doesNotMatch(shell, /view\.priceLabel/, "the static lowest price must not appear above an active selection");
 });
 
 test("availability is derived from the variants, never hard-coded", () => {
@@ -216,6 +225,14 @@ test("the tier table ends with the contact band instead of inventing a price", (
   assert.equal(last.minQuantity, variant.contactFromQuantity);
 });
 
+test("tier savings use a positive benefit label", async () => {
+  const table = await readSource("src", "components", "catalog", "TierPriceTable.tsx");
+
+  assert.match(table, />Ưu đãi</, "the table must name the benefit, not a deduction");
+  assert.match(table, /Giảm \{row\.savingPercent\}%/, "a saving must be written as a positive reduction");
+  assert.doesNotMatch(table, /Tiết kiệm/, "the ambiguous savings heading must be removed");
+});
+
 test("quantity pricing clamps to MOQ, moves by step and switches to contact", () => {
   const view = buildView(multiVariantProduct());
   const variant = view.variants.find((item: { sku: string }) => item.sku.endsWith("BGL-05"));
@@ -249,9 +266,21 @@ test("the detail actions are add-to-request-cart plus the consultation request",
   const view = buildView(multiVariantProduct());
 
   assert.equal(view.addToCartLabel, "Thêm vào giỏ yêu cầu");
-  assert.equal(view.requestLabel, "Gửi yêu cầu tư vấn");
+  assert.equal(view.requestLabel, "Yêu cầu báo giá");
   assert.equal(view.requestHref, "/gui-yeu-cau/", "the secondary action continues to the only cart route");
   assert.doesNotMatch(JSON.stringify(view), /lien-he\/\?/, "detail no longer routes the CTA to the contact page");
+});
+
+test("the detail surface keeps production messaging and request actions unambiguous", async () => {
+  const shell = await readSource("src", "components", "catalog", "ProductDetailPage.tsx");
+  const panel = await readSource("src", "components", "catalog", "ProductPurchasePanel.tsx");
+  const view = await readSource("src", "lib", "product-detail-view.ts");
+
+  assert.match(shell, /Thông tin đặt hàng/, "the right rail describes ordering information");
+  assert.match(view, /Danh mục/, "the right rail keeps category context");
+  assert.doesNotMatch(shell, /Dữ liệu demo tạm thời|demoNotice/, "customer UI must not expose a demo banner");
+  assert.match(panel, /view\.requestLabel/, "the direct request CTA is a quotation request");
+  assert.doesNotMatch(panel, /Mua ngay/, "direct payment language is outside the request-only flow");
 });
 
 test("related products are compact cards with no social proof and no invented variant", () => {
@@ -295,7 +324,7 @@ test("the demo fallback is labelled so it can never read as production data", as
   assert.match(source, /demoCatalogFallbackAllowed/, "the source must consult the shared gate");
   assert.match(source, /isDemo/, "the loader must report whether it served demo data");
   const shell = await readSource("src", "components", "catalog", "ProductDetailPage.tsx");
-  assert.match(shell, /isDemo/, "the page must be able to mark demo content in the UI");
+  assert.doesNotMatch(shell, /Dữ liệu demo tạm thời|demoNotice/, "the production surface must not show a demo banner");
 });
 
 test("the Bagisto adapter stays unaware of the demo fixture", async () => {
@@ -408,7 +437,7 @@ test("the purchase panel wires the CTA to the existing request cart", async () =
   assert.match(panel, /request-cart-storage/, "the CTA must use the locked storage contract");
   assert.match(panel, /upsertRequestCartLine/, "adding a line goes through the storage contract");
   assert.match(panel, /writeRequestCart/);
-  assert.match(panel, /Mua ngay/, "the selected variant can continue directly after it is added");
+  assert.match(panel, /view\.requestLabel/, "the selected variant can continue directly to a quotation request");
   assert.match(panel, /router\.push\("\/gui-yeu-cau\/"\)/, "buy now keeps the user on the one request route");
   assert.doesNotMatch(panel, /unitPrice:|subtotal:|price:/, "no price is ever written into the cart");
   assert.match(
@@ -459,4 +488,14 @@ test("the detail page adds no dependency and reserves no forbidden port", async 
     const source = await readSource(...segments);
     assert.doesNotMatch(source, /\b(?:127\.0\.0\.1|localhost):(?:3000|8000|8001)\b/, `${segments.join("/")} must not touch a reserved port`);
   }
+});
+
+test("editing a cart line reopens the product configurator and replaces that line", async () => {
+  const route = await readSource("src", "app", "(storefront)", "san-pham", "[slug]", "page.tsx");
+  const detail = await readSource("src", "components", "catalog", "ProductDetailPage.tsx");
+  const panel = await readSource("src", "components", "catalog", "ProductPurchasePanel.tsx");
+
+  assert.match(route, /editCart/, "The detail route must read the cart-edit marker.");
+  assert.match(detail, /editingCartVariantSku/, "The product detail must carry the edit marker into the configurator.");
+  assert.match(panel, /removeRequestCartLine/, "Updating a configured product must replace the old cart line instead of adding a duplicate.");
 });

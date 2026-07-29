@@ -7,8 +7,10 @@ import type { ServiceFamily } from "@/data/service-families";
 interface ServiceFamilyDetailProps { family: ServiceFamily }
 
 export function ServiceFamilyDetail({ family }: ServiceFamilyDetailProps) {
+  // The shared storefront frame owns the main landmark. This component keeps
+  // only the service content so it can render under the common site chrome.
   return (
-    <main className={styles.main} id="catalog-main">
+    <div className={styles.main}>
       <section className={styles.hero}>
         <div className={styles.inner}>
           <nav className={styles.crumbs} aria-label="Breadcrumb"><Link href="/">Trang chủ</Link><span aria-hidden="true">/</span><Link href="/thue-gia-cong/">Thuê gia công</Link><span aria-hidden="true">/</span>{family.name}</nav>
@@ -28,7 +30,7 @@ export function ServiceFamilyDetail({ family }: ServiceFamilyDetailProps) {
           <Link className={styles.backLink} href="/thue-gia-cong/">← Xem tất cả nhóm dịch vụ</Link>
         </div>
       </section>
-      <ContactBand />
-    </main>
+      <ContactBand service={family.slug} />
+    </div>
   );
 }

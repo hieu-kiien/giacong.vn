@@ -27,6 +27,15 @@ export function demoCatalogFallbackAllowed(
 }
 
 /**
+ * Keeps an explicit, complete catalogue available for local presentation while the
+ * Bagisto catalogue is still being populated. Production can never enable it.
+ */
+export function demoCatalogForced(environment: DemoCatalogFallbackEnvironment): boolean {
+  if (!demoCatalogFallbackAllowed(environment)) return false;
+  return environment.CATALOG_DEMO_FALLBACK?.trim().toLowerCase() === "force";
+}
+
+/**
  * Starts the live request immediately but stops awaiting it in non-production
  * once the labelled demo fallback is allowed. Production always awaits the
  * source of truth using its normal transport timeout.

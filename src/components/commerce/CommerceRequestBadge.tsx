@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 
 import { COMMERCE_REQUEST_HREF } from "@/components/commerce/commerce-navigation";
 import { CommerceIcon } from "@/components/commerce/CommerceIcon";
-import { REQUEST_CART_STORAGE_KEY, readRequestCart } from "@/lib/request-cart-storage";
+import { REQUEST_CART_STORAGE_KEY, countRequestCartLines } from "@/lib/request-cart-storage";
 
 /**
  * Request-cart badge in the header: a white circle with green text at the
@@ -17,13 +17,19 @@ import { REQUEST_CART_STORAGE_KEY, readRequestCart } from "@/lib/request-cart-st
  * client after mount — server-rendering it would ship a zero that then flickers,
  * because the store is `localStorage`.
  *
+ * `countRequestCartLines`, not `readRequestCart`: the counting path is read-only. The
+ * repairing read writes on repair and clears on reset, and because this badge is in the
+ * shared chrome it mounts before `/gui-yeu-cau`'s own effect — so reading through that
+ * path would consume a corrupt payload and leave the cart view with an empty cart and
+ * no reset to explain.
+ *
  * `data-request-cart-count` is the existing QA hook and keeps its name.
  */
 export function CommerceRequestBadge() {
   const [lineCount, setLineCount] = useState(0);
 
   useEffect(() => {
-    const sync = () => setLineCount(readRequestCart(window.localStorage).state.lines.length);
+    const sync = () => setLineCount(countRequestCartLines(window.localStorage));
     sync();
     // `key === null` is a whole-store clear, which also invalidates the count.
     const handleStorage = (event: StorageEvent) => {

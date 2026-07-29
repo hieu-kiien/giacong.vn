@@ -1,11 +1,24 @@
 /*
  * Commerce design foundation.
  *
- * Values are the measured ones in `docs/research/DESIGN_TOKENS.md`, taken from the
- * approved 1672 × 941 screenshots. They are namespaced `commerce-*` on purpose:
- * the existing `brand-*` ramp in `globals.css` styles the captured storefront and
- * `/quan-tri`, and re-pointing it would restyle 237 captured routes. The two
- * palettes coexist until the captured surfaces are retired.
+ * `--color-commerce-brand` is the real giacong.vn green. Every captured page embeds
+ * the site's own Flatsome block inline in its HTML — `:root {--primary-color: #5aa400}`
+ * plus `.header-bg-color {background-color: #5aa400}` — so `#5aa400` is what the ~234
+ * captured routes actually render, and the product and service routes now match it
+ * instead of approximating it. This supersedes the measured `#2f9e0b` in
+ * `docs/research/DESIGN_TOKENS.md` and the approved screenshots `SCR-01`…`SCR-04`,
+ * which were taken before the captured pages were the reference.
+ *
+ * `brand-dark` is derived from it rather than measured: `#457f00` is the same hue at
+ * 25% lightness, chosen because it clears 4.5:1 on white (the brand green itself is
+ * 3.1:1, too low for body text). It carries text, links and focus rings; the brand
+ * green carries fills.
+ *
+ * The remaining values are the measured ones in `docs/research/DESIGN_TOKENS.md`. The
+ * `activeSurface` and `supportStrip` tints are within 1/255 of low-alpha `#5aa400` over
+ * white, so they needed no change. Names stay `commerce-*`: the `brand-*` ramp in
+ * `globals.css` is read by the four `components/storefront/` components until phase C
+ * deletes them, so the two palettes coexist until then.
  *
  * Imported from `globals.css` rather than the commerce layout, because Tailwind
  * only collects `@theme`/`@utility` from the stylesheet that pulls in
@@ -17,8 +30,8 @@
  */
 
 @theme {
-  --color-commerce-brand: #2f9e0b;
-  --color-commerce-brand-dark: #237a08;
+  --color-commerce-brand: #5aa400;
+  --color-commerce-brand-dark: #457f00;
   --color-commerce-active-surface: #f1f8ec;
   --color-commerce-support-strip: #f4faea;
   --color-commerce-price: #ef1726;
@@ -78,9 +91,14 @@
 /*
  * Product imagery sits on a warm surface rather than a gray placeholder box, per
  * the token note. The hue is passed in by the caller.
+ *
+ * The box is square because the shop archive giacong.vn serves is: Flatsome's
+ * `.has-equal-box-heights .box-image` sets `padding-top: 100%`. That supersedes
+ * the 1.25:1 ratio measured for `SCR-03`, which predates the captured pages being
+ * the reference.
  */
 @utility commerce-image-frame {
-  aspect-ratio: 5 / 4;
+  aspect-ratio: 1 / 1;
   border-radius: calc(var(--radius-commerce-card) - 1px);
   object-fit: cover;
   overflow: hidden;

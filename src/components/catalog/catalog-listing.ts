@@ -72,7 +72,7 @@ export interface CatalogCardView {
   purchase: CatalogCardPurchaseRule | null;
   slug: string;
   specLabel: string;
-  startingPrice: number;
+  startingPrice: number | null;
   /** Tier rows exactly as published; empty when the source has none. */
   tierPrices: readonly CatalogTierPrice[];
   unitLabel: string | null;
@@ -119,7 +119,7 @@ export function buildCatalogCard(product: CatalogCardSource, index = 0): Catalog
     purchase,
     slug: product.slug,
     specLabel: specLabel(product, priceVariant),
-    startingPrice: product.startingPrice.price,
+    startingPrice: product.startingPrice?.price ?? null,
     tierPrices: priceVariant?.tierPrices ?? [],
     unitLabel: priceVariant?.unit ?? null,
   };
@@ -219,7 +219,8 @@ function compareProducts(
     case "id":
       return left.id - right.id;
     case "starting_price":
-      return left.startingPrice.price - right.startingPrice.price || left.id - right.id;
+      return (left.startingPrice?.price ?? Number.POSITIVE_INFINITY)
+        - (right.startingPrice?.price ?? Number.POSITIVE_INFINITY) || left.id - right.id;
     case "variant_count":
       return left.variantCount - right.variantCount || left.id - right.id;
     default:

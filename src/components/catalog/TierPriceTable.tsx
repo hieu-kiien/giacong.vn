@@ -18,12 +18,12 @@ interface TierPriceTableProps {
 export function TierPriceTable({ activeMinQuantity, rows, variantLabel }: TierPriceTableProps) {
   return (
     <table className={styles.tierTable}>
-      <caption>Giá theo số lượng — {variantLabel}</caption>
+      <caption><span className={styles.purchaseStep}>2</span> Bảng giá theo số lượng ({variantLabel})</caption>
       <thead>
         <tr>
           <th scope="col">Số lượng</th>
           <th scope="col">Đơn giá</th>
-          <th scope="col">Tiết kiệm</th>
+          <th scope="col">Ưu đãi</th>
         </tr>
       </thead>
       <tbody>
@@ -35,8 +35,10 @@ export function TierPriceTable({ activeMinQuantity, rows, variantLabel }: TierPr
           >
             <th data-label="Số lượng" scope="row">{row.quantityLabel}</th>
             <td data-label="Đơn giá">{row.priceLabel}</td>
-            <td data-label="Tiết kiệm">
-              {row.savingPercent === null ? <span aria-hidden="true">—</span> : `−${row.savingPercent}%`}
+            <td data-label="Ưu đãi">
+              {row.savingPercent === null
+                ? <span aria-hidden="true">—</span>
+                : <span className={styles.tierSaving}>Giảm {row.savingPercent}%</span>}
             </td>
           </tr>
         ))}

@@ -12,6 +12,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 ## Decision source
 
 - [docs/COMMERCE_PLATFORM_MASTER_PLAN.md](docs/COMMERCE_PLATFORM_MASTER_PLAN.md) is the only current decision source.
+- [docs/README.md](docs/README.md) is the documentation index; keep new material under its existing categories.
 - `docs/research/` and `docs/design-references/` are historical research evidence, not target scope or product decisions.
 - [docs/UI_CURRENT_MAP.md](docs/UI_CURRENT_MAP.md) and [docs/ORIGINAL_GIACONG_VN_MAP.md](docs/ORIGINAL_GIACONG_VN_MAP.md) describe the current and pre-clone interfaces as observed. They are descriptive only; the target sitemap is in the master plan.
 - [docs/GOOGLE_SHEETS_CONTACT_WEBHOOK.md](docs/GOOGLE_SHEETS_CONTACT_WEBHOOK.md) describes the current webhook and its implemented 15-column intake schema; Sheet operations and handoff remain in the master plan.
@@ -23,7 +24,15 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - `npm run lint` — ESLint
 - `npm run typecheck` — Next type generation and TypeScript
 - `npm run build` — production build
-- `npm run check` — contact tests, lint, typecheck and build
+- `npm run check` — contact tests, lint, typecheck and build; the full gate every phase must end on
+- `npm run check:fe` — frontend track only: commerce/header/listing/detail/card tests, lint, typecheck
+- `npm run check:be` — backend track only: contact/catalog/service tests, lint, typecheck
+
+Neither `check:fe` nor `check:be` includes a `qa:*` harness. The Playwright suites are the only thing that catches a chrome regression, so run the relevant one explicitly.
+
+## Frontend and backend tracks
+
+The split is by work track, not by directory — the tree stays as it is. FE owns `src/app/**` except `api/`, plus `src/components/**`, `src/styles/**`, `src/app/globals.css`, `src/app/(storefront)/captured-layers.css`, `public/styles/**` and `src/data/pages/**`. BE owns `src/app/api/**`, the `server-only` modules in `src/lib/` and `bagisto/`. See section 11 of the master plan for the module list, the three seam pairs that must be edited together, and why `contact-webhook.ts` and `request-cart.ts` deliberately carry no `server-only` guard.
 
 ## Code style
 
@@ -34,7 +43,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 ## Lean V1 boundaries
 
-- Bagisto admin is the long-term administration surface. `/quan-tri` is frozen for compatibility/security; do not expand it.
+- Bagisto admin is the only administration surface. The duplicate Next.js `/quan-tri` UI and its BFF were removed; do not recreate them.
 - Never write directly to Bagisto core tables.
 - There are no customer accounts, checkout, `/thanh-toan`, payment, Bagisto order, shipping or quote engine in V1.
 - The guest cart is in scope but preview-only: `localStorage` on the client, no server cart state and no cart table. `/gui-yeu-cau` is the only cart route. The server re-reads Bagisto to revalidate every cart line and computes unit price and totals itself; never trust client-supplied prices or totals.
@@ -56,7 +65,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **giacong.vn** (2265 symbols, 4636 relationships, 167 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **giacong.vn** (2341 symbols, 4799 relationships, 173 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > Index stale? Run `node .gitnexus/run.cjs analyze` from the project root — it auto-selects an available runner. No `.gitnexus/run.cjs` yet? `npx gitnexus analyze` (npm 11 crash → `npm i -g gitnexus`; #1939).
 

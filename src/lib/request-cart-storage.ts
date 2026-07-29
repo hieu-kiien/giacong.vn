@@ -3,6 +3,7 @@
 import type { RequestCartLineKey, RequestCartState } from "../types/request-cart.ts";
 
 export const REQUEST_CART_STORAGE_KEY = "giacong.request-cart.v1";
+export const REQUEST_CART_UPDATED_EVENT = "giacong:request-cart-updated";
 export const REQUEST_CART_SCHEMA_VERSION = 1;
 export const REQUEST_CART_MAX_LINES = 20;
 export const REQUEST_CART_MAX_QUANTITY = 1_000_000;
@@ -87,6 +88,47 @@ export function readRequestCart(storage: ReadableStorage): RequestCartReadResult
   return { dropped, state, status: "repaired" };
 }
 
+/**
+ * Line count only, with no repair and no reset — for surfaces that display the count
+ * without owning the cart, like the header badge.
+ *
+ * `readRequestCart` is the wrong call for those: it writes on repair and clears on
+ * reset. Since the badge is in the shared chrome it mounts before the cart view's own
+ * effect, so reading through the repairing path would consume a corrupt payload and
+ * leave the view with an empty cart and nothing to explain. Counting stays read-only so
+ * exactly one surface — the one that can show a notice — performs the repair.
+ *
+ * An unusable payload counts as zero, which is what the repairing read would have
+ * produced anyway.
+ */
+export function countRequestCartLines(storage: Pick<Storage, "getItem">): number {
+  let raw: string | null;
+  try {
+    raw = storage.getItem(REQUEST_CART_STORAGE_KEY);
+  } catch {
+    return 0;
+  }
+  if (raw === null || byteLength(raw) > REQUEST_CART_MAX_BYTES) return 0;
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return 0;
+  }
+  if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) return 0;
+
+  const candidate = parsed as Record<string, unknown>;
+  if (candidate.schemaVersion !== REQUEST_CART_SCHEMA_VERSION || !Array.isArray(candidate.lines)) return 0;
+
+  const seen = new Set<string>();
+  for (const entry of candidate.lines) {
+    if (seen.size >= REQUEST_CART_MAX_LINES || !isRequestCartLineKey(entry) || seen.has(entry.variantSku)) continue;
+    seen.add(entry.variantSku);
+  }
+  return seen.size;
+}
+
 export function writeRequestCart(storage: WritableStorage, state: RequestCartState): void {
   try {
     storage.setItem(REQUEST_CART_STORAGE_KEY, JSON.stringify({
@@ -98,6 +140,10 @@ export function writeRequestCart(storage: WritableStorage, state: RequestCartSta
       schemaVersion: REQUEST_CART_SCHEMA_VERSION,
       updatedAt: state.updatedAt,
     }));
+
+    if (typeof window !== "undefined" && storage === window.localStorage) {
+      window.dispatchEvent(new Event(REQUEST_CART_UPDATED_EVENT));
+    }
   } catch {
     // A full or blocked storage must never break the storefront; the cart stays in memory.
   }

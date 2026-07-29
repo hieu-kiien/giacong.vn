@@ -23,6 +23,7 @@ function resolvedLine(overrides: Record<string, unknown> = {}): Record<string, u
   return {
     adjustments: [],
     contactFromQuantity: 100,
+    imageUrl: "https://example.test/bot-dinh-duong.jpg",
     isAvailable: true,
     isSubmittable: true,
     lineTotal: 10_800_000,

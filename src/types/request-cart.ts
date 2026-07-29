@@ -31,6 +31,7 @@ export interface RequestCartState {
 export interface ResolvedRequestCartLine {
   adjustments: RequestCartAdjustment[];
   contactFromQuantity: number | null;
+  imageUrl: string | null;
   isAvailable: boolean;
   isSubmittable: boolean;
   lineTotal: number | null;
@@ -74,6 +75,7 @@ export interface RequestCartVariantResolution {
 }
 
 export interface RequestCartProductResolution {
+  imageUrl: string | null;
   name: string;
   slug: string;
   variants: RequestCartVariantResolution[];

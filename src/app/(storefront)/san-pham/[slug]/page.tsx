@@ -24,14 +24,19 @@ export default async function CatalogDetailPage({ params, searchParams }: Catalo
   if (!source) notFound();
 
   const requestedVariant = firstValue((await searchParams).variant);
+  const requestedCartEdit = firstValue((await searchParams).editCart);
   const selectedVariant = source.product.variants.find((variant) => (
     variant.sku === requestedVariant && variant.isAvailable
   ));
+  const editingCartVariantSku = source.product.variants.some((variant) => variant.sku === requestedCartEdit)
+    ? requestedCartEdit
+    : null;
 
   return (
     <CapturedStorefrontTabFrame activePath="/san-pham">
       <ProductDetailPage
         initialVariantSku={selectedVariant?.sku ?? null}
+        editingCartVariantSku={editingCartVariantSku}
         source={source}
         variantQueryWarning={Boolean(requestedVariant && !selectedVariant)}
       />

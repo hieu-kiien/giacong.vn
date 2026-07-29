@@ -67,6 +67,7 @@ function doPost(event) {
       safeText(payload.variant, 160),
       safeQuantity(payload.qty),
     ));
+    refreshSummarySheet();
     return jsonResponse({ ok: true, reference });
   } catch (_error) {
     return jsonResponse({ ok: false, reference: "" });
@@ -139,6 +140,7 @@ function appendCartSubmission(payload) {
       "",
       "",
     ));
+    refreshSummarySheet();
     cache.put(replayKey, reference, CART_REPLAY_TTL_SECONDS);
     return jsonResponse({ ok: true, reference });
   } catch (_error) {
@@ -204,17 +206,37 @@ function setupSummarySheet() {
   const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = spreadsheet.getSheetByName(SUMMARY_SHEET_NAME)
     || spreadsheet.insertSheet(SUMMARY_SHEET_NAME);
-  sheet.clear();
-  sheet.getRange(1, 1, 2, 2).setValues([
-    ["Chỉ số", "Số lượng"],
-    ["Đơn mới", '=COUNTIFS(\'Yêu cầu\'!C:C,"Đặt sản phẩm",\'Yêu cầu\'!L:L,"Mới")'],
-  ]);
-  sheet.getRange(3, 1, 1, 2).setValues([[
-    "Yêu cầu mới",
-    '=COUNTIFS(\'Yêu cầu\'!C:C,"Tư vấn số lượng lớn",\'Yêu cầu\'!L:L,"Mới")+COUNTIFS(\'Yêu cầu\'!C:C,"Tư vấn dịch vụ",\'Yêu cầu\'!L:L,"Mới")',
-  ]]);
+  refreshSummarySheet();
   const protection = sheet.protect().setDescription("Lean V1: Tổng quan chỉ đọc");
   configureProtection(protection);
+}
+
+function refreshSummarySheet() {
+  const contactSheet = getContactSheet();
+  const lastRow = contactSheet.getLastRow();
+  const rows = lastRow < 2
+    ? []
+    : contactSheet.getRange(2, 3, lastRow - 1, 10).getValues();
+  let newOrders = 0;
+  let newConsultations = 0;
+  rows.forEach((row) => {
+    const requestType = row[0];
+    const status = row[9];
+    if (status !== "Mới") return;
+    if (requestType === "Đặt sản phẩm") newOrders += 1;
+    if (requestType === "Tư vấn số lượng lớn" || requestType === "Tư vấn dịch vụ") {
+      newConsultations += 1;
+    }
+  });
+  const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  const summarySheet = spreadsheet.getSheetByName(SUMMARY_SHEET_NAME)
+    || spreadsheet.insertSheet(SUMMARY_SHEET_NAME);
+  summarySheet.clear();
+  summarySheet.getRange(1, 1, 3, 2).setValues([
+    ["Chỉ số", "Số lượng"],
+    ["Đơn mới", newOrders],
+    ["Yêu cầu mới", newConsultations],
+  ]);
 }
 
 function configureProtection(protection) {
@@ -245,6 +267,7 @@ function onEdit(event) {
     }
   }
   sheet.getRange(row, 15).setValue(new Date());
+  refreshSummarySheet();
 }
 
 function validStatusChange(previous, next, assignee) {

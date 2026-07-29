@@ -265,7 +265,7 @@ export function ProductMegaMenu({ menu }: ProductMegaMenuProps) {
                             {item.specificationLabel}
                           </span>
                           <span className="mt-auto text-base font-bold text-commerce-price">
-                            Từ {formatVnd(item.price)}
+                            {item.price === null ? "Liên hệ" : `Từ ${formatVnd(item.price)}`}
                           </span>
                         </span>
                       </Link>

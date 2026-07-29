@@ -9,9 +9,10 @@ import {
   readJsonBody,
   resolveRequestCart,
 } from "./request-cart.ts";
-import type { RequestCartResolver, ResolvedRequestCart } from "../types/request-cart.ts";
+import type { RequestCartLineKey, RequestCartResolver, ResolvedRequestCart } from "../types/request-cart.ts";
 
 export interface ContactWebhookDependencies {
+  cartBatchResolver?: (lines: RequestCartLineKey[]) => Promise<ResolvedRequestCart>;
   cartResolver?: RequestCartResolver;
   environment: Readonly<Record<string, string | undefined>>;
   fetch?: typeof globalThis.fetch;
@@ -105,7 +106,10 @@ function parseSubmission(formData: FormData): ContactSubmission {
   };
 }
 
-function validateSubmission(submission: ContactSubmission): Partial<Record<keyof ContactSubmission, string>> {
+function validateSubmission(
+  submission: ContactSubmission,
+  requireEmail = false,
+): Partial<Record<keyof ContactSubmission, string>> {
   const errors: Partial<Record<keyof ContactSubmission, string>> = {};
   const normalizedPhone = submission.phone.replace(/[\s().-]/g, "");
 
@@ -115,7 +119,9 @@ function validateSubmission(submission: ContactSubmission): Partial<Record<keyof
   if (!/^\+?\d{8,15}$/.test(normalizedPhone)) {
     errors.phone = "Số điện thoại không hợp lệ.";
   }
-  if (submission.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(submission.email)) {
+  if (requireEmail && !submission.email) {
+    errors.email = "Vui lòng nhập địa chỉ email.";
+  } else if (submission.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(submission.email)) {
     errors.email = "Địa chỉ email không hợp lệ.";
   }
 
@@ -331,15 +337,18 @@ async function resolveCartPayload(
   if (!parsedLines.ok) return failure(parsedLines.message, 400);
 
   const submission = parseJsonSubmission(payload);
-  const errors = validateSubmission(submission);
+  const errors = validateSubmission(submission, true);
   if (Object.keys(errors).length > 0) return validationFailure(errors);
-
-  const resolver = dependencies.cartResolver;
-  if (!resolver) return failure("Không thể xác thực giỏ yêu cầu. Vui lòng thử lại.", 502);
 
   let cart: ResolvedRequestCart;
   try {
-    cart = await resolveRequestCart(parsedLines.lines, resolver);
+    if (dependencies.cartBatchResolver) {
+      cart = await dependencies.cartBatchResolver(parsedLines.lines);
+    } else if (dependencies.cartResolver) {
+      cart = await resolveRequestCart(parsedLines.lines, dependencies.cartResolver);
+    } else {
+      return failure("Không thể xác thực giỏ yêu cầu. Vui lòng thử lại.", 502);
+    }
   } catch {
     return failure("Không thể xác thực giỏ yêu cầu. Vui lòng thử lại.", 502);
   }

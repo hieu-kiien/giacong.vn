@@ -13,9 +13,9 @@ flowchart TB
   Home --> CapturedHome["HTML capture: hero, giới thiệu, dịch vụ, tin tức, logo/đối tác"]
   Catalog --> ProductList["Tìm kiếm · lọc · lưới · phân trang"]
   ProductList --> ProductDetail["/san-pham/[slug] — biến thể, MOQ, giá bậc, CTA"]
-  Services --> ServiceSearch["Tìm kiếm + lọc theo 6 nhóm"]
+  Services --> ServiceSearch["Tìm kiếm + lọc theo 13 nhóm"]
   ServiceSearch --> Families["/thue-gia-cong/[family]"]
-  Families --> Offerings["38 dịch vụ/link chuyên biệt"]
+  Families --> Offerings["69 dịch vụ/link chuyên biệt"]
   Contact --> ContactForm["Form capture → /api/contact"]
 
   CapturedRoutes["237 trang HTML capture"] --> CatchAll["/[...slug]"]
@@ -28,11 +28,10 @@ flowchart TB
 |---|---:|---|
 | Trang clone tĩnh | 237 URL | `src/data/pages/*.json` và route `/(storefront)/[...slug]` |
 | Danh mục sản phẩm | `/san-pham` và trang chi tiết | Tìm kiếm, lọc, lưới, phân trang, biến thể, MOQ, giá bậc |
-| Nhóm dịch vụ | 6 nhóm | Đồ uống & sữa; Sấy; Thực phẩm/bột/gia vị; Trà/cà phê/dược liệu; Mỹ phẩm; Đóng gói |
-| Link dịch vụ | 38 link | Danh sách/lọc ở `/thue-gia-cong` và trang nhóm |
+| Nhóm dịch vụ | 13 nhóm | Đọc từ `service-families.ts`; có một nhóm trống đúng theo website gốc |
+| Link dịch vụ | 69 link | Danh sách/lọc ở `/thue-gia-cong` và trang nhóm |
 | Trang liên hệ | `/lien-he` | Form capture; JavaScript gửi tới `/api/contact` |
 | Khung dùng chung | Toàn storefront | Header, mobile menu, sticky header, footer, nút liên hệ nổi |
-| Quản trị nội bộ | `/quan-tri/*` | Đăng nhập, dashboard, danh sách/chi tiết sản phẩm |
 
 ## Cấu trúc thư mục giao diện
 
@@ -60,13 +59,7 @@ src/components/
 
 ```mermaid
 flowchart TD
-  Request["Khách mở URL"] --> IsAdmin{"/quan-tri/*?"}
-  IsAdmin -->|Có| AdminProxy["proxy.ts thêm x-pathname"]
-  AdminProxy --> Login{"Đã đăng nhập?"}
-  Login -->|Không| AdminLogin["/quan-tri/dang-nhap"]
-  Login -->|Có| AdminPages["Dashboard / danh mục / chi tiết sản phẩm"]
-
-  IsAdmin -->|Không| Storefront["(storefront) layout: CSS clone chung"]
+  Request["Khách mở URL"] --> Storefront["(storefront) layout: CSS clone chung"]
   Storefront --> Exact{"URL có route cụ thể?"}
   Exact -->|/| Home["page.tsx → home.json → CapturedPage"]
   Exact -->|/san-pham| ProductList["CatalogList → Bagisto API"]
@@ -87,7 +80,8 @@ flowchart TD
 | `/san-pham/[slug]` | Hiển thị chi tiết một sản phẩm | `CatalogDetail` | Bagisto API; slug legacy có thể redirect vĩnh viễn |
 | `/san-pham/[...path]` | URL catalog nhiều cấp | 404 | Không có UI fallback |
 | `/thue-gia-cong` | Hiển thị directory dịch vụ | `ServiceLanding`, `ServiceDirectory` | `service-families.ts` |
-| `/thue-gia-cong/[family]` | Hiển thị một trong 6 nhóm | `ServiceFamilyDetail` | `service-families.ts` |
+| `/thue-gia-cong/[family]` | Hiển thị một trong 13 nhóm | `ServiceFamilyDetail` | `service-families.ts` |
 | `/lien-he` | Không có route riêng | Rơi vào `[...slug]` | `pages/lien-he.json` |
 | `/gia-cong-sua-hat`, `/dich-vu-say`, `/tin-tuc`, … | Không có route riêng | Rơi vào `[...slug]` | 237 file trong `pages/` |
-| `/quan-tri/*` | UI quản trị nội bộ | `AdminShell` | BFF/Bagisto |
+
+Quản trị nội bộ chỉ thực hiện trong Bagisto Admin. Dự án Next.js không còn route `/quan-tri/*`, BFF quản trị hay proxy dành riêng cho quản trị.

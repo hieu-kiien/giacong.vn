@@ -5,22 +5,38 @@ import test from "node:test";
 const root = new URL("../", import.meta.url);
 
 test("uses the reserved Bagisto development port instead of stale port 8000", async () => {
-  const [environment, bagistoApi, adminBff] = await Promise.all([
+  const [environment, bagistoApi] = await Promise.all([
     readFile(new URL(".env.example", root), "utf8"),
     readFile(new URL("src/lib/bagisto-api.ts", root), "utf8"),
-    readFile(new URL("src/lib/admin-bff.ts", root), "utf8"),
   ]);
 
   assert.match(environment, /BAGISTO_API_URL=http:\/\/127\.0\.0\.1:18001/);
   assert.match(bagistoApi, /DEVELOPMENT_DEFAULT_ORIGIN = "http:\/\/127\.0\.0\.1:18001"/);
-  assert.match(adminBff, /DEFAULT_BASE = "http:\/\/127\.0\.0\.1:18001\/api\/b2b\/admin\/v1"/);
-  assert.doesNotMatch(environment + bagistoApi + adminBff, /127\.0\.0\.1:8000/);
+  assert.doesNotMatch(environment + bagistoApi, /127\.0\.0\.1:8000/);
 });
 
 test("allows the local IP hostname used by the product demo", async () => {
   const nextConfig = await readFile(new URL("next.config.ts", root), "utf8");
 
   assert.match(nextConfig, /allowedDevOrigins:\s*\[[^\]]*"127\.0\.0\.1"/);
+});
+
+test("one public hostname can proxy the native Bagisto admin and its assets", async () => {
+  const [environment, nextConfig, masterPlan] = await Promise.all([
+    readFile(new URL(".env.example", root), "utf8"),
+    readFile(new URL("next.config.ts", root), "utf8"),
+    readFile(new URL("docs/COMMERCE_PLATFORM_MASTER_PLAN.md", root), "utf8"),
+  ]);
+
+  assert.match(environment, /BAGISTO_PROXY_ORIGIN=http:\/\/127\.0\.0\.1:18001/);
+  assert.match(nextConfig, /process\.env\.BAGISTO_PROXY_ORIGIN/);
+  assert.match(nextConfig, /source:\s*"\/admin\/:path\*"/);
+  assert.match(nextConfig, /source:\s*"\/themes\/admin\/:path\*"/);
+  assert.match(nextConfig, /source:\s*"\/storage\/:path\*"/);
+  assert.match(nextConfig, /source:\s*"\/cache\/:path\*"/);
+  assert.doesNotMatch(nextConfig, /localhost:4317/, "the deployment config must remain hostname-agnostic");
+  assert.match(masterPlan, /một origin public/);
+  assert.match(masterPlan, /cổng `8081` đã loại bỏ/i);
 });
 
 test("runs focused contact, catalog, and service tests before lint in the standard check contract", async () => {
@@ -56,7 +72,7 @@ test("uses Webpack for builds inside a Git worktree", async () => {
 test("resolves the Next binary through the package so QA harnesses run in a worktree", async () => {
   const scripts = (await readdir(new URL("scripts/", root)))
     .filter((name) => name.startsWith("verify-") && name.endsWith(".mjs"));
-  assert.ok(scripts.length >= 5, "expected the verify-* QA harnesses to be present");
+  assert.ok(scripts.length >= 4, "expected the storefront verify-* QA harnesses to be present");
 
   for (const name of scripts) {
     const source = await readFile(new URL(`scripts/${name}`, root), "utf8");

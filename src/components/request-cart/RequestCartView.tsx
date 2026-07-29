@@ -33,7 +33,6 @@ export function RequestCartView() {
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const [refreshNonce, setRefreshNonce] = useState(0);
-  const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [accepted, setAccepted] = useState<{ cart: ResolvedRequestCart; reference: string } | null>(null);
   const lastResolved = useRef<ResolvedRequestCart | null>(null);
 
@@ -41,7 +40,6 @@ export function RequestCartView() {
    * This is deliberately post-hydration: localStorage is unavailable during the server render,
    * so the first client render must stay neutral and then mirror the browser-owned cart.
    */
-  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     const read = readRequestCart(window.localStorage);
     setStorageNotice(hydrationNotice(read));
@@ -96,22 +94,12 @@ export function RequestCartView() {
     // `linesKey` is the value identity of the cart lines; `cart` itself changes on every write.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [linesKey, refreshNonce]);
-  /* eslint-enable react-hooks/set-state-in-effect */
 
-  const commitQuantity = useCallback((variantSku: string, raw: string) => {
+  const changeQuantity = useCallback((variantSku: string, quantity: number) => {
     if (!cart) return;
-    const quantity = Number(raw);
     const mutation = setRequestCartQuantity(cart, variantSku, quantity);
-    if (mutation.status !== "ok") {
-      setDrafts((current) => ({ ...current, [variantSku]: String(cart.lines.find((line) => line.variantSku === variantSku)?.quantity ?? "") }));
-      return;
-    }
+    if (mutation.status !== "ok") return;
     writeRequestCart(window.localStorage, mutation.state);
-    setDrafts((current) => {
-      const next = { ...current };
-      delete next[variantSku];
-      return next;
-    });
     setCart(mutation.state);
   }, [cart]);
 
@@ -119,11 +107,6 @@ export function RequestCartView() {
     if (!cart) return;
     const next = removeRequestCartLine(cart, variantSku);
     writeRequestCart(window.localStorage, next);
-    setDrafts((current) => {
-      const remaining = { ...current };
-      delete remaining[variantSku];
-      return remaining;
-    });
     setCart(next);
   }, [cart]);
 
@@ -156,27 +139,9 @@ export function RequestCartView() {
   const lines = cart?.lines ?? [];
 
   return (
-    <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
-      {/*
-        The `!` modifiers below date from when the cloned stylesheets were unlayered and outranked
-        every utility. This route now renders in the `(commerce)` group, which loads none of them,
-        so the modifiers are redundant rather than load-bearing. They are left in place because
-        dropping them is a visual change to verify on its own.
-      */}
-      <nav aria-label="Đường dẫn" className="mb-3 text-sm text-neutral-700">
-        <Link
-          className="text-neutral-700! underline! hover:text-[#327600]! focus-visible:outline-2! focus-visible:outline-offset-2 focus-visible:outline-[#2e90fa]!"
-          href="/san-pham/"
-        >
-          Sản phẩm
-        </Link>
-        <span aria-hidden="true"> / </span>
-        <span>Giỏ yêu cầu</span>
-      </nav>
-      <h1 className="text-[28px] font-bold leading-tight text-neutral-900 sm:text-[36px]">Giỏ yêu cầu đặt hàng</h1>
-      <span aria-hidden="true" className="mt-3 block h-1 w-16 rounded-full bg-[#b54708]" />
+    <div className="w-full py-8">
       <p className="mt-3 max-w-2xl text-sm text-neutral-700 sm:text-base">
-        Đơn giá và tạm tính bên dưới do hệ thống tính lại theo dữ liệu mới nhất, không lấy từ máy của bạn.
+        Giá và tạm tính được hệ thống kiểm tra khi bạn thay đổi số lượng và trước khi gửi yêu cầu.
       </p>
 
       {storageNotice ? (
@@ -204,7 +169,7 @@ export function RequestCartView() {
               <div className="rounded-md border border-red-300 bg-red-50 px-4 py-3" role="alert">
                 <p className="text-sm text-red-800">{error}</p>
                 <button
-                  className="mt-3 min-h-11! rounded-md bg-[#327600]! px-4 text-sm font-semibold text-white! hover:bg-[#285f00]! focus-visible:outline-2! focus-visible:outline-offset-2 focus-visible:outline-[#2e90fa]!"
+                  className="mt-3 min-h-11! rounded-md bg-commerce-brand-dark! px-4 text-sm font-semibold text-white! hover:brightness-90 focus-visible:outline-2! focus-visible:outline-offset-2 focus-visible:outline-[#2e90fa]!"
                   onClick={() => setRefreshNonce((value) => value + 1)}
                   type="button"
                 >
@@ -216,14 +181,12 @@ export function RequestCartView() {
               <p className="text-sm text-neutral-700" role="status">Đang xác thực giỏ yêu cầu...</p>
             ) : null}
             {resolved ? (
-              <ul className="flex flex-col gap-4">
+              <ul className="flex flex-col gap-4 list-none!">
                 {resolved.lines.map((line) => (
                   <CartLine
-                    draft={drafts[line.variantSku]}
                     key={`${line.parentSlug}-${line.variantSku}`}
                     line={line}
-                    onCommit={commitQuantity}
-                    onDraft={(value) => setDrafts((current) => ({ ...current, [line.variantSku]: value }))}
+                    onChangeQuantity={changeQuantity}
                     onRemove={removeLine}
                   />
                 ))}
@@ -231,7 +194,7 @@ export function RequestCartView() {
             ) : null}
           </section>
 
-          {resolved ? <CartSummary cart={resolved} pending={pending} onRefresh={() => setRefreshNonce((value) => value + 1)} /> : null}
+          {resolved ? <CartSummary cart={resolved} /> : null}
         </div>
         {resolved ? (
           <RequestForm
@@ -251,10 +214,10 @@ export function RequestCartView() {
 function EmptyCart() {
   return (
     <div className="mt-6 rounded-lg border border-neutral-200 bg-neutral-50 px-4 py-8 text-center">
-      <p className="text-base font-semibold text-neutral-900">Giỏ yêu cầu đang trống.</p>
-      <p className="mt-2 text-sm text-neutral-700">Chọn sản phẩm và số lượng để thêm vào giỏ yêu cầu.</p>
+      <p className="text-base font-semibold text-neutral-900">Giỏ hàng đang trống.</p>
+      <p className="mt-2 text-sm text-neutral-700">Chọn sản phẩm và số lượng để thêm vào giỏ hàng.</p>
       <Link
-        className="mt-4 inline-flex min-h-11! items-center rounded-md bg-[#327600]! px-5 text-sm font-semibold text-white! hover:bg-[#285f00]! focus-visible:outline-2! focus-visible:outline-offset-2 focus-visible:outline-[#2e90fa]!"
+        className="mt-4 inline-flex min-h-11! items-center rounded-md bg-commerce-brand-dark! px-5 text-sm font-semibold text-white! hover:brightness-90 focus-visible:outline-2! focus-visible:outline-offset-2 focus-visible:outline-[#2e90fa]!"
         data-cta
         href="/san-pham/"
       >
@@ -265,61 +228,66 @@ function EmptyCart() {
 }
 
 interface CartLineProps {
-  draft: string | undefined;
   line: ResolvedRequestCartLine;
-  onCommit: (variantSku: string, raw: string) => void;
-  onDraft: (value: string) => void;
+  onChangeQuantity: (variantSku: string, quantity: number) => void;
   onRemove: (variantSku: string) => void;
 }
 
-function CartLine({ draft, line, onCommit, onDraft, onRemove }: CartLineProps) {
+function CartLine({ line, onChangeQuantity, onRemove }: CartLineProps) {
   const blocking = line.adjustments.filter((adjustment) => adjustment.code !== "PRICE_ON_REQUEST");
   const priceNote = line.adjustments.find((adjustment) => adjustment.code === "PRICE_ON_REQUEST");
   const label = line.productName || line.variantSku;
-  const quantityId = `so-luong-${line.variantSku}`;
+  const variantLabel = conciseVariantLabel(line.productName, line.variantLabel);
+  const quantityStep = line.quantityStep ?? 1;
+  const minimumQuantity = line.minimumOrderQuantity ?? 1;
+  const canDecrease = line.quantity - quantityStep >= minimumQuantity;
 
   return (
     <li className="rounded-lg border border-neutral-200 bg-white p-4" data-cart-line={line.variantSku}>
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="text-base font-semibold text-neutral-900">{line.productName || "Sản phẩm không còn tồn tại"}</p>
-          <p className="mt-1 text-sm text-neutral-700">
-            {line.variantLabel ? line.variantLabel : "Biến thể không xác định"}
-            <span className="text-neutral-500"> · SKU {line.variantSku}</span>
-          </p>
+        <div className="flex min-w-0 items-start gap-3">
+          {line.imageUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img alt={line.productName || "Sản phẩm trong giỏ hàng"} className="size-20 shrink-0 rounded-md border border-neutral-200 object-cover" data-cart-image loading="lazy" src={line.imageUrl} />
+          ) : (
+            <div aria-label="Chưa có ảnh sản phẩm" className="size-20 shrink-0 rounded-md border border-neutral-200 bg-neutral-100" data-cart-image />
+          )}
+          <div className="min-w-0">
+            <p className="text-base font-semibold text-neutral-900">{line.productName || "Sản phẩm không còn tồn tại"}</p>
+            <p className="mt-1 text-sm text-neutral-700">
+              {variantLabel || "Biến thể không xác định"}
+              <span className="text-neutral-500"> · SKU {line.variantSku}</span>
+            </p>
+          </div>
         </div>
-        <button
-          aria-label={`Xóa ${label}${line.variantLabel ? ` - ${line.variantLabel}` : ""} khỏi giỏ yêu cầu`}
-          className="min-h-11! rounded-md border border-neutral-300 px-3 text-sm font-medium text-neutral-800! hover:border-red-400 hover:text-red-700! focus-visible:outline-2! focus-visible:outline-offset-2 focus-visible:outline-[#2e90fa]!"
-          onClick={() => onRemove(line.variantSku)}
-          type="button"
-        >
-          Xóa
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <Link
+            className="inline-flex min-h-11! items-center rounded-md border border-commerce-brand px-3 text-sm font-medium text-commerce-brand-dark! hover:bg-[#eff8e8] focus-visible:outline-2! focus-visible:outline-offset-2 focus-visible:outline-[#2e90fa]!"
+            href={`/san-pham/${line.parentSlug}/?variant=${encodeURIComponent(line.variantSku)}&editCart=${encodeURIComponent(line.variantSku)}`}
+          >
+            Chỉnh sản phẩm
+          </Link>
+          <button
+            aria-label={`Xóa ${label}${line.variantLabel ? ` - ${line.variantLabel}` : ""} khỏi giỏ yêu cầu`}
+            className="min-h-11! rounded-md border border-neutral-300 px-3 text-sm font-medium text-neutral-800! hover:border-red-400 hover:text-red-700! focus-visible:outline-2! focus-visible:outline-offset-2 focus-visible:outline-[#2e90fa]!"
+            onClick={() => onRemove(line.variantSku)}
+            type="button"
+          >
+            Xóa
+          </button>
+        </div>
       </div>
 
       <div className="mt-4 flex flex-wrap items-end gap-x-6 gap-y-3">
         <div data-cart-quantity>
-          <label className="block text-sm font-medium text-neutral-800" htmlFor={quantityId}>
+          <p className="block text-sm font-medium text-neutral-800">
             {`Số lượng${line.unit ? ` (${line.unit})` : ""}`}
-          </label>
-          <input
-            className="mt-1 h-11! w-28 rounded-md border border-neutral-300 px-3 text-base text-neutral-900 focus-visible:outline-2! focus-visible:outline-offset-2 focus-visible:outline-[#2e90fa]!"
-            id={quantityId}
-            inputMode="numeric"
-            min={line.minimumOrderQuantity ?? 1}
-            onBlur={(event) => onCommit(line.variantSku, event.target.value)}
-            onChange={(event) => onDraft(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === "Enter") {
-                event.preventDefault();
-                onCommit(line.variantSku, event.currentTarget.value);
-              }
-            }}
-            step={line.quantityStep ?? 1}
-            type="number"
-            value={draft ?? String(line.quantity)}
-          />
+          </p>
+          <div className="mt-1 inline-flex h-11 overflow-hidden rounded-md border border-neutral-300 bg-white">
+            <button aria-label={`Giảm số lượng ${label}`} className="min-h-11! w-11 border-r border-neutral-300 text-lg font-semibold text-neutral-800! hover:bg-neutral-50 disabled:cursor-not-allowed disabled:text-neutral-400!" disabled={!canDecrease} onClick={() => onChangeQuantity(line.variantSku, line.quantity - quantityStep)} type="button">−</button>
+            <output className="flex min-w-16 items-center justify-center px-3 text-base font-semibold text-neutral-900">{line.quantity}</output>
+            <button aria-label={`Tăng số lượng ${label}`} className="min-h-11! w-11 border-l border-neutral-300 text-lg font-semibold text-neutral-800! hover:bg-neutral-50" onClick={() => onChangeQuantity(line.variantSku, line.quantity + quantityStep)} type="button">+</button>
+          </div>
         </div>
         <p className="text-sm text-neutral-700">
           <span className="block text-neutral-600">Đơn giá</span>
@@ -353,17 +321,20 @@ function CartLine({ draft, line, onCommit, onDraft, onRemove }: CartLineProps) {
   );
 }
 
+function conciseVariantLabel(productName: string, variantLabel: string): string {
+  const prefix = `${productName} — `;
+  return productName && variantLabel.startsWith(prefix) ? variantLabel.slice(prefix.length) : variantLabel;
+}
+
 interface CartSummaryProps {
   cart: ResolvedRequestCart;
-  onRefresh: () => void;
-  pending: boolean;
 }
 
 /**
  * Sticky only from `lg`, and never taller than the viewport, so it can never hide its own
  * controls or the content beside it. Below `lg` it stays in flow.
  */
-function CartSummary({ cart, onRefresh, pending }: CartSummaryProps) {
+function CartSummary({ cart }: CartSummaryProps) {
   return (
     <aside
       aria-label="Tạm tính giỏ yêu cầu"
@@ -397,14 +368,6 @@ function CartSummary({ cart, onRefresh, pending }: CartSummaryProps) {
           Vui lòng sửa hoặc xóa dòng chưa hợp lệ trước khi gửi yêu cầu.
         </p>
       )}
-      <button
-        className="mt-4 min-h-11! w-full rounded-md border border-neutral-300 px-4 text-sm font-semibold text-neutral-800! hover:border-[#5aa400] hover:text-[#327600]! focus-visible:outline-2! focus-visible:outline-offset-2 focus-visible:outline-[#2e90fa]! disabled:border-neutral-200 disabled:text-neutral-600! disabled:opacity-100!"
-        disabled={pending}
-        onClick={onRefresh}
-        type="button"
-      >
-        {pending ? "Đang cập nhật giá..." : "Làm mới giá"}
-      </button>
     </aside>
   );
 }

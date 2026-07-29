@@ -13,6 +13,12 @@ interface CommerceShellProps {
   children: ReactNode;
   className?: string;
   /**
+   * Closing slot. Composed by the caller like the header, which is also what keeps
+   * the contentinfo landmark element itself in `CommerceFooter.tsx` rather than
+   * here — the foundation contract asserts this file declares none.
+   */
+  footer?: ReactNode;
+  /**
    * Header slot. The shell owns the landmarks and the skip target; the header
    * itself is composed by the caller so the shell stays independent of it.
    */
@@ -31,7 +37,7 @@ interface CommerceShellProps {
  *
  * It owns the only `<main>` on a commerce route, so pages render sections.
  */
-export function CommerceShell({ children, className, header, support }: CommerceShellProps) {
+export function CommerceShell({ children, className, footer, header, support }: CommerceShellProps) {
   return (
     <div className={cn("min-h-dvh bg-white text-commerce-body", className)}>
       <a
@@ -43,6 +49,7 @@ export function CommerceShell({ children, className, header, support }: Commerce
       {header}
       <main id={COMMERCE_MAIN_ID}>{children}</main>
       {support}
+      {footer}
     </div>
   );
 }

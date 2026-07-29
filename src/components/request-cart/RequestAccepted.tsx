@@ -70,7 +70,7 @@ export function RequestAccepted({ cart, reference }: RequestAcceptedProps) {
             <li key={channel.id}>
               {channel.copyFirst ? (
                 <button
-                  className="flex min-h-12! w-full items-center justify-between gap-3 rounded-md border border-neutral-300 px-4 text-left text-sm font-semibold text-neutral-900! hover:border-[#5aa400] hover:text-[#327600]! focus-visible:outline-2! focus-visible:outline-offset-2 focus-visible:outline-[#2e90fa]!"
+                  className="flex min-h-12! w-full items-center justify-between gap-3 rounded-md border border-neutral-300 px-4 text-left text-sm font-semibold text-neutral-900! hover:border-commerce-brand hover:text-commerce-brand-dark! focus-visible:outline-2! focus-visible:outline-offset-2 focus-visible:outline-[#2e90fa]!"
                   data-channel={channel.id}
                   onClick={() => void openChannel(channel)}
                   type="button"
@@ -80,7 +80,7 @@ export function RequestAccepted({ cart, reference }: RequestAcceptedProps) {
                 </button>
               ) : (
                 <a
-                  className="flex min-h-12! w-full items-center justify-between gap-3 rounded-md border border-neutral-300 px-4 text-sm font-semibold text-neutral-900! hover:border-[#5aa400] hover:text-[#327600]! focus-visible:outline-2! focus-visible:outline-offset-2 focus-visible:outline-[#2e90fa]!"
+                  className="flex min-h-12! w-full items-center justify-between gap-3 rounded-md border border-neutral-300 px-4 text-sm font-semibold text-neutral-900! hover:border-commerce-brand hover:text-commerce-brand-dark! focus-visible:outline-2! focus-visible:outline-offset-2 focus-visible:outline-[#2e90fa]!"
                   data-channel={channel.id}
                   data-cta
                   href={channelHref(channel, reference, message)}
@@ -111,7 +111,7 @@ export function RequestAccepted({ cart, reference }: RequestAcceptedProps) {
       </section>
 
       <Link
-        className="mt-6 inline-flex min-h-11! items-center rounded-md border border-neutral-300 px-5 text-sm font-semibold text-neutral-800! hover:border-[#5aa400] hover:text-[#327600]! focus-visible:outline-2! focus-visible:outline-offset-2 focus-visible:outline-[#2e90fa]!"
+        className="mt-6 inline-flex min-h-11! items-center rounded-md border border-neutral-300 px-5 text-sm font-semibold text-neutral-800! hover:border-commerce-brand hover:text-commerce-brand-dark! focus-visible:outline-2! focus-visible:outline-offset-2 focus-visible:outline-[#2e90fa]!"
         data-cta
         href="/san-pham/"
       >

@@ -7,12 +7,14 @@ const {
   REQUEST_CART_MAX_QUANTITY,
   REQUEST_CART_SCHEMA_VERSION,
   REQUEST_CART_STORAGE_KEY,
+  REQUEST_CART_UPDATED_EVENT,
   emptyRequestCart,
   readRequestCart,
   removeRequestCartLine,
   setRequestCartQuantity,
   toRequestCartKeys,
   upsertRequestCartLine,
+  countRequestCartLines,
   writeRequestCart,
 } = await import("../src/lib/request-cart-storage" + ".ts");
 
@@ -245,4 +247,55 @@ test("exposes only the minimal server key for each line", () => {
     quantity: 15,
     variantSku: "B2B-DEMO-VANILLA",
   }]);
+});
+
+/**
+ * The header badge needs a line count on every route, including `/gui-yeu-cau`. It must
+ * not get that count through `readRequestCart`, because that call repairs and resets —
+ * and the badge mounts before the cart view's effect, so its write would consume the
+ * corrupt payload and leave the view with nothing to explain to the customer.
+ */
+test("counting lines never writes to or clears storage", () => {
+  for (const payload of ["{not json", stored([validLine], { schemaVersion: 99 }), stored("nope")]) {
+    const storage = new FakeStorage(payload);
+    assert.equal(countRequestCartLines(storage), 0, "an unusable payload counts as no lines");
+    assert.deepEqual(storage.writes, [], "counting must not write");
+    assert.deepEqual(storage.removals, [], "counting must not clear");
+    assert.equal(storage.getItem(REQUEST_CART_STORAGE_KEY), payload, "the payload survives for the cart view to report");
+  }
+});
+
+test("counting lines agrees with the sanitised read for usable carts", () => {
+  const partiallyValid = stored([validLine, { parentSlug: "", quantity: 0, variantSku: "" }]);
+  for (const payload of [undefined, stored([]), stored([validLine]), partiallyValid]) {
+    const counter = new FakeStorage(payload);
+    const reader = new FakeStorage(payload);
+    assert.equal(countRequestCartLines(counter), readRequestCart(reader).state.lines.length);
+    assert.deepEqual(counter.writes, [], "counting must not write even when the read repairs");
+  }
+});
+
+test("a successful browser write announces the updated cart in the same tab", () => {
+  const storage = new FakeStorage();
+  const events: string[] = [];
+  const previousWindow = Object.getOwnPropertyDescriptor(globalThis, "window");
+
+  Object.defineProperty(globalThis, "window", {
+    configurable: true,
+    value: {
+      dispatchEvent(event: Event) {
+        events.push(event.type);
+        return true;
+      },
+      localStorage: storage,
+    },
+  });
+
+  try {
+    writeRequestCart(storage, upsertRequestCartLine(emptyRequestCart(), validLine).state);
+    assert.deepEqual(events, [REQUEST_CART_UPDATED_EVENT]);
+  } finally {
+    if (previousWindow) Object.defineProperty(globalThis, "window", previousWindow);
+    else Reflect.deleteProperty(globalThis, "window");
+  }
 });

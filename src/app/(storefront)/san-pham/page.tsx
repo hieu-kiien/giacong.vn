@@ -9,7 +9,7 @@ import {
 } from "@/components/catalog/catalog-listing";
 import { getCatalogCategories, getCatalogProducts } from "@/lib/bagisto-catalog";
 import { parseCatalogFilters } from "@/lib/catalog-query";
-import { demoCatalogFallbackAllowed, waitForDemoCatalogFallback } from "@/lib/demo-catalog-policy";
+import { demoCatalogFallbackAllowed, demoCatalogForced, waitForDemoCatalogFallback } from "@/lib/demo-catalog-policy";
 import type { CatalogCategory, CatalogFilters, CatalogPagination } from "@/types/catalog";
 
 export const metadata: Metadata = {
@@ -53,6 +53,8 @@ export default async function CatalogPage({ searchParams }: PageProps<"/san-pham
  * of inventing a variant key.
  */
 async function loadCatalog(filters: CatalogFilters): Promise<CatalogPageData> {
+  if (demoCatalogForced(process.env)) return demoCatalogData(filters);
+
   try {
     const [categories, result] = await waitForDemoCatalogFallback(
       Promise.all([getCatalogCategories(), getCatalogProducts(filters)]),
@@ -67,12 +69,16 @@ async function loadCatalog(filters: CatalogFilters): Promise<CatalogPageData> {
   } catch (error) {
     if (!demoCatalogFallbackAllowed(process.env)) throw error;
     console.warn("Catalog feed unavailable; serving the isolated demo fixture.", error);
-    const demo = demoCatalogList(filters);
-    return {
-      cards: buildCatalogCards(demo.products),
-      categories: demoCatalogCategories(),
-      isDemoData: true,
-      pagination: demo.pagination,
-    };
+    return demoCatalogData(filters);
   }
+}
+
+function demoCatalogData(filters: CatalogFilters): CatalogPageData {
+  const demo = demoCatalogList(filters);
+  return {
+    cards: buildCatalogCards(demo.products),
+    categories: demoCatalogCategories(),
+    isDemoData: true,
+    pagination: demo.pagination,
+  };
 }

@@ -38,7 +38,7 @@ export const COMMERCE_NAV_ITEMS: readonly CommerceNavItem[] = [
   { href: "/", label: "Trang chủ" },
   { hasMegaMenu: true, href: "/san-pham/", label: "Mua hàng" },
   { href: "/thue-gia-cong/", label: "Thuê gia công" },
-  { href: "/gioi-thieu-ve-gia-cong/", label: "Giới thiệu" },
+  { href: "/gioi-thieu-ve-gia-cong/", label: "Về Giacong.vn" },
   { href: "/tin-tuc/", label: "Tin tức" },
   { href: "/lien-he/", label: "Liên hệ" },
 ];
@@ -149,7 +149,7 @@ export interface CommerceMenuFeaturedItem {
   categorySlug: string;
   imageUrl: string | null;
   name: string;
-  price: number;
+  price: number | null;
   productSlug: string;
   specificationLabel: string;
 }
@@ -219,7 +219,7 @@ export function buildCommerceMegaMenu({
     categorySlug: activeSlug,
     imageUrl: product.imageUrl,
     name: product.name,
-    price: product.startingPrice.price,
+    price: product.startingPrice?.price ?? null,
     productSlug: product.slug,
     specificationLabel: product.shortDescription,
   }));

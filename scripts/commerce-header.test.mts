@@ -35,6 +35,9 @@ const FORBIDDEN_SURFACE_PATTERN =
 /** Every file this feature owns. */
 const CHROME_FILES = [
   "CommerceHeader.tsx",
+  "CommerceTabHeader.tsx",
+  "ScopedCommerceHeader.tsx",
+  "CommerceFooter.tsx",
   "ProductMegaMenu.tsx",
   "MobileCommerceNav.tsx",
   "CommerceFloatingContacts.tsx",
@@ -58,7 +61,7 @@ test("header navigation is the locked six actions and every target resolves", ()
   assert.equal(items.length, 6, "the header carries six navigation actions");
   assert.deepEqual(
     items.map((item: { label: string }) => item.label),
-    ["Trang chủ", "Mua hàng", "Thuê gia công", "Giới thiệu", "Tin tức", "Liên hệ"],
+    ["Trang chủ", "Mua hàng", "Thuê gia công", "Về Giacong.vn", "Tin tức", "Liên hệ"],
     "the five labels locked by qa:services, plus the reference's sixth action",
   );
 
@@ -257,7 +260,7 @@ test("the header shares the storefront green tone and desktop rhythm on the cont
   const header = await chromeSource("CommerceHeader.tsx");
 
   assert.match(header, /export function CommerceHeader/);
-  assert.match(header, /bg-brand-700\b/, "the band uses the same storefront green token as the other tabs");
+  assert.match(header, /bg-commerce-brand\b/, "the band uses the live giacong.vn green from the commerce palette");
   assert.match(header, /h-commerce-header\b/, "desktop uses the shared storefront-height rhythm");
   assert.match(header, /h-commerce-header-compact/, "390/320 keeps the compact band so the header never overflows");
   assert.match(header, /CommerceRail/, "the header content sits on the shared 1390px rail");
@@ -271,6 +274,7 @@ test("the desktop header carries the 4326 source hierarchy without importing its
   assert.match(header, /lg:grid-cols-\[1fr_auto_1fr\]/, "desktop navigation balances around a centred wordmark");
   assert.match(header, /justify-self-center/, "the wordmark stays centred independently of side actions");
   assert.match(header, /sourceLeftNavItems/, "the source's left navigation group is explicit");
+  assert.match(header, /item\.label === "Về Giacong\.vn"/, "the about tab stays in the desktop left navigation");
   assert.match(header, /sourceRightNavItems/, "the source's right navigation group is explicit");
 });
 
@@ -465,16 +469,191 @@ test("the support strip is the pale B2B band and carries the hotline", async () 
 });
 
 // ---------------------------------------------------------------------------
+// 6b. Footer
+//
+// Rebuilt in Tailwind from the four-column footer the captured pages carry, so
+// the product and service routes close the same way the rest of the site does
+// without importing the captured cascade. The contact block reads the shared
+// navigation data rather than the captured markup: those captured values are the
+// real business's own phone, mail and addresses, and the master plan publishes a
+// separate demo set for the request handoff.
+// ---------------------------------------------------------------------------
+
+test("the footer owns the landmark and rebuilds the four captured columns", async () => {
+  const footer = await chromeSource("CommerceFooter.tsx");
+
+  assert.match(footer, /export function CommerceFooter/);
+  assert.match(footer, /<footer\b/, "the footer element lives here, not in the shell");
+  assert.match(footer, /CommerceRail/, "the footer sits on the shared rail");
+  assert.match(footer, /Các dịch vụ chính/, "the service column keeps its captured heading");
+  assert.match(footer, /Chính sách chung/, "the policy column keeps its captured heading");
+  assert.match(footer, /chinh-sach-bao-mat/, "the one policy page that exists is linked");
+});
+
+test("the footer reads its contact values from the shared navigation data", async () => {
+  const footer = await chromeSource("CommerceFooter.tsx");
+
+  assert.match(footer, /COMMERCE_CONTACT_CHANNELS/, "the contact block reuses the approved channels");
+  // The captured footer's own hotline, mail and two site addresses belong to the
+  // real business. Asserted as absent so they cannot be copied back in later.
+  for (const captured of ["0947142999", "info@giacong.vn", "Trần Hưng Đạo", "Đồng Văn"]) {
+    assert.doesNotMatch(
+      footer,
+      new RegExp(captured.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")),
+      `the footer must not carry the captured value ${captured}`,
+    );
+  }
+  // The badge and social markup, not the prose explaining why they were dropped.
+  assert.doesNotMatch(footer, /images\.dmca\.com|www\.dmca\.com/i, "no third-party badge asset is bundled");
+  assert.doesNotMatch(footer, /href="#"|href="http:\/\/url"/, "no dead link is rebuilt");
+});
+
+// ---------------------------------------------------------------------------
 // 7. Wiring and guard rails
 // ---------------------------------------------------------------------------
 
 test("the commerce layout mounts the new chrome instead of the captured header", async () => {
   const layout = await readSource("src", "app", "(commerce)", "layout.tsx");
 
-  assert.match(layout, /CommerceHeader/, "the layout mounts the commerce header");
+  assert.match(layout, /ScopedCommerceHeader/, "the layout mounts the route-scoped commerce header");
   assert.doesNotMatch(layout, /StorefrontHeader/, "the captured storefront header is no longer reused here");
   assert.match(layout, /CommerceShell/, "the clean shell still owns the landmarks");
   assert.match(layout, /CommerceFloatingContacts/, "the shell support slot carries the floating contacts");
+  assert.match(layout, /CommerceFooter/, "the shell footer slot carries the rebuilt footer");
+});
+
+test("the captured floating rail places a live request cart above the phone action", async () => {
+  const [capturedPage, cartButton, cartStyles] = await Promise.all([
+    readSource("src", "components", "CapturedPage.tsx"),
+    readSource("src", "components", "request-cart", "CapturedRequestCartButton.tsx"),
+    readSource("src", "components", "request-cart", "CapturedRequestCartButton.module.css"),
+  ]);
+
+  assert.ok(
+    capturedPage.indexOf("<CapturedRequestCartButton") < capturedPage.indexOf('className="phonering-alo-alo"'),
+    "the cart action must be the first item in the captured floating rail",
+  );
+  assert.match(cartButton, /href="\/gui-yeu-cau\/"/, "the action opens the only request-cart route");
+  assert.match(cartButton, /countRequestCartLines/, "the badge reads the locked cart count");
+  assert.match(cartButton, /REQUEST_CART_UPDATED_EVENT/, "same-tab cart writes refresh the badge");
+  assert.match(cartButton, /aria-label=.*Giỏ hàng/, "the icon-only action has an accessible name");
+  assert.match(cartButton, /CapturedRequestCartButton\.module\.css/, "the captured cascade is isolated behind a CSS module");
+  assert.match(cartStyles, /height:\s*45px/, "the cart action matches the contact buttons");
+  assert.match(cartStyles, /background-color:\s*#5aa400/, "the cart action uses the storefront green");
+});
+
+test("only the catalog and service tabs switch to the reference-aligned header", async () => {
+  const scopedHeader = await chromeSource("ScopedCommerceHeader.tsx");
+
+  assert.match(scopedHeader, /^"use client";/m, "the pathname switch runs after navigation");
+  assert.match(scopedHeader, /usePathname/, "the switch reads the current app route");
+  assert.match(scopedHeader, /pathname\.startsWith\("\/san-pham"\)/, "the catalog tab owns the new header");
+  assert.match(scopedHeader, /pathname\.startsWith\("\/thue-gia-cong"\)/, "the service tab owns the new header");
+  assert.match(scopedHeader, /CommerceHeader/, "all other commerce routes retain their existing header");
+  assert.match(scopedHeader, /CommerceTabHeader/, "the two approved tabs render the scoped header");
+});
+
+test("the scoped tab header mirrors the home and contact navigation hierarchy", async () => {
+  const header = await chromeSource("CommerceTabHeader.tsx");
+  const capturedHome = await readSource("src", "data", "pages", "home.json");
+
+  for (const label of ["Home", "Về Giacong.vn", "Sản Phẩm", "Dịch vụ", "Tin tức", "Liên hệ"]) {
+    assert.ok(capturedHome.includes(label), `the captured ${label} tab is present`);
+  }
+  assert.match(header, /capturedHomeHeader/, "the two tabs render the captured navigation hierarchy");
+  assert.match(header, /thue-gia-cong/, "the service tab receives the app's real route");
+});
+
+test("the scoped tab header reuses the captured home chrome rather than redrawing it", async () => {
+  const header = await chromeSource("CommerceTabHeader.tsx");
+
+  assert.match(header, /data\/pages\/home\.json/, "the source is the captured home header");
+  assert.match(header, /dangerouslySetInnerHTML/, "the captured header markup is rendered without redrawing it");
+  assert.match(header, /CommerceTabHeader\.module\.css/, "the captured CSS stays scoped to the two approved tabs");
+});
+
+test("the two index tabs reuse the complete captured News frame before inserting their content", async () => {
+  const frame = await readSource("src", "components", "CapturedNewsFrame.tsx");
+  const shell = await readSource("src", "components", "site", "CapturedStorefrontShell.tsx");
+  const storefrontLayout = await readSource("src", "app", "(storefront)", "layout.tsx");
+  const catalogPage = await readSource("src", "app", "(storefront)", "san-pham", "page.tsx");
+  const servicePage = await readSource("src", "app", "(storefront)", "thue-gia-cong", "page.tsx");
+
+  assert.match(frame, /CapturedStorefrontShell/, "the archive content delegates chrome to the shared shell");
+  assert.match(shell, /data\/pages\/tin-tuc\.json/, "the complete frame is sourced from the News capture");
+  assert.match(shell, /layerCapturedStyles/, "the News page-level stylesheet is retained");
+  assert.match(shell, /normalizeCapturedMarkup/, "the same captured markup normalization is retained");
+  assert.match(shell, /GiacongInteractions/, "the News interactions are retained");
+  assert.match(shell, /current-menu-item\|current_page_item\|current-menu-parent\|active/, "the News active state is cleared");
+  assert.match(shell, /active current-menu-item/, "the current product or service tab receives the source active state");
+  assert.match(storefrontLayout, /captured-layers\.css/, "the two routes inherit the exact News stylesheet cascade");
+  assert.match(catalogPage, /<CapturedNewsFrame activePath="\/san-pham" title="Sản phẩm"/, "the product content is inserted into the News frame");
+  assert.match(servicePage, /<CapturedNewsFrame activePath="\/thue-gia-cong" title="Thuê gia công"/, "the service content is inserted into the News frame");
+});
+
+test("the approved index tabs derive their captured Header and Footer from one shared shell", async () => {
+  const frame = await readSource("src", "components", "CapturedNewsFrame.tsx");
+  const shell = await readSource("src", "components", "site", "CapturedStorefrontShell.tsx");
+  const navigation = await readSource("src", "components", "site", "storefront-navigation.ts");
+  const catalogPage = await readSource("src", "app", "(storefront)", "san-pham", "page.tsx");
+  const servicePage = await readSource("src", "app", "(storefront)", "thue-gia-cong", "page.tsx");
+
+  assert.match(frame, /CapturedStorefrontShell/, "the archive frame delegates its site chrome to the shared shell");
+  assert.match(frame, /getStorefrontNavigationForPath/, "the active tab is resolved from the route path");
+  assert.match(shell, /data\/pages\/tin-tuc\.json/, "the shared shell retains the approved News capture");
+  assert.match(shell, /<header|capturedHeader/, "the shared shell owns the Header markup");
+  assert.match(shell, /<footer|capturedFooter/, "the shared shell owns the Footer markup");
+  assert.match(navigation, /\/san-pham/, "the one navigation contract includes the product tab");
+  assert.match(navigation, /\/thue-gia-cong/, "the one navigation contract includes the service tab");
+  assert.match(navigation, /menu-item-1742/, "the product active state has one source");
+  assert.match(navigation, /menu-item-5166/, "the service active state has one source");
+  assert.match(catalogPage, /activePath="\/san-pham"/, "the product route supplies its canonical path");
+  assert.match(servicePage, /activePath="\/thue-gia-cong"/, "the service route supplies its canonical path");
+});
+
+test("the shell exposes the footer as a slot and still declares no footer itself", async () => {
+  const shell = await readSource("src", "components", "commerce", "CommerceShell.tsx");
+
+  assert.match(shell, /footer\?: ReactNode/, "the shell takes the footer as a slot");
+  assert.doesNotMatch(shell, /<footer/i, "the footer element stays out of the shell");
+});
+
+test("every direct page under the two approved tabs uses the one News storefront shell", async () => {
+  const commerceService = path.join(repoRoot, "src", "app", "(commerce)", "thue-gia-cong");
+  const capturedService = path.join(repoRoot, "src", "app", "(storefront)", "thue-gia-cong");
+  const commerceCatalog = path.join(repoRoot, "src", "app", "(commerce)", "san-pham");
+  const capturedCatalog = path.join(repoRoot, "src", "app", "(storefront)", "san-pham");
+
+  assert.equal(
+    await readFile(path.join(capturedService, "page.tsx"), "utf8").then(() => true, () => false),
+    true,
+    "the service index must inherit the complete News frame",
+  );
+  assert.equal(
+    await readFile(path.join(commerceService, "page.tsx"), "utf8").then(() => true, () => false),
+    false,
+    "the service index must not also render the commerce chrome",
+  );
+  assert.equal(
+    await readFile(path.join(capturedService, "[family]", "page.tsx"), "utf8").then(() => true, () => false),
+    true,
+    "service detail pages use the shared captured shell",
+  );
+  assert.equal(
+    await readFile(path.join(capturedCatalog, "[slug]", "page.tsx"), "utf8").then(() => true, () => false),
+    true,
+    "product detail pages use the shared captured shell",
+  );
+  assert.equal(
+    await readFile(path.join(commerceService, "[family]", "page.tsx"), "utf8").then(() => true, () => false),
+    false,
+    "a service detail page must not keep the old commerce chrome",
+  );
+  assert.equal(
+    await readFile(path.join(commerceCatalog, "[slug]", "page.tsx"), "utf8").then(() => true, () => false),
+    false,
+    "a product detail page must not keep the old commerce chrome",
+  );
 });
 
 test("the chrome declares no forbidden V1 surface, gradient or reserved port", async () => {

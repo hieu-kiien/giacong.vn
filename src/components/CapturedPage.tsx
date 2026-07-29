@@ -1,4 +1,5 @@
 import { GiacongInteractions } from "@/components/GiacongInteractions";
+import { CapturedRequestCartButton } from "@/components/request-cart/CapturedRequestCartButton";
 import { layerCapturedStyles, normalizeCapturedMarkup } from "@/lib/captured-markup";
 import type { CapturedPageData } from "@/types/captured-page";
 
@@ -31,7 +32,8 @@ export function CapturedPage({
 
 export function CapturedFloatingContact() {
   return (
-    <div className="echbay-sms-messenger style-for-position-br" aria-label="Liên hệ nhanh">
+    <div className="echbay-sms-messenger style-for-position-br max-[549px]:!hidden" aria-label="Liên hệ nhanh">
+        <CapturedRequestCartButton />
         <div className="phonering-alo-alo">
           <a href="tel:0947142999" rel="nofollow" aria-label="Gọi 0947142999">.</a>
         </div>

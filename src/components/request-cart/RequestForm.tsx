@@ -9,11 +9,14 @@ import {
   parseSubmitResponse,
 } from "@/lib/request-cart-client";
 import type { RequestCartContact, RequestCartField } from "@/lib/request-cart-client";
+import { REQUEST_CART_CHANNELS } from "@/lib/request-cart-channels";
 import type { ResolvedRequestCart } from "@/types/request-cart";
 
 const SUBMIT_FAILURE_MESSAGE = "Không thể gửi yêu cầu lúc này. Vui lòng thử lại.";
 
 const EMPTY_CONTACT: RequestCartContact = { email: "", message: "", name: "", phone: "" };
+const ZALO_CHANNEL = REQUEST_CART_CHANNELS.find((channel) => channel.id === "zalo");
+const SMS_CHANNEL = REQUEST_CART_CHANNELS.find((channel) => channel.id === "hotline");
 
 interface RequestFormProps {
   cart: ResolvedRequestCart;
@@ -22,11 +25,13 @@ interface RequestFormProps {
 }
 
 export function RequestForm({ cart, onAccepted, onConflict }: RequestFormProps) {
-  const [contact, setContact] = useState<RequestCartContact>(EMPTY_CONTACT);
+  const [contact, setContact] = useState<RequestCartContact>(() => ({ ...EMPTY_CONTACT, message: cartMessage(cart) }));
   const [errors, setErrors] = useState<Partial<Record<RequestCartField, string>>>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [zaloNotice, setZaloNotice] = useState<string | null>(null);
   const inFlight = useRef(false);
+  const automaticMessage = useRef(cartMessage(cart));
   // One idempotency key per priced state. Retrying the same state reuses it, so a timeout that
   // already reached the Sheet returns the original `Mã` instead of creating a second request.
   const attempt = useRef({ requestId: createRequestId(), snapshotToken: cart.snapshotToken });
@@ -36,6 +41,14 @@ export function RequestForm({ cart, onAccepted, onConflict }: RequestFormProps) 
       attempt.current = { requestId: createRequestId(), snapshotToken: cart.snapshotToken };
     }
   }, [cart.snapshotToken]);
+
+  useEffect(() => {
+    const nextMessage = cartMessage(cart);
+    setContact((current) => current.message === automaticMessage.current
+      ? { ...current, message: nextMessage }
+      : current);
+    automaticMessage.current = nextMessage;
+  }, [cart]);
 
   const update = (field: RequestCartField, value: string) => {
     setContact((current) => ({ ...current, [field]: value }));
@@ -54,6 +67,8 @@ export function RequestForm({ cart, onAccepted, onConflict }: RequestFormProps) 
     const clientErrors: Partial<Record<RequestCartField, string>> = {};
     if (contact.name.trim() === "") clientErrors.name = "Vui lòng nhập họ và tên.";
     if (contact.phone.trim() === "") clientErrors.phone = "Vui lòng nhập số điện thoại.";
+    if (contact.email.trim() === "") clientErrors.email = "Vui lòng nhập địa chỉ email.";
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contact.email.trim())) clientErrors.email = "Địa chỉ email không hợp lệ.";
     if (Object.keys(clientErrors).length > 0) {
       setErrors(clientErrors);
       setFormError("Vui lòng kiểm tra lại thông tin liên hệ.");
@@ -106,9 +121,20 @@ export function RequestForm({ cart, onAccepted, onConflict }: RequestFormProps) 
     }
   };
 
+  const openZalo = async () => {
+    const message = contact.message.trim() || cartMessage(cart);
+    try {
+      await navigator.clipboard.writeText(message);
+      setZaloNotice("Đã sao chép danh sách sản phẩm. Hãy dán vào cuộc trò chuyện Zalo.");
+    } catch {
+      setZaloNotice("Zalo đã mở. Bạn có thể sao chép nội dung yêu cầu ở ô phía trên.");
+    }
+    if (ZALO_CHANNEL) window.open(ZALO_CHANNEL.href, "_blank", "noopener,noreferrer");
+  };
+
   return (
     <section aria-labelledby="xac-nhan-yeu-cau" className="mt-8 rounded-lg border border-neutral-200 bg-white p-4 sm:p-6">
-      <h2 className="text-xl font-bold text-neutral-900 sm:text-2xl" id="xac-nhan-yeu-cau">Xác nhận yêu cầu đặt hàng</h2>
+      <h2 className="text-xl font-bold text-neutral-900 sm:text-2xl" id="xac-nhan-yeu-cau">Thông tin liên hệ</h2>
       <p className="mt-2 text-sm text-neutral-700">
         Gửi yêu cầu để chúng tôi liên hệ xác nhận số lượng và báo giá. Chưa phát sinh đơn hàng ở bước này.
       </p>
@@ -144,13 +170,13 @@ export function RequestForm({ cart, onAccepted, onConflict }: RequestFormProps) 
           inputMode="email"
           label="Email"
           onChange={(value) => update("email", value)}
-          optionalHint="không bắt buộc"
+          required
           type="email"
           value={contact.email}
         />
         <div className="sm:col-span-2">
           <label className="block text-sm font-medium text-neutral-800" htmlFor="noi-dung-yeu-cau">
-            Nội dung yêu cầu <span className="font-normal text-neutral-600">(không bắt buộc)</span>
+            Nội dung yêu cầu <span className="font-normal text-neutral-600">(đã điền sẵn, bạn có thể chỉnh sửa)</span>
           </label>
           <textarea
             aria-describedby={errors.message ? "noi-dung-yeu-cau-loi" : undefined}
@@ -168,13 +194,33 @@ export function RequestForm({ cart, onAccepted, onConflict }: RequestFormProps) 
         </div>
 
         <div className="sm:col-span-2">
-          <button
-            className="min-h-12! w-full rounded-md bg-[#327600]! px-6 text-base font-semibold text-white! hover:bg-[#285f00]! focus-visible:outline-2! focus-visible:outline-offset-2 focus-visible:outline-[#2e90fa]! disabled:cursor-not-allowed disabled:bg-neutral-200! disabled:text-neutral-700! disabled:opacity-100! sm:w-auto"
-            disabled={submitting || !cart.isSubmittable}
-            type="submit"
-          >
-            {submitting ? "Đang gửi..." : "Gửi yêu cầu đặt hàng"}
-          </button>
+          {/*
+            The one place on this page that carries the brand green as a fill. White on
+            that green is 3.11:1, which clears WCAG AA only for large text, so the label
+            is 19px bold rather than the 16px semibold it was — above the 18.66px bold
+            threshold. Every other green fill here takes `brand-dark` (4.90:1) instead,
+            because their labels are small.
+          */}
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <button
+              className="min-h-12! w-full rounded-md bg-commerce-brand! px-6 text-[19px] font-bold text-white! hover:bg-commerce-brand-dark! focus-visible:outline-2! focus-visible:outline-offset-2 focus-visible:outline-[#2e90fa]! disabled:cursor-not-allowed disabled:bg-neutral-200! disabled:text-neutral-700! disabled:opacity-100! sm:w-auto"
+              disabled={submitting || !cart.isSubmittable}
+              type="submit"
+            >
+              {submitting ? "Đang gửi..." : "Gửi yêu cầu báo giá"}
+            </button>
+            {ZALO_CHANNEL ? (
+              <button className="min-h-12! w-full rounded-md border border-commerce-brand px-5 text-base font-semibold text-commerce-brand-dark! hover:bg-[#eff8e8] focus-visible:outline-2! focus-visible:outline-offset-2 focus-visible:outline-[#2e90fa]! sm:w-auto" onClick={() => void openZalo()} type="button">
+                Trao đổi qua Zalo
+              </button>
+            ) : null}
+            {SMS_CHANNEL ? (
+              <a className="inline-flex min-h-12! w-full items-center justify-center rounded-md border border-neutral-300 px-5 text-base font-semibold text-neutral-800! hover:border-commerce-brand hover:text-commerce-brand-dark! focus-visible:outline-2! focus-visible:outline-offset-2 focus-visible:outline-[#2e90fa]! sm:w-auto" data-cta href={smsHref(SMS_CHANNEL.contact, contact.message.trim() || cartMessage(cart))}>
+                Gửi yêu cầu qua SMS
+              </a>
+            ) : null}
+          </div>
+          {zaloNotice ? <p className="mt-3 text-sm text-neutral-700" role="status">{zaloNotice}</p> : null}
           <p className="mt-3 text-sm text-neutral-600">
             Sau khi gửi, bạn nhận được một Mã để đối chiếu khi chúng tôi liên hệ lại.
           </p>
@@ -182,6 +228,26 @@ export function RequestForm({ cart, onAccepted, onConflict }: RequestFormProps) 
       </form>
     </section>
   );
+}
+
+function cartMessage(cart: ResolvedRequestCart): string {
+  const lines = cart.lines.map((line) => {
+    const product = line.productName || line.variantSku;
+    const variantLabel = conciseVariantLabel(line.productName, line.variantLabel);
+    const variant = variantLabel ? ` – ${variantLabel}` : "";
+    const unit = line.unit ? ` ${line.unit}` : "";
+    return `- ${product}${variant}: ${line.quantity}${unit}`;
+  });
+  return ["Tôi muốn được tư vấn và báo giá các sản phẩm sau:", ...lines].join("\n");
+}
+
+function smsHref(phone: string, message: string): string {
+  return `sms:${phone}?body=${encodeURIComponent(message)}`;
+}
+
+function conciseVariantLabel(productName: string, variantLabel: string): string {
+  const prefix = `${productName} — `;
+  return productName && variantLabel.startsWith(prefix) ? variantLabel.slice(prefix.length) : variantLabel;
 }
 
 interface FieldProps {

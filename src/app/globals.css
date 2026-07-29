@@ -34,11 +34,23 @@
 @custom-variant dark (&:is(.dark *));
 
 /*
- * Storefront brand palette. Values come from the handoff design tokens
- * (`tokens/design-tokens.json`). That file has no orange ramp, so the accent is
- * built around its `semantic.warning` (#B54708) with tints derived for surfaces
- * only — no new hues are invented. `brand-700`/`brand-800` are the text-safe
- * greens (7.8:1 white-on-800); `brand-500`/`600` are surface and hover greens.
+ * FROZEN — do not use in new code. The commerce palette in
+ * `../styles/commerce-foundation.css` is the single source for every React surface.
+ *
+ * These names are read by exactly five components — `CommerceHeader` and the four
+ * `components/storefront/` ones — and by the `captured` layer further down this file.
+ * The captured pages themselves do NOT read them: their markup carries the real
+ * giacong.vn green `#5aa400` as inline `style` attributes and in their own stylesheets,
+ * so this ramp is a near-miss re-derivation of that green rather than its source.
+ * Phase C deletes the four `storefront/` readers, which leaves `CommerceHeader`
+ * (`bg-brand-700`, locked by `scripts/commerce-header.test.mts:260`) as the only
+ * component standing between this block and deletion.
+ *
+ * Values come from the handoff design tokens (`tokens/design-tokens.json`). That file
+ * has no orange ramp, so the accent is built around its `semantic.warning` (#B54708)
+ * with tints derived for surfaces only — no new hues are invented.
+ * `brand-700`/`brand-800` are the text-safe greens (7.8:1 white-on-800);
+ * `brand-500`/`600` are surface and hover greens.
  */
 @theme {
   --color-brand-50: #f3f9ec;

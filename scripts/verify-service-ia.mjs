@@ -9,20 +9,66 @@ import { chromium } from "playwright";
 
 import { nextBinPath } from "./next-bin.mjs";
 
+/**
+ * The thirteen hub slugs `/thue-gia-cong` now indexes, in the order the real site's
+ * header lists them. Only the drying family carries its offering routes here: those
+ * six are the set this harness has always verified end to end, and keeping one family
+ * fully spelled out means the file still states an independent expectation rather than
+ * re-reading `service-families.ts` and agreeing with itself. Every href in the other
+ * twelve is checked against the captured manifest by
+ * `scripts/service-contract.test.mts`, and proven to resolve by `EXPECTED_GROUP_COUNT`
+ * plus the per-card link probe below.
+ */
+const EXPECTED_FAMILY_SLUGS = [
+  "gia-cong-sot-cham",
+  "gia-cong-do-uong",
+  "gia-cong-bot-pha-che",
+  "gia-cong-duoc-lieu",
+  "gia-cong-thuc-pham",
+  "gia-cong-my-pham",
+  "gia-cong-tra",
+  "gia-cong-ca-phe",
+  "gia-cong-dong-goi",
+  "gia-cong-bot",
+  "gia-cong-ruou",
+  "gia-cong-sua",
+  "say-thuc-pham-say",
+];
+const FEATURED_FAMILY_SLUGS = EXPECTED_FAMILY_SLUGS.slice(0, 3);
+const FEATURED_FAMILY_LABELS = [
+  "Gia công sốt chấm",
+  "Gia công đồ uống",
+  "Gia công bột pha chế",
+];
+
 const families = [
   ["say-thuc-pham-say", "Sấy & thực phẩm sấy", ["/dich-vu-say/", "/say-thang-hoa/", "/say-nong/", "/say-lanh/", "/say-chan-khong/", "/say-hong-ngoai/"]],
 ];
 
+/**
+ * The service route moved into the `(commerce)` group, so it is now served under
+ * `CommerceHeader` rather than the captured storefront header. That header splits
+ * its desktop links either side of the wordmark — `Trang chủ`/`Giới thiệu` left,
+ * `Thuê gia công`/`Tin tức`/`Liên hệ` right — and turns purchasing into the mega-menu
+ * trigger instead of a `Mua hàng` link. Both sets are kept as one list here because
+ * the contract this file guards is unchanged: every one is a direct link, and no
+ * service group hides behind a disclosure. The label set itself is asserted in
+ * `scripts/commerce-header.test.mts`, which stays the single source for it.
+ */
 const expectedHeaderLinks = [
-  ["Home", "/"],
-  ["Mua hàng", "/san-pham/"],
+  ["Trang chủ", "/"],
+  ["Giới thiệu", "/gioi-thieu-ve-gia-cong/"],
   ["Thuê gia công", "/thue-gia-cong/"],
   ["Tin tức", "/tin-tuc/"],
   ["Liên hệ", "/lien-he/"],
 ];
 
+/** Both desktop navs of the commerce header, and the mobile drawer's single one. */
+const DESKTOP_NAV_SELECTOR =
+  "header[data-storefront-header] nav[aria-label='Điều hướng chính trái'], header[data-storefront-header] nav[aria-label='Điều hướng chính phải']";
+
 const expectedOfferingPaths = families.flatMap(([, , routes]) => routes.map((route) => route.replace(/\/$/, "")));
-const expectedStaticFamilyPaths = families.map(([slug]) => `/thue-gia-cong/${slug}`).sort();
+const expectedStaticFamilyPaths = EXPECTED_FAMILY_SLUGS.map((slug) => `/thue-gia-cong/${slug}`).sort();
 const delay = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
 
 const prerenderManifest = JSON.parse(await readFile(".next/prerender-manifest.json", "utf8"));
@@ -73,13 +119,13 @@ function observeRuntime(page, label, issues) {
   });
 }
 
-// The React storefront header replaced the captured Flatsome one, so these scope
-// to it instead of `#header .header-nav-main` / `#main-menu`. The contract itself
-// is unchanged: the same five direct text links, no service mega-menu.
+// The commerce header replaced the captured Flatsome one, so these scope to it
+// instead of `#header .header-nav-main` / `#main-menu`. The contract itself is
+// unchanged: the same direct text links, no service mega-menu.
 async function assertDirectHeaderLinks(page, mobile = false) {
   const scope = mobile
     ? page.getByRole("dialog", { name: "Điều hướng" })
-    : page.locator("header[data-storefront-header] nav[aria-label='Điều hướng chính']");
+    : page.locator(DESKTOP_NAV_SELECTOR);
   for (const [name, href] of expectedHeaderLinks) {
     const link = scope.getByRole("link", { name, exact: true });
     assert.equal(await link.count(), 1, `${mobile ? "Mobile" : "Desktop"} header must expose one direct ${name} link`);
@@ -91,7 +137,16 @@ async function assertDirectHeaderLinks(page, mobile = false) {
       `${name} must link directly to ${href}`,
     );
   }
-  assert.equal(await scope.getByRole("link", { name: "Về Giacong.vn", exact: true }).count(), 0, "Header must contain exactly the requested five text links");
+  // On desktop, purchasing is the mega-menu trigger rather than a text link. The
+  // drawer does render it as a link — there is no hover surface at 390px, and the
+  // category accordion sits below it — so this is desktop-only.
+  if (!mobile) {
+    assert.equal(
+      await scope.getByRole("link", { name: "Mua hàng", exact: true }).count(),
+      0,
+      "Purchasing must stay the mega-menu trigger on desktop rather than a direct link",
+    );
+  }
 }
 
 const appPort = await port();
@@ -136,13 +191,14 @@ try {
   await assertDirectHeaderLinks(desktop);
 
   const desktopServiceLink = desktop
-    .locator("header[data-storefront-header] nav[aria-label='Điều hướng chính']")
+    .locator(DESKTOP_NAV_SELECTOR)
     .getByRole("link", { name: "Thuê gia công", exact: true });
   assert.equal(await desktopServiceLink.getAttribute("aria-expanded"), null, "Desktop service navigation must be a plain link");
   assert.equal(await desktop.locator("#header .clone-desktop-service-toggle, #clone-service-menu-desktop, #header .clone-service-mega-grid").count(), 0, "Desktop service mega-menu must be removed");
   // The only header disclosure is the product category menu; services stay a
   // direct link, and no service group may appear inside that menu.
-  const categoryTrigger = desktop.getByRole("button", { name: "Danh mục sản phẩm" });
+  // `Sản phẩm` is the trigger; `Danh mục sản phẩm` labels the panel it controls.
+  const categoryTrigger = desktop.getByRole("button", { name: "Sản phẩm", exact: true });
   await categoryTrigger.click();
   assert.doesNotMatch(
     await desktop.locator(`#${await categoryTrigger.getAttribute("aria-controls")}`).innerText(),
@@ -158,25 +214,52 @@ try {
   const search = desktop.getByRole("searchbox", { name: "Bạn cần gia công gì?" });
   await search.waitFor();
   assert.equal(await directory.locator("[data-family-chip]").count(), 0, "Directory must not expose unapproved family filters");
-  for (const [, label] of families) {
+  for (const label of FEATURED_FAMILY_LABELS) {
     assert.equal(await directory.getByRole("heading", { name: label, exact: true }).count(), 1, `Directory must group offerings under ${label}`);
   }
 
-  const offeringLinks = directory.locator("[data-service-offering] a");
-  assert.equal(await offeringLinks.count(), 6, "Directory must render the six approved drying offerings");
-  const renderedPaths = await offeringLinks.evaluateAll((links) => links.map((link) => new URL(link.href).pathname.replace(/\/$/, "")));
-  assert.deepEqual([...new Set(renderedPaths)].sort(), [...expectedOfferingPaths].sort(), "Directory must expose exactly the verified offering routes");
-  assert.equal(await directory.getByText("6 dịch vụ phù hợp", { exact: true }).getAttribute("aria-live"), "polite", "Result count must announce client-side changes");
+  // The approved visual opens with three featured groups. Search below still runs
+  // across all thirteen service families.
+  const groupCards = directory.locator("[data-service-group]");
+  assert.equal(await groupCards.count(), FEATURED_FAMILY_SLUGS.length, "Directory must open with the three approved featured cards");
+  const renderedFamilySlugs = await groupCards.locator("a[href^='/thue-gia-cong/']").evaluateAll(
+    (links) => links.map((link) => new URL(link.href).pathname.replace("/thue-gia-cong/", "")),
+  );
+  assert.deepEqual(renderedFamilySlugs, FEATURED_FAMILY_SLUGS, "Featured cards must stay in the approved header order");
+
+  const resultCount = directory.getByText(`${EXPECTED_FAMILY_SLUGS.length} nhóm dịch vụ phù hợp`, { exact: true });
+  assert.equal(await resultCount.getAttribute("aria-live"), "polite", "Result count must announce client-side changes");
 
   const pathBeforeFilter = new URL(desktop.url()).pathname;
   await search.fill("sấy lạnh");
-  await directory.getByText("1 dịch vụ phù hợp", { exact: true }).waitFor();
+  await directory.getByText("1 nhóm dịch vụ phù hợp", { exact: true }).waitFor();
   assert.equal(new URL(desktop.url()).pathname, pathBeforeFilter, "Search must filter without reloading or changing route");
   assert.equal(await directory.locator("[data-service-offering]:visible").count(), 1, "Search must narrow the directory");
+
+  // `sữa` deliberately matches two hubs: the mỹ phẩm archive files a sữa dưỡng thể
+  // page, which is the real site's own tagging. Matching on hub name as well as on
+  // offering label is what surfaces both.
+  await search.fill("sua");
+  await directory.getByText("2 nhóm dịch vụ phù hợp", { exact: true }).waitFor();
+
+  // Diacritic folding, and the one hub with no offerings at all: it has to stay
+  // reachable by name rather than being filtered out for having an empty list.
+  await search.fill("duoc lieu");
+  await directory.getByText("1 nhóm dịch vụ phù hợp", { exact: true }).waitFor();
+  const emptyHub = directory.locator("[data-service-group]");
+  assert.equal(
+    await emptyHub.getByRole("heading", { name: "Gia công dược liệu", exact: true }).count(),
+    1,
+    "Unaccented search must reach the accented hub name",
+  );
+  assert.equal(await emptyHub.locator("[data-service-offering]").count(), 0, "The empty hub renders no offering rows");
+  await search.fill("");
+
+  // The index spans every hub, so its consultation link must not claim one of them.
   const consultation = directory.getByRole("link", { name: "Chưa chắc? Liên hệ tư vấn", exact: true });
   const consultationUrl = new URL(await consultation.getAttribute("href"), origin);
   assert.equal(consultationUrl.pathname, "/lien-he");
-  assert.equal(consultationUrl.searchParams.get("service"), "say-thuc-pham-say", "CTA must carry approved service context");
+  assert.equal(consultationUrl.searchParams.get("service"), null, "The index CTA must not claim a single service");
 
   assert.equal(await desktop.locator(".echbay-sms-messenger, .bottom-contact").count(), 0, "Service directory must not render floating contact bubbles");
   const directoryText = await directory.innerText();
@@ -187,7 +270,7 @@ try {
   });
   assert.deepEqual(detailPrefetches, [], "Offering detail routes must not be eagerly prefetched");
 
-  await search.fill("");
+  await search.fill("sấy lạnh");
   const sampleOffering = directory.getByRole("link", { name: "Sấy lạnh", exact: true });
   await Promise.all([
     desktop.waitForURL((url) => url.pathname === "/say-lanh"),
@@ -218,8 +301,8 @@ try {
   assert.deepEqual(runtimeIssues, [], `Browser runtime must be clean:\n${runtimeIssues.join("\n")}`);
   console.log(JSON.stringify({
     screenshots,
-    offerings: renderedPaths.length,
-    families: families.length,
+    featuredFamilies: FEATURED_FAMILY_SLUGS.length,
+    families: EXPECTED_FAMILY_SLUGS.length,
     landingRequestCount,
     landingDomNodes,
   }, null, 2));

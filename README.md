@@ -1,36 +1,36 @@
-# Giacong Lean Commerce
+# Giacong.vn — Lean B2B Demo
 
-Storefront B2B dùng Next.js, Bagisto admin cho catalog/nội dung, và Google Sheet + Apps Script cho hàng đợi yêu cầu.
+Website giới thiệu và nhận yêu cầu B2B. Khách xem sản phẩm/dịch vụ, chọn quy cách và gửi yêu cầu; quản trị viên dùng Bagisto để quản lý catalog, giá, tồn kho và nội dung. Yêu cầu được ghi vào Google Sheet.
 
-## Lean V1
+## Thành phần
 
-Khách xem catalog nhiều danh mục/sản phẩm, chọn biến thể/số lượng, gom nhiều mặt hàng vào giỏ hàng khách hoặc gửi yêu cầu dịch vụ. Mỗi submit được chấp nhận tạo một dòng Google Sheet riêng. Giỏ hàng khách chỉ là bước gom yêu cầu: `localStorage` phía client, không state phía server, `/gui-yeu-cau` là route giỏ hàng duy nhất và server đọc lại Bagisto để xác thực từng dòng. V1 không có customer account, checkout, `/thanh-toan`, cart phía server, payment, Bagisto order, vận chuyển, quote engine hay rating/review/favorite.
+- **Storefront:** Next.js — giao diện khách xem tại `http://localhost:4317`.
+- **Quản trị:** Bagisto — mở qua `http://localhost:4317/admin`.
+- **Yêu cầu:** Google Sheet + Apps Script. Không có thanh toán, checkout hay tài khoản khách.
 
-Chỉ có một tài khoản `administrator` dùng chung. Bagisto admin là đích quản trị dài hạn; `/quan-tri` chỉ là bề mặt chuyển tiếp frozen. Không ghi trực tiếp bảng core Bagisto.
+## Chạy trên máy mới
 
-Trạng thái hiện tại và mọi quyết định phạm vi nằm trong [master plan](docs/COMMERCE_PLATFORM_MASTER_PLAN.md). Hướng dẫn webhook hiện tại nằm tại [Google Sheets webhook guide](docs/GOOGLE_SHEETS_CONTACT_WEBHOOK.md). `docs/research/` và `docs/design-references/` là bằng chứng lịch sử của bản clone, không phải roadmap sản phẩm.
+Cần Git, Docker Desktop, Node.js 24 và Composer. Clone hai repository cạnh nhau:
 
-## Cấu trúc chính
-
-```text
-src/       Storefront, BFF và thành phần giao diện
-docs/      Master plan, webhook guide và bằng chứng nghiên cứu
-scripts/   Kiểm thử và công cụ kiểm tra cục bộ
-public/    Tài sản storefront
+```powershell
+git clone https://github.com/qtu1053-dev/giacong-bagisto.git
+git clone https://github.com/qtu1053-dev/giacong.vn.git
 ```
 
-## Lệnh
+Thiết lập Bagisto trước, sau đó thiết lập website. Hướng dẫn từng lệnh nằm trong [SETUP.md](./SETUP.md).
 
-```bash
-npm run test:contact
-npm run lint
-npm run typecheck
-npm run build
+## Kiểm tra nhanh
+
+Sau khi chạy xong, mở:
+
+- `http://localhost:4317/san-pham` — catalog khách hàng.
+- `http://localhost:4317/gui-yeu-cau` — giỏ và form gửi yêu cầu.
+- `http://localhost:4317/admin` — Bagisto Admin.
+
+## Trước khi bàn giao/triển khai
+
+```powershell
 npm run check
 ```
 
-`npm run dev` dùng cấu hình Next hiện có; không chạy hoặc đổi cấu hình cổng `3000`, `8000`, `8001` trong công việc Lean V1. Theo `.env.example`, Bagisto nội bộ dùng `127.0.0.1:18001`; Docker development hiện ánh xạ `${DEV_PORT:-3001}` vào cổng nội bộ `3000`. Không suy diễn hay tự đổi cổng khác.
-
-## Bước kế tiếp
-
-Xác minh setup/protection/trigger trong Google account của user hoặc khách, rồi hoàn tất handoff ownership/quyền kiểm soát. Việc nối ngữ cảnh product/service từ storefront/UI vào contract backend cũng vẫn chưa làm.
+Không đưa file `.env` hoặc `.env.local` lên GitHub. Thông tin vận hành chi tiết: [docs/README.md](./docs/README.md).

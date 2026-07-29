@@ -58,6 +58,15 @@ test("a real catalog image wins over the demo fallback", () => {
   assert.equal(product.fallbackImageUrl, demoImages.DEMO_PRODUCT_IMAGES[0], "the fallback stays available for onError");
 });
 
+test("a Bagisto product without a price stays an explicit contact-only card", () => {
+  const [card] = listing.buildCatalogCards([{
+    ...demoCatalog.DEMO_CATALOG_LIST[0],
+    startingPrice: null,
+  } as never]);
+
+  assert.equal(card.startingPrice, null);
+});
+
 test("every card carries the approved anatomy fields and no forbidden one", () => {
   const cards = listing.buildCatalogCards(demoCatalog.DEMO_CATALOG_PRODUCTS);
 

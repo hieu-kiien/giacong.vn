@@ -20,7 +20,7 @@ interface CommerceHeaderProps {
 }
 
 const sourceLeftNavItems = COMMERCE_NAV_ITEMS.filter(
-  (item) => item.label === "Trang chủ" || item.label === "Giới thiệu",
+  (item) => item.label === "Trang chủ" || item.label === "Về Giacong.vn",
 );
 
 const sourceRightNavItems = COMMERCE_NAV_ITEMS.filter(
@@ -28,8 +28,15 @@ const sourceRightNavItems = COMMERCE_NAV_ITEMS.filter(
 );
 
 /**
- * Commerce header: the same deep-green storefront band and desktop rhythm as the
- * service and information tabs, with a compact 56 px mobile form on the shared rail.
+ * Commerce header: the real giacong.vn green band (`commerce-brand`, `#5aa400` — the
+ * same value the captured pages carry inline as `.header-bg-color`) and the desktop
+ * rhythm of the service and information tabs, with a compact 56 px mobile form on the
+ * shared rail.
+ *
+ * White on `#5aa400` measures 3.1:1, which clears AA for large text and UI components
+ * but not for the 14 px nav labels. The band matches the source site, which has the
+ * same ratio; raising the labels to 18.66 px bold or darkening the band to
+ * `commerce-brand-dark` would fix it, and both are visible departures from giacong.vn.
  *
  * The wordmark is set as text. No third-party logo asset is verified for this
  * project, so bundling one would put an unlicensed brand mark in the UI.
@@ -44,7 +51,7 @@ const sourceRightNavItems = COMMERCE_NAV_ITEMS.filter(
 export function CommerceHeader({ menu }: CommerceHeaderProps) {
   return (
     <header
-      className="sticky top-0 z-40 bg-brand-700 text-white"
+      className="sticky top-0 z-40 bg-commerce-brand text-white"
       data-commerce-header
       data-storefront-header
     >
@@ -101,7 +108,7 @@ export function CommerceHeader({ menu }: CommerceHeaderProps) {
           </a>
 
           <Link
-            className="flex commerce-target items-center justify-center rounded-commerce-control border border-white px-4 text-sm font-bold text-white transition-colors max-lg:hidden hover:bg-white hover:text-brand-800 focus-visible:commerce-focus-ring motion-reduce:transition-none"
+            className="flex commerce-target items-center justify-center rounded-commerce-control border border-white px-4 text-sm font-bold text-white transition-colors max-lg:hidden hover:bg-white hover:text-commerce-brand-dark focus-visible:commerce-focus-ring motion-reduce:transition-none"
             href={COMMERCE_REQUEST_HREF}
             prefetch={false}
           >

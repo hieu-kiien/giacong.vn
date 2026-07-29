@@ -45,16 +45,31 @@ async function sourceFiles(dir: string): Promise<string[]> {
 // 1. Commerce routes are isolated from the captured Flatsome cascade and footer
 // ---------------------------------------------------------------------------
 
-test("commerce routes live in their own route group with a clean layout", async () => {
+test("the two approved tabs, direct detail pages, and request cart inherit the News frame", async () => {
   assert.ok(await exists(commerceGroupDir), "src/app/(commerce) must exist");
 
   for (const route of [
     path.join("san-pham", "page.tsx"),
     path.join("san-pham", "[slug]", "page.tsx"),
+    path.join("thue-gia-cong", "page.tsx"),
+    path.join("thue-gia-cong", "[family]", "page.tsx"),
+    path.join("gui-yeu-cau", "page.tsx"),
+  ]) {
+    assert.ok(
+      await exists(path.join(storefrontGroupDir, route)),
+      `${route} must inherit the complete captured News frame`,
+    );
+    assert.equal(
+      await exists(path.join(commerceGroupDir, route)),
+      false,
+      `${route} must not also render the clean commerce chrome`,
+    );
+  }
+
+  for (const route of [
     path.join("san-pham", "[...path]", "page.tsx"),
     path.join("san-pham", "error.tsx"),
     path.join("san-pham", "not-found.tsx"),
-    path.join("gui-yeu-cau", "page.tsx"),
   ]) {
     assert.ok(
       await exists(path.join(commerceGroupDir, route)),
@@ -127,15 +142,23 @@ test("design tokens carry the measured commerce geometry", () => {
   assert.equal(COMMERCE_GEOMETRY.headerHeightDesktop, 90);
   assert.equal(COMMERCE_GEOMETRY.railMaxWidth, 1390);
   assert.equal(COMMERCE_GEOMETRY.minimumTouchTarget, 44);
-  assert.equal(COMMERCE_GEOMETRY.productImageAspectRatio, "5 / 4");
+  // Square, from `.has-equal-box-heights .box-image { padding-top: 100% }` on the
+  // shop archive giacong.vn serves. It supersedes the 1.25:1 ratio measured for
+  // `SCR-03`, which predates the captured pages being the reference.
+  assert.equal(COMMERCE_GEOMETRY.productImageAspectRatio, "1 / 1");
   assert.deepEqual(COMMERCE_GEOMETRY.railPadding, { desktop: 24, mobile: 12, tablet: 16 });
 });
 
-test("commerce colour tokens match the approved specification", () => {
+// `brand` is the real giacong.vn green, taken from the Flatsome block every captured
+// page embeds inline (`:root {--primary-color: #5aa400}`). It supersedes the `#2f9e0b`
+// still recorded in `docs/research/DESIGN_TOKENS.md`, which is kept as historical
+// evidence. `brandDark` is derived from it, not measured. The rest are the measured
+// values from that document.
+test("commerce colour tokens match the live giacong.vn palette", () => {
   const { COMMERCE_COLORS } = commerceTokens;
 
-  assert.equal(COMMERCE_COLORS.brand, "#2f9e0b");
-  assert.equal(COMMERCE_COLORS.brandDark, "#237a08");
+  assert.equal(COMMERCE_COLORS.brand, "#5aa400");
+  assert.equal(COMMERCE_COLORS.brandDark, "#457f00");
   assert.equal(COMMERCE_COLORS.activeSurface, "#f1f8ec");
   assert.equal(COMMERCE_COLORS.supportStrip, "#f4faea");
   assert.equal(COMMERCE_COLORS.price, "#ef1726");
@@ -469,4 +492,41 @@ test("the foundation adds no dependency and no forbidden route", async () => {
     false,
     "the commerce group must not host an admin surface",
   );
+});
+
+/**
+ * `/gui-yeu-cau` now inherits the captured storefront shell, while its interactive
+ * cart controls continue to resolve their accessible greens through the commerce
+ * tokens instead of carrying a second hardcoded palette.
+ *
+ * The split between the two tokens is a contrast requirement, not a preference.
+ * `brand` (`#5aa400`) on white is 3.11:1 — enough for WCAG AA large text (3:1) but not
+ * for normal text (4.5:1). `brand-dark` (`#457f00`) is 4.90:1 and clears both. So a
+ * green fill carrying a small label, and green text on white, use `brand-dark`; only a
+ * fill whose label is large enough to qualify may use `brand`. `verify-request-cart.mjs`
+ * measures every text run on the rendered page against exactly this rule.
+ */
+test("the request cart wears the commerce greens rather than its own", async () => {
+  const files = ["RequestCartView.tsx", "RequestForm.tsx", "RequestAccepted.tsx"];
+
+  for (const file of files) {
+    const source = await readSource("src", "components", "request-cart", file);
+    assert.doesNotMatch(source, /#327600/, `${file} must not carry the superseded brand hex`);
+    assert.doesNotMatch(source, /#285f00/, `${file} must not carry the superseded hover hex`);
+    assert.doesNotMatch(source, /#5aa400/, `${file} must reach the brand green through its token`);
+  }
+
+  const view = await readSource("src", "components", "request-cart", "RequestCartView.tsx");
+  const form = await readSource("src", "components", "request-cart", "RequestForm.tsx");
+
+  // Green text on white, and small green fills, must take the AA-passing dark token.
+  assert.match(view, /text-commerce-brand-dark/, "green text on white uses the dark token");
+  assert.match(view, /bg-commerce-brand-dark/, "a small-label green fill uses the dark token");
+  assert.doesNotMatch(view, /bg-commerce-brand!(?![-a-z])/, "no small-label fill may use the 3.11:1 green");
+
+  // The one primary submit may use the brand green, because its label is large enough
+  // to qualify as WCAG AA large text.
+  assert.match(form, /bg-commerce-brand!/, "the primary submit carries the brand green");
+  assert.match(form, /text-\[19px\]/, "its label is large text, which is what makes 3.11:1 pass");
+  assert.match(form, /font-bold/, "large text needs the bold weight at 19px");
 });

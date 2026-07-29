@@ -1,6 +1,5 @@
 import "server-only";
 
-import { unstable_cache } from "next/cache";
 import { cache } from "react";
 
 import { fetchBagistoJson, getBagistoApiUrl } from "@/lib/bagisto-api";
@@ -27,8 +26,6 @@ export class CatalogApiError extends Error {
   }
 }
 
-export const CATALOG_PRODUCTS_CACHE_TAG = "catalog-products-v2";
-
 export async function getCatalogProducts(filters: CatalogFilters): Promise<CatalogProductList> {
   const context = getCatalogContext();
   return getValidatedCatalogProducts(
@@ -54,8 +51,8 @@ export const getCatalogProduct = cache(async (slug: string): Promise<CatalogProd
 
 /**
  * `cache` dedupes within one render so the chrome header and the page body share
- * a single upstream category read; `unstable_cache` still owns cross-request
- * caching and keeps a malformed HTTP 200 out of the validated cache.
+ * a single upstream category read. The Bagisto API remains the source of truth
+ * across requests, so an Admin save is visible on the next page load.
  */
 export const getCatalogCategories = cache(async (): Promise<CatalogCategory[]> => {
   const context = getCatalogContext();
@@ -67,11 +64,10 @@ export const getCatalogCategories = cache(async (): Promise<CatalogCategory[]> =
 });
 
 /**
- * `unstable_cache` derives its cache key from the arguments, so every parameter
- * that changes the upstream result must be passed in. Adding a parameter to the
- * request without adding it here would let two different queries share one entry.
+ * The catalog is deliberately read fresh on every request. Bagisto Admin is its
+ * source of truth, so holding this result across requests would hide saved edits.
  */
-const getValidatedCatalogProducts = unstable_cache(async (
+async function getValidatedCatalogProducts(
   apiBaseUrl: string,
   channel: string,
   locale: string,
@@ -81,7 +77,7 @@ const getValidatedCatalogProducts = unstable_cache(async (
   perPage: CatalogPageSize,
   sort: CatalogSort,
   direction: CatalogSortDirection,
-): Promise<CatalogProductList> => {
+): Promise<CatalogProductList> {
   const url = new URL("/api/b2b/catalog/products", apiBaseUrl);
   applyCatalogContext(url, { channel, locale });
   if (query) url.searchParams.set("q", query);
@@ -91,13 +87,13 @@ const getValidatedCatalogProducts = unstable_cache(async (
   url.searchParams.set("sort", sort);
   url.searchParams.set("direction", direction);
   return parseProductList(await fetchJson(url));
-}, ["catalog-products-v2"], { revalidate: 30, tags: [CATALOG_PRODUCTS_CACHE_TAG] });
+}
 
-const getValidatedCatalogCategories = unstable_cache(async (
+async function getValidatedCatalogCategories(
   apiBaseUrl: string,
   channel: string,
   locale: string,
-): Promise<CatalogCategory[]> => {
+): Promise<CatalogCategory[]> {
   const url = new URL("/api/b2b/catalog/categories", apiBaseUrl);
   applyCatalogContext(url, { channel, locale });
   const root = exactRecord(
@@ -108,7 +104,7 @@ const getValidatedCatalogCategories = unstable_cache(async (
   validateBaseMeta(root.meta, "Danh mục.meta", false);
   return array(root.data, "Danh mục.data")
     .map((item, index) => parseCategory(item, `Danh mục.data[${index}]`));
-}, ["catalog-categories-v2"], { revalidate: 300 });
+}
 
 interface CatalogContext {
   channel: string;
@@ -209,8 +205,10 @@ function parseParent(payload: unknown, label: string, detail: boolean): CatalogP
   const variantCount = positiveInteger(value.variant_count, `${label}.variant_count`);
   const availableVariantCount = positiveInteger(value.available_variant_count, `${label}.available_variant_count`);
   if (availableVariantCount > variantCount) throw invalid(`${label}.available_variant_count vượt variant_count.`);
-  const startingPrice = exactRecord(value.starting_price, `${label}.starting_price`, ["currency", "unit_price"]);
-  if (string(startingPrice.currency, `${label}.starting_price.currency`) !== "VND") {
+  const startingPrice = value.starting_price === null
+    ? null
+    : exactRecord(value.starting_price, `${label}.starting_price`, ["currency", "unit_price"]);
+  if (startingPrice && string(startingPrice.currency, `${label}.starting_price.currency`) !== "VND") {
     throw invalid(`${label}.starting_price.currency phải là VND.`);
   }
   const description = nullableString(value.description, `${label}.description`) ?? "";
@@ -224,7 +222,7 @@ function parseParent(payload: unknown, label: string, detail: boolean): CatalogP
     shortDescription: description,
     sku: nonEmptyString(value.sku, `${label}.sku`),
     slug: nonEmptyString(value.slug, `${label}.slug`),
-    startingPrice: {
+    startingPrice: startingPrice === null ? null : {
       currency: "VND",
       price: positiveInteger(startingPrice.unit_price, `${label}.starting_price.unit_price`),
     },
@@ -327,10 +325,13 @@ function validateDetail(
   if (parent.availableVariantCount !== variants.filter((variant) => variant.isAvailable).length) {
     throw invalid("Sản phẩm.data.available_variant_count không khớp variants.");
   }
-  const availableStartingPrice = Math.min(...variants
+  const availableStartingPrices = variants
     .filter((variant) => variant.isAvailable)
-    .map((variant) => variant.tierPrices[0].price));
-  if (parent.startingPrice.price !== availableStartingPrice) {
+    .flatMap((variant) => variant.tierPrices[0]?.price ?? []);
+  if (parent.startingPrice === null && availableStartingPrices.length > 0) {
+    throw invalid("Sản phẩm.data.starting_price thiếu giá tại MOQ.");
+  }
+  if (parent.startingPrice !== null && parent.startingPrice.price !== Math.min(...availableStartingPrices)) {
     throw invalid("Sản phẩm.data.starting_price không khớp giá tại MOQ.");
   }
   const expectedVariantKeys = variants.map((variant) => String(variant.id)).sort();
@@ -373,6 +374,7 @@ function validatePurchaseRules(
   if (contactFromQuantity <= minimumOrderQuantity || (contactFromQuantity - minimumOrderQuantity) % quantityStep !== 0) {
     throw invalid(`${label}.contact_from_quantity không khớp MOQ và bước số lượng.`);
   }
+  if (tiers.length === 0) return;
   if (
     tiers[0]?.minQuantity !== minimumOrderQuantity
     || tiers.some((tier, index) => (

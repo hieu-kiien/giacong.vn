@@ -58,10 +58,12 @@ test("the demo cart resolver projects the same canonical product and price field
   assert.equal(product.variants.length, 1);
   assert.equal(product.variants[0]?.sku, "B2B-DEMO-LTT-03");
   assert.equal(product.variants[0]?.tierPrices[0]?.price, 742_000);
+  assert.equal(typeof product.imageUrl, "string");
   assert.equal(resolveDemoCartProduct("khong-ton-tai"), null);
 });
 
 interface CartProductFixture {
+  imageUrl: string | null;
   name: string;
   slug: string;
   variants: CartVariantFixture[];
@@ -70,7 +72,7 @@ interface CartProductFixture {
 type CartResolverFixture = (slug: string) => Promise<CartProductFixture | null>;
 
 function catalog(variants: CartVariantFixture[] = [vanilla, lowSugar]): CartProductFixture {
-  return { name: "Bột dinh dưỡng", slug: "b2b-demo-bot-dinh-duong", variants };
+  return { imageUrl: "https://example.test/bot-dinh-duong.jpg", name: "Bột dinh dưỡng", slug: "b2b-demo-bot-dinh-duong", variants };
 }
 
 function cartRequest(body: unknown, contentType = "application/json"): Request {
@@ -110,6 +112,7 @@ test("prices each line from its own tier and totals only the priced lines", asyn
   assert.equal(body.cart.totalQuantity, 35);
   assert.equal(body.cart.uniformUnit, "gói");
   assert.deepEqual(body.cart.lines[0].adjustments, []);
+  assert.equal(body.cart.lines[0].imageUrl, "https://example.test/bot-dinh-duong.jpg");
 });
 
 test("selects the tier at its lower boundary rather than the next one", async () => {
@@ -215,6 +218,30 @@ test("resolves each distinct parent slug exactly once for a multi-line cart", as
   });
 
   assert.deepEqual(slugs, ["b2b-demo-bot-dinh-duong", "b2b-demo-khac"]);
+});
+
+test("uses one canonical batch cart resolver when the Bagisto boundary provides it", async () => {
+  const canonical = (await revalidate({ lines: [line("B2B-DEMO-VANILLA", 10)] })).body.cart;
+  const received: unknown[] = [];
+  let perProductResolverCalled = false;
+
+  const response = await handleCartRevalidation(cartRequest({
+    lines: [line("B2B-DEMO-VANILLA", 10), line("B2B-DEMO-LOWSUGAR", 10)],
+  }), {
+    cartBatchResolver: async (lines: unknown) => {
+      received.push(lines);
+      return canonical;
+    },
+    cartResolver: async () => {
+      perProductResolverCalled = true;
+      return catalog();
+    },
+  } as never);
+
+  assert.equal(response.status, 200);
+  assert.equal(received.length, 1);
+  assert.equal(perProductResolverCalled, false);
+  assert.deepEqual((await response.json()).cart, canonical);
 });
 
 test("rejects an empty, oversized, duplicated, or malformed line list", async () => {
