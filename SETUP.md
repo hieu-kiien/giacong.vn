@@ -12,7 +12,7 @@ composer install
 Mở `.env` và đặt tối thiểu các giá trị sau:
 
 ```dotenv
-APP_URL=http://localhost:4317
+APP_URL=http://localhost:18001
 DB_DATABASE=bagisto
 DB_USERNAME=sail
 DB_PASSWORD=password
@@ -23,8 +23,8 @@ Khởi động và cài dữ liệu demo:
 
 ```powershell
 docker compose up -d
-docker compose exec laravel.test php artisan bagisto:install
-docker compose exec laravel.test php artisan b2b:catalog:seed-demo
+docker compose exec -u sail laravel.test php artisan bagisto:install
+docker compose exec -u sail laravel.test php artisan b2b:catalog:seed-demo
 ```
 
 Lệnh cài đặt sẽ yêu cầu tạo tài khoản quản trị. Hãy tự đặt email và mật khẩu mới, không dùng thông tin demo làm thông tin thật.
