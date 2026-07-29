@@ -22,9 +22,9 @@ BAGISTO_PORT=18001
 Khởi động và cài dữ liệu demo:
 
 ```powershell
-.\vendor\bin\sail up -d
-.\vendor\bin\sail artisan bagisto:install
-.\vendor\bin\sail artisan b2b:catalog:seed-demo
+docker compose up -d
+docker compose exec laravel.test php artisan bagisto:install
+docker compose exec laravel.test php artisan b2b:catalog:seed-demo
 ```
 
 Lệnh cài đặt sẽ yêu cầu tạo tài khoản quản trị. Hãy tự đặt email và mật khẩu mới, không dùng thông tin demo làm thông tin thật.
@@ -52,7 +52,7 @@ Nếu cần nhận yêu cầu thật, thêm URL Apps Script vào `GOOGLE_SHEETS_
 
 ```powershell
 # Trong giacong-bagisto
-.\vendor\bin\sail down
+docker compose down
 ```
 
 Website Next.js dừng bằng `Ctrl+C` tại cửa sổ đang chạy nó.
