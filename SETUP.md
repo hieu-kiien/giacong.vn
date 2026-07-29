@@ -1,5 +1,11 @@
 # Cài đặt local
 
+## Yêu cầu
+
+- Docker Desktop đang chạy.
+- PHP 8.3 hoặc 8.4 cùng Composer 2.
+- Node.js 24 trở lên.
+
 ## 1. Khởi động Bagisto
 
 Mở PowerShell trong thư mục `giacong-bagisto`:
@@ -27,7 +33,7 @@ docker compose exec -u sail laravel.test php artisan bagisto:install
 docker compose exec -u sail laravel.test php artisan b2b:catalog:seed-demo
 ```
 
-Lệnh cài đặt sẽ yêu cầu tạo tài khoản quản trị. Hãy tự đặt email và mật khẩu mới, không dùng thông tin demo làm thông tin thật.
+Sau khi cài xong, đăng nhập quản trị tại `http://localhost:18001/admin` bằng `admin@example.com` và `admin123`. Đổi mật khẩu nếu dùng ngoài môi trường demo.
 
 ## 2. Khởi động website
 
