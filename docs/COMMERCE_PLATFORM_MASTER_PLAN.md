@@ -280,7 +280,7 @@ Không có câu hỏi ưu tiên mới. Quyết định một shared account `adm
 
 ## 11. Ranh giới frontend và backend
 
-Ranh giới này chia công việc theo luồng, **không** chia theo thư mục: cây thư mục giữ nguyên. Lý do là `bagisto/` đã là repo git riêng (junction, bị `.gitignore` loại trừ) và bên trong `src/` biên đã được ngôn ngữ tự chặn bằng `import "server-only"`. Dời `src/` sang `frontend/` sẽ phải sửa `tsconfig.json`, `components.json`, `eslint.config.mjs`, `Dockerfile`, `docker-compose.yml`, `.dockerignore` và 16 file trong `scripts/` đang import theo đường dẫn tương đối, trong khi chức năng không đổi.
+Ranh giới này chia công việc theo luồng, **không** chia theo thư mục: website Next.js ở thư mục gốc và Bagisto ở `bagisto/`, cùng được theo dõi trong một repository. Bên trong `src/`, biên server đã được ngôn ngữ tự chặn bằng `import "server-only"`. Dời `src/` sang `frontend/` sẽ phải sửa `tsconfig.json`, `components.json`, `eslint.config.mjs`, `Dockerfile`, `docker-compose.yml`, `.dockerignore` và 16 file trong `scripts/` đang import theo đường dẫn tương đối, trong khi chức năng không đổi.
 
 | Luồng | Sở hữu |
 | --- | --- |
