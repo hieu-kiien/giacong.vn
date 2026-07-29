@@ -3,8 +3,8 @@ node_modules/
 .pnp
 .pnp.js
 
-# Local independent backend checkout and agent worktrees; neither belongs to the frontend repository yet.
-/bagisto/
+# Backend and agent worktrees.
+# Bagisto source is tracked in /bagisto; its own .gitignore excludes dependencies and local state.
 /.worktrees/
 
 # Build

@@ -10,14 +10,13 @@ Website giới thiệu và nhận yêu cầu B2B. Khách xem sản phẩm/dịch
 
 ## Chạy trên máy mới
 
-Cần Git, Docker Desktop, Node.js 24 và Composer. Clone hai repository cạnh nhau:
+Cần Git, Docker Desktop, PHP 8.3 hoặc 8.4 cùng Composer 2, và Node.js 24. Chỉ cần tải một repository:
 
 ```powershell
-git clone https://github.com/qtu1053-dev/giacong-bagisto.git
 git clone https://github.com/qtu1053-dev/giacong.vn.git
 ```
 
-Thiết lập Bagisto trước, sau đó thiết lập website. Hướng dẫn từng lệnh nằm trong [SETUP.md](./SETUP.md).
+Bagisto nằm trong thư mục `bagisto/` của repository này. Thiết lập Bagisto trước, sau đó thiết lập website. Hướng dẫn từng lệnh nằm trong [SETUP.md](./SETUP.md).
 
 ## Kiểm tra nhanh
 

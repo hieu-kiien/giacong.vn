@@ -8,7 +8,7 @@
 
 ## 1. Khởi động Bagisto
 
-Mở PowerShell trong thư mục `giacong-bagisto`:
+Mở PowerShell trong thư mục `giacong.vn\\bagisto`:
 
 ```powershell
 Copy-Item .env.example .env
@@ -37,7 +37,7 @@ Sau khi cài xong, đăng nhập quản trị tại `http://localhost:18001/admi
 
 ## 2. Khởi động website
 
-Mở PowerShell khác trong thư mục `giacong.vn`:
+Mở PowerShell khác trong thư mục gốc `giacong.vn`:
 
 ```powershell
 Copy-Item .env.example .env.local
@@ -57,7 +57,7 @@ Nếu cần nhận yêu cầu thật, thêm URL Apps Script vào `GOOGLE_SHEETS_
 ## 3. Dừng dịch vụ
 
 ```powershell
-# Trong giacong-bagisto
+# Trong giacong.vn\\bagisto
 docker compose down
 ```
 
