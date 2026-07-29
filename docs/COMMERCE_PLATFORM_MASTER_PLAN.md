@@ -2,6 +2,21 @@
 
 **Trạng thái:** nguồn quyết định hiện hành duy nhất cho việc phát triển.
 
+## Trạng thái triển khai
+
+Mỗi hạng mục dùng các trạng thái sau, theo thứ tự. Không dùng cụm mơ hồ như “Cần làm” cho phần đã có mã nguồn.
+
+| Trạng thái | Ý nghĩa |
+| --- | --- |
+| **Implemented** | Đã có trong mã nguồn/template |
+| **Tested locally** | Đã kiểm tra trên máy phát triển |
+| **Tested in CI** | Đã có kiểm tra tự động chạy trên CI |
+| **Deployed staging** | Đã triển khai trên môi trường staging |
+| **Live verified** | Đã kiểm tra với dịch vụ thật, dữ liệu thật hoặc deployment thật |
+| **Accepted by owner** | Chủ dự án/khách đã xác nhận chấp nhận |
+
+Nếu một hạng mục chưa đi qua bước tiếp theo, ghi rõ bước còn thiếu. Các mức không xuất hiện không được suy diễn là đã hoàn thành.
+
 ## 1. Mục tiêu
 
 Giacong.vn là website B2B cho khách xem sản phẩm/dịch vụ và gửi yêu cầu tư vấn hoặc báo giá. Luồng chính là:
@@ -22,15 +37,16 @@ Toàn bộ nằm trong một repository. Next.js là origin công khai; `/admin`
 
 ## 3. Phạm vi V1
 
-### Đã có trong demo
+### Trạng thái demo
 
-- Catalog sản phẩm đọc từ Bagisto.
-- Quản lý catalog trong Bagisto: sản phẩm, biến thể, ảnh, SKU, giá, tồn kho, MOQ, bước số lượng và ngưỡng liên hệ.
-- Trang sản phẩm có tìm kiếm, lọc, sắp xếp và xem chi tiết.
-- Giỏ yêu cầu chỉ lưu tạm tại `localStorage`; server đọc lại Bagisto để xác thực sản phẩm, giá và số lượng trước khi gửi.
-- Form yêu cầu ghi vào Google Sheet qua Apps Script.
-- Dịch vụ mẫu và nội dung CMS có thể đọc từ Bagisto.
-- Docker runtime cho Bagisto dùng Nginx + PHP-FPM; vận hành local ổn định qua `localhost:4317`.
+| Hạng mục | Trạng thái hiện tại | Bước còn thiếu |
+| --- | --- | --- |
+| Catalog đọc từ Bagisto; admin quản lý sản phẩm, biến thể, ảnh, SKU, giá, tồn kho và policy B2B | **Implemented · Tested locally** | Dữ liệu production được duyệt và owner chấp nhận |
+| Trang sản phẩm: tìm kiếm, lọc, sắp xếp và chi tiết | **Implemented · Tested locally** | Owner chấp nhận nội dung/dữ liệu thật |
+| Giỏ nhiều dòng tại `/gui-yeu-cau`; `localStorage`, route xác thực giỏ, JSON cart và snapshot token | **Implemented · Tested locally** | Kiểm tra end-to-end với Sheet thật và owner chấp nhận |
+| Ghi yêu cầu và chi tiết giỏ vào Apps Script/Google Sheet | **Implemented · Tested locally** | **Live verified** bởi owner trên Sheet/Apps Script do khách kiểm soát |
+| Dịch vụ mẫu và nội dung CMS đọc từ Bagisto | **Implemented · Tested locally** | Nội dung/media thật và owner chấp nhận |
+| Runtime Docker Nginx + PHP-FPM; proxy qua `localhost:4317` | **Implemented · Tested locally** | Triển khai staging/production khi có hạ tầng |
 
 ### Không thuộc V1
 
@@ -59,10 +75,10 @@ Sau khi Docker vừa khởi động, lần mở Bagisto đầu tiên có thể c
 
 ## 6. Việc còn lại trước khi public
 
-1. Thay dữ liệu demo bằng taxonomy, sản phẩm, giá, ảnh, nội dung và thông tin liên hệ thật đã được duyệt.
-2. Khách sở hữu Google Sheet và Apps Script: chạy `setupRequestWorkbook()`, redeploy webhook, thử form và xác nhận quyền kiểm soát cuối cùng.
-3. Rà nội dung các trang dịch vụ/doanh nghiệp cần hiển thị khi demo hoặc public.
-4. Chạy kịch bản bàn giao: xem sản phẩm → thêm giỏ → gửi yêu cầu → kiểm tra Sheet.
+1. Dữ liệu production: taxonomy, sản phẩm, giá, ảnh, nội dung và thông tin liên hệ thật được **Accepted by owner**.
+2. Google Sheet/Apps Script: khách sở hữu, chạy `setupRequestWorkbook()`, redeploy webhook và **Live verified** luồng form/giỏ.
+3. Nội dung trang dịch vụ/doanh nghiệp được **Accepted by owner**.
+4. Kịch bản bàn giao: xem sản phẩm → thêm giỏ → gửi yêu cầu → kiểm tra Sheet, sau đó **Accepted by owner**.
 
 ## 7. Hướng mở rộng sau V1
 

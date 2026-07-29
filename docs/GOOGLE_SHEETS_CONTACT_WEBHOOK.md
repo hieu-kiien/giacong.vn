@@ -1,5 +1,15 @@
 # Webhook liên hệ Google Sheets
 
+## Trạng thái
+
+| Hạng mục | Trạng thái hiện tại | Bước còn thiếu |
+| --- | --- | --- |
+| Template Apps Script, tab `Yêu cầu`, tab `Chi tiết giỏ hàng`, protection và workflow | **Implemented · Tested locally** | Owner chạy `setupRequestWorkbook()` trên Sheet thật |
+| Nhận JSON `cart`, ghi nhiều dòng chi tiết theo cùng `Mã` và trả snapshot/reference | **Implemented · Tested locally** | **Live verified** bằng một yêu cầu giỏ thật |
+| Webhook public và quyền kiểm soát Google | Chưa xác nhận bàn giao | Khách deploy dưới tài khoản Google/Workspace của mình, sau đó **Live verified** và **Accepted by owner** |
+
+`Implemented` không có nghĩa là đã chạy trên Google account thật. Chỉ đánh dấu `Live verified` sau khi owner kiểm tra trực tiếp Sheet, protection và dữ liệu nhận được.
+
 Template [google-apps-script-contact-webhook.gs](google-apps-script-contact-webhook.gs) nhận JSON từ `POST /api/contact` và lưu vào tab `Yêu cầu`. Nếu tab chưa có, script tạo đúng 15 cột A:O: `Mã`, `Thời gian`, `Loại`, `Sản phẩm/Dịch vụ`, `Biến thể`, `Số lượng`, `Họ tên`, `Điện thoại`, `Email`, `Nội dung`, `Nguồn`, `Trạng thái`, `Người phụ trách`, `Ghi chú`, `Cập nhật lần cuối`.
 
 Mỗi submit được server chấp nhận tạo một `Mã` và dòng mới. Server tự gán `request_type`; Apps Script ghi giá trị canonical vào C:F, `Mới` vào L, để trống M:N và ghi timestamp vào B:O. `Số lượng` là số hoặc rỗng. Các text do request cung cấp vẫn được ép text an toàn để không chạy công thức Sheet.
@@ -32,4 +42,4 @@ Sau khi dán script, owner chạy một lần `setupRequestWorkbook()` trong App
 
 Sau khi cập nhật template lên bản có nhánh giỏ, owner phải **chạy lại `setupRequestWorkbook()`** rồi redeploy Web app; chạy lại là idempotent và không xóa dòng chi tiết đã có.
 
-Checklist trước bàn giao: owner chạy setup, cấp quyền/deploy Web app, thử intake một mặt hàng và một submit giỏ nhiều dòng, kiểm tra dòng chi tiết dùng chung `Mã` với dòng `Yêu cầu`, thử một transition hợp lệ, kiểm tra protection/validation/Tổng quan và protection của `Chi tiết giỏ hàng`, rồi xác nhận tài khoản Google/Workspace của khách là bên kiểm soát cuối. Protection không phải biện pháp bảo mật tuyệt đối: owner có thể override hoặc gỡ protection. Với tài khoản work/school, chuyển owner chỉ trong cùng tổ chức; khi không chuyển trực tiếp được cần copy/migration/redeploy dưới tài khoản khách. Các việc authorization trigger thực, chuyển ownership/migration và live verification vẫn **Chờ xác nhận** cho tới khi làm trong Google account của user/khách. [Google Sheets protections](https://support.google.com/docs/answer/1218656?hl=en-gb), [Google Drive ownership](https://support.google.com/drive/answer/2494892?hl=en-IN), [Apps Script triggers](https://developers.google.com/apps-script/guides/triggers/).
+Checklist trước bàn giao: owner chạy setup, cấp quyền/deploy Web app, thử intake một mặt hàng và một submit giỏ nhiều dòng, kiểm tra dòng chi tiết dùng chung `Mã` với dòng `Yêu cầu`, thử một transition hợp lệ, kiểm tra protection/validation/Tổng quan và protection của `Chi tiết giỏ hàng`, rồi xác nhận tài khoản Google/Workspace của khách là bên kiểm soát cuối. Protection không phải biện pháp bảo mật tuyệt đối: owner có thể override hoặc gỡ protection. Với tài khoản work/school, chuyển owner chỉ trong cùng tổ chức; khi không chuyển trực tiếp được cần copy/migration/redeploy dưới tài khoản khách. Authorization trigger thực, chuyển ownership/migration và kiểm tra trên Google account thật chưa đạt mức **Live verified** cho tới khi owner thực hiện. [Google Sheets protections](https://support.google.com/docs/answer/1218656?hl=en-gb), [Google Drive ownership](https://support.google.com/drive/answer/2494892?hl=en-IN), [Apps Script triggers](https://developers.google.com/apps-script/guides/triggers/).
