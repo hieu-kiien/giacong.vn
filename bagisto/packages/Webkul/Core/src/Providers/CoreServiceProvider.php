@@ -44,13 +44,15 @@ class CoreServiceProvider extends ServiceProvider
 
         $this->loadViewsFrom(__DIR__.'/../Resources/views', 'core');
 
-        Event::listen('bagisto.shop.layout.body.after', static function (ViewRenderEventManager $viewRenderEventManager) {
-            $viewRenderEventManager->addTemplate('core::blade.tracer.style');
-        });
+        if (config('view.tracer')) {
+            Event::listen('bagisto.shop.layout.body.after', static function (ViewRenderEventManager $viewRenderEventManager) {
+                $viewRenderEventManager->addTemplate('core::blade.tracer.style');
+            });
 
-        Event::listen('bagisto.admin.layout.head', static function (ViewRenderEventManager $viewRenderEventManager) {
-            $viewRenderEventManager->addTemplate('core::blade.tracer.style');
-        });
+            Event::listen('bagisto.admin.layout.head', static function (ViewRenderEventManager $viewRenderEventManager) {
+                $viewRenderEventManager->addTemplate('core::blade.tracer.style');
+            });
+        }
 
         $this->callAfterResolving(Schedule::class, function (Schedule $schedule) {
             $schedule->command('invoice:cron')->dailyAt('3:00');
