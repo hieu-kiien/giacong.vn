@@ -34,6 +34,10 @@ async function loadTemplate(uuids = ["abcd1234-0000-0000-0000-000000000000"]) {
       return this;
     }
 
+    setFormulas(values) {
+      return this.setValues(values);
+    }
+
     setDataValidation(validation) {
       for (let row = this.row; row < this.row + this.numRows; row += 1) {
         for (let column = this.column; column < this.column + this.numColumns; column += 1) {
@@ -353,7 +357,7 @@ test("reuses one native sheet protection and leaves Yêu cầu L:N editable", as
   assert.deepEqual(summaryProtection.unprotectedRanges, []);
 });
 
-test("writes locale-independent numeric Tổng quan counts and refreshes them after submits", async () => {
+test("writes formula-driven Tổng quan counts without scanning request rows", async () => {
   const { context, sheets } = await loadTemplate([
     "abcd1234-0000-0000-0000-000000000000",
     "dcba4321-0000-0000-0000-000000000000",
@@ -376,8 +380,8 @@ test("writes locale-independent numeric Tổng quan counts and refreshes them af
     [summarySheet.getCell(3, 1), summarySheet.getCell(3, 2)],
   ], [
     ["Chỉ số", "Số lượng"],
-    ["Đơn mới", 1],
-    ["Yêu cầu mới", 1],
+    ["Đơn mới", '=COUNTIFS(\'Yêu cầu\'!C:C,"Đặt sản phẩm",\'Yêu cầu\'!L:L,"Mới")'],
+    ["Yêu cầu mới", '=COUNTIFS(\'Yêu cầu\'!C:C,"Tư vấn số lượng lớn",\'Yêu cầu\'!L:L,"Mới")+COUNTIFS(\'Yêu cầu\'!C:C,"Tư vấn dịch vụ",\'Yêu cầu\'!L:L,"Mới")'],
   ]);
 });
 

@@ -212,30 +212,20 @@ function setupSummarySheet() {
 }
 
 function refreshSummarySheet() {
-  const contactSheet = getContactSheet();
-  const lastRow = contactSheet.getLastRow();
-  const rows = lastRow < 2
-    ? []
-    : contactSheet.getRange(2, 3, lastRow - 1, 10).getValues();
-  let newOrders = 0;
-  let newConsultations = 0;
-  rows.forEach((row) => {
-    const requestType = row[0];
-    const status = row[9];
-    if (status !== "Mới") return;
-    if (requestType === "Đặt sản phẩm") newOrders += 1;
-    if (requestType === "Tư vấn số lượng lớn" || requestType === "Tư vấn dịch vụ") {
-      newConsultations += 1;
-    }
-  });
   const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
   const summarySheet = spreadsheet.getSheetByName(SUMMARY_SHEET_NAME)
     || spreadsheet.insertSheet(SUMMARY_SHEET_NAME);
-  summarySheet.clear();
-  summarySheet.getRange(1, 1, 3, 2).setValues([
-    ["Chỉ số", "Số lượng"],
-    ["Đơn mới", newOrders],
-    ["Yêu cầu mới", newConsultations],
+  summarySheet.getRange(1, 1, 3, 1).setValues([
+    ["Chỉ số"],
+    ["Đơn mới"],
+    ["Yêu cầu mới"],
+  ]);
+  summarySheet.getRange(1, 2, 1, 1).setValues([
+    ["Số lượng"],
+  ]);
+  summarySheet.getRange(2, 2, 2, 1).setFormulas([
+    ['=COUNTIFS(\'Yêu cầu\'!C:C,"Đặt sản phẩm",\'Yêu cầu\'!L:L,"Mới")'],
+    ['=COUNTIFS(\'Yêu cầu\'!C:C,"Tư vấn số lượng lớn",\'Yêu cầu\'!L:L,"Mới")+COUNTIFS(\'Yêu cầu\'!C:C,"Tư vấn dịch vụ",\'Yêu cầu\'!L:L,"Mới")'],
   ]);
 }
 
