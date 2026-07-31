@@ -8,6 +8,7 @@
 | [UI_CURRENT_MAP.md](./UI_CURRENT_MAP.md) | Bản đồ route và giao diện đang có |
 | [GOOGLE_SHEETS_CONTACT_WEBHOOK.md](./GOOGLE_SHEETS_CONTACT_WEBHOOK.md) | Hướng dẫn vận hành webhook và Google Sheet |
 | [google-apps-script-contact-webhook.gs](./google-apps-script-contact-webhook.gs) | Mã Apps Script được kiểm thử; chỉnh cùng hướng dẫn webhook |
+| [PRODUCTION_CHECKLIST.md](./PRODUCTION_CHECKLIST.md) | Checklist deploy, bảo mật mạng và smoke test |
 
 ## Tài liệu tham khảo lịch sử
 
