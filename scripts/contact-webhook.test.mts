@@ -104,6 +104,25 @@ test("does not include secret when it is not configured", async () => {
   assert.equal("secret" in JSON.parse(receivedBody), false);
 });
 
+test("forwards a valid form request id for downstream idempotency", async () => {
+  let body = "";
+  const response = await handleContactSubmission(requestWithForm({
+    ...validSubmission,
+    requestId: "6b1e0f7a-6c2f-4c1a-9c3e-8f5b2d0a1e44",
+  }), {
+    environment: environment(),
+    fetch: async (_url: string | URL | Request, init?: RequestInit) => {
+      body = String(init?.body);
+      return new Response(JSON.stringify({ ok: true, reference: "YC-FORM" }), {
+        headers: { "Content-Type": "application/json" },
+      });
+    },
+  });
+
+  assert.equal(response.status, 202);
+  assert.equal(JSON.parse(body).request_id, "6b1e0f7a-6c2f-4c1a-9c3e-8f5b2d0a1e44");
+});
+
 test("fails closed in production when the webhook secret is missing or too short", async () => {
   for (const secret of [undefined, "too-short"]) {
     let called = false;

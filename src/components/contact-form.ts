@@ -33,6 +33,7 @@ function readControlValue(
 
 function createContactPayload(form: HTMLFormElement) {
   const payload = new FormData();
+  if (!form.dataset.requestId) form.dataset.requestId = crypto.randomUUID();
   payload.set(
     "name",
     readControlValue(
@@ -46,6 +47,7 @@ function createContactPayload(form: HTMLFormElement) {
   payload.set("message", readControlValue(form, "textarea", 2000));
   payload.set("website", readControlValue(form, 'input[name="website"]', 200));
   payload.set("source", window.location.pathname);
+  payload.set("requestId", form.dataset.requestId);
   const service = getContactServiceContext(window.location.search);
   if (service) payload.set("service", service);
   return payload;
@@ -125,6 +127,7 @@ async function submitContactForm(event: Event) {
       `${result.message ?? "Yêu cầu của bạn đã được tiếp nhận."}${reference}`,
     );
     form.reset();
+    delete form.dataset.requestId;
   } catch {
     setContactFormStatus(
       form,
