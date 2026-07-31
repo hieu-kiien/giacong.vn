@@ -21,6 +21,26 @@ test("allows the local IP hostname used by the product demo", async () => {
   assert.match(nextConfig, /allowedDevOrigins:\s*\[[^\]]*"127\.0\.0\.1"/);
 });
 
+test("does not retain a personal LAN address in development origins", async () => {
+  const nextConfig = await readFile(new URL("next.config.ts", root), "utf8");
+
+  assert.doesNotMatch(nextConfig, /192\.168\.\d{1,3}\.\d{1,3}/);
+});
+
+test("uses the full frontend quality gate in CI", async () => {
+  const workflow = await readFile(new URL(".github/workflows/ci.yml", root), "utf8");
+
+  assert.match(workflow, /run:\s*npm run check/);
+});
+
+test("binds the production storefront only to localhost", async () => {
+  const productionCompose = await readFile(new URL("docker-compose.production.yml", root), "utf8");
+
+  assert.match(productionCompose, /image:\s*giacong-lean-commerce:latest/);
+  assert.match(productionCompose, /127\.0\.0\.1:\$\{PORT:-3000\}:3000/);
+  assert.doesNotMatch(productionCompose, /\bdev:/);
+});
+
 test("one public hostname can proxy the native Bagisto admin and its assets", async () => {
   const [environment, nextConfig, masterPlan] = await Promise.all([
     readFile(new URL(".env.example", root), "utf8"),
