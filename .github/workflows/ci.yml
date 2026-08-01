@@ -28,3 +28,40 @@ jobs:
 
       - name: Frontend quality gate
         run: npm run check
+
+  bagisto:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          extensions: calendar, curl, dom, fileinfo, intl, mbstring, mysqlnd, pdo_mysql, tokenizer, zip
+          tools: composer:v2
+          coverage: none
+
+      - name: Prepare Bagisto test environment
+        working-directory: bagisto
+        run: cp .env.testing.example .env
+
+      - name: Install Bagisto dependencies
+        working-directory: bagisto
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Check Bagisto code style
+        working-directory: bagisto
+        run: vendor/bin/pint --test
+
+      - name: Run Bagisto B2B tests
+        working-directory: bagisto
+        run: composer test:b2b
+
+      - name: Remove test services
+        if: always()
+        working-directory: bagisto
+        run: docker compose -p bagisto-b2b-test down --volumes --remove-orphans

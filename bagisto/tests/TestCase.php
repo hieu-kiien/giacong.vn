@@ -11,6 +11,20 @@ abstract class TestCase extends BaseTestCase
 {
     use DatabaseTransactions;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        touch(storage_path('installed'));
+    }
+
+    protected function tearDown(): void
+    {
+        @unlink(storage_path('installed'));
+
+        parent::tearDown();
+    }
+
     /**
      * Validate the live connection before DatabaseTransactions can begin.
      *

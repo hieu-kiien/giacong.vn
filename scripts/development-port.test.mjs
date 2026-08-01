@@ -33,6 +33,16 @@ test("uses the full frontend quality gate in CI", async () => {
   assert.match(workflow, /run:\s*npm run check/);
 });
 
+test("runs the Bagisto style and B2B checks in CI", async () => {
+  const workflow = await readFile(new URL(".github/workflows/ci.yml", root), "utf8");
+
+  assert.match(workflow, /^\s*bagisto:/m);
+  assert.match(workflow, /working-directory:\s*bagisto/);
+  assert.match(workflow, /composer install --no-interaction --prefer-dist --no-progress/);
+  assert.match(workflow, /vendor\/bin\/pint --test/);
+  assert.match(workflow, /composer test:b2b/);
+});
+
 test("binds the production storefront only to localhost", async () => {
   const productionCompose = await readFile(new URL("docker-compose.production.yml", root), "utf8");
 
