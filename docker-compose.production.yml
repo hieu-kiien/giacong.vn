@@ -1,0 +1,22 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runner
+    image: giacong-lean-commerce:latest
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${PORT:-3000}:3000"
+    environment:
+      NODE_ENV: production
+      NEXT_TELEMETRY_DISABLED: "1"
+    env_file:
+      - path: .env.production.local
+        required: true
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:3000/api/health').then((response) => process.exit(response.ok ? 0 : 1)).catch(() => process.exit(1))\""]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s

@@ -3,7 +3,7 @@ import type { NextConfig } from "next";
 const bagistoProxyOrigin = process.env.BAGISTO_PROXY_ORIGIN?.replace(/\/+$/, "");
 
 const nextConfig: NextConfig = {
-  allowedDevOrigins: ["127.0.0.1", "192.168.1.177"],
+  allowedDevOrigins: ["127.0.0.1"],
   output: "standalone",
   async redirects() {
     return [
