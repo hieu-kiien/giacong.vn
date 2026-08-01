@@ -151,7 +151,7 @@ test("design tokens carry the measured commerce geometry", () => {
 
 // `brand` is the real giacong.vn green, taken from the Flatsome block every captured
 // page embeds inline (`:root {--primary-color: #5aa400}`). It supersedes the `#2f9e0b`
-// still recorded in `docs/research/DESIGN_TOKENS.md`, which is kept as historical
+// recorded in the accepted visual specification,
 // evidence. `brandDark` is derived from it, not measured. The rest are the measured
 // values from that document.
 test("commerce colour tokens match the live giacong.vn palette", () => {

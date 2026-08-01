@@ -6,7 +6,7 @@
  * plus `.header-bg-color {background-color: #5aa400}` — so `#5aa400` is what the ~234
  * captured routes actually render, and the product and service routes now match it
  * instead of approximating it. This supersedes the measured `#2f9e0b` in
- * `docs/research/DESIGN_TOKENS.md` and the approved screenshots `SCR-01`…`SCR-04`,
+ * the approved visual specification captured during the implementation,
  * which were taken before the captured pages were the reference.
  *
  * `brand-dark` is derived from it rather than measured: `#457f00` is the same hue at
@@ -14,7 +14,7 @@
  * 3.1:1, too low for body text). It carries text, links and focus rings; the brand
  * green carries fills.
  *
- * The remaining values are the measured ones in `docs/research/DESIGN_TOKENS.md`. The
+ * The remaining values are the measured implementation values. The
  * `activeSurface` and `supportStrip` tints are within 1/255 of low-alpha `#5aa400` over
  * white, so they needed no change. Names stay `commerce-*`: the `brand-*` ramp in
  * `globals.css` is read by the four `components/storefront/` components until phase C

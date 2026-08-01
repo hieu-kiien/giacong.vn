@@ -1,6 +1,6 @@
 // Contract for `/san-pham` listing and the product card, against the approved
 // references (`SCR-02-product-list`, `SCR-03-product-card`) and the specs in
-// `docs/research/`. The pure listing module is exercised as a module; the `.tsx`
+// The pure listing module is exercised as a module; the `.tsx`
 // surfaces Node cannot import are asserted as source text, matching
 // `commerce-foundation.test.mts`.
 import assert from "node:assert/strict";

@@ -6,9 +6,7 @@
 //  - the `.tsx` components and the CSS module are asserted as source text, which is
 //    how `scripts/commerce-foundation.test.mts` already covers presentation files.
 //
-// References: docs/research/components/product-detail.spec.md,
-// docs/research/{BEHAVIORS,PAGE_TOPOLOGY,DESIGN_TOKENS}.md and
-// docs/handoff-references/references/approved/preview-600/SCR-04-product-detail.webp.
+// Layout and interaction expectations come from the accepted product-detail specification.
 import assert from "node:assert/strict";
 import { readFile, stat } from "node:fs/promises";
 import path from "node:path";

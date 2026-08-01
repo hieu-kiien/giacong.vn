@@ -48,7 +48,7 @@ export const COMMERCE_GEOMETRY = {
 } as const;
 
 /**
- * Implementation viewports from `docs/research/PAGE_TOPOLOGY.md`. Responsive work
+ * Implementation viewports from the accepted responsive specification. Responsive work
  * is checked at these widths rather than at arbitrary ones.
  */
 export const COMMERCE_VIEWPORTS = [1440, 1024, 768, 390, 320] as const;

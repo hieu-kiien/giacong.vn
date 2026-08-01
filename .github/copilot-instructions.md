@@ -13,8 +13,6 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 - [docs/COMMERCE_PLATFORM_MASTER_PLAN.md](docs/COMMERCE_PLATFORM_MASTER_PLAN.md) is the only current decision source.
 - [docs/README.md](docs/README.md) is the documentation index; keep new material under its existing categories.
-- `docs/research/` and `docs/design-references/` are historical research evidence, not target scope or product decisions.
-- [docs/UI_CURRENT_MAP.md](docs/UI_CURRENT_MAP.md) and [docs/ORIGINAL_GIACONG_VN_MAP.md](docs/ORIGINAL_GIACONG_VN_MAP.md) describe the current and pre-clone interfaces as observed. They are descriptive only; the target sitemap is in the master plan.
 - [docs/GOOGLE_SHEETS_CONTACT_WEBHOOK.md](docs/GOOGLE_SHEETS_CONTACT_WEBHOOK.md) describes the current webhook and its implemented 15-column intake schema; Sheet operations and handoff remain in the master plan.
 - The `giacong-product-ai-handoff` pack is design input (business rules, IA, component specs, data models, reference images), not a decision source. Where it conflicts with the master plan, the master plan wins — it drops `/gio-hang`, `/thanh-toan`, checkout and rating/review/favorite.
 

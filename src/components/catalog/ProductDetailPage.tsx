@@ -17,7 +17,7 @@ interface ProductDetailPageProps {
 /**
  * `/san-pham/[slug]`, following the approved detail screenshot.
  *
- * Layout, per `docs/research/PAGE_TOPOLOGY.md`: breadcrumb, then a two-column hero
+ * Layout: breadcrumb, then a two-column hero
  * with the gallery left and the commercial column right, then description and the
  * related rail as a second row. A compact facts panel sits as a third hero column at
  * 1280 px and folds under the commercial column below that. Mobile is a single

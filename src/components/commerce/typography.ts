@@ -3,7 +3,7 @@
  *
  * Utilities rather than CSS classes so a caller can extend or override a level
  * with `cn()` at the call site, which a `.module.css` class cannot do. Sizes are
- * the measured ranges in `docs/research/DESIGN_TOKENS.md`; the font is the bundled
+ * the measured implementation ranges; the font is the bundled
  * SF Pro Display already wired to `--font-sans`.
  */
 
