@@ -4,15 +4,15 @@ services:
             context: ./vendor/laravel/sail/runtimes/8.3
             dockerfile: Dockerfile
             args:
-                WWWGROUP: '${WWWGROUP}'
+                WWWGROUP: '${WWWGROUP:-1000}'
         image: sail-8.3/app
         extra_hosts:
             - 'host.docker.internal:host-gateway'
         ports:
-            - '${BAGISTO_PORT:-8081}:80'
-            - '${VITE_PORT:-5173}:${VITE_PORT:-5173}'
+            - '127.0.0.1:${BAGISTO_PORT:-18001}:80'
+            - '127.0.0.1:${VITE_PORT:-5173}:${VITE_PORT:-5173}'
         environment:
-            WWWUSER: '${WWWUSER}'
+            WWWUSER: '${WWWUSER:-1000}'
             LARAVEL_SAIL: 1
             DB_CONNECTION: '${DB_CONNECTION:-mysql}'
             DB_HOST: mysql
@@ -60,7 +60,7 @@ services:
     redis:
         image: 'redis:alpine'
         ports:
-            - '${FORWARD_REDIS_PORT:-6379}:6379'
+            - '127.0.0.1:${FORWARD_REDIS_PORT:-6379}:6379'
         volumes:
             - 'sail-redis:/data'
         networks:
@@ -75,8 +75,8 @@ services:
     elasticsearch:
         image: docker.elastic.co/elasticsearch/elasticsearch:7.17.0
         ports:
-            - '9200:9200'
-            - '9300:9300'
+            - '127.0.0.1:9200:9200'
+            - '127.0.0.1:9300:9300'
         environment:
             - xpack.security.enabled=false
             - discovery.type=single-node
@@ -96,7 +96,7 @@ services:
     kibana:
         image: docker.elastic.co/kibana/kibana:7.17.0
         ports:
-            - 5601:5601
+            - '127.0.0.1:5601:5601'
         environment:
             ELASTICSEARCH_HOSTS: 'http://elasticsearch:9200'
         networks:
@@ -106,8 +106,8 @@ services:
     mailpit:
         image: 'axllent/mailpit:latest'
         ports:
-            - '${FORWARD_MAILPIT_PORT:-1025}:1025'
-            - '${FORWARD_MAILPIT_DASHBOARD_PORT:-8025}:8025'
+            - '127.0.0.1:${FORWARD_MAILPIT_PORT:-1025}:1025'
+            - '127.0.0.1:${FORWARD_MAILPIT_DASHBOARD_PORT:-8025}:8025'
         networks:
             - sail
 networks:
