@@ -39,6 +39,7 @@ const CART_MAX_LINES = 20;
 // Must stay well under the 5s abort on the Next side, otherwise the lock itself manufactures 504s.
 const CART_LOCK_TIMEOUT_MS = 2000;
 const CART_REPLAY_TTL_SECONDS = 21600;
+const FORM_REPLAY_TTL_SECONDS = 3600;
 const UUID_V4_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 
 function doPost(event) {
@@ -56,19 +57,7 @@ function doPost(event) {
       return jsonResponse({ ok: false, reference: "" });
     }
 
-    const sheet = getContactSheet();
-    const reference = createReference();
-    const timestamp = new Date();
-    sheet.appendRow(contactRow(
-      payload,
-      reference,
-      timestamp,
-      safeText(payload.product || payload.service, 200),
-      safeText(payload.variant, 160),
-      safeQuantity(payload.qty),
-    ));
-    refreshSummarySheet();
-    return jsonResponse({ ok: true, reference });
+    return appendFormSubmission(payload);
   } catch (_error) {
     return jsonResponse({ ok: false, reference: "" });
   }
@@ -227,6 +216,46 @@ function refreshSummarySheet() {
     ['=COUNTIFS(\'Yêu cầu\'!C:C,"Đặt sản phẩm",\'Yêu cầu\'!L:L,"Mới")'],
     ['=COUNTIFS(\'Yêu cầu\'!C:C,"Tư vấn số lượng lớn",\'Yêu cầu\'!L:L,"Mới")+COUNTIFS(\'Yêu cầu\'!C:C,"Tư vấn dịch vụ",\'Yêu cầu\'!L:L,"Mới")'],
   ]);
+}
+
+function appendFormSubmission(payload) {
+  const requestId = rawText(payload.request_id, 36);
+  if (!UUID_V4_PATTERN.test(requestId)) {
+    return jsonResponse({ ok: true, reference: appendFormRow(payload) });
+  }
+
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(CART_LOCK_TIMEOUT_MS)) return jsonResponse({ ok: false, reference: "" });
+  try {
+    const cache = CacheService.getScriptCache();
+    const replayKey = `form-request:${requestId}`;
+    const replayed = cache.get(replayKey);
+    if (replayed) return jsonResponse({ ok: true, reference: replayed });
+
+    const reference = appendFormRow(payload);
+    cache.put(replayKey, reference, FORM_REPLAY_TTL_SECONDS);
+    return jsonResponse({ ok: true, reference });
+  } catch (_error) {
+    return jsonResponse({ ok: false, reference: "" });
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function appendFormRow(payload) {
+  const sheet = getContactSheet();
+  const reference = createReference();
+  const timestamp = new Date();
+  sheet.appendRow(contactRow(
+    payload,
+    reference,
+    timestamp,
+    safeText(payload.product || payload.service, 200),
+    safeText(payload.variant, 160),
+    safeQuantity(payload.qty),
+  ));
+  refreshSummarySheet();
+  return reference;
 }
 
 function configureProtection(protection) {

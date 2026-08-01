@@ -290,6 +290,29 @@ test("creates a distinct reference and row for every accepted submit", async () 
   assert.equal(rows[2][1], rows[2][14]);
 });
 
+test("replays a normal form request for one hour without duplicating its row", async () => {
+  const { cache, context, lock, rows } = await loadTemplate([
+    "abcd1234-0000-0000-0000-000000000000",
+    "dcba4321-0000-0000-0000-000000000000",
+  ]);
+  const payload = {
+    ...validProductPayload,
+    request_id: "6b1e0f7a-6c2f-4c1a-9c3e-8f5b2d0a1e44",
+  };
+
+  const first = JSON.parse(submit(context, payload).value);
+  const retry = JSON.parse(submit(context, payload).value);
+
+  assert.equal(retry.ok, true);
+  assert.equal(retry.reference, first.reference);
+  assert.equal(rows.length, 2);
+  assert.equal(cache.puts.length, 1);
+  assert.equal(cache.puts[0].key, `form-request:${payload.request_id}`);
+  assert.equal(cache.puts[0].value, first.reference);
+  assert.equal(cache.puts[0].seconds, 3600);
+  assert.equal(lock.held, false);
+});
+
 test("rejects mixed and malformed contexts without appending rows", async () => {
   const { context, rows } = await loadTemplate();
   const invalidPayloads = [

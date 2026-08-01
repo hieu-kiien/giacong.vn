@@ -48,13 +48,15 @@ interface ContactSubmission {
   phone: string;
   product: string;
   qty: string;
+  requestId: string;
   service: string;
   source: string;
   variant: string;
 }
 
-interface ContactWebhookPayload extends Omit<ContactSubmission, "qty"> {
+interface ContactWebhookPayload extends Omit<ContactSubmission, "qty" | "requestId"> {
   qty: number | "";
+  request_id?: string;
   request_type: ContactRequestType;
 }
 
@@ -103,6 +105,7 @@ function parseSubmission(formData: FormData): ContactSubmission {
     phone: readField(formData, "phone", 24),
     product: readField(formData, "product", 160),
     qty: readField(formData, "qty", 24),
+    requestId: readField(formData, "requestId", 36),
     service: readField(formData, "service", 80),
     source: readField(formData, "source", 200),
     variant: readField(formData, "variant", 160),
@@ -217,9 +220,12 @@ async function resolvePayload(
   submission: ContactSubmission,
   productResolver: ContactProductResolver | undefined,
 ): Promise<ContactWebhookPayload | Response> {
+  const { requestId, ...fields } = submission;
+  const requestIdPayload = REQUEST_ID_PATTERN.test(requestId) ? { request_id: requestId } : {};
   if (!hasProductContext(submission)) {
     return {
-      ...submission,
+      ...fields,
+      ...requestIdPayload,
       product: "",
       qty: "",
       request_type: "Tư vấn dịch vụ",
@@ -253,7 +259,8 @@ async function resolvePayload(
   }
 
   return {
-    ...submission,
+    ...fields,
+    ...requestIdPayload,
     product: product.name,
     qty,
     request_type: qty >= variant.contactFromQuantity ? "Tư vấn số lượng lớn" : "Đặt sản phẩm",
@@ -414,6 +421,7 @@ function parseJsonSubmission(payload: Record<string, unknown>): ContactSubmissio
     phone: readJsonField(payload.phone, 24),
     product: "",
     qty: "",
+    requestId: "",
     service: "",
     source: readJsonField(payload.source, 200),
     variant: "",
