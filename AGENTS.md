@@ -57,7 +57,6 @@ The split is by work track, not by directory — the tree stays as it is. FE own
 - Use isolated worktrees for implementation work. Review order is Terra implementation → Luna independent review → Gemini simplicity/routing review.
 - Keep scope small; do not add dependencies or speculative architecture.
 - After editing this file, run `bash scripts/sync-agent-rules.sh` and inspect only its generated changes. Do not edit generated agent-rule files directly.
-- The `clone-website` skill is kept as identical copies in `.claude/`, `.codex/` and `.github/skills/`. There is no generator for them; edit all three together or they drift.
 
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
