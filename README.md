@@ -35,7 +35,7 @@ Các phần như thanh toán, tài khoản khách hàng, checkout và quy trình
 Cần Git, Docker Desktop và Node.js 24. Bagisto chạy trong Docker nên không cần cài PHP hoặc Composer trên máy. Chỉ cần tải một repository:
 
 ```powershell
-git clone https://github.com/qtu1053-dev/giacong.vn.git
+git clone https://github.com/hieu-kiien/giacong.vn.git
 ```
 
 Bagisto nằm trong thư mục `bagisto/` của repository này. Thiết lập Bagisto trước, sau đó thiết lập website. Hướng dẫn từng lệnh nằm trong [SETUP.md](./SETUP.md).
