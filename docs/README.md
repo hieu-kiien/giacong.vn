@@ -11,4 +11,3 @@ Chỉ dùng các tài liệu dưới đây để phát triển và vận hành L
 | [PRODUCTION_CHECKLIST.md](./PRODUCTION_CHECKLIST.md) | Checklist deploy, bảo mật mạng và smoke test |
 
 Đây là bộ tài liệu hiện hành dùng để bàn giao và vận hành Lean V1.
-
