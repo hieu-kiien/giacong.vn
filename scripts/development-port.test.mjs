@@ -35,8 +35,9 @@ test("one public hostname can proxy the native Bagisto admin and its assets", as
   assert.match(nextConfig, /source:\s*"\/storage\/:path\*"/);
   assert.match(nextConfig, /source:\s*"\/cache\/:path\*"/);
   assert.doesNotMatch(nextConfig, /localhost:4317/, "the deployment config must remain hostname-agnostic");
-  assert.match(masterPlan, /một origin public/);
-  assert.match(masterPlan, /cổng `8081` đã loại bỏ/i);
+  assert.match(masterPlan, /Next\.js là origin công khai/);
+  assert.match(masterPlan, /proxy tới Bagisto nội bộ/);
+  assert.doesNotMatch(environment + nextConfig, /(?:127\.0\.0\.1:|localhost:)8081/);
 });
 
 test("runs focused contact, catalog, and service tests before lint in the standard check contract", async () => {
