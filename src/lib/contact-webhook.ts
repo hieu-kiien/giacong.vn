@@ -1,5 +1,7 @@
 // This module intentionally has no framework dependency for Node behavior tests.
 // Relative .ts specifiers keep it loadable under `node --experimental-strip-types`.
+import { createHash } from "node:crypto";
+import type { ContactRateLimiter } from "./contact-rate-limit.ts";
 import {
   CONTACT_MAX_BODY_BYTES,
   exactKeys,
@@ -17,6 +19,7 @@ export interface ContactWebhookDependencies {
   environment: Readonly<Record<string, string | undefined>>;
   fetch?: typeof globalThis.fetch;
   productResolver?: ContactProductResolver;
+  rateLimiter?: ContactRateLimiter;
   timeoutMs?: number;
 }
 
@@ -286,6 +289,10 @@ export async function handleContactSubmission(
     : await resolveFormPayload(request, dependencies);
   if (resolved instanceof Response) return resolved;
 
+  if (dependencies.rateLimiter && !dependencies.rateLimiter.allow(submissionFingerprint(resolved))) {
+    return failure("Bạn đã gửi quá nhiều yêu cầu. Vui lòng thử lại sau.", 429);
+  }
+
   return deliverToWebhook(resolved, dependencies);
 }
 
@@ -298,6 +305,10 @@ async function resolveFormPayload(
     formData = await request.formData();
   } catch {
     return failure("Dữ liệu gửi lên không hợp lệ.", 400);
+  }
+
+  if (readField(formData, "website", 200)) {
+    return validationFailure({});
   }
 
   const submission = parseSubmission(formData);
@@ -432,6 +443,9 @@ async function deliverToWebhook(
 
   const payload: ContactWebhookPayload & { secret?: string } = { ...resolved };
   const secret = environment.GOOGLE_SHEETS_WEBHOOK_SECRET?.trim();
+  if (environment.NODE_ENV === "production" && (!secret || secret.length < 32)) {
+    return failure("Dịch vụ tiếp nhận yêu cầu chưa được cấu hình.", 503);
+  }
   if (secret) payload.secret = secret;
 
   const controller = new AbortController();
@@ -507,4 +521,12 @@ async function deliverToWebhook(
   } finally {
     clearTimeout(timeout);
   }
+}
+
+function submissionFingerprint(submission: ContactWebhookPayload | ContactCartWebhookPayload): string {
+  const normalizedPhone = submission.phone.replace(/[\s().-]/g, "");
+  const normalizedEmail = submission.email.toLowerCase();
+  return createHash("sha256")
+    .update(`${normalizedPhone}|${normalizedEmail}`)
+    .digest("hex");
 }

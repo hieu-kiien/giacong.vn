@@ -44,10 +44,27 @@ function createContactPayload(form: HTMLFormElement) {
   payload.set("phone", readControlValue(form, 'input[type="tel"]', 24));
   payload.set("email", readControlValue(form, 'input[type="email"]', 254));
   payload.set("message", readControlValue(form, "textarea", 2000));
+  payload.set("website", readControlValue(form, 'input[name="website"]', 200));
   payload.set("source", window.location.pathname);
   const service = getContactServiceContext(window.location.search);
   if (service) payload.set("service", service);
   return payload;
+}
+
+function ensureContactHoneypot(form: HTMLFormElement) {
+  const existing = form.querySelector<HTMLInputElement>('input[name="website"]');
+  if (existing) return () => {};
+
+  const input = document.createElement("input");
+  input.autocomplete = "off";
+  input.className = "contact-honeypot";
+  input.name = "website";
+  input.tabIndex = -1;
+  input.type = "url";
+  input.setAttribute("aria-hidden", "true");
+  form.append(input);
+
+  return () => input.remove();
 }
 
 function setContactFormStatus(
@@ -133,6 +150,7 @@ export function connectContactForms() {
     action: form.getAttribute("action"),
     method: form.getAttribute("method"),
   }));
+  const removeHoneypots = forms.map(ensureContactHoneypot);
 
   forms.forEach((form) => {
     form.action = "/api/contact";
@@ -143,6 +161,7 @@ export function connectContactForms() {
   return () => {
     forms.forEach((form, index) => {
       form.removeEventListener("submit", submitContactForm);
+      removeHoneypots[index]();
       const original = originalAttributes[index];
       if (original.action === null) form.removeAttribute("action");
       else form.setAttribute("action", original.action);

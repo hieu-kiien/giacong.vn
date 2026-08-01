@@ -104,6 +104,60 @@ test("does not include secret when it is not configured", async () => {
   assert.equal("secret" in JSON.parse(receivedBody), false);
 });
 
+test("fails closed in production when the webhook secret is missing or too short", async () => {
+  for (const secret of [undefined, "too-short"]) {
+    let called = false;
+    const response = await handleContactSubmission(requestWithForm(), {
+      environment: environment({
+        GOOGLE_SHEETS_WEBHOOK_SECRET: secret,
+        NODE_ENV: "production",
+      }),
+      fetch: async () => {
+        called = true;
+        return new Response();
+      },
+      timeoutMs: 100,
+    });
+
+    assert.equal(response.status, 503);
+    assert.equal(called, false);
+  }
+});
+
+test("rejects honeypot submissions without calling the webhook", async () => {
+  let called = false;
+  const response = await handleContactSubmission(requestWithForm({
+    ...validSubmission,
+    website: "https://spam.example",
+  }), {
+    environment: environment(),
+    fetch: async () => {
+      called = true;
+      return new Response();
+    },
+    timeoutMs: 100,
+  });
+
+  assert.equal(response.status, 400);
+  assert.equal(called, false);
+});
+
+test("returns 429 when the submission rate limiter refuses a request", async () => {
+  let called = false;
+  const response = await handleContactSubmission(requestWithForm(), {
+    environment: environment(),
+    fetch: async () => {
+      called = true;
+      return new Response();
+    },
+    rateLimiter: { allow: () => false },
+    timeoutMs: 100,
+  });
+
+  assert.equal(response.status, 429);
+  assert.equal(called, false);
+});
+
 test("derives canonical product requests at MOQ and the inclusive contact threshold", async () => {
   const cases = [
     { qty: "10", requestType: "Đặt sản phẩm" },
