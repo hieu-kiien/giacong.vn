@@ -43,6 +43,13 @@ test("runs the Bagisto style and B2B checks in CI", async () => {
   assert.match(workflow, /composer test:b2b/);
 });
 
+test("defines the frontend CI environment exactly once", async () => {
+  const workflow = await readFile(new URL(".github/workflows/ci.yml", root), "utf8");
+  const qualityJob = workflow.slice(workflow.indexOf("  quality:"), workflow.indexOf("  bagisto:"));
+
+  assert.equal((qualityJob.match(/^[ \t]+env:\s*$/gm) ?? []).length, 1);
+});
+
 test("binds the production storefront only to localhost", async () => {
   const productionCompose = await readFile(new URL("docker-compose.production.yml", root), "utf8");
 
