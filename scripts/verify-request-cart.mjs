@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { once } from "node:events";
 import { mkdir } from "node:fs/promises";
 import { createServer } from "node:http";
@@ -175,10 +176,163 @@ function json(response, body) {
   response.end(JSON.stringify(body));
 }
 
+async function requestBody(request) {
+  let raw = "";
+  for await (const chunk of request) raw += chunk;
+  return JSON.parse(raw || "{}");
+}
+
+function resolveFakeCart(lines) {
+  const resolvedLines = lines.map((line) => resolveFakeLine(line));
+  const units = new Set(resolvedLines.map((line) => line.unit).filter(Boolean));
+  const uniformUnit = units.size === 1 ? [...units][0] : null;
+  const pricedSubtotal = resolvedLines.reduce((total, line) => total + (line.line_total ?? 0), 0);
+  const hasPriceOnRequest = resolvedLines.some((line) => line.price_on_request);
+  const snapshotToken = createHash("sha256").update(JSON.stringify(resolvedLines.map((line) => [
+    line.parent_slug,
+    line.variant_sku,
+    line.quantity,
+    line.unit_price,
+    line.line_total,
+    line.is_available,
+    line.price_on_request,
+    line.minimum_order_quantity,
+    line.quantity_step,
+    line.contact_from_quantity,
+    line.is_submittable,
+  ]).sort((left, right) => String(left[1]).localeCompare(String(right[1]))))).digest("hex");
+
+  return {
+    currency: "VND",
+    has_price_on_request: hasPriceOnRequest,
+    is_submittable: resolvedLines.length > 0 && resolvedLines.every((line) => line.is_submittable),
+    line_count: resolvedLines.length,
+    lines: resolvedLines,
+    priced_subtotal: pricedSubtotal,
+    request_type: hasPriceOnRequest ? "Tư vấn số lượng lớn" : "Đặt sản phẩm",
+    snapshot_token: snapshotToken,
+    total_quantity: uniformUnit === null ? null : resolvedLines.reduce((total, line) => total + line.quantity, 0),
+    uniform_unit: uniformUnit,
+  };
+}
+
+function resolveFakeLine(line) {
+  const family = families().find((item) => item.slug === line.parent_slug);
+  if (!family) {
+    return unresolvedFakeLine(line, {
+      code: "PRODUCT_NOT_FOUND",
+      message: "Sản phẩm không còn tồn tại. Vui lòng xóa dòng này.",
+    });
+  }
+
+  const selected = family.variants.find((item) => item.sku === line.variant_sku);
+  if (!selected) {
+    return {
+      ...unresolvedFakeLine(line, {
+        code: "VARIANT_NOT_FOUND",
+        message: "Biến thể không còn tồn tại. Vui lòng xóa dòng này.",
+      }),
+      product_name: family.name,
+    };
+  }
+
+  const base = {
+    adjustments: [],
+    contact_from_quantity: selected.contact_from_quantity,
+    image_url: family.image ?? null,
+    is_available: selected.availability.is_available,
+    is_submittable: true,
+    line_total: null,
+    minimum_order_quantity: selected.moq,
+    parent_slug: line.parent_slug,
+    price_on_request: false,
+    product_name: family.name,
+    quantity: line.quantity,
+    quantity_step: selected.quantity_step,
+    unit: selected.unit,
+    unit_price: null,
+    variant_label: selected.name,
+    variant_sku: selected.sku,
+  };
+
+  if (!selected.availability.is_available) {
+    return blockedFakeLine(base, {
+      code: "VARIANT_UNAVAILABLE",
+      message: "Biến thể hiện không khả dụng. Vui lòng xóa dòng này.",
+    });
+  }
+  if (line.quantity < selected.moq) {
+    return blockedFakeLine(base, {
+      code: "QUANTITY_BELOW_MOQ",
+      message: `Số lượng tối thiểu là ${selected.moq} ${selected.unit}.`,
+      suggested_quantity: selected.moq,
+    });
+  }
+  if ((line.quantity - selected.moq) % selected.quantity_step !== 0) {
+    const steps = Math.ceil((line.quantity - selected.moq) / selected.quantity_step);
+    return blockedFakeLine(base, {
+      code: "QUANTITY_OFF_STEP",
+      message: `Số lượng phải theo bước ${selected.quantity_step} ${selected.unit}.`,
+      suggested_quantity: selected.moq + steps * selected.quantity_step,
+    });
+  }
+  if (line.quantity >= selected.contact_from_quantity) {
+    return {
+      ...base,
+      adjustments: [{
+        code: "PRICE_ON_REQUEST",
+        message: `Từ ${selected.contact_from_quantity} ${selected.unit}, giá được báo riêng theo số lượng.`,
+      }],
+      price_on_request: true,
+    };
+  }
+
+  const tier = [...selected.tier_prices]
+    .filter((item) => item.min_quantity <= line.quantity)
+    .sort((left, right) => right.min_quantity - left.min_quantity)[0];
+  if (!tier) {
+    return {
+      ...base,
+      adjustments: [{ code: "PRICE_ON_REQUEST", message: "Giá của số lượng này được báo riêng." }],
+      price_on_request: true,
+    };
+  }
+  return { ...base, line_total: tier.unit_price * line.quantity, unit_price: tier.unit_price };
+}
+
+function blockedFakeLine(line, adjustment) {
+  return { ...line, adjustments: [adjustment], is_submittable: false };
+}
+
+function unresolvedFakeLine(line, adjustment) {
+  return {
+    adjustments: [adjustment],
+    contact_from_quantity: null,
+    image_url: null,
+    is_available: false,
+    is_submittable: false,
+    line_total: null,
+    minimum_order_quantity: null,
+    parent_slug: line.parent_slug,
+    price_on_request: false,
+    product_name: "",
+    quantity: line.quantity,
+    quantity_step: null,
+    unit: "",
+    unit_price: null,
+    variant_label: "",
+    variant_sku: line.variant_sku,
+  };
+}
+
 const seenDetailRequests = [];
 const fakeSockets = new Set();
-const fake = createServer((request, response) => {
+const fake = createServer(async (request, response) => {
   const url = new URL(request.url ?? "/", "http://127.0.0.1");
+  if (request.method === "POST" && url.pathname === "/api/b2b/catalog/resolve-cart") {
+    const payload = await requestBody(request);
+    return json(response, { cart: resolveFakeCart(payload.lines ?? []) });
+  }
   if (!url.pathname.startsWith("/api/b2b/catalog/products/")) return response.writeHead(404).end();
   const slug = url.pathname.replace("/api/b2b/catalog/products/", "").replace(/\/$/, "");
   seenDetailRequests.push(slug);
@@ -214,7 +368,7 @@ const app = spawn(process.execPath, [nextBinPath, "start", "-p", String(appPort)
     BAGISTO_API_URL: `http://127.0.0.1:${fakePort}`,
     BAGISTO_API_TIMEOUT_MS: "500",
     CONTACT_WEBHOOK_TEST_MODE: "1",
-    GOOGLE_SHEETS_WEBHOOK_SECRET: "request-cart-test-secret",
+    GOOGLE_SHEETS_WEBHOOK_SECRET: "request-cart-test-secret-32-characters",
     GOOGLE_SHEETS_WEBHOOK_URL: "https://script.google.com/macros/s/request-cart-test/exec",
     NODE_ENV: "production",
     NODE_OPTIONS: `${process.env.NODE_OPTIONS ?? ""} --require=./scripts/contact-webhook-fetch-mock.cjs`,
@@ -258,12 +412,12 @@ try {
     return page;
   };
 
-  const submitOneRequest = async (target) => {
+  const submitOneRequest = async (target, contact = { email: "ha@example.com", phone: "0868408115" }) => {
     await openCart(target, storedCart([vanilla]));
     await target.locator("[data-cart-subtotal]").waitFor();
     await target.getByLabel(/^Họ và tên/).fill("Trần Thị B");
-    await target.getByLabel(/^Số điện thoại/).fill("0868408115");
-    await target.getByLabel(/^Email/).fill("ha@example.com");
+    await target.getByLabel(/^Số điện thoại/).fill(contact.phone);
+    await target.getByLabel(/^Email/).fill(contact.email);
     await target.getByRole("button", { name: "Gửi yêu cầu báo giá" }).click();
     await target.locator("[data-request-reference]").waitFor();
   };
@@ -273,6 +427,7 @@ try {
   // A priced, submittable cart renders server money only.
   await openCart(page, storedCart([vanilla, oats]));
   await page.getByRole("heading", { level: 1, name: "Giỏ hàng" }).waitFor();
+  await page.locator("[data-cart-subtotal]").waitFor();
   assert.equal(
     await page.evaluate(() => {
       return document.querySelectorAll("#header, #footer").length === 2
@@ -602,7 +757,7 @@ try {
   // Copy then open, with a working clipboard and with a blocked one.
   const copyPage = await newPage();
   await copyPage.context().grantPermissions(["clipboard-read", "clipboard-write"]);
-  await submitOneRequest(copyPage);
+  await submitOneRequest(copyPage, { email: "copy@example.com", phone: "0868408116" });
   await copyPage.locator('button[data-channel="zalo"]').click();
   await copyPage.locator("[data-copy-status]").filter({ hasText: "Đã sao chép" }).waitFor();
   assert.match(
@@ -619,7 +774,7 @@ try {
       value: { writeText: () => Promise.reject(new Error("blocked")) },
     });
   });
-  await submitOneRequest(clipboardBlockedPage);
+  await submitOneRequest(clipboardBlockedPage, { email: "clipboard@example.com", phone: "0868408117" });
   await clipboardBlockedPage.locator('button[data-channel="messenger"]').click();
   await clipboardBlockedPage.locator("[data-copy-status]").filter({ hasText: "Không sao chép được" }).waitFor();
   const fallback = clipboardBlockedPage.locator("[data-copy-fallback]");
@@ -689,8 +844,8 @@ try {
   await openCart(indeterminatePage, storedCart([vanilla]));
   await indeterminatePage.locator("[data-cart-subtotal]").waitFor();
   await indeterminatePage.getByLabel(/^Họ và tên/).fill("Trần Thị B");
-  await indeterminatePage.getByLabel(/^Số điện thoại/).fill("0868408115");
-  await indeterminatePage.getByLabel(/^Email/).fill("ha@example.com");
+  await indeterminatePage.getByLabel(/^Số điện thoại/).fill("0868408119");
+  await indeterminatePage.getByLabel(/^Email/).fill("indeterminate@example.com");
   await indeterminatePage.getByLabel(/^Nội dung yêu cầu/).fill("__upstream_5xx__");
   const firstRequestId = await (async () => {
     const captured = indeterminatePage.waitForRequest((request) => request.url().endsWith("/api/contact") && request.method() === "POST");
@@ -724,8 +879,8 @@ try {
   await openCart(doublePage, storedCart([vanilla]));
   await doublePage.locator("[data-cart-subtotal]").waitFor();
   await doublePage.getByLabel(/^Họ và tên/).fill("Trần Thị B");
-  await doublePage.getByLabel(/^Số điện thoại/).fill("0868408115");
-  await doublePage.getByLabel(/^Email/).fill("ha@example.com");
+  await doublePage.getByLabel(/^Số điện thoại/).fill("0868408120");
+  await doublePage.getByLabel(/^Email/).fill("double@example.com");
   const doubleButton = doublePage.getByRole("button", { name: /Gửi yêu cầu báo giá|Đang gửi/ });
   await doubleButton.click();
   assert.equal(await doubleButton.isDisabled(), true, "The CTA must be disabled while a submit is in flight");
@@ -968,7 +1123,7 @@ try {
 
   // The accepted state is held to the same bar.
   const acceptedPage = await newPage({ width: 390, height: 844 });
-  await submitOneRequest(acceptedPage);
+  await submitOneRequest(acceptedPage, { email: "accepted@example.com", phone: "0868408118" });
   assert.deepEqual(await contrastFailures(acceptedPage), [], "The accepted state must meet WCAG AA contrast");
   assert.equal(
     await acceptedPage.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth),

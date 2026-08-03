@@ -107,9 +107,10 @@ test("the visible preview launcher is portable and reads its tracked preview por
   assert.doesNotMatch(launcher, /19999|(?:^|\D)(?:3000|8000|8001)(?:\D|$)/);
 });
 
-test("uses Webpack for builds inside a Git worktree", async () => {
+test("uses Turbopack by default and keeps Webpack as an explicit escape hatch", async () => {
   const packageJson = JSON.parse(await readFile(new URL("package.json", root), "utf8"));
-  assert.equal(packageJson.scripts.build, "next build --webpack");
+  assert.equal(packageJson.scripts.build, "next build");
+  assert.equal(packageJson.scripts["build:webpack"], "next build --webpack");
 });
 
 test("resolves the Next binary through the package so QA harnesses run in a worktree", async () => {

@@ -10,6 +10,14 @@ import {
 } from "@/lib/request-cart-client";
 import type { RequestCartContact, RequestCartField } from "@/lib/request-cart-client";
 import { REQUEST_CART_CHANNELS } from "@/lib/request-cart-channels";
+import {
+  REQUEST_CART_ATTEMPT_SCHEMA_VERSION,
+  clearBrowserRequestCartAttempt,
+  isRequestCartAttemptFresh,
+  readBrowserRequestCartAttempt,
+  writeBrowserRequestCartAttempt,
+} from "@/lib/request-cart-attempt";
+import type { RequestCartAttemptContext } from "@/lib/request-cart-attempt";
 import type { ResolvedRequestCart } from "@/types/request-cart";
 
 const SUBMIT_FAILURE_MESSAGE = "Không thể gửi yêu cầu lúc này. Vui lòng thử lại.";
@@ -17,6 +25,24 @@ const SUBMIT_FAILURE_MESSAGE = "Không thể gửi yêu cầu lúc này. Vui lò
 const EMPTY_CONTACT: RequestCartContact = { email: "", message: "", name: "", phone: "" };
 const ZALO_CHANNEL = REQUEST_CART_CHANNELS.find((channel) => channel.id === "zalo");
 const SMS_CHANNEL = REQUEST_CART_CHANNELS.find((channel) => channel.id === "hotline");
+
+function createRequestCartAttempt(snapshotToken: string): RequestCartAttemptContext {
+  return {
+    requestId: createRequestId(),
+    schemaVersion: REQUEST_CART_ATTEMPT_SCHEMA_VERSION,
+    snapshotToken,
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+function loadRequestCartAttempt(snapshotToken: string): RequestCartAttemptContext {
+  const existing = readBrowserRequestCartAttempt(snapshotToken);
+  if (existing) return existing;
+
+  const created = createRequestCartAttempt(snapshotToken);
+  writeBrowserRequestCartAttempt(created);
+  return created;
+}
 
 interface RequestFormProps {
   cart: ResolvedRequestCart;
@@ -34,11 +60,16 @@ export function RequestForm({ cart, onAccepted, onConflict }: RequestFormProps) 
   const automaticMessage = useRef(cartMessage(cart));
   // One idempotency key per priced state. Retrying the same state reuses it, so a timeout that
   // already reached the Sheet returns the original `Mã` instead of creating a second request.
-  const attempt = useRef({ requestId: createRequestId(), snapshotToken: cart.snapshotToken });
+  // The small context is kept in sessionStorage so a refresh can continue the same safe retry;
+  // it contains no contact fields, prices, product details, or private model reasoning.
+  const attempt = useRef<RequestCartAttemptContext | null>(null);
+  if (attempt.current === null) {
+    attempt.current = loadRequestCartAttempt(cart.snapshotToken);
+  }
 
   useEffect(() => {
-    if (attempt.current.snapshotToken !== cart.snapshotToken) {
-      attempt.current = { requestId: createRequestId(), snapshotToken: cart.snapshotToken };
+    if (attempt.current?.snapshotToken !== cart.snapshotToken) {
+      attempt.current = loadRequestCartAttempt(cart.snapshotToken);
     }
   }, [cart.snapshotToken]);
 
@@ -63,6 +94,14 @@ export function RequestForm({ cart, onAccepted, onConflict }: RequestFormProps) 
   const submit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (inFlight.current || !cart.isSubmittable) return;
+    if (
+      attempt.current === null
+      || !isRequestCartAttemptFresh(attempt.current, cart.snapshotToken)
+    ) {
+      attempt.current = loadRequestCartAttempt(cart.snapshotToken);
+    }
+    const currentAttempt = attempt.current;
+    if (currentAttempt === null) return;
 
     const clientErrors: Partial<Record<RequestCartField, string>> = {};
     if (contact.name.trim() === "") clientErrors.name = "Vui lòng nhập họ và tên.";
@@ -88,7 +127,7 @@ export function RequestForm({ cart, onAccepted, onConflict }: RequestFormProps) 
             quantity: line.quantity,
             variantSku: line.variantSku,
           })),
-          requestId: attempt.current.requestId,
+          requestId: currentAttempt.requestId,
           snapshotToken: cart.snapshotToken,
         })),
         cache: "no-store",
@@ -99,6 +138,7 @@ export function RequestForm({ cart, onAccepted, onConflict }: RequestFormProps) 
       const result = parseSubmitResponse(response.status, body);
 
       if (result.status === "accepted") {
+        clearBrowserRequestCartAttempt();
         onAccepted(result.reference);
         return;
       }
