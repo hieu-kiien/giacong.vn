@@ -5,6 +5,11 @@ const bagistoProxyOrigin = process.env.BAGISTO_PROXY_ORIGIN?.replace(/\/+$/, "")
 const nextConfig: NextConfig = {
   allowedDevOrigins: ["127.0.0.1"],
   output: "standalone",
+  // Keep the project root explicit for linked worktrees with more than one lockfile.
+  // https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack#root-directory
+  turbopack: {
+    root: process.cwd(),
+  },
   async redirects() {
     return [
       {
