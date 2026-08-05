@@ -3,7 +3,12 @@ import { readFile } from "node:fs/promises";
 import vm from "node:vm";
 import test from "node:test";
 
-async function loadTemplate(uuids = ["abcd1234-0000-0000-0000-000000000000"]) {
+const TEST_WEBHOOK_SECRET = "test-webhook-secret-0123456789ab";
+
+async function loadTemplate(
+  uuids = ["abcd1234-0000-0000-0000-000000000000"],
+  scriptSecret = TEST_WEBHOOK_SECRET,
+) {
   const rows = [];
   const toasts = [];
   const operations = [];
@@ -174,7 +179,7 @@ async function loadTemplate(uuids = ["abcd1234-0000-0000-0000-000000000000"]) {
     },
     JSON,
     LockService: { getScriptLock: () => lock },
-    PropertiesService: { getScriptProperties: () => ({ getProperty: () => "shared-secret" }) },
+    PropertiesService: { getScriptProperties: () => ({ getProperty: () => scriptSecret }) },
     Session: { getEffectiveUser: () => "owner@example.test", getScriptTimeZone: () => "Asia/Ho_Chi_Minh" },
     SpreadsheetApp: {
       newDataValidation: () => {
@@ -214,11 +219,21 @@ const validProductPayload = {
   product: "Bột dinh dưỡng",
   qty: 20,
   request_type: "Tư vấn số lượng lớn",
-  secret: "shared-secret",
+  secret: TEST_WEBHOOK_SECRET,
   service: "",
   source: "/lien-he/",
   variant: "Vị vani",
 };
+
+test("rejects submissions when the webhook secret is missing, short, or wrong", async () => {
+  for (const scriptSecret of ["", "short", "wrong-webhook-secret-0123456789ab"]) {
+    const { context, rows } = await loadTemplate(undefined, scriptSecret);
+    const response = JSON.parse(submit(context, validProductPayload).value);
+
+    assert.deepEqual(response, { ok: false, reference: "" });
+    assert.equal(rows.length, 0);
+  }
+});
 
 test("stores user-controlled values as safe plain text instead of spreadsheet formulas", async () => {
   const { context, rows } = await loadTemplate();
@@ -489,7 +504,7 @@ const validCartPayload = {
   qty: "",
   request_id: "6b1e0f7a-6c2f-4c1a-9c3e-8f5b2d0a1e44",
   request_type: "Tư vấn số lượng lớn",
-  secret: "shared-secret",
+  secret: TEST_WEBHOOK_SECRET,
   service: "",
   source: "/gui-yeu-cau/",
   variant: "",

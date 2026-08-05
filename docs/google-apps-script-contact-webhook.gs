@@ -45,9 +45,10 @@ const UUID_V4_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}
 function doPost(event) {
   try {
     const payload = JSON.parse(event.postData.contents);
-    const expectedSecret = PropertiesService.getScriptProperties()
-      .getProperty("WEBHOOK_SECRET");
-    if (expectedSecret && payload.secret !== expectedSecret) {
+    const expectedSecret = String(
+      PropertiesService.getScriptProperties().getProperty("WEBHOOK_SECRET") || "",
+    ).trim();
+    if (expectedSecret.length < 32 || payload.secret !== expectedSecret) {
       return jsonResponse({ ok: false, reference: "" });
     }
 
