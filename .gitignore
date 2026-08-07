@@ -53,3 +53,7 @@ temp/
 # Regeneratable browser-audit captures
 docs/design-references/audit-*.png
 docs/design-references/qa-*.png
+
+# Cloudflare OpenNext local output and vars
+.open-next/
+.dev.vars
