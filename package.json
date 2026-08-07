@@ -28,7 +28,11 @@
     "qa:cart": "node scripts/verify-request-cart.mjs",
     "check": "npm run test:contact && npm run test:catalog && npm run test:catalog-purchase-ui && npm run test:service && npm run test:commerce && npm run test:header && npm run test:listing && npm run test:detail && npm run lint && npm run typecheck && npm run build",
     "check:fe": "npm run test:commerce && npm run test:header && npm run test:listing && npm run test:detail && npm run test:catalog-purchase-ui && npm run lint && npm run typecheck",
-    "check:be": "npm run test:contact && npm run test:catalog && npm run test:service && npm run lint && npm run typecheck"
+    "check:be": "npm run test:contact && npm run test:catalog && npm run test:service && npm run lint && npm run typecheck",
+    "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
+    "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
+    "upload": "opennextjs-cloudflare build && opennextjs-cloudflare upload",
+    "cf-typegen": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.3.0",
@@ -51,6 +55,8 @@
     "eslint-config-next": "16.2.1",
     "playwright": "^1.61.1",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "@opennextjs/cloudflare": "^1.20.2",
+    "wrangler": "^4.119.0"
   }
 }
