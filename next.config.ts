@@ -1,3 +1,4 @@
+import { initOpenNextCloudflareForDev } from "@opennextjs/cloudflare";
 import type { NextConfig } from "next";
 
 const bagistoProxyOrigin = process.env.BAGISTO_PROXY_ORIGIN?.replace(/\/+$/, "");
@@ -48,3 +49,6 @@ const nextConfig: NextConfig = {
 };
 
 export default nextConfig;
+
+// Keep local Next.js development aligned with the Workers runtime bindings.
+initOpenNextCloudflareForDev();
