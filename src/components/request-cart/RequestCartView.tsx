@@ -6,6 +6,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { formatVnd } from "@/lib/format-vnd";
 import {
   REQUEST_CART_REVALIDATE_ENDPOINT,
+  REQUEST_CART_STORAGE_KEY,
+  REQUEST_CART_UPDATED_EVENT,
   buildRevalidateBody,
   driftNotice,
   hydrationNotice,
@@ -41,9 +43,22 @@ export function RequestCartView() {
    * so the first client render must stay neutral and then mirror the browser-owned cart.
    */
   useEffect(() => {
-    const read = readRequestCart(window.localStorage);
-    setStorageNotice(hydrationNotice(read));
-    setCart(read.state);
+    const syncFromStorage = () => {
+      const read = readRequestCart(window.localStorage);
+      setStorageNotice(hydrationNotice(read));
+      setCart(read.state);
+    };
+
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key === REQUEST_CART_STORAGE_KEY || event.key === null) syncFromStorage();
+    };
+
+    window.addEventListener("storage", handleStorage);
+    window.addEventListener(REQUEST_CART_UPDATED_EVENT, syncFromStorage);
+    return () => {
+      window.removeEventListener("storage", handleStorage);
+      window.removeEventListener(REQUEST_CART_UPDATED_EVENT, syncFromStorage);
+    };
   }, []);
 
   const linesKey = cart ? JSON.stringify(toRequestCartKeys(cart)) : "";
@@ -141,7 +156,7 @@ export function RequestCartView() {
   return (
     <div className="w-full py-8">
       <p className="mt-3 max-w-2xl text-sm text-neutral-700 sm:text-base">
-        Giá và tạm tính được hệ thống kiểm tra khi bạn thay đổi số lượng và trước khi gửi yêu cầu.
+        Giá và tạm tính được hệ thống kiểm tra khi bạn thay đổi số lượng và trước khi gửi yêu cầu. Bản nháp được lưu tự động trên thiết bị này.
       </p>
 
       {storageNotice ? (
