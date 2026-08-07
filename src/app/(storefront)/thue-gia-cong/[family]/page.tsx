@@ -6,6 +6,8 @@ import { CapturedStorefrontTabFrame } from "@/components/site/CapturedStorefront
 import { serviceFamilies } from "@/data/service-families";
 import { getManagedServiceFamily } from "@/lib/bagisto-services";
 
+export const dynamic = "force-dynamic";
+
 interface ServiceFamilyPageProps { params: Promise<{ family: string }> }
 
 export function generateStaticParams() { return serviceFamilies.map(({ slug }) => ({ family: slug })); }
