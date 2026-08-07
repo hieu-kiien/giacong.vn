@@ -6,8 +6,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { formatVnd } from "@/lib/format-vnd";
 import {
   REQUEST_CART_REVALIDATE_ENDPOINT,
-  REQUEST_CART_STORAGE_KEY,
-  REQUEST_CART_UPDATED_EVENT,
   buildRevalidateBody,
   driftNotice,
   hydrationNotice,
@@ -16,6 +14,8 @@ import {
 import { RequestAccepted } from "@/components/request-cart/RequestAccepted";
 import { RequestForm } from "@/components/request-cart/RequestForm";
 import {
+  REQUEST_CART_STORAGE_KEY,
+  REQUEST_CART_UPDATED_EVENT,
   emptyRequestCart,
   readRequestCart,
   removeRequestCartLine,
