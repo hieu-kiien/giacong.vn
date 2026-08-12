@@ -1,0 +1,266 @@
+[
+  {
+    "key": "woocommerce-product-search-field-0_s_post_type",
+    "id": "woocommerce-product-search-field-0",
+    "class": "searchform",
+    "action": "https://giacong.vn/",
+    "inputs": [
+      {
+        "tag": "input",
+        "type": "search",
+        "name": "s",
+        "value": "",
+        "placeholder": "Tìm kiếm sản phẩm...",
+        "required": false
+      },
+      {
+        "tag": "input",
+        "type": "hidden",
+        "name": "post_type",
+        "value": "product",
+        "placeholder": "",
+        "required": false
+      }
+    ],
+    "foundInFile": "bot-gia-vi.html"
+  },
+  {
+    "key": "woocommerce-product-search-field-1_s_post_type",
+    "id": "woocommerce-product-search-field-1",
+    "class": "searchform",
+    "action": "https://giacong.vn/",
+    "inputs": [
+      {
+        "tag": "input",
+        "type": "search",
+        "name": "s",
+        "value": "",
+        "placeholder": "Tìm kiếm sản phẩm...",
+        "required": false
+      },
+      {
+        "tag": "input",
+        "type": "hidden",
+        "name": "post_type",
+        "value": "product",
+        "placeholder": "",
+        "required": false
+      }
+    ],
+    "foundInFile": "bot-gia-vi.html"
+  },
+  {
+    "key": "username_username_password_rememberme_woocommerce-login-nonce",
+    "id": "username",
+    "class": "woocommerce-form woocommerce-form-login login",
+    "action": "",
+    "inputs": [
+      {
+        "tag": "input",
+        "type": "text",
+        "name": "username",
+        "value": "",
+        "placeholder": "",
+        "required": false
+      },
+      {
+        "tag": "input",
+        "type": "password",
+        "name": "password",
+        "value": "",
+        "placeholder": "",
+        "required": false
+      },
+      {
+        "tag": "input",
+        "type": "checkbox",
+        "name": "rememberme",
+        "value": "forever",
+        "placeholder": "",
+        "required": false
+      },
+      {
+        "tag": "input",
+        "type": "hidden",
+        "name": "woocommerce-login-nonce",
+        "value": "6a39a09beb",
+        "placeholder": "",
+        "required": false
+      }
+    ],
+    "foundInFile": "bot-gia-vi.html"
+  },
+  {
+    "key": "commentform_comment_author_email_url_wp-comment-cookies-consent_submit_comment_parent",
+    "id": "commentform",
+    "class": "comment-form",
+    "action": "https://giacong.vn/wp-comments-post.php",
+    "inputs": [
+      {
+        "tag": "textarea",
+        "type": "textarea",
+        "name": "comment",
+        "value": "",
+        "placeholder": "",
+        "required": true
+      },
+      {
+        "tag": "input",
+        "type": "text",
+        "name": "author",
+        "value": "",
+        "placeholder": "",
+        "required": true
+      },
+      {
+        "tag": "input",
+        "type": "email",
+        "name": "email",
+        "value": "",
+        "placeholder": "",
+        "required": true
+      },
+      {
+        "tag": "input",
+        "type": "url",
+        "name": "url",
+        "value": "",
+        "placeholder": "",
+        "required": false
+      },
+      {
+        "tag": "input",
+        "type": "checkbox",
+        "name": "wp-comment-cookies-consent",
+        "value": "yes",
+        "placeholder": "",
+        "required": false
+      },
+      {
+        "tag": "input",
+        "type": "submit",
+        "name": "submit",
+        "value": "Gửi bình luận",
+        "placeholder": "",
+        "required": false
+      },
+      {
+        "tag": "input",
+        "type": "hidden",
+        "name": "comment_parent",
+        "value": "0",
+        "placeholder": "",
+        "required": false
+      }
+    ],
+    "foundInFile": "dich-vu-dong-goi.html"
+  },
+  {
+    "key": "s_s",
+    "id": "s",
+    "class": "searchform",
+    "action": "https://giacong.vn/",
+    "inputs": [
+      {
+        "tag": "input",
+        "type": "search",
+        "name": "s",
+        "value": "",
+        "placeholder": "Tìm kiếm sản phẩm...",
+        "required": false
+      }
+    ],
+    "foundInFile": "dich-vu-marketing.html"
+  },
+  {
+    "key": "false_text-508_tel-991_email-81_textarea-859",
+    "id": "false",
+    "class": "wpcf7-form resetting",
+    "action": "/gioi-thieu-ve-gia-cong/#wpcf7-f389-p463-o1",
+    "inputs": [
+      {
+        "tag": "input",
+        "type": "text",
+        "name": "text-508",
+        "value": "",
+        "placeholder": "Tên của bạn...",
+        "required": false
+      },
+      {
+        "tag": "input",
+        "type": "tel",
+        "name": "tel-991",
+        "value": "",
+        "placeholder": "Số điện thoại...",
+        "required": false
+      },
+      {
+        "tag": "input",
+        "type": "email",
+        "name": "email-81",
+        "value": "",
+        "placeholder": "Địa chỉ email...",
+        "required": false
+      },
+      {
+        "tag": "textarea",
+        "type": "textarea",
+        "name": "textarea-859",
+        "value": "",
+        "placeholder": "Nội dung yêu cầu...",
+        "required": false
+      }
+    ],
+    "foundInFile": "gioi-thieu-ve-gia-cong.html"
+  },
+  {
+    "key": "false_text-34_tel-471",
+    "id": "false",
+    "class": "wpcf7-form resetting",
+    "action": "/#wpcf7-f4457-p3984-o1",
+    "inputs": [
+      {
+        "tag": "input",
+        "type": "text",
+        "name": "text-34",
+        "value": "",
+        "placeholder": "Họ và tên",
+        "required": true
+      },
+      {
+        "tag": "input",
+        "type": "tel",
+        "name": "tel-471",
+        "value": "",
+        "placeholder": "Số điện thoại",
+        "required": true
+      }
+    ],
+    "foundInFile": "home.html"
+  },
+  {
+    "key": "form_orderby_paged",
+    "id": "",
+    "class": "woocommerce-ordering",
+    "action": "",
+    "inputs": [
+      {
+        "tag": "select",
+        "type": "select",
+        "name": "orderby",
+        "value": "",
+        "placeholder": "",
+        "required": false
+      },
+      {
+        "tag": "input",
+        "type": "hidden",
+        "name": "paged",
+        "value": "1",
+        "placeholder": "",
+        "required": false
+      }
+    ],
+    "foundInFile": "san-pham.html"
+  }
+]

@@ -1,0 +1,30 @@
+{
+  "timestamp": "2026-07-14T09:46:26.409Z",
+  "stats": {
+    "rawHrefsCount": 52685,
+    "exclusions": {
+      "mailTelSmsJsHash": 11116,
+      "externalDomains": 2836,
+      "externalShares": 0,
+      "numericPhoneZalo": 0,
+      "wpTechnical": 142,
+      "assets": 4
+    },
+    "validContentPathsCount": 801,
+    "initialLocal200": 799,
+    "initialLocal404": 2,
+    "scrapedTarget200": 0,
+    "scrapedTarget404": 2,
+    "scrapedTargetTimeoutsFailures": 0
+  },
+  "targetFailures": [
+    {
+      "path": "/google-ads",
+      "reason": "404 Page Not Found"
+    },
+    {
+      "path": "/thiet-ke-website",
+      "reason": "404 Page Not Found"
+    }
+  ]
+}

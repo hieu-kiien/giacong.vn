@@ -1,0 +1,3866 @@
+{
+  "Home": {
+    "url": "https://giacong.vn/",
+    "type": "Home",
+    "title": "Giacong.vn - Đối Tác Gia Công OEM/ODM & Private Label Hàng Đầu",
+    "h1s": [
+      "Giải pháp gia công toàn diện chuyên nghiệp"
+    ],
+    "body_classes": [
+      "home",
+      "wp-singular",
+      "page-template",
+      "page-template-page-transparent-header-light",
+      "page-template-page-transparent-header-light-php",
+      "page",
+      "page-id-3984",
+      "wp-theme-flatsome",
+      "wp-child-theme-thiet-ke-web",
+      "theme-flatsome",
+      "woocommerce-no-js",
+      "lightbox",
+      "nav-dropdown-has-shadow",
+      "nav-dropdown-has-border"
+    ],
+    "meta_tags": [
+      {
+        "charset": "UTF-8"
+      },
+      {
+        "name": "viewport",
+        "content": "width=device-width, initial-scale=1, maximum-scale=1"
+      },
+      {
+        "name": "description",
+        "content": "Chuyên cung cấp dịch vụ gia công sản xuất theo yêu cầu (OEM/ODM) và phát triển sản phẩm riêng (Private Label) chất lượng cao. Với đội ngũ chuyên gia giàu kinh nghiệm, hệ thống nhà xưởng hiện đại, và quy trình sản xuất tối ưu, chúng tôi cam kết mang đến giải pháp gia công toàn diện, giúp doanh nghiệp tiết kiệm chi phí, rút ngắn thời gian sản xuất và tạo dấu ấn thương hiệu trên thị trường."
+      },
+      {
+        "name": "robots",
+        "content": "follow, index, max-snippet:-1, max-video-preview:-1, max-image-preview:large"
+      },
+      {
+        "property": "og:locale",
+        "content": "vi_VN"
+      },
+      {
+        "property": "og:type",
+        "content": "website"
+      },
+      {
+        "property": "og:title",
+        "content": "Giacong.vn - Đối Tác Gia Công OEM/ODM & Private Label Hàng Đầu"
+      },
+      {
+        "property": "og:description",
+        "content": "Chuyên cung cấp dịch vụ gia công sản xuất theo yêu cầu (OEM/ODM) và phát triển sản phẩm riêng (Private Label) chất lượng cao. Với đội ngũ chuyên gia giàu kinh nghiệm, hệ thống nhà xưởng hiện đại, và quy trình sản xuất tối ưu, chúng tôi cam kết mang đến giải pháp gia công toàn diện, giúp doanh nghiệp tiết kiệm chi phí, rút ngắn thời gian sản xuất và tạo dấu ấn thương hiệu trên thị trường."
+      },
+      {
+        "property": "og:url",
+        "content": "https://giacong.vn/"
+      },
+      {
+        "property": "og:site_name",
+        "content": "Đối Tác Gia Công OEM/ODM & Private Label Hàng Đầu"
+      },
+      {
+        "property": "og:updated_time",
+        "content": "2025-02-04T10:50:32+07:00"
+      },
+      {
+        "property": "og:image",
+        "content": "https://giacong.vn/wp-content/uploads/2025/02/gia-cong-logo-oem.png"
+      },
+      {
+        "property": "og:image:secure_url",
+        "content": "https://giacong.vn/wp-content/uploads/2025/02/gia-cong-logo-oem.png"
+      },
+      {
+        "property": "og:image:width",
+        "content": "1024"
+      },
+      {
+        "property": "og:image:height",
+        "content": "291"
+      },
+      {
+        "property": "og:image:alt",
+        "content": "dịch vụ gia công"
+      },
+      {
+        "property": "og:image:type",
+        "content": "image/png"
+      },
+      {
+        "property": "article:published_time",
+        "content": "2024-09-05T21:33:36+07:00"
+      },
+      {
+        "property": "article:modified_time",
+        "content": "2025-02-04T10:50:32+07:00"
+      },
+      {
+        "name": "twitter:card",
+        "content": "summary_large_image"
+      },
+      {
+        "name": "twitter:title",
+        "content": "Giacong.vn - Đối Tác Gia Công OEM/ODM & Private Label Hàng Đầu"
+      },
+      {
+        "name": "twitter:description",
+        "content": "Chuyên cung cấp dịch vụ gia công sản xuất theo yêu cầu (OEM/ODM) và phát triển sản phẩm riêng (Private Label) chất lượng cao. Với đội ngũ chuyên gia giàu kinh nghiệm, hệ thống nhà xưởng hiện đại, và quy trình sản xuất tối ưu, chúng tôi cam kết mang đến giải pháp gia công toàn diện, giúp doanh nghiệp tiết kiệm chi phí, rút ngắn thời gian sản xuất và tạo dấu ấn thương hiệu trên thị trường."
+      },
+      {
+        "name": "twitter:image",
+        "content": "https://giacong.vn/wp-content/uploads/2025/02/gia-cong-logo-oem.png"
+      },
+      {
+        "name": "twitter:label1",
+        "content": "Được viết bởi"
+      },
+      {
+        "name": "twitter:data1",
+        "content": "Giacong.vn"
+      },
+      {
+        "name": "twitter:label2",
+        "content": "Thời gian để đọc"
+      },
+      {
+        "name": "twitter:data2",
+        "content": "10 phút"
+      },
+      {
+        "name": "generator",
+        "content": "WordPress 7.0.1"
+      },
+      {
+        "name": "onesignal-plugin",
+        "content": "wordpress-3.9.2"
+      },
+      {
+        "name": "msapplication-TileImage",
+        "content": "https://giacong.vn/wp-content/uploads/2024/08/cropped-cong-ty-co-phan-netfood-1-270x270.jpg"
+      }
+    ],
+    "images_sample": [
+      {
+        "src": "https://giacong.vn/wp-content/uploads/2024/10/GIACONG.VN-ngang-03-1-1024x291.png",
+        "class": [
+          "header_logo",
+          "header-logo"
+        ],
+        "alt": "Giacong.vn",
+        "data_attrs": {}
+      },
+      {
+        "src": "https://giacong.vn/wp-content/uploads/2024/10/GIACONG.VN-ngang-03-1-1024x291.png",
+        "class": [
+          "header-logo-dark"
+        ],
+        "alt": "Giacong.vn",
+        "data_attrs": {}
+      },
+      {
+        "src": "https://giacong.vn/wp-content/uploads/2024/08/file-star-svgrepo-com.svg",
+        "class": [
+          "ux-menu-icon"
+        ],
+        "alt": "",
+        "data_attrs": {}
+      },
+      {
+        "src": "https://giacong.vn/wp-content/uploads/2024/08/file-2-svgrepo-com.svg",
+        "class": [
+          "ux-menu-icon"
+        ],
+        "alt": "",
+        "data_attrs": {}
+      },
+      {
+        "src": "https://giacong.vn/wp-content/uploads/2024/08/book-open-svgrepo-com.svg",
+        "class": [
+          "ux-menu-icon"
+        ],
+        "alt": "",
+        "data_attrs": {}
+      },
+      {
+        "src": "https://giacong.vn/wp-content/uploads/2024/08/bulb-2-svgrepo-com.svg",
+        "class": [
+          "ux-menu-icon"
+        ],
+        "alt": "",
+        "data_attrs": {}
+      },
+      {
+        "src": "https://giacong.vn/wp-content/uploads/2024/08/file-2-svgrepo-com.svg",
+        "class": [
+          "ux-menu-icon"
+        ],
+        "alt": "",
+        "data_attrs": {}
+      },
+      {
+        "src": "https://giacong.vn/wp-content/uploads/2024/08/message-2-star-svgrepo-com.svg",
+        "class": [
+          "ux-menu-icon"
+        ],
+        "alt": "",
+        "data_attrs": {}
+      },
+      {
+        "src": "data:image/svg+xml,%3Csvg%20viewBox%3D%220%200%20682%20404%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3C%2Fsvg%3E",
+        "class": [
+          "lazy-load",
+          "attachment-original",
+          "size-original"
+        ],
+        "alt": "gia cong thuc pham",
+        "data_attrs": {
+          "data-src": "https://giacong.vn/wp-content/uploads/2024/10/gia-cong-thuc-pham.png",
+          "data-srcset": "https://giacong.vn/wp-content/uploads/2024/10/gia-cong-thuc-pham.png 682w, https://giacong.vn/wp-content/uploads/2024/10/gia-cong-thuc-pham-510x302.png 510w, https://giacong.vn/wp-content/uploads/2024/10/gia-cong-thuc-pham-300x178.png 300w"
+        }
+      },
+      {
+        "src": "data:image/svg+xml,%3Csvg%20viewBox%3D%220%200%20728%20450%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3C%2Fsvg%3E",
+        "class": [
+          "lazy-load",
+          "attachment-original",
+          "size-original"
+        ],
+        "alt": "img sp 1",
+        "data_attrs": {
+          "data-src": "https://giacong.vn/wp-content/uploads/2024/10/img-sp-1.png",
+          "data-srcset": "https://giacong.vn/wp-content/uploads/2024/10/img-sp-1.png 728w, https://giacong.vn/wp-content/uploads/2024/10/img-sp-1-510x315.png 510w, https://giacong.vn/wp-content/uploads/2024/10/img-sp-1-300x185.png 300w"
+        }
+      },
+      {
+        "src": "data:image/svg+xml,%3Csvg%20viewBox%3D%220%200%20863%20733%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3C%2Fsvg%3E",
+        "class": [
+          "lazy-load",
+          "attachment-original",
+          "size-original"
+        ],
+        "alt": "IMG",
+        "data_attrs": {
+          "data-src": "https://giacong.vn/wp-content/uploads/2024/09/IMG.png",
+          "data-srcset": "https://giacong.vn/wp-content/uploads/2024/09/IMG.png 863w, https://giacong.vn/wp-content/uploads/2024/09/IMG-510x433.png 510w, https://giacong.vn/wp-content/uploads/2024/09/IMG-300x255.png 300w, https://giacong.vn/wp-content/uploads/2024/09/IMG-768x652.png 768w"
+        }
+      },
+      {
+        "src": "data:image/svg+xml,%3Csvg%20viewBox%3D%220%200%201%201%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3C%2Fsvg%3E",
+        "class": [
+          "lazy-load",
+          "attachment-medium",
+          "size-medium"
+        ],
+        "alt": "marketing email mail information news svgrepo com",
+        "data_attrs": {
+          "data-src": "https://giacong.vn/wp-content/uploads/2024/10/marketing-email-mail-information-news-svgrepo-com.svg"
+        }
+      },
+      {
+        "src": "data:image/svg+xml,%3Csvg%20viewBox%3D%220%200%201%201%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3C%2Fsvg%3E",
+        "class": [
+          "lazy-load",
+          "attachment-medium",
+          "size-medium"
+        ],
+        "alt": "money dollar cash payment svgrepo com",
+        "data_attrs": {
+          "data-src": "https://giacong.vn/wp-content/uploads/2024/10/money-dollar-cash-payment-svgrepo-com.svg"
+        }
+      },
+      {
+        "src": "data:image/svg+xml,%3Csvg%20viewBox%3D%220%200%201%201%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3C%2Fsvg%3E",
+        "class": [
+          "lazy-load",
+          "attachment-medium",
+          "size-medium"
+        ],
+        "alt": "seo reward license certificate contract svgrepo com",
+        "data_attrs": {
+          "data-src": "https://giacong.vn/wp-content/uploads/2024/10/seo-reward-license-certificate-contract-svgrepo-com.svg"
+        }
+      },
+      {
+        "src": "data:image/svg+xml,%3Csvg%20viewBox%3D%220%200%201%201%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3C%2Fsvg%3E",
+        "class": [
+          "lazy-load",
+          "attachment-medium",
+          "size-medium"
+        ],
+        "alt": "seo mobile setting gear cog 07 svgrepo com",
+        "data_attrs": {
+          "data-src": "https://giacong.vn/wp-content/uploads/2024/10/seo-mobile-setting-gear-cog-07-svgrepo-com.svg"
+        }
+      },
+      {
+        "src": "data:image/svg+xml,%3Csvg%20viewBox%3D%220%200%201%201%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3C%2Fsvg%3E",
+        "class": [
+          "lazy-load",
+          "attachment-medium",
+          "size-medium"
+        ],
+        "alt": "seo application like thumb svgrepo com",
+        "data_attrs": {
+          "data-src": "https://giacong.vn/wp-content/uploads/2024/10/seo-application-like-thumb-svgrepo-com.svg"
+        }
+      },
+      {
+        "src": "data:image/svg+xml,%3Csvg%20viewBox%3D%220%200%20171%2031%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3C%2Fsvg%3E",
+        "class": [
+          "lazy-load",
+          "attachment-medium",
+          "size-medium"
+        ],
+        "alt": "star 1",
+        "data_attrs": {
+          "data-src": "https://giacong.vn/wp-content/uploads/2024/09/star-1.webp"
+        }
+      },
+      {
+        "src": "data:image/svg+xml,%3Csvg%20viewBox%3D%220%200%20171%2031%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3C%2Fsvg%3E",
+        "class": [
+          "lazy-load",
+          "attachment-medium",
+          "size-medium"
+        ],
+        "alt": "star 1",
+        "data_attrs": {
+          "data-src": "https://giacong.vn/wp-content/uploads/2024/09/star-1.webp"
+        }
+      },
+      {
+        "src": "data:image/svg+xml,%3Csvg%20viewBox%3D%220%200%20300%20300%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3C%2Fsvg%3E",
+        "class": [
+          "lazy-load",
+          "attachment-medium",
+          "size-medium"
+        ],
+        "alt": "Screenshot 2024 09 06 003821",
+        "data_attrs": {
+          "data-src": "https://giacong.vn/wp-content/uploads/2024/09/Screenshot-2024-09-06-003821-300x300.png",
+          "data-srcset": "https://giacong.vn/wp-content/uploads/2024/09/Screenshot-2024-09-06-003821-300x300.png 300w, https://giacong.vn/wp-content/uploads/2024/09/Screenshot-2024-09-06-003821-100x100.png 100w, https://giacong.vn/wp-content/uploads/2024/09/Screenshot-2024-09-06-003821-150x150.png 150w, https://giacong.vn/wp-content/uploads/2024/09/Screenshot-2024-09-06-003821.png 400w"
+        }
+      },
+      {
+        "src": "data:image/svg+xml,%3Csvg%20viewBox%3D%220%200%20298%20300%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3C%2Fsvg%3E",
+        "class": [
+          "lazy-load",
+          "attachment-medium",
+          "size-medium"
+        ],
+        "alt": "Screenshot 2024 09 06 004009",
+        "data_attrs": {
+          "data-src": "https://giacong.vn/wp-content/uploads/2024/09/Screenshot-2024-09-06-004009-298x300.png",
+          "data-srcset": "https://giacong.vn/wp-content/uploads/2024/09/Screenshot-2024-09-06-004009-298x300.png 298w, https://giacong.vn/wp-content/uploads/2024/09/Screenshot-2024-09-06-004009-100x100.png 100w, https://giacong.vn/wp-content/uploads/2024/09/Screenshot-2024-09-06-004009-150x150.png 150w, https://giacong.vn/wp-content/uploads/2024/09/Screenshot-2024-09-06-004009.png 454w"
+        }
+      }
+    ],
+    "structural_elements": [
+      {
+        "tag": "header",
+        "index": 0,
+        "id": "header",
+        "class": [
+          "header",
+          "transparent",
+          "has-transparent",
+          "has-sticky",
+          "sticky-jump"
+        ]
+      },
+      {
+        "tag": "footer",
+        "index": 0,
+        "id": "footer",
+        "class": [
+          "footer-wrapper"
+        ]
+      },
+      {
+        "tag": "main",
+        "index": 0,
+        "id": "main",
+        "class": []
+      }
+    ],
+    "content_containers_sample": [
+      {
+        "selector": "div[id*=\"content\"]",
+        "tag": "div",
+        "id": "content",
+        "class": []
+      },
+      {
+        "selector": "div[class*=\"content\"]",
+        "tag": "div",
+        "id": null,
+        "class": [
+          "section-content",
+          "relative"
+        ]
+      },
+      {
+        "selector": "div[class*=\"content\"]",
+        "tag": "div",
+        "id": null,
+        "class": [
+          "section-content",
+          "relative"
+        ]
+      },
+      {
+        "selector": "div[class*=\"content\"]",
+        "tag": "div",
+        "id": null,
+        "class": [
+          "section-content",
+          "relative"
+        ]
+      },
+      {
+        "selector": "div[class*=\"content\"]",
+        "tag": "div",
+        "id": null,
+        "class": [
+          "section-content",
+          "relative"
+        ]
+      },
+      {
+        "selector": "div[class*=\"content\"]",
+        "tag": "div",
+        "id": null,
+        "class": [
+          "section-content",
+          "relative"
+        ]
+      },
+      {
+        "selector": "div[class*=\"main\"]",
+        "tag": "div",
+        "id": "masthead",
+        "class": [
+          "header-main",
+          "show-logo-center",
+          "nav-dark"
+        ]
+      },
+      {
+        "selector": "div[class*=\"container\"]",
+        "tag": "div",
+        "id": null,
+        "class": [
+          "header-inner",
+          "flex-row",
+          "container",
+          "logo-center",
+          "medium-logo-center"
+        ]
+      },
+      {
+        "selector": "div[class*=\"container\"]",
+        "tag": "div",
+        "id": null,
+        "class": [
+          "header-bg-container",
+          "fill"
+        ]
+      },
+      {
+        "selector": "div[class*=\"container\"]",
+        "tag": "div",
+        "id": null,
+        "class": [
+          "container",
+          "section-title-container"
+        ]
+      },
+      {
+        "selector": "div[class*=\"container\"]",
+        "tag": "div",
+        "id": null,
+        "class": [
+          "container",
+          "clearfix"
+        ]
+      },
+      {
+        "selector": "div[class*=\"container\"]",
+        "tag": "div",
+        "id": null,
+        "class": [
+          "account-container",
+          "lightbox-inner"
+        ]
+      },
+      {
+        "selector": "section",
+        "tag": "section",
+        "id": "section_250108065",
+        "class": [
+          "section",
+          "section01",
+          "dark"
+        ]
+      },
+      {
+        "selector": "section",
+        "tag": "section",
+        "id": "section_1437980462",
+        "class": [
+          "section",
+          "section02"
+        ]
+      },
+      {
+        "selector": "section",
+        "tag": "section",
+        "id": "section_220139106",
+        "class": [
+          "section",
+          "section03"
+        ]
+      },
+      {
+        "selector": "section",
+        "tag": "section",
+        "id": "section_1771329794",
+        "class": [
+          "section",
+          "section09",
+          "dark"
+        ]
+      },
+      {
+        "selector": "section",
+        "tag": "section",
+        "id": "section_819391773",
+        "class": [
+          "section",
+          "section04"
+        ]
+      }
+    ],
+    "phones": [
+      "0947142999"
+    ],
+    "emails": [
+      "info@giacong.vn"
+    ],
+    "addresses": [
+      "Tên tài khoản hoặc địa chỉ email *",
+      "Đăng nhập\n\n\nTên tài khoản hoặc địa chỉ email *\n \n\nMật khẩu *\n\n\n\n\n Ghi nhớ mật khẩu\n\n Đăng nhập\n\n\nQuên mật khẩu?"
+    ],
+    "internal_links_count": 57,
+    "internal_links_sample": [
+      "https://giacong.vn/ban-quyen",
+      "https://giacong.vn/#top",
+      "https://giacong.vn/say-nong/",
+      "https://giacong.vn/gia-cong-ca-phe-hoa-tan/",
+      "https://giacong.vn/thanh-toan",
+      "https://giacong.vn/dich-vu-phap-ly/",
+      "https://giacong.vn/dich-vu-marketing/",
+      "https://giacong.vn/thuc-pham-chuc-nang/",
+      "https://giacong.vn/gia-cong-sua-hat/",
+      "https://giacong.vn/chinh-sach-hoan-tien",
+      "https://giacong.vn/Hoa quả sấy",
+      "https://giacong.vn/chinh-sach-bao-mat",
+      "https://giacong.vn/say-thang-hoa/",
+      "https://giacong.vn/gia-cong-duoc-lieu/",
+      "https://giacong.vn/gia-cong-my-pham/",
+      "https://giacong.vn/digital-branding",
+      "https://giacong.vn/gia-cong-tra-thao-moc/",
+      "https://giacong.vn/dich-vu-thiet-ke/",
+      "https://giacong.vn/gia-cong-ruou/",
+      "https://giacong.vn/gia-cong-tra-dong-chai/",
+      "https://giacong.vn/gia-cong-ca-phe/",
+      "https://giacong.vn/tai-khoan/lost-password/",
+      "https://giacong.vn/gia-cong-bot/",
+      "https://giacong.vn/say-lanh/",
+      "https://giacong.vn/gia-cong-thuc-pham/",
+      "https://giacong.vn/gia-cong-sua/",
+      "https://giacong.vn/say-chan-khong/",
+      "https://giacong.vn/gia-cong-sua-thuc-vat/",
+      "https://giacong.vn/dich-vu-dong-goi/",
+      "https://giacong.vn/san-pham/",
+      "https://giacong.vn/gia-cong-nuoc-uong-dong-chai/",
+      "https://giacong.vn/gia-cong-nuoc-ep-trai-cay/",
+      "https://giacong.vn/thuc-pham-say/",
+      "https://giacong.vn/rang-gia-cong-ca-phe/",
+      "https://giacong.vn/thiet-ke-website",
+      "https://giacong.vn/lien-he/",
+      "https://giacong.vn/gia-cong-dong-goi/",
+      "https://giacong.vn/gia-cong-ca-phe-qua-tang/",
+      "https://giacong.vn/tin-tuc/",
+      "https://giacong.vn",
+      "https://giacong.vn/gioi-thieu-ve-gia-cong/",
+      "https://giacong.vn/gia-cong-bot-pha-che/",
+      "https://giacong.vn/gia-cong-nuoc-giai-khat-co-ga/",
+      "https://giacong.vn/gia-cong-sot-cham/",
+      "https://giacong.vn/gia-cong-do-uong/",
+      "https://giacong.vn/nuoc-trai-cay/",
+      "https://giacong.vn/gioi-thieu",
+      "https://giacong.vn/say-hong-ngoai/",
+      "https://giacong.vn/google-ads",
+      "https://giacong.vn/gia-cong-sua-bot/"
+    ],
+    "external_links_sample": [
+      "https://zalo.me/0947142999",
+      "https://www.facebook.com/giacongvietnam",
+      "https://zalo.me/3880645128632110182",
+      "https://www.dmca.com/compliance/giacong.vn",
+      "http://url",
+      "https://www.dmca.com/Protection/Status.aspx?ID=0dc7288d-82fb-4fbb-bf06-c97df1c0a80d"
+    ]
+  },
+  "Contact": {
+    "url": "https://giacong.vn/lien-he/",
+    "type": "Contact",
+    "title": "Liên hệ - Giacong.vn",
+    "h1s": [
+      "Liên hệ"
+    ],
+    "body_classes": [
+      "wp-singular",
+      "page-template",
+      "page-template-page-transparent-header-light",
+      "page-template-page-transparent-header-light-php",
+      "page",
+      "page-id-14",
+      "wp-theme-flatsome",
+      "wp-child-theme-thiet-ke-web",
+      "theme-flatsome",
+      "woocommerce-no-js",
+      "lightbox",
+      "nav-dropdown-has-shadow",
+      "nav-dropdown-has-border"
+    ],
+    "meta_tags": [
+      {
+        "charset": "UTF-8"
+      },
+      {
+        "name": "viewport",
+        "content": "width=device-width, initial-scale=1, maximum-scale=1"
+      },
+      {
+        "name": "description",
+        "content": "Công ty Cổ phần Net Food"
+      },
+      {
+        "name": "robots",
+        "content": "follow, index, max-snippet:-1, max-video-preview:-1, max-image-preview:large"
+      },
+      {
+        "property": "og:locale",
+        "content": "vi_VN"
+      },
+      {
+        "property": "og:type",
+        "content": "article"
+      },
+      {
+        "property": "og:title",
+        "content": "Liên hệ - Giacong.vn"
+      },
+      {
+        "property": "og:description",
+        "content": "Công ty Cổ phần Net Food"
+      },
+      {
+        "property": "og:url",
+        "content": "https://giacong.vn/lien-he/"
+      },
+      {
+        "property": "og:site_name",
+        "content": "Đối Tác Gia Công OEM/ODM & Private Label Hàng Đầu"
+      },
+      {
+        "property": "og:updated_time",
+        "content": "2024-10-16T22:30:04+07:00"
+      },
+      {
+        "property": "og:image",
+        "content": "https://giacong.vn/wp-content/uploads/2024/10/GIACONG.VN-ngang-02-1-1024x291.png"
+      },
+      {
+        "property": "og:image:secure_url",
+        "content": "https://giacong.vn/wp-content/uploads/2024/10/GIACONG.VN-ngang-02-1-1024x291.png"
+      },
+      {
+        "property": "og:image:width",
+        "content": "1020"
+      },
+      {
+        "property": "og:image:height",
+        "content": "290"
+      },
+      {
+        "property": "og:image:alt",
+        "content": "logo gia công"
+      },
+      {
+        "property": "og:image:type",
+        "content": "image/png"
+      },
+      {
+        "property": "article:published_time",
+        "content": "2020-06-12T15:04:47+07:00"
+      },
+      {
+        "property": "article:modified_time",
+        "content": "2024-10-16T22:30:04+07:00"
+      },
+      {
+        "name": "twitter:card",
+        "content": "summary_large_image"
+      },
+      {
+        "name": "twitter:title",
+        "content": "Liên hệ - Giacong.vn"
+      },
+      {
+        "name": "twitter:description",
+        "content": "Công ty Cổ phần Net Food"
+      },
+      {
+        "name": "twitter:image",
+        "content": "https://giacong.vn/wp-content/uploads/2024/10/GIACONG.VN-ngang-02-1-1024x291.png"
+      },
+      {
+        "name": "twitter:label1",
+        "content": "Thời gian để đọc"
+      },
+      {
+        "name": "twitter:data1",
+        "content": "Chưa đến một phút"
+      },
+      {
+        "name": "generator",
+        "content": "WordPress 7.0.1"
+      },
+      {
+        "name": "onesignal-plugin",
+        "content": "wordpress-3.9.2"
+      },
+      {
+        "name": "msapplication-TileImage",
+        "content": "https://giacong.vn/wp-content/uploads/2024/08/cropped-cong-ty-co-phan-netfood-1-270x270.jpg"
+      }
+    ],
+    "images_sample": [
+      {
+        "src": "https://giacong.vn/wp-content/uploads/2024/10/GIACONG.VN-ngang-03-1-1024x291.png",
+        "class": [
+          "header_logo",
+          "header-logo"
+        ],
+        "alt": "Giacong.vn",
+        "data_attrs": {}
+      },
+      {
+        "src": "https://giacong.vn/wp-content/uploads/2024/10/GIACONG.VN-ngang-03-1-1024x291.png",
+        "class": [
+          "header-logo-dark"
+        ],
+        "alt": "Giacong.vn",
+        "data_attrs": {}
+      },
+      {
+        "src": "https://giacong.vn/wp-content/uploads/2024/08/file-star-svgrepo-com.svg",
+        "class": [
+          "ux-menu-icon"
+        ],
+        "alt": "",
+        "data_attrs": {}
+      },
+      {
+        "src": "https://giacong.vn/wp-content/uploads/2024/08/file-2-svgrepo-com.svg",
+        "class": [
+          "ux-menu-icon"
+        ],
+        "alt": "",
+        "data_attrs": {}
+      },
+      {
+        "src": "https://giacong.vn/wp-content/uploads/2024/08/book-open-svgrepo-com.svg",
+        "class": [
+          "ux-menu-icon"
+        ],
+        "alt": "",
+        "data_attrs": {}
+      },
+      {
+        "src": "https://giacong.vn/wp-content/uploads/2024/08/bulb-2-svgrepo-com.svg",
+        "class": [
+          "ux-menu-icon"
+        ],
+        "alt": "",
+        "data_attrs": {}
+      },
+      {
+        "src": "https://giacong.vn/wp-content/uploads/2024/08/file-2-svgrepo-com.svg",
+        "class": [
+          "ux-menu-icon"
+        ],
+        "alt": "",
+        "data_attrs": {}
+      },
+      {
+        "src": "https://giacong.vn/wp-content/uploads/2024/08/message-2-star-svgrepo-com.svg",
+        "class": [
+          "ux-menu-icon"
+        ],
+        "alt": "",
+        "data_attrs": {}
+      },
+      {
+        "src": "https://giacong.vn/wp-content/uploads/2024/10/logo-gia-cong-new-300x85.png",
+        "class": [
+          "attachment-medium",
+          "size-medium"
+        ],
+        "alt": "",
+        "data_attrs": {}
+      },
+      {
+        "src": "https://images.dmca.com/Badges/DMCA_badge_grn_60w.png?ID=0dc7288d-82fb-4fbb-bf06-c97df1c0a80d",
+        "class": [],
+        "alt": "DMCA.com Protection Status",
+        "data_attrs": {}
+      },
+      {
+        "src": "https://www.dmca.com/img/dmca-compliant-grayscale.png",
+        "class": [],
+        "alt": "DMCA compliant image",
+        "data_attrs": {}
+      },
+      {
+        "src": "https://giacong.vn/wp-content/uploads/2024/08/trang-chu-netfood.svg",
+        "class": [
+          "ux-sidebar-menu-icon"
+        ],
+        "alt": "",
+        "data_attrs": {}
+      },
+      {
+        "src": "https://giacong.vn/wp-content/uploads/2024/08/comment-info-150x150.png",
+        "class": [
+          "ux-sidebar-menu-icon"
+        ],
+        "alt": "",
+        "data_attrs": {}
+      },
+      {
+        "src": "https://giacong.vn/wp-content/uploads/2024/08/dich-vu.svg",
+        "class": [
+          "ux-sidebar-menu-icon"
+        ],
+        "alt": "",
+        "data_attrs": {}
+      },
+      {
+        "src": "https://giacong.vn/wp-content/uploads/2024/08/gift-card-150x150.png",
+        "class": [
+          "ux-sidebar-menu-icon"
+        ],
+        "alt": "",
+        "data_attrs": {}
+      },
+      {
+        "src": "https://giacong.vn/wp-content/uploads/2024/08/envelope-dot-150x150.png",
+        "class": [
+          "ux-sidebar-menu-icon"
+        ],
+        "alt": "",
+        "data_attrs": {}
+      }
+    ],
+    "structural_elements": [
+      {
+        "tag": "header",
+        "index": 0,
+        "id": "header",
+        "class": [
+          "header",
+          "transparent",
+          "has-transparent",
+          "has-sticky",
+          "sticky-jump"
+        ]
+      },
+      {
+        "tag": "footer",
+        "index": 0,
+        "id": "footer",
+        "class": [
+          "footer-wrapper"
+        ]
+      },
+      {
+        "tag": "main",
+        "index": 0,
+        "id": "main",
+        "class": []
+      },
+      {
+        "tag": "nav",
+        "index": 0,
+        "id": null,
+        "class": [
+          "rank-math-breadcrumb"
+        ]
+      }
+    ],
+    "content_containers_sample": [
+      {
+        "selector": "div[id*=\"content\"]",
+        "tag": "div",
+        "id": "content",
+        "class": []
+      },
+      {
+        "selector": "div[class*=\"content\"]",
+        "tag": "div",
+        "id": null,
+        "class": [
+          "section-content",
+          "relative"
+        ]
+      },
+      {
+        "selector": "div[class*=\"content\"]",
+        "tag": "div",
+        "id": null,
+        "class": [
+          "section-content",
+          "relative"
+        ]
+      },
+      {
+        "selector": "div[class*=\"content\"]",
+        "tag": "div",
+        "id": null,
+        "class": [
+          "section-content",
+          "relative"
+        ]
+      },
+      {
+        "selector": "div[class*=\"content\"]",
+        "tag": "div",
+        "id": "login-form-popup",
+        "class": [
+          "lightbox-content",
+          "mfp-hide"
+        ]
+      },
+      {
+        "selector": "div[class*=\"main\"]",
+        "tag": "div",
+        "id": "masthead",
+        "class": [
+          "header-main",
+          "show-logo-center",
+          "nav-dark"
+        ]
+      },
+      {
+        "selector": "div[class*=\"container\"]",
+        "tag": "div",
+        "id": null,
+        "class": [
+          "header-inner",
+          "flex-row",
+          "container",
+          "logo-center",
+          "medium-logo-center"
+        ]
+      },
+      {
+        "selector": "div[class*=\"container\"]",
+        "tag": "div",
+        "id": null,
+        "class": [
+          "header-bg-container",
+          "fill"
+        ]
+      },
+      {
+        "selector": "div[class*=\"container\"]",
+        "tag": "div",
+        "id": null,
+        "class": [
+          "container",
+          "clearfix"
+        ]
+      },
+      {
+        "selector": "div[class*=\"container\"]",
+        "tag": "div",
+        "id": null,
+        "class": [
+          "account-container",
+          "lightbox-inner"
+        ]
+      },
+      {
+        "selector": "section",
+        "tag": "section",
+        "id": "section_761313013",
+        "class": [
+          "section",
+          "section-lien-he",
+          "dark"
+        ]
+      },
+      {
+        "selector": "section",
+        "tag": "section",
+        "id": "section_1583788418",
+        "class": [
+          "section"
+        ]
+      },
+      {
+        "selector": "section",
+        "tag": "section",
+        "id": "section_1387197078",
+        "class": [
+          "section",
+          "footer-section"
+        ]
+      }
+    ],
+    "phones": [
+      "0947142999"
+    ],
+    "emails": [
+      "info@giacong.vn"
+    ],
+    "addresses": [
+      "Home\nVề Giacong.vn\nSản Phẩm\n\n\nGia công sốt chấm  \nGia công đồ uống\nGia công bột pha chế\nGia công đồ uống\nGia công dược liệu\nGia công thực phẩm\nGia công mỹ phẩm\nGia công trà\nGia công cà phê\nGia công đó",
+      "Liên hệ\nTrang chủ » Liên hệ\n\n\n\n\n\n\n\n\n\n\n\n\n\nThông tin công ty\nCông ty Cổ phần Net Food\n\nĐịa chỉ: 108 Lê Duẩn – Đống Đa – Hà Nội\nĐiện thoại: 0938.591.444\nEmail: info@giacong.vn\nWebsite: https://giacong.vn",
+      "Thông tin công ty\nCông ty Cổ phần Net Food\n\nĐịa chỉ: 108 Lê Duẩn – Đống Đa – Hà Nội\nĐiện thoại: 0938.591.444\nEmail: info@giacong.vn\nWebsite: https://giacong.vn",
+      "Thông tin công ty\nCông ty Cổ phần Net Food\n\nĐịa chỉ: 108 Lê Duẩn – Đống Đa – Hà Nội\nĐiện thoại: 0938.591.444\nEmail: info@giacong.vn\nWebsite: https://giacong.vn\n\n\n\n\n\n\nYêu cầu báo giá\n\n \n\n\n\n\n\nBạn gặp kh"
+    ],
+    "internal_links_count": 52,
+    "internal_links_sample": [
+      "https://giacong.vn/ban-quyen",
+      "https://giacong.vn/say-nong/",
+      "https://giacong.vn/gia-cong-ca-phe-hoa-tan/",
+      "https://giacong.vn/thanh-toan",
+      "https://giacong.vn/lien-he/#top",
+      "https://giacong.vn/dich-vu-phap-ly/",
+      "https://giacong.vn/dich-vu-marketing/",
+      "https://giacong.vn/thuc-pham-chuc-nang/",
+      "https://giacong.vn/gia-cong-sua-hat/",
+      "https://giacong.vn/chinh-sach-hoan-tien",
+      "https://giacong.vn/Hoa quả sấy",
+      "https://giacong.vn/chinh-sach-bao-mat",
+      "https://giacong.vn/say-thang-hoa/",
+      "https://giacong.vn/gia-cong-duoc-lieu/",
+      "https://giacong.vn/gia-cong-my-pham/",
+      "https://giacong.vn/dich-vu-thiet-ke/",
+      "https://giacong.vn/gia-cong-ruou/",
+      "https://giacong.vn/gia-cong-tra-dong-chai/",
+      "https://giacong.vn/gia-cong-ca-phe/",
+      "https://giacong.vn/tai-khoan/lost-password/",
+      "https://giacong.vn/gia-cong-bot/",
+      "https://giacong.vn/say-lanh/",
+      "https://giacong.vn/gia-cong-thuc-pham/",
+      "https://giacong.vn/gia-cong-sua-thuc-vat/",
+      "https://giacong.vn/say-chan-khong/",
+      "https://giacong.vn/dich-vu-dong-goi/",
+      "https://giacong.vn/san-pham/",
+      "https://giacong.vn/gia-cong-nuoc-uong-dong-chai/",
+      "https://giacong.vn/gia-cong-nuoc-ep-trai-cay/",
+      "https://giacong.vn/thuc-pham-say/",
+      "https://giacong.vn/dich-vu-say/",
+      "https://giacong.vn/rang-gia-cong-ca-phe/",
+      "https://giacong.vn/lien-he/",
+      "https://giacong.vn/gia-cong-dong-goi/",
+      "https://giacong.vn/gia-cong-ca-phe-qua-tang/",
+      "https://giacong.vn/tin-tuc/",
+      "https://giacong.vn",
+      "https://giacong.vn/gioi-thieu-ve-gia-cong/",
+      "https://giacong.vn/gia-cong-bot-pha-che/",
+      "https://giacong.vn/gia-cong-nuoc-giai-khat-co-ga/",
+      "https://giacong.vn/gia-cong-sot-cham/",
+      "https://giacong.vn/gia-cong-do-uong/",
+      "https://giacong.vn/nuoc-trai-cay/",
+      "https://giacong.vn/say-hong-ngoai/",
+      "https://giacong.vn/chinh-sach-thanh-toan",
+      "https://giacong.vn/gia-cong-sua-bot/",
+      "https://giacong.vn/",
+      "https://giacong.vn/gia-cong-tra-tui-loc/",
+      "https://giacong.vn/lien-he/#main",
+      "https://giacong.vn/gia-cong-sua/"
+    ],
+    "external_links_sample": [
+      "https://zalo.me/0947142999",
+      "https://www.facebook.com/giacongvietnam",
+      "https://www.dmca.com/compliance/giacong.vn",
+      "http://url",
+      "https://www.dmca.com/Protection/Status.aspx?ID=0dc7288d-82fb-4fbb-bf06-c97df1c0a80d"
+    ]
+  },
+  "Product": {
+    "url": "https://giacong.vn/san-pham/",
+    "type": "Product",
+    "title": "Danh Sách Các Sản Phẩm Gia Công Tại Công Ty",
+    "h1s": [
+      "Danh Sách Các Sản Phẩm Gia Công"
+    ],
+    "body_classes": [
+      "archive",
+      "post-type-archive",
+      "post-type-archive-product",
+      "wp-theme-flatsome",
+      "wp-child-theme-thiet-ke-web",
+      "theme-flatsome",
+      "woocommerce-shop",
+      "woocommerce",
+      "woocommerce-page",
+      "woocommerce-no-js",
+      "lightbox",
+      "nav-dropdown-has-shadow",
+      "nav-dropdown-has-border"
+    ],
+    "meta_tags": [
+      {
+        "charset": "UTF-8"
+      },
+      {
+        "name": "viewport",
+        "content": "width=device-width, initial-scale=1, maximum-scale=1"
+      },
+      {
+        "name": "description",
+        "content": "Với hơn 10 năm kinh nghiệm trong ngành gia công, chúng tôi cam kết mang đến cho bạn những sản phẩm đạt chuẩn quốc tế, luôn đáp ứng yêu cầu về chất lượng, độ chính xác và thời gian giao hàng."
+      },
+      {
+        "name": "robots",
+        "content": "follow, index, max-snippet:-1, max-video-preview:-1, max-image-preview:large"
+      },
+      {
+        "property": "og:locale",
+        "content": "vi_VN"
+      },
+      {
+        "property": "og:type",
+        "content": "article"
+      },
+      {
+        "property": "og:title",
+        "content": "Danh Sách Các Sản Phẩm Gia Công Tại Công Ty"
+      },
+      {
+        "property": "og:description",
+        "content": "Với hơn 10 năm kinh nghiệm trong ngành gia công, chúng tôi cam kết mang đến cho bạn những sản phẩm đạt chuẩn quốc tế, luôn đáp ứng yêu cầu về chất lượng, độ chính xác và thời gian giao hàng."
+      },
+      {
+        "property": "og:url",
+        "content": "https://giacong.vn/san-pham/"
+      },
+      {
+        "property": "og:site_name",
+        "content": "Đối Tác Gia Công OEM/ODM & Private Label Hàng Đầu"
+      },
+      {
+        "property": "og:image",
+        "content": "https://giacong.vn/wp-content/uploads/2024/10/GIACONG.VN-ngang-02-1-1024x291.png"
+      },
+      {
+        "property": "og:image:secure_url",
+        "content": "https://giacong.vn/wp-content/uploads/2024/10/GIACONG.VN-ngang-02-1-1024x291.png"
+      },
+      {
+        "property": "og:image:width",
+        "content": "1020"
+      },
+      {
+        "property": "og:image:height",
+        "content": "290"
+      },
+      {
+        "property": "og:image:alt",
+        "content": "logo gia công"
+      },
+      {
+        "property": "og:image:type",
+        "content": "image/png"
+      },
+      {
+        "name": "twitter:card",
+        "content": "summary_large_image"
+      },
+      {
+        "name": "twitter:title",
+        "content": "Danh Sách Các Sản Phẩm Gia Công Tại Công Ty"
+      },
+      {
+        "name": "twitter:description",
+        "content": "Với hơn 10 năm kinh nghiệm trong ngành gia công, chúng tôi cam kết mang đến cho bạn những sản phẩm đạt chuẩn quốc tế, luôn đáp ứng yêu cầu về chất lượng, độ chính xác và thời gian giao hàng."
+      },
+      {
+        "name": "twitter:image",
+        "content": "https://giacong.vn/wp-content/uploads/2024/10/GIACONG.VN-ngang-02-1-1024x291.png"
+      },
+      {
+        "name": "generator",
+        "content": "WordPress 7.0.1"
+      },
+      {
+        "name": "onesignal-plugin",
+        "content": "wordpress-3.9.2"
+      },
+      {
+        "name": "msapplication-TileImage",
+        "content": "https://giacong.vn/wp-content/uploads/2024/08/cropped-cong-ty-co-phan-netfood-1-270x270.jpg"
+      }
+    ],
+    "images_sample": [
+      {
+        "src": "https://giacong.vn/wp-content/uploads/2024/10/GIACONG.VN-ngang-03-1-1024x291.png",
+        "class": [
+          "header_logo",
+          "header-logo"
+        ],
+        "alt": "Giacong.vn",
+        "data_attrs": {}
+      },
+      {
+        "src": "https://giacong.vn/wp-content/uploads/2024/10/GIACONG.VN-ngang-03-1-1024x291.png",
+        "class": [
+          "header-logo-dark"
+        ],
+        "alt": "Giacong.vn",
+        "data_attrs": {}
+      },
+      {
+        "src": "https://giacong.vn/wp-content/uploads/2024/08/file-star-svgrepo-com.svg",
+        "class": [
+          "ux-menu-icon"
+        ],
+        "alt": "",
+        "data_attrs": {}
+      },
+      {
+        "src": "https://giacong.vn/wp-content/uploads/2024/08/file-2-svgrepo-com.svg",
+        "class": [
+          "ux-menu-icon"
+        ],
+        "alt": "",
+        "data_attrs": {}
+      },
+      {
+        "src": "https://giacong.vn/wp-content/uploads/2024/08/book-open-svgrepo-com.svg",
+        "class": [
+          "ux-menu-icon"
+        ],
+        "alt": "",
+        "data_attrs": {}
+      },
+      {
+        "src": "https://giacong.vn/wp-content/uploads/2024/08/bulb-2-svgrepo-com.svg",
+        "class": [
+          "ux-menu-icon"
+        ],
+        "alt": "",
+        "data_attrs": {}
+      },
+      {
+        "src": "https://giacong.vn/wp-content/uploads/2024/08/file-2-svgrepo-com.svg",
+        "class": [
+          "ux-menu-icon"
+        ],
+        "alt": "",
+        "data_attrs": {}
+      },
+      {
+        "src": "https://giacong.vn/wp-content/uploads/2024/08/message-2-star-svgrepo-com.svg",
+        "class": [
+          "ux-menu-icon"
+        ],
+        "alt": "",
+        "data_attrs": {}
+      },
+      {
+        "src": "data:image/svg+xml,%3Csvg%20viewBox%3D%220%200%20247%20296%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3C%2Fsvg%3E",
+        "class": [
+          "lazy-load",
+          "attachment-woocommerce_thumbnail",
+          "size-woocommerce_thumbnail"
+        ],
+        "alt": "sứa bột cho người già",
+        "data_attrs": {
+          "data-src": "https://giacong.vn/wp-content/uploads/2025/04/sua-bot-cho-nguoi-gia-247x296.webp"
+        }
+      },
+      {
+        "src": "data:image/svg+xml,%3Csvg%20viewBox%3D%220%200%20247%20296%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3C%2Fsvg%3E",
+        "class": [
+          "lazy-load",
+          "attachment-woocommerce_thumbnail",
+          "size-woocommerce_thumbnail"
+        ],
+        "alt": "gia công sữa bột cho trẻ em",
+        "data_attrs": {
+          "data-src": "https://giacong.vn/wp-content/uploads/2025/04/gia-cong-sua-bot-cho-tre-em-247x296.jpg"
+        }
+      },
+      {
+        "src": "data:image/svg+xml,%3Csvg%20viewBox%3D%220%200%20247%20296%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3C%2Fsvg%3E",
+        "class": [
+          "lazy-load",
+          "attachment-woocommerce_thumbnail",
+          "size-woocommerce_thumbnail"
+        ],
+        "alt": "sữa bột nguyên kem",
+        "data_attrs": {
+          "data-src": "https://giacong.vn/wp-content/uploads/2025/04/gia-cong-sua-bot-nguyen-kem-247x296.webp"
+        }
+      },
+      {
+        "src": "data:image/svg+xml,%3Csvg%20viewBox%3D%220%200%20247%20296%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3C%2Fsvg%3E",
+        "class": [
+          "lazy-load",
+          "attachment-woocommerce_thumbnail",
+          "size-woocommerce_thumbnail"
+        ],
+        "alt": "gia công sữa bột pha sẵn",
+        "data_attrs": {
+          "data-src": "https://giacong.vn/wp-content/uploads/2025/04/gia-cong-sua-bot-pha-san-247x296.jpg"
+        }
+      },
+      {
+        "src": "data:image/svg+xml,%3Csvg%20viewBox%3D%220%200%20247%20296%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3C%2Fsvg%3E",
+        "class": [
+          "lazy-load",
+          "attachment-woocommerce_thumbnail",
+          "size-woocommerce_thumbnail"
+        ],
+        "alt": "Sữa Bột Tách Béo",
+        "data_attrs": {
+          "data-src": "https://giacong.vn/wp-content/uploads/2025/04/sua-bot-tach-beo-247x296.jpg"
+        }
+      },
+      {
+        "src": "data:image/svg+xml,%3Csvg%20viewBox%3D%220%200%20247%20247%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3C%2Fsvg%3E",
+        "class": [
+          "lazy-load",
+          "woocommerce-placeholder",
+          "wp-post-image"
+        ],
+        "alt": "Nơi nhập dữ liệu",
+        "data_attrs": {
+          "data-src": "https://giacong.vn/wp-content/uploads/woocommerce-placeholder-300x300.png",
+          "data-srcset": "https://giacong.vn/wp-content/uploads/woocommerce-placeholder-300x300.png 300w, https://giacong.vn/wp-content/uploads/woocommerce-placeholder-100x100.png 100w, https://giacong.vn/wp-content/uploads/woocommerce-placeholder-600x600.png 600w, https://giacong.vn/wp-content/uploads/woocommerce-placeholder-1024x1024.png 1024w, https://giacong.vn/wp-content/uploads/woocommerce-placeholder-150x150.png 150w, https://giacong.vn/wp-content/uploads/woocommerce-placeholder-768x768.png 768w, https://giacong.vn/wp-content/uploads/woocommerce-placeholder.png 1200w"
+        }
+      },
+      {
+        "src": "data:image/svg+xml,%3Csvg%20viewBox%3D%220%200%20247%20247%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3C%2Fsvg%3E",
+        "class": [
+          "lazy-load",
+          "woocommerce-placeholder",
+          "wp-post-image"
+        ],
+        "alt": "Nơi nhập dữ liệu",
+        "data_attrs": {
+          "data-src": "https://giacong.vn/wp-content/uploads/woocommerce-placeholder-300x300.png",
+          "data-srcset": "https://giacong.vn/wp-content/uploads/woocommerce-placeholder-300x300.png 300w, https://giacong.vn/wp-content/uploads/woocommerce-placeholder-100x100.png 100w, https://giacong.vn/wp-content/uploads/woocommerce-placeholder-600x600.png 600w, https://giacong.vn/wp-content/uploads/woocommerce-placeholder-1024x1024.png 1024w, https://giacong.vn/wp-content/uploads/woocommerce-placeholder-150x150.png 150w, https://giacong.vn/wp-content/uploads/woocommerce-placeholder-768x768.png 768w, https://giacong.vn/wp-content/uploads/woocommerce-placeholder.png 1200w"
+        }
+      },
+      {
+        "src": "data:image/svg+xml,%3Csvg%20viewBox%3D%220%200%20247%20247%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3C%2Fsvg%3E",
+        "class": [
+          "lazy-load",
+          "woocommerce-placeholder",
+          "wp-post-image"
+        ],
+        "alt": "Nơi nhập dữ liệu",
+        "data_attrs": {
+          "data-src": "https://giacong.vn/wp-content/uploads/woocommerce-placeholder-300x300.png",
+          "data-srcset": "https://giacong.vn/wp-content/uploads/woocommerce-placeholder-300x300.png 300w, https://giacong.vn/wp-content/uploads/woocommerce-placeholder-100x100.png 100w, https://giacong.vn/wp-content/uploads/woocommerce-placeholder-600x600.png 600w, https://giacong.vn/wp-content/uploads/woocommerce-placeholder-1024x1024.png 1024w, https://giacong.vn/wp-content/uploads/woocommerce-placeholder-150x150.png 150w, https://giacong.vn/wp-content/uploads/woocommerce-placeholder-768x768.png 768w, https://giacong.vn/wp-content/uploads/woocommerce-placeholder.png 1200w"
+        }
+      },
+      {
+        "src": "data:image/svg+xml,%3Csvg%20viewBox%3D%220%200%20247%20247%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3C%2Fsvg%3E",
+        "class": [
+          "lazy-load",
+          "woocommerce-placeholder",
+          "wp-post-image"
+        ],
+        "alt": "Nơi nhập dữ liệu",
+        "data_attrs": {
+          "data-src": "https://giacong.vn/wp-content/uploads/woocommerce-placeholder-300x300.png",
+          "data-srcset": "https://giacong.vn/wp-content/uploads/woocommerce-placeholder-300x300.png 300w, https://giacong.vn/wp-content/uploads/woocommerce-placeholder-100x100.png 100w, https://giacong.vn/wp-content/uploads/woocommerce-placeholder-600x600.png 600w, https://giacong.vn/wp-content/uploads/woocommerce-placeholder-1024x1024.png 1024w, https://giacong.vn/wp-content/uploads/woocommerce-placeholder-150x150.png 150w, https://giacong.vn/wp-content/uploads/woocommerce-placeholder-768x768.png 768w, https://giacong.vn/wp-content/uploads/woocommerce-placeholder.png 1200w"
+        }
+      },
+      {
+        "src": "data:image/svg+xml,%3Csvg%20viewBox%3D%220%200%20247%20247%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3C%2Fsvg%3E",
+        "class": [
+          "lazy-load",
+          "woocommerce-placeholder",
+          "wp-post-image"
+        ],
+        "alt": "Nơi nhập dữ liệu",
+        "data_attrs": {
+          "data-src": "https://giacong.vn/wp-content/uploads/woocommerce-placeholder-300x300.png",
+          "data-srcset": "https://giacong.vn/wp-content/uploads/woocommerce-placeholder-300x300.png 300w, https://giacong.vn/wp-content/uploads/woocommerce-placeholder-100x100.png 100w, https://giacong.vn/wp-content/uploads/woocommerce-placeholder-600x600.png 600w, https://giacong.vn/wp-content/uploads/woocommerce-placeholder-1024x1024.png 1024w, https://giacong.vn/wp-content/uploads/woocommerce-placeholder-150x150.png 150w, https://giacong.vn/wp-content/uploads/woocommerce-placeholder-768x768.png 768w, https://giacong.vn/wp-content/uploads/woocommerce-placeholder.png 1200w"
+        }
+      },
+      {
+        "src": "data:image/svg+xml,%3Csvg%20viewBox%3D%220%200%20247%20247%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3C%2Fsvg%3E",
+        "class": [
+          "lazy-load",
+          "woocommerce-placeholder",
+          "wp-post-image"
+        ],
+        "alt": "Nơi nhập dữ liệu",
+        "data_attrs": {
+          "data-src": "https://giacong.vn/wp-content/uploads/woocommerce-placeholder-300x300.png",
+          "data-srcset": "https://giacong.vn/wp-content/uploads/woocommerce-placeholder-300x300.png 300w, https://giacong.vn/wp-content/uploads/woocommerce-placeholder-100x100.png 100w, https://giacong.vn/wp-content/uploads/woocommerce-placeholder-600x600.png 600w, https://giacong.vn/wp-content/uploads/woocommerce-placeholder-1024x1024.png 1024w, https://giacong.vn/wp-content/uploads/woocommerce-placeholder-150x150.png 150w, https://giacong.vn/wp-content/uploads/woocommerce-placeholder-768x768.png 768w, https://giacong.vn/wp-content/uploads/woocommerce-placeholder.png 1200w"
+        }
+      },
+      {
+        "src": "data:image/svg+xml,%3Csvg%20viewBox%3D%220%200%20247%20247%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3C%2Fsvg%3E",
+        "class": [
+          "lazy-load",
+          "woocommerce-placeholder",
+          "wp-post-image"
+        ],
+        "alt": "Nơi nhập dữ liệu",
+        "data_attrs": {
+          "data-src": "https://giacong.vn/wp-content/uploads/woocommerce-placeholder-300x300.png",
+          "data-srcset": "https://giacong.vn/wp-content/uploads/woocommerce-placeholder-300x300.png 300w, https://giacong.vn/wp-content/uploads/woocommerce-placeholder-100x100.png 100w, https://giacong.vn/wp-content/uploads/woocommerce-placeholder-600x600.png 600w, https://giacong.vn/wp-content/uploads/woocommerce-placeholder-1024x1024.png 1024w, https://giacong.vn/wp-content/uploads/woocommerce-placeholder-150x150.png 150w, https://giacong.vn/wp-content/uploads/woocommerce-placeholder-768x768.png 768w, https://giacong.vn/wp-content/uploads/woocommerce-placeholder.png 1200w"
+        }
+      }
+    ],
+    "structural_elements": [
+      {
+        "tag": "header",
+        "index": 0,
+        "id": "header",
+        "class": [
+          "header",
+          "has-sticky",
+          "sticky-jump"
+        ]
+      },
+      {
+        "tag": "footer",
+        "index": 0,
+        "id": "footer",
+        "class": [
+          "footer-wrapper"
+        ]
+      },
+      {
+        "tag": "main",
+        "index": 0,
+        "id": "main",
+        "class": []
+      },
+      {
+        "tag": "nav",
+        "index": 0,
+        "id": null,
+        "class": [
+          "woocommerce-breadcrumb",
+          "breadcrumbs",
+          "uppercase"
+        ]
+      }
+    ],
+    "content_containers_sample": [
+      {
+        "selector": "div[class*=\"content\"]",
+        "tag": "div",
+        "id": null,
+        "class": [
+          "section-content",
+          "relative"
+        ]
+      },
+      {
+        "selector": "div[class*=\"content\"]",
+        "tag": "div",
+        "id": "login-form-popup",
+        "class": [
+          "lightbox-content",
+          "mfp-hide"
+        ]
+      },
+      {
+        "selector": "div[class*=\"main\"]",
+        "tag": "div",
+        "id": "masthead",
+        "class": [
+          "header-main",
+          "show-logo-center",
+          "nav-dark"
+        ]
+      },
+      {
+        "selector": "div[class*=\"container\"]",
+        "tag": "div",
+        "id": null,
+        "class": [
+          "header-inner",
+          "flex-row",
+          "container",
+          "logo-center",
+          "medium-logo-center"
+        ]
+      },
+      {
+        "selector": "div[class*=\"container\"]",
+        "tag": "div",
+        "id": null,
+        "class": [
+          "header-bg-container",
+          "fill"
+        ]
+      },
+      {
+        "selector": "div[class*=\"container\"]",
+        "tag": "div",
+        "id": null,
+        "class": [
+          "page-title-inner",
+          "flex-row",
+          "medium-flex-wrap",
+          "container"
+        ]
+      },
+      {
+        "selector": "div[class*=\"container\"]",
+        "tag": "div",
+        "id": null,
+        "class": [
+          "shop-container"
+        ]
+      },
+      {
+        "selector": "div[class*=\"container\"]",
+        "tag": "div",
+        "id": null,
+        "class": [
+          "badge-container",
+          "absolute",
+          "left",
+          "top",
+          "z-1"
+        ]
+      },
+      {
+        "selector": "section",
+        "tag": "section",
+        "id": "section_474962290",
+        "class": [
+          "section",
+          "footer-section"
+        ]
+      }
+    ],
+    "phones": [
+      "0947142999"
+    ],
+    "emails": [
+      "info@giacong.vn"
+    ],
+    "addresses": [
+      "Tên tài khoản hoặc địa chỉ email *",
+      "Đăng nhập\n\n\nTên tài khoản hoặc địa chỉ email *\n \n\nMật khẩu *\n\n\n\n\n Ghi nhớ mật khẩu\n\n Đăng nhập\n\n\nQuên mật khẩu?"
+    ],
+    "internal_links_count": 84,
+    "internal_links_sample": [
+      "https://giacong.vn/sua-it-duong/",
+      "https://giacong.vn/sua-hat-hanh-nhan/",
+      "https://giacong.vn/dich-vu-phap-ly/",
+      "https://giacong.vn/tra-xanh-nguyen-chat/",
+      "https://giacong.vn/say-thang-hoa/",
+      "https://giacong.vn/gia-cong-my-pham/",
+      "https://giacong.vn/sua-dac-co-duong/",
+      "https://giacong.vn/tra-xanh-huong-hoa-nhai/",
+      "https://giacong.vn/gia-cong-tra-dong-chai/",
+      "https://giacong.vn/sua-hat-dieu/",
+      "https://giacong.vn/gia-cong-ca-phe/",
+      "https://giacong.vn/sua-dau-nanh-nguyen-chat/",
+      "https://giacong.vn/gia-cong-thuc-pham/",
+      "https://giacong.vn/san-pham/",
+      "https://giacong.vn/thuc-pham-say/",
+      "https://giacong.vn/san-pham/#top",
+      "https://giacong.vn/gia-cong-bot-pha-che/",
+      "https://giacong.vn/gia-cong-sua-bot/",
+      "https://giacong.vn/",
+      "https://giacong.vn/gia-cong-tra-tui-loc/",
+      "https://giacong.vn/bot-gia-vi/",
+      "https://giacong.vn/ban-quyen",
+      "https://giacong.vn/gia-cong-ca-phe-hoa-tan/",
+      "https://giacong.vn/thuc-pham-chuc-nang/",
+      "https://giacong.vn/gia-cong-sua-hat/",
+      "https://giacong.vn/sua-chua-uong/",
+      "https://giacong.vn/sua-chua-nguyen-chat/",
+      "https://giacong.vn/sua-bot-cho-tre-em/",
+      "https://giacong.vn/sua-chua-hy-lap/",
+      "https://giacong.vn/chinh-sach-bao-mat",
+      "https://giacong.vn/sua-whey-protein/",
+      "https://giacong.vn/sua-bot-cho-nguoi-gia/",
+      "https://giacong.vn/gia-cong-dong-goi/",
+      "https://giacong.vn/gia-cong-ca-phe-qua-tang/",
+      "https://giacong.vn/gioi-thieu-ve-gia-cong/",
+      "https://giacong.vn/nuoc-trai-cay/",
+      "https://giacong.vn/tra-den-nguyen-chat/",
+      "https://giacong.vn/chinh-sach-thanh-toan",
+      "https://giacong.vn/tra-den-huong-trai-cay/",
+      "https://giacong.vn/sua-dau-nanh-co-huong-vi/",
+      "https://giacong.vn/tra-den-thao-moc/",
+      "https://giacong.vn/sua-chua-co-huong-trai-cay/",
+      "https://giacong.vn/dich-vu-marketing/",
+      "https://giacong.vn/chinh-sach-hoan-tien",
+      "https://giacong.vn/sua-bot-nguyen-kem/",
+      "https://giacong.vn/sua-bot-pha-san/",
+      "https://giacong.vn/gia-cong-bot/",
+      "https://giacong.vn/say-chan-khong/",
+      "https://giacong.vn/gia-cong-nuoc-uong-dong-chai/",
+      "https://giacong.vn/sua-dua/"
+    ],
+    "external_links_sample": [
+      "https://zalo.me/0947142999",
+      "https://www.facebook.com/giacongvietnam",
+      "https://www.dmca.com/compliance/giacong.vn",
+      "http://url",
+      "https://www.dmca.com/Protection/Status.aspx?ID=0dc7288d-82fb-4fbb-bf06-c97df1c0a80d"
+    ]
+  },
+  "Service": {
+    "url": "https://giacong.vn/gia-cong-ca-phe-hoa-tan/",
+    "type": "Service",
+    "title": "Giới Thiệu Dịch Vụ Gia Công Cà Phê Hòa Tan Chuyên Nghiệp",
+    "h1s": [
+      "Gia Công Cà Phê Hòa Tan"
+    ],
+    "body_classes": [
+      "wp-singular",
+      "post-template-default",
+      "single",
+      "single-post",
+      "postid-5290",
+      "single-format-standard",
+      "wp-theme-flatsome",
+      "wp-child-theme-thiet-ke-web",
+      "theme-flatsome",
+      "woocommerce-no-js",
+      "lightbox",
+      "nav-dropdown-has-shadow",
+      "nav-dropdown-has-border",
+      "has-ftoc"
+    ],
+    "meta_tags": [
+      {
+        "charset": "UTF-8"
+      },
+      {
+        "name": "viewport",
+        "content": "width=device-width, initial-scale=1, maximum-scale=1"
+      },
+      {
+        "name": "description",
+        "content": "Dịch vụ gia công cà phê hòa tan đã trở thành giải pháp tối ưu cho các doanh nghiệp, giúp họ tiết kiệm chi phí sản xuất, nâng cao chất lượng sản phẩm và mở rộng thị trường"
+      },
+      {
+        "name": "robots",
+        "content": "follow, index, max-snippet:-1, max-video-preview:-1, max-image-preview:large"
+      },
+      {
+        "property": "og:locale",
+        "content": "vi_VN"
+      },
+      {
+        "property": "og:type",
+        "content": "article"
+      },
+      {
+        "property": "og:title",
+        "content": "Giới Thiệu Dịch Vụ Gia Công Cà Phê Hòa Tan Chuyên Nghiệp"
+      },
+      {
+        "property": "og:description",
+        "content": "Dịch vụ gia công cà phê hòa tan đã trở thành giải pháp tối ưu cho các doanh nghiệp, giúp họ tiết kiệm chi phí sản xuất, nâng cao chất lượng sản phẩm và mở rộng thị trường"
+      },
+      {
+        "property": "og:url",
+        "content": "https://giacong.vn/gia-cong-ca-phe-hoa-tan/"
+      },
+      {
+        "property": "og:site_name",
+        "content": "Đối Tác Gia Công OEM/ODM & Private Label Hàng Đầu"
+      },
+      {
+        "property": "article:section",
+        "content": "Gia Công Cà Phê"
+      },
+      {
+        "property": "og:updated_time",
+        "content": "2024-12-17T11:40:18+07:00"
+      },
+      {
+        "property": "og:image",
+        "content": "https://giacong.vn/wp-content/uploads/2024/12/gia-cong-ca-phe-hoa-tan.jpg"
+      },
+      {
+        "property": "og:image:secure_url",
+        "content": "https://giacong.vn/wp-content/uploads/2024/12/gia-cong-ca-phe-hoa-tan.jpg"
+      },
+      {
+        "property": "og:image:width",
+        "content": "1921"
+      },
+      {
+        "property": "og:image:height",
+        "content": "1281"
+      },
+      {
+        "property": "og:image:alt",
+        "content": "gia công cà phê hòa tan"
+      },
+      {
+        "property": "og:image:type",
+        "content": "image/jpeg"
+      },
+      {
+        "property": "article:published_time",
+        "content": "2024-12-17T11:39:58+07:00"
+      },
+      {
+        "property": "article:modified_time",
+        "content": "2024-12-17T11:40:18+07:00"
+      },
+      {
+        "name": "twitter:card",
+        "content": "summary_large_image"
+      },
+      {
+        "name": "twitter:title",
+        "content": "Giới Thiệu Dịch Vụ Gia Công Cà Phê Hòa Tan Chuyên Nghiệp"
+      },
+      {
+        "name": "twitter:description",
+        "content": "Dịch vụ gia công cà phê hòa tan đã trở thành giải pháp tối ưu cho các doanh nghiệp, giúp họ tiết kiệm chi phí sản xuất, nâng cao chất lượng sản phẩm và mở rộng thị trường"
+      },
+      {
+        "name": "twitter:image",
+        "content": "https://giacong.vn/wp-content/uploads/2024/12/gia-cong-ca-phe-hoa-tan.jpg"
+      },
+      {
+        "name": "twitter:label1",
+        "content": "Được viết bởi"
+      },
+      {
+        "name": "twitter:data1",
+        "content": "Giacong.vn"
+      },
+      {
+        "name": "twitter:label2",
+        "content": "Thời gian để đọc"
+      },
+      {
+        "name": "twitter:data2",
+        "content": "7 phút"
+      },
+      {
+        "name": "generator",
+        "content": "WordPress 7.0.1"
+      },
+      {
+        "name": "onesignal-plugin",
+        "content": "wordpress-3.9.2"
+      },
+      {
+        "name": "msapplication-TileImage",
+        "content": "https://giacong.vn/wp-content/uploads/2024/08/cropped-cong-ty-co-phan-netfood-1-270x270.jpg"
+      }
+    ],
+    "images_sample": [
+      {
+        "src": "https://giacong.vn/wp-content/uploads/2024/10/GIACONG.VN-ngang-03-1-1024x291.png",
+        "class": [
+          "header_logo",
+          "header-logo"
+        ],
+        "alt": "Giacong.vn",
+        "data_attrs": {}
+      },
+      {
+        "src": "https://giacong.vn/wp-content/uploads/2024/10/GIACONG.VN-ngang-03-1-1024x291.png",
+        "class": [
+          "header-logo-dark"
+        ],
+        "alt": "Giacong.vn",
+        "data_attrs": {}
+      },
+      {
+        "src": "https://giacong.vn/wp-content/uploads/2024/08/file-star-svgrepo-com.svg",
+        "class": [
+          "ux-menu-icon"
+        ],
+        "alt": "",
+        "data_attrs": {}
+      },
+      {
+        "src": "https://giacong.vn/wp-content/uploads/2024/08/file-2-svgrepo-com.svg",
+        "class": [
+          "ux-menu-icon"
+        ],
+        "alt": "",
+        "data_attrs": {}
+      },
+      {
+        "src": "https://giacong.vn/wp-content/uploads/2024/08/book-open-svgrepo-com.svg",
+        "class": [
+          "ux-menu-icon"
+        ],
+        "alt": "",
+        "data_attrs": {}
+      },
+      {
+        "src": "https://giacong.vn/wp-content/uploads/2024/08/bulb-2-svgrepo-com.svg",
+        "class": [
+          "ux-menu-icon"
+        ],
+        "alt": "",
+        "data_attrs": {}
+      },
+      {
+        "src": "https://giacong.vn/wp-content/uploads/2024/08/file-2-svgrepo-com.svg",
+        "class": [
+          "ux-menu-icon"
+        ],
+        "alt": "",
+        "data_attrs": {}
+      },
+      {
+        "src": "https://giacong.vn/wp-content/uploads/2024/08/message-2-star-svgrepo-com.svg",
+        "class": [
+          "ux-menu-icon"
+        ],
+        "alt": "",
+        "data_attrs": {}
+      },
+      {
+        "src": "data:image/svg+xml,%3Csvg%20viewBox%3D%220%200%201921%201281%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3C%2Fsvg%3E",
+        "class": [
+          "lazy-load",
+          "size-full",
+          "wp-image-5291"
+        ],
+        "alt": "gia công cà phê hòa tan",
+        "data_attrs": {
+          "data-src": "https://giacong.vn/wp-content/uploads/2024/12/gia-cong-ca-phe-hoa-tan.jpg",
+          "data-srcset": "https://giacong.vn/wp-content/uploads/2024/12/gia-cong-ca-phe-hoa-tan.jpg 1921w, https://giacong.vn/wp-content/uploads/2024/12/gia-cong-ca-phe-hoa-tan-510x340.jpg 510w, https://giacong.vn/wp-content/uploads/2024/12/gia-cong-ca-phe-hoa-tan-300x200.jpg 300w, https://giacong.vn/wp-content/uploads/2024/12/gia-cong-ca-phe-hoa-tan-1024x683.jpg 1024w, https://giacong.vn/wp-content/uploads/2024/12/gia-cong-ca-phe-hoa-tan-768x512.jpg 768w, https://giacong.vn/wp-content/uploads/2024/12/gia-cong-ca-phe-hoa-tan-1536x1024.jpg 1536w"
+        }
+      },
+      {
+        "src": "data:image/svg+xml,%3Csvg%20viewBox%3D%220%200%201020%201020%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3C%2Fsvg%3E",
+        "class": [
+          "lazy-load",
+          "attachment-large",
+          "size-large",
+          "wp-post-image"
+        ],
+        "alt": "gia công cafe quà tặng",
+        "data_attrs": {
+          "data-src": "https://giacong.vn/wp-content/uploads/2024/12/gia-cong-cafe-qua-tang-1024x1024.webp",
+          "data-srcset": "https://giacong.vn/wp-content/uploads/2024/12/gia-cong-cafe-qua-tang-1024x1024.webp 1024w, https://giacong.vn/wp-content/uploads/2024/12/gia-cong-cafe-qua-tang-100x100.webp 100w, https://giacong.vn/wp-content/uploads/2024/12/gia-cong-cafe-qua-tang-510x510.webp 510w, https://giacong.vn/wp-content/uploads/2024/12/gia-cong-cafe-qua-tang-300x300.webp 300w, https://giacong.vn/wp-content/uploads/2024/12/gia-cong-cafe-qua-tang-150x150.webp 150w, https://giacong.vn/wp-content/uploads/2024/12/gia-cong-cafe-qua-tang-768x768.webp 768w, https://giacong.vn/wp-content/uploads/2024/12/gia-cong-cafe-qua-tang.webp 1500w"
+        }
+      },
+      {
+        "src": "data:image/svg+xml,%3Csvg%20viewBox%3D%220%200%20700%20525%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3C%2Fsvg%3E",
+        "class": [
+          "lazy-load",
+          "attachment-large",
+          "size-large",
+          "wp-post-image"
+        ],
+        "alt": "rang cà phê gia công",
+        "data_attrs": {
+          "data-src": "https://giacong.vn/wp-content/uploads/2024/12/dich-vu-gia-cong-rang-cafe.webp",
+          "data-srcset": "https://giacong.vn/wp-content/uploads/2024/12/dich-vu-gia-cong-rang-cafe.webp 700w, https://giacong.vn/wp-content/uploads/2024/12/dich-vu-gia-cong-rang-cafe-510x383.webp 510w, https://giacong.vn/wp-content/uploads/2024/12/dich-vu-gia-cong-rang-cafe-300x225.webp 300w"
+        }
+      },
+      {
+        "src": "https://giacong.vn/wp-content/uploads/2024/10/logo-gia-cong-new-300x85.png",
+        "class": [
+          "attachment-medium",
+          "size-medium"
+        ],
+        "alt": "",
+        "data_attrs": {}
+      },
+      {
+        "src": "https://images.dmca.com/Badges/DMCA_badge_grn_60w.png?ID=0dc7288d-82fb-4fbb-bf06-c97df1c0a80d",
+        "class": [],
+        "alt": "DMCA.com Protection Status",
+        "data_attrs": {}
+      },
+      {
+        "src": "https://www.dmca.com/img/dmca-compliant-grayscale.png",
+        "class": [],
+        "alt": "DMCA compliant image",
+        "data_attrs": {}
+      },
+      {
+        "src": "https://giacong.vn/wp-content/uploads/2024/08/trang-chu-netfood.svg",
+        "class": [
+          "ux-sidebar-menu-icon"
+        ],
+        "alt": "",
+        "data_attrs": {}
+      },
+      {
+        "src": "https://giacong.vn/wp-content/uploads/2024/08/comment-info-150x150.png",
+        "class": [
+          "ux-sidebar-menu-icon"
+        ],
+        "alt": "",
+        "data_attrs": {}
+      },
+      {
+        "src": "https://giacong.vn/wp-content/uploads/2024/08/dich-vu.svg",
+        "class": [
+          "ux-sidebar-menu-icon"
+        ],
+        "alt": "",
+        "data_attrs": {}
+      },
+      {
+        "src": "https://giacong.vn/wp-content/uploads/2024/08/gift-card-150x150.png",
+        "class": [
+          "ux-sidebar-menu-icon"
+        ],
+        "alt": "",
+        "data_attrs": {}
+      },
+      {
+        "src": "https://giacong.vn/wp-content/uploads/2024/08/envelope-dot-150x150.png",
+        "class": [
+          "ux-sidebar-menu-icon"
+        ],
+        "alt": "",
+        "data_attrs": {}
+      }
+    ],
+    "structural_elements": [
+      {
+        "tag": "header",
+        "index": 0,
+        "id": "header",
+        "class": [
+          "header",
+          "has-sticky",
+          "sticky-jump"
+        ]
+      },
+      {
+        "tag": "header",
+        "index": 1,
+        "id": null,
+        "class": [
+          "entry-header"
+        ]
+      },
+      {
+        "tag": "header",
+        "index": 2,
+        "id": "ftwp-header",
+        "class": [
+          "ftwp-header-clickable"
+        ]
+      },
+      {
+        "tag": "footer",
+        "index": 0,
+        "id": null,
+        "class": [
+          "entry-meta",
+          "text-left"
+        ]
+      },
+      {
+        "tag": "footer",
+        "index": 1,
+        "id": "footer",
+        "class": [
+          "footer-wrapper"
+        ]
+      },
+      {
+        "tag": "main",
+        "index": 0,
+        "id": "main",
+        "class": []
+      },
+      {
+        "tag": "nav",
+        "index": 0,
+        "id": null,
+        "class": [
+          "rank-math-breadcrumb"
+        ]
+      },
+      {
+        "tag": "nav",
+        "index": 1,
+        "id": "ftwp-contents",
+        "class": [
+          "ftwp-shape-square",
+          "ftwp-border-thin"
+        ]
+      }
+    ],
+    "content_containers_sample": [
+      {
+        "selector": "div[id*=\"content\"]",
+        "tag": "div",
+        "id": "content",
+        "class": [
+          "blog-wrapper",
+          "blog-single",
+          "page-wrapper"
+        ]
+      },
+      {
+        "selector": "div[id*=\"content\"]",
+        "tag": "div",
+        "id": "ftwp-postcontent",
+        "class": []
+      },
+      {
+        "selector": "div[class*=\"content\"]",
+        "tag": "div",
+        "id": null,
+        "class": [
+          "entry-content",
+          "single-page"
+        ]
+      },
+      {
+        "selector": "div[class*=\"content\"]",
+        "tag": "div",
+        "id": null,
+        "class": [
+          "section-content",
+          "relative"
+        ]
+      },
+      {
+        "selector": "div[class*=\"content\"]",
+        "tag": "div",
+        "id": "login-form-popup",
+        "class": [
+          "lightbox-content",
+          "mfp-hide"
+        ]
+      },
+      {
+        "selector": "div[class*=\"main\"]",
+        "tag": "div",
+        "id": "masthead",
+        "class": [
+          "header-main",
+          "show-logo-center",
+          "nav-dark"
+        ]
+      },
+      {
+        "selector": "div[class*=\"container\"]",
+        "tag": "div",
+        "id": null,
+        "class": [
+          "header-inner",
+          "flex-row",
+          "container",
+          "logo-center",
+          "medium-logo-center"
+        ]
+      },
+      {
+        "selector": "div[class*=\"container\"]",
+        "tag": "div",
+        "id": null,
+        "class": [
+          "header-bg-container",
+          "fill"
+        ]
+      },
+      {
+        "selector": "div[class*=\"container\"]",
+        "tag": "div",
+        "id": null,
+        "class": [
+          "container",
+          "clearfix"
+        ]
+      },
+      {
+        "selector": "div[class*=\"container\"]",
+        "tag": "div",
+        "id": null,
+        "class": [
+          "account-container",
+          "lightbox-inner"
+        ]
+      },
+      {
+        "selector": "article",
+        "tag": "article",
+        "id": "post-5290",
+        "class": [
+          "post-5290",
+          "post",
+          "type-post",
+          "status-publish",
+          "format-standard",
+          "has-post-thumbnail",
+          "hentry",
+          "category-gia-cong-ca-phe",
+          "post-ftoc"
+        ]
+      },
+      {
+        "selector": "section",
+        "tag": "section",
+        "id": "section_1600582843",
+        "class": [
+          "section",
+          "footer-section"
+        ]
+      }
+    ],
+    "phones": [
+      "0947142999"
+    ],
+    "emails": [
+      "info@giacong.vn"
+    ],
+    "addresses": [
+      "Tên tài khoản hoặc địa chỉ email *",
+      "Đăng nhập\n\n\nTên tài khoản hoặc địa chỉ email *\n \n\nMật khẩu *\n\n\n\n\n Ghi nhớ mật khẩu\n\n Đăng nhập\n\n\nQuên mật khẩu?"
+    ],
+    "internal_links_count": 69,
+    "internal_links_sample": [
+      "https://giacong.vn/ban-quyen",
+      "https://giacong.vn/gia-cong-ca-phe-hoa-tan/",
+      "https://giacong.vn/say-nong/",
+      "https://giacong.vn/gia-cong-ca-phe-hoa-tan/#top",
+      "https://giacong.vn/thanh-toan",
+      "https://giacong.vn/dich-vu-phap-ly/",
+      "https://giacong.vn/dich-vu-marketing/",
+      "https://giacong.vn/thuc-pham-chuc-nang/",
+      "https://giacong.vn/gia-cong-sua-hat/",
+      "https://giacong.vn/gia-cong-ca-phe-hoa-tan/#ftoc-heading-4",
+      "https://giacong.vn/chinh-sach-hoan-tien",
+      "https://giacong.vn/gia-cong-ca-phe-hoa-tan/#main",
+      "https://giacong.vn/Hoa quả sấy",
+      "https://giacong.vn/gia-cong-ca-phe-hoa-tan/#respond",
+      "https://giacong.vn/gia-cong-ca-phe-hoa-tan/#ftoc-heading-10",
+      "https://giacong.vn/gia-cong-ca-phe-hoa-tan/#ftoc-heading-15",
+      "https://giacong.vn/chinh-sach-bao-mat",
+      "https://giacong.vn/say-thang-hoa/",
+      "https://giacong.vn/gia-cong-duoc-lieu/",
+      "https://giacong.vn/gia-cong-my-pham/",
+      "https://giacong.vn/gia-cong-ca-phe-hoa-tan/#ftoc-heading-16",
+      "https://giacong.vn/gia-cong-ca-phe-hoa-tan/#ftoc-heading-8",
+      "https://giacong.vn/gia-cong-ca-phe-hoa-tan/#ftoc-heading-6",
+      "https://giacong.vn/dich-vu-thiet-ke/",
+      "https://giacong.vn/gia-cong-ruou/",
+      "https://giacong.vn/gia-cong-tra-dong-chai/",
+      "https://giacong.vn/gia-cong-ca-phe-hoa-tan/#ftoc-heading-11",
+      "https://giacong.vn/gia-cong-ca-phe/",
+      "https://giacong.vn/tai-khoan/lost-password/",
+      "https://giacong.vn/gia-cong-bot/",
+      "https://giacong.vn/say-lanh/",
+      "https://giacong.vn/gia-cong-thuc-pham/",
+      "https://giacong.vn/gia-cong-sua-thuc-vat/",
+      "https://giacong.vn/say-chan-khong/",
+      "https://giacong.vn/gia-cong-ca-phe-hoa-tan/#ftoc-heading-3",
+      "https://giacong.vn/dich-vu-dong-goi/",
+      "https://giacong.vn/gia-cong-ca-phe-hoa-tan/#ftoc-heading-5",
+      "https://giacong.vn/gia-cong-ca-phe-hoa-tan/#ftoc-heading-13",
+      "https://giacong.vn/san-pham/",
+      "https://giacong.vn/gia-cong-nuoc-uong-dong-chai/",
+      "https://giacong.vn/gia-cong-nuoc-ep-trai-cay/",
+      "https://giacong.vn/thuc-pham-say/",
+      "https://giacong.vn/dich-vu-say/",
+      "https://giacong.vn/rang-gia-cong-ca-phe/",
+      "https://giacong.vn/lien-he/",
+      "https://giacong.vn/gia-cong-ca-phe-hoa-tan/#ftoc-heading-1",
+      "https://giacong.vn/gia-cong-ca-phe-hoa-tan/#ftoc-heading-12",
+      "https://giacong.vn/gia-cong-ca-phe-hoa-tan/#ftoc-heading-2",
+      "https://giacong.vn/gia-cong-dong-goi/",
+      "https://giacong.vn/gia-cong-ca-phe-qua-tang/"
+    ],
+    "external_links_sample": [
+      "https://zalo.me/0947142999",
+      "https://www.facebook.com/giacongvietnam",
+      "https://pinterest.com/pin/create/button/?url=https://giacong.vn/gia-cong-ca-phe-hoa-tan/&media=https://giacong.vn/wp-content/uploads/2024/12/gia-cong-ca-phe-hoa-tan-1024x683.jpg&description=Gia%20C%C3%B4ng%20C%C3%A0%20Ph%C3%AA%20H%C3%B2a%20Tan",
+      "https://www.dmca.com/compliance/giacong.vn",
+      "https://twitter.com/share?url=https://giacong.vn/gia-cong-ca-phe-hoa-tan/",
+      "https://www.dmca.com/Protection/Status.aspx?ID=0dc7288d-82fb-4fbb-bf06-c97df1c0a80d",
+      "http://url",
+      "https://www.facebook.com/sharer.php?u=https://giacong.vn/gia-cong-ca-phe-hoa-tan/",
+      "https://www.linkedin.com/shareArticle?mini=true&url=https://giacong.vn/gia-cong-ca-phe-hoa-tan/&title=Gia%20C%C3%B4ng%20C%C3%A0%20Ph%C3%AA%20H%C3%B2a%20Tan"
+    ]
+  },
+  "News": {
+    "url": "https://giacong.vn/tin-tuc/",
+    "type": "News",
+    "title": "Tin tức - Giacong.vn",
+    "h1s": [
+      "Tin tức",
+      "Nothing Found"
+    ],
+    "body_classes": [
+      "archive",
+      "category",
+      "category-tin-tuc",
+      "category-32",
+      "wp-theme-flatsome",
+      "wp-child-theme-thiet-ke-web",
+      "theme-flatsome",
+      "woocommerce-no-js",
+      "lightbox",
+      "nav-dropdown-has-shadow",
+      "nav-dropdown-has-border"
+    ],
+    "meta_tags": [
+      {
+        "charset": "UTF-8"
+      },
+      {
+        "name": "viewport",
+        "content": "width=device-width, initial-scale=1, maximum-scale=1"
+      },
+      {
+        "name": "robots",
+        "content": "follow, noindex"
+      },
+      {
+        "property": "og:locale",
+        "content": "vi_VN"
+      },
+      {
+        "property": "og:type",
+        "content": "article"
+      },
+      {
+        "property": "og:title",
+        "content": "Tin tức - Giacong.vn"
+      },
+      {
+        "property": "og:url",
+        "content": "https://giacong.vn/tin-tuc/"
+      },
+      {
+        "property": "og:site_name",
+        "content": "Đối Tác Gia Công OEM/ODM & Private Label Hàng Đầu"
+      },
+      {
+        "property": "og:image",
+        "content": "https://giacong.vn/wp-content/uploads/2024/10/GIACONG.VN-ngang-02-1-1024x291.png"
+      },
+      {
+        "property": "og:image:secure_url",
+        "content": "https://giacong.vn/wp-content/uploads/2024/10/GIACONG.VN-ngang-02-1-1024x291.png"
+      },
+      {
+        "property": "og:image:width",
+        "content": "1020"
+      },
+      {
+        "property": "og:image:height",
+        "content": "290"
+      },
+      {
+        "property": "og:image:alt",
+        "content": "logo gia công"
+      },
+      {
+        "property": "og:image:type",
+        "content": "image/png"
+      },
+      {
+        "name": "twitter:card",
+        "content": "summary_large_image"
+      },
+      {
+        "name": "twitter:title",
+        "content": "Tin tức - Giacong.vn"
+      },
+      {
+        "name": "twitter:image",
+        "content": "https://giacong.vn/wp-content/uploads/2024/10/GIACONG.VN-ngang-02-1-1024x291.png"
+      },
+      {
+        "name": "generator",
+        "content": "WordPress 7.0.1"
+      },
+      {
+        "name": "onesignal-plugin",
+        "content": "wordpress-3.9.2"
+      },
+      {
+        "name": "msapplication-TileImage",
+        "content": "https://giacong.vn/wp-content/uploads/2024/08/cropped-cong-ty-co-phan-netfood-1-270x270.jpg"
+      }
+    ],
+    "images_sample": [
+      {
+        "src": "https://giacong.vn/wp-content/uploads/2024/10/GIACONG.VN-ngang-03-1-1024x291.png",
+        "class": [
+          "header_logo",
+          "header-logo"
+        ],
+        "alt": "Giacong.vn",
+        "data_attrs": {}
+      },
+      {
+        "src": "https://giacong.vn/wp-content/uploads/2024/10/GIACONG.VN-ngang-03-1-1024x291.png",
+        "class": [
+          "header-logo-dark"
+        ],
+        "alt": "Giacong.vn",
+        "data_attrs": {}
+      },
+      {
+        "src": "https://giacong.vn/wp-content/uploads/2024/08/file-star-svgrepo-com.svg",
+        "class": [
+          "ux-menu-icon"
+        ],
+        "alt": "",
+        "data_attrs": {}
+      },
+      {
+        "src": "https://giacong.vn/wp-content/uploads/2024/08/file-2-svgrepo-com.svg",
+        "class": [
+          "ux-menu-icon"
+        ],
+        "alt": "",
+        "data_attrs": {}
+      },
+      {
+        "src": "https://giacong.vn/wp-content/uploads/2024/08/book-open-svgrepo-com.svg",
+        "class": [
+          "ux-menu-icon"
+        ],
+        "alt": "",
+        "data_attrs": {}
+      },
+      {
+        "src": "https://giacong.vn/wp-content/uploads/2024/08/bulb-2-svgrepo-com.svg",
+        "class": [
+          "ux-menu-icon"
+        ],
+        "alt": "",
+        "data_attrs": {}
+      },
+      {
+        "src": "https://giacong.vn/wp-content/uploads/2024/08/file-2-svgrepo-com.svg",
+        "class": [
+          "ux-menu-icon"
+        ],
+        "alt": "",
+        "data_attrs": {}
+      },
+      {
+        "src": "https://giacong.vn/wp-content/uploads/2024/08/message-2-star-svgrepo-com.svg",
+        "class": [
+          "ux-menu-icon"
+        ],
+        "alt": "",
+        "data_attrs": {}
+      },
+      {
+        "src": "https://giacong.vn/wp-content/uploads/2024/10/logo-gia-cong-new-300x85.png",
+        "class": [
+          "attachment-medium",
+          "size-medium"
+        ],
+        "alt": "",
+        "data_attrs": {}
+      },
+      {
+        "src": "https://images.dmca.com/Badges/DMCA_badge_grn_60w.png?ID=0dc7288d-82fb-4fbb-bf06-c97df1c0a80d",
+        "class": [],
+        "alt": "DMCA.com Protection Status",
+        "data_attrs": {}
+      },
+      {
+        "src": "https://www.dmca.com/img/dmca-compliant-grayscale.png",
+        "class": [],
+        "alt": "DMCA compliant image",
+        "data_attrs": {}
+      },
+      {
+        "src": "https://giacong.vn/wp-content/uploads/2024/08/trang-chu-netfood.svg",
+        "class": [
+          "ux-sidebar-menu-icon"
+        ],
+        "alt": "",
+        "data_attrs": {}
+      },
+      {
+        "src": "https://giacong.vn/wp-content/uploads/2024/08/comment-info-150x150.png",
+        "class": [
+          "ux-sidebar-menu-icon"
+        ],
+        "alt": "",
+        "data_attrs": {}
+      },
+      {
+        "src": "https://giacong.vn/wp-content/uploads/2024/08/dich-vu.svg",
+        "class": [
+          "ux-sidebar-menu-icon"
+        ],
+        "alt": "",
+        "data_attrs": {}
+      },
+      {
+        "src": "https://giacong.vn/wp-content/uploads/2024/08/gift-card-150x150.png",
+        "class": [
+          "ux-sidebar-menu-icon"
+        ],
+        "alt": "",
+        "data_attrs": {}
+      },
+      {
+        "src": "https://giacong.vn/wp-content/uploads/2024/08/envelope-dot-150x150.png",
+        "class": [
+          "ux-sidebar-menu-icon"
+        ],
+        "alt": "",
+        "data_attrs": {}
+      }
+    ],
+    "structural_elements": [
+      {
+        "tag": "header",
+        "index": 0,
+        "id": "header",
+        "class": [
+          "header",
+          "has-sticky",
+          "sticky-jump"
+        ]
+      },
+      {
+        "tag": "header",
+        "index": 1,
+        "id": null,
+        "class": [
+          "archive-page-header"
+        ]
+      },
+      {
+        "tag": "header",
+        "index": 2,
+        "id": null,
+        "class": [
+          "page-title"
+        ]
+      },
+      {
+        "tag": "footer",
+        "index": 0,
+        "id": "footer",
+        "class": [
+          "footer-wrapper"
+        ]
+      },
+      {
+        "tag": "main",
+        "index": 0,
+        "id": "main",
+        "class": []
+      },
+      {
+        "tag": "nav",
+        "index": 0,
+        "id": null,
+        "class": [
+          "rank-math-breadcrumb"
+        ]
+      }
+    ],
+    "content_containers_sample": [
+      {
+        "selector": "div[id*=\"content\"]",
+        "tag": "div",
+        "id": "content",
+        "class": [
+          "blog-wrapper",
+          "blog-archive",
+          "page-wrapper"
+        ]
+      },
+      {
+        "selector": "div[class*=\"content\"]",
+        "tag": "div",
+        "id": null,
+        "class": [
+          "page-content"
+        ]
+      },
+      {
+        "selector": "div[class*=\"content\"]",
+        "tag": "div",
+        "id": null,
+        "class": [
+          "section-content",
+          "relative"
+        ]
+      },
+      {
+        "selector": "div[class*=\"content\"]",
+        "tag": "div",
+        "id": "login-form-popup",
+        "class": [
+          "lightbox-content",
+          "mfp-hide"
+        ]
+      },
+      {
+        "selector": "div[class*=\"main\"]",
+        "tag": "div",
+        "id": "masthead",
+        "class": [
+          "header-main",
+          "show-logo-center",
+          "nav-dark"
+        ]
+      },
+      {
+        "selector": "div[class*=\"container\"]",
+        "tag": "div",
+        "id": null,
+        "class": [
+          "header-inner",
+          "flex-row",
+          "container",
+          "logo-center",
+          "medium-logo-center"
+        ]
+      },
+      {
+        "selector": "div[class*=\"container\"]",
+        "tag": "div",
+        "id": null,
+        "class": [
+          "header-bg-container",
+          "fill"
+        ]
+      },
+      {
+        "selector": "div[class*=\"container\"]",
+        "tag": "div",
+        "id": null,
+        "class": [
+          "container",
+          "clearfix"
+        ]
+      },
+      {
+        "selector": "div[class*=\"container\"]",
+        "tag": "div",
+        "id": null,
+        "class": [
+          "account-container",
+          "lightbox-inner"
+        ]
+      },
+      {
+        "selector": "section",
+        "tag": "section",
+        "id": null,
+        "class": [
+          "no-results",
+          "not-found"
+        ]
+      },
+      {
+        "selector": "section",
+        "tag": "section",
+        "id": "section_1525904119",
+        "class": [
+          "section",
+          "footer-section"
+        ]
+      }
+    ],
+    "phones": [
+      "0947142999"
+    ],
+    "emails": [
+      "info@giacong.vn"
+    ],
+    "addresses": [
+      "Tên tài khoản hoặc địa chỉ email *",
+      "Đăng nhập\n\n\nTên tài khoản hoặc địa chỉ email *\n \n\nMật khẩu *\n\n\n\n\n Ghi nhớ mật khẩu\n\n Đăng nhập\n\n\nQuên mật khẩu?"
+    ],
+    "internal_links_count": 52,
+    "internal_links_sample": [
+      "https://giacong.vn/ban-quyen",
+      "https://giacong.vn/say-nong/",
+      "https://giacong.vn/gia-cong-ca-phe-hoa-tan/",
+      "https://giacong.vn/thanh-toan",
+      "https://giacong.vn/dich-vu-phap-ly/",
+      "https://giacong.vn/dich-vu-marketing/",
+      "https://giacong.vn/thuc-pham-chuc-nang/",
+      "https://giacong.vn/gia-cong-sua-hat/",
+      "https://giacong.vn/chinh-sach-hoan-tien",
+      "https://giacong.vn/Hoa quả sấy",
+      "https://giacong.vn/tin-tuc/#main",
+      "https://giacong.vn/chinh-sach-bao-mat",
+      "https://giacong.vn/say-thang-hoa/",
+      "https://giacong.vn/gia-cong-duoc-lieu/",
+      "https://giacong.vn/gia-cong-my-pham/",
+      "https://giacong.vn/dich-vu-thiet-ke/",
+      "https://giacong.vn/gia-cong-ruou/",
+      "https://giacong.vn/gia-cong-tra-dong-chai/",
+      "https://giacong.vn/gia-cong-ca-phe/",
+      "https://giacong.vn/tai-khoan/lost-password/",
+      "https://giacong.vn/gia-cong-bot/",
+      "https://giacong.vn/say-lanh/",
+      "https://giacong.vn/gia-cong-thuc-pham/",
+      "https://giacong.vn/gia-cong-sua-thuc-vat/",
+      "https://giacong.vn/say-chan-khong/",
+      "https://giacong.vn/tin-tuc/#top",
+      "https://giacong.vn/dich-vu-dong-goi/",
+      "https://giacong.vn/san-pham/",
+      "https://giacong.vn/gia-cong-nuoc-uong-dong-chai/",
+      "https://giacong.vn/gia-cong-nuoc-ep-trai-cay/",
+      "https://giacong.vn/thuc-pham-say/",
+      "https://giacong.vn/dich-vu-say/",
+      "https://giacong.vn/rang-gia-cong-ca-phe/",
+      "https://giacong.vn/lien-he/",
+      "https://giacong.vn/gia-cong-dong-goi/",
+      "https://giacong.vn/tin-tuc/",
+      "https://giacong.vn/gia-cong-ca-phe-qua-tang/",
+      "https://giacong.vn",
+      "https://giacong.vn/gioi-thieu-ve-gia-cong/",
+      "https://giacong.vn/gia-cong-bot-pha-che/",
+      "https://giacong.vn/gia-cong-nuoc-giai-khat-co-ga/",
+      "https://giacong.vn/gia-cong-sot-cham/",
+      "https://giacong.vn/gia-cong-do-uong/",
+      "https://giacong.vn/nuoc-trai-cay/",
+      "https://giacong.vn/say-hong-ngoai/",
+      "https://giacong.vn/chinh-sach-thanh-toan",
+      "https://giacong.vn/gia-cong-sua-bot/",
+      "https://giacong.vn/",
+      "https://giacong.vn/gia-cong-tra-tui-loc/",
+      "https://giacong.vn/gia-cong-sua/"
+    ],
+    "external_links_sample": [
+      "https://zalo.me/0947142999",
+      "https://www.facebook.com/giacongvietnam",
+      "https://www.dmca.com/compliance/giacong.vn",
+      "http://url",
+      "https://www.dmca.com/Protection/Status.aspx?ID=0dc7288d-82fb-4fbb-bf06-c97df1c0a80d"
+    ]
+  },
+  "Extra_0": {
+    "url": "https://giacong.vn/ban-quyen",
+    "type": "Extra_0",
+    "error": "No response"
+  },
+  "Extra_1": {
+    "url": "https://giacong.vn/#top",
+    "type": "Extra_1",
+    "title": "Giacong.vn - Đối Tác Gia Công OEM/ODM & Private Label Hàng Đầu",
+    "h1s": [
+      "Giải pháp gia công toàn diện chuyên nghiệp"
+    ],
+    "body_classes": [
+      "home",
+      "wp-singular",
+      "page-template",
+      "page-template-page-transparent-header-light",
+      "page-template-page-transparent-header-light-php",
+      "page",
+      "page-id-3984",
+      "wp-theme-flatsome",
+      "wp-child-theme-thiet-ke-web",
+      "theme-flatsome",
+      "woocommerce-no-js",
+      "lightbox",
+      "nav-dropdown-has-shadow",
+      "nav-dropdown-has-border"
+    ],
+    "meta_tags": [
+      {
+        "charset": "UTF-8"
+      },
+      {
+        "name": "viewport",
+        "content": "width=device-width, initial-scale=1, maximum-scale=1"
+      },
+      {
+        "name": "description",
+        "content": "Chuyên cung cấp dịch vụ gia công sản xuất theo yêu cầu (OEM/ODM) và phát triển sản phẩm riêng (Private Label) chất lượng cao. Với đội ngũ chuyên gia giàu kinh nghiệm, hệ thống nhà xưởng hiện đại, và quy trình sản xuất tối ưu, chúng tôi cam kết mang đến giải pháp gia công toàn diện, giúp doanh nghiệp tiết kiệm chi phí, rút ngắn thời gian sản xuất và tạo dấu ấn thương hiệu trên thị trường."
+      },
+      {
+        "name": "robots",
+        "content": "follow, index, max-snippet:-1, max-video-preview:-1, max-image-preview:large"
+      },
+      {
+        "property": "og:locale",
+        "content": "vi_VN"
+      },
+      {
+        "property": "og:type",
+        "content": "website"
+      },
+      {
+        "property": "og:title",
+        "content": "Giacong.vn - Đối Tác Gia Công OEM/ODM & Private Label Hàng Đầu"
+      },
+      {
+        "property": "og:description",
+        "content": "Chuyên cung cấp dịch vụ gia công sản xuất theo yêu cầu (OEM/ODM) và phát triển sản phẩm riêng (Private Label) chất lượng cao. Với đội ngũ chuyên gia giàu kinh nghiệm, hệ thống nhà xưởng hiện đại, và quy trình sản xuất tối ưu, chúng tôi cam kết mang đến giải pháp gia công toàn diện, giúp doanh nghiệp tiết kiệm chi phí, rút ngắn thời gian sản xuất và tạo dấu ấn thương hiệu trên thị trường."
+      },
+      {
+        "property": "og:url",
+        "content": "https://giacong.vn/"
+      },
+      {
+        "property": "og:site_name",
+        "content": "Đối Tác Gia Công OEM/ODM & Private Label Hàng Đầu"
+      },
+      {
+        "property": "og:updated_time",
+        "content": "2025-02-04T10:50:32+07:00"
+      },
+      {
+        "property": "og:image",
+        "content": "https://giacong.vn/wp-content/uploads/2025/02/gia-cong-logo-oem.png"
+      },
+      {
+        "property": "og:image:secure_url",
+        "content": "https://giacong.vn/wp-content/uploads/2025/02/gia-cong-logo-oem.png"
+      },
+      {
+        "property": "og:image:width",
+        "content": "1024"
+      },
+      {
+        "property": "og:image:height",
+        "content": "291"
+      },
+      {
+        "property": "og:image:alt",
+        "content": "dịch vụ gia công"
+      },
+      {
+        "property": "og:image:type",
+        "content": "image/png"
+      },
+      {
+        "property": "article:published_time",
+        "content": "2024-09-05T21:33:36+07:00"
+      },
+      {
+        "property": "article:modified_time",
+        "content": "2025-02-04T10:50:32+07:00"
+      },
+      {
+        "name": "twitter:card",
+        "content": "summary_large_image"
+      },
+      {
+        "name": "twitter:title",
+        "content": "Giacong.vn - Đối Tác Gia Công OEM/ODM & Private Label Hàng Đầu"
+      },
+      {
+        "name": "twitter:description",
+        "content": "Chuyên cung cấp dịch vụ gia công sản xuất theo yêu cầu (OEM/ODM) và phát triển sản phẩm riêng (Private Label) chất lượng cao. Với đội ngũ chuyên gia giàu kinh nghiệm, hệ thống nhà xưởng hiện đại, và quy trình sản xuất tối ưu, chúng tôi cam kết mang đến giải pháp gia công toàn diện, giúp doanh nghiệp tiết kiệm chi phí, rút ngắn thời gian sản xuất và tạo dấu ấn thương hiệu trên thị trường."
+      },
+      {
+        "name": "twitter:image",
+        "content": "https://giacong.vn/wp-content/uploads/2025/02/gia-cong-logo-oem.png"
+      },
+      {
+        "name": "twitter:label1",
+        "content": "Được viết bởi"
+      },
+      {
+        "name": "twitter:data1",
+        "content": "Giacong.vn"
+      },
+      {
+        "name": "twitter:label2",
+        "content": "Thời gian để đọc"
+      },
+      {
+        "name": "twitter:data2",
+        "content": "10 phút"
+      },
+      {
+        "name": "generator",
+        "content": "WordPress 7.0.1"
+      },
+      {
+        "name": "onesignal-plugin",
+        "content": "wordpress-3.9.2"
+      },
+      {
+        "name": "msapplication-TileImage",
+        "content": "https://giacong.vn/wp-content/uploads/2024/08/cropped-cong-ty-co-phan-netfood-1-270x270.jpg"
+      }
+    ],
+    "images_sample": [
+      {
+        "src": "https://giacong.vn/wp-content/uploads/2024/10/GIACONG.VN-ngang-03-1-1024x291.png",
+        "class": [
+          "header_logo",
+          "header-logo"
+        ],
+        "alt": "Giacong.vn",
+        "data_attrs": {}
+      },
+      {
+        "src": "https://giacong.vn/wp-content/uploads/2024/10/GIACONG.VN-ngang-03-1-1024x291.png",
+        "class": [
+          "header-logo-dark"
+        ],
+        "alt": "Giacong.vn",
+        "data_attrs": {}
+      },
+      {
+        "src": "https://giacong.vn/wp-content/uploads/2024/08/file-star-svgrepo-com.svg",
+        "class": [
+          "ux-menu-icon"
+        ],
+        "alt": "",
+        "data_attrs": {}
+      },
+      {
+        "src": "https://giacong.vn/wp-content/uploads/2024/08/file-2-svgrepo-com.svg",
+        "class": [
+          "ux-menu-icon"
+        ],
+        "alt": "",
+        "data_attrs": {}
+      },
+      {
+        "src": "https://giacong.vn/wp-content/uploads/2024/08/book-open-svgrepo-com.svg",
+        "class": [
+          "ux-menu-icon"
+        ],
+        "alt": "",
+        "data_attrs": {}
+      },
+      {
+        "src": "https://giacong.vn/wp-content/uploads/2024/08/bulb-2-svgrepo-com.svg",
+        "class": [
+          "ux-menu-icon"
+        ],
+        "alt": "",
+        "data_attrs": {}
+      },
+      {
+        "src": "https://giacong.vn/wp-content/uploads/2024/08/file-2-svgrepo-com.svg",
+        "class": [
+          "ux-menu-icon"
+        ],
+        "alt": "",
+        "data_attrs": {}
+      },
+      {
+        "src": "https://giacong.vn/wp-content/uploads/2024/08/message-2-star-svgrepo-com.svg",
+        "class": [
+          "ux-menu-icon"
+        ],
+        "alt": "",
+        "data_attrs": {}
+      },
+      {
+        "src": "data:image/svg+xml,%3Csvg%20viewBox%3D%220%200%20682%20404%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3C%2Fsvg%3E",
+        "class": [
+          "lazy-load",
+          "attachment-original",
+          "size-original"
+        ],
+        "alt": "gia cong thuc pham",
+        "data_attrs": {
+          "data-src": "https://giacong.vn/wp-content/uploads/2024/10/gia-cong-thuc-pham.png",
+          "data-srcset": "https://giacong.vn/wp-content/uploads/2024/10/gia-cong-thuc-pham.png 682w, https://giacong.vn/wp-content/uploads/2024/10/gia-cong-thuc-pham-510x302.png 510w, https://giacong.vn/wp-content/uploads/2024/10/gia-cong-thuc-pham-300x178.png 300w"
+        }
+      },
+      {
+        "src": "data:image/svg+xml,%3Csvg%20viewBox%3D%220%200%20728%20450%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3C%2Fsvg%3E",
+        "class": [
+          "lazy-load",
+          "attachment-original",
+          "size-original"
+        ],
+        "alt": "img sp 1",
+        "data_attrs": {
+          "data-src": "https://giacong.vn/wp-content/uploads/2024/10/img-sp-1.png",
+          "data-srcset": "https://giacong.vn/wp-content/uploads/2024/10/img-sp-1.png 728w, https://giacong.vn/wp-content/uploads/2024/10/img-sp-1-510x315.png 510w, https://giacong.vn/wp-content/uploads/2024/10/img-sp-1-300x185.png 300w"
+        }
+      },
+      {
+        "src": "data:image/svg+xml,%3Csvg%20viewBox%3D%220%200%20863%20733%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3C%2Fsvg%3E",
+        "class": [
+          "lazy-load",
+          "attachment-original",
+          "size-original"
+        ],
+        "alt": "IMG",
+        "data_attrs": {
+          "data-src": "https://giacong.vn/wp-content/uploads/2024/09/IMG.png",
+          "data-srcset": "https://giacong.vn/wp-content/uploads/2024/09/IMG.png 863w, https://giacong.vn/wp-content/uploads/2024/09/IMG-510x433.png 510w, https://giacong.vn/wp-content/uploads/2024/09/IMG-300x255.png 300w, https://giacong.vn/wp-content/uploads/2024/09/IMG-768x652.png 768w"
+        }
+      },
+      {
+        "src": "data:image/svg+xml,%3Csvg%20viewBox%3D%220%200%201%201%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3C%2Fsvg%3E",
+        "class": [
+          "lazy-load",
+          "attachment-medium",
+          "size-medium"
+        ],
+        "alt": "marketing email mail information news svgrepo com",
+        "data_attrs": {
+          "data-src": "https://giacong.vn/wp-content/uploads/2024/10/marketing-email-mail-information-news-svgrepo-com.svg"
+        }
+      },
+      {
+        "src": "data:image/svg+xml,%3Csvg%20viewBox%3D%220%200%201%201%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3C%2Fsvg%3E",
+        "class": [
+          "lazy-load",
+          "attachment-medium",
+          "size-medium"
+        ],
+        "alt": "money dollar cash payment svgrepo com",
+        "data_attrs": {
+          "data-src": "https://giacong.vn/wp-content/uploads/2024/10/money-dollar-cash-payment-svgrepo-com.svg"
+        }
+      },
+      {
+        "src": "data:image/svg+xml,%3Csvg%20viewBox%3D%220%200%201%201%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3C%2Fsvg%3E",
+        "class": [
+          "lazy-load",
+          "attachment-medium",
+          "size-medium"
+        ],
+        "alt": "seo reward license certificate contract svgrepo com",
+        "data_attrs": {
+          "data-src": "https://giacong.vn/wp-content/uploads/2024/10/seo-reward-license-certificate-contract-svgrepo-com.svg"
+        }
+      },
+      {
+        "src": "data:image/svg+xml,%3Csvg%20viewBox%3D%220%200%201%201%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3C%2Fsvg%3E",
+        "class": [
+          "lazy-load",
+          "attachment-medium",
+          "size-medium"
+        ],
+        "alt": "seo mobile setting gear cog 07 svgrepo com",
+        "data_attrs": {
+          "data-src": "https://giacong.vn/wp-content/uploads/2024/10/seo-mobile-setting-gear-cog-07-svgrepo-com.svg"
+        }
+      },
+      {
+        "src": "data:image/svg+xml,%3Csvg%20viewBox%3D%220%200%201%201%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3C%2Fsvg%3E",
+        "class": [
+          "lazy-load",
+          "attachment-medium",
+          "size-medium"
+        ],
+        "alt": "seo application like thumb svgrepo com",
+        "data_attrs": {
+          "data-src": "https://giacong.vn/wp-content/uploads/2024/10/seo-application-like-thumb-svgrepo-com.svg"
+        }
+      },
+      {
+        "src": "data:image/svg+xml,%3Csvg%20viewBox%3D%220%200%20171%2031%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3C%2Fsvg%3E",
+        "class": [
+          "lazy-load",
+          "attachment-medium",
+          "size-medium"
+        ],
+        "alt": "star 1",
+        "data_attrs": {
+          "data-src": "https://giacong.vn/wp-content/uploads/2024/09/star-1.webp"
+        }
+      },
+      {
+        "src": "data:image/svg+xml,%3Csvg%20viewBox%3D%220%200%20171%2031%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3C%2Fsvg%3E",
+        "class": [
+          "lazy-load",
+          "attachment-medium",
+          "size-medium"
+        ],
+        "alt": "star 1",
+        "data_attrs": {
+          "data-src": "https://giacong.vn/wp-content/uploads/2024/09/star-1.webp"
+        }
+      },
+      {
+        "src": "data:image/svg+xml,%3Csvg%20viewBox%3D%220%200%20300%20300%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3C%2Fsvg%3E",
+        "class": [
+          "lazy-load",
+          "attachment-medium",
+          "size-medium"
+        ],
+        "alt": "Screenshot 2024 09 06 003821",
+        "data_attrs": {
+          "data-src": "https://giacong.vn/wp-content/uploads/2024/09/Screenshot-2024-09-06-003821-300x300.png",
+          "data-srcset": "https://giacong.vn/wp-content/uploads/2024/09/Screenshot-2024-09-06-003821-300x300.png 300w, https://giacong.vn/wp-content/uploads/2024/09/Screenshot-2024-09-06-003821-100x100.png 100w, https://giacong.vn/wp-content/uploads/2024/09/Screenshot-2024-09-06-003821-150x150.png 150w, https://giacong.vn/wp-content/uploads/2024/09/Screenshot-2024-09-06-003821.png 400w"
+        }
+      },
+      {
+        "src": "data:image/svg+xml,%3Csvg%20viewBox%3D%220%200%20298%20300%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3C%2Fsvg%3E",
+        "class": [
+          "lazy-load",
+          "attachment-medium",
+          "size-medium"
+        ],
+        "alt": "Screenshot 2024 09 06 004009",
+        "data_attrs": {
+          "data-src": "https://giacong.vn/wp-content/uploads/2024/09/Screenshot-2024-09-06-004009-298x300.png",
+          "data-srcset": "https://giacong.vn/wp-content/uploads/2024/09/Screenshot-2024-09-06-004009-298x300.png 298w, https://giacong.vn/wp-content/uploads/2024/09/Screenshot-2024-09-06-004009-100x100.png 100w, https://giacong.vn/wp-content/uploads/2024/09/Screenshot-2024-09-06-004009-150x150.png 150w, https://giacong.vn/wp-content/uploads/2024/09/Screenshot-2024-09-06-004009.png 454w"
+        }
+      }
+    ],
+    "structural_elements": [
+      {
+        "tag": "header",
+        "index": 0,
+        "id": "header",
+        "class": [
+          "header",
+          "transparent",
+          "has-transparent",
+          "has-sticky",
+          "sticky-jump"
+        ]
+      },
+      {
+        "tag": "footer",
+        "index": 0,
+        "id": "footer",
+        "class": [
+          "footer-wrapper"
+        ]
+      },
+      {
+        "tag": "main",
+        "index": 0,
+        "id": "main",
+        "class": []
+      }
+    ],
+    "content_containers_sample": [
+      {
+        "selector": "div[id*=\"content\"]",
+        "tag": "div",
+        "id": "content",
+        "class": []
+      },
+      {
+        "selector": "div[class*=\"content\"]",
+        "tag": "div",
+        "id": null,
+        "class": [
+          "section-content",
+          "relative"
+        ]
+      },
+      {
+        "selector": "div[class*=\"content\"]",
+        "tag": "div",
+        "id": null,
+        "class": [
+          "section-content",
+          "relative"
+        ]
+      },
+      {
+        "selector": "div[class*=\"content\"]",
+        "tag": "div",
+        "id": null,
+        "class": [
+          "section-content",
+          "relative"
+        ]
+      },
+      {
+        "selector": "div[class*=\"content\"]",
+        "tag": "div",
+        "id": null,
+        "class": [
+          "section-content",
+          "relative"
+        ]
+      },
+      {
+        "selector": "div[class*=\"content\"]",
+        "tag": "div",
+        "id": null,
+        "class": [
+          "section-content",
+          "relative"
+        ]
+      },
+      {
+        "selector": "div[class*=\"main\"]",
+        "tag": "div",
+        "id": "masthead",
+        "class": [
+          "header-main",
+          "show-logo-center",
+          "nav-dark"
+        ]
+      },
+      {
+        "selector": "div[class*=\"container\"]",
+        "tag": "div",
+        "id": null,
+        "class": [
+          "header-inner",
+          "flex-row",
+          "container",
+          "logo-center",
+          "medium-logo-center"
+        ]
+      },
+      {
+        "selector": "div[class*=\"container\"]",
+        "tag": "div",
+        "id": null,
+        "class": [
+          "header-bg-container",
+          "fill"
+        ]
+      },
+      {
+        "selector": "div[class*=\"container\"]",
+        "tag": "div",
+        "id": null,
+        "class": [
+          "container",
+          "section-title-container"
+        ]
+      },
+      {
+        "selector": "div[class*=\"container\"]",
+        "tag": "div",
+        "id": null,
+        "class": [
+          "container",
+          "clearfix"
+        ]
+      },
+      {
+        "selector": "div[class*=\"container\"]",
+        "tag": "div",
+        "id": null,
+        "class": [
+          "account-container",
+          "lightbox-inner"
+        ]
+      },
+      {
+        "selector": "section",
+        "tag": "section",
+        "id": "section_250108065",
+        "class": [
+          "section",
+          "section01",
+          "dark"
+        ]
+      },
+      {
+        "selector": "section",
+        "tag": "section",
+        "id": "section_1437980462",
+        "class": [
+          "section",
+          "section02"
+        ]
+      },
+      {
+        "selector": "section",
+        "tag": "section",
+        "id": "section_220139106",
+        "class": [
+          "section",
+          "section03"
+        ]
+      },
+      {
+        "selector": "section",
+        "tag": "section",
+        "id": "section_1771329794",
+        "class": [
+          "section",
+          "section09",
+          "dark"
+        ]
+      },
+      {
+        "selector": "section",
+        "tag": "section",
+        "id": "section_819391773",
+        "class": [
+          "section",
+          "section04"
+        ]
+      }
+    ],
+    "phones": [
+      "0947142999"
+    ],
+    "emails": [
+      "info@giacong.vn"
+    ],
+    "addresses": [
+      "Tên tài khoản hoặc địa chỉ email *",
+      "Đăng nhập\n\n\nTên tài khoản hoặc địa chỉ email *\n \n\nMật khẩu *\n\n\n\n\n Ghi nhớ mật khẩu\n\n Đăng nhập\n\n\nQuên mật khẩu?"
+    ],
+    "internal_links_count": 57,
+    "internal_links_sample": [
+      "https://giacong.vn/ban-quyen",
+      "https://giacong.vn/#top",
+      "https://giacong.vn/say-nong/",
+      "https://giacong.vn/gia-cong-ca-phe-hoa-tan/",
+      "https://giacong.vn/thanh-toan",
+      "https://giacong.vn/dich-vu-phap-ly/",
+      "https://giacong.vn/dich-vu-marketing/",
+      "https://giacong.vn/thuc-pham-chuc-nang/",
+      "https://giacong.vn/gia-cong-sua-hat/",
+      "https://giacong.vn/chinh-sach-hoan-tien",
+      "https://giacong.vn/Hoa quả sấy",
+      "https://giacong.vn/chinh-sach-bao-mat",
+      "https://giacong.vn/say-thang-hoa/",
+      "https://giacong.vn/gia-cong-duoc-lieu/",
+      "https://giacong.vn/gia-cong-my-pham/",
+      "https://giacong.vn/digital-branding",
+      "https://giacong.vn/gia-cong-tra-thao-moc/",
+      "https://giacong.vn/dich-vu-thiet-ke/",
+      "https://giacong.vn/gia-cong-ruou/",
+      "https://giacong.vn/gia-cong-tra-dong-chai/",
+      "https://giacong.vn/gia-cong-ca-phe/",
+      "https://giacong.vn/tai-khoan/lost-password/",
+      "https://giacong.vn/gia-cong-bot/",
+      "https://giacong.vn/say-lanh/",
+      "https://giacong.vn/gia-cong-thuc-pham/",
+      "https://giacong.vn/gia-cong-sua/",
+      "https://giacong.vn/say-chan-khong/",
+      "https://giacong.vn/gia-cong-sua-thuc-vat/",
+      "https://giacong.vn/dich-vu-dong-goi/",
+      "https://giacong.vn/san-pham/",
+      "https://giacong.vn/gia-cong-nuoc-uong-dong-chai/",
+      "https://giacong.vn/gia-cong-nuoc-ep-trai-cay/",
+      "https://giacong.vn/thuc-pham-say/",
+      "https://giacong.vn/rang-gia-cong-ca-phe/",
+      "https://giacong.vn/thiet-ke-website",
+      "https://giacong.vn/lien-he/",
+      "https://giacong.vn/gia-cong-dong-goi/",
+      "https://giacong.vn/gia-cong-ca-phe-qua-tang/",
+      "https://giacong.vn/tin-tuc/",
+      "https://giacong.vn",
+      "https://giacong.vn/gioi-thieu-ve-gia-cong/",
+      "https://giacong.vn/gia-cong-bot-pha-che/",
+      "https://giacong.vn/gia-cong-nuoc-giai-khat-co-ga/",
+      "https://giacong.vn/gia-cong-sot-cham/",
+      "https://giacong.vn/gia-cong-do-uong/",
+      "https://giacong.vn/nuoc-trai-cay/",
+      "https://giacong.vn/gioi-thieu",
+      "https://giacong.vn/say-hong-ngoai/",
+      "https://giacong.vn/google-ads",
+      "https://giacong.vn/gia-cong-sua-bot/"
+    ],
+    "external_links_sample": [
+      "https://zalo.me/0947142999",
+      "https://www.facebook.com/giacongvietnam",
+      "https://zalo.me/3880645128632110182",
+      "https://www.dmca.com/compliance/giacong.vn",
+      "http://url",
+      "https://www.dmca.com/Protection/Status.aspx?ID=0dc7288d-82fb-4fbb-bf06-c97df1c0a80d"
+    ]
+  },
+  "Extra_2": {
+    "url": "https://giacong.vn/say-nong/",
+    "type": "Extra_2",
+    "title": "",
+    "h1s": [],
+    "body_classes": [],
+    "meta_tags": [],
+    "images_sample": [],
+    "structural_elements": [],
+    "content_containers_sample": [],
+    "phones": [],
+    "emails": [],
+    "addresses": [],
+    "internal_links_count": 0,
+    "internal_links_sample": [],
+    "external_links_sample": []
+  },
+  "Single_Product": {
+    "url": "https://giacong.vn/san-pham/#main",
+    "type": "Single_Product",
+    "title": "Danh Sách Các Sản Phẩm Gia Công Tại Công Ty",
+    "h1s": [
+      "Danh Sách Các Sản Phẩm Gia Công"
+    ],
+    "body_classes": [
+      "archive",
+      "post-type-archive",
+      "post-type-archive-product",
+      "wp-theme-flatsome",
+      "wp-child-theme-thiet-ke-web",
+      "theme-flatsome",
+      "woocommerce-shop",
+      "woocommerce",
+      "woocommerce-page",
+      "woocommerce-no-js",
+      "lightbox",
+      "nav-dropdown-has-shadow",
+      "nav-dropdown-has-border"
+    ],
+    "meta_tags": [
+      {
+        "charset": "UTF-8"
+      },
+      {
+        "name": "viewport",
+        "content": "width=device-width, initial-scale=1, maximum-scale=1"
+      },
+      {
+        "name": "description",
+        "content": "Với hơn 10 năm kinh nghiệm trong ngành gia công, chúng tôi cam kết mang đến cho bạn những sản phẩm đạt chuẩn quốc tế, luôn đáp ứng yêu cầu về chất lượng, độ chính xác và thời gian giao hàng."
+      },
+      {
+        "name": "robots",
+        "content": "follow, index, max-snippet:-1, max-video-preview:-1, max-image-preview:large"
+      },
+      {
+        "property": "og:locale",
+        "content": "vi_VN"
+      },
+      {
+        "property": "og:type",
+        "content": "article"
+      },
+      {
+        "property": "og:title",
+        "content": "Danh Sách Các Sản Phẩm Gia Công Tại Công Ty"
+      },
+      {
+        "property": "og:description",
+        "content": "Với hơn 10 năm kinh nghiệm trong ngành gia công, chúng tôi cam kết mang đến cho bạn những sản phẩm đạt chuẩn quốc tế, luôn đáp ứng yêu cầu về chất lượng, độ chính xác và thời gian giao hàng."
+      },
+      {
+        "property": "og:url",
+        "content": "https://giacong.vn/san-pham/"
+      },
+      {
+        "property": "og:site_name",
+        "content": "Đối Tác Gia Công OEM/ODM & Private Label Hàng Đầu"
+      },
+      {
+        "property": "og:image",
+        "content": "https://giacong.vn/wp-content/uploads/2024/10/GIACONG.VN-ngang-02-1-1024x291.png"
+      },
+      {
+        "property": "og:image:secure_url",
+        "content": "https://giacong.vn/wp-content/uploads/2024/10/GIACONG.VN-ngang-02-1-1024x291.png"
+      },
+      {
+        "property": "og:image:width",
+        "content": "1020"
+      },
+      {
+        "property": "og:image:height",
+        "content": "290"
+      },
+      {
+        "property": "og:image:alt",
+        "content": "logo gia công"
+      },
+      {
+        "property": "og:image:type",
+        "content": "image/png"
+      },
+      {
+        "name": "twitter:card",
+        "content": "summary_large_image"
+      },
+      {
+        "name": "twitter:title",
+        "content": "Danh Sách Các Sản Phẩm Gia Công Tại Công Ty"
+      },
+      {
+        "name": "twitter:description",
+        "content": "Với hơn 10 năm kinh nghiệm trong ngành gia công, chúng tôi cam kết mang đến cho bạn những sản phẩm đạt chuẩn quốc tế, luôn đáp ứng yêu cầu về chất lượng, độ chính xác và thời gian giao hàng."
+      },
+      {
+        "name": "twitter:image",
+        "content": "https://giacong.vn/wp-content/uploads/2024/10/GIACONG.VN-ngang-02-1-1024x291.png"
+      },
+      {
+        "name": "generator",
+        "content": "WordPress 7.0.1"
+      },
+      {
+        "name": "onesignal-plugin",
+        "content": "wordpress-3.9.2"
+      },
+      {
+        "name": "msapplication-TileImage",
+        "content": "https://giacong.vn/wp-content/uploads/2024/08/cropped-cong-ty-co-phan-netfood-1-270x270.jpg"
+      }
+    ],
+    "images_sample": [
+      {
+        "src": "https://giacong.vn/wp-content/uploads/2024/10/GIACONG.VN-ngang-03-1-1024x291.png",
+        "class": [
+          "header_logo",
+          "header-logo"
+        ],
+        "alt": "Giacong.vn",
+        "data_attrs": {}
+      },
+      {
+        "src": "https://giacong.vn/wp-content/uploads/2024/10/GIACONG.VN-ngang-03-1-1024x291.png",
+        "class": [
+          "header-logo-dark"
+        ],
+        "alt": "Giacong.vn",
+        "data_attrs": {}
+      },
+      {
+        "src": "https://giacong.vn/wp-content/uploads/2024/08/file-star-svgrepo-com.svg",
+        "class": [
+          "ux-menu-icon"
+        ],
+        "alt": "",
+        "data_attrs": {}
+      },
+      {
+        "src": "https://giacong.vn/wp-content/uploads/2024/08/file-2-svgrepo-com.svg",
+        "class": [
+          "ux-menu-icon"
+        ],
+        "alt": "",
+        "data_attrs": {}
+      },
+      {
+        "src": "https://giacong.vn/wp-content/uploads/2024/08/book-open-svgrepo-com.svg",
+        "class": [
+          "ux-menu-icon"
+        ],
+        "alt": "",
+        "data_attrs": {}
+      },
+      {
+        "src": "https://giacong.vn/wp-content/uploads/2024/08/bulb-2-svgrepo-com.svg",
+        "class": [
+          "ux-menu-icon"
+        ],
+        "alt": "",
+        "data_attrs": {}
+      },
+      {
+        "src": "https://giacong.vn/wp-content/uploads/2024/08/file-2-svgrepo-com.svg",
+        "class": [
+          "ux-menu-icon"
+        ],
+        "alt": "",
+        "data_attrs": {}
+      },
+      {
+        "src": "https://giacong.vn/wp-content/uploads/2024/08/message-2-star-svgrepo-com.svg",
+        "class": [
+          "ux-menu-icon"
+        ],
+        "alt": "",
+        "data_attrs": {}
+      },
+      {
+        "src": "data:image/svg+xml,%3Csvg%20viewBox%3D%220%200%20247%20296%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3C%2Fsvg%3E",
+        "class": [
+          "lazy-load",
+          "attachment-woocommerce_thumbnail",
+          "size-woocommerce_thumbnail"
+        ],
+        "alt": "sứa bột cho người già",
+        "data_attrs": {
+          "data-src": "https://giacong.vn/wp-content/uploads/2025/04/sua-bot-cho-nguoi-gia-247x296.webp"
+        }
+      },
+      {
+        "src": "data:image/svg+xml,%3Csvg%20viewBox%3D%220%200%20247%20296%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3C%2Fsvg%3E",
+        "class": [
+          "lazy-load",
+          "attachment-woocommerce_thumbnail",
+          "size-woocommerce_thumbnail"
+        ],
+        "alt": "gia công sữa bột cho trẻ em",
+        "data_attrs": {
+          "data-src": "https://giacong.vn/wp-content/uploads/2025/04/gia-cong-sua-bot-cho-tre-em-247x296.jpg"
+        }
+      },
+      {
+        "src": "data:image/svg+xml,%3Csvg%20viewBox%3D%220%200%20247%20296%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3C%2Fsvg%3E",
+        "class": [
+          "lazy-load",
+          "attachment-woocommerce_thumbnail",
+          "size-woocommerce_thumbnail"
+        ],
+        "alt": "sữa bột nguyên kem",
+        "data_attrs": {
+          "data-src": "https://giacong.vn/wp-content/uploads/2025/04/gia-cong-sua-bot-nguyen-kem-247x296.webp"
+        }
+      },
+      {
+        "src": "data:image/svg+xml,%3Csvg%20viewBox%3D%220%200%20247%20296%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3C%2Fsvg%3E",
+        "class": [
+          "lazy-load",
+          "attachment-woocommerce_thumbnail",
+          "size-woocommerce_thumbnail"
+        ],
+        "alt": "gia công sữa bột pha sẵn",
+        "data_attrs": {
+          "data-src": "https://giacong.vn/wp-content/uploads/2025/04/gia-cong-sua-bot-pha-san-247x296.jpg"
+        }
+      },
+      {
+        "src": "data:image/svg+xml,%3Csvg%20viewBox%3D%220%200%20247%20296%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3C%2Fsvg%3E",
+        "class": [
+          "lazy-load",
+          "attachment-woocommerce_thumbnail",
+          "size-woocommerce_thumbnail"
+        ],
+        "alt": "Sữa Bột Tách Béo",
+        "data_attrs": {
+          "data-src": "https://giacong.vn/wp-content/uploads/2025/04/sua-bot-tach-beo-247x296.jpg"
+        }
+      },
+      {
+        "src": "data:image/svg+xml,%3Csvg%20viewBox%3D%220%200%20247%20247%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3C%2Fsvg%3E",
+        "class": [
+          "lazy-load",
+          "woocommerce-placeholder",
+          "wp-post-image"
+        ],
+        "alt": "Nơi nhập dữ liệu",
+        "data_attrs": {
+          "data-src": "https://giacong.vn/wp-content/uploads/woocommerce-placeholder-300x300.png",
+          "data-srcset": "https://giacong.vn/wp-content/uploads/woocommerce-placeholder-300x300.png 300w, https://giacong.vn/wp-content/uploads/woocommerce-placeholder-100x100.png 100w, https://giacong.vn/wp-content/uploads/woocommerce-placeholder-600x600.png 600w, https://giacong.vn/wp-content/uploads/woocommerce-placeholder-1024x1024.png 1024w, https://giacong.vn/wp-content/uploads/woocommerce-placeholder-150x150.png 150w, https://giacong.vn/wp-content/uploads/woocommerce-placeholder-768x768.png 768w, https://giacong.vn/wp-content/uploads/woocommerce-placeholder.png 1200w"
+        }
+      },
+      {
+        "src": "data:image/svg+xml,%3Csvg%20viewBox%3D%220%200%20247%20247%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3C%2Fsvg%3E",
+        "class": [
+          "lazy-load",
+          "woocommerce-placeholder",
+          "wp-post-image"
+        ],
+        "alt": "Nơi nhập dữ liệu",
+        "data_attrs": {
+          "data-src": "https://giacong.vn/wp-content/uploads/woocommerce-placeholder-300x300.png",
+          "data-srcset": "https://giacong.vn/wp-content/uploads/woocommerce-placeholder-300x300.png 300w, https://giacong.vn/wp-content/uploads/woocommerce-placeholder-100x100.png 100w, https://giacong.vn/wp-content/uploads/woocommerce-placeholder-600x600.png 600w, https://giacong.vn/wp-content/uploads/woocommerce-placeholder-1024x1024.png 1024w, https://giacong.vn/wp-content/uploads/woocommerce-placeholder-150x150.png 150w, https://giacong.vn/wp-content/uploads/woocommerce-placeholder-768x768.png 768w, https://giacong.vn/wp-content/uploads/woocommerce-placeholder.png 1200w"
+        }
+      },
+      {
+        "src": "data:image/svg+xml,%3Csvg%20viewBox%3D%220%200%20247%20247%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3C%2Fsvg%3E",
+        "class": [
+          "lazy-load",
+          "woocommerce-placeholder",
+          "wp-post-image"
+        ],
+        "alt": "Nơi nhập dữ liệu",
+        "data_attrs": {
+          "data-src": "https://giacong.vn/wp-content/uploads/woocommerce-placeholder-300x300.png",
+          "data-srcset": "https://giacong.vn/wp-content/uploads/woocommerce-placeholder-300x300.png 300w, https://giacong.vn/wp-content/uploads/woocommerce-placeholder-100x100.png 100w, https://giacong.vn/wp-content/uploads/woocommerce-placeholder-600x600.png 600w, https://giacong.vn/wp-content/uploads/woocommerce-placeholder-1024x1024.png 1024w, https://giacong.vn/wp-content/uploads/woocommerce-placeholder-150x150.png 150w, https://giacong.vn/wp-content/uploads/woocommerce-placeholder-768x768.png 768w, https://giacong.vn/wp-content/uploads/woocommerce-placeholder.png 1200w"
+        }
+      },
+      {
+        "src": "data:image/svg+xml,%3Csvg%20viewBox%3D%220%200%20247%20247%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3C%2Fsvg%3E",
+        "class": [
+          "lazy-load",
+          "woocommerce-placeholder",
+          "wp-post-image"
+        ],
+        "alt": "Nơi nhập dữ liệu",
+        "data_attrs": {
+          "data-src": "https://giacong.vn/wp-content/uploads/woocommerce-placeholder-300x300.png",
+          "data-srcset": "https://giacong.vn/wp-content/uploads/woocommerce-placeholder-300x300.png 300w, https://giacong.vn/wp-content/uploads/woocommerce-placeholder-100x100.png 100w, https://giacong.vn/wp-content/uploads/woocommerce-placeholder-600x600.png 600w, https://giacong.vn/wp-content/uploads/woocommerce-placeholder-1024x1024.png 1024w, https://giacong.vn/wp-content/uploads/woocommerce-placeholder-150x150.png 150w, https://giacong.vn/wp-content/uploads/woocommerce-placeholder-768x768.png 768w, https://giacong.vn/wp-content/uploads/woocommerce-placeholder.png 1200w"
+        }
+      },
+      {
+        "src": "data:image/svg+xml,%3Csvg%20viewBox%3D%220%200%20247%20247%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3C%2Fsvg%3E",
+        "class": [
+          "lazy-load",
+          "woocommerce-placeholder",
+          "wp-post-image"
+        ],
+        "alt": "Nơi nhập dữ liệu",
+        "data_attrs": {
+          "data-src": "https://giacong.vn/wp-content/uploads/woocommerce-placeholder-300x300.png",
+          "data-srcset": "https://giacong.vn/wp-content/uploads/woocommerce-placeholder-300x300.png 300w, https://giacong.vn/wp-content/uploads/woocommerce-placeholder-100x100.png 100w, https://giacong.vn/wp-content/uploads/woocommerce-placeholder-600x600.png 600w, https://giacong.vn/wp-content/uploads/woocommerce-placeholder-1024x1024.png 1024w, https://giacong.vn/wp-content/uploads/woocommerce-placeholder-150x150.png 150w, https://giacong.vn/wp-content/uploads/woocommerce-placeholder-768x768.png 768w, https://giacong.vn/wp-content/uploads/woocommerce-placeholder.png 1200w"
+        }
+      },
+      {
+        "src": "data:image/svg+xml,%3Csvg%20viewBox%3D%220%200%20247%20247%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3C%2Fsvg%3E",
+        "class": [
+          "lazy-load",
+          "woocommerce-placeholder",
+          "wp-post-image"
+        ],
+        "alt": "Nơi nhập dữ liệu",
+        "data_attrs": {
+          "data-src": "https://giacong.vn/wp-content/uploads/woocommerce-placeholder-300x300.png",
+          "data-srcset": "https://giacong.vn/wp-content/uploads/woocommerce-placeholder-300x300.png 300w, https://giacong.vn/wp-content/uploads/woocommerce-placeholder-100x100.png 100w, https://giacong.vn/wp-content/uploads/woocommerce-placeholder-600x600.png 600w, https://giacong.vn/wp-content/uploads/woocommerce-placeholder-1024x1024.png 1024w, https://giacong.vn/wp-content/uploads/woocommerce-placeholder-150x150.png 150w, https://giacong.vn/wp-content/uploads/woocommerce-placeholder-768x768.png 768w, https://giacong.vn/wp-content/uploads/woocommerce-placeholder.png 1200w"
+        }
+      },
+      {
+        "src": "data:image/svg+xml,%3Csvg%20viewBox%3D%220%200%20247%20247%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3C%2Fsvg%3E",
+        "class": [
+          "lazy-load",
+          "woocommerce-placeholder",
+          "wp-post-image"
+        ],
+        "alt": "Nơi nhập dữ liệu",
+        "data_attrs": {
+          "data-src": "https://giacong.vn/wp-content/uploads/woocommerce-placeholder-300x300.png",
+          "data-srcset": "https://giacong.vn/wp-content/uploads/woocommerce-placeholder-300x300.png 300w, https://giacong.vn/wp-content/uploads/woocommerce-placeholder-100x100.png 100w, https://giacong.vn/wp-content/uploads/woocommerce-placeholder-600x600.png 600w, https://giacong.vn/wp-content/uploads/woocommerce-placeholder-1024x1024.png 1024w, https://giacong.vn/wp-content/uploads/woocommerce-placeholder-150x150.png 150w, https://giacong.vn/wp-content/uploads/woocommerce-placeholder-768x768.png 768w, https://giacong.vn/wp-content/uploads/woocommerce-placeholder.png 1200w"
+        }
+      }
+    ],
+    "structural_elements": [
+      {
+        "tag": "header",
+        "index": 0,
+        "id": "header",
+        "class": [
+          "header",
+          "has-sticky",
+          "sticky-jump"
+        ]
+      },
+      {
+        "tag": "footer",
+        "index": 0,
+        "id": "footer",
+        "class": [
+          "footer-wrapper"
+        ]
+      },
+      {
+        "tag": "main",
+        "index": 0,
+        "id": "main",
+        "class": []
+      },
+      {
+        "tag": "nav",
+        "index": 0,
+        "id": null,
+        "class": [
+          "woocommerce-breadcrumb",
+          "breadcrumbs",
+          "uppercase"
+        ]
+      }
+    ],
+    "content_containers_sample": [
+      {
+        "selector": "div[class*=\"content\"]",
+        "tag": "div",
+        "id": null,
+        "class": [
+          "section-content",
+          "relative"
+        ]
+      },
+      {
+        "selector": "div[class*=\"content\"]",
+        "tag": "div",
+        "id": "login-form-popup",
+        "class": [
+          "lightbox-content",
+          "mfp-hide"
+        ]
+      },
+      {
+        "selector": "div[class*=\"main\"]",
+        "tag": "div",
+        "id": "masthead",
+        "class": [
+          "header-main",
+          "show-logo-center",
+          "nav-dark"
+        ]
+      },
+      {
+        "selector": "div[class*=\"container\"]",
+        "tag": "div",
+        "id": null,
+        "class": [
+          "header-inner",
+          "flex-row",
+          "container",
+          "logo-center",
+          "medium-logo-center"
+        ]
+      },
+      {
+        "selector": "div[class*=\"container\"]",
+        "tag": "div",
+        "id": null,
+        "class": [
+          "header-bg-container",
+          "fill"
+        ]
+      },
+      {
+        "selector": "div[class*=\"container\"]",
+        "tag": "div",
+        "id": null,
+        "class": [
+          "page-title-inner",
+          "flex-row",
+          "medium-flex-wrap",
+          "container"
+        ]
+      },
+      {
+        "selector": "div[class*=\"container\"]",
+        "tag": "div",
+        "id": null,
+        "class": [
+          "shop-container"
+        ]
+      },
+      {
+        "selector": "div[class*=\"container\"]",
+        "tag": "div",
+        "id": null,
+        "class": [
+          "badge-container",
+          "absolute",
+          "left",
+          "top",
+          "z-1"
+        ]
+      },
+      {
+        "selector": "section",
+        "tag": "section",
+        "id": "section_474962290",
+        "class": [
+          "section",
+          "footer-section"
+        ]
+      }
+    ],
+    "phones": [
+      "0947142999"
+    ],
+    "emails": [
+      "info@giacong.vn"
+    ],
+    "addresses": [
+      "Tên tài khoản hoặc địa chỉ email *",
+      "Đăng nhập\n\n\nTên tài khoản hoặc địa chỉ email *\n \n\nMật khẩu *\n\n\n\n\n Ghi nhớ mật khẩu\n\n Đăng nhập\n\n\nQuên mật khẩu?"
+    ],
+    "internal_links_count": 84,
+    "internal_links_sample": [
+      "https://giacong.vn/sua-bot-cho-nguoi-gia/",
+      "https://giacong.vn/thuc-pham-chuc-nang/",
+      "https://giacong.vn/say-nong/",
+      "https://giacong.vn/sua-hat-oc-cho/",
+      "https://giacong.vn/gia-cong-do-uong/",
+      "https://giacong.vn/chinh-sach-thanh-toan",
+      "https://giacong.vn/gia-cong-sua-hat/",
+      "https://giacong.vn/sua-tuoi-nguyen-chat/",
+      "https://giacong.vn/gia-cong-my-pham/",
+      "https://giacong.vn/tra-den-thao-moc/",
+      "https://giacong.vn/ban-quyen",
+      "https://giacong.vn/gia-cong-ca-phe-hoa-tan/",
+      "https://giacong.vn/sua-whey-protein/",
+      "https://giacong.vn/sua-yen-mach/",
+      "https://giacong.vn/sua-bot-nguyen-kem/",
+      "https://giacong.vn/sua-bot-pha-san/",
+      "https://giacong.vn/sua-casein/",
+      "https://giacong.vn/gia-cong-sua-bot/",
+      "https://giacong.vn/gia-cong-tra/",
+      "https://giacong.vn/sua-tuoi-tiet-trung/",
+      "https://giacong.vn/gia-cong-thuc-pham/",
+      "https://giacong.vn/san-pham/#top",
+      "https://giacong.vn/thuc-pham-say/",
+      "https://giacong.vn/sua-it-duong/",
+      "https://giacong.vn/gia-cong-sua/",
+      "https://giacong.vn/sua-hat-dieu/",
+      "https://giacong.vn/tra-xanh-la-sen/",
+      "https://giacong.vn/gia-cong-bot-pha-che/",
+      "https://giacong.vn/say-hong-ngoai/",
+      "https://giacong.vn/sua-chua-co-huong-trai-cay/",
+      "https://giacong.vn/sua-dua/",
+      "https://giacong.vn/gia-cong-dong-goi/",
+      "https://giacong.vn/sua-chua-uong/",
+      "https://giacong.vn/gia-cong-nuoc-uong-dong-chai/",
+      "https://giacong.vn/rang-gia-cong-ca-phe/",
+      "https://giacong.vn/bot-gia-vi/",
+      "https://giacong.vn/dich-vu-dong-goi/",
+      "https://giacong.vn/san-pham/#main",
+      "https://giacong.vn/say-chan-khong/",
+      "https://giacong.vn/tra-xanh-huong-hoa-nhai/",
+      "https://giacong.vn/sua-hat-hanh-nhan/",
+      "https://giacong.vn/chinh-sach-hoan-tien",
+      "https://giacong.vn/nuoc-trai-cay/",
+      "https://giacong.vn/",
+      "https://giacong.vn/dich-vu-marketing/",
+      "https://giacong.vn/sua-dac-khong-duong/",
+      "https://giacong.vn/gia-cong-bot/",
+      "https://giacong.vn/gioi-thieu-ve-gia-cong/",
+      "https://giacong.vn/dich-vu-thiet-ke/",
+      "https://giacong.vn/tra-den-huong-trai-cay/"
+    ],
+    "external_links_sample": [
+      "http://url",
+      "https://www.dmca.com/Protection/Status.aspx?ID=0dc7288d-82fb-4fbb-bf06-c97df1c0a80d",
+      "https://www.facebook.com/giacongvietnam",
+      "https://www.dmca.com/compliance/giacong.vn",
+      "https://zalo.me/0947142999"
+    ]
+  },
+  "Single_News": {
+    "url": "https://giacong.vn/say-thang-hoa/",
+    "type": "Single_News",
+    "title": "",
+    "h1s": [],
+    "body_classes": [],
+    "meta_tags": [],
+    "images_sample": [],
+    "structural_elements": [],
+    "content_containers_sample": [],
+    "phones": [],
+    "emails": [],
+    "addresses": [],
+    "internal_links_count": 0,
+    "internal_links_sample": [],
+    "external_links_sample": []
+  }
+}

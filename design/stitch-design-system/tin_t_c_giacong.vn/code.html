@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+
+<html class="light" lang="vi"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Tin tức &amp; Kiến thức - Giacong.vn</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "secondary": "#55615a",
+                    "surface-container-lowest": "#ffffff",
+                    "surface-bright": "#f6fbf2",
+                    "surface": "#f6fbf2",
+                    "on-background": "#181d17",
+                    "on-primary-fixed": "#00210a",
+                    "on-primary": "#ffffff",
+                    "error": "#ba1a1a",
+                    "inverse-on-surface": "#edf2e9",
+                    "on-tertiary-container": "#fff1f1",
+                    "crimson-error": "#E11D2E",
+                    "green-100": "#DCFCE7",
+                    "secondary-fixed": "#d9e6dd",
+                    "inverse-surface": "#2c322c",
+                    "tertiary-fixed": "#ffd9dd",
+                    "outline-variant": "#becabc",
+                    "primary": "#00652c",
+                    "on-primary-fixed-variant": "#005323",
+                    "secondary-fixed-dim": "#bdcac1",
+                    "slate-200": "#E2E8F0",
+                    "footer-gradient-start": "#065F2E",
+                    "tertiary-container": "#b64c62",
+                    "on-secondary-container": "#5b6760",
+                    "background": "#f6fbf2",
+                    "footer-gradient-end": "#08752E",
+                    "on-surface-variant": "#3f493f",
+                    "surface-dim": "#d6dcd3",
+                    "primary-container": "#15803d",
+                    "surface-tint": "#006d30",
+                    "on-error": "#ffffff",
+                    "primary-fixed": "#95f8a7",
+                    "surface-container-high": "#e4eae1",
+                    "primary-fixed-dim": "#79db8d",
+                    "surface-container-highest": "#dfe4db",
+                    "slate-950": "#0B1220",
+                    "on-error-container": "#93000a",
+                    "surface-variant": "#dfe4db",
+                    "outline": "#6f7a6e",
+                    "surface-container": "#eaefe6",
+                    "error-container": "#ffdad6",
+                    "on-surface": "#181d17",
+                    "on-tertiary": "#ffffff",
+                    "surface-container-low": "#f0f5ec",
+                    "tertiary": "#97344a",
+                    "slate-500": "#64748B",
+                    "on-tertiary-fixed": "#400013",
+                    "on-secondary-fixed": "#131e19",
+                    "on-secondary": "#ffffff",
+                    "tertiary-fixed-dim": "#ffb2bd",
+                    "on-primary-container": "#d3ffd5",
+                    "inverse-primary": "#79db8d",
+                    "on-secondary-fixed-variant": "#3e4943",
+                    "secondary-container": "#d9e6dd",
+                    "on-tertiary-fixed-variant": "#81233b",
+                    "green-600": "#16A34A"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "sm": "8px",
+                    "gutter": "24px",
+                    "container-max": "1280px",
+                    "section-v-mobile": "48px",
+                    "unit": "8px",
+                    "section-v-desktop": "96px",
+                    "md": "16px",
+                    "lg": "24px",
+                    "xl": "32px",
+                    "xs": "4px"
+            },
+            "fontFamily": {
+                    "body-base": ["Inter"],
+                    "headline-h1": ["Inter"],
+                    "body-sm": ["Inter"],
+                    "body-lg": ["Inter"],
+                    "headline-h2": ["Inter"],
+                    "hero-display": ["Inter"],
+                    "headline-h3": ["Inter"],
+                    "headline-h1-mobile": ["Inter"],
+                    "button-text": ["Inter"],
+                    "label-caps": ["Inter"]
+            },
+            "fontSize": {
+                    "body-base": ["16px", {"lineHeight": "1.65", "fontWeight": "400"}],
+                    "headline-h1": ["48px", {"lineHeight": "1.15", "fontWeight": "700"}],
+                    "body-sm": ["14px", {"lineHeight": "1.55", "fontWeight": "400"}],
+                    "body-lg": ["18px", {"lineHeight": "1.7", "fontWeight": "400"}],
+                    "headline-h2": ["36px", {"lineHeight": "1.2", "fontWeight": "700"}],
+                    "hero-display": ["56px", {"lineHeight": "1.08", "letterSpacing": "-0.02em", "fontWeight": "800"}],
+                    "headline-h3": ["28px", {"lineHeight": "1.25", "fontWeight": "700"}],
+                    "headline-h1-mobile": ["32px", {"lineHeight": "1.2", "fontWeight": "700"}],
+                    "button-text": ["15px", {"lineHeight": "1", "fontWeight": "600"}],
+                    "label-caps": ["12px", {"lineHeight": "1.4", "fontWeight": "600"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            display: inline-block;
+            vertical-align: middle;
+        }
+        .line-clamp-2 {
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;  
+            overflow: hidden;
+        }
+        .line-clamp-3 {
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;  
+            overflow: hidden;
+        }
+        .hover-lift {
+            transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s ease;
+        }
+        .hover-lift:hover {
+            transform: translateY(-8px);
+        }
+        .image-zoom-container {
+            overflow: hidden;
+        }
+        .image-zoom-container img {
+            transition: transform 0.6s ease;
+        }
+        .image-zoom-container:hover img {
+            transform: scale(1.1);
+        }
+        body {
+            background-color: #f6fbf2;
+            color: #181d17;
+        }
+    </style>
+</head>
+<body class="font-body-base">
+<!-- Top Navigation Bar -->
+<header class="fixed top-0 w-full z-50 bg-surface/90 backdrop-blur-md border-b border-outline-variant shadow-sm">
+<div class="flex justify-between items-center px-gutter py-4 max-w-container-max mx-auto">
+<div class="flex items-center gap-2">
+<span class="font-headline-h3 text-headline-h3 font-bold text-primary">Giacong.vn</span>
+</div>
+<nav class="hidden md:flex items-center gap-xl">
+<a class="text-on-surface-variant hover:text-primary transition-colors font-body-base" href="#">Home</a>
+<a class="text-on-surface-variant hover:text-primary transition-colors font-body-base" href="#">About</a>
+<a class="text-on-surface-variant hover:text-primary transition-colors font-body-base" href="#">Products</a>
+<a class="text-on-surface-variant hover:text-primary transition-colors font-body-base" href="#">Services</a>
+<a class="text-primary font-bold border-b-2 border-primary font-body-base" href="#">News</a>
+<a class="text-on-surface-variant hover:text-primary transition-colors font-body-base" href="#">Contact</a>
+</nav>
+<div class="flex items-center gap-lg">
+<div class="hidden lg:flex flex-col text-right">
+<span class="text-xs text-on-surface-variant">Hotline</span>
+<span class="font-bold text-primary">1900 633 813</span>
+</div>
+<button class="bg-primary text-on-primary px-lg py-sm rounded-lg font-button-text hover:bg-green-600 transition-all flex items-center gap-2">
+                    Nhận báo giá
+                    <span class="material-symbols-outlined text-[18px]">arrow_forward</span>
+</button>
+</div>
+</div>
+</header>
+<main class="pt-[100px]">
+<!-- Hero Section -->
+<section class="relative overflow-hidden pt-section-v-desktop pb-xl">
+<div class="max-w-container-max mx-auto px-gutter relative z-10 grid grid-cols-1 lg:grid-cols-2 gap-xl items-center">
+<div>
+<nav class="flex items-center gap-xs text-body-sm text-on-surface-variant mb-md">
+<a class="hover:text-primary" href="#">Trang chủ</a>
+<span class="material-symbols-outlined text-sm">chevron_right</span>
+<span class="text-primary font-bold">Tin tức</span>
+</nav>
+<h1 class="font-hero-display text-hero-display mb-lg text-on-background">Tin tức &amp; Kiến thức</h1>
+<p class="text-body-lg text-on-surface-variant max-w-xl mb-xl">
+                        Cập nhật kiến thức chuyên sâu về gia công thực phẩm, xu hướng ngành, quy định chất lượng và giải pháp tối ưu cho doanh nghiệp của bạn.
+                    </p>
+<div class="flex flex-wrap gap-xl">
+<div class="flex items-center gap-md">
+<div class="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center text-primary">
+<span class="material-symbols-outlined">article</span>
+</div>
+<div>
+<div class="font-bold text-lg">500+</div>
+<div class="text-body-sm text-on-surface-variant">Bài viết chuyên sâu</div>
+</div>
+</div>
+<div class="flex items-center gap-md">
+<div class="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center text-primary">
+<span class="material-symbols-outlined">group</span>
+</div>
+<div>
+<div class="font-bold text-lg">10+</div>
+<div class="text-body-sm text-on-surface-variant">Chuyên gia đồng hành</div>
+</div>
+</div>
+<div class="flex items-center gap-md">
+<div class="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center text-primary">
+<span class="material-symbols-outlined">update</span>
+</div>
+<div>
+<div class="font-bold text-lg">Cập nhật</div>
+<div class="text-body-sm text-on-surface-variant">Tin tức mỗi tuần</div>
+</div>
+</div>
+</div>
+</div>
+<div class="relative">
+<div class="absolute -right-20 -top-20 w-80 h-80 bg-primary/5 rounded-full blur-3xl"></div>
+<img class="relative z-10 w-full h-auto object-contain" data-alt="A clean, high-end professional product shot of high-quality organic food packaging and raw ingredients like nuts and seeds on a minimalist light-colored background. The lighting is soft and airy, emphasizing natural textures and premium quality in a professional B2B manufacturing context." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAx6YGGCPxYrgJ2u2pWNlG_GzJ6uWH-cYJKgh_Dh0Ti146EVs4Gc4lEkQy4chyEBtE_222CiJ6JbHlBy5cwClI21cnUkjcluw47wMRWEtfGdfLEVmqE0fJtGQIHG4SJdIfG1YgqjpcFFENIcOEKpMXCrLOgzfFSPQaVOJlcfRO1n7Mj9oFGvm5UoTTkMCvP9cVCsvUhNMASzNG5Q3_oB7fo4C2DzMkv8fkaHpIgJ9u21Eq75q1dRmk5EZgDDrR-N9CzF2b92AnbqPk"/>
+</div>
+</div>
+</section>
+<!-- Featured Article -->
+<section class="max-w-container-max mx-auto px-gutter mb-section-v-desktop">
+<div class="bg-surface-container-lowest rounded-xl shadow-sm border border-outline-variant overflow-hidden flex flex-col md:flex-row hover:shadow-md transition-shadow">
+<div class="md:w-1/2 image-zoom-container relative min-h-[300px]">
+<span class="absolute top-4 left-4 z-20 bg-primary text-white px-md py-xs rounded-full text-xs font-bold uppercase tracking-wider">Bài viết nổi bật</span>
+<img class="w-full h-full object-cover" data-alt="A modern industrial food manufacturing facility showing a clean assembly line with staff in professional white sterile gear overseeing automated machinery. The environment is high-tech, GMP-compliant, and brightly lit with high-key corporate lighting to convey trust and precision." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBrDFFqM12SWb-TpIOFDEuVhxOcN4uB_Ddl0k4cyMFcexGTLIS35wki-7fSVcjCKmW33b5-3KeY2G3HhQmtjb39RauzMKN70x3Y3VsTT6k7dT18T12SBnqrs9Ii3FppSIzrMi5sKDFOToJkXFBOWD1AXDhNr8nsIXW4DcrCP6pXPiapU0pXGXXdk_y0cMpmqgiJ7Zc1jmIaVdyIhaMvW83U_ZDvjLq8IUzNLjbjeIqNx7I0VY7fiXg_kdVMJYqUBpzYFryzGgtybYM"/>
+</div>
+<div class="md:w-1/2 p-xl flex flex-col justify-center">
+<span class="text-primary font-bold text-sm mb-sm block">Xu hướng ngành</span>
+<h2 class="font-headline-h2 text-headline-h2 mb-md text-on-background">Xu hướng gia công thực phẩm 2024 – Cơ hội và thách thức cho doanh nghiệp</h2>
+<p class="text-body-base text-on-surface-variant mb-xl line-clamp-3">
+                        Năm 2024 chứng kiến nhiều thay đổi trong hành vi tiêu dùng và tiêu chuẩn chất lượng. Doanh nghiệp cần nắm bắt xu hướng để tối ưu sản phẩm và chuỗi cung ứng. Từ các dòng sản phẩm thuần thực vật đến bao bì bền vững, đây là những gì bạn cần biết.
+                    </p>
+<div class="flex items-center justify-between mt-auto pt-lg border-t border-outline-variant">
+<div class="flex items-center gap-md">
+<div class="flex items-center gap-2 text-body-sm text-on-surface-variant">
+<span class="material-symbols-outlined text-[18px]">person</span>
+                                Giacong.vn Team
+                            </div>
+<div class="flex items-center gap-2 text-body-sm text-on-surface-variant border-l border-outline-variant pl-md">
+<span class="material-symbols-outlined text-[18px]">calendar_today</span>
+                                12/05/2024
+                            </div>
+</div>
+<a class="text-primary font-bold flex items-center gap-2 group" href="#">
+                            Đọc bài viết
+                            <span class="material-symbols-outlined group-hover:translate-x-1 transition-transform">arrow_right_alt</span>
+</a>
+</div>
+</div>
+</div>
+</section>
+<!-- Search and Filters -->
+<section class="max-w-container-max mx-auto px-gutter mb-xl sticky top-[80px] z-30">
+<div class="bg-surface-container/80 backdrop-blur-md p-md rounded-xl border border-outline-variant shadow-sm">
+<div class="flex flex-col lg:flex-row gap-lg items-center">
+<div class="flex flex-wrap gap-2 flex-grow">
+<button class="bg-primary text-white px-lg py-sm rounded-lg font-button-text shadow-sm">Tất cả</button>
+<button class="bg-surface-container-lowest text-on-surface-variant border border-outline-variant px-lg py-sm rounded-lg font-button-text hover:bg-green-100 transition-colors">Xu hướng ngành</button>
+<button class="bg-surface-container-lowest text-on-surface-variant border border-outline-variant px-lg py-sm rounded-lg font-button-text hover:bg-green-100 transition-colors">Kiến thức gia công</button>
+<button class="bg-surface-container-lowest text-on-surface-variant border border-outline-variant px-lg py-sm rounded-lg font-button-text hover:bg-green-100 transition-colors">Quy định - Tiêu chuẩn</button>
+<button class="bg-surface-container-lowest text-on-surface-variant border border-outline-variant px-lg py-sm rounded-lg font-button-text hover:bg-green-100 transition-colors">Nguyên liệu</button>
+<button class="bg-surface-container-lowest text-on-surface-variant border border-outline-variant px-lg py-sm rounded-lg font-button-text hover:bg-green-100 transition-colors">Câu chuyện khách hàng</button>
+</div>
+<div class="w-full lg:w-72 relative">
+<input class="w-full pl-xl pr-md py-sm rounded-lg border-outline-variant focus:ring-primary focus:border-primary" placeholder="Tìm kiếm bài viết..." type="text"/>
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant">search</span>
+</div>
+<select class="bg-surface-container-lowest border-outline-variant rounded-lg py-sm px-md text-body-sm">
+<option>Mới nhất</option>
+<option>Xem nhiều nhất</option>
+</select>
+</div>
+</div>
+</section>
+<!-- Main Content Grid -->
+<section class="max-w-container-max mx-auto px-gutter grid grid-cols-1 lg:grid-cols-12 gap-xl mb-section-v-desktop">
+<!-- Articles Grid -->
+<div class="lg:col-span-9">
+<div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-xl">
+<!-- Article 1 -->
+<article class="bg-surface-container-lowest rounded-xl border border-outline-variant overflow-hidden hover-lift flex flex-col">
+<div class="image-zoom-container h-48">
+<img class="w-full h-full object-cover" data-alt="A detailed look at high-precision laboratory equipment in a food safety testing facility. Scientists in PPE are analyzing samples using modern microscopes and spectrometers. The aesthetic is clean, medical-grade, and corporate professional with a palette of whites and soft greens." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAcBCr7uCMhds5AyGTwSDXje-DthZ3so95RD4JVAndl9nz25_d2pafFAgsp8w553wMEwfAfgGIfs0URvc0GtwPDlei1uucbArgfFoUfiQ24W50-5EAhIh4dbhOK61AUCBXoYZ1fZzfgnIkCR9eLn1uSxzY9-EQPyAYe51LeBYkcLk4-S-H2E8kUikV-9QhkBWPN4DWgaRnRGrNRJn0fNqOu1dGzXwCBmacfwB5GJmcVjRF6IFnmaPk-yjq4OZIpMESOfJoF0-URaIQ"/>
+</div>
+<div class="p-lg flex flex-col flex-grow">
+<span class="text-xs font-bold text-primary uppercase mb-xs">Kiến thức gia công</span>
+<h3 class="font-headline-h3 text-xl mb-sm line-clamp-2">Gia công thực phẩm là gì? Quy trình và lưu ý quan trọng</h3>
+<p class="text-body-sm text-on-surface-variant line-clamp-3 mb-xl">
+                                Tìm hiểu khái niệm, quy trình gia công thực phẩm chuẩn an toàn và những lưu ý giúp doanh nghiệp chọn đối tác phù hợp nhất.
+                            </p>
+<div class="mt-auto flex items-center justify-between pt-md border-t border-outline-variant">
+<span class="text-xs text-on-surface-variant">10/05/2024 • 5 phút đọc</span>
+<a class="text-primary font-bold text-sm flex items-center gap-1 group" href="#">
+                                    Đọc thêm
+                                    <span class="material-symbols-outlined group-hover:translate-x-1 transition-transform text-[18px]">chevron_right</span>
+</a>
+</div>
+</div>
+</article>
+<!-- Article 2 -->
+<article class="bg-surface-container-lowest rounded-xl border border-outline-variant overflow-hidden hover-lift flex flex-col">
+<div class="image-zoom-container h-48">
+<img class="w-full h-full object-cover" data-alt="Vibrant top-down view of healthy ingredients like avocados, leafy greens, colorful berries, and grains arranged artistically on a light textured surface. The lighting is bright and natural, reflecting the health and wellness focus of modern food processing trends." src="https://lh3.googleusercontent.com/aida-public/AB6AXuALu3tf1rLyJAjItyq3zEhhnT3aoFwIzqQ8W14JtIoAr3K3lgORmTfbYLJwG2L9Zce-DOPm1i_d4kZRALfrEmoNsKSFBVThVdYlo4t4HwBRSFdvn_PwivkLSMeiq91OdsbWQAbs4ORnzoQcwKWbULaeokVHoScyRkemkyx4U1JbElXW_gMUBQOrIQr5mxwlS0r-PYazeoyx8bsQmr2Yd_A7LiXle7g3Av-1yCsLcFEa6KWgLWz4CK3kGSVM0SJLjtO8hJiWizc3eHY"/>
+</div>
+<div class="p-lg flex flex-col flex-grow">
+<span class="text-xs font-bold text-primary uppercase mb-xs">Xu hướng ngành</span>
+<h3 class="font-headline-h3 text-xl mb-sm line-clamp-2">5 xu hướng thực phẩm healthy lên ngôi trong năm 2024</h3>
+<p class="text-body-sm text-on-surface-variant line-clamp-3 mb-xl">
+                                Người tiêu dùng ngày càng ưu tiên sức khỏe và nguồn gốc tự nhiên. Cùng khám phá 5 xu hướng nổi bật định hình thị trường năm 2024.
+                            </p>
+<div class="mt-auto flex items-center justify-between pt-md border-t border-outline-variant">
+<span class="text-xs text-on-surface-variant">08/05/2024 • 6 phút đọc</span>
+<a class="text-primary font-bold text-sm flex items-center gap-1 group" href="#">
+                                    Đọc thêm
+                                    <span class="material-symbols-outlined group-hover:translate-x-1 transition-transform text-[18px]">chevron_right</span>
+</a>
+</div>
+</div>
+</article>
+<!-- Article 3 -->
+<article class="bg-surface-container-lowest rounded-xl border border-outline-variant overflow-hidden hover-lift flex flex-col">
+<div class="image-zoom-container h-48">
+<img class="w-full h-full object-cover" data-alt="Close up of a professional ISO 22000 certification document and golden seal on a high-end corporate table. Next to it is a small magnifying glass and a checklist. The scene signifies quality assurance and international compliance in a modern manufacturing context." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDtNLbUm4daBjmiWoBphx7zwlwH0LwYcZTUtc6kg9KUy4V5OL8uEBjDnx6DGf-nAEz9o7KFtjW2egKCtsPm_9Q_B8lyN1Cpq50IlKAFaXJP2uz7RRV2zKZCfCyyLmwLwfbOhgPyrRVYL6WKk51NJ53HasdpUVIxTrFeiQzH0i_UuSx9roxAocww5B1N1CkeyRN6nWMVbVDv-4LXLdpP63yMh4PtIasYB47k4ke9WjICQBZIDoNkKrgSkpQ4NKNncwaVngM5TWFGzUI"/>
+</div>
+<div class="p-lg flex flex-col flex-grow">
+<span class="text-xs font-bold text-primary uppercase mb-xs">Quy định - Tiêu chuẩn</span>
+<h3 class="font-headline-h3 text-xl mb-sm line-clamp-2">Tiêu chuẩn ISO 22000 trong gia công thực phẩm</h3>
+<p class="text-body-sm text-on-surface-variant line-clamp-3 mb-xl">
+                                ISO 22000 giúp đảm bảo an toàn thực phẩm và nâng cao uy tín doanh nghiệp. Tìm hiểu các yêu cầu và lợi ích khi áp dụng tiêu chuẩn này.
+                            </p>
+<div class="mt-auto flex items-center justify-between pt-md border-t border-outline-variant">
+<span class="text-xs text-on-surface-variant">06/05/2024 • 7 phút đọc</span>
+<a class="text-primary font-bold text-sm flex items-center gap-1 group" href="#">
+                                    Đọc thêm
+                                    <span class="material-symbols-outlined group-hover:translate-x-1 transition-transform text-[18px]">chevron_right</span>
+</a>
+</div>
+</div>
+</article>
+<!-- Article 4 -->
+<article class="bg-surface-container-lowest rounded-xl border border-outline-variant overflow-hidden hover-lift flex flex-col">
+<div class="image-zoom-container h-48">
+<img class="w-full h-full object-cover" data-alt="Assorted high-quality raw ingredients including various grains, nuts, and spices in organized wooden bowls. The aesthetic is organic, rustic yet clean, emphasizing the quality and selection process of ingredients for manufacturing." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBwhHH_4o7gJw-C6u5qskotfWxFFnK93zG7u2nAATaZHlT0grCz562jfL40H_ti5elMKII1vhF41lELLBlgMpqm7LxdFi1bPThMy88EXHd0wn6PxQaWehv_D6GogK74rDdUOHgux0zcoh3Ln2SttFzYCSJxE9BK-Eet4tE6fH_lscIsInlmjLeS4gI0pdJI5MeWnu3qmxfCHkK7fjHSOHWngBK_ui_DFvA9xOAaGGW1_AwR4KHmvU920hJbv9e-NA7DqXw-Sz1WmaI"/>
+</div>
+<div class="p-lg flex flex-col flex-grow">
+<span class="text-xs font-bold text-primary uppercase mb-xs">Nguyên liệu</span>
+<h3 class="font-headline-h3 text-xl mb-sm line-clamp-2">Cách chọn nguyên liệu sạch, đạt chuẩn cho sản xuất</h3>
+<p class="text-body-sm text-on-surface-variant line-clamp-3 mb-xl">
+                                Nguyên liệu chất lượng là nền tảng của sản phẩm tốt. 5 tiêu chí chọn lọc giúp bạn đánh giá và lựa chọn nhà cung cấp hiệu quả.
+                            </p>
+<div class="mt-auto flex items-center justify-between pt-md border-t border-outline-variant">
+<span class="text-xs text-on-surface-variant">10/05/2024 • 5 phút đọc</span>
+<a class="text-primary font-bold text-sm flex items-center gap-1 group" href="#">
+                                    Đọc thêm
+                                    <span class="material-symbols-outlined group-hover:translate-x-1 transition-transform text-[18px]">chevron_right</span>
+</a>
+</div>
+</div>
+</article>
+<!-- Article 5 -->
+<article class="bg-surface-container-lowest rounded-xl border border-outline-variant overflow-hidden hover-lift flex flex-col">
+<div class="image-zoom-container h-48">
+<img class="w-full h-full object-cover" data-alt="A modern packaging line showing sleek glass bottles filled with herbal beverages. The machinery is stainless steel and the environment is exceptionally clean. The lighting highlights the transparency and purity of the product." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBIY8RYfJGrvyY5c761tWKbRR-wfcvTwMgqLAMCYVphie-tEuo08xretsUUVfL5sAr9mzf5k89B3vFwWZHL2eSAFCCFykTHI4tRSheGipQ0wJ2mAxRQ9o9oZ9d0Efzav-DYZ8sh09bpRdb7vSUSeEZCLtwMH5--BqPjC9PMgn3Zeg1pLVfINOAnFkHx4M3xbemRyXMxcY3E28JlS0dEjblRpdENWYtWX2aYrnPYcBMdFCzxRsEJ7mLfh0oeb9HC3gPHHxf-6KMBfa8"/>
+</div>
+<div class="p-lg flex flex-col flex-grow">
+<span class="text-xs font-bold text-primary uppercase mb-xs">Kiến thức gia công</span>
+<h3 class="font-headline-h3 text-xl mb-sm line-clamp-2">Gia công đồ uống: Quy trình, công nghệ và lợi ích</h3>
+<p class="text-body-sm text-on-surface-variant line-clamp-3 mb-xl">
+                                Tổng quan quy trình gia công đồ uống từ công thức đến thành phẩm, đảm bảo chất lượng và tối ưu chi phí cho đối tác.
+                            </p>
+<div class="mt-auto flex items-center justify-between pt-md border-t border-outline-variant">
+<span class="text-xs text-on-surface-variant">02/05/2024 • 6 phút đọc</span>
+<a class="text-primary font-bold text-sm flex items-center gap-1 group" href="#">
+                                    Đọc thêm
+                                    <span class="material-symbols-outlined group-hover:translate-x-1 transition-transform text-[18px]">chevron_right</span>
+</a>
+</div>
+</div>
+</article>
+<!-- Article 6 -->
+<article class="bg-surface-container-lowest rounded-xl border border-outline-variant overflow-hidden hover-lift flex flex-col">
+<div class="image-zoom-container h-48">
+<img class="w-full h-full object-cover" data-alt="Sustainable almond milk products in minimalist white packaging, staged beautifully with fresh almonds and a wooden spoon. The background is a soft, natural green, symbolizing sustainable and plant-based food production." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBUWQarKpjONk7CnwYlkvwirxyysOg4nZuGwxTlY2MBeWqXiZZ9tXKqR5DsVdyx8NQCciFwP-DvimqKsFySJTeE7EcJIv4FEIPWRW-l18h-fL03IiywDVOQk1KcTFvuOJPBClfXDhzswvHP6ZopN8TtPi0RcXPwDC9CyjPX6n8J-C2d3dDJCC47vi187xgUcVIfQFJs95TcIIuGj7G2kh3FXqBETIP6L9XYtnFI_9znIORCsO8vLOr-VXivkzm-QDPQ5PDe2tE63NI"/>
+</div>
+<div class="p-lg flex flex-col flex-grow">
+<span class="text-xs font-bold text-primary uppercase mb-xs">Câu chuyện khách hàng</span>
+<h3 class="font-headline-h3 text-xl mb-sm line-clamp-2">Giacong.vn đồng hành cùng thương hiệu Sữa Hạt An Nhiên</h3>
+<p class="text-body-sm text-on-surface-variant line-clamp-3 mb-xl">
+                                Chia sẻ hành trình hợp tác, giải pháp gia công và kết quả ấn tượng giúp An Nhiên mở rộng thị trường sữa hạt chất lượng.
+                            </p>
+<div class="mt-auto flex items-center justify-between pt-md border-t border-outline-variant">
+<span class="text-xs text-on-surface-variant">25/04/2024 • 4 phút đọc</span>
+<a class="text-primary font-bold text-sm flex items-center gap-1 group" href="#">
+                                    Đọc thêm
+                                    <span class="material-symbols-outlined group-hover:translate-x-1 transition-transform text-[18px]">chevron_right</span>
+</a>
+</div>
+</div>
+</article>
+</div>
+<!-- Pagination -->
+<div class="mt-section-v-mobile flex justify-center items-center gap-sm">
+<button class="w-10 h-10 flex items-center justify-center rounded-lg border border-outline-variant bg-white text-on-surface-variant hover:bg-green-100 transition-colors">
+<span class="material-symbols-outlined">chevron_left</span>
+</button>
+<button class="w-10 h-10 flex items-center justify-center rounded-lg bg-primary text-white font-bold">1</button>
+<button class="w-10 h-10 flex items-center justify-center rounded-lg border border-outline-variant bg-white text-on-surface-variant hover:bg-green-100 transition-colors">2</button>
+<button class="w-10 h-10 flex items-center justify-center rounded-lg border border-outline-variant bg-white text-on-surface-variant hover:bg-green-100 transition-colors">3</button>
+<span class="px-2">...</span>
+<button class="w-10 h-10 flex items-center justify-center rounded-lg border border-outline-variant bg-white text-on-surface-variant hover:bg-green-100 transition-colors">20</button>
+<button class="w-10 h-10 flex items-center justify-center rounded-lg border border-outline-variant bg-white text-on-surface-variant hover:bg-green-100 transition-colors">
+<span class="material-symbols-outlined">chevron_right</span>
+</button>
+</div>
+</div>
+<!-- Sidebar -->
+<aside class="lg:col-span-3 space-y-xl">
+<!-- Popular Articles -->
+<div class="bg-surface-container-lowest p-lg rounded-xl border border-outline-variant shadow-sm">
+<h4 class="font-headline-h3 text-lg mb-lg border-b border-outline-variant pb-md">Bài viết phổ biến</h4>
+<div class="space-y-lg">
+<a class="flex gap-md group" href="#">
+<div class="w-4 h-4 mt-1 bg-primary text-white text-[10px] flex items-center justify-center rounded-full shrink-0 font-bold">1</div>
+<div>
+<h5 class="text-body-sm font-bold line-clamp-2 group-hover:text-primary transition-colors">Gia công thực phẩm là gì? Quy trình và lưu ý quan trọng</h5>
+<span class="text-[12px] text-on-surface-variant">10/05/2024</span>
+</div>
+</a>
+<a class="flex gap-md group" href="#">
+<div class="w-4 h-4 mt-1 bg-secondary text-white text-[10px] flex items-center justify-center rounded-full shrink-0 font-bold">2</div>
+<div>
+<h5 class="text-body-sm font-bold line-clamp-2 group-hover:text-primary transition-colors">Tiêu chuẩn ISO 22000 trong gia công thực phẩm</h5>
+<span class="text-[12px] text-on-surface-variant">06/05/2024</span>
+</div>
+</a>
+<a class="flex gap-md group" href="#">
+<div class="w-4 h-4 mt-1 bg-secondary text-white text-[10px] flex items-center justify-center rounded-full shrink-0 font-bold">3</div>
+<div>
+<h5 class="text-body-sm font-bold line-clamp-2 group-hover:text-primary transition-colors">5 xu hướng thực phẩm healthy lên ngôi năm 2024</h5>
+<span class="text-[12px] text-on-surface-variant">08/05/2024</span>
+</div>
+</a>
+</div>
+</div>
+<!-- Popular Topics/Tags -->
+<div class="bg-surface-container-lowest p-lg rounded-xl border border-outline-variant shadow-sm">
+<h4 class="font-headline-h3 text-lg mb-lg border-b border-outline-variant pb-md">Chủ đề nổi bật</h4>
+<div class="flex flex-wrap gap-2">
+<a class="text-xs px-md py-xs bg-surface-container rounded-full hover:bg-primary hover:text-white transition-colors border border-outline-variant" href="#">Gia công thực phẩm</a>
+<a class="text-xs px-md py-xs bg-surface-container rounded-full hover:bg-primary hover:text-white transition-colors border border-outline-variant" href="#">ISO 22000</a>
+<a class="text-xs px-md py-xs bg-surface-container rounded-full hover:bg-primary hover:text-white transition-colors border border-outline-variant" href="#">Xu hướng 2024</a>
+<a class="text-xs px-md py-xs bg-surface-container rounded-full hover:bg-primary hover:text-white transition-colors border border-outline-variant" href="#">Nguyên liệu sạch</a>
+<a class="text-xs px-md py-xs bg-surface-container rounded-full hover:bg-primary hover:text-white transition-colors border border-outline-variant" href="#">Đồ uống</a>
+<a class="text-xs px-md py-xs bg-surface-container rounded-full hover:bg-primary hover:text-white transition-colors border border-outline-variant" href="#">Bao bì</a>
+<a class="text-xs px-md py-xs bg-surface-container rounded-full hover:bg-primary hover:text-white transition-colors border border-outline-variant" href="#">Pháp lý</a>
+</div>
+</div>
+<!-- Inline Newsletter -->
+<div class="bg-primary/5 p-lg rounded-xl border border-primary/20 relative overflow-hidden">
+<div class="relative z-10">
+<h4 class="font-headline-h3 text-lg mb-sm">Đăng ký nhận tin</h4>
+<p class="text-body-sm text-on-surface-variant mb-lg">
+                            Nhận thông tin thị trường và báo giá ưu đãi mới nhất từ chúng tôi.
+                        </p>
+<div class="space-y-sm">
+<input class="w-full text-body-sm px-md py-sm rounded-lg border-outline-variant focus:ring-primary focus:border-primary" placeholder="Nhập email của bạn" type="email"/>
+<button class="w-full bg-primary text-white py-sm rounded-lg font-button-text hover:bg-green-600 transition-colors flex items-center justify-center gap-2">
+                                Gửi đăng ký
+                                <span class="material-symbols-outlined text-[18px]">send</span>
+</button>
+</div>
+<p class="text-[10px] text-on-surface-variant mt-md text-center">Chúng tôi cam kết bảo mật thông tin cá nhân của bạn.</p>
+</div>
+<div class="absolute -right-4 -bottom-4 w-24 h-24 text-primary/10">
+<span class="material-symbols-outlined text-[120px]" style="font-variation-settings: 'FILL' 1;">mail</span>
+</div>
+</div>
+</aside>
+</section>
+<!-- CTA Section -->
+<section class="max-w-container-max mx-auto px-gutter mb-section-v-desktop">
+<div class="bg-gradient-to-r from-primary to-green-600 rounded-2xl p-xl lg:p-section-v-mobile relative overflow-hidden flex flex-col lg:flex-row items-center gap-xl">
+<div class="absolute inset-0 opacity-10 pointer-events-none" style="background-image: radial-gradient(circle at 2px 2px, white 1px, transparent 0); background-size: 24px 24px;"></div>
+<div class="lg:w-2/3 relative z-10 text-white">
+<span class="text-green-100 font-bold uppercase tracking-widest text-xs mb-md block">Giải pháp gia công trọn gói</span>
+<h2 class="font-headline-h1 text-headline-h1-mobile lg:text-headline-h1 mb-lg">Sẵn sàng hiện thực hóa sản phẩm của bạn?</h2>
+<p class="text-body-lg text-white/90 mb-xl max-w-2xl">
+                        Đội ngũ chuyên gia của Giacong.vn luôn sẵn sàng tư vấn giải pháp gia công tối ưu – an toàn – hiệu quả cho doanh nghiệp của bạn.
+                    </p>
+<div class="flex flex-wrap gap-md">
+<button class="bg-white text-primary px-xl py-md rounded-lg font-button-text hover:bg-green-100 transition-all flex items-center gap-2">
+                            Tư vấn giải pháp ngay
+                            <span class="material-symbols-outlined">arrow_forward</span>
+</button>
+</div>
+</div>
+<div class="lg:w-1/3 relative z-10 flex justify-center">
+<div class="relative">
+<div class="w-48 h-48 bg-white/20 rounded-full blur-3xl absolute inset-0 animate-pulse"></div>
+<img class="relative z-10 w-64 h-auto object-contain" data-alt="Friendly professional Vietnamese female consultant with a headset, smiling warmly. She is wearing a clean professional uniform, set against a blurred background of a modern food innovation lab. The atmosphere is helpful, efficient, and corporate-friendly." src="https://lh3.googleusercontent.com/aida-public/AB6AXuACWH68QfDvylQQTzLDDXSh3eNHXp4rMiVIsYa6InA3X8MXnFDDagcuOiJgqVM7XtmvsBEpZVALYQbADj5rZSMdyR1Df10p60ZrIgw16TyE_ZDiL4AmiOAEI5Q5SG39qGjJz6EXqcgFiASrQG9BKGrZy1bINbpVLwX4nP657_NHmpOlHhBI-qtcwk0tnQLIDXRJA61HwzKHx0dWaLPY3WVj6LN5YrsquJEqBSIcq53992RZt8v_VR6dkm0tJY3GnHOd5n71lOkfqAw"/>
+</div>
+</div>
+</div>
+</section>
+</main>
+<!-- Footer -->
+<footer class="w-full pt-section-v-desktop pb-lg bg-gradient-to-br from-footer-gradient-start to-footer-gradient-end text-surface">
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-xl px-gutter max-w-container-max mx-auto mb-section-v-mobile">
+<div class="space-y-lg">
+<span class="font-headline-h3 text-headline-h3 font-bold text-surface">Giacong.vn</span>
+<p class="text-body-sm text-surface/80">
+                    Giacong.vn cung cấp giải pháp gia công OEM toàn diện, giúp doanh nghiệp tạo ra sản phẩm chất lượng, an toàn và vững thương hiệu trên thị trường.
+                </p>
+<div class="flex gap-md">
+<a class="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 transition-colors" href="#">
+<svg class="w-5 h-5 fill-current" viewbox="0 0 24 24"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"></path></svg>
+</a>
+<a class="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 transition-colors" href="#">
+<svg class="w-5 h-5 fill-current" viewbox="0 0 24 24"><path d="M12 0C8.74 0 8.333.015 7.053.072 5.775.132 4.905.333 4.14.63c-.789.306-1.459.717-2.126 1.384S.935 3.35.63 4.14C.333 4.905.131 5.775.072 7.053.012 8.333 0 8.74 0 12s.012 3.667.072 4.947c.06 1.277.261 2.148.558 2.913.306.788.717 1.459 1.384 2.126.667.666 1.336 1.079 2.126 1.384.766.296 1.636.499 2.913.558C8.333 23.988 8.74 24 12 24s3.667-.012 4.947-.072c1.277-.06 2.148-.262 2.913-.558.788-.306 1.459-.718 2.126-1.384.666-.667 1.079-1.335 1.384-2.126.296-.765.499-1.636.558-2.913.06-1.28.072-1.687.072-4.947s-.012-3.667-.072-4.947c-.06-1.277-.262-2.149-.558-2.913-.306-.789-.718-1.459-1.384-2.126C21.319 1.347 20.651.935 19.86.63c-.765-.297-1.636-.499-2.913-.558C15.667.012 15.26 0 12 0zm0 2.16c3.203 0 3.585.016 4.85.071 1.17.055 1.805.249 2.227.415.562.217.96.477 1.382.896.419.42.679.819.896 1.381.164.422.36 1.057.413 2.227.057 1.266.07 1.646.07 4.85s-.015 3.585-.074 4.85c-.061 1.17-.256 1.805-.421 2.227-.224.562-.479.96-.899 1.382-.419.419-.824.679-1.38.896-.42.164-1.065.36-2.235.413-1.274.057-1.649.07-4.859.07-3.211 0-3.586-.015-4.859-.074-1.171-.061-1.816-.256-2.236-.421-.569-.224-.96-.479-1.379-.899-.421-.419-.69-.824-.9-1.38-.165-.42-.359-1.065-.42-2.235-.045-1.26-.061-1.649-.061-4.844 0-3.196.016-3.586.061-4.861.061-1.17.255-1.814.42-2.234.21-.57.479-.96.9-1.381.419-.419.81-.689 1.379-.898.42-.166 1.051-.361 2.221-.421 1.275-.045 1.65-.06 4.859-.06l.045.03zM12 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"></path></svg>
+</a>
+</div>
+</div>
+<div>
+<h4 class="font-bold mb-lg border-b border-white/20 pb-md">Về chúng tôi</h4>
+<ul class="space-y-sm">
+<li><a class="text-body-sm text-surface/80 hover:text-surface transition-colors hover:translate-x-1 inline-block" href="#">Giới thiệu</a></li>
+<li><a class="text-body-sm text-surface/80 hover:text-surface transition-colors hover:translate-x-1 inline-block" href="#">Tầm nhìn - Sứ mệnh</a></li>
+<li><a class="text-body-sm text-surface/80 hover:text-surface transition-colors hover:translate-x-1 inline-block" href="#">Giá trị cốt lõi</a></li>
+<li><a class="text-body-sm text-surface/80 hover:text-surface transition-colors hover:translate-x-1 inline-block" href="#">Cơ sở vật chất</a></li>
+</ul>
+</div>
+<div>
+<h4 class="font-bold mb-lg border-b border-white/20 pb-md">Dịch vụ</h4>
+<ul class="space-y-sm">
+<li><a class="text-body-sm text-surface/80 hover:text-surface transition-colors hover:translate-x-1 inline-block" href="#">Gia công thực phẩm</a></li>
+<li><a class="text-body-sm text-surface/80 hover:text-surface transition-colors hover:translate-x-1 inline-block" href="#">Gia công đồ uống</a></li>
+<li><a class="text-body-sm text-surface/80 hover:text-surface transition-colors hover:translate-x-1 inline-block" href="#">Gia công dược liệu</a></li>
+<li><a class="text-body-sm text-surface/80 hover:text-surface transition-colors hover:translate-x-1 inline-block" href="#">Thiết kế &amp; Bao bì</a></li>
+</ul>
+</div>
+<div>
+<h4 class="font-bold mb-lg border-b border-white/20 pb-md">Liên hệ</h4>
+<ul class="space-y-sm text-body-sm text-surface/80">
+<li class="flex items-start gap-2">
+<span class="material-symbols-outlined text-[18px]">location_on</span>
+                        108 Lê Duẩn, Đống Đa, Hà Nội
+                    </li>
+<li class="flex items-center gap-2">
+<span class="material-symbols-outlined text-[18px]">call</span>
+                        1900 633 813
+                    </li>
+<li class="flex items-center gap-2">
+<span class="material-symbols-outlined text-[18px]">mail</span>
+                        info@giacong.vn
+                    </li>
+</ul>
+<div class="mt-lg">
+<h5 class="text-[12px] font-bold uppercase mb-sm">Đăng ký nhận tin</h5>
+<div class="flex">
+<input class="bg-white/10 border-white/20 text-white rounded-l-lg py-1 px-3 w-full text-xs focus:ring-white" placeholder="Email" type="text"/>
+<button class="bg-white text-primary px-3 rounded-r-lg hover:bg-green-100 transition-colors">
+<span class="material-symbols-outlined text-[18px]">chevron_right</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+<div class="border-t border-white/10 pt-lg max-w-container-max mx-auto px-gutter flex flex-col md:flex-row justify-between items-center gap-md">
+<p class="text-[12px] text-surface/60">© 2024 Giacong.vn. All rights reserved.</p>
+<div class="flex gap-xl">
+<a class="text-[12px] text-surface/60 hover:text-surface" href="#">Chính sách bảo mật</a>
+<a class="text-[12px] text-surface/60 hover:text-surface" href="#">Điều khoản sử dụng</a>
+</div>
+</div>
+</footer>
+<!-- Floating Contact Actions -->
+<div class="fixed bottom-gutter right-gutter z-50 flex flex-col gap-md">
+<a class="w-12 h-12 bg-white text-primary shadow-xl rounded-full flex items-center justify-center hover:scale-110 transition-transform" href="#">
+<span class="material-symbols-outlined">chat</span>
+</a>
+<a class="w-12 h-12 bg-primary text-white shadow-xl rounded-full flex items-center justify-center hover:scale-110 transition-transform animate-bounce" href="#">
+<span class="material-symbols-outlined">call</span>
+</a>
+</div>
+<script>
+        // Simple header scroll effect
+        window.addEventListener('scroll', () => {
+            const header = document.querySelector('header');
+            if (window.scrollY > 20) {
+                header.classList.add('shadow-md');
+                header.classList.remove('shadow-sm');
+            } else {
+                header.classList.remove('shadow-md');
+                header.classList.add('shadow-sm');
+            }
+        });
+    </script>
+</body></html>

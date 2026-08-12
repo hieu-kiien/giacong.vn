@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "colors": {
+    "green": {
+      "950": "#052E16",
+      "900": "#075E2E",
+      "800": "#0B6B34",
+      "700": "#15803D",
+      "600": "#16A34A",
+      "500": "#22C55E",
+      "400": "#4ADE80",
+      "200": "#BBF7D0",
+      "100": "#DCFCE7",
+      "50": "#F0FDF4"
+    },
+    "slate": {
+      "950": "#020617",
+      "900": "#0F172A",
+      "800": "#1E293B",
+      "700": "#334155",
+      "600": "#475569",
+      "500": "#64748B",
+      "300": "#CBD5E1",
+      "200": "#E2E8F0",
+      "100": "#F1F5F9",
+      "50": "#F8FAFC"
+    },
+    "semantic": {
+      "success": "#16A34A",
+      "info": "#0284C7",
+      "warning": "#F59E0B",
+      "error": "#DC2626",
+      "rating": "#F59E0B"
+    }
+  },
+  "font": {
+    "family": "Be Vietnam Pro",
+    "fallback": [
+      "Inter",
+      "Arial",
+      "sans-serif"
+    ]
+  },
+  "container": {
+    "maxWidth": 1280,
+    "desktopPadding": 24,
+    "tabletPadding": 20,
+    "mobilePadding": 16,
+    "gutter": 24
+  },
+  "spacing": [
+    4,
+    8,
+    12,
+    16,
+    20,
+    24,
+    32,
+    40,
+    48,
+    64,
+    80,
+    96,
+    128
+  ],
+  "radius": {
+    "sm": 8,
+    "md": 12,
+    "lg": 16,
+    "xl": 24,
+    "2xl": 32,
+    "pill": 999
+  },
+  "motion": {
+    "instant": 0.1,
+    "fast": 0.18,
+    "base": 0.26,
+    "slow": 0.48,
+    "hero": 0.7,
+    "ease": [
+      0.22,
+      1,
+      0.36,
+      1
+    ]
+  }
+}

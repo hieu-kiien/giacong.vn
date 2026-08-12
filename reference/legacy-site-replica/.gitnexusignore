@@ -1,0 +1,11 @@
+# Dependencies and generated output are not application source.
+backend/vendor/
+backend/public/css/
+backend/public/js/
+frontend/node_modules/
+frontend/.next/
+node_modules/
+playwright-report/
+screenshots/
+assets/
+scratch/

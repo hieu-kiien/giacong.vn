@@ -1,0 +1,41 @@
+PAGE: Home
+URL: https://giacong.vn/
+Title: Giacong.vn - Đối Tác Gia Công OEM/ODM & Private Label Hàng Đầu
+Body Classes: ['home', 'wp-singular', 'page-template', 'page-template-page-transparent-header-light', 'page-template-page-transparent-header-light-php', 'page', 'page-id-3984', 'wp-theme-flatsome', 'wp-child-theme-thiet-ke-web', 'theme-flatsome', 'woocommerce-no-js', 'lightbox', 'nav-dropdown-has-shadow', 'nav-dropdown-has-border']
+
+--- SECTORS CONTAINING TEXT (Selectors check) ---
+Count of .entry-content: 0
+Count of #tab-description: 0
+Count of .summary.entry-summary: 0
+Count of <main>: 1
+  [0] Tag: main, ID: main, Classes: []
+
+--- HEADINGS ---
+h3: Giacong.vn cung cấp
+h1: Giải pháp gia công toàn diện chuyên nghiệp
+h2: Đồng hành cùng doanh nghiệp trong thời đại mới
+h2: Các dịch vụ của Giacong.vn
+h3: Nghiên cứu
+h3: Sản xuất
+h3: Thiết kế
+h3: Đóng gói
+h2: Sẵn sàng tiếp cận
+hàng triệu khách hàng tiềm năng?
+h2: Bắt đầu với chúng tôi
+ngay hôm nay
+h3: Tăng giá trị sản phẩm
+h3: Tối ưu chi phí
+h3: Đảm bảo chất lượng
+h3: Tối ưu hóa thời gian
+h3: Mở rộng xuất khẩu
+h2: 12+ năm phụng sự khách hàng
+h2: Đây là những gì khách hàng
+nói về chúng tôi
+h3: Anh Trịnh Anh Tuấn
+h3: Chị Nguyễn Ngọc Mai Anh
+h2: 500+ doanh nghiệp nổi bật
+h2: Hãy để Giacong.vn hiểu hơn về bạn
+h3: Các dịch vụ chính
+h3: Chính sách chung
+h3: VIET NAM TRADE PROMOTION DEVELOPMENT INVESTMENT .,JSC
+h3: Đăng nhập

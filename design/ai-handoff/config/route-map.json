@@ -1,0 +1,57 @@
+{
+  "routes": [
+    {
+      "path": "/",
+      "id": "home",
+      "reference": "01-home.png"
+    },
+    {
+      "path": "/ve-giacong-vn",
+      "id": "about",
+      "reference": "02-about.png"
+    },
+    {
+      "path": "/dich-vu",
+      "id": "services",
+      "reference": "03-services.png"
+    },
+    {
+      "path": "/dich-vu/[slug]",
+      "id": "service-detail"
+    },
+    {
+      "path": "/san-pham",
+      "id": "product-list",
+      "reference": "04-product-list.png"
+    },
+    {
+      "path": "/san-pham/[slug]",
+      "id": "product-detail",
+      "reference": "05-product-detail.png"
+    },
+    {
+      "path": "/tin-tuc",
+      "id": "news",
+      "reference": "06-news.png"
+    },
+    {
+      "path": "/tin-tuc/[slug]",
+      "id": "article-detail"
+    },
+    {
+      "path": "/lien-he",
+      "id": "contact",
+      "reference": "07-contact.png"
+    },
+    {
+      "path": "/gio-hang",
+      "id": "cart",
+      "phase": 2
+    },
+    {
+      "path": "/thanh-toan",
+      "id": "checkout",
+      "phase": 2
+    }
+  ]
+}

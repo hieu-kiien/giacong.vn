@@ -1,0 +1,121 @@
+{
+  "site": {
+    "name": "Giacong.vn",
+    "tagline": "Nông sản - Thực phẩm - Dược liệu",
+    "hotline": "1900 633 813",
+    "email": "info@giacong.vn",
+    "address": "TODO: xác nhận địa chỉ",
+    "quoteCta": "Nhận báo giá"
+  },
+  "stats": [
+    {
+      "value": 10,
+      "suffix": "+",
+      "label": "Năm kinh nghiệm",
+      "verified": false
+    },
+    {
+      "value": 500,
+      "suffix": "+",
+      "label": "Công thức độc quyền",
+      "verified": false
+    },
+    {
+      "value": 1000,
+      "suffix": "+",
+      "label": "Khách hàng tin tưởng",
+      "verified": false
+    },
+    {
+      "value": 50,
+      "suffix": "+",
+      "label": "Quốc gia đã xuất khẩu",
+      "verified": false
+    },
+    {
+      "value": 99,
+      "suffix": "%",
+      "label": "Đánh giá hài lòng",
+      "verified": false
+    }
+  ],
+  "services": [
+    {
+      "slug": "gia-cong-thuc-pham",
+      "title": "Gia công thực phẩm",
+      "description": "Gia công sản phẩm dinh dưỡng, thực phẩm tiện lợi và các dòng theo yêu cầu."
+    },
+    {
+      "slug": "gia-cong-do-uong",
+      "title": "Gia công đồ uống",
+      "description": "Nước ép, sữa hạt, trà thảo mộc và thức uống dinh dưỡng."
+    },
+    {
+      "slug": "gia-cong-duoc-lieu",
+      "title": "Gia công dược liệu",
+      "description": "Trà túi lọc, cao chiết, viên nang và sản phẩm thảo dược."
+    },
+    {
+      "slug": "nghien-cuu-phat-trien",
+      "title": "Nghiên cứu & phát triển",
+      "description": "Phát triển công thức mới và cải tiến sản phẩm."
+    },
+    {
+      "slug": "thiet-ke-bao-bi",
+      "title": "Thiết kế & bao bì",
+      "description": "Nhận diện và bao bì phù hợp thị trường, quy định."
+    },
+    {
+      "slug": "dang-ky-cong-bo",
+      "title": "Đăng ký công bố",
+      "description": "Hỗ trợ hồ sơ và thủ tục pháp lý liên quan."
+    }
+  ],
+  "products": [
+    {
+      "id": "oat-milk",
+      "slug": "sua-yen-mach",
+      "name": "Sữa yến mạch",
+      "category": "Sữa thực vật",
+      "price": 89000,
+      "unitLabel": "chai",
+      "packageSize": "250ml",
+      "inStock": true,
+      "image": "/images/products/oat-milk.png"
+    },
+    {
+      "id": "whey",
+      "slug": "sua-whey-protein",
+      "name": "Sữa whey protein",
+      "category": "Sữa bột",
+      "price": 250000,
+      "unitLabel": "hộp",
+      "packageSize": "900g",
+      "inStock": true,
+      "image": "/images/products/whey.png"
+    },
+    {
+      "id": "fresh-milk",
+      "slug": "sua-tuoi-tiet-trung",
+      "name": "Sữa tươi tiệt trùng",
+      "category": "Sữa tươi",
+      "price": 120000,
+      "unitLabel": "lốc",
+      "packageSize": "1L (4 hộp)",
+      "inStock": true,
+      "image": "/images/products/fresh-milk.png"
+    },
+    {
+      "id": "yogurt",
+      "slug": "sua-chua-uong-dau",
+      "name": "Sữa chua uống dâu",
+      "category": "Sữa chua",
+      "price": 95000,
+      "unitLabel": "lốc",
+      "packageSize": "180ml x 4",
+      "inStock": true,
+      "image": "/images/products/yogurt.png"
+    }
+  ],
+  "notes": "Dữ liệu minh họa. Phải thay bằng dữ liệu đã xác nhận trước production."
+}

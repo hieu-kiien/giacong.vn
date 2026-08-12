@@ -1,0 +1,123 @@
+Hãy đọc tiếp toàn bộ bộ handoff và bắt đầu triển khai ngay, không dừng ở việc đọc file.
+
+Quy ước thư mục:
+
+- `giacong_ai_handoff/` chính là thư mục `/handoff` được nhắc đến trong prompt.
+- Đây chỉ là tài liệu tham chiếu, không được chỉnh sửa hoặc đặt source code ứng dụng vào trong thư mục này.
+- Hãy tạo một project mới nằm cạnh thư mục handoff với tên:
+
+  `giacong-web/`
+
+Cấu trúc dự kiến:
+
+workspace/
+├── giacong_ai_handoff/
+└── giacong-web/
+
+Thực hiện theo thứ tự sau:
+
+1. Đọc đầy đủ:
+   - `giacong_ai_handoff/AGENTS.md`
+   - `giacong_ai_handoff/MANIFEST.txt`
+   - `giacong_ai_handoff/docs/`
+   - `giacong_ai_handoff/config/`
+   - `giacong_ai_handoff/src-snippets/`
+   - Toàn bộ ảnh trong `giacong_ai_handoff/references/`
+   - Các tài liệu specification liên quan
+
+2. Lập bảng đối chiếu ngắn gồm:
+   - Danh sách route
+   - Component dùng chung
+   - Design tokens
+   - Data entity
+   - Animation cần triển khai
+   - Nội dung hoặc dữ liệu còn thiếu
+   - Các mục đang được đánh dấu TODO
+
+3. Tạo project Next.js mới trong `giacong-web/`:
+   - Next.js App Router
+   - TypeScript strict
+   - Tailwind CSS
+   - thư mục `src/`
+   - ESLint
+   - import alias `@/*`
+   - package manager: ưu tiên `pnpm` nếu có, nếu không dùng `npm`
+
+4. Khởi tạo Git repository trong `giacong-web/` nếu workspace chưa có Git repository.
+
+5. Không sao chép nguyên ảnh mockup để dùng làm giao diện. Các trang phải được dựng bằng HTML, React component và CSS thực tế.
+
+6. Có thể sao chép các asset cần thiết từ handoff sang:
+   - `giacong-web/public/images/`
+   - `giacong-web/public/icons/`
+   - `giacong-web/public/brand/`
+
+   Nhưng phải giữ nguyên thư mục handoff.
+
+7. Trước khi code, chỉ cần báo cáo ngắn:
+   - Kiến trúc dự kiến
+   - Các phase
+   - Blocker thật sự nếu có
+
+8. Sau báo cáo ngắn, bắt đầu Phase 1 ngay, không chờ tôi xác nhận.
+
+Phase 1 phải hoàn thành tối thiểu:
+
+- Project foundation
+- Cấu trúc thư mục
+- Design tokens
+- CSS variables
+- Global styles
+- Typography
+- Container và grid
+- Các primitive UI quan trọng
+- Motion presets
+- Root layout
+- Header desktop
+- Header mobile
+- Sticky header
+- Navigation
+- Mega menu cơ bản
+- Footer
+- Floating contact actions
+- Mock data layer ban đầu
+- Type definitions
+- Metadata nền tảng
+- `README.md`
+- `.env.example`
+
+Quy tắc quan trọng:
+
+- Khi ảnh mockup và specification khác nhau, specification thắng.
+- Không tự bịa dữ liệu doanh nghiệp.
+- Không tự xác nhận các chứng nhận, khách hàng, số liệu hoặc đối tác.
+- Nội dung chưa xác thực phải đặt trong data source dưới dạng TODO hoặc placeholder trung tính.
+- Không để chữ bị AI sinh sai trong ảnh trở thành nội dung chính thức.
+- Server Components là mặc định.
+- Chỉ dùng Client Components tại nơi có interaction.
+- Không dùng `any`.
+- Không suppress lỗi TypeScript hoặc ESLint tùy tiện.
+- Không hard-code màu sắc và spacing rải rác.
+- Mọi token phải có nguồn thống nhất.
+- Bắt buộc có `prefers-reduced-motion`.
+- Animation ưu tiên `transform` và `opacity`.
+- Không lạm dụng animation hoặc GSAP.
+
+Sau khi hoàn thành Phase 1, hãy chạy:
+
+- install dependencies
+- lint
+- typecheck
+- production build
+
+Sửa toàn bộ lỗi trước khi báo cáo.
+
+Báo cáo cuối Phase 1 theo đúng 5 mục:
+
+1. Đã làm gì
+2. File chính đã tạo hoặc thay đổi
+3. Cách chạy và kiểm tra
+4. Vấn đề còn tồn tại
+5. Công việc tiếp theo
+
+Sau đó tiếp tục sang Phase 2 nếu không có blocker nghiêm trọng.

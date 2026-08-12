@@ -1,0 +1,27 @@
+PAGE: Contact
+URL: https://giacong.vn/lien-he/
+Title: Liên hệ - Giacong.vn
+Body Classes: ['wp-singular', 'page-template', 'page-template-page-transparent-header-light', 'page-template-page-transparent-header-light-php', 'page', 'page-id-14', 'wp-theme-flatsome', 'wp-child-theme-thiet-ke-web', 'theme-flatsome', 'woocommerce-no-js', 'lightbox', 'nav-dropdown-has-shadow', 'nav-dropdown-has-border']
+
+--- SECTORS CONTAINING TEXT (Selectors check) ---
+Count of .entry-content: 0
+Count of #tab-description: 0
+Count of .summary.entry-summary: 0
+Count of <main>: 1
+  [0] Tag: main, ID: main, Classes: []
+
+--- HEADINGS ---
+h1: Liên hệ
+h3: Thông tin công ty
+h3: Yêu cầu báo giá
+h3: Các dịch vụ chính
+h3: Chính sách chung
+h3: VIET NAM TRADE PROMOTION DEVELOPMENT INVESTMENT .,JSC
+h3: Đăng nhập
+
+--- CONTACT DETAILS PAGE SCAN ---
+  li[class=None]: Địa chỉ: 108 Lê Duẩn – Đống Đa – Hà Nội
+  li[class=None]: Điện thoại: 0938.591.444
+  li[class=None]: Email: info@giacong.vn
+  li[class=None]: Hotline :0947142999
+  li[class=None]: Email: info@giacong.vn

@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+
+<html lang="vi"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Liên hệ &amp; Nhận báo giá | Giacong.vn</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            display: inline-block;
+            vertical-align: middle;
+        }
+        .form-checkbox:checked {
+            background-image: url("data:image/svg+xml,%3csvg viewBox='0 0 16 16' fill='white' xmlns='http://www.w3.org/2000/svg'%3e%3cpath d='M12.207 4.793a1 1 0 010 1.414l-5 5a1 1 0 01-1.414 0l-2-2a1 1 0 011.414-1.414L6.5 9.086l4.293-4.293a1 1 0 011.414 0z'/%3e%3c/svg%3e");
+        }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(226, 232, 240, 0.5);
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "secondary": "#55615a",
+                        "surface-container-lowest": "#ffffff",
+                        "surface-bright": "#f6fbf2",
+                        "surface": "#f6fbf2",
+                        "on-background": "#181d17",
+                        "on-primary-fixed": "#00210a",
+                        "on-primary": "#ffffff",
+                        "error": "#ba1a1a",
+                        "inverse-on-surface": "#edf2e9",
+                        "on-tertiary-container": "#fff1f1",
+                        "crimson-error": "#E11D2E",
+                        "green-100": "#DCFCE7",
+                        "secondary-fixed": "#d9e6dd",
+                        "inverse-surface": "#2c322c",
+                        "tertiary-fixed": "#ffd9dd",
+                        "outline-variant": "#becabc",
+                        "primary": "#15803d",
+                        "on-primary-fixed-variant": "#005323",
+                        "secondary-fixed-dim": "#bdcac1",
+                        "slate-200": "#E2E8F0",
+                        "footer-gradient-start": "#065F2E",
+                        "tertiary-container": "#b64c62",
+                        "on-secondary-container": "#5b6760",
+                        "background": "#f6fbf2",
+                        "footer-gradient-end": "#08752E",
+                        "on-surface-variant": "#3f493f",
+                        "surface-dim": "#d6dcd3",
+                        "primary-container": "#15803d",
+                        "surface-tint": "#15803d",
+                        "on-error": "#ffffff",
+                        "primary-fixed": "#95f8a7",
+                        "surface-container-high": "#e4eae1",
+                        "primary-fixed-dim": "#79db8d",
+                        "surface-container-highest": "#dfe4db",
+                        "slate-950": "#0B1220",
+                        "on-error-container": "#93000a",
+                        "surface-variant": "#dfe4db",
+                        "outline": "#6f7a6e",
+                        "surface-container": "#eaefe6",
+                        "error-container": "#ffdad6",
+                        "on-surface": "#181d17",
+                        "on-tertiary": "#ffffff",
+                        "surface-container-low": "#f0f5ec",
+                        "tertiary": "#97344a",
+                        "slate-500": "#64748B",
+                        "on-tertiary-fixed": "#400013",
+                        "on-secondary-fixed": "#131e19",
+                        "on-secondary": "#ffffff",
+                        "tertiary-fixed-dim": "#ffb2bd",
+                        "on-primary-container": "#d3ffd5",
+                        "inverse-primary": "#79db8d",
+                        "on-secondary-fixed-variant": "#3e4943",
+                        "secondary-container": "#d9e6dd",
+                        "on-tertiary-fixed-variant": "#81233b",
+                        "green-600": "#16A34A"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.5rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "sm": "8px",
+                        "gutter": "24px",
+                        "container-max": "1280px",
+                        "section-v-mobile": "48px",
+                        "unit": "8px",
+                        "section-v-desktop": "96px",
+                        "md": "16px",
+                        "lg": "24px",
+                        "xl": "32px",
+                        "xs": "4px"
+                    },
+                    "fontFamily": {
+                        "body-base": ["Inter"],
+                        "headline-h1": ["Inter"],
+                        "body-sm": ["Inter"],
+                        "body-lg": ["Inter"],
+                        "headline-h2": ["Inter"],
+                        "hero-display": ["Inter"],
+                        "headline-h3": ["Inter"],
+                        "headline-h1-mobile": ["Inter"],
+                        "button-text": ["Inter"],
+                        "label-caps": ["Inter"]
+                    },
+                    "fontSize": {
+                        "body-base": ["16px", {"lineHeight": "1.65", "fontWeight": "400"}],
+                        "headline-h1": ["48px", {"lineHeight": "1.15", "fontWeight": "700"}],
+                        "body-sm": ["14px", {"lineHeight": "1.55", "fontWeight": "400"}],
+                        "body-lg": ["18px", {"lineHeight": "1.7", "fontWeight": "400"}],
+                        "headline-h2": ["36px", {"lineHeight": "1.2", "fontWeight": "700"}],
+                        "hero-display": ["56px", {"lineHeight": "1.08", "letterSpacing": "-0.02em", "fontWeight": "800"}],
+                        "headline-h3": ["28px", {"lineHeight": "1.25", "fontWeight": "700"}],
+                        "headline-h1-mobile": ["32px", {"lineHeight": "1.2", "fontWeight": "700"}],
+                        "button-text": ["15px", {"lineHeight": "1", "fontWeight": "600"}],
+                        "label-caps": ["12px", {"lineHeight": "1.4", "fontWeight": "600"}]
+                    }
+                },
+            },
+        }
+    </script>
+</head>
+<body class="bg-surface font-body-base text-on-surface selection:bg-primary selection:text-white">
+<!-- Header -->
+<header class="fixed top-0 w-full z-50 bg-white/95 backdrop-blur-md border-b border-outline-variant shadow-sm">
+<div class="flex justify-between items-center px-gutter py-3 max-w-container-max mx-auto">
+<div class="flex items-center gap-xs">
+<img alt="Giacong.vn Logo" class="h-10" src="https://lh3.googleusercontent.com/aida-public/AB6AXuB-2TvK3rbIpDa0HKf_Ik_KVFjrzc-5m9w9HF7xLXvaABOYiv8TNncRaS3Kphta1eIcivKr7MteVpq_SFu_wPS0XLmr6stwZG84Z-8xCB-5VUZFT2yLsROh99fVEDfoXhlqhe9RLH3HQJv42RcXuZfk8bMvl61FeaQvSIjIUSWGJhB8gb8c1svwGOt2wLD6uTtpX2ejzfzAuN5Pw-k8T44BkbAIODHNnanac9m_N6dWqXLm4a1e4VIBnqENPx9r0_TZu4KjLpqm0J8"/>
+</div>
+<nav class="hidden lg:flex items-center gap-xl">
+<a class="text-on-surface hover:text-primary transition-colors font-medium text-sm" href="#">Home</a>
+<a class="text-on-surface hover:text-primary transition-colors font-medium text-sm" href="#">Về Giacong.vn</a>
+<div class="group relative">
+<a class="text-on-surface hover:text-primary transition-colors font-medium text-sm flex items-center gap-1" href="#">Sản phẩm <span class="material-symbols-outlined text-sm">expand_more</span></a>
+</div>
+<div class="group relative">
+<a class="text-on-surface hover:text-primary transition-colors font-medium text-sm flex items-center gap-1" href="#">Dịch vụ <span class="material-symbols-outlined text-sm">expand_more</span></a>
+</div>
+<a class="text-on-surface hover:text-primary transition-colors font-medium text-sm" href="#">Tin tức</a>
+<a class="text-primary font-bold border-b-2 border-primary text-sm pb-1" href="#">Liên hệ</a>
+</nav>
+<div class="flex items-center gap-md">
+<div class="hidden sm:flex items-center gap-2 text-primary">
+<span class="material-symbols-outlined text-2xl">call</span>
+<div class="flex flex-col -space-y-1">
+<span class="text-[10px] text-on-surface-variant font-medium">Hotline</span>
+<span class="font-bold text-sm">1900 633 813</span>
+</div>
+</div>
+<button class="bg-primary text-white px-6 py-2.5 rounded-lg font-button-text hover:bg-green-700 transition-all active:scale-95 shadow-sm flex items-center gap-2">
+                    Nhận báo giá <span class="material-symbols-outlined text-sm">arrow_forward</span>
+</button>
+</div>
+</div>
+</header>
+<main class="pt-24 lg:pt-32">
+<!-- Hero Section -->
+<section class="max-w-container-max mx-auto px-gutter mb-16 lg:mb-24">
+<div class="grid lg:grid-cols-[1fr,1.2fr] gap-12 items-center">
+<div class="space-y-6">
+<div class="inline-flex items-center gap-2 text-primary font-bold text-xs uppercase tracking-wider">
+<span class="w-8 h-[2px] bg-primary"></span>
+                        Giải pháp gia công toàn diện
+                    </div>
+<h1 class="font-headline-h1 text-4xl lg:text-5xl text-on-background leading-[1.1]">Liên hệ &amp; Nhận báo giá</h1>
+<p class="text-xl lg:text-2xl font-bold text-primary leading-tight">
+                        Gia công OEM chuẩn chất lượng – Đồng hành cùng thương hiệu của bạn
+                    </p>
+<p class="text-body-base text-on-surface-variant max-w-xl">
+                        Giacong.vn sẵn sàng tư vấn giải pháp gia công tối ưu cho ngành nông sản, thực phẩm và dược liệu. Đội ngũ chuyên gia của chúng tôi sẽ phản hồi sớm nhất cho bạn.
+                    </p>
+<div class="flex flex-wrap gap-8 pt-2">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-primary text-2xl">support_agent</span>
+<span class="text-sm font-semibold text-on-surface-variant">Tư vấn nhanh 24/7</span>
+</div>
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-primary text-2xl">verified_user</span>
+<span class="text-sm font-semibold text-on-surface-variant">Bảo mật thông tin</span>
+</div>
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-primary text-2xl">description</span>
+<span class="text-sm font-semibold text-on-surface-variant">Báo giá minh bạch</span>
+</div>
+</div>
+</div>
+<div class="relative">
+<div class="grid grid-cols-2 gap-4">
+<div class="space-y-4">
+<img alt="Nhà máy hiện đại" class="rounded-3xl w-full h-[320px] object-cover shadow-2xl border-4 border-white" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAodPK54Zu5kZLQwCgA6XFF_JGCL-EbgdKPLaHsFJJbOWoyUfIN58KITbzzguSp4DxMUXUIxRpJjWQMSeS0TNkJ0vRhpwL5hJkd7HiJYKA7WBAzHO_cZbtL6OC_nj1-UTO21FWQVdAJPa4OKt6QQrxFWe0Nmu2c83oiZdV8Gv6H6Os5Z2_z9UYHQKdcqZtvHI2yhiSYLgUC4U_IL6_x_STNrKfpp0agKFj8f1Nplv210PRSq6V4aiNnt40Rc86eJ8uUuOPi_5Z80XQ"/>
+<img alt="Phòng thí nghiệm" class="rounded-3xl w-full h-[180px] object-cover shadow-2xl border-4 border-white" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAH9m4nRArNzBcng3SJRX30VktvYaRBhyMdptkCW6j8hqYfX9SoOlMFcTSh1DxcWdy3Hp55ipga2_SUTMX1EgwB5wo28TEg9x14bSa12Od2dNd-sZ5R6rMOjLcn_UBV1Y38D3q1hcGX8yiEkYu0EeBYk2TVRU27St4JSCh-wlWag_AQQxX6lyazTu-mTSOLp7jsZYjpuAxC-QNcJrybWaMtVBNH0fWj6-cBUrV9fitTLlbfZer4KO0vzhb5bKYqLMOsPhRaxIHO8HM"/>
+</div>
+<div class="space-y-4 pt-12">
+<img alt="Sản phẩm hoàn thiện" class="rounded-3xl w-full h-[200px] object-cover shadow-2xl border-4 border-white" src="https://lh3.googleusercontent.com/aida-public/AB6AXuA8kg5n1LDMVANr4eh1HftfroYtJsyTPkoOTuTPtfiMfZnwTLTp26l9tAew4ysYTY-Jdm2X-jh3RbI3t-qmXgfmYGozwjb7jtObacsh0R5mU6a1CmPywOR6ZpwSxqwkDURGdTgu_4QVxNPe0ZhRbIMy7oSpSXV3J2EbkTPwgEAQfpocLsM3hdVokDviOaJH5hZ_ulXcuAZ4JVI-FAFZsuoRbCJup_245MD8_FSkJQjXV0utfFJGmNPIwvxp_pdjshzApjTW-5Vh9_w"/>
+<img alt="Dây chuyền sản xuất" class="rounded-3xl w-full h-[280px] object-cover shadow-2xl border-4 border-white" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCp__ItPLQ_LG8dTbjop0ls0aNcwdbgDA9Nz00kTTMQmFEjmPmVmUyR5FtjULO__LdOJTV0yiOWYMDGnSOnqWn7RSlStLQsvNA_V_OJJTZw3OS4Oy156SIPTBy9_xgB3dH-WRbfHxiQNIKHMDDak-NkqT4TbZzkrcMJWMIQWyoynMuHt5-kWJgQCArOUbNkIVW94Hkoe2Z2pnW-2QQDky20BNOsHs-nKuYymiH35Wn_1SSLFnV2N4QV-pvs7qJqilMtZLvZvkD5l1c"/>
+</div>
+</div>
+<div class="absolute top-1/2 -left-12 -translate-y-1/2 bg-primary text-white p-5 rounded-3xl shadow-2xl z-10 text-center min-w-[120px]">
+<div class="text-4xl font-extrabold leading-none">10+</div>
+<div class="text-[11px] font-medium opacity-90 mt-1 uppercase tracking-tight">Năm kinh nghiệm<br/>trong ngành</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Main Content Area -->
+<section class="max-w-container-max mx-auto px-gutter mb-24">
+<div class="grid lg:grid-cols-12 gap-8 items-start">
+<!-- Sidebar Info -->
+<aside class="lg:col-span-4 space-y-6">
+<div class="bg-white p-8 rounded-3xl shadow-sm border border-slate-100">
+<h3 class="font-bold text-lg text-on-background mb-6">Thông tin công ty</h3>
+<div class="space-y-6">
+<div>
+<h4 class="font-bold text-primary text-[11px] uppercase tracking-[0.1em] mb-2">CÔNG TY CỔ PHẦN NET FOOD</h4>
+<p class="text-sm text-on-surface-variant leading-relaxed">Giacong.vn cung cấp giải pháp gia công OEM nông sản, thực phẩm và dược liệu chất lượng cao cho thương hiệu của bạn.</p>
+</div>
+<div class="space-y-4">
+<div class="flex items-start gap-4">
+<div class="w-9 h-9 rounded-full bg-primary/5 flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-primary text-xl">location_on</span>
+</div>
+<div>
+<p class="font-bold text-on-surface text-sm">Địa chỉ</p>
+<p class="text-on-surface-variant text-sm mt-0.5">108 Lê Duẩn – Đống Đa – Hà Nội</p>
+</div>
+</div>
+<div class="flex items-start gap-4">
+<div class="w-9 h-9 rounded-full bg-primary/5 flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-primary text-xl">call</span>
+</div>
+<div>
+<p class="font-bold text-on-surface text-sm">Điện thoại</p>
+<p class="text-on-surface-variant text-sm mt-0.5">1900 633 813</p>
+</div>
+</div>
+<div class="flex items-start gap-4">
+<div class="w-9 h-9 rounded-full bg-primary/5 flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-primary text-xl">mail</span>
+</div>
+<div>
+<p class="font-bold text-on-surface text-sm">Email</p>
+<p class="text-on-surface-variant text-sm mt-0.5">info@giacong.vn</p>
+</div>
+</div>
+<div class="flex items-start gap-4">
+<div class="w-9 h-9 rounded-full bg-primary/5 flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-primary text-xl">language</span>
+</div>
+<div>
+<p class="font-bold text-on-surface text-sm">Website</p>
+<p class="text-on-surface-variant text-sm mt-0.5">https://giacong.vn</p>
+</div>
+</div>
+</div>
+<div class="pt-6 border-t border-slate-100">
+<p class="font-bold text-[10px] uppercase tracking-wider text-on-surface-variant mb-4">Kết nối với chúng tôi</p>
+<div class="flex gap-3">
+<a class="w-9 h-9 flex items-center justify-center rounded-full bg-[#3b5998] text-white hover:opacity-80 transition-opacity" href="#"><span class="material-symbols-outlined text-lg" style="font-variation-settings: 'FILL' 1">facebook</span></a>
+<a class="w-9 h-9 flex items-center justify-center rounded-full bg-black text-white hover:opacity-80 transition-opacity" href="#"><span class="material-symbols-outlined text-lg">share</span></a>
+<a class="w-9 h-9 flex items-center justify-center rounded-full bg-[#ff0000] text-white hover:opacity-80 transition-opacity" href="#"><span class="material-symbols-outlined text-lg" style="font-variation-settings: 'FILL' 1">play_circle</span></a>
+<a class="w-9 h-9 flex items-center justify-center rounded-full bg-[#0077b5] text-white hover:opacity-80 transition-opacity" href="#"><span class="material-symbols-outlined text-lg">alternate_email</span></a>
+</div>
+</div>
+</div>
+</div>
+<div class="bg-surface-container-low p-8 rounded-3xl border border-primary/5">
+<h4 class="font-bold text-lg text-primary mb-5">Thời gian hỗ trợ</h4>
+<div class="space-y-3">
+<div class="flex justify-between items-center text-sm">
+<span class="text-on-surface-variant">Thứ 2 – Thứ 7</span>
+<span class="font-bold text-on-surface">08:00 – 17:30</span>
+</div>
+<div class="flex justify-between items-center text-sm">
+<span class="text-on-surface-variant">Chủ nhật</span>
+<span class="font-bold text-on-surface">08:00 – 12:00</span>
+</div>
+</div>
+</div>
+<div class="rounded-3xl overflow-hidden h-[240px] relative border border-slate-100 shadow-sm">
+<img alt="Hanoi Map" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDi6e8krMcfCxWQ-xnNiGvNoDU6iNVEbEUJFpFUV2LmXTsIuo6MNF09HQ6PC0cVGbmpUQ_GtiSFd6mAU7gBzJIOy_ELMR0Sm7L5nEZb24tKzoZkI3yudA7LYpdAalSx86G0Y3A5zRwapkJ-rIndlbBvS8eGVqWSVy2YOn-i28g-HU5aZSrz-I0y10RbInMIc7LE18U-4QSs64obmqGegHdIHrOMNa2XHIfrDfpM4235S94Ted1rfR9O9p0-xyhE_rIoTUWfAm0wcYY"/>
+<div class="absolute bottom-4 left-4 right-4 bg-white/95 backdrop-blur-sm p-3 rounded-xl shadow-lg border border-slate-100 flex items-center gap-3">
+<span class="material-symbols-outlined text-red-500 text-xl" style="font-variation-settings: 'FILL' 1">location_on</span>
+<span class="text-xs font-bold text-on-surface truncate">108 Lê Duẩn, Đống Đa, Hà Nội</span>
+</div>
+</div>
+</aside>
+<!-- Quotation Form -->
+<div class="lg:col-span-8">
+<div class="bg-white p-8 lg:p-12 rounded-[40px] shadow-sm border border-slate-100">
+<div class="mb-10">
+<h2 class="font-bold text-2xl text-on-background mb-2">Yêu cầu báo giá</h2>
+<p class="text-on-surface-variant text-sm">Vui lòng điền thông tin, chúng tôi sẽ phản hồi sớm nhất cho bạn.</p>
+</div>
+<form class="space-y-10">
+<!-- Section 1: Contact Info -->
+<div class="space-y-6">
+<h3 class="font-bold text-base flex items-center gap-2">
+<span class="w-6 h-6 rounded-full bg-primary text-white flex items-center justify-center text-[10px] font-bold">1</span>
+                                    Thông tin liên hệ
+                                </h3>
+<div class="grid md:grid-cols-2 gap-6">
+<div class="space-y-1.5">
+<label class="text-xs font-bold text-on-surface ml-1">Họ và tên <span class="text-red-500">*</span></label>
+<input class="w-full h-12 rounded-xl border-slate-200 bg-slate-50/30 text-sm focus:border-primary focus:ring-4 focus:ring-primary/5 transition-all px-4" placeholder="Nhập họ và tên" type="text"/>
+</div>
+<div class="space-y-1.5">
+<label class="text-xs font-bold text-on-surface ml-1">Số điện thoại <span class="text-red-500">*</span></label>
+<input class="w-full h-12 rounded-xl border-slate-200 bg-slate-50/30 text-sm focus:border-primary focus:ring-4 focus:ring-primary/5 transition-all px-4" placeholder="Nhập số điện thoại" type="tel"/>
+</div>
+<div class="space-y-1.5">
+<label class="text-xs font-bold text-on-surface ml-1">Email <span class="text-red-500">*</span></label>
+<input class="w-full h-12 rounded-xl border-slate-200 bg-slate-50/30 text-sm focus:border-primary focus:ring-4 focus:ring-primary/5 transition-all px-4" placeholder="Nhập email" type="email"/>
+</div>
+<div class="space-y-1.5">
+<label class="text-xs font-bold text-on-surface ml-1">Tên doanh nghiệp</label>
+<input class="w-full h-12 rounded-xl border-slate-200 bg-slate-50/30 text-sm focus:border-primary focus:ring-4 focus:ring-primary/5 transition-all px-4" placeholder="Nhập tên doanh nghiệp" type="text"/>
+</div>
+</div>
+<div class="space-y-1.5">
+<label class="text-xs font-bold text-on-surface ml-1">Vị trí công tác</label>
+<input class="w-full h-12 rounded-xl border-slate-200 bg-slate-50/30 text-sm focus:border-primary focus:ring-4 focus:ring-primary/5 transition-all px-4" placeholder="Nhập vị trí của bạn" type="text"/>
+</div>
+</div>
+<!-- Section 2: Service Interest -->
+<div class="space-y-6">
+<h3 class="font-bold text-base flex items-center gap-2">
+<span class="w-6 h-6 rounded-full bg-primary text-white flex items-center justify-center text-[10px] font-bold">2</span>
+                                    Dịch vụ quan tâm
+                                </h3>
+<div class="flex flex-wrap gap-3">
+<label class="group cursor-pointer">
+<input class="hidden peer" type="checkbox"/>
+<span class="px-5 py-2.5 border border-slate-200 rounded-full text-xs font-bold text-on-surface-variant transition-all group-hover:bg-slate-50 peer-checked:bg-primary/5 peer-checked:text-primary peer-checked:border-primary flex items-center gap-1.5">
+                                            Gia công thực phẩm <span class="material-symbols-outlined text-[16px]">expand_more</span>
+</span>
+</label>
+<label class="group cursor-pointer">
+<input class="hidden peer" type="checkbox"/>
+<span class="px-5 py-2.5 border border-slate-200 rounded-full text-xs font-bold text-on-surface-variant transition-all group-hover:bg-slate-50 peer-checked:bg-primary/5 peer-checked:text-primary peer-checked:border-primary flex items-center gap-1.5">
+                                            Gia công đồ uống <span class="material-symbols-outlined text-[16px]">expand_more</span>
+</span>
+</label>
+<label class="group cursor-pointer">
+<input class="hidden peer" type="checkbox"/>
+<span class="px-5 py-2.5 border border-slate-200 rounded-full text-xs font-bold text-on-surface-variant transition-all group-hover:bg-slate-50 peer-checked:bg-primary/5 peer-checked:text-primary peer-checked:border-primary flex items-center gap-1.5">
+                                            Gia công dược liệu <span class="material-symbols-outlined text-[16px]">expand_more</span>
+</span>
+</label>
+<label class="group cursor-pointer">
+<input class="hidden peer" type="checkbox"/>
+<span class="px-5 py-2.5 border border-slate-200 rounded-full text-xs font-bold text-on-surface-variant transition-all group-hover:bg-slate-50 peer-checked:bg-primary/5 peer-checked:text-primary peer-checked:border-primary flex items-center gap-1.5">
+                                            Thiết kế &amp; bao bì <span class="material-symbols-outlined text-[16px]">expand_more</span>
+</span>
+</label>
+<label class="group cursor-pointer">
+<input class="hidden peer" type="checkbox"/>
+<span class="px-5 py-2.5 border border-slate-200 rounded-full text-xs font-bold text-on-surface-variant transition-all group-hover:bg-slate-50 peer-checked:bg-primary/5 peer-checked:text-primary peer-checked:border-primary flex items-center gap-1.5">
+                                            Đăng ký công bố <span class="material-symbols-outlined text-[16px]">expand_more</span>
+</span>
+</label>
+<label class="group cursor-pointer">
+<input class="hidden peer" type="checkbox"/>
+<span class="px-5 py-2.5 border border-slate-200 rounded-full text-xs font-bold text-on-surface-variant transition-all group-hover:bg-slate-50 peer-checked:bg-primary/5 peer-checked:text-primary peer-checked:border-primary flex items-center gap-1.5">
+                                            Khác <span class="material-symbols-outlined text-[16px]">expand_more</span>
+</span>
+</label>
+</div>
+</div>
+<!-- Section 3: Product Info -->
+<div class="space-y-6">
+<h3 class="font-bold text-base flex items-center gap-2">
+<span class="w-6 h-6 rounded-full bg-primary text-white flex items-center justify-center text-[10px] font-bold">3</span>
+                                    Thông tin sản phẩm
+                                </h3>
+<div class="grid md:grid-cols-2 gap-6">
+<div class="space-y-1.5">
+<label class="text-xs font-bold text-on-surface ml-1">Danh mục sản phẩm <span class="text-red-500">*</span></label>
+<select class="w-full h-12 rounded-xl border-slate-200 bg-slate-50/30 text-sm focus:border-primary focus:ring-4 focus:ring-primary/5 transition-all px-4">
+<option>Chọn danh mục sản phẩm</option>
+<option>Thực phẩm đóng gói</option>
+<option>Đồ uống đóng chai</option>
+<option>Dược phẩm bổ trợ</option>
+</select>
+</div>
+<div class="space-y-1.5">
+<label class="text-xs font-bold text-on-surface ml-1">Dạng sản phẩm</label>
+<select class="w-full h-12 rounded-xl border-slate-200 bg-slate-50/30 text-sm focus:border-primary focus:ring-4 focus:ring-primary/5 transition-all px-4">
+<option>Chọn dạng sản phẩm</option>
+<option>Dạng bột</option>
+<option>Dạng lỏng</option>
+<option>Dạng viên</option>
+</select>
+</div>
+</div>
+<div class="space-y-1.5">
+<label class="text-xs font-bold text-on-surface ml-1">Mô tả sản phẩm / Yêu cầu</label>
+<textarea class="w-full rounded-xl border-slate-200 bg-slate-50/30 text-sm focus:border-primary focus:ring-4 focus:ring-primary/5 transition-all p-4 min-h-[120px]" placeholder="Mô tả chi tiết về sản phẩm, công thức, thành phần, hương vị, bao bì mong muốn..."></textarea>
+<p class="text-right text-[10px] text-on-surface-variant/50">0/1000</p>
+</div>
+<div class="p-8 border-2 border-dashed border-slate-200 rounded-3xl bg-slate-50/30 flex flex-col items-center justify-center text-center group cursor-pointer hover:border-primary/50 hover:bg-green-50/50 transition-all">
+<span class="material-symbols-outlined text-4xl text-slate-300 group-hover:text-primary transition-colors mb-2">cloud_upload</span>
+<p class="text-sm font-bold text-on-surface">Tệp đính kèm yêu cầu (nếu có)</p>
+<p class="text-[10px] text-on-surface-variant mb-4">Hỗ trợ PDF, DOC, DOCX, XLS, JPG, PNG (Tối đa 10MB)</p>
+<div class="text-[11px] font-bold text-on-surface-variant">Kéo thả file vào đây hoặc <span class="text-primary underline">Chọn file từ máy tính</span></div>
+</div>
+</div>
+<!-- Section 4: Volume & Timeline -->
+<div class="space-y-6">
+<h3 class="font-bold text-base flex items-center gap-2">
+<span class="w-6 h-6 rounded-full bg-primary text-white flex items-center justify-center text-[10px] font-bold">4</span>
+                                    Sản lượng &amp; thời gian
+                                </h3>
+<div class="grid md:grid-cols-2 gap-6">
+<div class="space-y-1.5">
+<label class="text-xs font-bold text-on-surface ml-1">Sản lượng dự kiến / tháng</label>
+<select class="w-full h-12 rounded-xl border-slate-200 bg-slate-50/30 text-sm focus:border-primary focus:ring-4 focus:ring-primary/5 transition-all px-4">
+<option>Chọn sản lượng</option>
+<option>&lt; 1,000 đơn vị</option>
+<option>1,000 - 5,000 đơn vị</option>
+<option>&gt; 5,000 đơn vị</option>
+</select>
+</div>
+<div class="space-y-1.5">
+<label class="text-xs font-bold text-on-surface ml-1">Thời gian dự kiến ra mắt</label>
+<div class="relative">
+<input class="w-full h-12 rounded-xl border-slate-200 bg-slate-50/30 text-sm focus:border-primary focus:ring-4 focus:ring-primary/5 transition-all px-4" placeholder="Chọn thời gian" type="text"/>
+<span class="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 text-xl">calendar_month</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Section 5: Other -->
+<div class="space-y-6">
+<h3 class="font-bold text-base flex items-center gap-2">
+<span class="w-6 h-6 rounded-full bg-primary text-white flex items-center justify-center text-[10px] font-bold">5</span>
+                                    Yêu cầu khác
+                                </h3>
+<textarea class="w-full rounded-xl border-slate-200 bg-slate-50/30 text-sm focus:border-primary focus:ring-4 focus:ring-primary/5 transition-all p-4 min-h-[100px]" placeholder="Ghi chú thêm yêu cầu đặc biệt khác..."></textarea>
+<p class="text-right text-[10px] text-on-surface-variant/50 -mt-4">0/500</p>
+</div>
+<div class="flex items-start gap-3">
+<input class="mt-1 w-5 h-5 rounded border-slate-200 text-primary focus:ring-primary transition-all cursor-pointer" id="terms" type="checkbox"/>
+<label class="text-[13px] text-on-surface-variant leading-tight" for="terms">Tôi đồng ý với <a class="text-primary font-bold hover:underline" href="#">Chính sách bảo mật</a> và cho phép Giacong.vn liên hệ với tôi.</label>
+</div>
+<button class="w-full bg-primary text-white py-4.5 rounded-xl font-bold flex items-center justify-center gap-3 hover:bg-green-700 transition-all transform active:scale-[0.99] shadow-lg shadow-primary/20" type="submit">
+                                Gửi yêu cầu báo giá
+                                <span class="material-symbols-outlined">arrow_forward</span>
+</button>
+</form>
+</div>
+</div>
+</div>
+</section>
+<!-- Benefit Cards -->
+<section class="max-w-container-max mx-auto px-gutter mb-24">
+<div class="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+<div class="bg-white p-7 rounded-3xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow group">
+<div class="w-12 h-12 rounded-2xl bg-primary/5 flex items-center justify-center mb-5 group-hover:bg-primary group-hover:text-white transition-all">
+<span class="material-symbols-outlined text-2xl">timer</span>
+</div>
+<h4 class="font-bold text-sm text-on-background mb-2">Phản hồi nhanh trong 2 giờ</h4>
+<p class="text-[13px] text-on-surface-variant leading-relaxed">Đội ngũ chuyên viên sẽ liên hệ và tư vấn nhanh chóng cho quý khách.</p>
+</div>
+<div class="bg-white p-7 rounded-3xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow group">
+<div class="w-12 h-12 rounded-2xl bg-primary/5 flex items-center justify-center mb-5 group-hover:bg-primary group-hover:text-white transition-all">
+<span class="material-symbols-outlined text-2xl">analytics</span>
+</div>
+<h4 class="font-bold text-sm text-on-background mb-2">Báo giá chi tiết &amp; minh bạch</h4>
+<p class="text-[13px] text-on-surface-variant leading-relaxed">Đề xuất giải pháp tối ưu nhất với chi phí cạnh tranh nhất thị trường.</p>
+</div>
+<div class="bg-white p-7 rounded-3xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow group">
+<div class="w-12 h-12 rounded-2xl bg-primary/5 flex items-center justify-center mb-5 group-hover:bg-primary group-hover:text-white transition-all">
+<span class="material-symbols-outlined text-2xl">security</span>
+</div>
+<h4 class="font-bold text-sm text-on-background mb-2">Bảo mật tuyệt đối thông tin</h4>
+<p class="text-[13px] text-on-surface-variant leading-relaxed">Cam kết bảo mật mọi thông tin sản phẩm và công thức độc quyền.</p>
+</div>
+<div class="bg-white p-7 rounded-3xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow group">
+<div class="w-12 h-12 rounded-2xl bg-primary/5 flex items-center justify-center mb-5 group-hover:bg-primary group-hover:text-white transition-all">
+<span class="material-symbols-outlined text-2xl">assignment_turned_in</span>
+</div>
+<h4 class="font-bold text-sm text-on-background mb-2">Đồng hành A-Z &amp; hậu mãi</h4>
+<p class="text-[13px] text-on-surface-variant leading-relaxed">Hỗ trợ toàn diện từ khâu nghiên cứu đến khi sản phẩm ra thị trường.</p>
+</div>
+</div>
+</section>
+<!-- FAQ Section -->
+<section class="max-w-container-max mx-auto px-gutter mb-24">
+<div class="grid lg:grid-cols-[1fr,2fr] gap-12">
+<div>
+<h2 class="font-bold text-2xl text-on-background mb-4">Câu hỏi thường gặp</h2>
+<p class="text-sm text-on-surface-variant mb-6 leading-relaxed">Tìm hiểu thêm về quy trình và các thắc mắc phổ biến khi làm việc với Giacong.vn.</p>
+<a class="text-primary font-bold text-sm flex items-center gap-2 hover:translate-x-1 transition-transform" href="#">
+                        Xem tất cả <span class="material-symbols-outlined text-base">east</span>
+</a>
+</div>
+<div class="space-y-4">
+<div class="group border border-slate-100 rounded-2xl bg-white overflow-hidden transition-all hover:border-primary/20">
+<button class="w-full flex justify-between items-center px-8 py-5 text-left transition-all group-hover:bg-slate-50/50">
+<span class="font-bold text-sm text-on-surface">Thời gian nhận báo giá là bao lâu?</span>
+<span class="material-symbols-outlined text-xl transition-transform group-hover:rotate-180">expand_more</span>
+</button>
+<div class="px-8 pb-5 text-on-surface-variant text-[13px] hidden group-hover:block leading-relaxed">
+                            Thông thường, chúng tôi sẽ phản hồi yêu cầu của bạn trong vòng 2 giờ làm việc. Đối với các dự án phức tạp cần nghiên cứu công thức, báo giá chi tiết sẽ được gửi trong 24-48 giờ.
+                        </div>
+</div>
+<div class="group border border-slate-100 rounded-2xl bg-white overflow-hidden transition-all hover:border-primary/20">
+<button class="w-full flex justify-between items-center px-8 py-5 text-left transition-all">
+<span class="font-bold text-sm text-on-surface">Giacong.vn có hỗ trợ phát triển sản phẩm mới không?</span>
+<span class="material-symbols-outlined text-xl">expand_more</span>
+</button>
+</div>
+<div class="group border border-slate-100 rounded-2xl bg-white overflow-hidden transition-all hover:border-primary/20">
+<button class="w-full flex justify-between items-center px-8 py-5 text-left transition-all">
+<span class="font-bold text-sm text-on-surface">Số lượng đặt hàng tối thiểu (MOQ) là bao nhiêu?</span>
+<span class="material-symbols-outlined text-xl">expand_more</span>
+</button>
+</div>
+<div class="group border border-slate-100 rounded-2xl bg-white overflow-hidden transition-all hover:border-primary/20">
+<button class="w-full flex justify-between items-center px-8 py-5 text-left transition-all">
+<span class="font-bold text-sm text-on-surface">Thông tin công thức có được bảo mật không?</span>
+<span class="material-symbols-outlined text-xl">expand_more</span>
+</button>
+</div>
+</div>
+</div>
+</section>
+<!-- CTA Section -->
+<section class="max-w-container-max mx-auto px-gutter mb-24">
+<div class="relative rounded-[50px] overflow-hidden bg-primary text-white p-8 lg:p-16">
+<div class="absolute inset-0 opacity-10 bg-[url('https://lh3.googleusercontent.com/aida-public/AB6AXuAevL4UbbxPe5fU0W2rMNkim8X1C3wOfn_r88vzLkq0Q2uScMeTgcGWhRH5b4nn8d8AK2wYE5ss-1ZNGcAQ-TvtX3T4P7wOAmgPesTYriE4qebU2Gh0n_VAwNq21vwjRcspp_qkDfPLbrLvJpZDeRkk1SX2leLS_U2hmlD-j2KA_JRFhTJB2dp-3jzUyM94w1-N3sblbJjYnlZMJ92_FHq3IJugRVOj2MiHiQDLMcqh-t0xUkgafh4t6AFodg-MDKuxVHoWdL1PZDM')] bg-cover bg-center"></div>
+<div class="relative z-10 grid lg:grid-cols-2 gap-12 items-center">
+<div class="space-y-8">
+<div>
+<span class="font-bold uppercase tracking-[0.2em] text-[10px] opacity-80 mb-4 block">Sẵn sàng hợp tác?</span>
+<h2 class="font-bold text-3xl lg:text-4xl leading-[1.1] mb-6">Bắt đầu dự án cùng Giacong.vn ngay hôm nay!</h2>
+<p class="text-base opacity-90 max-w-lg leading-relaxed">Đội ngũ chuyên gia của chúng tôi luôn sẵn sàng lắng nghe và đồng hành để đưa sản phẩm của bạn ra thị trường thành công.</p>
+</div>
+<div class="flex flex-wrap gap-4">
+<button class="bg-white text-primary px-8 py-4 rounded-xl font-bold hover:bg-slate-50 transition-all flex items-center gap-3 text-sm">
+                                Gọi ngay: 1900 633 813
+                                <span class="material-symbols-outlined text-xl">call</span>
+</button>
+<button class="bg-white/10 text-white px-8 py-4 rounded-xl font-bold border border-white/20 hover:bg-white/20 transition-all flex items-center gap-3 text-sm">
+                                Gửi yêu cầu tư vấn
+                                <span class="material-symbols-outlined text-xl">arrow_forward</span>
+</button>
+</div>
+</div>
+<div class="hidden lg:flex justify-end">
+<img alt="Sản phẩm cao cấp" class="w-full max-w-[480px] h-[340px] object-cover rounded-3xl shadow-2xl" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAI-UGmBDW9xH8AG_ZmFbvzBF5n6SliL-v48s5HA_Hm4XCRKSboNofIPI2U7ANCbnBtv52FMtCWLIZhuiOVWvmJPR7RC9fYnxL9DlCk-lDE0zxuAfgy-1-ZdDpqQ_kvIWqMbWuhhDIc8Y8RTbDQcbWsWwwcIkKnvpmAyhRigFEBHbds1g8sl1Uv_bVP93p9lYKoXuF4QboBaMS-xq8iMGdXN7GmT_A8LqIwAmmXkgZUyGt43JUNwGHlDaBepeZMV9rx785xMJBJ6gE"/>
+</div>
+</div>
+</div>
+</section>
+</main>
+<!-- Footer -->
+<footer class="w-full pt-20 pb-8 bg-[#003d1c] text-white">
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-[1.5fr,1fr,1fr,1.5fr] gap-12 px-gutter max-w-container-max mx-auto mb-16">
+<div class="space-y-6">
+<img alt="Giacong.vn Logo" class="h-10" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAnyRiTXjMXltBbQg1J6e3u5yuOW7cM9-H2ehK5_pAHvVZ3NSp5YtNG8CXgmP5JbW-fvc3TTd9dYpo3PT1dcm49XwtpWHu3WLC-ChXPw4pDvTxaj6E5xvTMTt-l1KbH_0DmBzbQQkK97IN4XMr9rHERICqPIHheKEzv5P-zHfT3mmecZcMLkjWCi8MFYmXO9UR5eQuzuiwMgdw7Ja1FjbBfpUCL3bcflFkXaHmYsRPhsEVc0CHEUZOsXlAsyIb0JD9UUT8Qsj0vG7s"/>
+<p class="text-[13px] opacity-70 leading-relaxed max-w-xs">Giacong.vn cung cấp giải pháp gia công OEM toàn diện, giúp doanh nghiệp tạo ra sản phẩm chất lượng, an toàn và vững thương hiệu trên thị trường.</p>
+<div class="flex gap-4">
+<a class="w-8 h-8 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 transition-all" href="#"><span class="material-symbols-outlined text-lg" style="font-variation-settings: 'FILL' 1">facebook</span></a>
+<a class="w-8 h-8 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 transition-all" href="#"><span class="material-symbols-outlined text-lg">share</span></a>
+<a class="w-8 h-8 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 transition-all" href="#"><span class="material-symbols-outlined text-lg" style="font-variation-settings: 'FILL' 1">play_circle</span></a>
+<a class="w-8 h-8 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 transition-all" href="#"><span class="material-symbols-outlined text-lg">alternate_email</span></a>
+</div>
+</div>
+<div class="space-y-6">
+<h4 class="font-bold text-base">Về chúng tôi</h4>
+<ul class="space-y-3 text-[13px] opacity-70">
+<li><a class="hover:text-white hover:opacity-100 transition-all" href="#">Giới thiệu</a></li>
+<li><a class="hover:text-white hover:opacity-100 transition-all" href="#">Tầm nhìn – Sứ mệnh</a></li>
+<li><a class="hover:text-white hover:opacity-100 transition-all" href="#">Giá trị cốt lõi</a></li>
+<li><a class="hover:text-white hover:opacity-100 transition-all" href="#">Nhà máy &amp; công nghệ</a></li>
+<li><a class="hover:text-white hover:opacity-100 transition-all" href="#">Tuyển dụng</a></li>
+</ul>
+</div>
+<div class="space-y-6">
+<h4 class="font-bold text-base">Dịch vụ</h4>
+<ul class="space-y-3 text-[13px] opacity-70">
+<li><a class="hover:text-white hover:opacity-100 transition-all" href="#">Gia công thực phẩm</a></li>
+<li><a class="hover:text-white hover:opacity-100 transition-all" href="#">Gia công đồ uống</a></li>
+<li><a class="hover:text-white hover:opacity-100 transition-all" href="#">Gia công dược liệu</a></li>
+<li><a class="hover:text-white hover:opacity-100 transition-all" href="#">Nghiên cứu &amp; phát triển</a></li>
+<li><a class="hover:text-white hover:opacity-100 transition-all" href="#">Thiết kế &amp; bao bì</a></li>
+</ul>
+</div>
+<div class="space-y-6">
+<h4 class="font-bold text-base">Liên hệ</h4>
+<div class="space-y-4 text-[13px] opacity-70">
+<div class="flex items-start gap-4">
+<span class="material-symbols-outlined text-lg">location_on</span>
+<span>108 Lê Duẩn, Đống Đa, Hà Nội</span>
+</div>
+<div class="flex items-start gap-4">
+<span class="material-symbols-outlined text-lg">call</span>
+<span>1900 633 813</span>
+</div>
+<div class="flex items-start gap-4">
+<span class="material-symbols-outlined text-lg">mail</span>
+<span>info@giacong.vn</span>
+</div>
+</div>
+<div class="pt-6">
+<p class="font-bold text-[10px] uppercase tracking-widest mb-4">Đăng ký nhận tin</p>
+<div class="relative max-w-sm">
+<input class="w-full bg-white/10 border-white/20 rounded-xl px-5 py-3 text-sm focus:ring-white/30 focus:border-white/30 placeholder:text-white/40" placeholder="Nhập email của bạn" type="email"/>
+<button class="absolute right-3 top-1/2 -translate-y-1/2 text-white/50 hover:text-white transition-colors"><span class="material-symbols-outlined">send</span></button>
+</div>
+</div>
+</div>
+</div>
+<div class="max-w-container-max mx-auto px-gutter pt-8 border-t border-white/10 flex flex-col md:flex-row justify-between items-center gap-4">
+<p class="text-[11px] opacity-50 font-medium">© 2024 Giacong.vn. All rights reserved.</p>
+<div class="flex gap-8 text-[11px] opacity-50 font-medium">
+<a class="hover:opacity-100 transition-opacity" href="#">Chính sách bảo mật</a>
+<a class="hover:opacity-100 transition-opacity" href="#">Điều khoản sử dụng</a>
+</div>
+</div>
+</footer>
+<!-- Mobile Floating FAB -->
+<div class="md:hidden fixed bottom-6 right-6 z-50">
+<button class="w-14 h-14 bg-primary text-white rounded-full shadow-2xl flex items-center justify-center hover:scale-110 active:scale-95 transition-all">
+<span class="material-symbols-outlined text-2xl">forum</span>
+</button>
+</div>
+<script>
+        document.addEventListener('DOMContentLoaded', () => {
+            let lastScroll = 0;
+            const header = document.querySelector('header');
+            
+            window.addEventListener('scroll', () => {
+                const currentScroll = window.pageYOffset;
+                if (currentScroll > lastScroll && currentScroll > 100) {
+                    header.classList.add('-translate-y-full');
+                } else {
+                    header.classList.remove('-translate-y-full');
+                }
+                lastScroll = currentScroll;
+                
+                if (currentScroll > 50) {
+                    header.classList.add('shadow-md');
+                } else {
+                    header.classList.remove('shadow-md');
+                }
+            });
+        });
+    </script>
+</body></html>

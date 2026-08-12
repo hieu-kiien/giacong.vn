@@ -1,0 +1,27 @@
+# Dependencies & Build outputs
+node_modules/
+.next/
+out/
+build/
+dist/
+
+# Runtime & Temp files
+.runtime/
+.codex/
+temp-clean-install-check/
+*.log
+out.txt
+out2.txt
+gh_status.txt
+temp/
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# OS & Editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
