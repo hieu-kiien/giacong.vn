@@ -1,0 +1,188 @@
+.capturedHeader {
+  display: none;
+}
+
+.mobileHeader {
+  align-items: center;
+  background: #5aa400;
+  display: flex;
+  height: 56px;
+  justify-content: space-between;
+  padding: 0 16px;
+  position: sticky;
+  top: 0;
+  z-index: 40;
+}
+
+.mobileBrand {
+  align-items: center;
+  color: #fff;
+  display: inline-flex;
+  font-size: 19px;
+  font-weight: 700;
+  gap: 7px;
+  text-decoration: none;
+}
+
+@media (min-width: 1024px) {
+  .mobileHeader {
+    display: none;
+  }
+
+  .capturedHeader {
+    display: block;
+  }
+
+  .capturedHeader :global(#header) {
+    background: #5aa400;
+    color: #fff;
+    font-family: "SF Pro Display", sans-serif;
+    height: 104px;
+    overflow: hidden;
+    position: sticky;
+    top: 0;
+    z-index: 40;
+  }
+
+  .capturedHeader :global(.header-wrapper) {
+    height: 100%;
+    position: relative;
+  }
+
+  .capturedHeader :global(.header-wrapper)::before,
+  .capturedHeader :global(.header-wrapper)::after {
+    background: rgb(255 255 255 / 12%);
+    border-radius: 50%;
+    content: "";
+    pointer-events: none;
+    position: absolute;
+  }
+
+  .capturedHeader :global(.header-wrapper)::before {
+    height: 260px;
+    left: -80px;
+    top: -160px;
+    width: 750px;
+  }
+
+  .capturedHeader :global(.header-wrapper)::after {
+    height: 250px;
+    right: -80px;
+    top: 8px;
+    width: 470px;
+  }
+
+  .capturedHeader :global(.header-main) {
+    height: 104px;
+    position: relative;
+  }
+
+  .capturedHeader :global(.header-inner) {
+    align-items: center;
+    display: flex;
+    height: 100%;
+    margin: 0 auto;
+    max-width: 1270px;
+    padding: 0 15px;
+    position: relative;
+  }
+
+  .capturedHeader :global(.header-inner > .flex-col) {
+    display: flex;
+  }
+
+  .capturedHeader :global(#logo) {
+    flex: 0 0 200px;
+    margin: 0 30px;
+    order: 2;
+    text-align: center;
+  }
+
+  .capturedHeader :global(#logo a),
+  .capturedHeader :global(#logo img) {
+    display: block;
+  }
+
+  .capturedHeader :global(#logo img) {
+    height: auto;
+    margin: 0 auto;
+    max-height: 70px;
+    width: 200px;
+  }
+
+  .capturedHeader :global(.header-logo-dark) {
+    display: none !important;
+  }
+
+  .capturedHeader :global(.flex-left),
+  .capturedHeader :global(.flex-right) {
+    flex: 1 1 0;
+  }
+
+  .capturedHeader :global(.flex-left) {
+    order: 1;
+  }
+
+  .capturedHeader :global(.flex-right) {
+    justify-content: flex-end;
+    order: 3;
+  }
+
+  .capturedHeader :global(.show-for-medium),
+  .capturedHeader :global(.sub-menu) {
+    display: none !important;
+  }
+
+  .capturedHeader :global(.header-nav) {
+    align-items: center;
+    display: flex;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  .capturedHeader :global(.header-nav > li) {
+    margin: 0 17px;
+  }
+
+  .capturedHeader :global(.header-nav > li:first-child) {
+    margin-left: 0;
+  }
+
+  .capturedHeader :global(.header-nav > li:last-child) {
+    margin-right: 0;
+  }
+
+  .capturedHeader :global(.header-nav .nav-top-link) {
+    align-items: center;
+    color: #fff;
+    display: inline-flex;
+    font-size: 18px;
+    font-weight: 400;
+    line-height: 16px;
+    min-height: 44px;
+    text-decoration: none;
+    white-space: nowrap;
+  }
+
+  .capturedHeader :global(.header-nav .nav-top-link:hover) {
+    color: #fff;
+    opacity: 0.78;
+  }
+
+  .capturedHeader :global(.header-nav .ux-menu-icon) {
+    height: 20px;
+    margin-right: 5px;
+    width: 20px;
+  }
+
+  .capturedHeader :global(.header-nav .icon-angle-down) {
+    font-style: normal;
+    margin-left: 4px;
+  }
+
+  .capturedHeader :global(.header-nav .icon-angle-down)::before {
+    content: "⌄";
+    font-size: 16px;
+  }
+}

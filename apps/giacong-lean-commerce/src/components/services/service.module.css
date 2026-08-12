@@ -1,0 +1,450 @@
+/*
+ * Service directory, landing and family pages.
+ *
+ * Colours resolve to `src/styles/commerce-foundation.css`, the single source of the
+ * commerce palette. This file previously carried its own olive ramp (#4f7138 brand,
+ * #263022 body, #eef3e8 tints) which was close to, but not, the commerce green —
+ * so the service routes read as a different site from `/san-pham`. Repointing them
+ * is a deliberate visual change, not a no-op: the greens shift from olive to the
+ * measured commerce brand.
+ *
+ * The olive ramp had more shades than the commerce palette names, so several of them
+ * collapse onto one token: the four body greens become `body`, the four muted greens
+ * become `secondary`, and every tint border becomes `border`. Adding tokens instead
+ * would mean editing `commerce-foundation.css` and `tokens.ts` together, which the
+ * test at `scripts/commerce-foundation.test.mts:134-145` locks to the measured eight.
+ */
+
+.main {
+  background: #f7f8f4;
+  color: var(--color-commerce-body);
+  min-height: 60vh;
+}
+
+.inner {
+  margin: 0 auto;
+  max-width: 1180px;
+  padding-inline: 24px;
+}
+
+.hero {
+  background: var(--color-commerce-brand);
+  border-bottom: 0;
+  color: #fff;
+  padding: 38px 0 72px;
+}
+
+.crumbs {
+  align-items: center;
+  color: rgb(255 255 255 / .8);
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 14px;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.crumbs a,
+.groupHeading a,
+.backLink {
+  color: var(--color-commerce-brand-dark);
+}
+
+.crumbs a {
+  color: #fff;
+}
+
+.eyebrow {
+  color: rgb(255 255 255 / .75);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: .1em;
+  margin: 0 0 8px;
+  text-transform: uppercase;
+}
+
+.hero h1 {
+  color: #fff;
+  font-size: clamp(32px, 4vw, 46px);
+  letter-spacing: -.035em;
+  line-height: 1.08;
+  margin: 0;
+  max-width: 850px;
+}
+
+.lead {
+  color: rgb(255 255 255 / .88);
+  font-size: 17px;
+  line-height: 1.6;
+  margin: 12px 0 0;
+  max-width: 760px;
+}
+
+.directorySection,
+.section {
+  padding: 0 0 64px;
+}
+
+.directorySection .inner {
+  background: #fff;
+  border: 1px solid var(--color-commerce-border);
+  border-radius: var(--radius-commerce-panel);
+  box-shadow: var(--shadow-commerce-card);
+  margin-top: -40px;
+  padding: 30px 24px 36px;
+  position: relative;
+}
+
+.section {
+  padding-top: 48px;
+}
+
+.directoryIntro,
+.sectionHeading {
+  align-items: end;
+  display: flex;
+  gap: 32px;
+  justify-content: space-between;
+  margin-bottom: 24px;
+}
+
+.directoryIntro h2,
+.sectionHeading h2,
+.contactBand h2 {
+  color: var(--color-commerce-body);
+  font-size: clamp(25px, 3vw, 34px);
+  letter-spacing: -.025em;
+  line-height: 1.2;
+  margin: 0;
+}
+
+.directoryIntro > p,
+.sectionHeading p {
+  color: var(--color-commerce-secondary);
+  line-height: 1.6;
+  margin: 0;
+  max-width: 470px;
+}
+
+.filterPanel {
+  background: var(--color-commerce-active-surface);
+  border: 1px solid var(--color-commerce-border);
+  border-radius: var(--radius-commerce-control);
+  padding: 20px;
+}
+
+.searchLabel {
+  color: var(--color-commerce-body);
+  display: block;
+  font-size: 15px;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.searchRow {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.searchInput {
+  background: #fff;
+  border: 1px solid var(--color-commerce-border);
+  border-radius: var(--radius-commerce-control);
+  box-shadow: none;
+  color: var(--color-commerce-body);
+  font-size: 16px;
+  height: 46px;
+  margin: 0;
+  padding: 0 14px;
+  width: 100%;
+}
+
+.searchInput:focus {
+  border-color: var(--color-commerce-brand);
+  box-shadow: 0 0 0 3px var(--color-commerce-active-surface);
+  outline: 0;
+}
+
+.clearButton,
+.familyChip {
+  align-items: center;
+  border-radius: var(--radius-commerce-control);
+  cursor: pointer;
+  display: inline-flex;
+  font-size: 14px;
+  font-weight: 700;
+  justify-content: center;
+  margin: 0;
+  min-height: var(--spacing-commerce-target);
+  text-transform: none;
+}
+
+.clearButton {
+  background: var(--color-commerce-active-surface);
+  border: 1px solid var(--color-commerce-border);
+  color: var(--color-commerce-body);
+  padding: 0 18px;
+}
+
+.clearButton:disabled {
+  cursor: default;
+  opacity: .5;
+}
+
+.familyChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.familyChip {
+  background: #fff;
+  border: 1px solid var(--color-commerce-border);
+  color: var(--color-commerce-body);
+  padding: 8px 14px;
+}
+
+.familyChip[aria-pressed="true"] {
+  background: var(--color-commerce-brand);
+  border-color: var(--color-commerce-brand);
+  color: #fff;
+}
+
+.clearButton:focus-visible,
+.familyChip:focus-visible,
+.directoryList a:focus-visible,
+.consultationLink:focus-visible {
+  outline: 3px solid var(--color-commerce-brand-dark);
+  outline-offset: 2px;
+}
+
+.resultBar {
+  align-items: center;
+  border-bottom: 1px solid var(--color-commerce-border);
+  display: flex;
+  gap: 20px;
+  justify-content: space-between;
+  margin: 26px 0 8px;
+  padding-bottom: 18px;
+}
+
+.resultBar p {
+  color: var(--color-commerce-secondary);
+  margin: 0;
+}
+
+.consultationLink {
+  align-items: center;
+  color: var(--color-commerce-brand-dark);
+  display: inline-flex;
+  font-weight: 700;
+  gap: 8px;
+  min-height: var(--spacing-commerce-target);
+}
+
+.serviceGroups {
+  display: grid;
+  gap: 0;
+}
+
+.serviceGroup {
+  border: 1px solid var(--color-commerce-border);
+  border-radius: var(--radius-commerce-control);
+  padding: 24px;
+}
+
+.groupHeading {
+  align-items: baseline;
+  display: flex;
+  gap: 20px;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.groupHeading h3 {
+  color: var(--color-commerce-body);
+  font-size: 22px;
+  margin: 0;
+}
+
+.groupHeading a {
+  font-size: 14px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.directoryList,
+.offeringList {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.directoryList li,
+.offeringList li {
+  margin: 0;
+}
+
+.directoryList a,
+.offeringList a {
+  align-items: center;
+  background: #fff;
+  border: 1px solid var(--color-commerce-border);
+  border-radius: var(--radius-commerce-control);
+  color: var(--color-commerce-body);
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+  min-height: 56px;
+  padding: 12px 16px;
+}
+
+.directoryList a:hover,
+.offeringList a:hover {
+  background: var(--color-commerce-active-surface);
+  border-color: var(--color-commerce-brand);
+  color: var(--color-commerce-brand-dark);
+}
+
+.offeringList {
+  margin-bottom: 26px;
+}
+
+.offeringList a > span:first-child {
+  color: var(--color-commerce-secondary);
+  flex: 0 0 30px;
+  font-size: 13px;
+}
+
+.offeringList a strong {
+  flex: 1;
+}
+
+.emptyState {
+  background: var(--color-commerce-active-surface);
+  border: 1px solid var(--color-commerce-border);
+  border-radius: var(--radius-commerce-control);
+  margin-top: 24px;
+  padding: 32px;
+  text-align: center;
+}
+
+.emptyState h3 {
+  color: var(--color-commerce-body);
+  margin: 0 0 8px;
+}
+
+.emptyState p {
+  color: var(--color-commerce-secondary);
+  margin: 0;
+}
+
+.contactBand {
+  background: var(--color-commerce-support-strip);
+  border-top: 1px solid var(--color-commerce-border);
+  padding: 42px 0;
+}
+
+.contactInner {
+  align-items: center;
+  display: flex;
+  gap: 30px;
+  justify-content: space-between;
+}
+
+.primaryAction {
+  background: var(--color-commerce-brand);
+  border-radius: var(--radius-commerce-control);
+  color: #fff;
+  display: inline-flex;
+  font-weight: 700;
+  justify-content: center;
+  min-height: var(--spacing-commerce-target);
+  min-width: 170px;
+  padding: 12px 22px;
+}
+
+.primaryAction:hover,
+.primaryAction:focus-visible {
+  background: var(--color-commerce-brand-dark);
+  color: #fff;
+}
+
+@media (max-width: 849px) {
+  .directoryIntro,
+  .sectionHeading {
+    align-items: start;
+    flex-direction: column;
+    gap: 12px;
+  }
+}
+
+@media (max-width: 549px) {
+  .inner {
+    padding-inline: 18px;
+  }
+
+  .hero {
+    padding: 26px 0 30px;
+  }
+
+  .directorySection,
+  .section {
+    padding: 0 0 48px;
+  }
+
+  .directorySection .inner {
+    border-radius: 0;
+    border-inline: 0;
+    box-shadow: none;
+    margin-top: 0;
+    padding: 30px 18px 34px;
+  }
+
+  .section {
+    padding-top: 38px;
+  }
+
+  .filterPanel {
+    padding: 16px;
+  }
+
+  .searchRow,
+  .directoryList,
+  .offeringList {
+    grid-template-columns: 1fr;
+  }
+
+  .clearButton {
+    width: 100%;
+  }
+
+  .familyChips {
+    flex-wrap: nowrap;
+    margin-inline: -16px;
+    overflow-x: auto;
+    padding: 0 16px 8px;
+  }
+
+  .familyChip {
+    flex: 0 0 auto;
+  }
+
+  .resultBar,
+  .groupHeading,
+  .contactInner {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .consultationLink,
+  .primaryAction {
+    width: 100%;
+  }
+}

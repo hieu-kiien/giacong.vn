@@ -1,0 +1,106 @@
+/*
+ * Commerce design foundation.
+ *
+ * `--color-commerce-brand` is the real giacong.vn green. Every captured page embeds
+ * the site's own Flatsome block inline in its HTML — `:root {--primary-color: #5aa400}`
+ * plus `.header-bg-color {background-color: #5aa400}` — so `#5aa400` is what the ~234
+ * captured routes actually render, and the product and service routes now match it
+ * instead of approximating it. This supersedes the measured `#2f9e0b` in
+ * `docs/research/DESIGN_TOKENS.md` and the approved screenshots `SCR-01`…`SCR-04`,
+ * which were taken before the captured pages were the reference.
+ *
+ * `brand-dark` is derived from it rather than measured: `#457f00` is the same hue at
+ * 25% lightness, chosen because it clears 4.5:1 on white (the brand green itself is
+ * 3.1:1, too low for body text). It carries text, links and focus rings; the brand
+ * green carries fills.
+ *
+ * The remaining values are the measured ones in `docs/research/DESIGN_TOKENS.md`. The
+ * `activeSurface` and `supportStrip` tints are within 1/255 of low-alpha `#5aa400` over
+ * white, so they needed no change. Names stay `commerce-*`: the `brand-*` ramp in
+ * `globals.css` is read by the four `components/storefront/` components until phase C
+ * deletes them, so the two palettes coexist until then.
+ *
+ * Imported from `globals.css` rather than the commerce layout, because Tailwind
+ * only collects `@theme`/`@utility` from the stylesheet that pulls in
+ * `tailwindcss` — a route-scoped import would emit invalid CSS instead.
+ *
+ * The mirror of the numeric values lives in `src/components/commerce/tokens.ts`
+ * for code that needs them as numbers; `scripts/commerce-foundation.test.mts`
+ * asserts the two stay in step.
+ */
+
+@theme {
+  --color-commerce-brand: #5aa400;
+  --color-commerce-brand-dark: #457f00;
+  --color-commerce-active-surface: #f1f8ec;
+  --color-commerce-support-strip: #f4faea;
+  --color-commerce-price: #ef1726;
+  --color-commerce-body: #191919;
+  --color-commerce-secondary: #6f7177;
+  --color-commerce-border: #dfe3df;
+
+  /* Content rail: 1390 px measured on the 1672 px reference canvas. */
+  --spacing-commerce-rail: 1390px;
+  /* Matches the established storefront chrome; compact header stays 56 px at 390/320. */
+  --spacing-commerce-header: 90px;
+  --spacing-commerce-header-compact: 56px;
+  /* Minimum interactive target. */
+  --spacing-commerce-target: 44px;
+  /* 230 px catalog sidebar. */
+  --spacing-commerce-sidebar: 230px;
+
+  --radius-commerce-card: 11px;
+  --radius-commerce-control: 8px;
+  --radius-commerce-panel: 15px;
+
+  --shadow-commerce-card: 0 2px 10px rgb(0 0 0 / 8%);
+  --shadow-commerce-overlay: 0 18px 42px rgb(0 0 0 / 20%);
+}
+
+/*
+ * Focus ring for both light surfaces and the green header: a dark-green ring over
+ * a white offset stays visible on either background, so one utility covers both.
+ */
+@utility commerce-focus-ring {
+  outline: 3px solid var(--color-commerce-brand-dark);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 2px #fff;
+}
+
+/* Card and panel shells: 1 px border, 10–12 px radius, subtle shadow. */
+@utility commerce-card-surface {
+  background: #fff;
+  border: 1px solid var(--color-commerce-border);
+  border-radius: var(--radius-commerce-card);
+  box-shadow: var(--shadow-commerce-card);
+}
+
+@utility commerce-panel-surface {
+  background: #fff;
+  border: 1px solid var(--color-commerce-border);
+  border-radius: var(--radius-commerce-panel);
+  box-shadow: var(--shadow-commerce-overlay);
+}
+
+/* Every interactive commerce control clears the 44 × 44 px target. */
+@utility commerce-target {
+  min-height: var(--spacing-commerce-target);
+  min-width: var(--spacing-commerce-target);
+}
+
+/*
+ * Product imagery sits on a warm surface rather than a gray placeholder box, per
+ * the token note. The hue is passed in by the caller.
+ *
+ * The box is square because the shop archive giacong.vn serves is: Flatsome's
+ * `.has-equal-box-heights .box-image` sets `padding-top: 100%`. That supersedes
+ * the 1.25:1 ratio measured for `SCR-03`, which predates the captured pages being
+ * the reference.
+ */
+@utility commerce-image-frame {
+  aspect-ratio: 1 / 1;
+  border-radius: calc(var(--radius-commerce-card) - 1px);
+  object-fit: cover;
+  overflow: hidden;
+  width: 100%;
+}

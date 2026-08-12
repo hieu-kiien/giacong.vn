@@ -1,0 +1,424 @@
+/*
+ * Cascade layer order for the whole app. This declaration must come first — layer
+ * order is fixed by first appearance, and `@import "tailwindcss"` declares its
+ * own layers.
+ *
+ * `captured` holds the Flatsome stylesheets imported by
+ * `(storefront)/captured-layers.css`. It sits above Tailwind's `base` so captured
+ * CSS still wins over preflight (the captured footer and the 237 captured routes
+ * are unchanged), and below `components`/`utilities` so new Tailwind UI can
+ * override it.
+ *
+ * This file's own captured overrides (the mobile-menu rules at the bottom) join
+ * that same `captured` layer rather than getting one of their own. Inside a
+ * single layer normal specificity applies, which is exactly the relationship they
+ * had when both were unlayered — `#main-menu.clone-menu-open` still beats
+ * `.mfp-hide`, and `.clone-menu-close` still beats flatsome's bare `button`
+ * selector. Giving them a separate layer breaks one side or the other: a later
+ * layer loses `!important` contests, an earlier one loses normal ones.
+ */
+@layer theme, base, captured, components, utilities;
+
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+/*
+ * Commerce design foundation (tokens + shared utilities). It has to be imported
+ * here, not from the commerce layout: Tailwind only reads `@theme`/`@utility` out
+ * of the stylesheet that imports `tailwindcss`. It only declares
+ * `commerce-*`-namespaced names, so the captured routes are unaffected.
+ */
+@import "../styles/commerce-foundation.css";
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+ * FROZEN — do not use in new code. The commerce palette in
+ * `../styles/commerce-foundation.css` is the single source for every React surface.
+ *
+ * These names are read by exactly five components — `CommerceHeader` and the four
+ * `components/storefront/` ones — and by the `captured` layer further down this file.
+ * The captured pages themselves do NOT read them: their markup carries the real
+ * giacong.vn green `#5aa400` as inline `style` attributes and in their own stylesheets,
+ * so this ramp is a near-miss re-derivation of that green rather than its source.
+ * Phase C deletes the four `storefront/` readers, which leaves `CommerceHeader`
+ * (`bg-brand-700`, locked by `scripts/commerce-header.test.mts:260`) as the only
+ * component standing between this block and deletion.
+ *
+ * Values come from the handoff design tokens (`tokens/design-tokens.json`). That file
+ * has no orange ramp, so the accent is built around its `semantic.warning` (#B54708)
+ * with tints derived for surfaces only — no new hues are invented.
+ * `brand-700`/`brand-800` are the text-safe greens (7.8:1 white-on-800);
+ * `brand-500`/`600` are surface and hover greens.
+ */
+@theme {
+  --color-brand-50: #f3f9ec;
+  --color-brand-100: #e4f3d2;
+  --color-brand-200: #cbe8a8;
+  --color-brand-500: #4ca600;
+  --color-brand-600: #3e9000;
+  --color-brand-700: #327600;
+  --color-brand-800: #285f00;
+  --color-brand-accent-50: #fff6ed;
+  --color-brand-accent-100: #ffead5;
+  --color-brand-accent-600: #c2530a;
+  --color-brand-accent-700: #b54708;
+  --color-ink: #202124;
+  --color-ink-soft: #667085;
+  --color-ink-muted: #98a2b3;
+  --color-hairline: #e4e7ec;
+  --color-hairline-strong: #d0d5dd;
+  --color-surface-subtle: #f8fafc;
+  --color-surface-tinted: #f5faef;
+  --color-price: #e11919;
+  --color-stock: #16883e;
+  --color-focus: #2e90fa;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: "SF Pro Display", Arial, Helvetica, sans-serif;
+  --font-mono: "Geist Mono", "Geist Mono Fallback", ui-monospace, monospace;
+  --font-heading: var(--font-sans);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+:root {
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: oklch(0.205 0 0);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --ring: oklch(0.708 0 0);
+  --chart-1: oklch(0.87 0 0);
+  --chart-2: oklch(0.556 0 0);
+  --chart-3: oklch(0.439 0 0);
+  --chart-4: oklch(0.371 0 0);
+  --chart-5: oklch(0.269 0 0);
+  --radius: 0.625rem;
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-primary: oklch(0.205 0 0);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.97 0 0);
+  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-ring: oklch(0.708 0 0);
+}
+
+.dark {
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.922 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.556 0 0);
+  --chart-1: oklch(0.87 0 0);
+  --chart-2: oklch(0.556 0 0);
+  --chart-3: oklch(0.439 0 0);
+  --chart-4: oklch(0.371 0 0);
+  --chart-5: oklch(0.269 0 0);
+  --sidebar: oklch(0.205 0 0);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.488 0.243 264.376);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.269 0 0);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.556 0 0);
+}
+
+/*
+ * Captured-CSS collision hazard for new Tailwind UI.
+ *
+ * The `captured` layer now ranks below `utilities`, so normal Tailwind utilities
+ * win. What layering cannot fix is `!important` in the captured sheets: for
+ * important declarations the layer order is *reversed*, so an important captured
+ * rule still beats a normal utility. 33 bare class names overlap; the ones that
+ * declare `!important` and a value Tailwind does not set are the hazard:
+ *
+ *   .hidden   → also `visibility:hidden!important`, which no responsive utility
+ *               can undo. Use `max-md:hidden` / `sr-only`, or the `hidden`
+ *               *attribute*, which resolves through preflight.
+ *   .relative
+ *   .absolute
+ *   .fixed    → `position` is important, so a responsive position change needs
+ *               the `!` modifier (`md:relative!`).
+ *
+ * Variant-prefixed forms (`max-md:hidden`, `md:hidden`) emit distinct class
+ * tokens the captured rules cannot match, so they behave normally.
+ */
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  html {
+    @apply font-sans;
+    scroll-behavior: smooth;
+  }
+  body { overflow-x: hidden; }
+}
+
+/*
+ * Everything below overrides captured CSS, so it joins the `captured` layer and
+ * competes with it on specificity alone. See the layer-order comment at the top.
+ */
+@layer captured {
+
+#main-menu.clone-menu-open {
+  background: #5aa400;
+  bottom: 0;
+  box-shadow: 0 0 10px rgb(0 0 0 / 50%);
+  display: block !important;
+  height: 100dvh;
+  left: 0;
+  max-width: 85vw;
+  opacity: 1;
+  overflow-x: hidden;
+  overflow-y: auto;
+  position: fixed;
+  top: 0;
+  visibility: visible;
+  width: 260px;
+  z-index: 9999;
+}
+
+#main-menu.clone-menu-open .sidebar-menu {
+  padding: 30px 0;
+}
+
+#main-menu.clone-menu-open .nav-vertical > li.header-search-form {
+  padding: 20px;
+}
+
+#main-menu.clone-menu-open .header-search-form-wrapper,
+#main-menu.clone-menu-open .searchform-wrapper,
+#main-menu.clone-menu-open .searchform {
+  width: 100%;
+}
+
+#main-menu.clone-menu-open .nav-sidebar.nav-vertical > li + li {
+  border-top-color: #528d26;
+}
+
+#main-menu.clone-menu-open .nav-vertical > li > a {
+  align-items: center;
+  color: #fff;
+  display: flex;
+  font-size: 16px;
+  padding: 13px 0 13px 20px;
+  text-transform: none;
+}
+
+#main-menu .clone-mobile-menu-icon {
+  color: rgb(255 255 255 / 92%);
+  flex: 0 0 21px;
+  height: 21px;
+  margin-right: 9px;
+  width: 21px;
+}
+
+.clone-menu-backdrop {
+  background: rgb(0 0 0 / 60%);
+  border: 0;
+  display: none;
+  inset: 0;
+  margin: 0;
+  min-height: 100dvh;
+  padding: 0;
+  position: fixed;
+  width: 100%;
+  z-index: 9998;
+}
+
+.clone-menu-backdrop.clone-menu-backdrop-open {
+  display: block;
+}
+
+.clone-menu-close {
+  -webkit-backface-visibility: hidden;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  color: #fff;
+  cursor: pointer;
+  display: none;
+  height: 40px;
+  line-height: 40px;
+  margin: 0;
+  min-height: 0;
+  mix-blend-mode: difference;
+  opacity: 0.6;
+  padding: 6px;
+  position: fixed;
+  right: 0;
+  top: 0;
+  width: 40px;
+  z-index: 10000;
+}
+
+body.clone-menu-active .clone-menu-close {
+  display: block;
+}
+
+.clone-menu-close:hover,
+.clone-menu-close:focus-visible {
+  opacity: 1;
+}
+
+body.clone-menu-active {
+  overflow: hidden;
+}
+
+.wpcf7-form[data-status="sent"] .wpcf7-response-output {
+  border-color: #46b450;
+  color: #46b450;
+}
+
+.wpcf7-form[data-status="failed"] .wpcf7-response-output,
+.wpcf7-form[data-status="invalid"] .wpcf7-response-output {
+  color: #b42318;
+}
+
+.wpcf7-form[data-status="submitting"] [type="submit"] {
+  cursor: wait;
+  opacity: 0.72;
+}
+
+@media (min-width: 850px) {
+  #header li.has-dropdown:hover > .nav-dropdown,
+  #header li.has-dropdown:focus-within > .nav-dropdown {
+    left: -15px !important;
+    max-height: 80vh !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+  }
+}
+
+#main-menu .nav-sidebar > li.menu-item-has-children > .sub-menu {
+  display: none !important;
+  left: auto !important;
+  margin: 0;
+  max-height: none;
+  opacity: 1;
+  padding: 0;
+  position: static !important;
+  top: auto !important;
+  transform: none !important;
+  visibility: visible;
+  width: 100%;
+}
+
+#main-menu .nav-sidebar > li.clone-submenu-open > .sub-menu {
+  display: block !important;
+}
+
+#main-menu .nav-sidebar > li > .sub-menu > li {
+  border-top: 1px solid rgb(82 141 38 / 75%);
+  margin: 0;
+}
+
+#main-menu .nav-sidebar > li > .sub-menu > li > a {
+  align-items: center;
+  color: rgb(255 255 255 / 90%);
+  display: flex;
+  font-size: 14px;
+  line-height: 20px;
+  min-height: 44px;
+  padding: 10px 20px 10px 45px;
+  text-transform: none;
+  width: 100%;
+}
+
+#main-menu .clone-toggle {
+  background: transparent;
+  border: 0;
+  color: currentColor;
+  flex: 0 0 45px;
+  height: 52px;
+  line-height: 1;
+  margin: 0 5px 0 0;
+  opacity: 0.75;
+  padding: 0;
+  width: 45px;
+}
+
+#main-menu .clone-toggle i {
+  color: rgb(255 255 255 / 80%);
+  display: inline-block;
+}
+
+#main-menu li.clone-submenu-open > .clone-toggle {
+  transform: none;
+}
+
+#main-menu li.clone-submenu-open > .clone-toggle i {
+  transform: rotate(-180deg);
+}
+
+}

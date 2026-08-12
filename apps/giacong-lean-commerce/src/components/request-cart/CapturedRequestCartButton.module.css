@@ -1,0 +1,50 @@
+:global(.echbay-sms-messenger) .container {
+  background-color: #5aa400;
+  position: relative;
+}
+
+:global(.echbay-sms-messenger) .link {
+  align-items: center;
+  color: #fff;
+  display: flex;
+  height: 45px;
+  justify-content: center;
+  line-height: 1;
+  position: relative;
+  width: 45px;
+}
+
+:global(.echbay-sms-messenger) .link:hover {
+  color: #fff;
+  filter: brightness(0.92);
+}
+
+:global(.echbay-sms-messenger) .link:focus-visible {
+  color: #fff;
+  outline: 3px solid #2e90fa;
+  outline-offset: 3px;
+}
+
+.icon {
+  height: 25px;
+  stroke-width: 2.25;
+  width: 25px;
+}
+
+.count {
+  align-items: center;
+  background: #fff;
+  border: 1px solid #5aa400;
+  border-radius: 999px;
+  color: #327600;
+  display: inline-flex;
+  font-size: 10px;
+  font-weight: 700;
+  justify-content: center;
+  line-height: 16px;
+  min-width: 18px;
+  padding: 0 3px;
+  position: absolute;
+  right: -4px;
+  top: -4px;
+}
