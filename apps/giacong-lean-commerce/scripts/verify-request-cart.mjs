@@ -9,6 +9,7 @@ import { join } from "node:path";
 import { chromium } from "playwright";
 
 import { nextBinPath } from "./next-bin.mjs";
+import { resolveRequestCart } from "../src/lib/request-cart.ts";
 
 const REQUEST_TIMEOUT_MS = 5_000;
 const SERVER_START_TIMEOUT_MS = 30_000;
@@ -170,6 +171,64 @@ const detail = (family) => ({
 });
 const detailMeta = { channel: "default", locale: "vi", currency: "VND", contract_version: 2 };
 
+function cartProduct(family) {
+  return {
+    imageUrl: family.image ?? null,
+    name: family.name,
+    slug: family.slug,
+    variants: family.variants.map((item) => ({
+      contactFromQuantity: item.contact_from_quantity,
+      isAvailable: item.availability.is_available,
+      label: item.name,
+      minimumOrderQuantity: item.moq,
+      quantityStep: item.quantity_step,
+      sku: item.sku,
+      tierPrices: item.tier_prices.map((tier) => ({ minQuantity: tier.min_quantity, price: tier.unit_price })),
+      unit: item.unit,
+    })),
+  };
+}
+
+function toBagistoCart(cart) {
+  return {
+    currency: cart.currency,
+    has_price_on_request: cart.hasPriceOnRequest,
+    is_submittable: cart.isSubmittable,
+    line_count: cart.lineCount,
+    lines: cart.lines.map((line) => ({
+      adjustments: line.adjustments.map((adjustment) => adjustment.suggestedQuantity === undefined
+        ? { code: adjustment.code, message: adjustment.message }
+        : { code: adjustment.code, message: adjustment.message, suggested_quantity: adjustment.suggestedQuantity }),
+      contact_from_quantity: line.contactFromQuantity,
+      image_url: line.imageUrl,
+      is_available: line.isAvailable,
+      is_submittable: line.isSubmittable,
+      line_total: line.lineTotal,
+      minimum_order_quantity: line.minimumOrderQuantity,
+      parent_slug: line.parentSlug,
+      price_on_request: line.priceOnRequest,
+      product_name: line.productName,
+      quantity: line.quantity,
+      quantity_step: line.quantityStep,
+      unit: line.unit,
+      unit_price: line.unitPrice,
+      variant_label: line.variantLabel,
+      variant_sku: line.variantSku,
+    })),
+    priced_subtotal: cart.pricedSubtotal,
+    request_type: cart.requestType,
+    snapshot_token: cart.snapshotToken,
+    total_quantity: cart.totalQuantity,
+    uniform_unit: cart.uniformUnit,
+  };
+}
+
+async function requestJson(request) {
+  const chunks = [];
+  for await (const chunk of request) chunks.push(Buffer.from(chunk));
+  return JSON.parse(Buffer.concat(chunks).toString("utf8"));
+}
+
 function json(response, body) {
   response.writeHead(200, { "Content-Type": "application/json" });
   response.end(JSON.stringify(body));
@@ -177,8 +236,24 @@ function json(response, body) {
 
 const seenDetailRequests = [];
 const fakeSockets = new Set();
-const fake = createServer((request, response) => {
+const fake = createServer(async (request, response) => {
   const url = new URL(request.url ?? "/", "http://127.0.0.1");
+  if (request.method === "POST" && url.pathname === "/api/b2b/catalog/resolve-cart") {
+    const payload = await requestJson(request);
+    const lines = payload.lines.map((line) => ({
+      parentSlug: line.parent_slug,
+      quantity: line.quantity,
+      variantSku: line.variant_sku,
+    }));
+    const cart = await resolveRequestCart(
+      lines,
+      async (slug) => {
+        const family = families().find((item) => item.slug === slug);
+        return family ? cartProduct(family) : null;
+      },
+    );
+    return json(response, { cart: toBagistoCart(cart) });
+  }
   if (!url.pathname.startsWith("/api/b2b/catalog/products/")) return response.writeHead(404).end();
   const slug = url.pathname.replace("/api/b2b/catalog/products/", "").replace(/\/$/, "");
   seenDetailRequests.push(slug);
@@ -273,6 +348,7 @@ try {
   // A priced, submittable cart renders server money only.
   await openCart(page, storedCart([vanilla, oats]));
   await page.getByRole("heading", { level: 1, name: "Giỏ hàng" }).waitFor();
+  await page.locator("[data-cart-subtotal]").waitFor();
   assert.equal(
     await page.evaluate(() => {
       return document.querySelectorAll("#header, #footer").length === 2

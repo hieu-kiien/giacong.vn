@@ -81,8 +81,7 @@ const CATALOG_ORDERINGS = [
  * request and the cache key, so a filtered list is always shareable and the
  * uncommitted search draft rides along with whatever else changes.
  *
- * Grid columns mirror the archive's `small-columns-2 medium-columns-4
- * large-columns-6`, with its 9.8/19.6px gutters.
+ * The compact card grid uses a 1 → 2 → 3 → 4 column responsive ladder.
  */
 export function CatalogList({
   cards,
