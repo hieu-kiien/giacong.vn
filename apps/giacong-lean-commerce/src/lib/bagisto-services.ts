@@ -8,11 +8,10 @@ export async function getManagedServiceFamily(slug: string): Promise<ServiceFami
   const fallback = getServiceFamily(slug);
   if (!fallback) return undefined;
 
-  const url = getBagistoApiUrl(`/api/b2b/services/${encodeURIComponent(slug)}`, true);
-  url.searchParams.set("channel", process.env.BAGISTO_CHANNEL?.trim() || "default");
-  url.searchParams.set("locale", process.env.BAGISTO_LOCALE?.trim() || "vi");
-
   try {
+    const url = getBagistoApiUrl(`/api/b2b/services/${encodeURIComponent(slug)}`, true);
+    url.searchParams.set("channel", process.env.BAGISTO_CHANNEL?.trim() || "default");
+    url.searchParams.set("locale", process.env.BAGISTO_LOCALE?.trim() || "vi");
     const { payload, response } = await fetchBagistoJson(url, {
       cache: "no-store",
       headers: { Accept: "application/json" },

@@ -35,14 +35,14 @@ export function CapturedFloatingContact() {
     <div className="echbay-sms-messenger style-for-position-br max-[549px]:!hidden" aria-label="Liên hệ nhanh">
         <CapturedRequestCartButton />
         <div className="phonering-alo-alo">
-          <a href="tel:0947142999" rel="nofollow" aria-label="Gọi 0947142999">.</a>
+          <a href="tel:0868408115" rel="nofollow" aria-label="Gọi 0868408115">.</a>
         </div>
         <div className="phonering-alo-sms">
-          <a href="sms:0947142999" rel="nofollow" aria-label="Nhắn tin 0947142999">.</a>
+          <a href="sms:0868408115" rel="nofollow" aria-label="Nhắn tin 0868408115">.</a>
         </div>
         <div className="phonering-alo-zalo">
           <a
-            href="https://zalo.me/0947142999"
+            href="https://zalo.me/06408115"
             target="_blank"
             rel="nofollow noreferrer"
             aria-label="Liên hệ qua Zalo"
@@ -52,7 +52,7 @@ export function CapturedFloatingContact() {
         </div>
         <div className="phonering-alo-messenger">
           <a
-            href="https://www.facebook.com/giacongvietnam"
+            href="https://m.me/qtudepdai"
             target="_blank"
             rel="nofollow noreferrer"
             aria-label="Liên hệ qua Messenger"

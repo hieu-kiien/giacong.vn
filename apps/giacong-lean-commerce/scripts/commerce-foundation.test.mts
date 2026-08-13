@@ -494,6 +494,24 @@ test("the foundation adds no dependency and no forbidden route", async () => {
   );
 });
 
+test("the Next app has no legacy admin BFF or admin UI", async () => {
+  assert.equal(
+    await exists(path.join(appDir, "api", "admin", "categories", "route.ts")),
+    false,
+    "Bagisto Admin is the only admin surface; Next must not expose the category BFF",
+  );
+  assert.equal(
+    await exists(path.join(appDir, "api", "admin", "categories", "[id]", "route.ts")),
+    false,
+    "Bagisto Admin is the only admin surface; Next must not expose category mutations",
+  );
+  assert.equal(
+    await exists(path.join(repoRoot, "src", "components", "admin", "AdminCategoryPanel.tsx")),
+    false,
+    "Next must not retain components for the removed admin UI",
+  );
+});
+
 /**
  * `/gui-yeu-cau` now inherits the captured storefront shell, while its interactive
  * cart controls continue to resolve their accessible greens through the commerce
