@@ -29,10 +29,15 @@
     "check:fe": "npm run test:commerce && npm run test:header && npm run test:listing && npm run test:detail && npm run test:catalog-purchase-ui && npm run lint && npm run typecheck",
     "check:be": "npm run test:contact && npm run test:catalog && npm run test:service && npm run lint && npm run typecheck",
     "cf:build": "npx --yes @opennextjs/cloudflare@1.20.2 build",
+    "cf:build:staging": "npx --yes @opennextjs/cloudflare@1.20.2 build --env=staging",
     "cf:preview": "npm run cf:build && npx --yes @opennextjs/cloudflare@1.20.2 preview",
-    "cf:deploy": "npm run cf:build && npx --yes @opennextjs/cloudflare@1.20.2 deploy",
-    "cf:upload": "npm run cf:build && npx --yes @opennextjs/cloudflare@1.20.2 upload",
-    "cf:typegen": "npx --yes wrangler@4.115.0 types --env-interface CloudflareEnv cloudflare-env.d.ts"
+    "cf:preview:staging": "npm run cf:build:staging && npx --yes @opennextjs/cloudflare@1.20.2 preview --env=staging",
+    "cf:deploy": "npm run cf:deploy:staging",
+    "cf:deploy:staging": "npm run cf:build:staging && npx --yes @opennextjs/cloudflare@1.20.2 deploy --env=staging",
+    "cf:upload": "npm run cf:upload:production",
+    "cf:upload:production": "npm run cf:build && npx --yes @opennextjs/cloudflare@1.20.2 upload",
+    "cf:typegen": "npx --yes wrangler@4.115.0 types --env-interface CloudflareEnv cloudflare-env.d.ts",
+    "cf:typegen:staging": "npx --yes wrangler@4.115.0 types --env=staging --env-interface CloudflareEnv cloudflare-env.d.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.3.0",
