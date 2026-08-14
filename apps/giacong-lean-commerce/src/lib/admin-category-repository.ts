@@ -7,14 +7,12 @@ import {
   decodeAdminVersion,
   encodeAdminVersion,
   normalizeCategoryInput,
-  type AdminCategoryInput,
 } from "./admin-category.ts";
 
 interface D1Statement {
   bind(...values: unknown[]): D1Statement;
   all<T = Record<string, unknown>>(): Promise<{ results: T[] }>;
   first<T = Record<string, unknown>>(): Promise<T | null>;
-  run(): Promise<{ meta?: { changes?: number } }>;
 }
 
 interface D1DatabaseLike {
@@ -22,9 +20,7 @@ interface D1DatabaseLike {
   batch<T extends D1Statement>(statements: T[]): Promise<unknown>;
 }
 
-interface CloudflareEnv {
-  GIACONG_VN_CATALOG?: D1DatabaseLike;
-}
+interface CloudflareEnv { GIACONG_VN_CATALOG?: D1DatabaseLike }
 
 export interface AdminCategory {
   id: number;
@@ -39,15 +35,8 @@ export interface AdminCategory {
 }
 
 interface CategoryRow {
-  id: number;
-  name: string;
-  slug: string;
-  description: string;
-  image_url: string | null;
-  sort_order: number;
-  is_active: number;
-  revision: number;
-  updated_at: string;
+  id: number; name: string; slug: string; description: string; image_url: string | null;
+  sort_order: number; is_active: number; revision: number; updated_at: string;
 }
 
 export class AdminCategoryConflictError extends Error {}
@@ -60,14 +49,9 @@ export async function listCategories(page: number, pageSize: number): Promise<{ 
   const count = await db.prepare("SELECT COUNT(*) AS total FROM categories").first<{ total: number }>();
   const result = await db.prepare(`
     SELECT id, name, slug, description, image_url, sort_order, is_active, revision, updated_at
-    FROM categories
-    ORDER BY sort_order ASC, name COLLATE NOCASE ASC, id ASC
-    LIMIT ? OFFSET ?
+    FROM categories ORDER BY sort_order ASC, name COLLATE NOCASE ASC, id ASC LIMIT ? OFFSET ?
   `).bind(pageSize, (page - 1) * pageSize).all<CategoryRow>();
-  return {
-    categories: result.results.map(toCategory),
-    total: Number(count?.total ?? 0),
-  };
+  return { categories: result.results.map(toCategory), total: Number(count?.total ?? 0) };
 }
 
 export async function getCategory(id: number): Promise<AdminCategory | null> {
@@ -81,9 +65,6 @@ export async function getCategory(id: number): Promise<AdminCategory | null> {
 export async function createCategory(input: unknown, actorSubject: string, requestId: string): Promise<AdminCategory> {
   const category = normalizeCategoryInput(input);
   const db = getDatabase();
-  const existing = await db.prepare("SELECT id FROM categories WHERE slug = ? LIMIT 1").bind(category.slug).first<{ id: number }>();
-  if (existing) throw new AdminCategoryConflictError("Category slug already exists.");
-
   const payloadHash = await sha256(canonicalMutationPayload(category));
   const idempotency = await existingAudit(db, requestId, payloadHash);
   if (idempotency) {
@@ -93,20 +74,24 @@ export async function createCategory(input: unknown, actorSubject: string, reque
     return replay;
   }
 
-  const insert = db.prepare(`
-    INSERT INTO categories (name, slug, description, image_url, sort_order, is_active, revision)
-    VALUES (?, ?, ?, ?, ?, ?, 1)
-  `).bind(category.name, category.slug, category.description, category.imageUrl, category.sortOrder, category.isActive ? 1 : 0);
-  await insert.run();
+  const existing = await db.prepare("SELECT id FROM categories WHERE slug = ? LIMIT 1").bind(category.slug).first<{ id: number }>();
+  if (existing) throw new AdminCategoryConflictError("Category slug already exists.");
+
+  const statements = [
+    db.prepare(`
+      INSERT INTO categories (name, slug, description, image_url, sort_order, is_active, revision)
+      VALUES (?, ?, ?, ?, ?, ?, 1)
+    `).bind(category.name, category.slug, category.description, category.imageUrl, category.sortOrder, category.isActive ? 1 : 0),
+    db.prepare(`
+      INSERT INTO admin_audit_log
+        (request_id, actor_subject, action, entity_type, entity_key, previous_revision, resulting_revision, payload_sha256)
+      VALUES (?, ?, 'create', 'category', CAST((SELECT id FROM categories WHERE slug = ?) AS TEXT), NULL, 1, ?)
+    `).bind(requestId, actorSubject, category.slug, payloadHash),
+  ];
+  await db.batch(statements);
+
   const created = await db.prepare("SELECT id FROM categories WHERE slug = ? LIMIT 1").bind(category.slug).first<{ id: number }>();
-  if (!created) throw new Error("Created category could not be re-read.");
-
-  await db.prepare(`
-    INSERT INTO admin_audit_log
-      (request_id, actor_subject, action, entity_type, entity_key, previous_revision, resulting_revision, payload_sha256)
-    VALUES (?, ?, 'create', 'category', ?, NULL, 1, ?)
-  `).bind(requestId, actorSubject, String(created.id), payloadHash).run();
-
+  if (!created) throw new Error("Created category could not be loaded.");
   const result = await getCategory(created.id);
   if (!result) throw new Error("Created category could not be loaded.");
   return result;
@@ -117,34 +102,38 @@ export async function updateCategory(id: number, raw: unknown, actorSubject: str
   const version = decodeAdminVersion(raw.version);
   const category = normalizeCategoryInput(raw);
   const db = getDatabase();
+  const payloadHash = await sha256(canonicalMutationPayload(category));
+  const idempotency = await existingAudit(db, requestId, payloadHash);
+  if (idempotency) {
+    if (idempotency.entityType !== "category" || idempotency.entityKey !== String(id)) throw new AdminCategoryIdempotencyConflictError("Request ID already used.");
+    const replay = await getCategory(id);
+    if (!replay) throw new AdminCategoryNotFoundError("Category not found.");
+    return replay;
+  }
+
   const existing = await getCategory(id);
   if (!existing) throw new AdminCategoryNotFoundError("Category not found.");
   const slugOwner = await db.prepare("SELECT id FROM categories WHERE slug = ? AND id <> ? LIMIT 1").bind(category.slug, id).first<{ id: number }>();
   if (slugOwner) throw new AdminCategoryConflictError("Category slug already exists.");
 
-  const payloadHash = await sha256(canonicalMutationPayload(category));
-  const idempotency = await existingAudit(db, requestId, payloadHash);
-  if (idempotency) {
-    if (idempotency.entityType !== "category" || idempotency.entityKey !== String(id)) throw new AdminCategoryIdempotencyConflictError("Request ID already used.");
-    return existing;
-  }
-
-  const updated = await db.prepare(`
-    UPDATE categories
-    SET name = ?, slug = ?, description = ?, image_url = ?, sort_order = ?, is_active = ?,
-        revision = revision + 1, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
-    WHERE id = ? AND revision = ?
-  `).bind(category.name, category.slug, category.description, category.imageUrl, category.sortOrder, category.isActive ? 1 : 0, id, version).run();
-  if ((updated.meta?.changes ?? 0) !== 1) throw new AdminCategoryConflictError("Category was changed by another operator.");
-
-  await db.prepare(`
-    INSERT INTO admin_audit_log
-      (request_id, actor_subject, action, entity_type, entity_key, previous_revision, resulting_revision, payload_sha256)
-    VALUES (?, ?, 'update', 'category', ?, ?, ?, ?)
-  `).bind(requestId, actorSubject, String(id), version, version + 1, payloadHash).run();
+  await db.batch([
+    db.prepare(`
+      UPDATE categories
+      SET name = ?, slug = ?, description = ?, image_url = ?, sort_order = ?, is_active = ?,
+          revision = revision + 1, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+      WHERE id = ? AND revision = ?
+    `).bind(category.name, category.slug, category.description, category.imageUrl, category.sortOrder, category.isActive ? 1 : 0, id, version),
+    db.prepare(`
+      INSERT INTO admin_audit_log
+        (request_id, actor_subject, action, entity_type, entity_key, previous_revision, resulting_revision, payload_sha256)
+      SELECT ?, ?, 'update', 'category', CAST(id AS TEXT), revision - 1, revision, ?
+      FROM categories WHERE id = ? AND revision = ?
+    `).bind(requestId, actorSubject, payloadHash, id, version + 1),
+  ]);
 
   const result = await getCategory(id);
   if (!result) throw new AdminCategoryNotFoundError("Category not found.");
+  if (result.version !== encodeAdminVersion(version + 1)) throw new AdminCategoryConflictError("Category was changed by another operator.");
   return result;
 }
 
@@ -164,15 +153,9 @@ async function existingAudit(db: D1DatabaseLike, requestId: string, payloadHash:
 
 function toCategory(row: CategoryRow): AdminCategory {
   return {
-    description: row.description ?? "",
-    id: row.id,
-    imageUrl: row.image_url,
-    isActive: row.is_active === 1,
-    name: row.name,
-    slug: row.slug,
-    sortOrder: row.sort_order,
-    updatedAt: row.updated_at,
-    version: encodeAdminVersion(row.revision),
+    description: row.description ?? "", id: row.id, imageUrl: row.image_url,
+    isActive: row.is_active === 1, name: row.name, slug: row.slug, sortOrder: row.sort_order,
+    updatedAt: row.updated_at, version: encodeAdminVersion(row.revision),
   };
 }
 
@@ -181,7 +164,6 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 async function sha256(value: string): Promise<string> {
-  const bytes = new TextEncoder().encode(value);
-  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
   return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
 }
