@@ -1,0 +1,37 @@
+name: Audit Cloudflare DNS origin once
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - .github/workflows/cloudflare-dns-origin-audit-once.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      ZONE_ID: 46dacfca94df32f628b04d77515620d7
+    steps:
+      - name: Inspect relevant DNS records
+        shell: bash
+        run: |
+          set -euo pipefail
+          response=$(curl --fail-with-body --silent --show-error \
+            "https://api.cloudflare.com/client/v4/zones/${ZONE_ID}/dns_records?per_page=100" \
+            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}")
+          jq '{success, records: [.result[] | select(.name == "kienhieu.id.vn" or .name == "admin.kienhieu.id.vn" or .name == "admin-staging.kienhieu.id.vn") | {id, type, name, content, proxied, ttl}]}' <<<"$response"
+
+      - name: Inspect Worker routes
+        shell: bash
+        run: |
+          set -euo pipefail
+          response=$(curl --fail-with-body --silent --show-error \
+            "https://api.cloudflare.com/client/v4/zones/${ZONE_ID}/workers/routes" \
+            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}")
+          jq '{success, routes: [.result[] | {pattern, script}]}' <<<"$response"
