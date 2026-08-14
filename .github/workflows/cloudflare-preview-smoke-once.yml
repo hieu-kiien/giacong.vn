@@ -1,0 +1,64 @@
+name: Smoke test uploaded Cloudflare preview once
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - .github/workflows/cloudflare-preview-smoke-once.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: apps/giacong-lean-commerce
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      PREVIEW_ORIGIN: https://0c13a217-giacong-vn-staging.qtu1053.workers.dev
+      PREVIEW_VERSION_ID: 0c13a217-8430-4b2b-9968-e581cddabdac
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: apps/giacong-lean-commerce/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Inspect uploaded staging version
+        run: npx wrangler versions view "$PREVIEW_VERSION_ID" --env=staging --json
+
+      - name: Smoke test Bagisto-independent routes
+        run: |
+          set -euo pipefail
+          for path in / /gui-yeu-cau /thue-gia-cong; do
+            status=$(curl --silent --show-error --location --max-time 20 --output /tmp/response.html --write-out '%{http_code}' "$PREVIEW_ORIGIN$path")
+            echo "$path -> HTTP $status"
+            if [ "$status" != "200" ]; then
+              echo "Unexpected response for $path"
+              head -c 1000 /tmp/response.html || true
+              exit 1
+            fi
+          done
+
+      - name: Probe catalog route without changing traffic
+        run: |
+          status=$(curl --silent --show-error --location --max-time 20 --output /tmp/catalog.html --write-out '%{http_code}' "$PREVIEW_ORIGIN/san-pham" || true)
+          echo "/san-pham -> HTTP $status"
+          head -c 1000 /tmp/catalog.html || true
+
+      - name: Confirm old staging version still serves 100 percent
+        run: npx wrangler deployments status --env=staging --json
