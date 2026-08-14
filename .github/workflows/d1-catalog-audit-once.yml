@@ -23,12 +23,42 @@ jobs:
           npx -y wrangler@4.115.0 d1 execute "$DATABASE_NAME" --remote --json \
             --command="SELECT name, sql FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE '_cf_%' ORDER BY name;"
 
-      - name: Audit known catalog data
+      - name: Audit catalog counts and relationships
         shell: bash
         run: |
           set -euo pipefail
-          for table in categories products product_variants product_prices product_media settings; do
-            echo "=== ${table} ==="
-            npx -y wrangler@4.115.0 d1 execute "$DATABASE_NAME" --remote --json \
-              --command="SELECT * FROM ${table} LIMIT 5;" || true
-          done
+          npx -y wrangler@4.115.0 d1 execute "$DATABASE_NAME" --remote --json --command="
+            SELECT 'categories' AS table_name, COUNT(*) AS row_count FROM categories;
+            SELECT 'products' AS table_name, COUNT(*) AS row_count FROM products;
+            SELECT 'product_variants' AS table_name, COUNT(*) AS row_count FROM product_variants;
+            SELECT 'variant_tier_prices' AS table_name, COUNT(*) AS row_count FROM variant_tier_prices;
+            SELECT 'services' AS table_name, COUNT(*) AS row_count FROM services;
+          "
+          npx -y wrangler@4.115.0 d1 execute "$DATABASE_NAME" --remote --json --command="
+            SELECT p.id, p.slug, p.sku, p.name, p.category_id,
+                   COUNT(v.id) AS variant_count,
+                   SUM(CASE WHEN v.is_available = 1 THEN 1 ELSE 0 END) AS available_variant_count,
+                   MIN(tp.price) AS starting_price
+            FROM products p
+            LEFT JOIN product_variants v ON v.product_id = p.id
+            LEFT JOIN variant_tier_prices tp ON tp.variant_id = v.id AND tp.min_quantity = v.moq
+            WHERE p.is_active = 1
+            GROUP BY p.id
+            ORDER BY p.id;
+          "
+
+      - name: Audit variants prices and services
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx -y wrangler@4.115.0 d1 execute "$DATABASE_NAME" --remote --json --command="
+            SELECT v.id, v.product_id, v.name, v.sku, v.option_label, v.unit, v.moq,
+                   v.quantity_step, v.contact_from_quantity, v.is_available,
+                   v.attribute_id, v.attribute_code, v.attribute_label, v.option_id, v.image_url,
+                   tp.min_quantity, tp.price, tp.currency
+            FROM product_variants v
+            LEFT JOIN variant_tier_prices tp ON tp.variant_id = v.id
+            ORDER BY v.product_id, v.sort_order, v.id, tp.min_quantity;
+          "
+          npx -y wrangler@4.115.0 d1 execute "$DATABASE_NAME" --remote --json \
+            --command="SELECT * FROM services ORDER BY id;"
