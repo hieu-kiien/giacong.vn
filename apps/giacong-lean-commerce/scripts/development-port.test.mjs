@@ -33,11 +33,11 @@ test("Cloudflare bindings replace the former Bagisto proxy boundary", async () =
   assert.match(catalog, /GIACONG_VN_CATALOG/);
 });
 
-test("runs focused contact, catalog, and service tests before lint in the standard check contract", async () => {
+test("runs focused admin, contact, catalog, and service tests before lint in the standard check contract", async () => {
   const packageJson = JSON.parse(await readFile(new URL("package.json", root), "utf8"));
   assert.equal(
     packageJson.scripts.check,
-    "npm run test:contact && npm run test:catalog && npm run test:catalog-purchase-ui && npm run test:service"
+    "npm run test:admin && npm run test:contact && npm run test:catalog && npm run test:catalog-purchase-ui && npm run test:service"
       + " && npm run test:commerce && npm run test:header"
       + " && npm run test:listing && npm run test:detail"
       + " && npm run lint && npm run typecheck && npm run build",
