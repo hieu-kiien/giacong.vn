@@ -1,0 +1,48 @@
+name: Sync npm lockfile
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - apps/giacong-lean-commerce/package.json
+      - .github/workflows/lockfile-sync.yml
+
+permissions:
+  contents: write
+
+jobs:
+  sync-lockfile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: apps/giacong-lean-commerce
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: master
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: apps/giacong-lean-commerce/package-lock.json
+
+      - name: Regenerate package-lock.json only
+        run: npm install --package-lock-only --ignore-scripts
+
+      - name: Commit lockfile when changed
+        run: |
+          if git diff --quiet -- package-lock.json; then
+            echo "package-lock.json is already in sync."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package-lock.json
+          git commit -m "build: sync Cloudflare toolchain lockfile"
+          git push origin HEAD:master
