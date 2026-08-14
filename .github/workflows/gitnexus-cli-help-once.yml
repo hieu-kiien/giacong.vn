@@ -12,7 +12,7 @@ permissions:
 jobs:
   inspect:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
         with:
@@ -22,12 +22,29 @@ jobs:
           node-version: "24.11.0"
       - name: Install pinned GitNexus
         run: npm install --global gitnexus@1.6.9
-      - name: Show supported commands
+      - name: Index current branch without generated rule edits
+        run: gitnexus analyze . --force --skip-agents-md --skip-skills
+      - name: Locate the standard-check contract test in the graph
         shell: bash
         run: |
           set -euo pipefail
-          gitnexus --help | tee /tmp/help.txt
-          echo "--- query help ---"
-          gitnexus query --help 2>&1 || true
-          echo "--- impact help ---"
-          gitnexus impact --help 2>&1 || true
+          gitnexus query \
+            "development-port standard check contract packageJson scripts check focused contact catalog service tests" \
+            --goal "identify the symbol in scripts/development-port.test.mjs that asserts packageJson.scripts.check" \
+            --context "We must perform impact analysis before editing the existing test callback." \
+            --content --limit 10 | tee /tmp/query.txt
+      - name: Analyze file-local test blast radius
+        shell: bash
+        run: |
+          set -euo pipefail
+          gitnexus impact test \
+            --direction upstream \
+            --file apps/giacong-lean-commerce/scripts/development-port.test.mjs \
+            --include-tests --depth 3 --limit 100 | tee /tmp/impact.txt
+          {
+            echo "## Pre-edit GitNexus impact"
+            echo
+            echo '```text'
+            cat /tmp/impact.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
