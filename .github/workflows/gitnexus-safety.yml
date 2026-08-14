@@ -1,0 +1,78 @@
+name: GitNexus safety gate
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - "apps/giacong-lean-commerce/src/**"
+      - "apps/giacong-lean-commerce/package.json"
+      - "apps/giacong-lean-commerce/package-lock.json"
+      - "apps/giacong-lean-commerce/wrangler.jsonc"
+      - ".github/workflows/gitnexus-safety.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gitnexus-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  detect-impact:
+    name: GitNexus detect changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout pull request
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24.11.0"
+
+      - name: Install pinned GitNexus
+        env:
+          GITNEXUS_SKIP_OPTIONAL_GRAMMARS: "1"
+        run: npm install --global gitnexus@1.6.9
+
+      - name: Reconstruct PR as an uncommitted working tree
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          git diff --binary "$BASE_SHA" "$HEAD_SHA" > /tmp/pr.patch
+          git reset --hard "$BASE_SHA"
+          if [ -s /tmp/pr.patch ]; then
+            git apply /tmp/pr.patch
+          fi
+          git status --short
+
+      - name: Build GitNexus index from proposed tree
+        env:
+          GITNEXUS_SKIP_OPTIONAL_GRAMMARS: "1"
+        run: |
+          set -euo pipefail
+          gitnexus analyze . --force --skip-agents-md --skip-skills --skip-embeddings
+          gitnexus status
+
+      - name: Detect changed symbols and affected execution flows
+        run: |
+          set -euo pipefail
+          gitnexus detect-changes | tee /tmp/gitnexus-detect-changes.txt
+          {
+            echo "## GitNexus change-impact report"
+            echo
+            echo '```text'
+            cat /tmp/gitnexus-detect-changes.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Structural graph checks
+        run: gitnexus check
