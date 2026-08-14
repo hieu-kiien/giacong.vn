@@ -14,7 +14,7 @@ permissions:
 jobs:
   apply:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     defaults:
       run:
         working-directory: apps/giacong-lean-commerce
@@ -83,6 +83,9 @@ jobs:
             exit 1
           fi
           echo "Existing staging-admin route: ${existing:-none}"
+
+      - name: Build OpenNext assets required by Wrangler config validation
+        run: npm run cf:build:staging
 
       - name: Validate route config without changing triggers
         run: npx wrangler triggers deploy --env=staging --dry-run
