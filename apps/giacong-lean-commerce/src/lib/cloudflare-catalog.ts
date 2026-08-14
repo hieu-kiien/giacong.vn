@@ -7,7 +7,6 @@ import type {
   CatalogCategory,
   CatalogFilters,
   CatalogOptionGroup,
-  CatalogPageSize,
   CatalogProductDetail,
   CatalogProductList,
   CatalogProductParent,
@@ -57,7 +56,7 @@ interface ProductListRow {
   variant_count: number;
 }
 
-interface ProductDetailRow extends ProductListRow {}
+type ProductDetailRow = ProductListRow;
 
 interface VariantRow {
   attribute_code: string;
