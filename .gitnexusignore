@@ -1,0 +1,12 @@
+# Historical/reference workspace material is not part of the Cloudflare-native runtime.
+# Keep the code-intelligence graph focused on the active implementation so impact
+# analysis is faster and does not mix legacy replicas with production-bound code.
+reference/
+design/
+tools/
+src/
+
+# Generated reports/artifacts do not participate in runtime call graphs.
+**/playwright-report/
+**/test-results/
+**/.open-next/
