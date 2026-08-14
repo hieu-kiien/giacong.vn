@@ -7,7 +7,7 @@ import {
   demoCatalogProductsByCategory,
   findDemoCatalogProduct,
 } from "@/data/demo-catalog";
-import { getCatalogProduct, getCatalogProducts } from "@/lib/bagisto-catalog";
+import { getCatalogProduct, getCatalogProducts } from "@/lib/cloudflare-catalog";
 import { demoCatalogFallbackAllowed, demoCatalogForced, waitForDemoCatalogFallback } from "@/lib/demo-catalog-policy";
 import type { CatalogProductDetail, CatalogProductParent } from "@/types/catalog";
 
@@ -15,25 +15,15 @@ import type { CatalogProductDetail, CatalogProductParent } from "@/types/catalog
 const RELATED_LIMIT = 4;
 
 export interface CatalogDetailSourceResult {
-  /**
-   * `true` when the page is rendered from the demo fixture rather than from
-   * Bagisto. The UI surfaces this, so demo content is never read as production
-   * content.
-   */
+  /** true only when a non-production demo fixture is used. */
   isDemo: boolean;
   product: CatalogProductDetail;
   related: readonly CatalogProductParent[];
 }
 
 /**
- * Reads one product for the detail page.
- *
- * Bagisto first, always. When it is unreachable or has no such product, a
- * non-production environment falls back to the demo fixture so the commerce UI can
- * be built and reviewed before the real feed is approved; production does not, so
- * an upstream failure stays a failure and an unknown slug stays a 404.
- *
- * Returns `null` for "no such product", which the route turns into `notFound()`.
+ * Reads one product from Cloudflare D1. A non-production environment may use the
+ * isolated fixture when explicitly allowed; production keeps D1 failures visible.
  */
 export const loadCatalogProductDetail = cache(async (slug: string): Promise<CatalogDetailSourceResult | null> => {
   const demoAllowed = demoCatalogFallbackAllowed(process.env);
@@ -45,13 +35,10 @@ export const loadCatalogProductDetail = cache(async (slug: string): Promise<Cata
       return { isDemo: false, product, related: await readLiveRelated(product) };
     }
   } catch (error) {
-    // Outside production a missing Bagisto must not block UI work; in production
-    // the error belongs to the route's error boundary, not to a silent 404.
     if (!demoAllowed) throw error;
   }
 
   if (!demoAllowed) return null;
-
   return readDemoProduct(slug);
 });
 
@@ -61,10 +48,6 @@ function readDemoProduct(slug: string): CatalogDetailSourceResult | null {
   return { isDemo: true, product: demoProduct, related: readDemoRelated(demoProduct) };
 }
 
-/**
- * Related products from the same category. A failure here is not worth failing the
- * page for: the rail is supporting content, so it degrades to empty.
- */
 async function readLiveRelated(product: CatalogProductDetail): Promise<readonly CatalogProductParent[]> {
   if (!product.category) return [];
   try {
