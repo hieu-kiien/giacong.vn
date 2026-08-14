@@ -5,6 +5,7 @@ on:
     branches: [master]
     paths:
       - "apps/giacong-lean-commerce/src/**"
+      - "apps/giacong-lean-commerce/scripts/**"
       - "apps/giacong-lean-commerce/package.json"
       - "apps/giacong-lean-commerce/package-lock.json"
       - "apps/giacong-lean-commerce/wrangler.jsonc"
@@ -23,10 +24,10 @@ jobs:
   detect-impact:
     name: GitNexus detect changes
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
 
     steps:
-      - name: Checkout pull request
+      - name: Checkout with full history
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -41,32 +42,47 @@ jobs:
           GITNEXUS_SKIP_OPTIONAL_GRAMMARS: "1"
         run: npm install --global gitnexus@1.6.9
 
-      - name: Reconstruct PR as an uncommitted working tree
+      - name: Prepare base tree and PR patch
         if: github.event_name == 'pull_request'
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        shell: bash
         run: |
           set -euo pipefail
           git diff --binary "$BASE_SHA" "$HEAD_SHA" > /tmp/pr.patch
+          test -s /tmp/pr.patch
           git reset --hard "$BASE_SHA"
-          if [ -s /tmp/pr.patch ]; then
-            git apply /tmp/pr.patch
-          fi
           git status --short
 
-      - name: Build GitNexus index from proposed tree
+      - name: Build GitNexus baseline index
         env:
           GITNEXUS_SKIP_OPTIONAL_GRAMMARS: "1"
+        shell: bash
         run: |
           set -euo pipefail
           gitnexus analyze . --force --skip-agents-md --skip-skills
           gitnexus status
 
+      - name: Reconstruct PR as uncommitted changes
+        if: github.event_name == 'pull_request'
+        shell: bash
+        run: |
+          set -euo pipefail
+          git apply /tmp/pr.patch
+          test -n "$(git status --short)"
+          git status --short
+
       - name: Detect changed symbols and affected execution flows
+        if: github.event_name == 'pull_request'
+        shell: bash
         run: |
           set -euo pipefail
           gitnexus detect-changes | tee /tmp/gitnexus-detect-changes.txt
+          if grep -Fxq "No changes detected." /tmp/gitnexus-detect-changes.txt; then
+            echo "GitNexus did not map a non-empty PR diff to any change; failing closed." >&2
+            exit 1
+          fi
           {
             echo "## GitNexus change-impact report"
             echo
@@ -75,8 +91,15 @@ jobs:
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 
+      - name: Re-index proposed tree for structural checks
+        if: github.event_name == 'pull_request'
+        env:
+          GITNEXUS_SKIP_OPTIONAL_GRAMMARS: "1"
+        run: gitnexus analyze . --force --skip-agents-md --skip-skills
+
       - name: Structural graph cycle report
         continue-on-error: true
+        shell: bash
         run: |
           set -o pipefail
           gitnexus check --cycles | tee /tmp/gitnexus-cycles.txt
