@@ -21,8 +21,9 @@ jobs:
     env:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-      PREVIEW_ORIGIN: https://85c67b3a-giacong-vn-staging.qtu1053.workers.dev
-      PREVIEW_VERSION_ID: 85c67b3a-b7f7-472e-8bb4-dc131de4d8cd
+      PREVIEW_ORIGIN: https://173773bb-giacong-vn-staging.qtu1053.workers.dev
+      PREVIEW_VERSION_ID: 173773bb-ed45-412f-aef4-d9ec78f3a8cd
+      OLD_ACTIVE_VERSION_ID: b4693784-d4c4-4659-83ca-1e13b02a6177
 
     steps:
       - name: Checkout
@@ -41,24 +42,71 @@ jobs:
       - name: Inspect uploaded staging version
         run: npx wrangler versions view "$PREVIEW_VERSION_ID" --env=staging --json
 
-      - name: Smoke test Bagisto-independent routes
+      - name: Smoke test storefront and D1 listing
         run: |
           set -euo pipefail
-          for path in / /gui-yeu-cau /thue-gia-cong; do
-            status=$(curl --silent --show-error --location --max-time 20 --output /tmp/response.html --write-out '%{http_code}' "$PREVIEW_ORIGIN$path")
+          for path in / /san-pham /san-pham/bot-gao-lut-xay-min /gui-yeu-cau /thue-gia-cong /thue-gia-cong/say-thuc-pham-say; do
+            out="/tmp/$(echo "$path" | tr '/?' '__').html"
+            status=$(curl --silent --show-error --location --max-time 25 --output "$out" --write-out '%{http_code}' "$PREVIEW_ORIGIN$path")
             echo "$path -> HTTP $status"
             if [ "$status" != "200" ]; then
-              echo "Unexpected response for $path"
-              head -c 1000 /tmp/response.html || true
+              head -c 1500 "$out" || true
               exit 1
             fi
           done
+          grep -q "Bột gạo lứt xay mịn" /tmp/_san-pham.html
+          grep -q "Bột gạo lứt xay mịn" /tmp/_san-pham_bot-gao-lut-xay-min.html
 
-      - name: Probe catalog route without changing traffic
+      - name: Verify canonical D1 product API
         run: |
-          status=$(curl --silent --show-error --location --max-time 20 --output /tmp/catalog.html --write-out '%{http_code}' "$PREVIEW_ORIGIN/san-pham" || true)
-          echo "/san-pham -> HTTP $status"
-          head -c 1000 /tmp/catalog.html || true
+          set -euo pipefail
+          curl --fail-with-body --silent --show-error --max-time 25 \
+            "$PREVIEW_ORIGIN/api/catalog/products/bot-gao-lut-xay-min" > /tmp/product.json
+          jq -e '
+            .product.slug == "bot-gao-lut-xay-min"
+            and .product.variantCount == 3
+            and .product.availableVariantCount == 3
+            and .product.startingPrice.currency == "VND"
+            and .product.startingPrice.price == 78000
+            and ([.product.variants[].sku] | index("B2B-DEMO-BGL-05") != null)
+          ' /tmp/product.json
 
-      - name: Confirm old staging version still serves 100 percent
-        run: npx wrangler deployments status --env=staging --json
+      - name: Verify D1 cart revalidation and canonical money
+        run: |
+          set -euo pipefail
+          curl --fail-with-body --silent --show-error --max-time 25 \
+            -H 'Content-Type: application/json' \
+            --data '{"lines":[{"parentSlug":"bot-gao-lut-xay-min","variantSku":"B2B-DEMO-BGL-05","quantity":25}]}' \
+            "$PREVIEW_ORIGIN/api/gui-yeu-cau/xac-thuc" > /tmp/cart.json
+          jq -e '
+            .ok == true
+            and .cart.currency == "VND"
+            and .cart.isSubmittable == true
+            and .cart.lineCount == 1
+            and .cart.requestType == "Đặt sản phẩm"
+            and .cart.pricedSubtotal == 1950000
+            and .cart.lines[0].unitPrice == 78000
+            and .cart.lines[0].lineTotal == 1950000
+            and .cart.lines[0].minimumOrderQuantity == 25
+            and .cart.lines[0].quantityStep == 5
+          ' /tmp/cart.json
+
+      - name: Verify R2 product media route
+        run: |
+          set -euo pipefail
+          status=$(curl --silent --show-error --location --max-time 25 --output /tmp/media.bin --write-out '%{http_code}' \
+            "$PREVIEW_ORIGIN/media/products/c5be4fe1-3daa-40ad-b9df-54717ec5c863.jpg")
+          echo "/media/products/...jpg -> HTTP $status, bytes=$(wc -c < /tmp/media.bin)"
+          test "$status" = "200"
+          test "$(wc -c < /tmp/media.bin)" -gt 0
+
+      - name: Confirm active staging still serves old version at 100 percent
+        run: |
+          set -euo pipefail
+          deployment=$(npx wrangler deployments status --env=staging --json)
+          echo "$deployment"
+          jq -e --arg old "$OLD_ACTIVE_VERSION_ID" '
+            .versions | length == 1
+            and .[0].version_id == $old
+            and .[0].percentage == 100
+          ' <<<"$deployment"
