@@ -21,6 +21,7 @@ jobs:
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       ZONE_NAME: kienhieu.id.vn
       ADMIN_STAGING_HOST: admin-staging.kienhieu.id.vn
+      ACTIVE_STAGING_ORIGIN: https://giacong-vn-staging.qtu1053.workers.dev
 
     steps:
       - name: Resolve Cloudflare zone
@@ -91,7 +92,7 @@ jobs:
           fi
           exit 0
 
-      - name: Probe existing Bagisto staging hostname
+      - name: Probe existing Bagisto staging hostname directly
         shell: bash
         run: |
           set +e
@@ -99,9 +100,25 @@ jobs:
             url="https://${ADMIN_STAGING_HOST}${path}"
             code=$(curl --silent --show-error --location --max-time 15 --output /tmp/probe-body --write-out '%{http_code}' "$url")
             content_type=$(curl --silent --show-error --head --max-time 15 "$url" | awk -F': ' 'tolower($1)=="content-type" {gsub("\r", "", $2); print $2; exit}')
-            echo "$path -> HTTP ${code:-curl-error}; content-type=${content_type:-unknown}"
+            echo "direct $path -> HTTP ${code:-curl-error}; content-type=${content_type:-unknown}"
             if [ "$path" != "/" ] && [ -s /tmp/probe-body ]; then
               head -c 300 /tmp/probe-body | tr '\n' ' '
+              echo
+            fi
+          done
+          exit 0
+
+      - name: Probe currently deployed staging Worker
+        shell: bash
+        run: |
+          set +e
+          for path in / /san-pham /api/b2b/catalog/categories '/api/b2b/catalog/products?per_page=1'; do
+            url="${ACTIVE_STAGING_ORIGIN}${path}"
+            code=$(curl --silent --show-error --location --max-time 20 --output /tmp/worker-probe-body --write-out '%{http_code}' "$url")
+            content_type=$(curl --silent --show-error --head --max-time 20 "$url" | awk -F': ' 'tolower($1)=="content-type" {gsub("\r", "", $2); print $2; exit}')
+            echo "active-worker $path -> HTTP ${code:-curl-error}; content-type=${content_type:-unknown}"
+            if [ -s /tmp/worker-probe-body ]; then
+              head -c 300 /tmp/worker-probe-body | tr '\n' ' '
               echo
             fi
           done
