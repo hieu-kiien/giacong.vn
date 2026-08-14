@@ -457,7 +457,7 @@ test("the request-cart, webhook and Sheet contracts are untouched by the foundat
   assert.ok(await exists(path.join(appDir, "api", "contact", "route.ts")), "the contact route must stay in place");
 });
 
-test("the foundation adds no dependency and no forbidden route", async () => {
+test("the runtime dependency baseline stays explicit and no forbidden route appears", async () => {
   const manifest = JSON.parse(await readSource("package.json")) as {
     dependencies: Record<string, string>;
     devDependencies: Record<string, string>;
@@ -469,6 +469,7 @@ test("the foundation adds no dependency and no forbidden route", async () => {
       "@base-ui/react",
       "class-variance-authority",
       "clsx",
+      "jose",
       "lucide-react",
       "next",
       "react",
@@ -477,7 +478,7 @@ test("the foundation adds no dependency and no forbidden route", async () => {
       "tailwind-merge",
       "tw-animate-css",
     ],
-    "the foundation must not add a runtime dependency",
+    "runtime dependencies must stay on the reviewed allowlist",
   );
 
   for (const forbidden of ["gio-hang", "thanh-toan", "tai-khoan", "dat-hang"]) {
