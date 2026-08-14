@@ -6,6 +6,10 @@ on:
       - master
     paths:
       - .github/workflows/cloudflare-staging-deep-qa.yml
+      - apps/giacong-lean-commerce/src/**
+      - apps/giacong-lean-commerce/wrangler.jsonc
+      - apps/giacong-lean-commerce/package.json
+      - apps/giacong-lean-commerce/package-lock.json
   workflow_dispatch:
 
 permissions:
@@ -107,7 +111,7 @@ jobs:
           print('Catalog sort order verified:', dict(zip(names, positions)))
           PY
 
-      - name: Verify product API and unavailable variant
+      - name: Verify product API and repaired quantity thresholds
         shell: bash
         run: |
           set -euo pipefail
@@ -117,8 +121,16 @@ jobs:
             .product.slug == "nuoc-mam-cot-pha-loang"
             and .product.variantCount == 2
             and .product.availableVariantCount == 1
+            and ([.product.variants[] | select(.sku == "B2B-DEMO-NMC-10" and .contactFromQuantity == 141)] | length == 1)
             and ([.product.variants[] | select(.sku == "B2B-DEMO-NMC-30" and .isAvailable == false)] | length == 1)
           ' /tmp/fish-sauce.json
+
+          curl --fail-with-body --silent --show-error --max-time 25 \
+            "$STAGING_ORIGIN/api/catalog/products/sot-me-chua-ngot" > /tmp/tamarind.json
+          jq -e '
+            .product.slug == "sot-me-chua-ngot"
+            and ([.product.variants[] | select(.sku == "B2B-DEMO-SME-02" and .contactFromQuantity == 264)] | length == 1)
+          ' /tmp/tamarind.json
 
           status=$(curl --silent --show-error --max-time 25 --output /tmp/not-found.json --write-out '%{http_code}' \
             "$STAGING_ORIGIN/api/catalog/products/khong-ton-tai")
