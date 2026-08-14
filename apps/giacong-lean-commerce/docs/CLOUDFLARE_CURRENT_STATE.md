@@ -16,13 +16,20 @@ Hồ sơ này ghi bằng chứng runtime đã xác minh trong quá trình chuy�
 
 ## Quyền Cloudflare API
 
-Token GitHub Actions đã xác minh active và có đủ scope account + zone để audit/deploy hạ tầng cần thiết. DNS records và Workers Routes đã đọc thành công bằng API thật. Không còn blocker về quyền Cloudflare.
+Token GitHub Actions đã xác minh có thể đọc zone, DNS, Workers Routes, Cloudflare Access applications/policies và identity providers cần cho audit staging; đồng thời có quyền deploy Worker/triggers trong zone hiện hành. Khi Wrangler áp dụng staging route, token không có scope `All Zones`, nên Wrangler dùng zone-based endpoint cho zone được cấp quyền và deploy thành công.
 
-## DNS và routes hiện tại
+## DNS, Access và routes hiện tại
 
 - `kienhieu.id.vn` có A record proxied tới `13.67.69.121`; public traffic thực tế được Worker route `kienhieu.id.vn/*` đưa vào `giacong-vn`.
-- `admin.kienhieu.id.vn/*` cũng route vào `giacong-vn` theo trạng thái hạ tầng cũ; production admin chưa được coi là active/accepted surface.
-- `admin-staging.kienhieu.id.vn` có DNS proxied nhưng chưa có Worker route/admin authentication boundary đã audit.
+- `admin.kienhieu.id.vn/*` vẫn route vào `giacong-vn` theo trạng thái hạ tầng cũ; production admin chưa được coi là active/accepted surface.
+- `admin-staging.kienhieu.id.vn` có DNS proxied.
+- Cloudflare Access có một self-hosted application cho chính hostname `admin-staging.kienhieu.id.vn`, có allow policy và identity-provider state đã đọc/audit thành công qua API.
+- `admin-staging.kienhieu.id.vn/*` hiện route vào `giacong-vn-staging`.
+- Route staging-admin đã được khai báo bền vững trong `wrangler.jsonc` dưới `env.staging.routes`, không chỉ tồn tại như thay đổi thủ công trên Cloudflare.
+- Sau khi apply staging route, Workers Routes API xác minh đồng thời:
+  - `admin-staging.kienhieu.id.vn/*` → `giacong-vn-staging`;
+  - `admin.kienhieu.id.vn/*` → `giacong-vn`.
+- Một request không xác thực từ GitHub runner tới `admin-staging.kienhieu.id.vn` bị Cloudflare edge chặn với HTTP 403 challenge page, không nhận nội dung Worker trực tiếp. Đây là bằng chứng fail-closed ở edge cho request thử nghiệm đó; không diễn giải 403 này như bằng chứng riêng rằng Access luôn trả redirect 302.
 
 IP/DNS cũ không được dùng làm commerce backend mới. Cloudflare-native Worker/D1/R2 là đường đích.
 
@@ -124,13 +131,15 @@ Sau data repair, workflow `Cloudflare staging deep QA` chạy lại trên active
 - Chromium responsive QA đạt trên mobile `390×844`, tablet `768×1024`, desktop `1440×900` cho homepage, catalog, product detail, request cart và service detail;
 - không phát hiện horizontal overflow hoặc browser page/console error trong bộ route QA.
 
-Deep QA workflow đã được mở rộng để tự chạy khi storefront/runtime source, Wrangler config hoặc package contract liên quan thay đổi trên `master`; vẫn có `workflow_dispatch` để chạy lại sau data-only mutation.
+Sau khi staging-admin route được thêm vào Wrangler và merge, deep QA trên `master` lại chạy **success toàn bộ**, gồm responsive browser check. Quality gate và Cloudflare staging build/package gate của cùng master commit cũng xanh; staging Worker version phục vụ storefront không bị thay đổi bởi bước khai báo trigger.
+
+Deep QA workflow tự chạy khi storefront/runtime source, Wrangler config hoặc package contract liên quan thay đổi trên `master`; vẫn có `workflow_dispatch` để chạy lại sau data-only mutation.
 
 ## Governance Cloudflare-native
 
-Nguồn quyết định mới là `docs/CLOUDFLARE_NATIVE_V1_PLAN.md`. `COMMERCE_PLATFORM_MASTER_PLAN.md` được giữ làm hồ sơ lịch sử Bagisto-era, không còn quyết định runtime/admin đích.
+Nguồn quyết định là `docs/CLOUDFLARE_NATIVE_V1_PLAN.md`. `COMMERCE_PLATFORM_MASTER_PLAN.md` được giữ làm hồ sơ lịch sử Bagisto-era, không còn quyết định runtime/admin đích.
 
-Plan mới khóa các nguyên tắc:
+Plan khóa các nguyên tắc:
 
 - D1/R2 là canonical data/media;
 - Bagisto không quay lại runtime;
@@ -139,15 +148,17 @@ Plan mới khóa các nguyên tắc:
 - staging là cổng bắt buộc;
 - production không được dùng làm môi trường thử nghiệm.
 
-**Production Worker `giacong-vn`, production data resources và production route `kienhieu.id.vn/*` chưa bị thay đổi bởi các bước staging/QA trên.**
+Admin server contract chi tiết đã được khóa trong `docs/CLOUDFLARE_ADMIN_WRITE_CONTRACT.md`: hostname/Access admission, exact write shapes, stale-write protection, MOQ/step/contact/tier invariants, media policy, request id/idempotency, auditability và required regression matrix.
+
+**Production Worker `giacong-vn`, production data resources và production route `kienhieu.id.vn/*` chưa bị thay đổi bởi các bước staging/admin-prep trên.**
 
 ## Cổng kế tiếp
 
-Application/runtime migration và deep QA đã đạt staging. Các bước tiếp theo là:
+Application/runtime migration, deep QA và staging-admin edge/route audit đã đạt. Các bước tiếp theo là:
 
-1. Audit authentication boundary cho `admin-staging.kienhieu.id.vn`, ưu tiên Cloudflare Access nếu account/domain hỗ trợ đúng policy cần thiết.
-2. Khóa server-side admin write contract cho D1/R2: validation, conflict/stale write, media policy, error mapping và auditability.
-3. Xây admin staging CRUD theo thứ tự category → product → variant → tier price → media → services; không đưa request inbox vào scope này.
+1. Implement server-side admin write contract trên staging, bắt đầu bằng admission/auth helpers + category/product D1 repository, có test RED→GREEN và fail-closed behavior.
+2. Thêm D1 migration cho audit log trước khi bật mutation endpoint.
+3. Hoàn tất variants/tier-price contract rồi media R2 contract, sau đó mới dựng admin UI CRUD category → product → variant → tier → media → services.
 4. Xác minh Google Sheet/Apps Script trên account thật hoặc ra quyết định riêng nếu chuyển request inbox sang D1.
 5. Chốt production taxonomy, SKU, variants, prices, MOQ, media, content và contact/trust claims.
 6. Tạo/audit production D1/R2 có chủ ý và migration dataset đã duyệt; không copy demo staging ngầm định.
