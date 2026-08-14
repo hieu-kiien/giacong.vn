@@ -1,5 +1,4 @@
-import { CatalogApiError, getCatalogProduct } from "@/lib/bagisto-catalog";
-import { BagistoApiTimeoutError } from "@/lib/bagisto-api";
+import { CatalogDataError, getCatalogProduct } from "@/lib/cloudflare-catalog";
 
 export const dynamic = "force-dynamic";
 
@@ -14,16 +13,9 @@ export async function GET(_request: Request, context: RouteContext<"/api/catalog
     if (!product) return Response.json({ error: "product_not_found" }, { headers, status: 404 });
     return Response.json({ product }, { headers });
   } catch (error) {
-    if (error instanceof BagistoApiTimeoutError) {
-      return Response.json({ error: "catalog_unavailable" }, { headers, status: 504 });
+    if (error instanceof CatalogDataError) {
+      return Response.json({ error: "catalog_unavailable" }, { headers, status: 503 });
     }
-    if (error instanceof CatalogApiError) {
-      const status = error.status === 404 ? 404 : error.status && error.status >= 400 && error.status < 500 ? 422 : 502;
-      return Response.json(
-        { error: error.status === 404 ? "product_not_found" : "catalog_unavailable" },
-        { headers, status },
-      );
-    }
-    return Response.json({ error: "catalog_unavailable" }, { headers, status: 502 });
+    return Response.json({ error: "catalog_unavailable" }, { headers, status: 503 });
   }
 }
