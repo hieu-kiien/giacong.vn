@@ -20,6 +20,23 @@
         "directory": ".open-next/assets",
         "binding": "ASSETS"
       },
+      "d1_databases": [
+        {
+          "binding": "GIACONG_VN_CATALOG",
+          "database_name": "giacong-vn-catalog-staging",
+          "database_id": "981b5d5e-bba9-4f7e-9e1e-a15e379cd095"
+        }
+      ],
+      "r2_buckets": [
+        {
+          "binding": "GIACONG_VN_PRODUCT_MEDIA",
+          "bucket_name": "giacong-vn-product-media-staging"
+        },
+        {
+          "binding": "NEXT_INC_CACHE_R2_BUCKET",
+          "bucket_name": "giacong-vn-next-cache-staging"
+        }
+      ],
       "observability": {
         "enabled": true
       }
