@@ -9,6 +9,7 @@ node_modules/
 
 # Build
 .next/
+.open-next/
 out/
 build/
 dist/
@@ -19,6 +20,10 @@ dist/
 .env.development.local
 .env.test.local
 .env.production.local
+.dev.vars
+
+# Cloudflare generated types
+cloudflare-env.d.ts
 
 # Debug
 npm-debug.log*
@@ -39,7 +44,7 @@ Thumbs.db
 *.tsbuildinfo
 next-env.d.ts
 
-# Vercel
+# Legacy Vercel local metadata; production deployment target is Cloudflare Workers.
 .vercel
 
 # Local settings (not project config)
