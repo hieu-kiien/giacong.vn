@@ -11,55 +11,72 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 ## Decision source
 
-- [docs/COMMERCE_PLATFORM_MASTER_PLAN.md](docs/COMMERCE_PLATFORM_MASTER_PLAN.md) is the only current decision source.
+- [docs/CLOUDFLARE_NATIVE_V1_PLAN.md](docs/CLOUDFLARE_NATIVE_V1_PLAN.md) is the only current product/architecture decision source.
+- [docs/CLOUDFLARE_CURRENT_STATE.md](docs/CLOUDFLARE_CURRENT_STATE.md) is the current runtime/audit evidence log. It records verified state but does not expand product scope by itself.
+- [docs/COMMERCE_PLATFORM_MASTER_PLAN.md](docs/COMMERCE_PLATFORM_MASTER_PLAN.md) is historical Bagisto-era planning evidence and is no longer a decision source.
 - [docs/README.md](docs/README.md) is the documentation index; keep new material under its existing categories.
 - `docs/research/` and `docs/design-references/` are historical research evidence, not target scope or product decisions.
-- [docs/UI_CURRENT_MAP.md](docs/UI_CURRENT_MAP.md) and [docs/ORIGINAL_GIACONG_VN_MAP.md](docs/ORIGINAL_GIACONG_VN_MAP.md) describe the current and pre-clone interfaces as observed. They are descriptive only; the target sitemap is in the master plan.
-- [docs/GOOGLE_SHEETS_CONTACT_WEBHOOK.md](docs/GOOGLE_SHEETS_CONTACT_WEBHOOK.md) describes the current webhook and its implemented 15-column intake schema; Sheet operations and handoff remain in the master plan.
-- The `giacong-product-ai-handoff` pack is design input (business rules, IA, component specs, data models, reference images), not a decision source. Where it conflicts with the master plan, the master plan wins — it drops `/gio-hang`, `/thanh-toan`, checkout and rating/review/favorite.
+- [docs/UI_CURRENT_MAP.md](docs/UI_CURRENT_MAP.md) and [docs/ORIGINAL_GIACONG_VN_MAP.md](docs/ORIGINAL_GIACONG_VN_MAP.md) are descriptive interface evidence only.
+- [docs/GOOGLE_SHEETS_CONTACT_WEBHOOK.md](docs/GOOGLE_SHEETS_CONTACT_WEBHOOK.md) describes the current request-intake webhook contract.
+- The `giacong-product-ai-handoff` pack is design input, not a decision source. Where it conflicts with the Cloudflare-native plan, the plan wins.
 
 ## Commands
 
-- `npm run test:contact` — contact/webhook and port-reservation checks
+- `npm run test:contact` — contact/webhook, cart and request-intake contract tests
+- `npm run test:catalog` — catalog contract tests
 - `npm run lint` — ESLint
 - `npm run typecheck` — Next type generation and TypeScript
 - `npm run build` — production build
-- `npm run check` — contact tests, lint, typecheck and build; the full gate every phase must end on
-- `npm run check:fe` — frontend track only: commerce/header/listing/detail/card tests, lint, typecheck
-- `npm run check:be` — backend track only: contact/catalog/service tests, lint, typecheck
+- `npm run check` — full application gate; every implementation phase must end green
+- `npm run check:fe` — frontend-focused gate
+- `npm run check:be` — backend-focused gate
 
-Neither `check:fe` nor `check:be` includes a `qa:*` harness. The Playwright suites are the only thing that catches a chrome regression, so run the relevant one explicitly.
+Neither `check:fe` nor `check:be` replaces runtime QA. Run the relevant Cloudflare preview/staging workflow or QA harness explicitly when behavior depends on D1, R2, Worker bindings or browser layout.
 
 ## Frontend and backend tracks
 
-The split is by work track, not by directory — the tree stays as it is. FE owns `src/app/**` except `api/`, plus `src/components/**`, `src/styles/**`, `src/app/globals.css`, `src/app/(storefront)/captured-layers.css`, `public/styles/**` and `src/data/pages/**`. BE owns `src/app/api/**`, the `server-only` modules in `src/lib/` and `bagisto/`. See section 11 of the master plan for the module list, the three seam pairs that must be edited together, and why `contact-webhook.ts` and `request-cart.ts` deliberately carry no `server-only` guard.
+The split is by work track, not by directory. FE owns storefront pages/components/styles and admin UI only after its server write contract is locked. BE owns `src/app/api/**`, Cloudflare binding access, D1/R2 adapters, canonical cart logic and request-intake server modules. Cross-layer contract changes must update tests and both sides together.
+
+Do not revive Bagisto as a runtime boundary. `bagisto/`, Bagisto-era adapters/tests and old docs may remain as migration/history artifacts until deliberately removed, but new runtime work must use the Cloudflare-native plan.
 
 ## Code style
 
 - TypeScript strict mode; no `any`.
 - Named exports, PascalCase components, camelCase utilities.
-- Tailwind utility classes; no inline styles.
+- Tailwind utility classes; no inline styles unless an existing audited exception requires them.
 - Two-space indentation and mobile-first responsive behavior.
 
 ## Lean V1 boundaries
 
-- Bagisto admin is the only administration surface. The duplicate Next.js `/quan-tri` UI and its BFF were removed; do not recreate them.
-- Never write directly to Bagisto core tables.
-- There are no customer accounts, checkout, `/thanh-toan`, payment, Bagisto order, shipping or quote engine in V1.
-- The guest cart is in scope but preview-only: `localStorage` on the client, no server cart state and no cart table. `/gui-yeu-cau` is the only cart route. The server re-reads Bagisto to revalidate every cart line and computes unit price and totals itself; never trust client-supplied prices or totals.
-- Do not add rating, review or favorite in any form.
-- There is one shared `administrator` account only; no `employee` type and no granular RBAC.
-- Google Sheet + Apps Script is the request queue. Keep its ownership-handoff requirements in the master plan.
-- Do not create UI before the app-layer contract is locked. Do not add a new admin UI.
-- Do not run or alter ports `3000`, `8000`, or `8001`. The audited Bagisto development endpoint is `127.0.0.1:18001`; describe any other port only when it already appears in tracked config or environment files.
+- Cloudflare D1 is the canonical commerce data source for catalog, variants, tier prices and managed service copy.
+- Cloudflare R2 is the canonical product-media store; browser code never receives D1/R2 credentials.
+- The guest cart is preview-only `localStorage`; no server cart state or cart table. `/gui-yeu-cau` is the only cart route.
+- The server re-reads D1 and computes canonical price/totals/request type; never trust client-supplied money.
+- There are no customer accounts, checkout, `/thanh-toan`, payment, shipping, Bagisto order or quote engine in V1.
+- Do not add rating, review or favorite.
+- Google Sheet + Apps Script remains the request queue until a separate decision changes it.
+- A Cloudflare-native admin is now in scope, but only behind an audited admin authentication boundary and only after server-side D1/R2 write contracts and tests are locked. Do not expose admin writes on the public storefront as an unauthenticated shortcut.
+- The V1 admin has one operator administrator and no granular RBAC/customer identity.
+- `admin-staging.kienhieu.id.vn` is the staging admin hostname target. `admin.kienhieu.id.vn` is production-only and must not be activated before the production acceptance gate.
+- Production Worker/data/routes stay untouched until all gates in the Cloudflare-native plan are satisfied.
+- Do not create demo production data implicitly; staging demo data is not production seed data.
+- Do not run or alter reserved development ports `3000`, `8000`, or `8001` unless tracked configuration explicitly requires a reviewed change.
 - Do not push unless the user explicitly asks.
+
+## D1/R2 mutation discipline
+
+- Before any staging D1 mutation, audit the exact rows/state expected and make the mutation abort if the guard does not match.
+- Verify post-conditions and schema/business invariants after every mutation.
+- MOQ, quantity step, contact threshold and tier quantities must stay mutually reachable under the canonical quantity rules.
+- Media deletion must not orphan an active product/variant reference.
+- Production D1/R2 mutation requires a separate production-data acceptance gate and rollback/export plan.
 
 ## Delivery discipline
 
 - For behavior changes, start with a RED test, then implement the smallest GREEN change.
-- Use isolated worktrees for implementation work. Review order is Terra implementation → Luna independent review → Gemini simplicity/routing review.
+- Use isolated branches/worktrees for implementation work. Review order remains Terra implementation → Luna independent review → Gemini simplicity/routing review when those agents are available.
 - Keep scope small; do not add dependencies or speculative architecture.
-- After editing this file, run `bash scripts/sync-agent-rules.sh` and inspect only its generated changes. Do not edit generated agent-rule files directly.
+- After editing this file, run `bash scripts/sync-agent-rules.sh` and inspect only its generated changes. Do not edit generated agent-rule files independently.
 - The `clone-website` skill is kept as identical copies in `.claude/`, `.codex/` and `.github/skills/`. There is no generator for them; edit all three together or they drift.
 
 <!-- gitnexus:start -->
