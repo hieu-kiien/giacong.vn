@@ -1,0 +1,121 @@
+name: Apply protected staging admin route once
+
+on:
+  push:
+    branches:
+      - cloudflare-admin-staging-route-config
+    paths:
+      - .github/workflows/cloudflare-admin-staging-triggers-once.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: apps/giacong-lean-commerce
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      ZONE_NAME: kienhieu.id.vn
+      ADMIN_STAGING_HOST: admin-staging.kienhieu.id.vn
+      ADMIN_STAGING_PATTERN: admin-staging.kienhieu.id.vn/*
+      STAGING_WORKER: giacong-vn-staging
+      PRODUCTION_ADMIN_PATTERN: admin.kienhieu.id.vn/*
+      PRODUCTION_WORKER: giacong-vn
+
+    steps:
+      - name: Checkout route config branch
+        uses: actions/checkout@v4
+        with:
+          ref: cloudflare-admin-staging-route-config
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: apps/giacong-lean-commerce/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Guard Access and existing production route
+        shell: bash
+        run: |
+          set -euo pipefail
+          api='https://api.cloudflare.com/client/v4'
+          auth=(-H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" -H 'Content-Type: application/json')
+
+          curl --fail-with-body --silent --show-error "${auth[@]}" \
+            --get --data-urlencode "name=$ZONE_NAME" "$api/zones" > /tmp/zones.json
+          zone_id=$(jq -r '.result[0].id // empty' /tmp/zones.json)
+          test -n "$zone_id"
+          echo "ZONE_ID=$zone_id" >> "$GITHUB_ENV"
+
+          curl --fail-with-body --silent --show-error "${auth[@]}" \
+            --get --data-urlencode "name=$ADMIN_STAGING_HOST" \
+            "$api/zones/$zone_id/dns_records" > /tmp/dns.json
+          jq -e '.result | length >= 1 and any(.proxied == true)' /tmp/dns.json >/dev/null
+
+          curl --fail-with-body --silent --show-error "${auth[@]}" \
+            "$api/accounts/$CLOUDFLARE_ACCOUNT_ID/access/apps" > /tmp/apps.json
+          app_id=$(jq -r --arg host "$ADMIN_STAGING_HOST" \
+            '[.result[] | select(.type == "self_hosted" and .domain == $host)] | .[0].id // empty' /tmp/apps.json)
+          test -n "$app_id"
+          curl --fail-with-body --silent --show-error "${auth[@]}" \
+            "$api/accounts/$CLOUDFLARE_ACCOUNT_ID/access/apps/$app_id/policies" > /tmp/policies.json
+          jq -e '.result | any(.decision == "allow" and ((.include // []) | length) >= 1)' /tmp/policies.json >/dev/null
+          echo 'Access guard passed.'
+
+          curl --fail-with-body --silent --show-error "${auth[@]}" \
+            "$api/zones/$zone_id/workers/routes" > /tmp/routes-before.json
+          jq -e --arg pattern "$PRODUCTION_ADMIN_PATTERN" --arg script "$PRODUCTION_WORKER" \
+            '.result | any(.pattern == $pattern and .script == $script)' /tmp/routes-before.json >/dev/null
+          existing=$(jq -r --arg pattern "$ADMIN_STAGING_PATTERN" \
+            '[.result[] | select(.pattern == $pattern)] | .[0].script // empty' /tmp/routes-before.json)
+          if [ -n "$existing" ] && [ "$existing" != "$STAGING_WORKER" ]; then
+            echo "Refusing to replace existing staging-admin route to $existing"
+            exit 1
+          fi
+          echo "Existing staging-admin route: ${existing:-none}"
+
+      - name: Validate route config without changing triggers
+        run: npx wrangler triggers deploy --env=staging --dry-run
+
+      - name: Apply staging triggers from Wrangler source of truth
+        run: npx wrangler triggers deploy --env=staging
+
+      - name: Verify route and Cloudflare Access interception
+        shell: bash
+        run: |
+          set -euo pipefail
+          api='https://api.cloudflare.com/client/v4'
+          auth=(-H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" -H 'Content-Type: application/json')
+          curl --fail-with-body --silent --show-error "${auth[@]}" \
+            "$api/zones/$ZONE_ID/workers/routes" > /tmp/routes-after.json
+
+          jq -e --arg pattern "$ADMIN_STAGING_PATTERN" --arg script "$STAGING_WORKER" \
+            '.result | any(.pattern == $pattern and .script == $script)' /tmp/routes-after.json >/dev/null
+          jq -e --arg pattern "$PRODUCTION_ADMIN_PATTERN" --arg script "$PRODUCTION_WORKER" \
+            '.result | any(.pattern == $pattern and .script == $script)' /tmp/routes-after.json >/dev/null
+          jq -c '{relevant_routes:[.result[] | select(.pattern == "admin-staging.kienhieu.id.vn/*" or .pattern == "admin.kienhieu.id.vn/*") | {pattern,script}]}' /tmp/routes-after.json
+
+          status=$(curl --silent --show-error --max-time 20 --output /tmp/admin-body.html \
+            --dump-header /tmp/admin-headers.txt --write-out '%{http_code}' \
+            "https://$ADMIN_STAGING_HOST/")
+          echo "Unauthenticated admin-staging -> HTTP $status"
+          location=$(awk 'BEGIN{IGNORECASE=1} /^location:/{sub(/\r$/,""); print substr($0,11); exit}' /tmp/admin-headers.txt)
+          location_host=$(printf '%s' "$location" | sed -E 's#https?://([^/]+).*#\1#')
+          echo "Redirect host: $location_host"
+          if [ "$status" != '302' ] && [ "$status" != '303' ]; then
+            echo 'Expected Access redirect before Worker content.'
+            head -c 500 /tmp/admin-body.html || true
+            exit 1
+          fi
+          printf '%s' "$location" | grep -Eq 'cloudflareaccess\.com|/cdn-cgi/access/login'
+          echo 'Verified protected staging admin route; production admin route unchanged.'
