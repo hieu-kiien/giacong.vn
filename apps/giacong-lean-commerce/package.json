@@ -34,7 +34,8 @@
     "cf:preview:staging": "npm run cf:build:staging && opennextjs-cloudflare preview --env=staging",
     "cf:deploy": "npm run cf:deploy:staging",
     "cf:deploy:staging": "npm run cf:build:staging && opennextjs-cloudflare deploy --env=staging",
-    "cf:upload": "npm run cf:upload:production",
+    "cf:upload": "npm run cf:upload:staging",
+    "cf:upload:staging": "npm run cf:build:staging && opennextjs-cloudflare upload --env=staging",
     "cf:upload:production": "npm run cf:build && opennextjs-cloudflare upload",
     "cf:typegen": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts",
     "cf:typegen:staging": "wrangler types --env=staging --env-interface CloudflareEnv cloudflare-env.d.ts"
