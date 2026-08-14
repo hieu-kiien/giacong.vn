@@ -1,5 +1,5 @@
-import { adminFailure, adminSuccess } from "./admin-api";
-import type { AdminAdmissionResult } from "./admin-access";
+import { adminFailure, adminSuccess } from "./admin-api.ts";
+import type { AdminAdmissionResult } from "./admin-access.ts";
 
 export interface AdminSessionDependencies {
   admit(request: Request): Promise<AdminAdmissionResult>;
