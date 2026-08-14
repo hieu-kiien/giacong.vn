@@ -1,0 +1,53 @@
+name: Verify Cloudflare token identity once
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - .github/workflows/cloudflare-token-identity-once.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      ZONE_ID: 46dacfca94df32f628b04d77515620d7
+      ADMIN_STAGING_HOST: admin-staging.kienhieu.id.vn
+    steps:
+      - name: Verify account-owned token identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          response=$(curl --silent --show-error \
+            "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/tokens/verify" \
+            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}")
+          jq '{success, result: {id: .result.id, status: .result.status, expires_on: .result.expires_on}, errors}' <<<"$response"
+
+      - name: Verify DNS read scope
+        shell: bash
+        run: |
+          set +e
+          response=$(curl --silent --show-error --get \
+            "https://api.cloudflare.com/client/v4/zones/${ZONE_ID}/dns_records" \
+            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+            --data-urlencode "name=${ADMIN_STAGING_HOST}" \
+            --data-urlencode "per_page=100")
+          jq '{success, result_count: (.result | length? // 0), errors}' <<<"$response" 2>/dev/null || true
+          exit 0
+
+      - name: Verify Workers Routes read scope
+        shell: bash
+        run: |
+          set +e
+          response=$(curl --silent --show-error \
+            "https://api.cloudflare.com/client/v4/zones/${ZONE_ID}/workers/routes" \
+            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}")
+          jq '{success, result_count: (.result | length? // 0), routes: [.result[]? | {pattern, script}], errors}' <<<"$response" 2>/dev/null || true
+          exit 0
