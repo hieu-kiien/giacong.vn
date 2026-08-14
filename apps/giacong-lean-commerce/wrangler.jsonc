@@ -16,6 +16,12 @@
   "env": {
     "staging": {
       "name": "giacong-vn-staging",
+      "routes": [
+        {
+          "pattern": "admin-staging.kienhieu.id.vn/*",
+          "zone_name": "kienhieu.id.vn"
+        }
+      ],
       "assets": {
         "directory": ".open-next/assets",
         "binding": "ASSETS"
