@@ -4,7 +4,8 @@
 
 | Tài liệu | Vai trò |
 | --- | --- |
-| [COMMERCE_PLATFORM_MASTER_PLAN.md](./COMMERCE_PLATFORM_MASTER_PLAN.md) | Nguồn quyết định duy nhất về phạm vi, kiến trúc và kế hoạch |
+| [COMMERCE_PLATFORM_MASTER_PLAN.md](./COMMERCE_PLATFORM_MASTER_PLAN.md) | Nguồn quyết định chính về phạm vi sản phẩm, kiến trúc ứng dụng và kế hoạch Lean V1 |
+| [CLOUDFLARE_DEPLOYMENT.md](./CLOUDFLARE_DEPLOYMENT.md) | Phụ lục triển khai bắt buộc: khóa Cloudflare Workers/OpenNext là production target; khi nội dung deployment cũ mâu thuẫn, phụ lục này thắng cho tới khi master plan được đồng bộ toàn văn |
 | [UI_CURRENT_MAP.md](./UI_CURRENT_MAP.md) | Bản đồ route và giao diện đang có |
 | [GOOGLE_SHEETS_CONTACT_WEBHOOK.md](./GOOGLE_SHEETS_CONTACT_WEBHOOK.md) | Hướng dẫn vận hành webhook và Google Sheet |
 | [google-apps-script-contact-webhook.gs](./google-apps-script-contact-webhook.gs) | Mã Apps Script được kiểm thử; chỉnh cùng hướng dẫn webhook |
@@ -17,4 +18,4 @@
 - `handoff-references/references/approved/`: bộ ảnh sản phẩm đã chuẩn hóa tên; `preview-600/` dùng để đọc nhanh.
 - `handoff-references/references/current/`: ảnh hiện trạng cũ để so sánh, không phải giao diện đích.
 
-Không tạo thêm tài liệu quyết định riêng. Quyết định mới phải cập nhật master plan; hướng dẫn thao tác chỉ tách file khi có người vận hành cần dùng độc lập.
+Không tạo thêm tài liệu quyết định ngoài master plan và phụ lục deployment Cloudflare đã khóa. Các quyết định sản phẩm mới vẫn phải cập nhật master plan; hướng dẫn thao tác chỉ tách file khi có người vận hành cần dùng độc lập.
