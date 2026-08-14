@@ -1,6 +1,6 @@
 name: Upload Cloudflare staging version once
 
-# Retry after bundling homepage data for the Workers runtime.
+# Upload the Cloudflare-native D1/R2 migration after the master staging gate passed.
 on:
   push:
     branches:
