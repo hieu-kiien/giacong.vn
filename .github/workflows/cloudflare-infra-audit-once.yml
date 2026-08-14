@@ -16,6 +16,9 @@ jobs:
   audit:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: apps/giacong-lean-commerce
     env:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -24,6 +27,19 @@ jobs:
       ACTIVE_STAGING_ORIGIN: https://giacong-vn-staging.qtu1053.workers.dev
 
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: apps/giacong-lean-commerce/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
       - name: Resolve Cloudflare zone
         id: zone
         shell: bash
@@ -41,6 +57,16 @@ jobs:
           fi
           echo "zone_id=$zone_id" >> "$GITHUB_OUTPUT"
           echo "Zone resolved: ${ZONE_NAME}"
+
+      - name: Inspect active staging Worker version and bindings
+        shell: bash
+        run: |
+          set -euo pipefail
+          deployment=$(npx wrangler deployments status --env=staging --json)
+          version_id=$(jq -r '.versions[] | select(.percentage == 100) | .version_id' <<<"$deployment" | head -n 1)
+          echo "Active staging version: ${version_id}"
+          npx wrangler versions view "$version_id" --env=staging --json \
+            | jq '{id, number, bindings: [.resources.bindings[]? | {name, type, text: (if .name == "NEXT_PUBLIC_TURNSTILE_SITE_KEY" then "[public-site-key]" else .text end)}]}'
 
       - name: Inspect targeted staging DNS record when token permits
         shell: bash
@@ -101,14 +127,10 @@ jobs:
             code=$(curl --silent --show-error --location --max-time 15 --output /tmp/probe-body --write-out '%{http_code}' "$url")
             content_type=$(curl --silent --show-error --head --max-time 15 "$url" | awk -F': ' 'tolower($1)=="content-type" {gsub("\r", "", $2); print $2; exit}')
             echo "direct $path -> HTTP ${code:-curl-error}; content-type=${content_type:-unknown}"
-            if [ "$path" != "/" ] && [ -s /tmp/probe-body ]; then
-              head -c 300 /tmp/probe-body | tr '\n' ' '
-              echo
-            fi
           done
           exit 0
 
-      - name: Probe currently deployed staging Worker
+      - name: Probe currently deployed staging Worker and identify catalog source hints
         shell: bash
         run: |
           set +e
@@ -117,9 +139,9 @@ jobs:
             code=$(curl --silent --show-error --location --max-time 20 --output /tmp/worker-probe-body --write-out '%{http_code}' "$url")
             content_type=$(curl --silent --show-error --head --max-time 20 "$url" | awk -F': ' 'tolower($1)=="content-type" {gsub("\r", "", $2); print $2; exit}')
             echo "active-worker $path -> HTTP ${code:-curl-error}; content-type=${content_type:-unknown}"
-            if [ -s /tmp/worker-probe-body ]; then
-              head -c 300 /tmp/worker-probe-body | tr '\n' ' '
-              echo
+            if [ "$path" = "/san-pham" ] && [ -s /tmp/worker-probe-body ]; then
+              echo "Catalog source hints:"
+              grep -Eio 'B2B-DEMO|dữ liệu demo|demo catalog|bột dinh dưỡng|hiển thị [0-9]+[^<]{0,30}sản phẩm' /tmp/worker-probe-body | head -n 20 || true
             fi
           done
           exit 0
