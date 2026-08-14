@@ -1,0 +1,93 @@
+name: Audit Cloudflare staging infrastructure once
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - .github/workflows/cloudflare-infra-audit-once.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      ZONE_NAME: kienhieu.id.vn
+      ADMIN_STAGING_HOST: admin-staging.kienhieu.id.vn
+
+    steps:
+      - name: Resolve Cloudflare zone
+        id: zone
+        shell: bash
+        run: |
+          set -euo pipefail
+          response=$(curl --fail-with-body --silent --show-error \
+            "https://api.cloudflare.com/client/v4/zones?name=${ZONE_NAME}&status=active" \
+            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+            -H "Content-Type: application/json")
+          zone_id=$(jq -r '.result[0].id // empty' <<<"$response")
+          if [ -z "$zone_id" ]; then
+            echo "Could not resolve active zone ${ZONE_NAME}."
+            jq '{success, errors, result_info}' <<<"$response"
+            exit 1
+          fi
+          echo "zone_id=$zone_id" >> "$GITHUB_OUTPUT"
+          echo "Zone resolved: ${ZONE_NAME}"
+
+      - name: Inspect targeted staging DNS record
+        shell: bash
+        run: |
+          set -euo pipefail
+          response=$(curl --fail-with-body --silent --show-error --get \
+            "https://api.cloudflare.com/client/v4/zones/${{ steps.zone.outputs.zone_id }}/dns_records" \
+            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+            --data-urlencode "name=${ADMIN_STAGING_HOST}" \
+            --data-urlencode "per_page=100")
+          jq '{success, records: [.result[] | {type, name, content, proxied, ttl}]}' <<<"$response"
+
+      - name: Inspect Worker routes for the zone
+        shell: bash
+        run: |
+          set -euo pipefail
+          response=$(curl --fail-with-body --silent --show-error \
+            "https://api.cloudflare.com/client/v4/zones/${{ steps.zone.outputs.zone_id }}/workers/routes" \
+            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}")
+          jq '{success, routes: [.result[] | {pattern, script}]}' <<<"$response"
+
+      - name: Inspect Cloudflare Tunnels when token permits
+        shell: bash
+        run: |
+          set +e
+          response=$(curl --silent --show-error \
+            "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/cfd_tunnel?is_deleted=false&per_page=100" \
+            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}")
+          success=$(jq -r '.success // false' <<<"$response" 2>/dev/null)
+          if [ "$success" = "true" ]; then
+            jq '{success, tunnels: [.result[] | {id, name, status, remote_config}]}' <<<"$response"
+          else
+            echo "Tunnel listing not available with this token; continuing read-only audit."
+            jq '{success, errors}' <<<"$response" 2>/dev/null || true
+          fi
+          exit 0
+
+      - name: Probe existing Bagisto staging hostname
+        shell: bash
+        run: |
+          set +e
+          for path in / /api/b2b/catalog/categories '/api/b2b/catalog/products?per_page=1'; do
+            url="https://${ADMIN_STAGING_HOST}${path}"
+            code=$(curl --silent --show-error --location --max-time 15 --output /tmp/probe-body --write-out '%{http_code}' "$url")
+            content_type=$(curl --silent --show-error --head --max-time 15 "$url" | awk -F': ' 'tolower($1)=="content-type" {gsub("\r", "", $2); print $2; exit}')
+            echo "$path -> HTTP ${code:-curl-error}; content-type=${content_type:-unknown}"
+            if [ "$path" != "/" ] && [ -s /tmp/probe-body ]; then
+              head -c 300 /tmp/probe-body | tr '\n' ' '
+              echo
+            fi
+          done
+          exit 0
