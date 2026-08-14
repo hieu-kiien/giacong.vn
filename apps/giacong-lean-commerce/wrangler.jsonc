@@ -24,6 +24,7 @@
       ],
       // Non-secret identifiers audited from the staging Cloudflare Access app.
       // The Worker still verifies every assertion cryptographically against JWKS.
+      // Production deliberately has no copied Access identity inputs in this phase.
       "vars": {
         "ADMIN_HOSTNAME": "admin-staging.kienhieu.id.vn",
         "TEAM_DOMAIN": "https://jolly-brook-7bc8.cloudflareaccess.com",
