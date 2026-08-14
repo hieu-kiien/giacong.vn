@@ -7,7 +7,7 @@ import {
   demoCatalogCategories,
   demoCatalogList,
 } from "@/components/catalog/catalog-listing";
-import { getCatalogCategories, getCatalogProducts } from "@/lib/bagisto-catalog";
+import { getCatalogCategories, getCatalogProducts } from "@/lib/cloudflare-catalog";
 import { parseCatalogFilters } from "@/lib/catalog-query";
 import { demoCatalogFallbackAllowed, demoCatalogForced, waitForDemoCatalogFallback } from "@/lib/demo-catalog-policy";
 import type { CatalogCategory, CatalogFilters, CatalogPagination } from "@/types/catalog";
@@ -43,14 +43,9 @@ export default async function CatalogPage({ searchParams }: PageProps<"/san-pham
 }
 
 /**
- * The real Bagisto feed is always attempted first. Only when it fails *and* the
- * environment permits it does the isolated demo fixture answer, with the UI
- * saying so — `demoCatalogFallbackAllowed` is off in production, so a live outage shows
- * the error boundary rather than prices nobody can order against.
- *
- * The demo fixture carries variants, so its cards can offer a direct add. Rows
- * from the real list contract carry none, so those cards route to detail instead
- * of inventing a variant key.
+ * Cloudflare D1 is the canonical catalog source. Only an explicitly permitted
+ * non-production environment may fall back to the isolated demo fixture.
+ * Production never invents prices when D1 is unavailable.
  */
 async function loadCatalog(filters: CatalogFilters): Promise<CatalogPageData> {
   if (demoCatalogForced(process.env)) return demoCatalogData(filters);
@@ -68,7 +63,7 @@ async function loadCatalog(filters: CatalogFilters): Promise<CatalogPageData> {
     };
   } catch (error) {
     if (!demoCatalogFallbackAllowed(process.env)) throw error;
-    console.warn("Catalog feed unavailable; serving the isolated demo fixture.", error);
+    console.warn("D1 catalog unavailable; serving the isolated demo fixture.", error);
     return demoCatalogData(filters);
   }
 }
