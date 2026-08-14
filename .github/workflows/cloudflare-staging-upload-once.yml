@@ -1,5 +1,6 @@
 name: Upload Cloudflare staging version once
 
+# Retry after bundling homepage data for the Workers runtime.
 on:
   push:
     branches:
