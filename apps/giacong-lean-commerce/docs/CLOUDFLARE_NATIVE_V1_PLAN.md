@@ -109,22 +109,23 @@ Request queue vẫn ở Google Sheet trong pha này; không xây request inbox a
 - Không log secret, token hoặc PII không cần thiết.
 - Lean V1 chỉ cần một operator administrator; không xây granular RBAC hay customer identity.
 
-Cloudflare Access là phương án ưu tiên cho hostname admin, nhưng chỉ được bật sau khi audit cấu hình account/domain và xác minh policy thật. Không giả định Access đã tồn tại chỉ vì hostname có DNS.
+Cloudflare Access là phương án bảo vệ staging admin. Cấu hình Access self-hosted, allow policy và identity-provider state cho `admin-staging.kienhieu.id.vn` đã được audit qua Cloudflare API; Worker route staging cũng đã được khai báo trong Wrangler. Việc triển khai write API vẫn phải tự fail closed nếu request không đạt admission contract, không chỉ dựa vào việc hostname đã có Access.
 
 ### 6.3 Contract write trước UI
 
-Trước khi dựng màn hình CRUD, phải khóa server write contract và test:
+Contract chi tiết đã được khóa tại [`CLOUDFLARE_ADMIN_WRITE_CONTRACT.md`](CLOUDFLARE_ADMIN_WRITE_CONTRACT.md). Trước khi dựng màn hình CRUD, implementation phải tuân thủ và test các nhóm yêu cầu sau:
 
 - input schema/size limits;
+- hostname/Access admission và same-origin mutation;
 - uniqueness conflict;
-- optimistic concurrency hoặc stale-write protection phù hợp;
+- optimistic concurrency/stale-write protection;
 - validation cho MOQ/step/contact/tier;
-- media content type/size/key policy;
+- media content type/size/key/reference policy;
 - canonical API response;
 - error mapping không lộ nội bộ;
-- auditability tối thiểu cho write operation.
+- auditability và request id/idempotency tối thiểu cho write operation.
 
-UI admin chỉ được xây trên contract đã test.
+UI admin chỉ được xây trên contract server đã test xanh.
 
 ## 7. Staging gate
 
