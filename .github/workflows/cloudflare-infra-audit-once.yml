@@ -65,8 +65,10 @@ jobs:
           deployment=$(npx wrangler deployments status --env=staging --json)
           version_id=$(jq -r '.versions[] | select(.percentage == 100) | .version_id' <<<"$deployment" | head -n 1)
           echo "Active staging version: ${version_id}"
-          npx wrangler versions view "$version_id" --env=staging --json \
-            | jq '{id, number, bindings: [.resources.bindings[]? | {name, type, text: (if .name == "NEXT_PUBLIC_TURNSTILE_SITE_KEY" then "[public-site-key]" else .text end)}]}'
+          version=$(npx wrangler versions view "$version_id" --env=staging --json)
+          jq '{id, number, bindings: [.resources.bindings[]? | {name, type, text: (if .name == "NEXT_PUBLIC_TURNSTILE_SITE_KEY" then "[public-site-key]" else .text end)}]}' <<<"$version"
+          echo "Cloudflare data bindings:"
+          jq '[.resources.bindings[]? | select(.type == "d1" or .type == "r2_bucket") | {name, type, id, database_id, database_name, bucket_name, jurisdiction}]' <<<"$version"
 
       - name: Inspect targeted staging DNS record when token permits
         shell: bash
