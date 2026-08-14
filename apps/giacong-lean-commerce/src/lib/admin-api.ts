@@ -1,4 +1,4 @@
-import type { AdminAdmissionFailureCode } from "./admin-access";
+import type { AdminAdmissionFailureCode } from "./admin-access.ts";
 
 export type AdminApiErrorCode =
   | AdminAdmissionFailureCode
