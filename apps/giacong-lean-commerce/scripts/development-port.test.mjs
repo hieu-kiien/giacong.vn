@@ -4,15 +4,12 @@ import test from "node:test";
 
 const root = new URL("../", import.meta.url);
 
-test("uses the reserved Bagisto development port instead of stale port 8000", async () => {
-  const [environment, bagistoApi] = await Promise.all([
-    readFile(new URL(".env.example", root), "utf8"),
-    readFile(new URL("src/lib/bagisto-api.ts", root), "utf8"),
-  ]);
+test("keeps catalog and media credentials out of local environment variables", async () => {
+  const environment = await readFile(new URL(".env.example", root), "utf8");
 
-  assert.match(environment, /BAGISTO_API_URL=http:\/\/127\.0\.0\.1:18001/);
-  assert.match(bagistoApi, /DEVELOPMENT_DEFAULT_ORIGIN = "http:\/\/127\.0\.0\.1:18001"/);
-  assert.doesNotMatch(environment + bagistoApi, /127\.0\.0\.1:8000/);
+  assert.doesNotMatch(environment, /BAGISTO_API_URL|BAGISTO_PROXY_ORIGIN|BAGISTO_API_TIMEOUT_MS/);
+  assert.match(environment, /GIACONG_VN_CATALOG/);
+  assert.match(environment, /GIACONG_VN_PRODUCT_MEDIA/);
 });
 
 test("allows the local IP hostname used by the product demo", async () => {
@@ -21,22 +18,19 @@ test("allows the local IP hostname used by the product demo", async () => {
   assert.match(nextConfig, /allowedDevOrigins:\s*\[[^\]]*"127\.0\.0\.1"/);
 });
 
-test("one public hostname can proxy the native Bagisto admin and its assets", async () => {
-  const [environment, nextConfig, masterPlan] = await Promise.all([
-    readFile(new URL(".env.example", root), "utf8"),
+test("Cloudflare bindings replace the former Bagisto proxy boundary", async () => {
+  const [nextConfig, wrangler, catalog] = await Promise.all([
     readFile(new URL("next.config.ts", root), "utf8"),
-    readFile(new URL("docs/COMMERCE_PLATFORM_MASTER_PLAN.md", root), "utf8"),
+    readFile(new URL("wrangler.jsonc", root), "utf8"),
+    readFile(new URL("src/lib/cloudflare-catalog.ts", root), "utf8"),
   ]);
 
-  assert.match(environment, /BAGISTO_PROXY_ORIGIN=http:\/\/127\.0\.0\.1:18001/);
-  assert.match(nextConfig, /process\.env\.BAGISTO_PROXY_ORIGIN/);
-  assert.match(nextConfig, /source:\s*"\/admin\/:path\*"/);
-  assert.match(nextConfig, /source:\s*"\/themes\/admin\/:path\*"/);
-  assert.match(nextConfig, /source:\s*"\/storage\/:path\*"/);
-  assert.match(nextConfig, /source:\s*"\/cache\/:path\*"/);
-  assert.doesNotMatch(nextConfig, /localhost:4317/, "the deployment config must remain hostname-agnostic");
-  assert.match(masterPlan, /một origin public/);
-  assert.match(masterPlan, /cổng `8081` đã loại bỏ/i);
+  assert.match(nextConfig, /initOpenNextCloudflareForDev\(\)/);
+  assert.doesNotMatch(nextConfig, /BAGISTO_PROXY_ORIGIN|\/themes\/admin|\/storage\/:path/);
+  assert.match(wrangler, /"binding":\s*"GIACONG_VN_CATALOG"/);
+  assert.match(wrangler, /"binding":\s*"GIACONG_VN_PRODUCT_MEDIA"/);
+  assert.match(catalog, /getCloudflareContext/);
+  assert.match(catalog, /GIACONG_VN_CATALOG/);
 });
 
 test("runs focused contact, catalog, and service tests before lint in the standard check contract", async () => {
