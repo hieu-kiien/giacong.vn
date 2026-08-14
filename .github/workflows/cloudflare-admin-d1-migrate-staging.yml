@@ -1,0 +1,209 @@
+name: Cloudflare admin D1 staging migration
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - "apps/giacong-lean-commerce/migrations/**"
+      - ".github/workflows/cloudflare-admin-d1-migrate-staging.yml"
+  push:
+    branches: [master]
+    paths:
+      - "apps/giacong-lean-commerce/migrations/**"
+      - ".github/workflows/cloudflare-admin-d1-migrate-staging.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cloudflare-admin-d1-migration-staging
+  cancel-in-progress: false
+
+env:
+  DATABASE_NAME: giacong-vn-catalog-staging
+  WRANGLER_VERSION: "4.115.0"
+  APP_DIR: apps/giacong-lean-commerce
+  MIGRATION_NAME: 0004_admin_foundation.sql
+
+jobs:
+  validate-plan:
+    name: Validate admin migration plan
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify remote migration baseline is exactly known
+        shell: bash
+        run: |
+          set -euo pipefail
+          state="$(npx -y "wrangler@$WRANGLER_VERSION" d1 execute "$DATABASE_NAME" --remote --json --command="
+            SELECT group_concat(name, '|') AS names
+            FROM (SELECT name FROM d1_migrations ORDER BY id);
+            SELECT COUNT(*) AS audit_table_count
+            FROM sqlite_master
+            WHERE type = 'table' AND name = 'admin_audit_log';
+          ")"
+          echo "$state" | jq .
+          names="$(echo "$state" | jq -r '.[0].results[0].names // ""')"
+          audit_count="$(echo "$state" | jq -r '.[1].results[0].audit_table_count')"
+          test "$names" = "0001_catalog.sql|0002_catalog_variant_options.sql|0003_services.sql"
+          test "$audit_count" = "0"
+
+      - name: Verify revision columns are not already present
+        shell: bash
+        run: |
+          set -euo pipefail
+          for table in categories products product_variants services; do
+            result="$(npx -y "wrangler@$WRANGLER_VERSION" d1 execute "$DATABASE_NAME" --remote --json \
+              --command="PRAGMA table_info($table);")"
+            count="$(echo "$result" | jq '[.[0].results[] | select(.name == "revision")] | length')"
+            test "$count" = "0"
+          done
+
+      - name: Verify Wrangler sees only the intended pending migration
+        shell: bash
+        working-directory: apps/giacong-lean-commerce
+        run: |
+          set -euo pipefail
+          npx -y "wrangler@$WRANGLER_VERSION" d1 migrations list "$DATABASE_NAME" --remote --env staging | tee /tmp/migrations-list.txt
+          grep -F "$MIGRATION_NAME" /tmp/migrations-list.txt
+
+      - name: Validate SQL against a representative SQLite baseline
+        shell: bash
+        run: |
+          set -euo pipefail
+          db=/tmp/admin-foundation.sqlite
+          sqlite3 "$db" <<'SQL'
+          CREATE TABLE categories (id INTEGER PRIMARY KEY, updated_at TEXT NOT NULL DEFAULT (datetime('now')));
+          CREATE TABLE products (id INTEGER PRIMARY KEY, updated_at TEXT NOT NULL DEFAULT (datetime('now')));
+          CREATE TABLE product_variants (id INTEGER PRIMARY KEY, updated_at TEXT NOT NULL DEFAULT (datetime('now')));
+          CREATE TABLE services (id INTEGER PRIMARY KEY, updated_at TEXT NOT NULL DEFAULT (datetime('now')));
+          SQL
+          sqlite3 "$db" < "$APP_DIR/migrations/$MIGRATION_NAME"
+          sqlite3 "$db" "PRAGMA integrity_check; SELECT name FROM sqlite_master WHERE type='table' AND name='admin_audit_log';"
+
+  apply-staging:
+    name: Apply admin migration to staging D1
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: staging
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Capture and guard pre-migration state
+        id: before
+        shell: bash
+        run: |
+          set -euo pipefail
+          history="$(npx -y "wrangler@$WRANGLER_VERSION" d1 execute "$DATABASE_NAME" --remote --json --command="
+            SELECT group_concat(name, '|') AS names
+            FROM (SELECT name FROM d1_migrations ORDER BY id);
+            SELECT COUNT(*) AS audit_table_count
+            FROM sqlite_master
+            WHERE type = 'table' AND name = 'admin_audit_log';
+          ")"
+          names="$(echo "$history" | jq -r '.[0].results[0].names // ""')"
+          audit_count="$(echo "$history" | jq -r '.[1].results[0].audit_table_count')"
+
+          if [[ "$names" == *"$MIGRATION_NAME"* ]]; then
+            echo "already_applied=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          test "$names" = "0001_catalog.sql|0002_catalog_variant_options.sql|0003_services.sql"
+          test "$audit_count" = "0"
+
+          for table in categories products product_variants services; do
+            result="$(npx -y "wrangler@$WRANGLER_VERSION" d1 execute "$DATABASE_NAME" --remote --json \
+              --command="PRAGMA table_info($table);")"
+            count="$(echo "$result" | jq '[.[0].results[] | select(.name == "revision")] | length')"
+            test "$count" = "0"
+          done
+
+          counts="$(npx -y "wrangler@$WRANGLER_VERSION" d1 execute "$DATABASE_NAME" --remote --json --command="
+            SELECT 'categories' AS entity, COUNT(*) AS row_count FROM categories;
+            SELECT 'products' AS entity, COUNT(*) AS row_count FROM products;
+            SELECT 'product_variants' AS entity, COUNT(*) AS row_count FROM product_variants;
+            SELECT 'variant_tier_prices' AS entity, COUNT(*) AS row_count FROM variant_tier_prices;
+            SELECT 'services' AS entity, COUNT(*) AS row_count FROM services;
+          ")"
+          canonical="$(echo "$counts" | jq -c '[.[].results[0] | {entity,row_count}]')"
+          echo "business_counts=$canonical" >> "$GITHUB_OUTPUT"
+          echo "already_applied=false" >> "$GITHUB_OUTPUT"
+
+      - name: Apply pending migration with Wrangler
+        if: steps.before.outputs.already_applied != 'true'
+        shell: bash
+        working-directory: apps/giacong-lean-commerce
+        run: |
+          set -euo pipefail
+          npx -y "wrangler@$WRANGLER_VERSION" d1 migrations apply "$DATABASE_NAME" --remote --env staging
+
+      - name: Verify migration postconditions
+        shell: bash
+        env:
+          BEFORE_COUNTS: ${{ steps.before.outputs.business_counts }}
+        run: |
+          set -euo pipefail
+          history="$(npx -y "wrangler@$WRANGLER_VERSION" d1 execute "$DATABASE_NAME" --remote --json \
+            --command="SELECT name FROM d1_migrations WHERE name = '$MIGRATION_NAME';")"
+          test "$(echo "$history" | jq -r '.[0].results | length')" = "1"
+
+          schema="$(npx -y "wrangler@$WRANGLER_VERSION" d1 execute "$DATABASE_NAME" --remote --json --command="
+            SELECT name, sql FROM sqlite_master WHERE type='table' AND name='admin_audit_log';
+            SELECT name, sql FROM sqlite_master WHERE type='index' AND tbl_name='admin_audit_log' ORDER BY name;
+            SELECT COUNT(*) AS audit_rows FROM admin_audit_log;
+            PRAGMA quick_check;
+          ")"
+          echo "$schema" | jq .
+          test "$(echo "$schema" | jq -r '.[0].results | length')" = "1"
+          test "$(echo "$schema" | jq -r '.[1].results | length')" = "4"
+          test "$(echo "$schema" | jq -r '.[2].results[0].audit_rows')" = "0"
+          test "$(echo "$schema" | jq -r '.[3].results[0].quick_check')" = "ok"
+
+          for table in categories products product_variants services; do
+            result="$(npx -y "wrangler@$WRANGLER_VERSION" d1 execute "$DATABASE_NAME" --remote --json \
+              --command="PRAGMA table_info($table);")"
+            revision="$(echo "$result" | jq -c '[.[0].results[] | select(.name == "revision")][0]')"
+            test "$(echo "$revision" | jq -r '.type')" = "INTEGER"
+            test "$(echo "$revision" | jq -r '.notnull')" = "1"
+            test "$(echo "$revision" | jq -r '.dflt_value')" = "1"
+          done
+
+          if [ -n "${BEFORE_COUNTS:-}" ]; then
+            counts="$(npx -y "wrangler@$WRANGLER_VERSION" d1 execute "$DATABASE_NAME" --remote --json --command="
+              SELECT 'categories' AS entity, COUNT(*) AS row_count FROM categories;
+              SELECT 'products' AS entity, COUNT(*) AS row_count FROM products;
+              SELECT 'product_variants' AS entity, COUNT(*) AS row_count FROM product_variants;
+              SELECT 'variant_tier_prices' AS entity, COUNT(*) AS row_count FROM variant_tier_prices;
+              SELECT 'services' AS entity, COUNT(*) AS row_count FROM services;
+            ")"
+            after="$(echo "$counts" | jq -c '[.[].results[0] | {entity,row_count}]')"
+            test "$after" = "$BEFORE_COUNTS"
+          fi
+
+      - name: Publish staging migration summary
+        shell: bash
+        run: |
+          {
+            echo "## Cloudflare staging D1 admin foundation"
+            echo
+            echo "Migration: \`$MIGRATION_NAME\`"
+            echo
+            echo "Target: \`$DATABASE_NAME\` only. Production was not targeted."
+            echo
+            echo "Postconditions verified: migration history, audit table/indexes, empty audit log, revision columns, D1 quick check, and unchanged business-row counts when a migration was applied."
+          } >> "$GITHUB_STEP_SUMMARY"
