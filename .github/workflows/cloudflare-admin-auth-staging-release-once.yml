@@ -1,0 +1,180 @@
+name: Release admin auth boundary to Cloudflare staging once
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - ".github/workflows/cloudflare-admin-auth-staging-release-once.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cloudflare-staging-promotion
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    defaults:
+      run:
+        working-directory: apps/giacong-lean-commerce
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      STAGING_ORIGIN: https://giacong-vn-staging.qtu1053.workers.dev
+      ADMIN_ORIGIN: https://admin-staging.kienhieu.id.vn
+      WORKER_NAME: giacong-vn-staging
+      WORKERS_SUBDOMAIN: qtu1053
+
+    steps:
+      - name: Checkout tested master
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: apps/giacong-lean-commerce/package-lock.json
+
+      - name: Install exact dependencies
+        run: npm ci
+
+      - name: Capture active rollback point and existing versions
+        id: before
+        shell: bash
+        run: |
+          set -euo pipefail
+          deployment="$(npx wrangler deployments status --env=staging --json)"
+          echo "$deployment" | jq .
+          active_count="$(echo "$deployment" | jq '[.versions[] | select(.percentage == 100)] | length')"
+          test "$active_count" = "1"
+          old_id="$(echo "$deployment" | jq -r '.versions[] | select(.percentage == 100) | .version_id')"
+          test "$old_id" != "null"
+          test -n "$old_id"
+          echo "old_version_id=$old_id" >> "$GITHUB_OUTPUT"
+
+          npx wrangler versions list --env=staging --json > /tmp/versions-before.json
+          jq -e 'type == "array"' /tmp/versions-before.json >/dev/null
+          jq -r '.[] | (.id // .version_id // empty)' /tmp/versions-before.json | sort -u > /tmp/version-ids-before.txt
+          test -s /tmp/version-ids-before.txt
+
+      - name: Build OpenNext staging artifact
+        run: npm run cf:build:staging
+
+      - name: Upload a new version without changing traffic
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run cf:upload:staging | tee /tmp/upload.log
+
+          npx wrangler versions list --env=staging --json > /tmp/versions-after.json
+          jq -e 'type == "array"' /tmp/versions-after.json >/dev/null
+          jq -r '.[] | (.id // .version_id // empty)' /tmp/versions-after.json | sort -u > /tmp/version-ids-after.txt
+          comm -13 /tmp/version-ids-before.txt /tmp/version-ids-after.txt > /tmp/new-version-ids.txt
+          test "$(wc -l < /tmp/new-version-ids.txt)" = "1"
+          new_id="$(cat /tmp/new-version-ids.txt)"
+          test "$new_id" != "${{ steps.before.outputs.old_version_id }}"
+          echo "NEW_VERSION_ID=$new_id" >> "$GITHUB_ENV"
+
+      - name: Prove upload did not change staging traffic
+        shell: bash
+        run: |
+          set -euo pipefail
+          deployment="$(npx wrangler deployments status --env=staging --json)"
+          jq -e --arg old "${{ steps.before.outputs.old_version_id }}" '
+            .versions | length == 1
+            and .[0].version_id == $old
+            and .[0].percentage == 100
+          ' <<<"$deployment"
+
+      - name: Inspect uploaded version and smoke its isolated preview
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx wrangler versions view "$NEW_VERSION_ID" --env=staging --json > /tmp/new-version.json
+          jq -e --arg id "$NEW_VERSION_ID" '.id == $id' /tmp/new-version.json >/dev/null
+
+          prefix="${NEW_VERSION_ID%%-*}"
+          PREVIEW_ORIGIN="https://${prefix}-${WORKER_NAME}.${WORKERS_SUBDOMAIN}.workers.dev"
+          echo "PREVIEW_ORIGIN=$PREVIEW_ORIGIN" >> "$GITHUB_ENV"
+
+          for path in / /san-pham /san-pham/bot-gao-lut-xay-min /gui-yeu-cau /thue-gia-cong/say-thuc-pham-say; do
+            status="$(curl --silent --show-error --location --max-time 25 --output /tmp/preview.html --write-out '%{http_code}' "$PREVIEW_ORIGIN$path")"
+            echo "$path -> HTTP $status"
+            test "$status" = "200"
+          done
+
+          curl --fail-with-body --silent --show-error --max-time 25 \
+            "$PREVIEW_ORIGIN/api/catalog/products/bot-gao-lut-xay-min" > /tmp/product.json
+          jq -e '.product.slug == "bot-gao-lut-xay-min" and .product.startingPrice.price == 78000 and .product.variantCount == 3' /tmp/product.json >/dev/null
+
+          curl --fail-with-body --silent --show-error --max-time 25 \
+            -H 'Content-Type: application/json' \
+            --data '{"lines":[{"parentSlug":"bot-gao-lut-xay-min","variantSku":"B2B-DEMO-BGL-05","quantity":25}]}' \
+            "$PREVIEW_ORIGIN/api/gui-yeu-cau/xac-thuc" > /tmp/cart.json
+          jq -e '.ok == true and .cart.isSubmittable == true and .cart.pricedSubtotal == 1950000 and .cart.lines[0].unitPrice == 78000' /tmp/cart.json >/dev/null
+
+          session_status="$(curl --silent --show-error --max-time 25 --output /tmp/session-preview.json --write-out '%{http_code}' "$PREVIEW_ORIGIN/api/admin/session")"
+          echo "workers.dev admin session -> HTTP $session_status"
+          test "$session_status" = "404"
+
+      - name: Promote tested version with automatic rollback
+        shell: bash
+        run: |
+          set -euo pipefail
+          old_id="${{ steps.before.outputs.old_version_id }}"
+          rollback() {
+            echo "Staging verification failed; restoring $old_id"
+            npx wrangler versions deploy "$old_id@100%" --env=staging --message="Automatic rollback after admin-auth staging verification failure" --yes
+          }
+          trap rollback ERR
+
+          npx wrangler versions deploy "$NEW_VERSION_ID@100%" --env=staging --message="Promote tested Cloudflare Access admin admission boundary" --yes
+
+          for path in / /san-pham /san-pham/bot-gao-lut-xay-min /gui-yeu-cau /thue-gia-cong/say-thuc-pham-say; do
+            status="$(curl --silent --show-error --location --max-time 25 --output /tmp/active.html --write-out '%{http_code}' "$STAGING_ORIGIN$path")"
+            echo "$path -> HTTP $status"
+            test "$status" = "200"
+          done
+
+          wrong_host_status="$(curl --silent --show-error --max-time 25 --output /tmp/wrong-host.json --write-out '%{http_code}' "$STAGING_ORIGIN/api/admin/session")"
+          echo "active workers.dev admin session -> HTTP $wrong_host_status"
+          test "$wrong_host_status" = "404"
+
+          admin_edge_status="$(curl --silent --show-error --max-time 25 --output /tmp/admin-edge.html --write-out '%{http_code}' "$ADMIN_ORIGIN/api/admin/session")"
+          echo "unauthenticated protected admin hostname -> HTTP $admin_edge_status"
+          case "$admin_edge_status" in
+            302|401|403) ;;
+            *) echo "Expected Cloudflare Access to block/challenge unauthenticated admin request" >&2; exit 1 ;;
+          esac
+          if grep -q '"authenticated":true' /tmp/admin-edge.html; then
+            echo "Unauthenticated request unexpectedly reached an authenticated session response" >&2
+            exit 1
+          fi
+
+          deployment="$(npx wrangler deployments status --env=staging --json)"
+          jq -e --arg new "$NEW_VERSION_ID" '
+            .versions | length == 1
+            and .[0].version_id == $new
+            and .[0].percentage == 100
+          ' <<<"$deployment" >/dev/null
+
+          trap - ERR
+
+      - name: Publish staging release evidence
+        shell: bash
+        run: |
+          {
+            echo "## Admin authentication staging release"
+            echo
+            echo "- Previous rollback version: \`${{ steps.before.outputs.old_version_id }}\`"
+            echo "- New active version: \`$NEW_VERSION_ID\`"
+            echo "- Isolated preview: \`$PREVIEW_ORIGIN\`"
+            echo "- Public storefront/cart smoke: passed"
+            echo "- workers.dev admin bypass attempt: 404"
+            echo "- unauthenticated admin hostname: blocked/challenged by Cloudflare Access"
+            echo "- Production Worker/domain/data: not targeted"
+          } >> "$GITHUB_STEP_SUMMARY"
