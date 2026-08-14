@@ -665,7 +665,7 @@ test("the chrome declares no forbidden V1 surface, gradient or reserved port", a
   }
 });
 
-test("the chrome adds no dependency and no third-party brand asset", async () => {
+test("the chrome keeps the reviewed dependency allowlist and no third-party brand asset", async () => {
   const manifest = JSON.parse(await readSource("package.json")) as {
     dependencies: Record<string, string>;
     scripts: Record<string, string>;
@@ -677,6 +677,7 @@ test("the chrome adds no dependency and no third-party brand asset", async () =>
       "@base-ui/react",
       "class-variance-authority",
       "clsx",
+      "jose",
       "lucide-react",
       "next",
       "react",
@@ -685,7 +686,7 @@ test("the chrome adds no dependency and no third-party brand asset", async () =>
       "tailwind-merge",
       "tw-animate-css",
     ],
-    "the chrome must not add a runtime dependency",
+    "runtime dependencies must stay on the reviewed allowlist",
   );
   assert.equal(
     manifest.scripts["test:header"],

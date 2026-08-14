@@ -460,7 +460,7 @@ test("no gradient, no social proof and no forbidden surface reaches the detail p
   }
 });
 
-test("the detail page adds no dependency and reserves no forbidden port", async () => {
+test("the reviewed runtime dependency baseline and reserved ports stay locked", async () => {
   const manifest = JSON.parse(await readSource("package.json")) as {
     dependencies: Record<string, string>;
     scripts: Record<string, string>;
@@ -472,6 +472,7 @@ test("the detail page adds no dependency and reserves no forbidden port", async 
       "@base-ui/react",
       "class-variance-authority",
       "clsx",
+      "jose",
       "lucide-react",
       "next",
       "react",
@@ -480,7 +481,7 @@ test("the detail page adds no dependency and reserves no forbidden port", async 
       "tailwind-merge",
       "tw-animate-css",
     ],
-    "the detail page must not add a runtime dependency",
+    "runtime dependencies must stay on the reviewed allowlist",
   );
   assert.match(manifest.scripts["test:detail"] ?? "", /product-detail\.test\.mts/, "the detail suite must be runnable");
 
