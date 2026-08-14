@@ -34,31 +34,54 @@ Active staging Worker hiện tại trả `/san-pham` HTTP 200 và hiển thị 1
 
 Không được vì vậy đổi source-of-truth của Lean V1 sang D1 một cách ngầm định. Master Plan hiện hành vẫn khóa Bagisto là canonical source cho catalog, variant, giá, tồn, MOQ, quantity step, threshold và nội dung CMS được chọn quản trị.
 
+## Quyền API token đã xác minh lại
+
+Token `dry-boat-b034` hiện `active`, không có ngày hết hạn và có **2 policy**:
+
+- Account policy: 273 permission groups cho toàn account.
+- Zone policy: 90 permission groups cho riêng zone `kienhieu.id.vn`, trong đó có `DNS Read/Write`, `Workers Routes Read/Write`, `Zone Read/Write` và các quyền zone khác.
+
+Sau khi bổ sung zone policy, API thực tế đã xác minh:
+
+- DNS records của `kienhieu.id.vn` đọc thành công (`success: true`).
+- Workers Routes của zone đọc thành công (`success: true`).
+- D1, R2, Worker versions và Cloudflare Tunnel API vẫn đọc được như trước.
+
+Không còn blocker về quyền Cloudflare API cho việc audit hạ tầng hiện tại.
+
+## DNS và Workers Routes hiện tại
+
+Các record liên quan đã xác minh:
+
+- `kienhieu.id.vn` → A `13.67.69.121`, proxied qua Cloudflare.
+- `admin.kienhieu.id.vn` → AAAA `100::`, proxied qua Cloudflare.
+- `admin-staging.kienhieu.id.vn` → AAAA `100::`, proxied qua Cloudflare.
+
+Workers Routes hiện có đúng 2 route:
+
+- `kienhieu.id.vn/*` → `giacong-vn`.
+- `admin.kienhieu.id.vn/*` → `giacong-vn`.
+
+Hiện không có Workers Route cho `admin-staging.kienhieu.id.vn`.
+
+## Kiểm tra origin trực tiếp
+
+Đã thử bypass Cloudflare và kết nối trực tiếp tới `13.67.69.121` với SNI/Host là `admin.kienhieu.id.vn` và `admin-staging.kienhieu.id.vn`. TLS handshake thất bại vì certificate tại origin không có SAN phù hợp với hai hostname này. Do đó không thể coi `13.67.69.121` là một Bagisto HTTPS origin hợp lệ cho hai hostname trên nếu chưa cấu hình lại TLS/origin routing.
+
 ## Blocker kế tiếp
 
 Lean V1 cần một Bagisto origin mà Cloudflare Worker có thể gọi server-to-server. Hiện:
 
-- `admin-staging.kienhieu.id.vn` trả Cloudflare challenge HTTP 403 cho `/` và các path `/api/b2b/...` khi gọi máy-máy từ GitHub Actions.
+- `admin-staging.kienhieu.id.vn` qua Cloudflare trả HTTP 403 cho `/` và các path `/api/b2b/...` khi gọi máy-máy.
 - Chưa có Cloudflare Tunnel được phát hiện trong account.
+- Direct HTTPS tới `13.67.69.121` với hostname admin/admin-staging không hợp lệ do TLS certificate mismatch.
 - `BAGISTO_API_URL` và `BAGISTO_PROXY_ORIGIN` chưa được cấu hình cho bản OpenNext staging mới.
 
 Vì vậy chưa được activate bản OpenNext mới trên `giacong-vn-staging` cho tới khi Bagisto private/service origin được thiết lập và catalog/cart integration smoke test đạt.
-
-## Quyền API token hiện tại
-
-Token GitHub Actions đã được xác minh có thể:
-
-- xác thực account/zone;
-- đọc và upload Worker versions;
-- đọc D1 metadata;
-- đọc R2 bucket metadata;
-- đọc Cloudflare Tunnel list.
-
-Token hiện không đọc được DNS records hoặc Workers Routes bằng API, trả authentication error cho hai endpoint đó. Nếu cần audit tự động các phần này, bổ sung quyền read tương ứng; không cần Global API Key.
 
 ## Quy tắc an toàn tiếp theo
 
 1. Không chạm `giacong-vn` production.
 2. Không activate version OpenNext mới trên `giacong-vn-staging` khi `/san-pham` chưa đọc canonical Bagisto thành công.
 3. Giữ D1/R2 staging bindings hiện hữu cho tới khi migration có quyết định loại bỏ rõ ràng.
-4. Bước tiếp theo là xác định/thiết lập Bagisto private origin, ưu tiên Cloudflare Tunnel hoặc private service path phù hợp với runtime PHP/container hiện có.
+4. Bước tiếp theo là thiết lập Bagisto private origin, ưu tiên Cloudflare Tunnel hoặc một HTTPS service origin có TLS hợp lệ và không bị browser challenge trên đường server-to-server.
