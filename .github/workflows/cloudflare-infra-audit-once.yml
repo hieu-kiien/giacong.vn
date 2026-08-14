@@ -1,5 +1,6 @@
 name: Audit Cloudflare staging infrastructure once
 
+# Read-only audit; API sections degrade gracefully when the scoped token lacks a permission.
 on:
   push:
     branches:
@@ -40,25 +41,39 @@ jobs:
           echo "zone_id=$zone_id" >> "$GITHUB_OUTPUT"
           echo "Zone resolved: ${ZONE_NAME}"
 
-      - name: Inspect targeted staging DNS record
+      - name: Inspect targeted staging DNS record when token permits
         shell: bash
         run: |
-          set -euo pipefail
-          response=$(curl --fail-with-body --silent --show-error --get \
+          set +e
+          response=$(curl --silent --show-error --get \
             "https://api.cloudflare.com/client/v4/zones/${{ steps.zone.outputs.zone_id }}/dns_records" \
             -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
             --data-urlencode "name=${ADMIN_STAGING_HOST}" \
             --data-urlencode "per_page=100")
-          jq '{success, records: [.result[] | {type, name, content, proxied, ttl}]}' <<<"$response"
+          success=$(jq -r '.success // false' <<<"$response" 2>/dev/null)
+          if [ "$success" = "true" ]; then
+            jq '{success, records: [.result[] | {type, name, content, proxied, ttl}]}' <<<"$response"
+          else
+            echo "DNS listing not available with this token; continuing."
+            jq '{success, errors}' <<<"$response" 2>/dev/null || true
+          fi
+          exit 0
 
-      - name: Inspect Worker routes for the zone
+      - name: Inspect Worker routes when token permits
         shell: bash
         run: |
-          set -euo pipefail
-          response=$(curl --fail-with-body --silent --show-error \
+          set +e
+          response=$(curl --silent --show-error \
             "https://api.cloudflare.com/client/v4/zones/${{ steps.zone.outputs.zone_id }}/workers/routes" \
             -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}")
-          jq '{success, routes: [.result[] | {pattern, script}]}' <<<"$response"
+          success=$(jq -r '.success // false' <<<"$response" 2>/dev/null)
+          if [ "$success" = "true" ]; then
+            jq '{success, routes: [.result[] | {pattern, script}]}' <<<"$response"
+          else
+            echo "Workers Routes listing not available with this token; continuing."
+            jq '{success, errors}' <<<"$response" 2>/dev/null || true
+          fi
+          exit 0
 
       - name: Inspect Cloudflare Tunnels when token permits
         shell: bash
@@ -71,7 +86,7 @@ jobs:
           if [ "$success" = "true" ]; then
             jq '{success, tunnels: [.result[] | {id, name, status, remote_config}]}' <<<"$response"
           else
-            echo "Tunnel listing not available with this token; continuing read-only audit."
+            echo "Tunnel listing not available with this token; continuing."
             jq '{success, errors}' <<<"$response" 2>/dev/null || true
           fi
           exit 0
