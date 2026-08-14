@@ -1,0 +1,33 @@
+name: GitNexus CLI help once
+
+on:
+  push:
+    branches: [cloudflare-admin-auth-admission]
+    paths:
+      - ".github/workflows/gitnexus-cli-help-once.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24.11.0"
+      - name: Install pinned GitNexus
+        run: npm install --global gitnexus@1.6.9
+      - name: Show supported commands
+        shell: bash
+        run: |
+          set -euo pipefail
+          gitnexus --help | tee /tmp/help.txt
+          echo "--- query help ---"
+          gitnexus query --help 2>&1 || true
+          echo "--- impact help ---"
+          gitnexus impact --help 2>&1 || true
