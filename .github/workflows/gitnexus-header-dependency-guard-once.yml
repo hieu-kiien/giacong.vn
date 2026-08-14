@@ -1,0 +1,83 @@
+name: GitNexus header dependency guard once
+
+on:
+  push:
+    branches: [cloudflare-admin-auth-admission]
+    paths:
+      - ".github/workflows/gitnexus-header-dependency-guard-once.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  impact-then-patch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: cloudflare-admin-auth-admission
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24.11.0"
+      - name: Install pinned GitNexus
+        run: npm install --global gitnexus@1.6.9
+      - name: Build current branch graph
+        run: gitnexus analyze . --force --skip-agents-md --skip-skills
+      - name: Run pre-edit impact analysis
+        shell: bash
+        run: |
+          set -euo pipefail
+          gitnexus query \
+            "commerce header chrome adds no dependency runtime dependency manifest dependencies" \
+            --goal "identify the existing dependency allowlist guard in scripts/commerce-header.test.mts before adding the reviewed jose security dependency" \
+            --context "The strict dependency guard must remain; jose is required for Cloudflare Access JWT signature verification." \
+            --content --limit 10 | tee /tmp/query.txt
+          gitnexus impact commerce-header.test.mts \
+            --direction upstream \
+            --file apps/giacong-lean-commerce/scripts/commerce-header.test.mts \
+            --include-tests --depth 3 --limit 100 | tee /tmp/impact.txt
+          {
+            echo "## Pre-edit GitNexus impact: commerce-header dependency guard"
+            echo
+            echo '```text'
+            cat /tmp/impact.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Patch only the bounded dependency guard
+        shell: python
+        run: |
+          from pathlib import Path
+
+          path = Path("apps/giacong-lean-commerce/scripts/commerce-header.test.mts")
+          source = path.read_text()
+          start_marker = 'test("the chrome adds no dependency and no third-party brand asset", async () => {'
+          start = source.find(start_marker)
+          if start < 0:
+              raise SystemExit("Expected header dependency guard not found")
+          next_start = source.find('\ntest("', start + len(start_marker))
+          end = len(source) if next_start < 0 else next_start
+          before, block, after = source[:start], source[start:end], source[end:]
+          replacements = {
+              start_marker: 'test("the chrome keeps the reviewed dependency allowlist and no third-party brand asset", async () => {',
+              '      "clsx",\n      "lucide-react",': '      "clsx",\n      "jose",\n      "lucide-react",',
+              '    "the chrome must not add a runtime dependency",': '    "runtime dependencies must stay on the reviewed allowlist",',
+          }
+          for old, new in replacements.items():
+              if block.count(old) != 1:
+                  raise SystemExit(f"Refusing ambiguous header dependency edit for: {old}")
+              block = block.replace(old, new, 1)
+          path.write_text(before + block + after)
+      - name: Self-clean and commit exact update
+        shell: bash
+        run: |
+          set -euo pipefail
+          git rm .github/workflows/gitnexus-header-dependency-guard-once.yml
+          git diff --check
+          git diff -- apps/giacong-lean-commerce/scripts/commerce-header.test.mts .github/workflows/
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add apps/giacong-lean-commerce/scripts/commerce-header.test.mts .github/workflows/
+          git commit -m "test(admin): keep chrome dependency guard strict"
+          git push origin HEAD:cloudflare-admin-auth-admission
