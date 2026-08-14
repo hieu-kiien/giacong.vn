@@ -11,7 +11,7 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "next typegen && tsc --noEmit",
-    "test:admin": "node --no-warnings --experimental-strip-types --test scripts/admin-access.test.mts scripts/admin-access-source-contract.test.mjs scripts/admin-session.test.mts scripts/admin-category.test.mts",
+    "test:admin": "node --no-warnings --experimental-strip-types --test scripts/admin-access.test.mts scripts/admin-access-source-contract.test.mjs scripts/admin-session.test.mts scripts/admin-category.test.mts scripts/admin-product.test.mts",
     "test:catalog": "node --no-warnings --experimental-strip-types --test scripts/catalog-contract.test.mts scripts/bagisto-api-timeout.test.mts",
     "test:catalog-purchase-ui": "node --no-warnings --experimental-strip-types --test scripts/catalog-purchase-ui.test.mts",
     "test:service": "node --no-warnings --experimental-strip-types --test scripts/service-contract.test.mts scripts/service-cms-contract.test.mts scripts/contact-form-context.test.mts",
