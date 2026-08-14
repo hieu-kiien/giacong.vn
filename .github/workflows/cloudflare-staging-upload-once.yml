@@ -41,13 +41,13 @@ jobs:
         run: npm ci
 
       - name: Confirm current staging deployment
-        run: wrangler deployments status --env=staging --json
+        run: npx wrangler deployments status --env=staging --json
 
       - name: Upload new OpenNext staging version without serving traffic
         run: npm run cf:upload:staging
 
       - name: List staging versions after upload
-        run: wrangler versions list --env=staging --json
+        run: npx wrangler versions list --env=staging --json
 
       - name: Confirm active deployment did not change
-        run: wrangler deployments status --env=staging --json
+        run: npx wrangler deployments status --env=staging --json
