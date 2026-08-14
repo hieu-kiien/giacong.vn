@@ -59,7 +59,7 @@ jobs:
           GITNEXUS_SKIP_OPTIONAL_GRAMMARS: "1"
         run: |
           set -euo pipefail
-          gitnexus analyze . --force --skip-agents-md --skip-skills --skip-embeddings
+          gitnexus analyze . --force --skip-agents-md --skip-skills
           gitnexus status
 
       - name: Detect changed symbols and affected execution flows
