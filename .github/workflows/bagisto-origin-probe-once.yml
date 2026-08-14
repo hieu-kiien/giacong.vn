@@ -1,0 +1,41 @@
+name: Probe Bagisto origin once
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - .github/workflows/bagisto-origin-probe-once.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      ORIGIN_IP: 13.67.69.121
+    steps:
+      - name: Probe admin hostnames directly at origin IP
+        shell: bash
+        run: |
+          set +e
+          for host in admin.kienhieu.id.vn admin-staging.kienhieu.id.vn; do
+            echo "=== ${host} ==="
+            for path in / /admin /api/b2b/catalog/categories '/api/b2b/catalog/products?per_page=1'; do
+              out="/tmp/body-${host//./-}.txt"
+              headers="/tmp/headers-${host//./-}.txt"
+              code=$(curl --silent --show-error --max-time 15 \
+                --resolve "${host}:443:${ORIGIN_IP}" \
+                --dump-header "$headers" \
+                --output "$out" \
+                --write-out '%{http_code}' \
+                "https://${host}${path}")
+              content_type=$(awk -F': ' 'tolower($1)=="content-type" {gsub("\r", "", $2); print $2; exit}' "$headers")
+              location=$(awk -F': ' 'tolower($1)=="location" {gsub("\r", "", $2); print $2; exit}' "$headers")
+              title=$(grep -Eio '<title>[^<]{0,160}</title>' "$out" | head -n 1 | sed -E 's/<\/?title>//gI')
+              echo "$path -> HTTP ${code:-curl-error}; type=${content_type:-unknown}; location=${location:-none}; title=${title:-none}"
+            done
+          done
+          exit 0
