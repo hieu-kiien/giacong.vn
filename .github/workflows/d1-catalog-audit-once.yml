@@ -1,0 +1,44 @@
+name: Audit staging D1 catalog once
+
+on:
+  push:
+    paths:
+      - .github/workflows/d1-catalog-audit-once.yml
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      DATABASE_ID: 981b5d5e-bba9-4f7e-9e1e-a15e379cd095
+    steps:
+      - name: Audit schema and sample rows
+        shell: bash
+        run: |
+          set -euo pipefail
+          endpoint="https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/d1/database/${DATABASE_ID}/query"
+          query() {
+            local sql="$1"
+            curl --fail-with-body --silent --show-error \
+              "$endpoint" \
+              -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+              -H "Content-Type: application/json" \
+              --data "$(jq -nc --arg sql "$sql" '{sql:$sql}')"
+          }
+
+          echo '=== SCHEMA ==='
+          schema=$(query "SELECT name, sql FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE '_cf_%' ORDER BY name")
+          jq '{success, errors, tables: [.result[0].results[]? | {name, sql}]}' <<<"$schema"
+
+          mapfile -t tables < <(jq -r '.result[0].results[]?.name' <<<"$schema")
+          for table in "${tables[@]}"; do
+            [[ "$table" =~ ^[A-Za-z0-9_]+$ ]] || continue
+            echo "=== TABLE ${table} ==="
+            query "PRAGMA table_info(${table})" | jq '{success, columns: [.result[0].results[]? | {cid, name, type, notnull, dflt_value, pk}]}'
+            query "SELECT COUNT(*) AS row_count FROM ${table}" | jq '{success, count: .result[0].results[0]}'
+            query "SELECT * FROM ${table} LIMIT 3" | jq '{success, sample: .result[0].results}'
+          done
