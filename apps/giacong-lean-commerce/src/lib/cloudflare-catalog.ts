@@ -145,12 +145,12 @@ export async function getCatalogProducts(filters: CatalogFilters): Promise<Catal
         COUNT(v.id) AS variant_count,
         COALESCE(SUM(CASE WHEN v.is_available = 1 THEN 1 ELSE 0 END), 0) AS available_variant_count,
         MIN(CASE
-          WHEN v.is_available = 1 AND tp.min_quantity = v.moq THEN tp.price
+          WHEN v.is_available = 1 THEN tp.price
           ELSE NULL
         END) AS starting_price
       FROM products p
       LEFT JOIN product_variants v ON v.product_id = p.id
-      LEFT JOIN variant_tier_prices tp ON tp.variant_id = v.id
+      LEFT JOIN variant_tier_prices tp ON tp.variant_id = v.id AND tp.min_quantity = v.moq
       GROUP BY p.id
     )
     SELECT
@@ -199,12 +199,12 @@ export const getCatalogProduct = cache(async (slug: string): Promise<CatalogProd
         COUNT(v.id) AS variant_count,
         COALESCE(SUM(CASE WHEN v.is_available = 1 THEN 1 ELSE 0 END), 0) AS available_variant_count,
         MIN(CASE
-          WHEN v.is_available = 1 AND tp.min_quantity = v.moq THEN tp.price
+          WHEN v.is_available = 1 THEN tp.price
           ELSE NULL
         END) AS starting_price
       FROM products p
       LEFT JOIN product_variants v ON v.product_id = p.id
-      LEFT JOIN variant_tier_prices tp ON tp.variant_id = v.id
+      LEFT JOIN variant_tier_prices tp ON tp.variant_id = v.id AND tp.min_quantity = v.moq
       WHERE p.slug = ?
       GROUP BY p.id
     )
