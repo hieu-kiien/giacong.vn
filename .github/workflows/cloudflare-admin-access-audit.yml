@@ -1,0 +1,87 @@
+name: Cloudflare admin Access audit
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - ".github/workflows/cloudflare-admin-access-audit.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cloudflare-admin-access-audit-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  audit-access:
+    name: Audit staging Access JWT inputs
+    if: github.event.pull_request.head.repo.full_name == github.repository || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      ADMIN_DOMAIN: admin-staging.kienhieu.id.vn
+
+    steps:
+      - name: Read exact staging Access application
+        shell: bash
+        run: |
+          set -euo pipefail
+          apps="$(curl --fail-with-body --silent --show-error \
+            --get "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/access/apps" \
+            -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+            --data-urlencode "domain=$ADMIN_DOMAIN" \
+            --data-urlencode "exact=true")"
+          echo "$apps" | jq -e '.success == true' >/dev/null
+          app_count="$(echo "$apps" | jq '[.result[] | select(.type == "self_hosted" and .domain == env.ADMIN_DOMAIN)] | length')"
+          test "$app_count" = "1"
+          echo "$apps" | jq -c '.result[] | select(.type == "self_hosted" and .domain == env.ADMIN_DOMAIN) | {id,name,domain,type,aud,session_duration,app_launcher_visible,auto_redirect_to_identity}' \
+            | tee /tmp/access-app.json
+          aud="$(jq -r '.aud // empty' /tmp/access-app.json)"
+          test -n "$aud"
+          echo "POLICY_AUD=$aud" >> "$GITHUB_ENV"
+
+      - name: Read Zero Trust organization team domain
+        shell: bash
+        run: |
+          set -euo pipefail
+          organization="$(curl --fail-with-body --silent --show-error \
+            "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/access/organizations" \
+            -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN")"
+          echo "$organization" | jq -e '.success == true' >/dev/null
+          auth_domain="$(echo "$organization" | jq -r '.result.auth_domain // empty')"
+          test -n "$auth_domain"
+          case "$auth_domain" in
+            https://*) team_domain="${auth_domain%/}" ;;
+            *) team_domain="https://${auth_domain%/}" ;;
+          esac
+          echo "TEAM_DOMAIN=$team_domain" >> "$GITHUB_ENV"
+          jq -n --arg auth_domain "$auth_domain" '{auth_domain:$auth_domain}' | tee /tmp/access-org.json
+
+      - name: Verify Access JWKS endpoint is reachable and usable
+        shell: bash
+        run: |
+          set -euo pipefail
+          jwks="$(curl --fail-with-body --silent --show-error "$TEAM_DOMAIN/cdn-cgi/access/certs")"
+          key_count="$(echo "$jwks" | jq '.keys | length')"
+          test "$key_count" -ge 1
+          echo "$jwks" | jq -e '.keys | all(.[]; (.kid | type == "string" and length > 0) and (.kty | type == "string" and length > 0))' >/dev/null
+          jq -n --argjson key_count "$key_count" '{jwks_key_count:$key_count}' | tee /tmp/jwks-state.json
+
+      - name: Publish safe verification inputs
+        shell: bash
+        run: |
+          {
+            echo "## Cloudflare Access staging JWT inputs"
+            echo
+            echo "These identifiers are configuration, not authentication secrets."
+            echo
+            echo "- Admin domain: \`$ADMIN_DOMAIN\`"
+            echo "- Team domain: \`$TEAM_DOMAIN\`"
+            echo "- Application AUD: \`$POLICY_AUD\`"
+            echo "- JWKS endpoint: \`$TEAM_DOMAIN/cdn-cgi/access/certs\`"
+            echo "- JWKS currently exposes: \`$(jq -r '.jwks_key_count' /tmp/jwks-state.json)\` signing key(s)"
+          } >> "$GITHUB_STEP_SUMMARY"
