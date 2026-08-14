@@ -14,38 +14,21 @@ jobs:
     env:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-      DATABASE_ID: 981b5d5e-bba9-4f7e-9e1e-a15e379cd095
+      DATABASE_NAME: giacong-vn-catalog-staging
     steps:
-      - name: Audit schema and sample rows
+      - name: Audit D1 schema
         shell: bash
         run: |
           set -euo pipefail
-          endpoint="https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/d1/database/${DATABASE_ID}/query"
-          query() {
-            local sql="$1"
-            curl --silent --show-error \
-              "$endpoint" \
-              -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
-              -H "Content-Type: application/json" \
-              --data "$(jq -nc --arg sql "$sql" '{sql:$sql,params:[]}')"
-          }
+          npx -y wrangler@4.115.0 d1 execute "$DATABASE_NAME" --remote --json \
+            --command="SELECT name, sql FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE '_cf_%' ORDER BY name;"
 
-          echo '=== CONNECTIVITY ==='
-          query "SELECT 1 AS ok" | jq .
-
-          echo '=== SCHEMA ==='
-          schema=$(query "SELECT name, sql FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE '_cf_%' ORDER BY name")
-          jq . <<<"$schema"
-
-          if ! jq -e '.success == true and (.result | length) > 0' >/dev/null <<<"$schema"; then
-            exit 1
-          fi
-
-          mapfile -t tables < <(jq -r '.result[0].results[]?.name' <<<"$schema")
-          for table in "${tables[@]}"; do
-            [[ "$table" =~ ^[A-Za-z0-9_]+$ ]] || continue
-            echo "=== TABLE ${table} ==="
-            query "PRAGMA table_info(${table})" | jq .
-            query "SELECT COUNT(*) AS row_count FROM ${table}" | jq .
-            query "SELECT * FROM ${table} LIMIT 3" | jq .
+      - name: Audit known catalog data
+        shell: bash
+        run: |
+          set -euo pipefail
+          for table in categories products product_variants product_prices product_media settings; do
+            echo "=== ${table} ==="
+            npx -y wrangler@4.115.0 d1 execute "$DATABASE_NAME" --remote --json \
+              --command="SELECT * FROM ${table} LIMIT 5;" || true
           done
