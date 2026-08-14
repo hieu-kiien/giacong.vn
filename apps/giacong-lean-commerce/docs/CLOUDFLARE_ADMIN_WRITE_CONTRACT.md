@@ -1,133 +1,147 @@
 # Cloudflare-native admin write contract
 
-**Status:** Lean V1 staging contract, locked before admin CRUD implementation.
+**Status:** Lean V1 staging contract. This is a server contract, not permission to change production.
 
-This document defines the server-side contract that the Cloudflare-native admin must implement before an admin UI is allowed to write D1 or R2. It complements `CLOUDFLARE_NATIVE_V1_PLAN.md`; it does not authorize production changes.
+This document defines the security, data-integrity and HTTP behavior that must exist before the Cloudflare-native admin UI is allowed to mutate D1 or R2. It complements `CLOUDFLARE_NATIVE_V1_PLAN.md` and the engineering baseline tracked in GitHub issue #10.
 
 ## 1. Scope and trust boundary
 
-The admin exists to manage the canonical staging catalog and media directly through the Next.js/OpenNext Worker.
+Staging admin target:
 
-Trusted boundary:
-
-- admin hostname: `admin-staging.kienhieu.id.vn`;
-- edge protection: the existing Cloudflare Access self-hosted application and allow policy;
+- hostname: `admin-staging.kienhieu.id.vn`;
+- edge protection: Cloudflare Access self-hosted application and allow policy;
 - Worker route: `admin-staging.kienhieu.id.vn/*` → `giacong-vn-staging`;
-- server-side D1 binding: `GIACONG_VN_CATALOG`;
-- server-side R2 binding: `GIACONG_VN_PRODUCT_MEDIA`.
+- canonical D1 binding: `GIACONG_VN_CATALOG`;
+- canonical R2 binding: `GIACONG_VN_PRODUCT_MEDIA`.
 
-The browser never receives D1/R2 credentials and never talks directly to D1/R2 APIs. Public storefront hostnames must not be accepted as an alternate path to admin write APIs.
+The browser never receives D1/R2 credentials and never calls D1/R2 APIs directly. All reads and writes cross a server-side Worker boundary. Public storefront hosts, `workers.dev` URLs and preview URLs must not become alternate admin-write paths.
 
-Request inbox management is not part of this contract. Google Sheet + Apps Script remains the request queue until a separate decision changes it.
+Request inbox management is outside this contract. Google Sheet + Apps Script remains the request queue until a separate product decision changes it.
 
 ## 2. Authentication and request admission
 
-Every admin read/write route must fail closed unless all admission checks pass.
+Every `/api/admin/**` route fails closed unless its admission checks pass.
 
 Required checks:
 
-1. Request hostname is exactly `admin-staging.kienhieu.id.vn` in staging.
-2. Request has passed the Cloudflare Access boundary. Implementation should validate the Access identity/JWT mechanism supported by the deployed Worker environment rather than trusting an arbitrary client-provided identity header.
-3. Mutation methods require same-origin requests. Reject cross-origin browser writes.
-4. `Content-Type` must match the endpoint contract.
-5. Requests exceeding the endpoint body limit are rejected before parsing.
-6. Responses containing admin data use `Cache-Control: no-store`.
+1. In staging, request hostname is exactly `admin-staging.kienhieu.id.vn`.
+2. Read `Cf-Access-Jwt-Assertion`; never trust an arbitrary identity/email header as proof of authentication.
+3. Cryptographically verify the Access JWT against the account JWKS and the configured issuer/team domain and application audience. Signature, issuer, audience and token time validity must pass.
+4. Missing auth configuration is a deployment failure and must fail closed, not disable authentication.
+5. Mutation methods require an exact same-origin `Origin` matching the admin origin. Cross-origin browser mutations are rejected.
+6. Enforce the endpoint `Content-Type` before parsing.
+7. Enforce a byte limit before accepting/parsing the full request body.
+8. Admin responses use `Cache-Control: no-store`.
 
-The public storefront origin must receive `404` or `403` for `/api/admin/**`; it must never become an unauthenticated admin API.
+Wrong-host requests to `/api/admin/**` should be hidden with `404`. Invalid/missing Access identity on the correct admin host is rejected with a safe `401` or `403` response. Do not return JWT/JWKS details, claims, stack traces or internal configuration values.
 
-Lean V1 has one operator administrator. Do not add customer identity, teams or granular RBAC in this phase.
+Lean V1 has one operator administrator. Granular RBAC, customer identity and teams are out of scope.
 
-## 3. API envelope
+## 3. HTTP and JSON contract
 
-Successful JSON responses use:
+Successful JSON response:
 
 ```json
 {
   "ok": true,
+  "requestId": "uuid",
   "data": {}
 }
 ```
 
-Failed JSON responses use:
+Failed JSON response:
 
 ```json
 {
   "ok": false,
+  "requestId": "uuid",
   "code": "VALIDATION_ERROR",
   "message": "Safe operator-facing message",
   "fieldErrors": {}
 }
 ```
 
-`fieldErrors` is optional and only contains safe field-level validation messages. Do not return SQL, stack traces, binding names, secrets or internal exception text.
+`fieldErrors` is optional. Never return SQL, stack traces, binding names, secrets or raw internal exceptions.
 
-Recommended status mapping:
+Status mapping:
 
-- `400` malformed JSON / invalid request shape;
-- `401` Access identity missing or invalid where distinguishable;
-- `403` authenticated request not admitted by admin boundary;
-- `404` entity not found or admin path intentionally hidden on the wrong host;
-- `409` uniqueness conflict, stale write or referenced-media conflict;
-- `413` request body/media too large;
-- `415` unsupported media/content type;
+- `400` malformed JSON/request shape;
+- `401` missing/invalid identity where appropriate;
+- `403` authenticated request not admitted;
+- `404` not found or intentionally hidden wrong-host admin route;
+- `409` uniqueness conflict, stale write, idempotency conflict or referenced-media conflict;
+- `413` payload too large;
+- `415` unsupported content/media type;
 - `422` business-rule validation failure;
-- `500` unexpected server failure with generic message only.
+- `500` unexpected failure with generic message only.
 
-Stable error codes for V1:
+Stable V1 error codes:
 
 - `INVALID_REQUEST`
 - `VALIDATION_ERROR`
 - `NOT_FOUND`
 - `UNIQUE_CONFLICT`
 - `STALE_WRITE`
+- `IDEMPOTENCY_CONFLICT`
 - `MEDIA_IN_USE`
 - `UNSUPPORTED_MEDIA`
 - `PAYLOAD_TOO_LARGE`
 - `FORBIDDEN`
 - `INTERNAL_ERROR`
 
-## 4. Concurrency and mutation semantics
+## 4. Durable optimistic concurrency
 
-Every mutable D1 entity exposes an opaque `version` derived from its canonical `updated_at` value or an equivalent server-generated representation.
+Do not use second-resolution `updated_at` as the collision-safety token.
+
+The admin foundation migration adds a positive integer `revision` to mutable rows. API `version` is an opaque server representation of that revision.
 
 Rules:
 
-- create requests do not send `version`;
-- update/delete requests must send the last version read by the operator;
-- the D1 mutation includes the version in its `WHERE` predicate;
-- zero changed rows with an existing entity means `409 STALE_WRITE`;
-- the server returns the newly persisted canonical record and new `version` after success;
-- client clocks are never used for concurrency decisions.
+- creates do not accept client `version` and begin with revision `1`;
+- update/delete requires the last server version read by the operator;
+- mutation predicate includes both entity ID and expected revision;
+- successful update increments revision exactly once;
+- zero changed rows are distinguished between `404 NOT_FOUND` and `409 STALE_WRITE`;
+- server returns the canonical persisted entity and new opaque `version`;
+- client clocks never participate in concurrency decisions;
+- `updated_at` remains human-readable metadata and is refreshed server-side.
 
-Multi-row changes that must remain consistent are performed atomically with D1 batch/transaction semantics supported by the runtime. In particular, variant + tier-price replacement must never leave a half-written pricing state.
+Tier-price replacement uses the parent variant revision as its concurrency token. `variant_tier_prices` does not need independent revision columns in Lean V1.
 
-## 5. Canonical normalization
+## 5. Atomicity and D1 discipline
 
-Before validation/persistence, the server performs only deterministic normalization documented here:
+- Use D1 prepared statements with bound parameters for all user-controlled values.
+- Never interpolate untrusted strings into SQL identifiers or SQL fragments.
+- Multi-statement business changes that must remain consistent use D1 atomic batch/transaction semantics.
+- Business mutation and its audit insert are coupled so one cannot succeed without the other.
+- Schema changes use explicit tracked D1 migrations only. Runtime code never creates/alters schema.
+- Before staging schema/data mutation, guard the expected state; after mutation, verify postconditions and invariants.
 
-- trim leading/trailing Unicode whitespace from human text fields;
+## 6. Canonical normalization
+
+The server performs only deterministic normalization:
+
+- trim leading/trailing Unicode whitespace from human text;
 - normalize slugs to lowercase ASCII hyphenated form;
-- normalize SKU text by trimming but preserve the operator-provided case unless a future schema decision makes SKU case-insensitive;
-- convert booleans to canonical stored `0/1` only inside the persistence adapter;
-- prices are integer VND, never floating point;
-- integer quantity fields reject fractional, NaN, infinity and numeric strings unless the endpoint schema explicitly parses them before validation.
+- trim SKU while preserving operator-provided case until a future schema decision says otherwise;
+- booleans become stored `0/1` only inside persistence adapters;
+- VND prices are positive integers, never floating point;
+- integer quantity fields reject fractions, NaN, infinity and unapproved numeric-string coercion.
 
-The server must not silently repair invalid MOQ/step/tier/contact combinations. Return a validation error instead.
+Invalid MOQ/step/tier/contact combinations are rejected, never silently repaired.
 
-## 6. Category contract
+## 7. Category contract
 
-### Routes
+Routes:
 
 - `GET /api/admin/categories`
 - `POST /api/admin/categories`
 - `GET /api/admin/categories/[id]`
 - `PATCH /api/admin/categories/[id]`
 
-Category deletion is out of Lean V1 initially. Deactivation is the safe removal path until product-reference behavior is accepted explicitly.
+Deletion is out of Lean V1; deactivation is the safe removal path.
 
-### Create fields
-
-Required exact keys:
+Create exact fields:
 
 - `name`: string, 1..120 chars;
 - `slug`: string, 1..140 chars after normalization;
@@ -136,32 +150,18 @@ Required exact keys:
 - `sortOrder`: integer, 0..1,000,000;
 - `isActive`: boolean.
 
-### Update fields
+Update contains the same fields plus required `version`. Slug conflict returns `409 UNIQUE_CONFLICT`.
 
-Required exact keys:
+## 8. Product contract
 
-- `version`;
-- `name`;
-- `slug`;
-- `description`;
-- `imageUrl`;
-- `sortOrder`;
-- `isActive`.
-
-Slug uniqueness conflict returns `409 UNIQUE_CONFLICT`.
-
-## 7. Product contract
-
-### Routes
+Routes:
 
 - `GET /api/admin/products`
 - `POST /api/admin/products`
 - `GET /api/admin/products/[id]`
 - `PATCH /api/admin/products/[id]`
 
-Product deletion is out of Lean V1 initially. Use `isActive=false` until destructive-delete semantics are separately accepted.
-
-### Create/update fields
+Deletion is out of Lean V1; use `isActive=false`.
 
 Canonical fields:
 
@@ -177,24 +177,22 @@ Canonical fields:
 
 Validation:
 
-- slug unique;
-- SKU unique;
-- referenced category exists when `categoryId` is not null;
-- media reference, when it points to managed product media, must use the canonical `/media/products/...` form.
+- unique slug;
+- unique SKU;
+- non-null category reference exists;
+- managed media references use canonical `/media/products/...` form.
 
-The response for a product detail includes its current variants and tier prices so the UI can render one canonical editing snapshot.
+Product detail response includes variants and tier prices so the editor starts from one canonical snapshot.
 
-## 8. Variant contract
+## 9. Variant contract
 
-### Routes
+Routes:
 
 - `POST /api/admin/products/[productId]/variants`
 - `PATCH /api/admin/variants/[id]`
 - `DELETE /api/admin/variants/[id]`
 
-Deletion requires `version` and is rejected while the server determines that removing the variant would violate an accepted invariant. Lean V1 has no order history in D1, so the initial implementation may allow deletion when the variant belongs to the target product and no additional catalog reference exists; this behavior must be covered by tests before enabling the UI action.
-
-### Fields
+Fields:
 
 - `name`: string, 1..180 chars;
 - `sku`: string, 1..120 chars, unique;
@@ -212,89 +210,79 @@ Deletion requires `version` and is rejected while the server determines that rem
 - `imageUrl`: string or null, max 500 chars;
 - update/delete only: `version`.
 
-Business invariants:
+Canonical business invariants, matching the active storefront/cart read path:
 
 ```text
 moq > 0
 quantityStep > 0
-contactFromQuantity >= moq
+contactFromQuantity > moq
 (contactFromQuantity - moq) % quantityStep == 0
 ```
 
-A write that would make existing tier prices unreachable under a new MOQ/step is rejected with `422 VALIDATION_ERROR` unless the same atomic request also replaces the affected tiers with a valid set.
+A write that makes existing tiers unreachable under a changed MOQ/step is rejected unless the same atomic operation replaces those tiers with a valid complete set.
 
-## 9. Tier-price contract
+## 10. Tier-price contract
 
-### Routes
+Preferred write route:
 
-- `POST /api/admin/variants/[variantId]/tier-prices`
-- `PATCH /api/admin/tier-prices/[id]`
-- `DELETE /api/admin/tier-prices/[id]`
-- optional atomic replacement: `PUT /api/admin/variants/[variantId]/tier-prices`
+- `PUT /api/admin/variants/[variantId]/tier-prices`
 
-### Fields
+Lean V1 should prefer complete atomic replacement rather than exposing a UI that performs transient row-by-row pricing changes.
+
+Input includes parent variant `version` and the complete tier set. Every tier has:
 
 - `minQuantity`: positive integer;
-- `price`: positive integer VND;
-- update/delete only: `version` when a row-level version is exposed; otherwise the parent variant version is the concurrency token for atomic tier replacement.
+- `price`: positive integer VND.
 
-For every tier:
+Invariants:
 
 ```text
 minQuantity >= variant.moq
+minQuantity < variant.contactFromQuantity
 (minQuantity - variant.moq) % variant.quantityStep == 0
 price > 0
 currency == "VND"
 ```
 
-Within one variant:
+Within a variant:
 
-- `minQuantity` is unique;
-- tiers are returned sorted ascending by `minQuantity`;
+- `minQuantity` is unique and strictly ascending after canonical sort;
+- a priced variant must contain a tier at exactly MOQ;
 - duplicate boundaries are rejected;
-- the canonical storefront price rule remains the existing server rule; admin writes must not introduce a tier state that read/cart code rejects.
+- replacement and parent revision increment are atomic;
+- resulting state must be readable by the existing storefront/cart code.
 
-The preferred UI write model is atomic replacement of the complete tier set using the parent variant version, because it avoids transient invalid intermediate states.
+## 11. Product media contract
 
-## 10. Product media contract
-
-### Routes
+Routes:
 
 - `POST /api/admin/media/products`
 - `GET /api/admin/media/products`
 - `DELETE /api/admin/media/products/[key]`
 
-Association to product/variant occurs through the normal product/variant update routes by storing the returned canonical media URL.
+Upload rules:
 
-### Upload rules
+- `multipart/form-data`, one file per request;
+- max file: **8 MiB**, with separately bounded multipart overhead;
+- only JPEG, PNG and WebP;
+- validate file signature/magic bytes server-side in addition to declared MIME;
+- server generates `products/<uuid>.<ext>`; client cannot choose arbitrary R2 paths;
+- canonical public URL is `/media/products/<uuid>.<ext>`;
+- set explicit R2 HTTP content type metadata;
+- no SVG, executable/archive/arbitrary binary upload in V1;
+- browser never receives presigned write credentials in V1.
 
-- request: `multipart/form-data`;
-- one file per request in Lean V1;
-- maximum file size: **8 MiB**;
-- allowed media types: `image/jpeg`, `image/png`, `image/webp`;
-- file signature must be validated server-side; do not trust only extension or browser MIME;
-- server generates the object key; client cannot choose arbitrary R2 paths;
-- canonical key namespace: `products/<uuid>.<ext>`;
-- canonical public URL: `/media/products/<uuid>.<ext>`;
-- no SVG, executable content, archives or arbitrary binary upload in V1;
-- set an explicit content type on the R2 object;
-- do not expose bucket credentials or presigned write access to the browser in V1.
+Before delete, query D1 product and variant references. Any live reference returns `409 MEDIA_IN_USE`. A missing object can be treated idempotently only when D1 reference state is clear.
 
-### Delete rules
+## 12. Service-content contract
 
-Before deleting an R2 object, query D1 for product and variant references to its canonical URL. If any reference exists, return `409 MEDIA_IN_USE` and list only safe entity identifiers needed by the admin UI to resolve the reference.
-
-Missing objects are handled idempotently only if the D1 reference check is clear; otherwise fail closed.
-
-## 11. Service-content contract
-
-### Routes
+Routes:
 
 - `GET /api/admin/services`
 - `GET /api/admin/services/[id]`
 - `PATCH /api/admin/services/[id]`
 
-Initial Lean V1 fields follow the existing D1 schema:
+Fields:
 
 - `slug`: string, 1..200 chars, unique;
 - `name`: string, 1..180 chars;
@@ -304,100 +292,114 @@ Initial Lean V1 fields follow the existing D1 schema:
 - `isActive`: boolean;
 - update: `version`.
 
-Creating new service taxonomy from the admin is deferred until the existing service-page/family mapping is explicitly reconciled with D1. The first UI may therefore be edit-only for known managed rows.
+Creating service taxonomy remains deferred until existing service-page mapping is reconciled. Initial UI may be edit-only for managed rows.
 
-## 12. Auditability
+## 13. Audit log and idempotency
 
-Every successful admin mutation must emit a minimal server-side audit record. Before write APIs are enabled, add an explicit D1 migration for an audit table with a contract equivalent to:
+Before mutation endpoints are enabled, the tracked D1 admin-foundation migration must exist and be verified on staging.
 
-- unique `request_id`;
-- `created_at` server timestamp;
-- actor identity from the validated Cloudflare Access context;
+Every successful mutation records:
+
+- unique UUID `request_id`;
+- server timestamp;
+- validated Cloudflare Access actor subject;
 - action: `create`, `update`, `delete`, `upload`;
-- entity type;
-- entity identifier/key;
-- previous version when applicable;
-- resulting version when applicable;
-- deterministic hash of the accepted mutation payload or another compact change fingerprint.
+- constrained entity type;
+- entity key/identifier;
+- previous revision when applicable;
+- resulting revision when applicable;
+- lowercase SHA-256 fingerprint of the canonical accepted mutation payload.
 
-Do not store Access tokens, secrets or unnecessary PII in the audit log. The mutation and audit insert must be coupled so a successful business mutation cannot silently omit its audit event.
+Do not store Access JWTs, secrets or unnecessary PII.
 
-## 13. Request IDs and idempotency
+For retriable creates/uploads and other mutations, duplicate successful `requestId` + identical payload fingerprint must not repeat the side effect. Reusing a request ID with a different fingerprint returns `409 IDEMPOTENCY_CONFLICT`.
 
-Every mutation accepts or assigns a UUID request ID. The response echoes it.
+The audit record is part of the atomic mutation boundary for D1 business changes. For R2 operations, design compensation/idempotency so uncertain network retries cannot create duplicate objects or silently lose reference integrity.
 
-For operations that can be retried after an uncertain network outcome, especially media upload and creates, the server should use the request ID to avoid duplicate side effects. At minimum, duplicate successful request IDs must not create a second entity/object.
+## 14. Collection and body limits
 
-## 14. Body limits
+Admin collections must be explicitly bounded. Initial default page size is 50 and hard maximum is 100 unless a narrower endpoint limit is documented.
 
-Initial limits:
+Body limits:
 
-- normal JSON admin mutation: 64 KiB;
-- long-content service/product mutation: 128 KiB;
-- media upload: 8 MiB file plus bounded multipart overhead.
+- normal JSON mutation: 64 KiB;
+- long product/service content mutation: 128 KiB;
+- media: 8 MiB file plus bounded multipart overhead.
 
-Read the body with an explicit byte guard. Reject oversized bodies with `413 PAYLOAD_TOO_LARGE`.
+Reject oversized bodies with `413 PAYLOAD_TOO_LARGE` before normal parsing/work.
 
-## 15. Required regression tests before UI writes
+## 15. Required automated tests before UI writes
 
-The server contract is not considered implemented until automated tests cover at least:
-
-Authentication/admission:
+Admission/security:
 
 - wrong hostname rejected;
-- missing/invalid Access identity rejected;
-- public storefront cannot call admin writes;
-- cross-origin mutation rejected.
+- missing JWT rejected;
+- invalid signature rejected;
+- wrong issuer rejected;
+- wrong audience rejected;
+- expired/not-yet-valid token rejected;
+- public/preview/`workers.dev` host cannot write;
+- cross-origin mutation rejected;
+- oversized/wrong content type rejected;
+- admin responses are `no-store` and errors leak no internal details.
 
 Categories/products:
 
-- create success;
-- update success;
-- duplicate slug/SKU conflict;
-- missing category reference;
-- stale version conflict;
-- deactivation preserves canonical read behavior.
+- create/update success;
+- duplicate slug/SKU;
+- missing category;
+- stale version;
+- revision increments exactly once;
+- deactivation preserves canonical read behavior;
+- idempotent retry and request-ID fingerprint conflict.
 
 Variants/tiers:
 
 - valid MOQ/step/contact threshold;
-- contact threshold below MOQ;
-- unreachable contact threshold;
-- tier below MOQ;
-- tier off step;
-- duplicate tier boundary;
+- contact threshold equal to or below MOQ rejected;
+- unreachable contact threshold rejected;
+- missing MOQ tier rejected;
+- tier at/above contact threshold rejected;
+- tier off step rejected;
+- duplicate tier boundary rejected;
 - stale variant write;
 - SKU conflict;
 - availability update;
-- atomic tier replacement preserves valid cart pricing.
+- complete tier replacement is atomic and preserves cart pricing.
 
 Media:
 
-- JPEG/PNG/WebP accepted;
-- wrong signature rejected;
-- unsupported type rejected;
-- oversized upload rejected;
-- generated key namespace enforced;
-- referenced object deletion rejected;
-- unreferenced object deletion succeeds;
+- valid JPEG/PNG/WebP accepted;
+- MIME/signature mismatch rejected;
+- unsupported/oversized upload rejected;
+- server-generated namespace enforced;
+- referenced delete rejected;
+- unreferenced delete succeeds;
 - duplicate request ID is idempotent.
 
-Audit/error safety:
+Audit/integrity:
 
-- every successful mutation writes an audit event;
-- failed validation writes no business mutation;
-- error payload does not leak SQL/stack/secrets;
-- responses are `no-store`.
+- every successful business mutation has one audit event;
+- failed validation/stale/conflict has no business mutation;
+- D1 business mutation and audit cannot split;
+- payload fingerprint is deterministic;
+- no SQL/stack/token/secret leakage.
 
-After implementation, staging runtime QA must verify the admin write through the protected hostname and then verify the public storefront reflects the canonical D1/R2 result.
+After automated tests, staging runtime QA must perform protected admin writes and verify the public storefront reads the resulting canonical D1/R2 state correctly.
 
-## 16. Production prohibition
+## 16. UI quality gate
 
-This contract is staging-only until all production acceptance gates in `CLOUDFLARE_NATIVE_V1_PLAN.md` are met.
+The admin UI is built only after server write tests are green. It targets WCAG 2.2 AA and must include keyboard operation, visible focus, labeled controls, programmatic field errors, non-color-only status, usable touch targets, responsive layout, and explicit loading/empty/error/success/stale states.
+
+Destructive actions require clear intent. Product/category removal uses deactivation in Lean V1 unless a separately reviewed delete contract exists.
+
+## 17. Production prohibition
+
+This contract remains staging-only until every production acceptance gate in `CLOUDFLARE_NATIVE_V1_PLAN.md` is met.
 
 Do not:
 
-- bind a production admin write API before staging acceptance;
-- create/copy production D1/R2 data implicitly;
-- reuse staging demo data as production seed data;
-- change `giacong-vn`, production D1/R2 or `kienhieu.id.vn/*` merely to test this contract.
+- enable production admin writes to test this implementation;
+- mutate production D1/R2 before accepted production migration/data plans exist;
+- copy staging demo data into production implicitly;
+- change `giacong-vn` or `kienhieu.id.vn/*` merely to test admin work.
