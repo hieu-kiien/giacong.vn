@@ -10,26 +10,25 @@ permissions:
   contents: write
 
 jobs:
-  patch-commerce-guard:
+  patch-product-detail-guard:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
         with:
           ref: cloudflare-admin-auth-admission
-      - name: Update reviewed runtime dependency allowlist
+      - name: Update reviewed product-detail runtime dependency allowlist
         shell: python
         run: |
           from pathlib import Path
 
-          path = Path("apps/giacong-lean-commerce/scripts/commerce-foundation.test.mts")
+          path = Path("apps/giacong-lean-commerce/scripts/product-detail.test.mts")
           source = path.read_text()
-          old = '''test("the foundation adds no dependency and no forbidden route", async () => {
+          old = '''test("the detail page adds no dependency and reserves no forbidden port", async () => {
             const manifest = JSON.parse(await readSource("package.json")) as {
               dependencies: Record<string, string>;
-              devDependencies: Record<string, string>;
+              scripts: Record<string, string>;
             };
-
             assert.deepEqual(
               Object.keys(manifest.dependencies).sort(),
               [
@@ -44,14 +43,13 @@ jobs:
                 "tailwind-merge",
                 "tw-animate-css",
               ],
-              "the foundation must not add a runtime dependency",
+              "the detail page must not add a runtime dependency",
             );'''
-          new = '''test("the runtime dependency baseline stays explicit and no forbidden route appears", async () => {
+          new = '''test("the reviewed runtime dependency baseline and reserved ports stay locked", async () => {
             const manifest = JSON.parse(await readSource("package.json")) as {
               dependencies: Record<string, string>;
-              devDependencies: Record<string, string>;
+              scripts: Record<string, string>;
             };
-
             assert.deepEqual(
               Object.keys(manifest.dependencies).sort(),
               [
@@ -70,16 +68,22 @@ jobs:
               "runtime dependencies must stay on the reviewed allowlist",
             );'''
           if old not in source:
-              raise SystemExit("Expected commerce dependency guard not found; refusing broad edit")
+              raise SystemExit("Expected product-detail dependency guard not found; refusing broad edit")
           path.write_text(source.replace(old, new, 1))
-      - name: Commit exact guard update
+      - name: Remove one-time impact and patch workflows
+        shell: bash
+        run: |
+          set -euo pipefail
+          git rm .github/workflows/gitnexus-commerce-test-impact-once.yml
+          git rm .github/workflows/admin-dependency-guard-patch-once.yml
+      - name: Commit exact reviewed updates
         shell: bash
         run: |
           set -euo pipefail
           git diff --check
-          git diff -- apps/giacong-lean-commerce/scripts/commerce-foundation.test.mts
+          git diff -- apps/giacong-lean-commerce/scripts/product-detail.test.mts .github/workflows/
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add apps/giacong-lean-commerce/scripts/commerce-foundation.test.mts
-          git commit -m "test(admin): allow reviewed jose runtime dependency"
+          git add apps/giacong-lean-commerce/scripts/product-detail.test.mts .github/workflows/
+          git commit -m "test(admin): keep reviewed runtime dependency guards strict"
           git push origin HEAD:cloudflare-admin-auth-admission
