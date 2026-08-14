@@ -1,4 +1,4 @@
-name: GitNexus commerce test impact once
+name: GitNexus dependency guard impact once
 
 on:
   push:
@@ -22,20 +22,27 @@ jobs:
           node-version: "24.11.0"
       - run: npm install --global gitnexus@1.6.9
       - run: gitnexus analyze . --force --skip-agents-md --skip-skills
-      - name: Locate dependency guard in graph
+      - name: Locate product-detail dependency guard in graph
         shell: bash
         run: |
           set -euo pipefail
           gitnexus query \
-            "commerce foundation adds no dependency runtime dependency package dependencies" \
-            --goal "identify the existing dependency guard in scripts/commerce-foundation.test.mts before changing its allowed dependency baseline" \
-            --context "jose is a deliberate Cloudflare Access security dependency; this guard currently rejects any new runtime dependency." \
+            "product detail page adds no dependency runtime dependency package dependencies" \
+            --goal "identify the existing dependency allowlist guard in scripts/product-detail.test.mts before adding the reviewed jose security dependency" \
+            --context "jose is required for cryptographic Cloudflare Access JWT verification and the guard must remain strict rather than be removed." \
             --content --limit 10
-      - name: Analyze file-node blast radius if addressable
+      - name: Analyze product-detail test blast radius
         shell: bash
         run: |
           set -euo pipefail
-          gitnexus impact commerce-foundation.test.mts \
+          gitnexus impact product-detail.test.mts \
             --direction upstream \
-            --file apps/giacong-lean-commerce/scripts/commerce-foundation.test.mts \
-            --include-tests --depth 3 --limit 100
+            --file apps/giacong-lean-commerce/scripts/product-detail.test.mts \
+            --include-tests --depth 3 --limit 100 | tee /tmp/impact.txt
+          {
+            echo "## Pre-edit GitNexus impact: product-detail dependency guard"
+            echo
+            echo '```text'
+            cat /tmp/impact.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
