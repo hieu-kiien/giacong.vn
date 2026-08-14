@@ -1,0 +1,54 @@
+name: Audit Cloudflare data bindings once
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - .github/workflows/cloudflare-data-binding-audit-once.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CATALOG_DATABASE_ID: 981b5d5e-bba9-4f7e-9e1e-a15e379cd095
+
+    steps:
+      - name: Inspect D1 database when token permits
+        shell: bash
+        run: |
+          set +e
+          response=$(curl --silent --show-error \
+            "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/d1/database/${CATALOG_DATABASE_ID}" \
+            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}")
+          success=$(jq -r '.success // false' <<<"$response" 2>/dev/null)
+          if [ "$success" = "true" ]; then
+            jq '{success, database: {uuid: .result.uuid, name: .result.name, jurisdiction: .result.jurisdiction, num_tables: .result.num_tables}}' <<<"$response"
+          else
+            echo "D1 metadata not available with this token."
+            jq '{success, errors}' <<<"$response" 2>/dev/null || true
+          fi
+          exit 0
+
+      - name: Inspect relevant R2 buckets when token permits
+        shell: bash
+        run: |
+          set +e
+          response=$(curl --silent --show-error \
+            "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/r2/buckets" \
+            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}")
+          success=$(jq -r '.success // false' <<<"$response" 2>/dev/null)
+          if [ "$success" = "true" ]; then
+            jq '{success, buckets: [.result.buckets[]? | select(.name == "giacong-vn-product-media-staging" or .name == "giacong-vn-next-cache-staging") | {name, location, jurisdiction, storage_class}]}' <<<"$response"
+          else
+            echo "R2 metadata not available with this token."
+            jq '{success, errors}' <<<"$response" 2>/dev/null || true
+          fi
+          exit 0
