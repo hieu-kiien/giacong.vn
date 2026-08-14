@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { ServiceFamilyDetail } from "@/components/services/ServiceFamilyDetail";
 import { CapturedStorefrontTabFrame } from "@/components/site/CapturedStorefrontTabFrame";
 import { serviceFamilies } from "@/data/service-families";
-import { getManagedServiceFamily } from "@/lib/bagisto-services";
+import { getManagedServiceFamily } from "@/lib/cloudflare-services";
 
 interface ServiceFamilyPageProps { params: Promise<{ family: string }> }
 

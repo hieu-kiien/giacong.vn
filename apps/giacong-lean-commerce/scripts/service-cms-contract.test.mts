@@ -15,23 +15,23 @@ const fallback = {
   offerings: [{ href: "/say-lanh/", label: "Sấy lạnh" }],
 };
 
-test("validates and merges Bagisto CMS copy without replacing service navigation", () => {
+test("validates and merges managed CMS copy without replacing service navigation", () => {
   const managed = parseManagedServiceResponse({
     data: {
       slug: "say-thuc-pham-say",
-      name: "Tên từ Bagisto",
-      summary: "Tóm tắt từ Bagisto",
-      description: "Mô tả từ Bagisto",
-      meta_title: "SEO từ Bagisto",
+      name: "Tên quản trị",
+      summary: "Tóm tắt quản trị",
+      description: "Mô tả quản trị",
+      meta_title: "SEO quản trị",
     },
     meta: { channel: "default", locale: "vi", contract_version: 1 },
   });
 
   assert.deepEqual(mergeManagedService(fallback, managed), {
     ...fallback,
-    name: "Tên từ Bagisto",
-    summary: "Tóm tắt từ Bagisto",
-    description: "Mô tả từ Bagisto",
+    name: "Tên quản trị",
+    summary: "Tóm tắt quản trị",
+    description: "Mô tả quản trị",
   });
 });
 
@@ -45,12 +45,11 @@ test("rejects a response with an unexpected contract shape", () => {
   );
 });
 
-test("falls back to static service content when Bagisto is not configured", async () => {
-  const source = await readFile(new URL("../src/lib/bagisto-services.ts", import.meta.url), "utf8");
+test("D1 managed services fall back to static content when bindings are unavailable", async () => {
+  const source = await readFile(new URL("../src/lib/cloudflare-services.ts", import.meta.url), "utf8");
 
-  assert.match(
-    source,
-    /try\s*\{\s*const url = getBagistoApiUrl[\s\S]*?fetchBagistoJson/,
-    "the fallback must catch Bagisto URL configuration errors during static builds",
-  );
+  assert.match(source, /getCloudflareContext/);
+  assert.match(source, /GIACONG_VN_CATALOG/);
+  assert.match(source, /catch\s*\{\s*return fallback;/);
+  assert.doesNotMatch(source, /Bagisto|BAGISTO_/);
 });
