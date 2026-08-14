@@ -18,6 +18,7 @@ jobs:
     env:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      TOKEN_ID: 4fde978e14e27044a69971fbeec4c042
       ZONE_ID: 46dacfca94df32f628b04d77515620d7
       ADMIN_STAGING_HOST: admin-staging.kienhieu.id.vn
     steps:
@@ -29,6 +30,16 @@ jobs:
             "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/tokens/verify" \
             -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}")
           jq '{success, result: {id: .result.id, status: .result.status, expires_on: .result.expires_on}, errors}' <<<"$response"
+
+      - name: Inspect token policy resource scopes
+        shell: bash
+        run: |
+          set +e
+          response=$(curl --silent --show-error \
+            "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/tokens/${TOKEN_ID}" \
+            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}")
+          jq '{success, token: {id: .result.id, name: .result.name, policy_count: (.result.policies | length? // 0), policies: [.result.policies[]? | {effect, resources, permission_group_count: (.permission_groups | length? // 0), permission_groups: [.permission_groups[]? | .name]}]}, errors}' <<<"$response" 2>/dev/null || true
+          exit 0
 
       - name: Verify DNS read scope
         shell: bash
