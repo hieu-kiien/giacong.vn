@@ -1,0 +1,42 @@
+name: Sync Cloudflare-native agent rules once
+
+on:
+  push:
+    branches:
+      - cloudflare-native-governance
+    paths:
+      - .github/workflows/sync-cloudflare-native-agent-rules-once.yml
+      - apps/giacong-lean-commerce/AGENTS.md
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/giacong-lean-commerce
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          ref: cloudflare-native-governance
+
+      - name: Regenerate agent rules
+        run: bash scripts/sync-agent-rules.sh
+
+      - name: Commit generated file if changed
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd ../..
+          if git diff --quiet -- apps/giacong-lean-commerce/.github/copilot-instructions.md; then
+            echo 'Generated agent rules already in sync.'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add apps/giacong-lean-commerce/.github/copilot-instructions.md
+          git commit -m 'docs: sync generated agent rules'
+          git push origin HEAD:cloudflare-native-governance
