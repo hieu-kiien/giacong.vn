@@ -1,0 +1,23 @@
+name: GitNexus detect help once
+
+on:
+  push:
+    branches: [cloudflare-admin-auth-admission]
+    paths:
+      - ".github/workflows/gitnexus-detect-help-once.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24.11.0"
+      - name: Install pinned GitNexus
+        run: npm install --global gitnexus@1.6.9
+      - name: Show detect-changes help
+        run: gitnexus detect-changes --help
