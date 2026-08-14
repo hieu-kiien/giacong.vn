@@ -8,9 +8,9 @@ Hồ sơ này ghi bằng chứng runtime đã xác minh trong quá trình chuy�
 - Worker production: `giacong-vn`.
 - Worker staging: `giacong-vn-staging`.
 - Turnstile helper Worker: `turnstile-siteverify-kienhieu`.
-- Staging hiện có D1 `GIACONG_VN_CATALOG` → `giacong-vn-catalog-staging` (`981b5d5e-bba9-4f7e-9e1e-a15e379cd095`).
-- Staging có R2 `GIACONG_VN_PRODUCT_MEDIA` → `giacong-vn-product-media-staging`.
-- Staging có R2 `NEXT_INC_CACHE_R2_BUCKET` → `giacong-vn-next-cache-staging`.
+- Staging D1 `GIACONG_VN_CATALOG` → `giacong-vn-catalog-staging` (`981b5d5e-bba9-4f7e-9e1e-a15e379cd095`).
+- Staging R2 `GIACONG_VN_PRODUCT_MEDIA` → `giacong-vn-product-media-staging`.
+- Staging R2 `NEXT_INC_CACHE_R2_BUCKET` → `giacong-vn-next-cache-staging`.
 - Không có Cloudflare Tunnel và kiến trúc đích không cần Tunnel/VPS.
 - Bagisto từng được thử nghiệm bằng Docker nhưng không phải production backend.
 
@@ -50,9 +50,9 @@ Counts tại thời điểm audit:
 
 9 sản phẩm đầu là dữ liệu `B2B-DEMO-*`; sản phẩm thứ 10 là dữ liệu test thủ công. Một variant của `nuoc-mam-cot-pha-loang` đang unavailable. Tier price, MOQ, quantity step và contact threshold đã có đủ dữ liệu để Worker tính canonical request cart.
 
-## Migration code đang thực hiện
+## Migration Cloudflare-native đã merge
 
-Nhánh `cloudflare-d1-catalog` chuyển các đường runtime sau khỏi Bagisto:
+PR migration đã được merge vào `master`. Runtime active mới dùng:
 
 - `/san-pham` → D1
 - product detail → D1
@@ -62,21 +62,45 @@ Nhánh `cloudflare-d1-catalog` chuyển các đường runtime sau khỏi Bagist
 - managed service copy → D1 khi có row, fallback static khi table chưa có dữ liệu
 - `/media/*` → R2
 
-`next.config.ts` không còn Bagisto proxy rewrites trong nhánh migration.
+`next.config.ts` không còn Bagisto proxy rewrites. `.env.example` cũng không còn `BAGISTO_API_URL`, `BAGISTO_PROXY_ORIGIN` hay `BAGISTO_API_TIMEOUT_MS`.
 
-## Bằng chứng OpenNext trước migration D1
+## Staging preview đã đạt
 
-Một OpenNext version mới trước đây đã được upload nhưng không nhận traffic. `/`, `/gui-yeu-cau` và `/thue-gia-cong` trả 200; `/san-pham` khi đó 500 vì code còn đòi Bagisto URL. Active staging traffic không bị đổi.
+OpenNext version `173773bb-ed45-412f-aef4-d9ec78f3a8cd` được upload trước mà không nhận traffic, sau đó smoke test qua versioned preview URL đạt toàn bộ:
 
-Mục tiêu của nhánh hiện tại là loại blocker đó bằng cách đọc binding D1 trực tiếp.
+- `/` → HTTP 200
+- `/san-pham` → HTTP 200 và render dữ liệu D1
+- `/san-pham/bot-gao-lut-xay-min` → HTTP 200
+- `/gui-yeu-cau` → HTTP 200
+- `/thue-gia-cong` → HTTP 200
+- `/thue-gia-cong/say-thuc-pham-say` → HTTP 200
+- `/api/catalog/products/bot-gao-lut-xay-min` trả đúng 3 variants, VND và starting price `78.000`
+- cart revalidation cho `B2B-DEMO-BGL-05`, quantity `25` trả submittable, unit price `78.000` và subtotal `1.950.000`
+- R2 media `/media/products/c5be4fe1-3daa-40ad-b9df-54717ec5c863.jpg` → HTTP 200, object size `1.979.346` bytes
+
+Preview cũng xác minh version mới giữ các bindings cũ cần thiết: `ADMIN_HOSTNAME`, `NEXT_PUBLIC_TURNSTILE_SITE_KEY`, `TURNSTILE_SITEVERIFY_URL`, D1 catalog và hai R2 buckets.
+
+## Staging promotion đã hoàn thành
+
+Sau preview QA, version `173773bb-ed45-412f-aef4-d9ec78f3a8cd` đã được promotion có kiểm soát lên **100% traffic của `giacong-vn-staging`**.
+
+Promotion workflow có rollback tự động về version cũ `b4693784-d4c4-4659-83ca-1e13b02a6177` nếu active smoke test thất bại. Rollback không bị kích hoạt vì active staging smoke test đạt:
+
+- homepage/catalog/detail/request-cart/service pages đều HTTP 200;
+- D1 product API trả canonical data;
+- D1 cart revalidation tính canonical money đúng;
+- R2 product media trả HTTP 200 và dữ liệu thực;
+- deployment status cuối xác minh version mới phục vụ 100% staging traffic.
+
+**Production Worker `giacong-vn` và production route `kienhieu.id.vn/*` chưa bị thay đổi.**
 
 ## Cổng kế tiếp
 
-1. Quality gate của PR phải xanh.
-2. Merge vào master.
-3. Master Cloudflare staging gate phải xanh.
-4. Upload version staging mới không nhận traffic.
-5. Preview smoke test D1 listing/detail/cart và R2 media.
-6. Nếu đạt, promotion sang active `giacong-vn-staging`.
-7. QA staging.
-8. Sau đó mới thiết kế/tạo production D1/R2 và migration dữ liệu production; tuyệt đối chưa chạm production Worker trước cổng này.
+Application/runtime migration sang D1/R2 đã đạt staging. Các bước tiếp theo là:
+
+1. QA staging sâu hơn cho search/filter/sort, invalid cart cases, contact/Turnstile và responsive UI.
+2. Chốt schema/admin Cloudflare-native cho catalog và media; không quay lại Bagisto Admin.
+3. Chốt dữ liệu production thật: taxonomy, SKU, variant, price, MOQ, media, content và contact/trust claims.
+4. Tạo/audit production D1/R2 có chủ ý và migration dữ liệu đã duyệt; không sao chép dữ liệu demo staging sang production một cách ngầm định.
+5. Hoàn tất Google Sheet/Apps Script verification hoặc quyết định chuyển request inbox sang D1.
+6. Chỉ sau acceptance production-data + admin + request intake mới upload/promotion `giacong-vn` production.
