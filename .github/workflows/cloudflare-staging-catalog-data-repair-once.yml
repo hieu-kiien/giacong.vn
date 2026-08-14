@@ -1,0 +1,129 @@
+name: Repair staging catalog quantity thresholds once
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - .github/workflows/cloudflare-staging-catalog-data-repair-once.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cloudflare-staging-catalog-data-repair
+  cancel-in-progress: false
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: apps/giacong-lean-commerce
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      STAGING_DATABASE: giacong-vn-catalog-staging
+      STAGING_ORIGIN: https://giacong-vn-staging.qtu1053.workers.dev
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: apps/giacong-lean-commerce/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Audit misaligned contact thresholds
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx wrangler d1 execute "$STAGING_DATABASE" --remote --json --command="
+            SELECT sku, moq, quantity_step, contact_from_quantity,
+                   ((contact_from_quantity - moq) % quantity_step) AS remainder
+            FROM product_variants
+            WHERE is_available IN (0, 1)
+              AND ((contact_from_quantity - moq) % quantity_step) <> 0
+            ORDER BY sku;
+          " > /tmp/misaligned-before.json
+          cat /tmp/misaligned-before.json
+          jq -e '
+            (.[0].results | length) == 2
+            and ([.[0].results[].sku] | sort) == (["B2B-DEMO-NMC-10", "B2B-DEMO-SME-02"] | sort)
+            and ([.[0].results[] | select(.sku == "B2B-DEMO-NMC-10" and .moq == 6 and .quantity_step == 3 and .contact_from_quantity == 140 and .remainder == 2)] | length == 1)
+            and ([.[0].results[] | select(.sku == "B2B-DEMO-SME-02" and .moq == 12 and .quantity_step == 6 and .contact_from_quantity == 260 and .remainder == 2)] | length == 1)
+          ' /tmp/misaligned-before.json
+
+      - name: Repair only audited staging demo rows
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx wrangler d1 execute "$STAGING_DATABASE" --remote --json --command="
+            UPDATE product_variants
+            SET contact_from_quantity = 141,
+                updated_at = datetime('now')
+            WHERE sku = 'B2B-DEMO-NMC-10'
+              AND moq = 6
+              AND quantity_step = 3
+              AND contact_from_quantity = 140;
+
+            UPDATE product_variants
+            SET contact_from_quantity = 264,
+                updated_at = datetime('now')
+            WHERE sku = 'B2B-DEMO-SME-02'
+              AND moq = 12
+              AND quantity_step = 6
+              AND contact_from_quantity = 260;
+          " > /tmp/repair.json
+          cat /tmp/repair.json
+
+      - name: Verify catalog invariants after repair
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx wrangler d1 execute "$STAGING_DATABASE" --remote --json --command="
+            SELECT sku, moq, quantity_step, contact_from_quantity,
+                   ((contact_from_quantity - moq) % quantity_step) AS remainder
+            FROM product_variants
+            WHERE ((contact_from_quantity - moq) % quantity_step) <> 0
+            ORDER BY sku;
+
+            SELECT sku, moq, quantity_step, contact_from_quantity
+            FROM product_variants
+            WHERE sku IN ('B2B-DEMO-NMC-10', 'B2B-DEMO-SME-02')
+            ORDER BY sku;
+          " > /tmp/misaligned-after.json
+          cat /tmp/misaligned-after.json
+          jq -e '
+            (.[0].results | length) == 0
+            and ([.[1].results[] | select(.sku == "B2B-DEMO-NMC-10" and .contact_from_quantity == 141)] | length == 1)
+            and ([.[1].results[] | select(.sku == "B2B-DEMO-SME-02" and .contact_from_quantity == 264)] | length == 1)
+          ' /tmp/misaligned-after.json
+
+      - name: Verify repaired product APIs on active staging
+        shell: bash
+        run: |
+          set -euo pipefail
+          for slug in nuoc-mam-cot-pha-loang sot-me-chua-ngot; do
+            status=$(curl --silent --show-error --max-time 25 --output "/tmp/$slug.json" --write-out '%{http_code}' \
+              "$STAGING_ORIGIN/api/catalog/products/$slug")
+            echo "$slug -> HTTP $status"
+            cat "/tmp/$slug.json"
+            test "$status" = "200"
+            jq -e --arg slug "$slug" '.product.slug == $slug' "/tmp/$slug.json"
+          done
+
+          jq -e '
+            ([.product.variants[] | select(.sku == "B2B-DEMO-NMC-10" and .contactFromQuantity == 141)] | length == 1)
+          ' /tmp/nuoc-mam-cot-pha-loang.json
+          jq -e '
+            ([.product.variants[] | select(.sku == "B2B-DEMO-SME-02" and .contactFromQuantity == 264)] | length == 1)
+          ' /tmp/sot-me-chua-ngot.json
