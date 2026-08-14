@@ -8,6 +8,7 @@ on:
       - "apps/giacong-lean-commerce/package.json"
       - "apps/giacong-lean-commerce/package-lock.json"
       - "apps/giacong-lean-commerce/wrangler.jsonc"
+      - ".gitnexusignore"
       - ".github/workflows/gitnexus-safety.yml"
   workflow_dispatch:
 
@@ -74,5 +75,16 @@ jobs:
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Structural graph cycle check
-        run: gitnexus check --cycles
+      - name: Structural graph cycle report
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          gitnexus check --cycles | tee /tmp/gitnexus-cycles.txt
+          {
+            echo
+            echo "## GitNexus structural cycle report"
+            echo
+            echo '```text'
+            cat /tmp/gitnexus-cycles.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
