@@ -23,22 +23,29 @@ jobs:
           endpoint="https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/d1/database/${DATABASE_ID}/query"
           query() {
             local sql="$1"
-            curl --fail-with-body --silent --show-error \
+            curl --silent --show-error \
               "$endpoint" \
               -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
               -H "Content-Type: application/json" \
-              --data "$(jq -nc --arg sql "$sql" '{sql:$sql}')"
+              --data "$(jq -nc --arg sql "$sql" '{sql:$sql,params:[]}')"
           }
+
+          echo '=== CONNECTIVITY ==='
+          query "SELECT 1 AS ok" | jq .
 
           echo '=== SCHEMA ==='
           schema=$(query "SELECT name, sql FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE '_cf_%' ORDER BY name")
-          jq '{success, errors, tables: [.result[0].results[]? | {name, sql}]}' <<<"$schema"
+          jq . <<<"$schema"
+
+          if ! jq -e '.success == true and (.result | length) > 0' >/dev/null <<<"$schema"; then
+            exit 1
+          fi
 
           mapfile -t tables < <(jq -r '.result[0].results[]?.name' <<<"$schema")
           for table in "${tables[@]}"; do
             [[ "$table" =~ ^[A-Za-z0-9_]+$ ]] || continue
             echo "=== TABLE ${table} ==="
-            query "PRAGMA table_info(${table})" | jq '{success, columns: [.result[0].results[]? | {cid, name, type, notnull, dflt_value, pk}]}'
-            query "SELECT COUNT(*) AS row_count FROM ${table}" | jq '{success, count: .result[0].results[0]}'
-            query "SELECT * FROM ${table} LIMIT 3" | jq '{success, sample: .result[0].results}'
+            query "PRAGMA table_info(${table})" | jq .
+            query "SELECT COUNT(*) AS row_count FROM ${table}" | jq .
+            query "SELECT * FROM ${table} LIMIT 3" | jq .
           done
