@@ -221,7 +221,7 @@ Production Worker, production D1/R2 và `kienhieu.id.vn/*` không được thay 
 - `CLOUDFLARE_CURRENT_STATE.md` chỉ ghi bằng chứng đã xác minh.
 - `CLOUDFLARE_DEPLOYMENT.md` chỉ ghi deployment/safety procedure.
 - `UI_CURRENT_MAP.md` phải phản ánh route storefront thực tế và trạng thái Admin UI.
-- `COMMERCE_PLATFORM_MASTER_PLAN.md`, `ORIGINAL_GIACONG_VN_MAP.md` và capture/research assets được giữ như lịch sử; không tạo thêm tài liệu quyết định trùng lặp.
+- `COMMERCE_PLATFORM_MASTER_PLAN.md` và capture/research assets được giữ như lịch sử; không tạo thêm tài liệu quyết định trùng lặp.
 - Khi một tài liệu lịch sử mâu thuẫn với Cloudflare-native plan, lịch sử không có hiệu lực.
 
 ## 12. Delivery discipline
