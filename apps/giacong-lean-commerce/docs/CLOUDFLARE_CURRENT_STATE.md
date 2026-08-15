@@ -1,165 +1,172 @@
-# Cloudflare current state — 2026-08-14
+# Cloudflare current state — 2026-08-15
 
-Hồ sơ này ghi bằng chứng runtime đã xác minh trong quá trình chuyển Lean V1 sang Cloudflare-native.
+Hồ sơ này ghi **bằng chứng runtime đã xác minh** qua GitHub Actions/Cloudflare API và các gate staging của Lean V1. Đây là evidence log, không phải nơi quyết định scope. Scope/roadmap nằm ở `CLOUDFLARE_NATIVE_V1_PLAN.md`.
 
-## Hạ tầng đã xác minh
+## 1. Platform baseline
 
-- Production domain: `kienhieu.id.vn`.
-- Worker production: `giacong-vn`.
-- Worker staging: `giacong-vn-staging`.
+- Lean V1 runtime/deployment target: **Cloudflare only**.
+- Production hostname: `kienhieu.id.vn`.
+- Production Worker: `giacong-vn`.
+- Staging Worker: `giacong-vn-staging`.
 - Turnstile helper Worker: `turnstile-siteverify-kienhieu`.
-- Staging D1 `GIACONG_VN_CATALOG` → `giacong-vn-catalog-staging` (`981b5d5e-bba9-4f7e-9e1e-a15e379cd095`).
-- Staging R2 `GIACONG_VN_PRODUCT_MEDIA` → `giacong-vn-product-media-staging`.
-- Staging R2 `NEXT_INC_CACHE_R2_BUCKET` → `giacong-vn-next-cache-staging`.
-- Không có Cloudflare Tunnel và kiến trúc đích không cần Tunnel/VPS.
-- Bagisto từng được thử nghiệm bằng Docker nhưng không phải production backend.
+- Không có Cloudflare Tunnel đang hoạt động trong audit gần nhất.
+- Không dùng VPS/PHP origin/Bagisto làm commerce runtime.
+- Vercel không thuộc runtime/deployment target; GitHub vẫn có legacy Vercel preview integration `giacong-vn-demo`, cần cleanup riêng.
 
-## Quyền Cloudflare API
+## 2. GitHub Actions → Cloudflare API
 
-Token GitHub Actions đã xác minh có thể đọc zone, DNS, Workers Routes, Cloudflare Access applications/policies và identity providers cần cho audit staging; đồng thời có quyền deploy Worker/triggers trong zone hiện hành. Khi Wrangler áp dụng staging route, token không có scope `All Zones`, nên Wrangler dùng zone-based endpoint cho zone được cấp quyền và deploy thành công.
+Repo có Cloudflare credentials dưới GitHub Actions Secrets và các workflow audit/deploy sử dụng chúng mà không đưa secret value vào source/log:
 
-## DNS, Access và routes hiện tại
+- `CLOUDFLARE_API_TOKEN`
+- `CLOUDFLARE_ACCOUNT_ID`
 
-- `kienhieu.id.vn` có A record proxied tới `13.67.69.121`; public traffic thực tế được Worker route `kienhieu.id.vn/*` đưa vào `giacong-vn`.
-- `admin.kienhieu.id.vn/*` vẫn route vào `giacong-vn` theo trạng thái hạ tầng cũ; production admin chưa được coi là active/accepted surface.
-- `admin-staging.kienhieu.id.vn` có DNS proxied.
-- Cloudflare Access có một self-hosted application cho chính hostname `admin-staging.kienhieu.id.vn`, có allow policy và identity-provider state đã đọc/audit thành công qua API.
-- `admin-staging.kienhieu.id.vn/*` hiện route vào `giacong-vn-staging`.
-- Route staging-admin đã được khai báo bền vững trong `wrangler.jsonc` dưới `env.staging.routes`, không chỉ tồn tại như thay đổi thủ công trên Cloudflare.
-- Sau khi apply staging route, Workers Routes API xác minh đồng thời:
-  - `admin-staging.kienhieu.id.vn/*` → `giacong-vn-staging`;
-  - `admin.kienhieu.id.vn/*` → `giacong-vn`.
-- Một request không xác thực từ GitHub runner tới `admin-staging.kienhieu.id.vn` bị Cloudflare edge chặn với HTTP 403 challenge page, không nhận nội dung Worker trực tiếp. Đây là bằng chứng fail-closed ở edge cho request thử nghiệm đó; không diễn giải 403 này như bằng chứng riêng rằng Access luôn trả redirect 302.
+Workflow token-identity đã xác minh token active và Cloudflare API trả `success: true`. Quyền đã được audit ở mức policy cho các tác vụ cần thiết như D1, Workers/R2, Workers Routes, Access, DNS và Observability.
 
-IP/DNS cũ không được dùng làm commerce backend mới. Cloudflare-native Worker/D1/R2 là đường đích.
+Secret/token value **không được ghi vào tài liệu, commit hoặc log**.
 
-## D1 catalog audit
+GitHub Actions là cầu nối vận hành Cloudflare hiện hành. Khi cần live verification, ưu tiên chạy/đọc workflow audit thay vì suy đoán từ file cấu hình.
 
-Audit read-only qua Wrangler đã thành công trên `giacong-vn-catalog-staging`.
+## 3. Live staging resources đã xác minh
 
-Schema nghiệp vụ:
+Staging Worker `giacong-vn-staging` tồn tại và đã phục vụ storefront qua Cloudflare.
+
+Bindings đã xác minh:
+
+- `GIACONG_VN_CATALOG` → D1 `giacong-vn-catalog-staging` (`981b5d5e-bba9-4f7e-9e1e-a15e379cd095`);
+- `GIACONG_VN_PRODUCT_MEDIA` → R2 `giacong-vn-product-media-staging`;
+- `NEXT_INC_CACHE_R2_BUCKET` → R2 `giacong-vn-next-cache-staging`;
+- `ADMIN_HOSTNAME` → `admin-staging.kienhieu.id.vn`;
+- Turnstile verification binding/URL hiện hữu.
+
+Staging runtime đã được smoke test qua Cloudflare:
+
+- `/` → HTTP 200;
+- `/san-pham` → HTTP 200;
+- catalog product API mới trả dữ liệu D1;
+- R2 `/media/*` trả object thật;
+- cart revalidation đọc lại D1 và tính canonical money;
+- `admin-staging.kienhieu.id.vn` không xác thực bị edge chặn, không bypass trực tiếp Worker.
+
+### Lưu ý về active version
+
+Cloudflare có thể thay active Worker version sau mỗi staging promotion. Các version ID được ghi trong các audit cũ chỉ là snapshot tại thời điểm đó, không được coi là current nếu chưa có một audit mới xác nhận. Trước mỗi promotion/admin QA mới phải đọc lại deployment status và ghi version hiện hành.
+
+## 4. DNS, routes và Access
+
+Đã xác minh qua Cloudflare API/workflow:
+
+- `admin-staging.kienhieu.id.vn` có DNS proxied;
+- staging admin route `admin-staging.kienhieu.id.vn/*` → `giacong-vn-staging`;
+- production storefront route `kienhieu.id.vn/*` → `giacong-vn`;
+- production admin route `admin.kienhieu.id.vn/*` → `giacong-vn` vẫn tồn tại trong trạng thái hạ tầng cũ, nhưng production admin chưa được coi là active/accepted surface;
+- Cloudflare Access có self-hosted application, allow policy và identity-provider state cho `admin-staging.kienhieu.id.vn`;
+- request chưa xác thực tới staging admin bị Cloudflare edge chặn.
+
+Không được coi route production admin hiện hữu là permission để bật production admin writes.
+
+## 5. D1 catalog baseline
+
+Staging D1 `giacong-vn-catalog-staging` có schema nghiệp vụ:
 
 - `categories`
 - `products`
 - `product_variants`
 - `variant_tier_prices`
 - `services`
+- `d1_migrations`
 
-Cộng thêm `d1_migrations`.
+Snapshot audit đã xác minh:
 
-Counts tại thời điểm audit:
+- 4 categories;
+- 10 products;
+- 18 variants;
+- 54 tier-price rows;
+- 0 managed service rows tại snapshot.
 
-- categories: 4
-- products: 10
-- product_variants: 18
-- variant_tier_prices: 54
-- services: 0
+Dataset hiện vẫn là demo/test và **không phải production data**.
 
-9 sản phẩm đầu là dữ liệu `B2B-DEMO-*`; sản phẩm thứ 10 là dữ liệu test thủ công. Một variant của `nuoc-mam-cot-pha-loang` đang unavailable. Tier price, MOQ, quantity step và contact threshold có đủ dữ liệu để Worker tính canonical request cart.
+Deep QA trước đây đã phát hiện và sửa hai contact thresholds demo không hợp lệ theo MOQ/step. Post-condition audit xác nhận staging read path trở lại xanh.
 
-### Staging data repair đã hoàn thành
+## 6. Runtime migration state
 
-Deep QA đầu tiên phát hiện hai contact threshold demo không nằm trên quantity hợp lệ theo MOQ/step, khiến read path nghiêm ngặt trả 503 cho hai product API liên quan:
+Active Cloudflare runtime dùng D1/R2 cho:
 
-- `B2B-DEMO-NMC-10`: MOQ 6, step 3, threshold 140;
-- `B2B-DEMO-SME-02`: MOQ 12, step 6, threshold 260.
+- `/san-pham`;
+- product detail;
+- catalog APIs;
+- commerce mega-menu;
+- cart revalidation/submit canonical resolver;
+- `/media/*`;
+- managed service copy khi có D1 row.
 
-Workflow sửa dữ liệu có guard đã audit chính xác hai row trước khi ghi, sau đó chỉ đổi:
+`next.config.ts` không còn Bagisto proxy rewrites và `.env.example` không còn Bagisto API settings.
 
-- `B2B-DEMO-NMC-10`: `140 → 141`;
-- `B2B-DEMO-SME-02`: `260 → 264`.
+Bagisto artifacts còn trong repository chỉ là migration/history evidence; không được xem là runtime dependency.
 
-Post-condition audit xác minh không còn contact threshold lệch quantity rule trong staging dataset và cả hai product API bị ảnh hưởng đều trở lại HTTP 200 với giá trị mới.
+## 7. Admin server implementation state
 
-## Migration Cloudflare-native đã merge
+Server-side admin contract đang được triển khai trên branch staging-only, trước UI:
 
-Runtime active staging dùng:
+- Cloudflare Access/admission foundation: đã có;
+- D1 audit/revision foundation: đã có;
+- Category API contract: đã triển khai;
+- Product API contract: đã triển khai;
+- Variant write/validation foundation: đã triển khai;
+- Tier-price atomic replacement: chưa coi là hoàn tất cho tới khi parent revision concurrency và atomic replacement được test xanh;
+- R2 media contract: chưa hoàn tất;
+- Service-content write contract: chưa hoàn tất;
+- Admin UI: **chưa bắt đầu**.
 
-- `/san-pham` → D1
-- product detail → D1
-- commerce mega-menu → D1
-- `/api/catalog/products/[slug]` → D1
-- cart revalidation/submit canonical resolver → D1
-- managed service copy → D1 khi có row, fallback static khi table chưa có dữ liệu
-- `/media/*` → R2
+Không có bước nào ở trên được phép tự động suy ra production readiness.
 
-`next.config.ts` không còn Bagisto proxy rewrites. `.env.example` cũng không còn `BAGISTO_API_URL`, `BAGISTO_PROXY_ORIGIN` hay `BAGISTO_API_TIMEOUT_MS`.
+## 8. Staging QA gate
 
-## Staging preview đã đạt
+Các runtime/storefront gates trước đây đã đạt: catalog, product detail, cart matrix, cart drift, R2 media và responsive browser QA.
 
-OpenNext version `173773bb-ed45-412f-aef4-d9ec78f3a8cd` được upload trước mà không nhận traffic, sau đó smoke test qua versioned preview URL đạt:
+Đối với admin write work hiện tại, gate mới bắt buộc:
 
-- `/` → HTTP 200
-- `/san-pham` → HTTP 200 và render dữ liệu D1
-- `/san-pham/bot-gao-lut-xay-min` → HTTP 200
-- `/gui-yeu-cau` → HTTP 200
-- `/thue-gia-cong` → HTTP 200
-- `/thue-gia-cong/say-thuc-pham-say` → HTTP 200
-- `/api/catalog/products/bot-gao-lut-xay-min` trả đúng 3 variants, VND và starting price `78.000`
-- cart revalidation cho `B2B-DEMO-BGL-05`, quantity `25` trả submittable, unit price `78.000` và subtotal `1.950.000`
-- R2 media `/media/products/c5be4fe1-3daa-40ad-b9df-54717ec5c863.jpg` → HTTP 200, object size `1.979.346` bytes
+1. `npm run check` xanh;
+2. OpenNext build/package xanh;
+3. D1 migration/preflight nếu schema thay đổi;
+4. protected mutation qua Cloudflare Access;
+5. readback storefront từ D1/R2 đúng canonical state;
+6. stale-write/idempotency/conflict/media regression matrix xanh;
+7. active Worker version và route được audit lại trước/sau promotion.
 
-Preview cũng xác minh version mới giữ các bindings cũ cần thiết: `ADMIN_HOSTNAME`, `NEXT_PUBLIC_TURNSTILE_SITE_KEY`, `TURNSTILE_SITEVERIFY_URL`, D1 catalog và hai R2 buckets.
+## 9. Production safety
 
-## Staging promotion đã hoàn thành
+Chưa thay đổi production Worker `giacong-vn`, production D1/R2 hoặc production data để thực hiện admin work.
 
-Version `173773bb-ed45-412f-aef4-d9ec78f3a8cd` đã được promotion có kiểm soát lên **100% traffic của `giacong-vn-staging`**.
+Không copy staging demo data sang production.
 
-Promotion workflow có rollback tự động về version cũ `b4693784-d4c4-4659-83ca-1e13b02a6177` nếu active smoke test thất bại. Rollback không bị kích hoạt vì active staging smoke test đạt:
+Production promotion chỉ được phép sau:
 
-- homepage/catalog/detail/request-cart/service pages đều HTTP 200;
-- D1 product API trả canonical data;
-- D1 cart revalidation tính canonical money đúng;
-- R2 product media trả HTTP 200 và dữ liệu thực;
-- deployment status cuối xác minh version mới phục vụ 100% staging traffic.
+- staging runtime acceptance;
+- admin write + CRUD acceptance;
+- production dataset được duyệt;
+- production D1/R2 được tạo/audit có chủ ý;
+- Google Sheet/Apps Script request intake được live-verify;
+- backup/export + rollback procedure được ghi rõ;
+- production smoke checklist đạt.
 
-## Deep staging QA đã đạt
+## 10. Vercel cleanup state
 
-Sau data repair, workflow `Cloudflare staging deep QA` chạy lại trên active staging và **toàn bộ step đều xanh**.
+Vercel preview integration `giacong-vn-demo` đang nằm ngoài kiến trúc đích và có thể tạo failed preview deployment/email khi repo nhận commit mới. Đây không phải Cloudflare runtime failure.
 
-Đã xác minh:
+Quyết định hiện hành:
 
-- active deployment vẫn đúng version `173773bb-ed45-412f-aef4-d9ec78f3a8cd` ở 100%;
-- catalog search hoạt động với truy vấn tiếng Việt;
-- category filter không leak sản phẩm danh mục khác;
-- sort `starting_price desc` trả thứ tự render phù hợp dữ liệu D1;
-- product API `nuoc-mam-cot-pha-loang` và `sot-me-chua-ngot` đọc được threshold đã sửa;
-- missing product API trả 404;
-- cart matrix đạt: valid tier, below MOQ, off-step, unavailable variant, missing product, missing variant và price-on-request;
-- contact cart drift guard trả 409 với canonical cart mới và không submit upstream; malformed JSON trả 400;
-- R2 media trả ảnh thật, content type hợp lệ và object không rỗng;
-- Chromium responsive QA đạt trên mobile `390×844`, tablet `768×1024`, desktop `1440×900` cho homepage, catalog, product detail, request cart và service detail;
-- không phát hiện horizontal overflow hoặc browser page/console error trong bộ route QA.
+- không sửa application để làm Vercel preview pass;
+- không đưa Vercel trở lại delivery path;
+- sau khi xác minh không còn dependency vận hành, disable/remove Vercel Git integration/project khỏi repo delivery path;
+- sau cleanup, GitHub Actions + Cloudflare là đường deploy duy nhất.
 
-Sau khi staging-admin route được thêm vào Wrangler và merge, deep QA trên `master` lại chạy **success toàn bộ**, gồm responsive browser check. Quality gate và Cloudflare staging build/package gate của cùng master commit cũng xanh; staging Worker version phục vụ storefront không bị thay đổi bởi bước khai báo trigger.
+## 11. Next gate
 
-Deep QA workflow tự chạy khi storefront/runtime source, Wrangler config hoặc package contract liên quan thay đổi trên `master`; vẫn có `workflow_dispatch` để chạy lại sau data-only mutation.
+Thứ tự tiếp theo theo plan:
 
-## Governance Cloudflare-native
-
-Nguồn quyết định là `docs/CLOUDFLARE_NATIVE_V1_PLAN.md`. `COMMERCE_PLATFORM_MASTER_PLAN.md` được giữ làm hồ sơ lịch sử Bagisto-era, không còn quyết định runtime/admin đích.
-
-Plan khóa các nguyên tắc:
-
-- D1/R2 là canonical data/media;
-- Bagisto không quay lại runtime;
-- Cloudflare-native admin nằm trong scope nhưng phải có auth boundary riêng và server write contract trước UI;
-- request queue vẫn là Google Sheet + Apps Script cho đến quyết định riêng;
-- staging là cổng bắt buộc;
-- production không được dùng làm môi trường thử nghiệm.
-
-Admin server contract chi tiết đã được khóa trong `docs/CLOUDFLARE_ADMIN_WRITE_CONTRACT.md`: hostname/Access admission, exact write shapes, stale-write protection, MOQ/step/contact/tier invariants, media policy, request id/idempotency, auditability và required regression matrix.
-
-**Production Worker `giacong-vn`, production data resources và production route `kienhieu.id.vn/*` chưa bị thay đổi bởi các bước staging/admin-prep trên.**
-
-## Cổng kế tiếp
-
-Application/runtime migration, deep QA và staging-admin edge/route audit đã đạt. Các bước tiếp theo là:
-
-1. Implement server-side admin write contract trên staging, bắt đầu bằng admission/auth helpers + category/product D1 repository, có test RED→GREEN và fail-closed behavior.
-2. Thêm D1 migration cho audit log trước khi bật mutation endpoint.
-3. Hoàn tất variants/tier-price contract rồi media R2 contract, sau đó mới dựng admin UI CRUD category → product → variant → tier → media → services.
-4. Xác minh Google Sheet/Apps Script trên account thật hoặc ra quyết định riêng nếu chuyển request inbox sang D1.
-5. Chốt production taxonomy, SKU, variants, prices, MOQ, media, content và contact/trust claims.
-6. Tạo/audit production D1/R2 có chủ ý và migration dataset đã duyệt; không copy demo staging ngầm định.
-7. Chỉ sau acceptance admin + production data + request intake mới upload/promotion `giacong-vn` production.
+1. hoàn tất Tier-price atomic replacement + parent revision concurrency;
+2. hoàn tất R2 media upload/reference/delete contract;
+3. hoàn tất service-content contract;
+4. chạy full staging admin regression;
+5. cập nhật evidence này bằng live Cloudflare audit mới;
+6. chỉ khi server contracts xanh mới bắt đầu Admin UI.
