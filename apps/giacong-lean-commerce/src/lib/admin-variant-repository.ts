@@ -31,10 +31,7 @@ export async function listProductVariants(productId:number):Promise<AdminVariant
   return Promise.all(rows.results.map(toVariantWithTiers));
 }
 
-export async function getVariant(id:number):Promise<AdminVariant|null>{
-  const row=await getDatabase().prepare(`SELECT id,product_id,name,sku,option_label,unit,moq,quantity_step,contact_from_quantity,is_available,sort_order,attribute_id,attribute_code,attribute_label,option_id,image_url,revision,updated_at FROM product_variants WHERE id=? LIMIT 1`).bind(id).first<Row>();
-  return row?toVariantWithTiers(row):null;
-}
+export async function getVariant(id:number):Promise<AdminVariant|null>{const row=await getDatabase().prepare(`SELECT id,product_id,name,sku,option_label,unit,moq,quantity_step,contact_from_quantity,is_available,sort_order,attribute_id,attribute_code,attribute_label,option_id,image_url,revision,updated_at FROM product_variants WHERE id=? LIMIT 1`).bind(id).first<Row>();return row?toVariantWithTiers(row):null;}
 
 export async function createVariant(productId:number,raw:unknown,actorSubject:string,requestId:string):Promise<AdminVariant>{
   const input=normalizeVariantInput(raw); const db=getDatabase();
@@ -44,10 +41,7 @@ export async function createVariant(productId:number,raw:unknown,actorSubject:st
   const hash=await sha256(canonicalVariantMutationPayload(input));
   const idem=await existingAudit(db,requestId,hash);
   if(idem){if(idem.entityType!=="variant")throw new AdminVariantIdempotencyConflictError("Request ID already used.");const replay=await getVariant(Number(idem.entityKey));if(!replay)throw new AdminVariantNotFoundError("Variant not found.");return replay;}
-  const statements=[
-    db.prepare(`INSERT INTO product_variants(product_id,name,sku,option_label,unit,moq,quantity_step,contact_from_quantity,is_available,sort_order,attribute_id,attribute_code,attribute_label,option_id,image_url,revision) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,1)`).bind(productId,input.name,input.sku,input.optionLabel,input.unit,input.moq,input.quantityStep,input.contactFromQuantity,input.isAvailable?1:0,input.sortOrder,input.attributeId,input.attributeCode,input.attributeLabel,input.optionId,input.imageUrl),
-    db.prepare(`INSERT INTO admin_audit_log(request_id,actor_subject,action,entity_type,entity_key,previous_revision,resulting_revision,payload_sha256) VALUES(?,?, 'create','variant',CAST((SELECT id FROM product_variants WHERE sku=? LIMIT 1) AS TEXT),NULL,1,?)`).bind(requestId,actorSubject,input.sku,hash),
-  ];
+  const statements=[db.prepare(`INSERT INTO product_variants(product_id,name,sku,option_label,unit,moq,quantity_step,contact_from_quantity,is_available,sort_order,attribute_id,attribute_code,attribute_label,option_id,image_url,revision) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,1)`).bind(productId,input.name,input.sku,input.optionLabel,input.unit,input.moq,input.quantityStep,input.contactFromQuantity,input.isAvailable?1:0,input.sortOrder,input.attributeId,input.attributeCode,input.attributeLabel,input.optionId,input.imageUrl),db.prepare(`INSERT INTO admin_audit_log(request_id,actor_subject,action,entity_type,entity_key,previous_revision,resulting_revision,payload_sha256) VALUES(?,?, 'create','variant',CAST((SELECT id FROM product_variants WHERE sku=? LIMIT 1) AS TEXT),NULL,1,?)`).bind(requestId,actorSubject,input.sku,hash)];
   await db.batch(statements); const created=await db.prepare("SELECT id FROM product_variants WHERE sku=? LIMIT 1").bind(input.sku).first<{id:number}>();
   if(!created)throw new Error("Created variant could not be loaded."); const result=await getVariant(created.id); if(!result)throw new Error("Created variant could not be loaded."); return result;
 }
@@ -91,5 +85,5 @@ async function getTierPrices(db:Database,id:number){return (await db.prepare("SE
 async function assertSkuAvailable(db:Database,sku:string,excludeId?:number){const row=await db.prepare(excludeId===undefined?"SELECT id FROM product_variants WHERE sku=? LIMIT 1":"SELECT id FROM product_variants WHERE sku=? AND id<>? LIMIT 1").bind(...(excludeId===undefined?[sku]:[sku,excludeId])).first<{id:number}>();if(row)throw new AdminVariantConflictError("Variant SKU already exists.");}
 async function existingAudit(db:Database,requestId:string,payloadHash:string){const row=await db.prepare("SELECT entity_type AS entityType,entity_key AS entityKey,payload_sha256 AS payloadHash FROM admin_audit_log WHERE request_id=? LIMIT 1").bind(requestId).first<{entityType:string;entityKey:string;payloadHash:string}>();if(!row)return null;if(row.payloadHash!==payloadHash)throw new AdminVariantIdempotencyConflictError("Request ID already used with different payload.");return row;}
 function getDatabase():Database{const {env}=getCloudflareContext();const db=(env as unknown as Env).GIACONG_VN_CATALOG;if(!db)throw new Error("Missing D1 catalog binding.");return db;}
-function isRecord(value:unknown):value is Record<string,any>{return typeof value==="object"&&value!==null&&!Array.isArray(value);}
+function isRecord(value:unknown):value is Record<string, unknown>{return typeof value==="object"&&value!==null&&!Array.isArray(value);}
 async function sha256(value:string){const digest=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(value));return Array.from(new Uint8Array(digest),b=>b.toString(16).padStart(2,"0")).join("");}
