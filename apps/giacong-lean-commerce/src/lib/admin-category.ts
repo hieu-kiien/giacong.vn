@@ -12,7 +12,9 @@ const VERSION_PREFIX = "r1_";
 export function normalizeCategoryInput(input: unknown): AdminCategoryInput {
   if (!isRecord(input)) throw new Error("Invalid category request.");
   const name = requiredText(input.name, "name", 120);
-  const slug = normalizeSlug(requiredText(input.slug, "slug", 140));
+  const slugValue = requiredText(input.slug, "slug", 140);
+  if (/[\\/]/.test(slugValue)) throw new Error("slug is invalid.");
+  const slug = normalizeSlug(slugValue);
   const description = text(input.description, "description", 5000);
   const imageUrl = nullableText(input.imageUrl, "imageUrl", 500);
   const sortOrder = boundedInteger(input.sortOrder, "sortOrder", 0, 1_000_000);
