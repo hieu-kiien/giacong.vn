@@ -90,5 +90,9 @@ export function assertMultipartSize(contentLength: number): void {
 
 function getDatabase(): Database { const { env } = getCloudflareContext(); const db = (env as unknown as Env).GIACONG_VN_CATALOG; if (!db) throw new Error("Missing D1 catalog binding."); return db; }
 function getBucket(): R2Bucket { const { env } = getCloudflareContext(); const bucket = (env as unknown as Env).GIACONG_VN_PRODUCT_MEDIA; if (!bucket) throw new Error("Missing product media R2 binding."); return bucket; }
-async function sha256(bytes: Uint8Array): Promise<string> { const digest = await crypto.subtle.digest("SHA-256", bytes); return Array.from(new Uint8Array(digest), b => b.toString(16).padStart(2, "0")).join(""); }
+async function sha256(bytes: Uint8Array): Promise<string> {
+  const copy = bytes.slice();
+  const digest = await crypto.subtle.digest("SHA-256", copy);
+  return Array.from(new Uint8Array(digest), b => b.toString(16).padStart(2, "0")).join("");
+}
 async function sha256String(value: string): Promise<string> { return sha256(new TextEncoder().encode(value)); }
