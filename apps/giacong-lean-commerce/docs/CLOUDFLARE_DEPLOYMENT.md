@@ -1,31 +1,40 @@
-# Cloudflare production deployment — Lean V1
+# Cloudflare deployment — Lean V1
 
-Tài liệu này khóa kiến trúc triển khai production cho Lean V1. Khi tài liệu cũ còn nhắc Bagisto như backend production, quyết định Cloudflare-native trong tài liệu này được ưu tiên.
+**Production platform duy nhất:** Cloudflare.
 
-## Quyết định đã khóa
+Tài liệu này mô tả delivery path và safety gate. Product scope/roadmap nằm ở `CLOUDFLARE_NATIVE_V1_PLAN.md`; runtime evidence nằm ở `CLOUDFLARE_CURRENT_STATE.md`.
 
-- Production platform: **Cloudflare**.
-- Production hostname: **`https://kienhieu.id.vn`**.
-- Next.js storefront/BFF chạy trên **Cloudflare Workers** qua **OpenNext for Cloudflare**.
-- Worker production: **`giacong-vn`**.
-- Worker staging: **`giacong-vn-staging`**.
-- Catalog, variant, MOQ, quantity step, availability và tier price đọc trực tiếp từ **Cloudflare D1** qua binding `GIACONG_VN_CATALOG`.
-- Product media đọc từ **Cloudflare R2** qua binding `GIACONG_VN_PRODUCT_MEDIA` và route cùng origin `/media/*`.
-- Incremental cache dùng R2 binding `NEXT_INC_CACHE_R2_BUCKET` ở staging hiện hữu.
-- Bagisto/Docker chỉ là thử nghiệm lịch sử, **không thuộc production runtime**.
-- Không có VPS, PHP origin hoặc Cloudflare Tunnel trong kiến trúc đích.
-- Vercel không thuộc đường production.
-- Mọi thay đổi application phải đi **staging trước**, production chỉ promotion sau acceptance.
-- Google Apps Script + Google Sheet hiện vẫn là intake/hàng đợi vận hành theo phạm vi Lean V1; việc có chuyển intake hoàn toàn sang D1 là quyết định riêng, không chặn migration catalog hiện tại.
+## 1. Deployment target
 
-## Kiến trúc đích
+- Production hostname: `https://kienhieu.id.vn`.
+- Production Worker: `giacong-vn`.
+- Staging Worker: `giacong-vn-staging`.
+- Next.js storefront/BFF: OpenNext → Cloudflare Workers.
+- Catalog/variant/MOQ/quantity step/availability/tier price: Cloudflare D1.
+- Product media: Cloudflare R2 qua Worker route `/media/*`.
+- OpenNext incremental cache: R2 binding riêng.
+- Admin admission: Cloudflare Access.
+- Request intake: Google Apps Script → Google Sheet trong Lean V1 hiện tại.
+- GitHub Actions: build/test/audit/deploy bridge cho Cloudflare.
+
+### Không thuộc deployment target
+
+- Vercel;
+- Bagisto;
+- PHP origin/VPS;
+- Cloudflare Tunnel;
+- browser trực tiếp tới D1/R2.
+
+Vercel `giacong-vn-demo` chỉ là legacy Git integration cần cleanup; không sửa application để phục vụ Vercel preview.
+
+## 2. Architecture
 
 ```text
 Internet
   |
-Cloudflare DNS / TLS / WAF / CDN / Turnstile
+Cloudflare DNS / TLS / WAF / Turnstile / Access
   |
-Cloudflare Worker: Next.js + OpenNext
+Cloudflare Worker (Next.js + OpenNext)
   |-- staging:    giacong-vn-staging
   `-- production: giacong-vn -> kienhieu.id.vn
           |
@@ -33,87 +42,116 @@ Cloudflare Worker: Next.js + OpenNext
           +-- catalog / cart validation ------> D1: GIACONG_VN_CATALOG
           +-- /media/* -----------------------> R2: GIACONG_VN_PRODUCT_MEDIA
           +-- Next cache ---------------------> R2: NEXT_INC_CACHE_R2_BUCKET
-          `-- /api/contact -------------------> Google Apps Script -> Google Sheet
+          `-- /api/contact -------------------> Apps Script -> Google Sheet
+
+Admin:
+admin-staging.kienhieu.id.vn
+          |
+      Cloudflare Access
+          |
+      Cloudflare Worker
+          |
+       D1 / R2
 ```
 
-## D1 staging đã xác minh
+## 3. Staging bindings
 
-Database: `giacong-vn-catalog-staging`.
+`wrangler.jsonc` phải giữ các resource staging hiện hữu khi upload version mới:
 
-Các bảng nghiệp vụ hiện có:
+- `GIACONG_VN_CATALOG` → `giacong-vn-catalog-staging`;
+- `GIACONG_VN_PRODUCT_MEDIA` → `giacong-vn-product-media-staging`;
+- `NEXT_INC_CACHE_R2_BUCKET` → `giacong-vn-next-cache-staging`;
+- `ADMIN_HOSTNAME` → `admin-staging.kienhieu.id.vn`.
 
-- `categories`
-- `products`
-- `product_variants`
-- `variant_tier_prices`
-- `services`
+Không tự tạo production D1/R2 bằng tên suy đoán. Production resources chỉ được khai báo sau audit/tạo có chủ ý và migration dataset đã duyệt.
 
-Ngoài ra có `d1_migrations` phục vụ migration metadata.
+## 4. GitHub Actions → Cloudflare
 
-Snapshot audit ngày 2026-08-14:
+Cloudflare API credentials nằm trong GitHub Actions Secrets. Workflow được phép dùng secret để gọi Cloudflare API/Wrangler nhưng:
 
-- 4 categories
-- 10 products
-- 18 variants
-- 54 tier-price rows
-- 0 managed service rows
+- không commit token/account secret;
+- không in secret value vào log;
+- chỉ log các trạng thái/ID cần thiết để audit;
+- ưu tiên workflow audit có sẵn thay vì tự tạo credential path mới.
 
-Dữ liệu catalog staging hiện là demo/test và chưa được xem là production data.
+Live verification phải kiểm tra tối thiểu:
 
-## Runtime boundary
+- Worker/deployment version;
+- routes;
+- D1 bindings/schema/data postconditions;
+- R2 bindings/object behavior;
+- Access application/policy;
+- DNS/routing;
+- Observability khi workflow có scope.
 
-Worker không gọi một HTTP commerce backend bên ngoài. Server components/API routes lấy binding bằng OpenNext Cloudflare context, sau đó query D1 bằng prepared statements. Vì vậy:
+## 5. Standard staging release
 
-- browser không nhận D1 credential;
-- không có D1 API token trong `.env`;
-- giá/tồn/MOQ/bước số lượng được đọc lại server-side khi revalidate/submit cart;
-- client chỉ giữ `parentSlug`, `variantSku`, `quantity` trong localStorage;
-- R2 cũng được truy cập qua Worker binding, không dùng public bucket credential.
+1. Cập nhật code/docs trên branch staging-only.
+2. `npm run check` xanh.
+3. `npm run cf:build:staging` xanh.
+4. Wrangler dry-run xanh và giữ đủ D1/R2 bindings.
+5. Upload một staging version **không nhận traffic**.
+6. Preview smoke test: `/`, `/san-pham`, product detail, `/gui-yeu-cau`, cart revalidation, service route và R2 media.
+7. Nếu có admin change: verify Cloudflare Access admission và protected `/api/admin/**`.
+8. Nếu có D1 mutation: preflight/guard → mutation → postcondition/audit.
+9. Chỉ khi preview đạt mới promotion vào `giacong-vn-staging`.
+10. Deep QA + responsive browser QA.
+11. Ghi active version/route/evidence vào `CLOUDFLARE_CURRENT_STATE.md`.
+12. Chỉ sau production acceptance mới chuẩn bị production promotion.
 
-## Wrangler staging bindings
+## 6. Admin release gate
 
-`wrangler.jsonc` phải giữ các resource hiện hữu khi upload version mới:
+Admin server contract phải hoàn tất trước Admin UI:
 
-- `GIACONG_VN_CATALOG` → `giacong-vn-catalog-staging`
-- `GIACONG_VN_PRODUCT_MEDIA` → `giacong-vn-product-media-staging`
-- `NEXT_INC_CACHE_R2_BUCKET` → `giacong-vn-next-cache-staging`
+1. admission/auth;
+2. category/product/variant write;
+3. tier-price atomic replacement;
+4. R2 media safety/reference integrity;
+5. service content;
+6. automated regression;
+7. protected staging runtime readback.
 
-Không tự tạo production D1/R2 bằng tên suy đoán. Production resources chỉ được khai báo sau khi audit/tạo có chủ ý và migration dữ liệu được duyệt.
+Admin UI không được gọi D1/R2 trực tiếp và không được chứa canonical pricing logic.
 
-## Cổng an toàn deployment
+## 7. Production safety
 
-`npm run cf:deploy` chỉ được phép trỏ staging. Production không có auto-deploy trong giai đoạn migration.
+Không thay `giacong-vn`, production D1/R2 hoặc `kienhieu.id.vn/*` để debug/verify staging.
 
-Quy trình:
+Không:
 
-1. `npm run check` xanh.
-2. `npm run cf:build:staging` xanh.
-3. Wrangler dry-run xanh và giữ đủ D1/R2 bindings.
-4. Upload một staging version **không nhận traffic**.
-5. Preview smoke test ít nhất: `/`, `/san-pham`, một product detail, `/gui-yeu-cau`, cart revalidation và `/thue-gia-cong`.
-6. Kiểm tra media R2 khi có object tương ứng.
-7. Chỉ khi preview đạt mới promotion version vào `giacong-vn-staging`.
-8. QA staging hoàn chỉnh.
-9. Sau đó mới tạo resource/migration production và promotion có kiểm soát cho `giacong-vn`.
+- copy demo D1 staging sang production;
+- đưa `BAGISTO_*` trở lại runtime;
+- tạo Tunnel để duy trì legacy origin;
+- tin giá do browser gửi;
+- xóa resource cũ trước khi có rollback point;
+- bật production admin write trước acceptance.
 
-## Production safety
+## 8. Production acceptance
 
-- Không thay `giacong-vn` trong lúc migration staging chưa đạt.
-- Không ghi dữ liệu production từ demo D1 staging.
-- Không dùng `BAGISTO_API_URL`, `BAGISTO_PROXY_ORIGIN` hay private PHP origin.
-- Không tạo Tunnel chỉ để duy trì Bagisto thử nghiệm.
-- Không đưa giá do browser gửi vào Sheet; canonical money luôn do Worker tính lại từ D1.
-- Không xóa D1/R2 cũ trước khi bản OpenNext mới đã được smoke test và có rollback point.
+Production promotion chỉ được phép khi đủ:
 
-## Điều kiện hoàn thành migration Cloudflare-native
+- staging runtime acceptance;
+- admin staging write + CRUD acceptance;
+- production taxonomy/SKU/variant/price/MOQ/media/content được duyệt;
+- production D1/R2 được tạo/audit có chủ ý;
+- request intake live verification hoàn tất;
+- backup/export + rollback procedure hoàn tất;
+- production smoke checklist đạt.
 
-Migration application layer được coi là hoàn thành khi:
+Sau đó:
 
-1. catalog listing đọc D1 thành công;
-2. product detail/variant/tier price đọc D1 thành công;
-3. cart revalidation và submit re-read D1 thành công;
-4. `/media/*` đọc R2 thành công cho object thật;
-5. service managed copy dùng D1 khi có row và fallback tĩnh khi chưa di trú;
-6. staging version mới được promotion sau preview QA;
-7. Bagisto không còn nằm trên runtime path;
-8. production D1/R2 được tạo/audit và migration dữ liệu riêng trước production promotion.
+1. upload production version không nhận traffic;
+2. smoke test versioned preview nếu khả dụng;
+3. kiểm tra bindings/routes;
+4. promote có rollback point;
+5. production smoke;
+6. ghi evidence.
+
+## 9. Legacy cleanup
+
+Sau khi xác minh không còn dependency:
+
+- disable/remove Vercel Git integration/project `giacong-vn-demo`;
+- loại bỏ workflow/status/check không còn phục vụ Cloudflare;
+- giữ Bagisto docs/artifacts chỉ khi cần truy vết lịch sử;
+- không tạo thêm deployment path song song.
