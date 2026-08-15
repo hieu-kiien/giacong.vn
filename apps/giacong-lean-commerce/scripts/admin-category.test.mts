@@ -5,7 +5,7 @@ import {
   decodeAdminVersion,
   normalizeCategoryInput,
   encodeAdminVersion,
-} from "../src/lib/admin-category";
+} from "../src/lib/admin-category.ts";
 
 test("category input trims text and preserves canonical boolean/integer fields", () => {
   const result = normalizeCategoryInput({
