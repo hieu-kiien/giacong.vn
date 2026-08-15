@@ -1,6 +1,6 @@
 import { admitRuntimeAdminRequest } from "@/lib/admin-access-runtime";
 import { adminFailure, adminSuccess } from "@/lib/admin-api";
-import { AdminMediaIdempotencyConflictError, AdminMediaValidationError, assertMultipartSize, listProductMedia, uploadProductMedia } from "@/lib/admin-media";
+import { AdminMediaIdempotencyConflictError, AdminMediaPayloadTooLargeError, AdminMediaValidationError, assertMultipartSize, listProductMedia, uploadProductMedia } from "@/lib/admin-media";
 
 export const dynamic = "force-dynamic";
 
@@ -27,6 +27,7 @@ export async function POST(request: Request): Promise<Response> {
     return adminSuccess(requestId, await uploadProductMedia(value, admission.actor.subject, requestId));
   } catch (error) {
     if (error instanceof AdminMediaIdempotencyConflictError) return adminFailure(requestId, 409, "IDEMPOTENCY_CONFLICT", "Request ID đã được sử dụng cho payload khác.");
+    if (error instanceof AdminMediaPayloadTooLargeError) return adminFailure(requestId, 413, "PAYLOAD_TOO_LARGE", "Payload media vượt giới hạn.");
     if (error instanceof AdminMediaValidationError) return adminFailure(requestId, 422, "VALIDATION_ERROR", "File media không hợp lệ.");
     return adminFailure(requestId, 500, "INTERNAL_ERROR", "Không thể tải media lên.");
   }
