@@ -340,8 +340,6 @@ test("the card action contract has exactly the three specified outcomes", () => 
   );
 });
 
-// Compared whole rather than field by field: that is what proves `variantSku` is
-// *absent* from the actions that must not carry one, instead of merely undefined.
 test("a product with one usable variant resolves to a direct request-cart add", () => {
   const { DEMO_CATALOG_PRODUCTS } = demoCatalog;
   const product = DEMO_CATALOG_PRODUCTS.find(
@@ -495,21 +493,32 @@ test("the runtime dependency baseline stays explicit and no forbidden route appe
   );
 });
 
-test("the Next app has no legacy admin BFF or admin UI", async () => {
-  assert.equal(
-    await exists(path.join(appDir, "api", "admin", "categories", "route.ts")),
-    false,
-    "Bagisto Admin is the only admin surface; Next must not expose the category BFF",
-  );
-  assert.equal(
-    await exists(path.join(appDir, "api", "admin", "categories", "[id]", "route.ts")),
-    false,
-    "Bagisto Admin is the only admin surface; Next must not expose category mutations",
-  );
+test("the admin API is the Cloudflare-native server boundary and no legacy admin UI remains", async () => {
+  for (const route of [
+    path.join("categories", "route.ts"),
+    path.join("categories", "[id]", "route.ts"),
+    path.join("products", "route.ts"),
+    path.join("products", "[id]", "route.ts"),
+    path.join("variants", "route.ts"),
+    path.join("variants", "[id]", "route.ts"),
+    path.join("media", "products", "route.ts"),
+    path.join("session", "route.ts"),
+  ]) {
+    assert.ok(
+      await exists(path.join(appDir, "api", "admin", route)),
+      `${route} must remain part of the Cloudflare-native admin API boundary`,
+    );
+  }
+
   assert.equal(
     await exists(path.join(repoRoot, "src", "components", "admin", "AdminCategoryPanel.tsx")),
     false,
-    "Next must not retain components for the removed admin UI",
+    "the admin UI must not be introduced before server contracts are green",
+  );
+  assert.equal(
+    await exists(path.join(appDir, "api", "b2b")),
+    false,
+    "the removed Bagisto B2B API boundary must not return",
   );
 });
 
