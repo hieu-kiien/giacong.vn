@@ -1,5 +1,3 @@
-import "server-only";
-
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 
 const MAX_FILE_BYTES = 8 * 1024 * 1024;
