@@ -17,6 +17,7 @@ interface R2Bucket { put(key: string, value: ArrayBuffer, options?: { httpMetada
 interface Env { GIACONG_VN_CATALOG?: Database; GIACONG_VN_PRODUCT_MEDIA?: R2Bucket; }
 
 export class AdminMediaValidationError extends Error {}
+export class AdminMediaPayloadTooLargeError extends Error {}
 export class AdminMediaConflictError extends Error {}
 export class AdminMediaIdempotencyConflictError extends Error {}
 
@@ -26,9 +27,9 @@ export async function uploadProductMedia(file: File, actorSubject: string, reque
   const mime = file.type.toLowerCase();
   const descriptor = ALLOWED.get(mime);
   if (!descriptor) throw new AdminMediaValidationError("Unsupported media type.");
-  if (file.size <= 0 || file.size > MAX_FILE_BYTES) throw new AdminMediaValidationError("Media file is too large.");
+  if (file.size <= 0 || file.size > MAX_FILE_BYTES) throw new AdminMediaPayloadTooLargeError("Media file is too large.");
   const bytes = new Uint8Array(await file.arrayBuffer());
-  if (bytes.byteLength !== file.size || bytes.byteLength > MAX_FILE_BYTES) throw new AdminMediaValidationError("Media file is too large.");
+  if (bytes.byteLength !== file.size || bytes.byteLength > MAX_FILE_BYTES) throw new AdminMediaPayloadTooLargeError("Media file is too large.");
   if (!descriptor.signature(bytes)) throw new AdminMediaValidationError("Media signature does not match content type.");
 
   const db = getDatabase();
@@ -85,7 +86,7 @@ export async function deleteProductMedia(key: string, actorSubject: string, requ
 }
 
 export function assertMultipartSize(contentLength: number): void {
-  if (Number.isFinite(contentLength) && contentLength > MAX_FILE_BYTES + MAX_MULTIPART_OVERHEAD) throw new AdminMediaValidationError("Multipart payload is too large.");
+  if (Number.isFinite(contentLength) && contentLength > MAX_FILE_BYTES + MAX_MULTIPART_OVERHEAD) throw new AdminMediaPayloadTooLargeError("Multipart payload is too large.");
 }
 
 function getDatabase(): Database { const { env } = getCloudflareContext(); const db = (env as unknown as Env).GIACONG_VN_CATALOG; if (!db) throw new Error("Missing D1 catalog binding."); return db; }
