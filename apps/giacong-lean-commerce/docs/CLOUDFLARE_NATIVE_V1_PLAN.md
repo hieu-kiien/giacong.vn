@@ -142,8 +142,8 @@ Không nhảy thẳng sang UI. Thứ tự đã khóa:
 - [x] Category read/write contract
 - [x] Product read/write contract
 - [x] Variant write/validation foundation
-- [ ] Tier-price atomic replacement + parent revision concurrency
-- [ ] R2 product-media upload/reference/delete contract
+- [x] Tier-price atomic replacement + parent revision concurrency — implementation complete, CI/runtime verification pending
+- [x] R2 product-media upload/reference/delete contract — implementation complete, CI/runtime verification pending
 - [ ] Managed service-content write contract
 
 ### Phase B — Staging verification
