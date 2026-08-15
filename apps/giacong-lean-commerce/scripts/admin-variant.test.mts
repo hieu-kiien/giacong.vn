@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { normalizeTierPrices, normalizeVariantInput } from "../src/lib/admin-variant";
+import { normalizeTierPrices, normalizeVariantInput } from "../src/lib/admin-variant.ts";
 
 test("variant normalization preserves canonical fields and validates quantity invariants", () => {
   const result = normalizeVariantInput({
