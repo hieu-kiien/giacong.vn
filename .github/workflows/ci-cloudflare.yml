@@ -44,7 +44,6 @@ jobs:
 
   staging-gate:
     name: Cloudflare staging gate
-    if: github.event_name != 'pull_request'
     needs: quality
     runs-on: ubuntu-latest
     timeout-minutes: 30
