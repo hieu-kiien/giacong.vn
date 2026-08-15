@@ -1,8 +1,6 @@
 # Cloudflare-native Lean V1 plan
 
-**Trạng thái:** nguồn quyết định hiện hành cho Lean V1 kể từ 2026-08-14.
-
-Tài liệu này thay thế `COMMERCE_PLATFORM_MASTER_PLAN.md` làm nguồn quyết định. Hồ sơ cũ được giữ lại để truy vết lịch sử thiết kế Bagisto nhưng không còn quyết định runtime, admin hoặc hạ tầng đích. `CLOUDFLARE_CURRENT_STATE.md` là hồ sơ bằng chứng triển khai và QA, không phải nơi mở rộng scope sản phẩm.
+**Trạng thái:** nguồn quyết định hiện hành cho Lean V1. Mọi kế hoạch cũ nhắc Bagisto/Vercel như runtime đích đều là lịch sử và không được dùng để quyết định implementation mới.
 
 ## 1. Mục tiêu V1
 
@@ -17,18 +15,24 @@ Lean V1 là storefront B2B cho phép khách:
 
 Không có customer account, checkout, `/thanh-toan`, payment, shipping, Bagisto order, quote lifecycle, rating, review hoặc favorite.
 
-## 2. Kiến trúc đích
+## 2. Kiến trúc đích — Cloudflare only
 
-Runtime đích là Cloudflare-native:
+Runtime/deployment target duy nhất của Lean V1 là Cloudflare:
 
 - Next.js/OpenNext Worker phục vụ storefront và API;
 - Cloudflare D1 là nguồn dữ liệu canonical cho catalog, variant, tier price và managed service copy;
 - Cloudflare R2 là nguồn media sản phẩm;
 - R2 riêng phục vụ incremental cache của OpenNext;
+- Cloudflare Access là admission boundary cho Admin;
+- GitHub Actions là pipeline build/test/audit/deploy Cloudflare;
 - Google Sheet + Apps Script tiếp tục là request queue cho đến khi có quyết định khác được duyệt;
-- không dùng VPS, Cloudflare Tunnel, PHP origin hoặc Bagisto làm commerce runtime.
+- không dùng Vercel, VPS, Cloudflare Tunnel, PHP origin hoặc Bagisto làm commerce runtime.
 
 Production và staging tách riêng resource. Dữ liệu demo staging không được copy ngầm sang production.
+
+### Quyết định Vercel
+
+Vercel **không còn là deployment target**. Project/Preview integration `giacong-vn-demo` đang tạo preview deployment ngoài kiến trúc đích và có thể tiếp tục gửi email failure khi GitHub có commit mới. Không sửa application chỉ để làm Vercel preview pass. Sau khi xác minh không còn dependency vận hành, integration/project Vercel phải được disable/remove khỏi delivery path.
 
 ## 3. Catalog canonical contract
 
@@ -94,7 +98,7 @@ Admin staging cần hỗ trợ theo thứ tự:
 1. categories: xem, tạo, sửa, active, sort order;
 2. products: xem, tạo, sửa, active, category, nội dung và image reference;
 3. variants: SKU, option label, unit, MOQ, quantity step, contact threshold, availability, sort order và image reference;
-4. tier prices: create/update/delete với validation quantity/price;
+4. tier prices: **complete atomic replacement** với validation quantity/price và parent variant revision;
 5. product media: upload R2, chọn media cho product/variant, xóa object chỉ khi không còn reference;
 6. services: sửa managed copy trong D1.
 
@@ -109,7 +113,7 @@ Request queue vẫn ở Google Sheet trong pha này; không xây request inbox a
 - Không log secret, token hoặc PII không cần thiết.
 - Lean V1 chỉ cần một operator administrator; không xây granular RBAC hay customer identity.
 
-Cloudflare Access là phương án bảo vệ staging admin. Cấu hình Access self-hosted, allow policy và identity-provider state cho `admin-staging.kienhieu.id.vn` đã được audit qua Cloudflare API; Worker route staging cũng đã được khai báo trong Wrangler. Việc triển khai write API vẫn phải tự fail closed nếu request không đạt admission contract, không chỉ dựa vào việc hostname đã có Access.
+Cloudflare Access là phương án bảo vệ staging admin. Cấu hình Access, allow policy và identity-provider state cho `admin-staging.kienhieu.id.vn` đã được audit qua GitHub Actions gọi Cloudflare API; Worker route staging cũng đã được khai báo trong Wrangler. Việc triển khai write API vẫn phải tự fail closed nếu request không đạt admission contract, không chỉ dựa vào việc hostname đã có Access.
 
 ### 6.3 Contract write trước UI
 
@@ -127,7 +131,57 @@ Contract chi tiết đã được khóa tại [`CLOUDFLARE_ADMIN_WRITE_CONTRACT.
 
 UI admin chỉ được xây trên contract server đã test xanh.
 
-## 7. Staging gate
+## 7. Roadmap implementation hiện tại
+
+Không nhảy thẳng sang UI. Thứ tự đã khóa:
+
+### Phase A — Server write foundation
+
+- [x] Cloudflare Access/admission foundation
+- [x] D1 audit/revision foundation
+- [x] Category read/write contract
+- [x] Product read/write contract
+- [x] Variant write/validation foundation
+- [ ] Tier-price atomic replacement + parent revision concurrency
+- [ ] R2 product-media upload/reference/delete contract
+- [ ] Managed service-content write contract
+
+### Phase B — Staging verification
+
+- [ ] `npm run check` xanh trên commit hợp nhất của admin server contracts
+- [ ] OpenNext build/package gate xanh
+- [ ] D1 migration/preflight + postcondition audit
+- [ ] protected admin mutation QA qua Cloudflare Access
+- [ ] public storefront reads the exact D1/R2 state written by admin
+- [ ] regression matrix for stale/idempotency/conflict/media cases
+
+### Phase C — Admin UI
+
+Chỉ bắt đầu khi Phase A/B xanh. Thứ tự UI:
+
+1. Categories
+2. Products
+3. Variants
+4. Tier prices
+5. Product media
+6. Services
+
+UI phải dùng `/api/admin/**`, không gọi D1/R2 trực tiếp và không tạo business logic pricing riêng trên browser.
+
+### Phase D — Production readiness
+
+- [ ] production taxonomy/SKU/variant/price/MOQ/media/content thật được duyệt
+- [ ] production D1/R2 được tạo/audit có chủ ý
+- [ ] request intake live verification hoàn tất
+- [ ] backup/export + rollback procedure được ghi rõ
+- [ ] production smoke checklist được duyệt
+- [ ] Vercel legacy integration được disable/remove khỏi delivery path
+
+### Phase E — Production promotion
+
+Chỉ sau toàn bộ acceptance gate mới upload/promote `giacong-vn` production và bật production Admin.
+
+## 8. Staging gate
 
 Staging là cổng bắt buộc cho mọi thay đổi Cloudflare-native:
 
@@ -137,11 +191,12 @@ Staging là cổng bắt buộc cho mọi thay đổi Cloudflare-native:
 4. smoke test catalog/detail/cart/R2;
 5. deep QA search/filter/sort, invalid cart/contact drift và responsive browser;
 6. nếu có D1 mutation, audit trước và verify invariant sau;
-7. promotion staging có rollback point khi thay Worker traffic.
+7. protected admin mutation/readback QA nếu admin code thay đổi;
+8. promotion staging có rollback point khi thay Worker traffic.
 
 Không dùng production làm nơi thử nghiệm.
 
-## 8. Production acceptance gate
+## 9. Production acceptance gate
 
 Chưa promotion `giacong-vn` production cho đến khi đủ cả:
 
@@ -155,11 +210,21 @@ Chưa promotion `giacong-vn` production cho đến khi đủ cả:
 
 Production Worker, production D1/R2 và `kienhieu.id.vn/*` không được thay đổi trước cổng này.
 
-## 9. Dữ liệu demo và nội dung thật
+## 10. Dữ liệu demo và nội dung thật
 
 `B2B-DEMO-*`, product `test 1`, demo contact channels, demo trust claims và asset tạm không phải dữ liệu production. Mọi migration production phải dùng dataset đã duyệt riêng.
 
-## 10. Delivery discipline
+## 11. Documentation hygiene
+
+- `CLOUDFLARE_NATIVE_V1_PLAN.md` là nguồn quyết định duy nhất.
+- `CLOUDFLARE_ADMIN_WRITE_CONTRACT.md` là contract server.
+- `CLOUDFLARE_CURRENT_STATE.md` chỉ ghi bằng chứng đã xác minh.
+- `CLOUDFLARE_DEPLOYMENT.md` chỉ ghi deployment/safety procedure.
+- `UI_CURRENT_MAP.md` phải phản ánh route storefront thực tế và trạng thái Admin UI.
+- `COMMERCE_PLATFORM_MASTER_PLAN.md`, `ORIGINAL_GIACONG_VN_MAP.md` và capture/research assets được giữ như lịch sử; không tạo thêm tài liệu quyết định trùng lặp.
+- Khi một tài liệu lịch sử mâu thuẫn với Cloudflare-native plan, lịch sử không có hiệu lực.
+
+## 12. Delivery discipline
 
 - thay đổi nhỏ, có test trước behavior change;
 - D1 mutation phải có audit/guard và verify hậu điều kiện;
@@ -167,4 +232,5 @@ Production Worker, production D1/R2 và `kienhieu.id.vn/*` không được thay 
 - không thêm dependency nếu chưa cần;
 - không chạm production để giải quyết lỗi staging;
 - mọi bằng chứng runtime quan trọng cập nhật vào `CLOUDFLARE_CURRENT_STATE.md`;
-- tài liệu Bagisto cũ chỉ dùng làm lịch sử/research, không được dùng để phục hồi Bagisto dependency vào runtime mới.
+- không phục hồi Bagisto/Vercel dependency vào runtime mới;
+- không sửa application chỉ để làm legacy Vercel preview pass.
