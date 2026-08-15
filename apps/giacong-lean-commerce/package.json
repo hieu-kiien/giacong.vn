@@ -29,7 +29,7 @@
     "check:fe": "npm run test:commerce && npm run test:header && npm run test:listing && npm run test:detail && npm run test:catalog-purchase-ui && npm run lint && npm run typecheck",
     "check:be": "npm run test:admin && npm run test:contact && npm run test:catalog && npm run test:service && npm run lint && npm run typecheck",
     "cf:build": "opennextjs-cloudflare build",
-    "cf:build:staging": "npm run cf:build:staging",
+    "cf:build:staging": "opennextjs-cloudflare build --env=staging",
     "cf:preview": "npm run cf:build && opennextjs-cloudflare preview",
     "cf:preview:staging": "npm run cf:build:staging && opennextjs-cloudflare preview --env=staging",
     "cf:deploy": "npm run cf:deploy:staging",
