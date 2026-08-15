@@ -8,9 +8,7 @@ import {
   encodeVariantVersion,
   normalizeTierPrices,
   normalizeVariantInput,
-  type AdminTierPriceInput,
   type AdminVariant,
-  type AdminVariantInput,
 } from "./admin-variant.ts";
 
 interface Statement { bind(...values: unknown[]): Statement; all<T = Record<string, unknown>>(): Promise<{ results: T[] }>; first<T = Record<string, unknown>>(): Promise<T | null>; run(): Promise<{ meta?: { changes?: number } }>; }
@@ -22,6 +20,7 @@ interface TierRow { min_quantity:number; price:number; currency:string; }
 export class AdminVariantConflictError extends Error {}
 export class AdminVariantNotFoundError extends Error {}
 export class AdminVariantValidationError extends Error {}
+export class AdminVariantPayloadTooLargeError extends Error {}
 export class AdminVariantIdempotencyConflictError extends Error {}
 
 export async function listProductVariants(productId:number):Promise<AdminVariant[]> {
@@ -78,7 +77,6 @@ export async function replaceTierPrices(variantId:number,raw:unknown,actorSubjec
   const tiers=normalizeTierPrices(raw.tierPrices,{moq:variant.moq,quantityStep:variant.quantityStep,contactFromQuantity:variant.contactFromQuantity});
   const hash=await sha256(canonicalTierMutationPayload({variantId,version:encodeVariantVersion(version),tierPrices:tiers})); const idem=await existingAudit(db,requestId,hash);
   if(idem){if(idem.entityType!=="tier_prices"||idem.entityKey!==String(variantId))throw new AdminVariantIdempotencyConflictError("Request ID already used.");const replay=await getVariant(variantId);if(!replay)throw new AdminVariantNotFoundError("Variant not found.");return replay;}
-  // The revision predicate is checked in the mutation statement; D1 batch is atomic and sequential.
   const statements:Statement[]=[];
   statements.push(db.prepare("DELETE FROM variant_tier_prices WHERE variant_id=? AND EXISTS (SELECT 1 FROM product_variants WHERE id=? AND revision=?)").bind(variantId,variantId,version));
   for(const tier of tiers) statements.push(db.prepare("INSERT INTO variant_tier_prices(variant_id,min_quantity,price,currency) SELECT ?,?,?,? WHERE EXISTS (SELECT 1 FROM product_variants WHERE id=? AND revision=?)").bind(variantId,tier.minQuantity,tier.price,"VND",variantId,version));
