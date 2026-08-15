@@ -42,7 +42,8 @@ export async function uploadProductMedia(file: File, actorSubject: string, reque
 
   const key = `products/${crypto.randomUUID()}.${descriptor.ext}`;
   const bucket = getBucket();
-  await bucket.put(key, bytes.buffer, { httpMetadata: { contentType: mime } });
+  const uploadBuffer = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
+  await bucket.put(key, uploadBuffer, { httpMetadata: { contentType: mime } });
   try {
     await db.prepare(`INSERT INTO admin_audit_log(request_id,actor_subject,action,entity_type,entity_key,previous_revision,resulting_revision,payload_sha256) VALUES(?,?, 'upload','media',?,?,NULL,?)`).bind(requestId, actorSubject, key, null, hash).run();
   } catch (error) {
