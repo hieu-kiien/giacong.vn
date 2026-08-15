@@ -24,11 +24,11 @@ Cloudflare Workers / OpenNext
 
 Vercel is legacy and is **not** a deployment target. Bagisto/VPS is not an application runtime target.
 
-## 2. Current execution rule
+## 2. Execution gates
 
-Do not add another feature layer while the quality or Cloudflare staging gates are red.
+No feature work is allowed to outrun the gates.
 
-Every server capability must pass:
+Every server capability must pass, in order:
 
 1. contract/validation tests;
 2. repository/runtime tests where applicable;
@@ -39,16 +39,53 @@ Every server capability must pass:
 7. live staging smoke/read-back;
 8. documentation/state update.
 
-The UI is blocked until the server contracts and Cloudflare staging runtime are green.
+The Admin UI is blocked until the server contracts and Cloudflare staging runtime are green.
 
-## 3. Phase A — Foundation hardening (CURRENT)
+## 3. One-day execution model
+
+Work is planned as **one controlled delivery day at a time**, not as an unbounded feature sprint.
+
+### Daily objective
+
+At the start of each day, select **one primary outcome** that can be proven end-to-end. A day is successful only when its acceptance evidence exists; number of commits or lines changed is not a success metric.
+
+### Daily sequence
+
+```text
+1. Inspect current gate and live evidence
+        ↓
+2. Pick one bounded outcome
+        ↓
+3. Implement the smallest complete slice
+        ↓
+4. Test → lint → typecheck → build
+        ↓
+5. Cloudflare staging verification
+        ↓
+6. Read-back / regression
+        ↓
+7. Update plan + current-state evidence
+        ↓
+8. Stop at the gate
+```
+
+### Daily stop rules
+
+- If Quality Gate is red, stop feature expansion and fix the gate.
+- If Cloudflare staging is red, stop feature expansion and fix runtime/deployment drift.
+- Do not weaken/delete tests merely to make CI green.
+- Do not expose secrets to logs or documentation.
+- Do not promote production as part of normal daily work.
+- Do not start UI work while server/runtime gates are red.
+
+## 4. Phase A — Foundation hardening (CURRENT)
 
 ### A1. Quality gate
 
 - [x] Admin contract tests established.
-- [x] Commerce regression suite currently passing at the test level in the latest observed run.
-- [ ] Remove the remaining `no-explicit-any` lint failure in `admin-variant-repository.ts`.
-- [ ] Full `npm run check` green.
+- [x] Commerce regression suite passed at the test level in the latest observed quality run.
+- [x] Remove the `no-explicit-any` lint failure in `admin-variant-repository.ts`.
+- [ ] Full `npm run check` green on the post-fix commit.
 - [ ] Typecheck green.
 - [ ] Production build green.
 - [ ] Review dependency audit without blind `npm audit fix --force`.
@@ -56,10 +93,42 @@ The UI is blocked until the server contracts and Cloudflare staging runtime are 
 ### A2. CI hygiene
 
 - [ ] Review GitHub Actions runtime warnings and upgrade action majors only where compatible.
-- [ ] Keep Cloudflare staging gate dependent on a green quality gate.
-- [ ] Keep production deployment locked.
+- [x] Keep Cloudflare staging gate dependent on a green quality gate.
+- [x] Keep production deployment locked.
 
-## 4. Phase B — Cloudflare staging verification
+### A3. Day 1 — current delivery target
+
+**Primary outcome:** prove the existing server foundation is CI-clean before adding another feature.
+
+**Work package:**
+
+1. Verify the post-lint-fix Quality Gate.
+2. If red, fix only the first real blocking error and rerun the gate.
+3. If green, verify typecheck and production build.
+4. Run the Cloudflare staging gate against the same commit.
+5. Read back Worker version, D1 binding/schema, R2 binding, Access protection and admin API smoke paths.
+6. Record the evidence in `CLOUDFLARE_CURRENT_STATE.md`.
+7. Update this plan with the next day's single primary outcome.
+
+**Day 1 acceptance criteria:**
+
+- Quality Gate green;
+- typecheck green;
+- production build green;
+- Cloudflare staging gate green;
+- admin Access remains enforced;
+- no production change;
+- current-state evidence committed.
+
+**Day 1 non-goals:**
+
+- no Admin UI;
+- no new business feature unless required to repair an existing gate;
+- no production deployment;
+- no dependency-wide automated upgrade;
+- no Vercel build repair.
+
+## 5. Phase B — Cloudflare staging verification
 
 After Phase A is green, verify the actual deployed runtime, not only source code:
 
@@ -77,22 +146,22 @@ After Phase A is green, verify the actual deployed runtime, not only source code
 
 No production promotion is part of this phase.
 
-## 5. Phase C — Server contract completion
+## 6. Phase C — Server contract completion
 
-Implement and verify in this order:
+Only after Phase A/B gates are green, implement and verify one bounded capability per delivery day:
 
-1. Category
-2. Product
-3. Variant
-4. Tier prices
-5. Product media
-6. Service content
+1. Category — stabilize existing contract/runtime evidence.
+2. Product — stabilize existing contract/runtime evidence.
+3. Variant — stabilize existing contract/runtime evidence.
+4. Tier prices — atomic replacement + parent revision concurrency.
+5. Product media — R2 lifecycle + D1 references/audit.
+6. Service content — schema/read/write contract based on the live D1 schema.
 
-Each mutation must preserve the project rules for validation, authorization, optimistic concurrency where applicable, idempotency, auditability, and bounded payloads.
+Each mutation must preserve validation, authorization, optimistic concurrency where applicable, idempotency, auditability, and bounded payloads.
 
 A capability is not considered complete until its Cloudflare staging path has been exercised.
 
-## 6. Phase D — Admin UI
+## 7. Phase D — Admin UI
 
 Only after Phase C and staging verification are green:
 
@@ -106,7 +175,9 @@ Only after Phase C and staging verification are green:
 
 The Admin UI calls `/api/admin/*` only. It must not access D1/R2 directly.
 
-## 7. Phase E — Production readiness
+Admin UI work is also delivered as bounded daily slices: shell → category CRUD → product CRUD → variant/tier editing → media → services → regression/accessibility.
+
+## 8. Phase E — Production readiness
 
 - [ ] staging regression complete;
 - [ ] security/access review;
@@ -116,19 +187,25 @@ The Admin UI calls `/api/admin/*` only. It must not access D1/R2 directly.
 - [ ] explicit production approval;
 - [ ] production promotion.
 
-## 8. Legacy cleanup
+Production work is a separate release event, not a daily implementation task.
+
+## 9. Legacy cleanup
 
 - [x] Remove obsolete Bagisto-origin probe workflow from the repository.
 - [x] Disable automatic Vercel Git deployments from repository configuration (`vercel.json`).
 - [ ] Verify no new Vercel preview deployments are created after the disabling commit.
 - [ ] Remove remaining obsolete Vercel/Bagisto references only after confirming they are historical/documentary rather than runtime dependencies.
 
-## 9. Documentation source of truth
+## 10. Documentation source of truth
 
 This file is the execution plan for the current Cloudflare-native migration. Historical plans may be retained for traceability but must not override this document's runtime decisions.
 
 `README.md` should point contributors here when the plan/navigation is updated.
 
-## 10. Current gate
+`CLOUDFLARE_CURRENT_STATE.md` is the evidence ledger for live Cloudflare state.
 
-**Do not start Admin UI yet.** The immediate next action is to make the quality gate fully green, then verify the deployed Cloudflare staging runtime before opening the next server-contract phase.
+`DAILY_EXECUTION_MAP.md` is the bounded work queue for the current delivery day and must never override the architectural plan.
+
+## 11. Current gate
+
+**Do not start Admin UI yet.** The immediate objective is to make the post-lint-fix quality gate fully green, then verify the deployed Cloudflare staging runtime. Only after both are green may the next server-contract day be selected.
