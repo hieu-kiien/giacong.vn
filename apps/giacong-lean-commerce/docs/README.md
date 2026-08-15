@@ -15,7 +15,6 @@
 ## Tài liệu lịch sử / tham khảo
 
 - [COMMERCE_PLATFORM_MASTER_PLAN.md](./COMMERCE_PLATFORM_MASTER_PLAN.md): **legacy Bagisto-era**. Chỉ dùng để truy vết quyết định cũ; không dùng làm nguồn quyết định runtime, admin hoặc deployment hiện tại.
-- [ORIGINAL_GIACONG_VN_MAP.md](./ORIGINAL_GIACONG_VN_MAP.md): bản đồ website gốc, chỉ phục vụ migration/research.
 - `research/`: dữ liệu nghiên cứu/capture, không phải roadmap.
 - `design-references/`: ảnh tham chiếu, không phải UI contract.
 - `handoff-references/`: tài liệu bàn giao/capture cũ, không phải runtime source of truth.
