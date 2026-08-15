@@ -4,6 +4,7 @@ import {
   AdminVariantConflictError,
   AdminVariantIdempotencyConflictError,
   AdminVariantNotFoundError,
+  AdminVariantPayloadTooLargeError,
   AdminVariantValidationError,
   replaceTierPrices,
 } from "@/lib/admin-variant-repository";
@@ -28,6 +29,7 @@ export async function PUT(request: Request, context: Context): Promise<Response>
     if (error instanceof AdminVariantNotFoundError) return adminFailure(requestId, 404, "NOT_FOUND", "Không tìm thấy biến thể.");
     if (error instanceof AdminVariantIdempotencyConflictError) return adminFailure(requestId, 409, "IDEMPOTENCY_CONFLICT", "Request ID đã được sử dụng cho payload khác.");
     if (error instanceof AdminVariantConflictError) return adminFailure(requestId, 409, "STALE_WRITE", "Biến thể đã được thay đổi hoặc có xung đột.");
+    if (error instanceof AdminVariantPayloadTooLargeError) return adminFailure(requestId, 413, "PAYLOAD_TOO_LARGE", "Payload bảng giá vượt giới hạn.");
     if (error instanceof AdminVariantValidationError || error instanceof Error && /invalid|required|integer|tier|quantity|price|payload/i.test(error.message)) {
       return adminFailure(requestId, 422, "VALIDATION_ERROR", "Bảng giá bậc không hợp lệ.");
     }
@@ -37,9 +39,9 @@ export async function PUT(request: Request, context: Context): Promise<Response>
 
 async function readJson(request: Request): Promise<unknown> {
   const length = Number(request.headers.get("content-length"));
-  if (Number.isFinite(length) && length > MAX_BODY_BYTES) throw new AdminVariantValidationError("Payload too large.");
+  if (Number.isFinite(length) && length > MAX_BODY_BYTES) throw new AdminVariantPayloadTooLargeError("Payload too large.");
   const bytes = await request.arrayBuffer();
-  if (bytes.byteLength > MAX_BODY_BYTES) throw new AdminVariantValidationError("Payload too large.");
+  if (bytes.byteLength > MAX_BODY_BYTES) throw new AdminVariantPayloadTooLargeError("Payload too large.");
   try { return JSON.parse(new TextDecoder().decode(bytes)); } catch { throw new AdminVariantValidationError("Malformed JSON request."); }
 }
 
