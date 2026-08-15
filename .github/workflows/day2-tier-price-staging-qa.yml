@@ -30,9 +30,10 @@ jobs:
     env:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_ACCESS_CLIENT_ID: ${{ secrets.CLOUDFLARE_ACCESS_CLIENT_ID }}
+      CLOUDFLARE_ACCESS_CLIENT_SECRET: ${{ secrets.CLOUDFLARE_ACCESS_CLIENT_SECRET }}
       ADMIN_ORIGIN: https://admin-staging.kienhieu.id.vn
       STAGING_DATABASE: giacong-vn-catalog-staging
-      ACCESS_TOKEN_NAME: day2-tier-price-qa-${{ github.run_id }}
 
     steps:
       - name: Checkout
@@ -51,6 +52,14 @@ jobs:
       - name: Run focused Day 2 contract gate
         run: npm run test:admin-tier-price
 
+      - name: Require protected staging credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$CLOUDFLARE_ACCESS_CLIENT_ID"
+          test -n "$CLOUDFLARE_ACCESS_CLIENT_SECRET"
+          echo 'Protected Access service-token credentials are configured.'
+
       - name: Verify active staging deployment
         shell: bash
         run: |
@@ -58,31 +67,7 @@ jobs:
           deployment="$(npx wrangler deployments status --env=staging --json)"
           jq -e '.versions | length == 1 and .[0].percentage == 100' <<<"$deployment"
 
-      - name: Create temporary Cloudflare Access service token
-        id: access
-        shell: bash
-        run: |
-          set -euo pipefail
-          response="$(curl --fail-with-body --silent --show-error \
-            -X POST "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/access/service_tokens" \
-            -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
-            -H 'Content-Type: application/json' \
-            --data "$(jq -n --arg name "$ACCESS_TOKEN_NAME" '{name:$name,duration:"1h"}')")"
-          jq -e '.success == true' <<<"$response" >/dev/null
-          client_id="$(jq -r '.result.client_id // empty' <<<"$response")"
-          client_secret="$(jq -r '.result.client_secret // empty' <<<"$response")"
-          uid="$(jq -r '.result.uid // empty' <<<"$response")"
-          test -n "$client_id" -a -n "$client_secret" -a -n "$uid"
-          echo "client_id=$client_id" >> "$GITHUB_OUTPUT"
-          echo "uid=$uid" >> "$GITHUB_OUTPUT"
-          {
-            echo "CLOUDFLARE_ACCESS_CLIENT_ID=$client_id"
-            echo "CLOUDFLARE_ACCESS_CLIENT_SECRET=$client_secret"
-          } >> "$GITHUB_ENV"
-          echo "::add-mask::$client_id"
-          echo "::add-mask::$client_secret"
-
-      - name: Discover staging fixture
+      - name: Discover staging variant fixture
         shell: bash
         run: |
           set -euo pipefail
@@ -93,7 +78,7 @@ jobs:
           test -n "$variant_id"
           echo "VARIANT_ID=$variant_id" >> "$GITHUB_ENV"
 
-      - name: Read baseline through protected admin endpoint
+      - name: Read baseline through protected admin runtime
         shell: bash
         run: |
           set -euo pipefail
@@ -109,40 +94,38 @@ jobs:
           jq -e '.tierPrices | length >= 1' /tmp/baseline-data.json >/dev/null
           echo "BASE_VERSION=$(jq -r '.version' /tmp/baseline-data.json)" >> "$GITHUB_ENV"
 
-      - name: Build replacement and invalid payloads
+      - name: Prepare deterministic mutation matrix
         shell: bash
         run: |
           set -euo pipefail
           jq -e '.tierPrices[0].price < 2147483647' /tmp/baseline-data.json >/dev/null
-          jq '{version, tierPrices}' /tmp/baseline-data.json >/tmp/replacement.json
+          jq '{version,tierPrices}' /tmp/baseline-data.json >/tmp/replacement.json
           jq '.tierPrices[0].price += 1' /tmp/replacement.json >/tmp/replacement-next.json
           mv /tmp/replacement-next.json /tmp/replacement.json
           jq -n --arg version "$BASE_VERSION" --argjson tiers "$(jq '.tierPrices' /tmp/baseline-data.json)" '{version:$version,tierPrices:$tiers}' >/tmp/stale.json
-          jq -n --arg version "$BASE_VERSION" --arg price "$(jq -r '.tierPrices[0].price' /tmp/baseline-data.json)" '{version:$version,tierPrices:[{minQuantity:1,price:($price|tonumber)}]}' >/tmp/invalid.json
+          jq -n --arg version "$BASE_VERSION" --argjson tiers "$(jq '.tierPrices' /tmp/baseline-data.json)" '{version:$version,tierPrices:[{minQuantity:($tiers[0].minQuantity+1),price:$tiers[0].price}]}' >/tmp/invalid.json
           echo "REPLACEMENT_REQUEST_ID=$(uuidgen)" >> "$GITHUB_ENV"
           echo "STALE_REQUEST_ID=$(uuidgen)" >> "$GITHUB_ENV"
           echo "INVALID_REQUEST_ID=$(uuidgen)" >> "$GITHUB_ENV"
           echo "RESTORE_REQUEST_ID=$(uuidgen)" >> "$GITHUB_ENV"
 
-      - name: Replace tiers atomically
+      - name: Atomic tier replacement
         shell: bash
         run: |
           set -euo pipefail
           status="$(curl --silent --show-error --max-time 25 \
-            -H "CF-Access-Client-Id: $CLOUDFLARE_ACCESS_CLIENT_ID" \
-            -H "CF-Access-Client-Secret: $CLOUDFLARE_ACCESS_CLIENT_SECRET" \
-            -H 'Content-Type: application/json' \
-            -H "X-Request-Id: $REPLACEMENT_REQUEST_ID" \
+            -H "CF-Access-Client-Id: $CLOUDFLARE_ACCESS_CLIENT_ID" -H "CF-Access-Client-Secret: $CLOUDFLARE_ACCESS_CLIENT_SECRET" \
+            -H 'Content-Type: application/json' -H "X-Request-Id: $REPLACEMENT_REQUEST_ID" \
             --data @/tmp/replacement.json -o /tmp/replacement-response.json -w '%{http_code}' \
             "$ADMIN_ORIGIN/api/admin/variants/$VARIANT_ID/tier-prices")"
           test "$status" = 200
           jq '.data // .variant // .' /tmp/replacement-response.json >/tmp/replacement-data.json
           jq -e --arg old "$BASE_VERSION" '.version != $old' /tmp/replacement-data.json >/dev/null
-          expected_price="$(jq -r '.tierPrices[0].price' /tmp/replacement.json)"
-          test "$(jq -r '.tierPrices[0].price' /tmp/replacement-data.json)" = "$expected_price"
+          expected="$(jq -r '.tierPrices[0].price' /tmp/replacement.json)"
+          test "$(jq -r '.tierPrices[0].price' /tmp/replacement-data.json)" = "$expected"
           echo "AFTER_REPLACEMENT_VERSION=$(jq -r '.version' /tmp/replacement-data.json)" >> "$GITHUB_ENV"
 
-      - name: Prove idempotency and stale-write protection
+      - name: Idempotency replay and conflict
         shell: bash
         run: |
           set -euo pipefail
@@ -163,6 +146,10 @@ jobs:
           test "$status" = 409
           jq -e '.ok == false and .code == "IDEMPOTENCY_CONFLICT"' /tmp/idempotency-conflict.json >/dev/null
 
+      - name: Stale revision cannot modify tiers
+        shell: bash
+        run: |
+          set -euo pipefail
           status="$(curl --silent --show-error --max-time 25 \
             -H "CF-Access-Client-Id: $CLOUDFLARE_ACCESS_CLIENT_ID" -H "CF-Access-Client-Secret: $CLOUDFLARE_ACCESS_CLIENT_SECRET" \
             -H 'Content-Type: application/json' -H "X-Request-Id: $STALE_REQUEST_ID" \
@@ -170,18 +157,16 @@ jobs:
             "$ADMIN_ORIGIN/api/admin/variants/$VARIANT_ID/tier-prices")"
           test "$status" = 409
           jq -e '.ok == false and .code == "STALE_WRITE"' /tmp/stale-response.json >/dev/null
-
           curl --fail-with-body --silent --show-error --max-time 25 \
             -H "CF-Access-Client-Id: $CLOUDFLARE_ACCESS_CLIENT_ID" -H "CF-Access-Client-Secret: $CLOUDFLARE_ACCESS_CLIENT_SECRET" \
             "$ADMIN_ORIGIN/api/admin/variants/$VARIANT_ID" >/tmp/after-stale.json
           jq '.data // .variant // .' /tmp/after-stale.json >/tmp/after-stale-data.json
           diff -u <(jq -S '{version,tierPrices}' /tmp/replacement-data.json) <(jq -S '{version,tierPrices}' /tmp/after-stale-data.json)
 
-      - name: Prove validation has no side effects
+      - name: Validation is side-effect free
         shell: bash
         run: |
           set -euo pipefail
-          jq -n --arg version "$AFTER_REPLACEMENT_VERSION" --argjson tiers "$(jq '.tierPrices' /tmp/replacement-data.json)" '{version:$version,tierPrices:[{minQuantity:($tiers[0].minQuantity+1),price:$tiers[0].price}]}' >/tmp/invalid.json
           status="$(curl --silent --show-error --max-time 25 \
             -H "CF-Access-Client-Id: $CLOUDFLARE_ACCESS_CLIENT_ID" -H "CF-Access-Client-Secret: $CLOUDFLARE_ACCESS_CLIENT_SECRET" \
             -H 'Content-Type: application/json' -H "X-Request-Id: $INVALID_REQUEST_ID" \
@@ -203,7 +188,7 @@ jobs:
           test "$status" = 200
           jq -e '.ok == true' /tmp/restore-response.json >/dev/null
 
-      - name: Verify final read-back and audit evidence
+      - name: Final read-back and audit atomicity evidence
         shell: bash
         run: |
           set -euo pipefail
@@ -212,23 +197,20 @@ jobs:
             "$ADMIN_ORIGIN/api/admin/variants/$VARIANT_ID" >/tmp/final.json
           jq '.data // .variant // .' /tmp/final.json >/tmp/final-data.json
           diff -u <(jq -S '.tierPrices' /tmp/baseline-data.json) <(jq -S '.tierPrices' /tmp/final-data.json)
-
           npx wrangler d1 execute "$STAGING_DATABASE" --remote --json \
             --command="SELECT request_id,action,entity_type,previous_revision,resulting_revision FROM admin_audit_log WHERE request_id IN ('$REPLACEMENT_REQUEST_ID','$STALE_REQUEST_ID','$INVALID_REQUEST_ID','$RESTORE_REQUEST_ID') ORDER BY request_id;" \
             >/tmp/audit.json
           jq -e --arg ok "$REPLACEMENT_REQUEST_ID" --arg stale "$STALE_REQUEST_ID" --arg invalid "$INVALID_REQUEST_ID" --arg restore "$RESTORE_REQUEST_ID" '
-            ([.[0].results[] | select(.request_id==$ok)]|length)==1 and
-            ([.[0].results[] | select(.request_id==$restore)]|length)==1 and
-            ([.[0].results[] | select(.request_id==$stale)]|length)==0 and
-            ([.[0].results[] | select(.request_id==$invalid)]|length)==0
+            ([.[0].results[]|select(.request_id==$ok)]|length)==1 and
+            ([.[0].results[]|select(.request_id==$restore)]|length)==1 and
+            ([.[0].results[]|select(.request_id==$stale)]|length)==0 and
+            ([.[0].results[]|select(.request_id==$invalid)]|length)==0
           ' /tmp/audit.json
 
       - name: Publish Day 2 evidence
-        shell: bash
         run: |
           {
             echo '## Day 2 — Tier Price runtime proof'
-            echo
             echo '- Protected admin runtime: passed'
             echo '- Atomic replacement + parent revision: passed'
             echo '- Stale write leaves tier rows unchanged: passed'
@@ -238,13 +220,3 @@ jobs:
             echo '- Audit evidence: successful writes only; stale/invalid requests produced no audit rows'
             echo '- Production: not targeted'
           } >> "$GITHUB_STEP_SUMMARY"
-
-      - name: Delete temporary Access service token
-        if: always() && steps.access.outputs.uid != ''
-        shell: bash
-        run: |
-          set -euo pipefail
-          response="$(curl --fail-with-body --silent --show-error \
-            -X DELETE "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/access/service_tokens/${{ steps.access.outputs.uid }}" \
-            -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN")"
-          jq -e '.success == true' <<<"$response" >/dev/null
