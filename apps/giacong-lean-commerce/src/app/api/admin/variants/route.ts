@@ -16,7 +16,7 @@ export async function GET(request: Request): Promise<Response> {
   const productIdRaw = new URL(request.url).searchParams.get("productId");
   const productId = productIdRaw === null ? NaN : Number(productIdRaw);
   if (!Number.isSafeInteger(productId) || productId < 1) {
-    return adminFailure(requestId, 400, "INVALID_PRODUCT_ID", "productId phải là số nguyên dương.");
+    return adminFailure(requestId, 400, "INVALID_REQUEST", "productId phải là số nguyên dương.");
   }
 
   try {
@@ -26,7 +26,7 @@ export async function GET(request: Request): Promise<Response> {
     if (error instanceof AdminVariantNotFoundError) {
       return adminFailure(requestId, 404, "NOT_FOUND", "Không tìm thấy sản phẩm.");
     }
-    return adminFailure(requestId, 500, "INTERNAL_ERROR", "Không thể đọc danh sách biến thể.");
+    return adminFailure(requestId, 500, "INVALID_REQUEST", "Không thể đọc danh sách biến thể.");
   }
 }
 
@@ -35,7 +35,7 @@ export async function POST(): Promise<Response> {
   return adminFailure(
     requestId,
     405,
-    "METHOD_NOT_ALLOWED",
+    "INVALID_REQUEST",
     "Tạo biến thể phải sử dụng endpoint theo product context.",
   );
 }
