@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { normalizeTierPrices } from "../src/lib/admin-variant";
+import { normalizeTierPrices } from "../src/lib/admin-variant.ts";
 
 test("tier replacement requires an MOQ tier and canonical quantity alignment", () => {
   const tiers = normalizeTierPrices(
