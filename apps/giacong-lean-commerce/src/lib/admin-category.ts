@@ -1,5 +1,3 @@
-import "server-only";
-
 export interface AdminCategoryInput {
   description: string;
   imageUrl: string | null;
