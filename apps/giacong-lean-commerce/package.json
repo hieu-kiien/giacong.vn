@@ -27,7 +27,7 @@
     "qa:cart": "node --no-warnings --experimental-strip-types scripts/verify-request-cart.mjs",
     "check": "npm run test:admin && npm run test:contact && npm run test:catalog && npm run test:catalog-purchase-ui && npm run test:service && npm run test:commerce && npm run test:header && npm run test:listing && npm run test:detail && npm run lint && npm run typecheck && npm run build",
     "check:fe": "npm run test:commerce && npm run test:header && npm run test:listing && npm run test:detail && npm run test:catalog-purchase-ui && npm run lint && npm run typecheck",
-    "check:be": "npm run test:admin && npm run test:contact && npm run test:catalog && npm run test:service && npm run lint && npm run typecheck",
+    "check:be": "npm run test:admin && npm run test:contact && npm run test:catalog && npm run test:service && npm run test:commerce && npm run lint && npm run typecheck",
     "cf:build": "opennextjs-cloudflare build",
     "cf:build:staging": "opennextjs-cloudflare build --env=staging",
     "cf:preview": "npm run cf:build && opennextjs-cloudflare preview",
@@ -43,7 +43,7 @@
   "dependencies": {
     "@base-ui/react": "^1.3.0",
     "class-variance-authority": "^0.7.1",
-    "clsx": "^2.1.1",
+    "clsx": "^2.1.0",
     "jose": "6.2.3",
     "lucide-react": "^1.6.0",
     "next": "16.2.12",
@@ -63,8 +63,6 @@
     "eslint": "^9",
     "eslint-config-next": "16.2.12",
     "playwright": "^1.61.1",
-    "shadcn": "^4.1.0",
-    "tailwindcss": "^4",
     "typescript": "^5",
     "wrangler": "4.115.0"
   }
