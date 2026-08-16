@@ -1,27 +1,19 @@
-param(
-  [int]$Port = 0
-)
+$ErrorActionPreference = "Stop"
 
-$Host.UI.RawUI.WindowTitle = "GIACONG UI - PREVIEW"
-[Console]::InputEncoding = [System.Text.UTF8Encoding]::new($false)
-[Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false)
-$OutputEncoding = [System.Text.UTF8Encoding]::new($false)
-
-chcp 65001 | Out-Null
-
-$projectRoot = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot "..")).Path
-$configuredPort = 0
-if ($env:COMMERCE_PREVIEW_PORT) {
-  [void][int]::TryParse($env:COMMERCE_PREVIEW_PORT, [ref]$configuredPort)
+if (-not $env:COMMERCE_PREVIEW_PORT) {
+  $env:COMMERCE_PREVIEW_PORT = "4310"
 }
-$previewPort = if ($Port -gt 0) { $Port } elseif ($configuredPort -gt 0) { $configuredPort } else { 4310 }
-$logDirectory = Join-Path $env:TEMP "giacong-ui-logs"
-New-Item -ItemType Directory -Path $logDirectory -Force | Out-Null
-$logPath = Join-Path $logDirectory "preview-server.log"
 
-Set-Location -LiteralPath $projectRoot
-Start-Transcript -LiteralPath $logPath -Append
-Write-Host "Đang chạy giao diện tại http://localhost:$previewPort" -ForegroundColor Green
-npm run dev -- -p $previewPort
-Write-Host "Server đã dừng với mã $LASTEXITCODE" -ForegroundColor Yellow
-Stop-Transcript
+$projectRoot = Split-Path -Parent $PSScriptRoot
+$logPath = Join-Path $env:TEMP "giacong-commerce-preview.log"
+
+Push-Location $projectRoot
+try {
+  & pnpm exec next dev -H 0.0.0.0 -p $env:COMMERCE_PREVIEW_PORT 2>&1 |
+    Tee-Object -FilePath $logPath
+  if ($LASTEXITCODE -ne 0) {
+    throw "Preview server exited with code $LASTEXITCODE. See $logPath."
+  }
+} finally {
+  Pop-Location
+}

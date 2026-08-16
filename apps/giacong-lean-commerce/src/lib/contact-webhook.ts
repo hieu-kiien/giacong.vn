@@ -16,8 +16,37 @@ export interface ContactWebhookDependencies {
   cartResolver?: RequestCartResolver;
   environment: Readonly<Record<string, string | undefined>>;
   fetch?: typeof globalThis.fetch;
+  leadQueue?: ContactLeadQueue;
+  leadPersistence?: ContactLeadPersistence;
   productResolver?: ContactProductResolver;
   timeoutMs?: number;
+}
+
+export type ContactLeadDeliveryStatus = "pending" | "queued" | "delivered" | "failed";
+
+export interface ContactLeadQueue {
+  send(message: {
+    leadId: string;
+    payload: ContactQueuedPayload;
+  }): Promise<void>;
+}
+
+export interface ContactLeadPersistence {
+  create(payload: unknown): Promise<{
+    deliveryStatus: ContactLeadDeliveryStatus;
+    isDuplicate: boolean;
+    leadId: string;
+    publicReference: string;
+    webhookReference: string | null;
+  }>;
+  markDelivery(
+    leadId: string,
+    result: {
+      error?: string | null;
+      status: ContactLeadDeliveryStatus;
+      webhookReference?: string | null;
+    },
+  ): Promise<void>;
 }
 
 export interface ContactProductResolution {
@@ -50,7 +79,7 @@ interface ContactSubmission {
   variant: string;
 }
 
-interface ContactWebhookPayload extends Omit<ContactSubmission, "qty"> {
+export interface ContactWebhookPayload extends Omit<ContactSubmission, "qty"> {
   qty: number | "";
   request_type: ContactRequestType;
 }
@@ -66,12 +95,14 @@ interface ContactCartWebhookLine {
   variant: string;
 }
 
-interface ContactCartWebhookPayload extends ContactWebhookPayload {
+export interface ContactCartWebhookPayload extends ContactWebhookPayload {
   cart: ContactCartWebhookLine[];
   cart_price_incomplete: boolean;
   cart_subtotal: number | "";
   request_id: string;
 }
+
+export type ContactQueuedPayload = ContactWebhookPayload | ContactCartWebhookPayload;
 
 interface WebhookResponse {
   ok: true;
@@ -286,7 +317,95 @@ export async function handleContactSubmission(
     : await resolveFormPayload(request, dependencies);
   if (resolved instanceof Response) return resolved;
 
-  return deliverToWebhook(resolved, dependencies);
+  const leadPersistence = dependencies.leadPersistence;
+  let persistedLead: Awaited<ReturnType<NonNullable<ContactWebhookDependencies["leadPersistence"]>["create"]>> | null = null;
+  if (leadPersistence) {
+    try {
+      persistedLead = await leadPersistence.create(resolved);
+    } catch {
+      return failure("Không thể lưu yêu cầu. Vui lòng thử lại.", 503);
+    }
+  }
+
+  if (
+    persistedLead?.isDuplicate
+    && persistedLead.deliveryStatus === "delivered"
+  ) {
+    return acceptedLeadResponse(
+      persistedLead.webhookReference || persistedLead.publicReference,
+      persistedLead.deliveryStatus,
+    );
+  }
+
+  if (persistedLead && dependencies.leadQueue) {
+    try {
+      await dependencies.leadQueue.send({
+        leadId: persistedLead.leadId,
+        payload: resolved,
+      });
+      await leadPersistence?.markDelivery(persistedLead.leadId, {
+        status: "queued",
+      });
+      return acceptedLeadResponse(persistedLead.publicReference, "queued");
+    } catch (error) {
+      try {
+        await leadPersistence?.markDelivery(persistedLead.leadId, {
+          error: error instanceof Error ? error.message.slice(0, 500) : "queue_enqueue_failed",
+          status: "failed",
+        });
+      } catch {
+        // The durable lead still exists and remains visible for admin repair.
+      }
+      return acceptedLeadResponse(persistedLead.publicReference, "failed");
+    }
+  }
+
+  const response = await deliverToWebhook(resolved, dependencies);
+  if (!persistedLead || !leadPersistence) return response;
+
+  if (response.ok) {
+    const webhookReference = await responseReference(response);
+    try {
+      await leadPersistence.markDelivery(persistedLead.leadId, {
+        status: "delivered",
+        webhookReference,
+      });
+    } catch {
+      // The durable lead already exists; a later admin retry can repair delivery metadata.
+    }
+    return response;
+  }
+
+  try {
+    await leadPersistence.markDelivery(persistedLead.leadId, {
+      error: `secondary_sink_http_${response.status}`,
+      status: "failed",
+    });
+  } catch {
+    // Keep the D1-first acceptance response even if the delivery bookkeeping is unavailable.
+  }
+  return acceptedLeadResponse(persistedLead.publicReference, "failed");
+}
+
+async function responseReference(response: Response): Promise<string | null> {
+  try {
+    const body = await response.clone().json() as { reference?: unknown };
+    return typeof body.reference === "string" && body.reference.trim() ? body.reference.trim() : null;
+  } catch {
+    return null;
+  }
+}
+
+function acceptedLeadResponse(reference: string, deliveryStatus: ContactLeadDeliveryStatus): Response {
+  return Response.json(
+    {
+      deliveryStatus,
+      message: "Yêu cầu của bạn đã được tiếp nhận.",
+      ok: true,
+      reference,
+    },
+    { headers: { "Cache-Control": "no-store" }, status: 202 },
+  );
 }
 
 async function resolveFormPayload(
@@ -420,8 +539,8 @@ function cartConflict(message: string, code: string, cart: ResolvedRequestCart):
   );
 }
 
-async function deliverToWebhook(
-  resolved: ContactWebhookPayload | ContactCartWebhookPayload,
+export async function deliverToWebhook(
+  resolved: ContactQueuedPayload,
   dependencies: ContactWebhookDependencies,
 ): Promise<Response> {
   const environment = dependencies.environment;

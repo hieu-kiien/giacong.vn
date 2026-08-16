@@ -2,17 +2,23 @@ import type { Metadata } from "next";
 
 import { CapturedPage } from "@/components/CapturedPage";
 import homePage from "@/data/pages/home.json";
+import { getPublishedSiteSettings } from "@/lib/site-settings";
 import type { CapturedPageData } from "@/types/captured-page";
 
-export const dynamic = "force-static";
+export const dynamic = "force-dynamic";
 
 const data = homePage as CapturedPageData;
 
-export const metadata: Metadata = {
-  title: data.title,
-  description: data.description,
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const settings = await getPublishedSiteSettings();
+  return {
+    title: settings.site_title || data.title,
+    description: settings.site_description || data.description,
+    icons: settings.favicon_url ? { icon: settings.favicon_url } : undefined,
+  };
+}
 
-export default function Home() {
-  return <CapturedPage {...data} />;
+export default async function Home() {
+  const settings = await getPublishedSiteSettings();
+  return <CapturedPage {...data} siteSettings={settings} />;
 }

@@ -8,6 +8,8 @@ import {
 } from "@/components/site/storefront-navigation";
 import newsPage from "@/data/pages/tin-tuc.json";
 import { layerCapturedStyles, normalizeCapturedMarkup } from "@/lib/captured-markup";
+import { applySiteSettingsToMarkup, siteBrandStyles } from "@/lib/site-markup";
+import { getPublishedSiteSettings } from "@/lib/site-settings";
 
 interface CapturedStorefrontShellProps {
   activeNavigation: StorefrontNavigationKey;
@@ -53,25 +55,30 @@ const capturedAuxiliaryMarkup = wrapperClose < 0
   : normalizedNewsMarkup.slice(wrapperClose + "</div>".length);
 
 /** Shared source of the approved captured Header, Footer and interactions. */
-export function CapturedStorefrontShell({
+export async function CapturedStorefrontShell({
   activeNavigation,
   children,
 }: CapturedStorefrontShellProps) {
-  const headerMarkup = activateDesktopNavigation(capturedHeader.markup, activeNavigation);
+  const settings = await getPublishedSiteSettings();
+  const headerMarkup = applySiteSettingsToMarkup(
+    activateDesktopNavigation(capturedHeader.markup, activeNavigation),
+    settings,
+  );
+  const footerMarkup = applySiteSettingsToMarkup(capturedFooter.markup, settings);
 
   return (
     <>
-      <style dangerouslySetInnerHTML={{ __html: layerCapturedStyles(newsPage.pageStyles) }} />
+      <style dangerouslySetInnerHTML={{ __html: `${layerCapturedStyles(newsPage.pageStyles)}\n${siteBrandStyles(settings)}` }} />
       <div className={newsPage.bodyClasses}>
         <a className="skip-link screen-reader-text" href="#main">Skip to content</a>
         <div id="wrapper">
           <div dangerouslySetInnerHTML={{ __html: headerMarkup }} />
           {children}
-          <div dangerouslySetInnerHTML={{ __html: capturedFooter.markup }} />
+          <div dangerouslySetInnerHTML={{ __html: footerMarkup }} />
         </div>
         <div dangerouslySetInnerHTML={{ __html: capturedAuxiliaryMarkup }} />
       </div>
-      <CapturedFloatingContact />
+      <CapturedFloatingContact settings={settings} />
       <GiacongInteractions bodyClasses={newsPage.bodyClasses} htmlClasses={newsPage.htmlClasses} />
     </>
   );

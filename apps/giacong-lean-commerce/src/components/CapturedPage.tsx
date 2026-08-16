@@ -1,6 +1,8 @@
 import { GiacongInteractions } from "@/components/GiacongInteractions";
 import { CapturedRequestCartButton } from "@/components/request-cart/CapturedRequestCartButton";
 import { layerCapturedStyles, normalizeCapturedMarkup } from "@/lib/captured-markup";
+import { applySiteSettingsToMarkup, siteBrandStyles } from "@/lib/site-markup";
+import { siteSettingDefaults, type PublishedSiteSettings } from "@/lib/site-settings";
 import type { CapturedPageData } from "@/types/captured-page";
 
 type CapturedPageProps = Pick<
@@ -13,36 +15,39 @@ export function CapturedPage({
   pageStyles,
   bodyClasses,
   htmlClasses,
-}: CapturedPageProps) {
-  const normalizedMarkup = normalizeCapturedMarkup(markup);
+  siteSettings,
+}: CapturedPageProps & { siteSettings?: PublishedSiteSettings }) {
+  const settings = siteSettings ?? siteSettingDefaults;
+  const normalizedMarkup = applySiteSettingsToMarkup(normalizeCapturedMarkup(markup), settings);
 
   return (
     <>
-      <style dangerouslySetInnerHTML={{ __html: layerCapturedStyles(pageStyles) }} />
+      <style dangerouslySetInnerHTML={{ __html: `${layerCapturedStyles(pageStyles)}\n${siteBrandStyles(settings)}` }} />
       <div
         className={bodyClasses}
         suppressHydrationWarning
         dangerouslySetInnerHTML={{ __html: normalizedMarkup }}
       />
-      <CapturedFloatingContact />
+      <CapturedFloatingContact settings={settings} />
       <GiacongInteractions bodyClasses={bodyClasses} htmlClasses={htmlClasses} />
     </>
   );
 }
 
-export function CapturedFloatingContact() {
+export function CapturedFloatingContact({ settings = siteSettingDefaults }: { settings?: PublishedSiteSettings }) {
+  const phone = settings.contact_phone.replace(/[^\d+]/g, "");
   return (
     <div className="echbay-sms-messenger style-for-position-br max-[549px]:!hidden" aria-label="Liên hệ nhanh">
         <CapturedRequestCartButton />
         <div className="phonering-alo-alo">
-          <a href="tel:0868408115" rel="nofollow" aria-label="Gọi 0868408115">.</a>
+          <a href={`tel:${phone}`} rel="nofollow" aria-label={`Gọi ${settings.contact_phone}`}>.</a>
         </div>
         <div className="phonering-alo-sms">
-          <a href="sms:0868408115" rel="nofollow" aria-label="Nhắn tin 0868408115">.</a>
+          <a href={`sms:${phone}`} rel="nofollow" aria-label={`Nhắn tin ${settings.contact_phone}`}>.</a>
         </div>
         <div className="phonering-alo-zalo">
           <a
-            href="https://zalo.me/06408115"
+            href={settings.contact_zalo_url}
             target="_blank"
             rel="nofollow noreferrer"
             aria-label="Liên hệ qua Zalo"
@@ -52,7 +57,7 @@ export function CapturedFloatingContact() {
         </div>
         <div className="phonering-alo-messenger">
           <a
-            href="https://m.me/qtudepdai"
+            href={settings.contact_messenger_url}
             target="_blank"
             rel="nofollow noreferrer"
             aria-label="Liên hệ qua Messenger"

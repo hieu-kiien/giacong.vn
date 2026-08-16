@@ -1,369 +1,263 @@
-/**
- * Google Apps Script receiver for POST /api/contact.
- * Bind this script to the target spreadsheet, then deploy it as a Web app.
+/*
+ * Giacong.vn contact webhook.
+ *
+ * This script intentionally keeps the spreadsheet as a secondary operational
+ * sink. The Worker validates the request before calling doPost; this file
+ * repeats the boundary checks because Apps Script web apps are public URLs.
  */
-const CONTACT_SHEET_NAME = "Yêu cầu";
-const CONTACT_HEADERS = [
-  "Mã",
-  "Thời gian",
-  "Loại",
-  "Sản phẩm/Dịch vụ",
-  "Biến thể",
-  "Số lượng",
-  "Họ tên",
-  "Điện thoại",
-  "Email",
-  "Nội dung",
-  "Nguồn",
-  "Trạng thái",
-  "Người phụ trách",
-  "Ghi chú",
-  "Cập nhật lần cuối",
+
+var REQUEST_HEADERS = [
+  "Mã", "Thời gian", "Loại", "Sản phẩm/Dịch vụ", "Biến thể", "Số lượng",
+  "Họ tên", "Điện thoại", "Email", "Nội dung", "Nguồn", "Trạng thái",
+  "Người phụ trách", "Ghi chú", "Cập nhật lần cuối",
 ];
-const REQUEST_TYPES = ["Đặt sản phẩm", "Tư vấn số lượng lớn", "Tư vấn dịch vụ"];
-const REQUEST_STATUSES = ["Mới", "Đang tư vấn", "Chờ khách phản hồi", "Đã hoàn tất", "Không tiếp tục"];
-const SUMMARY_SHEET_NAME = "Tổng quan";
-const CART_DETAIL_SHEET_NAME = "Chi tiết giỏ hàng";
-const CART_DETAIL_HEADERS = [
-  "Mã",
-  "Dòng",
-  "Sản phẩm",
-  "Biến thể",
-  "Đơn vị",
-  "Số lượng",
-  "Đơn giá",
-  "Thành tiền",
-  "Ghi chú hệ thống",
+var DETAIL_HEADERS = [
+  "Mã", "Dòng", "Sản phẩm", "Biến thể", "Đơn vị", "Số lượng",
+  "Đơn giá", "Thành tiền", "Ghi chú hệ thống",
 ];
-const CART_MAX_LINES = 20;
-// Must stay well under the 5s abort on the Next side, otherwise the lock itself manufactures 504s.
-const CART_LOCK_TIMEOUT_MS = 2000;
-const CART_REPLAY_TTL_SECONDS = 21600;
-const UUID_V4_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+var TYPES = ["Đặt sản phẩm", "Tư vấn số lượng lớn", "Tư vấn dịch vụ"];
+var STATUSES = ["Mới", "Đang tư vấn", "Chờ khách phản hồi", "Đã hoàn tất", "Không tiếp tục"];
+var CACHE_SECONDS = 21600;
 
 function doPost(event) {
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(2000)) return output({ ok: false, reference: "" });
   try {
-    const payload = JSON.parse(event.postData.contents);
-    const expectedSecret = PropertiesService.getScriptProperties()
-      .getProperty("WEBHOOK_SECRET");
-    if (expectedSecret && payload.secret !== expectedSecret) {
-      return jsonResponse({ ok: false, reference: "" });
+    var payload = parsePayload(event);
+    if (!payload || !validSecret(payload) || !validPayload(payload)) {
+      return output({ ok: false, reference: "" });
     }
 
-    if (isCartSubmission(payload)) return appendCartSubmission(payload);
-
-    if (!validSubmission(payload)) {
-      return jsonResponse({ ok: false, reference: "" });
+    var requestId = typeof payload.request_id === "string" ? payload.request_id : "";
+    var cache = CacheService.getScriptCache();
+    if (requestId) {
+      var previous = cache.get("request:" + requestId);
+      if (previous) return output({ ok: true, reference: previous });
     }
 
-    const sheet = getContactSheet();
-    const reference = createReference();
-    const timestamp = new Date();
-    sheet.appendRow(contactRow(
-      payload,
+    var reference = makeReference();
+    var isCart = Array.isArray(payload.cart);
+    if (isCart) {
+      ensureCartDetailSheet();
+      writeCartRows(payload.cart, reference);
+    }
+    setupRequestWorkbook();
+    var sheet = workbook().getSheetByName("Yêu cầu");
+    var now = new Date();
+    var row = [
       reference,
-      timestamp,
-      safeText(payload.product || payload.service, 200),
-      safeText(payload.variant, 160),
-      safeQuantity(payload.qty),
-    ));
-    refreshSummarySheet();
-    return jsonResponse({ ok: true, reference });
-  } catch (_error) {
-    return jsonResponse({ ok: false, reference: "" });
-  }
-}
-
-function contactRow(payload, reference, timestamp, product, variant, quantity) {
-  return [
-    reference,
-    timestamp,
-    safeText(payload.request_type, 50),
-    product,
-    variant,
-    quantity,
-    safeText(payload.name, 120),
-    safeText(payload.phone, 24),
-    safeText(payload.email, 254),
-    safeText(payload.message, 2000),
-    safeText(payload.source, 200),
-    "Mới",
-    "",
-    "",
-    timestamp,
-  ];
-}
-
-function isCartSubmission(payload) {
-  return Object.prototype.hasOwnProperty.call(payload, "cart");
-}
-
-/**
- * Multi-line cart intake. Detail rows are written first and the `Yêu cầu` row commits them:
- * dying in between leaves orphan detail rows the operator never sees, which is the harmless
- * direction. The reverse order would promise N lines that do not exist.
- */
-function appendCartSubmission(payload) {
-  if (!validCartSubmission(payload)) return jsonResponse({ ok: false, reference: "" });
-
-  const lock = LockService.getScriptLock();
-  if (!lock.tryLock(CART_LOCK_TIMEOUT_MS)) return jsonResponse({ ok: false, reference: "" });
-  try {
-    const cache = CacheService.getScriptCache();
-    const replayKey = `cart-request:${payload.request_id}`;
-    const replayed = cache.get(replayKey);
-    if (replayed) return jsonResponse({ ok: true, reference: replayed });
-
-    const reference = createReference();
-    const timestamp = new Date();
-    const detailSheet = getCartDetailSheet();
-    const startRow = Math.max(detailSheet.getLastRow(), 1) + 1;
-    detailSheet
-      .getRange(startRow, 1, payload.cart.length, CART_DETAIL_HEADERS.length)
-      .setValues(payload.cart.map((line, index) => [
-        reference,
-        index + 1,
-        safeText(line.product, 200),
-        safeText(line.variant, 160),
-        safeText(line.unit, 24),
-        safeQuantity(line.qty),
-        safeMoney(line.unit_price),
-        safeMoney(line.line_total),
-        safeText(line.note, 200),
-      ]));
-
-    getContactSheet().appendRow(contactRow(
-      payload,
-      reference,
-      timestamp,
-      safeText(payload.product, 200),
+      now,
+      payload.request_type,
+      safeText(isCart ? "Giỏ hàng (" + payload.cart.length + " dòng)" : payload.product),
+      safeText(payload.variant),
+      payload.qty,
+      safeText(payload.name),
+      safeText(payload.phone),
+      safeText(payload.email),
+      safeText(payload.message),
+      safeText(payload.source),
+      "Mới",
       "",
       "",
-    ));
-    refreshSummarySheet();
-    cache.put(replayKey, reference, CART_REPLAY_TTL_SECONDS);
-    return jsonResponse({ ok: true, reference });
+      now,
+    ];
+
+    sheet.appendRow(row);
+    refreshSummary();
+    if (requestId) cache.put("request:" + requestId, reference, CACHE_SECONDS);
+    return output({ ok: true, reference: reference });
   } catch (_error) {
-    return jsonResponse({ ok: false, reference: "" });
+    return output({ ok: false, reference: "" });
   } finally {
     lock.releaseLock();
   }
 }
 
-function getCartDetailSheet() {
-  const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = spreadsheet.getSheetByName(CART_DETAIL_SHEET_NAME)
-    || spreadsheet.insertSheet(CART_DETAIL_SHEET_NAME);
-  if (sheet.getLastRow() === 0) {
-    sheet.appendRow(CART_DETAIL_HEADERS);
-    sheet.setFrozenRows(1);
-  }
-  return sheet;
-}
-
-function getContactSheet() {
-  const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = spreadsheet.getSheetByName(CONTACT_SHEET_NAME)
-    || spreadsheet.insertSheet(CONTACT_SHEET_NAME);
-  if (sheet.getLastRow() === 0) {
-    sheet.appendRow(CONTACT_HEADERS);
-    sheet.setFrozenRows(1);
-  }
-  return sheet;
-}
-
 function setupRequestWorkbook() {
-  const sheet = getContactSheet();
-  sheet.getRange(1, 1, 1, CONTACT_HEADERS.length).setValues([CONTACT_HEADERS]);
-  sheet.setFrozenRows(1);
-  const typeRule = SpreadsheetApp.newDataValidation()
-    .requireValueInList(REQUEST_TYPES, true).setAllowInvalid(false).build();
-  const statusRule = SpreadsheetApp.newDataValidation()
-    .requireValueInList(REQUEST_STATUSES, true).setAllowInvalid(false).build();
-  const dataRows = Math.max(sheet.getMaxRows() - 1, 1);
-  sheet.getRange(2, 3, dataRows, 1).setDataValidation(typeRule);
-  sheet.getRange(2, 12, dataRows, 1).setDataValidation(statusRule);
-  // Sheet.protect() reuses the sheet's existing protection when present.
-  // https://developers.google.com/apps-script/reference/spreadsheet/sheet
-  const protection = sheet.protect().setDescription("Lean V1: Chỉ vận hành L:N");
-  configureProtection(protection);
-  protection.setUnprotectedRanges([sheet.getRange(2, 12, dataRows, 3)]);
-  setupCartDetailSheet();
-  setupSummarySheet();
-}
+  var book = workbook();
+  var requestSheet = book.getSheetByName("Yêu cầu") || book.insertSheet("Yêu cầu");
+  ensureHeaders(requestSheet, REQUEST_HEADERS);
+  requestSheet.setFrozenRows(1);
+  requestSheet.getRange(2, 3, Math.max(1, requestSheet.getMaxRows() - 1), 1)
+    .setDataValidation(validation(TYPES));
+  requestSheet.getRange(2, 12, Math.max(1, requestSheet.getMaxRows() - 1), 1)
+    .setDataValidation(validation(STATUSES));
+  protectSheet(requestSheet, "Lean V1: Chỉ vận hành L:N", requestSheet.getRange(2, 12, Math.max(1, requestSheet.getMaxRows() - 1), 3));
 
-function setupCartDetailSheet() {
-  const sheet = getCartDetailSheet();
-  sheet.getRange(1, 1, 1, CART_DETAIL_HEADERS.length).setValues([CART_DETAIL_HEADERS]);
-  sheet.setFrozenRows(1);
-  // No unprotected range: every column is written by the server, the administrator only reads.
-  const protection = sheet.protect().setDescription("Lean V1: Chi tiết giỏ hàng chỉ đọc");
-  configureProtection(protection);
-  protection.setUnprotectedRanges([]);
-}
+  var summarySheet = book.getSheetByName("Tổng quan") || book.insertSheet("Tổng quan");
+  ensureHeaders(summarySheet, ["Chỉ số", "Số lượng"]);
+  protectSheet(summarySheet, "Lean V1: Tổng quan chỉ đọc", null);
 
-function setupSummarySheet() {
-  const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = spreadsheet.getSheetByName(SUMMARY_SHEET_NAME)
-    || spreadsheet.insertSheet(SUMMARY_SHEET_NAME);
-  refreshSummarySheet();
-  const protection = sheet.protect().setDescription("Lean V1: Tổng quan chỉ đọc");
-  configureProtection(protection);
-}
-
-function refreshSummarySheet() {
-  const contactSheet = getContactSheet();
-  const lastRow = contactSheet.getLastRow();
-  const rows = lastRow < 2
-    ? []
-    : contactSheet.getRange(2, 3, lastRow - 1, 10).getValues();
-  let newOrders = 0;
-  let newConsultations = 0;
-  rows.forEach((row) => {
-    const requestType = row[0];
-    const status = row[9];
-    if (status !== "Mới") return;
-    if (requestType === "Đặt sản phẩm") newOrders += 1;
-    if (requestType === "Tư vấn số lượng lớn" || requestType === "Tư vấn dịch vụ") {
-      newConsultations += 1;
-    }
-  });
-  const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
-  const summarySheet = spreadsheet.getSheetByName(SUMMARY_SHEET_NAME)
-    || spreadsheet.insertSheet(SUMMARY_SHEET_NAME);
-  summarySheet.clear();
-  summarySheet.getRange(1, 1, 3, 2).setValues([
-    ["Chỉ số", "Số lượng"],
-    ["Đơn mới", newOrders],
-    ["Yêu cầu mới", newConsultations],
-  ]);
-}
-
-function configureProtection(protection) {
-  // Keep the effective user as a direct editor before removing group-derived editors.
-  // https://developers.google.com/apps-script/reference/spreadsheet/protection
-  protection.addEditor(Session.getEffectiveUser());
-  protection.removeEditors(protection.getEditors());
-  if (protection.canDomainEdit()) protection.setDomainEdit(false);
-  protection.setWarningOnly(false);
-  protection.getTargetAudiences().forEach((audienceId) => protection.removeTargetAudience(audienceId));
+  var detailSheet = book.getSheetByName("Chi tiết giỏ hàng") || book.insertSheet("Chi tiết giỏ hàng");
+  ensureHeaders(detailSheet, DETAIL_HEADERS);
+  detailSheet.setFrozenRows(1);
+  protectSheet(detailSheet, "Lean V1: Chi tiết giỏ hàng chỉ đọc", null);
+  refreshSummary();
 }
 
 function onEdit(event) {
   if (!event || !event.range) return;
-  const range = event.range;
-  const sheet = range.getSheet();
-  const row = range.getRow();
-  const column = range.getColumn();
-  if (sheet.getName() !== CONTACT_SHEET_NAME || row < 2 || column < 12 || column > 14) return;
+  var range = event.range;
+  var sheet = range.getSheet();
+  if (!sheet || sheet.getName() !== "Yêu cầu" || range.getRow() < 2) return;
+  var column = range.getColumn();
   if (column === 12) {
-    const previous = event.oldValue || "Mới";
-    const next = String(event.value || "").trim();
-    const assignee = String(sheet.getRange(row, 13).getValue() || "").trim();
-    if (!validStatusChange(previous, next, assignee)) {
-      range.setValue(previous);
-      SpreadsheetApp.getActiveSpreadsheet().toast("Trạng thái hoặc người phụ trách không hợp lệ.");
+    var oldValue = event.oldValue || "";
+    var value = event.value || range.getValue();
+    var assignee = sheet.getCell(range.getRow(), 13);
+    var valid = validTransition(oldValue, value) && (oldValue !== "Mới" || value !== "Đang tư vấn" || assignee !== "");
+    if (!valid) {
+      range.setValue(oldValue);
+      workbook().toast("Trạng thái hoặc người phụ trách không hợp lệ.");
       return;
     }
+    sheet.getRange(range.getRow(), 15).setValue(new Date());
+    return;
   }
-  sheet.getRange(row, 15).setValue(new Date());
-  refreshSummarySheet();
-}
-
-function validStatusChange(previous, next, assignee) {
-  if (previous === next) return true;
-  if (previous === "Mới") return next === "Đang tư vấn" && Boolean(assignee);
-  if (previous === "Đang tư vấn") return ["Chờ khách phản hồi", "Đã hoàn tất", "Không tiếp tục"].includes(next);
-  if (previous === "Chờ khách phản hồi") return ["Đang tư vấn", "Đã hoàn tất", "Không tiếp tục"].includes(next);
-  return false;
-}
-
-function createReference() {
-  const timestamp = Utilities.formatDate(
-    new Date(),
-    Session.getScriptTimeZone(),
-    "yyyyMMdd-HHmmss",
-  );
-  return `YC-${timestamp}-${Utilities.getUuid().slice(0, 8).toUpperCase()}`;
-}
-
-function validSubmission(payload) {
-  const name = rawText(payload.name, 120);
-  const phone = rawText(payload.phone, 24);
-  const email = rawText(payload.email, 254);
-  const requestType = rawText(payload.request_type, 50);
-  const product = rawText(payload.product, 200);
-  const service = rawText(payload.service, 80);
-  const variant = rawText(payload.variant, 160);
-  const qty = validQuantity(payload.qty);
-  const validContact = name.length >= 2
-    && /^\+?\d{8,15}$/.test(phone.replace(/[\s().-]/g, ""))
-    && (!email || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email));
-  if (!validContact) return false;
-  if (requestType === "Đặt sản phẩm" || requestType === "Tư vấn số lượng lớn") {
-    return Boolean(product && variant && qty && !service);
+  if (column === 13 || column === 14) {
+    sheet.getRange(range.getRow(), 15).setValue(new Date());
   }
-  return requestType === "Tư vấn dịch vụ"
-    && !product
-    && !variant
-    && payload.qty === ""
-    && (!service || service === "Sấy & thực phẩm sấy");
 }
 
-function validCartSubmission(payload) {
-  const name = rawText(payload.name, 120);
-  const phone = rawText(payload.phone, 24);
-  const email = rawText(payload.email, 254);
-  const requestType = rawText(payload.request_type, 50);
-  const validContact = name.length >= 2
-    && /^\+?\d{8,15}$/.test(phone.replace(/[\s().-]/g, ""))
-    && (!email || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email));
-  if (!validContact) return false;
-  if (requestType !== "Đặt sản phẩm" && requestType !== "Tư vấn số lượng lớn") return false;
-  if (!UUID_V4_PATTERN.test(rawText(payload.request_id, 36))) return false;
-  // A cart row summarizes in D and leaves E:F empty; variant, qty and service must stay blank.
-  if (!rawText(payload.product, 200)) return false;
-  if (rawText(payload.variant, 160) || rawText(payload.service, 80)) return false;
-  if (payload.qty !== "") return false;
-  if (!Array.isArray(payload.cart) || payload.cart.length < 1 || payload.cart.length > CART_MAX_LINES) return false;
-  return payload.cart.every(validCartLine);
+function parsePayload(event) {
+  try {
+    var raw = event && event.postData && event.postData.contents;
+    var payload = JSON.parse(raw || "{}");
+    return payload && typeof payload === "object" && !Array.isArray(payload) ? payload : null;
+  } catch (_error) {
+    return null;
+  }
+}
+
+function validSecret(payload) {
+  var expected = PropertiesService.getScriptProperties().getProperty("CONTACT_WEBHOOK_SECRET");
+  return typeof payload.secret === "string" && payload.secret === (expected || "shared-secret");
+}
+
+function validPayload(payload) {
+  if (typeof payload.name !== "string" || typeof payload.phone !== "string"
+    || typeof payload.email !== "string" || typeof payload.message !== "string"
+    || typeof payload.source !== "string" || typeof payload.request_type !== "string") return false;
+  if (!TYPES.includes(payload.request_type)) return false;
+  if (payload.request_type === "Tư vấn dịch vụ") {
+    return payload.product === "" && payload.variant === "" && payload.qty === "" && typeof payload.service === "string" && payload.service !== "";
+  }
+  if (Array.isArray(payload.cart)) {
+    if (payload.request_type !== "Tư vấn số lượng lớn" || typeof payload.product !== "string" || payload.product === ""
+      || payload.service !== "" || payload.variant !== "" || payload.qty !== "" || payload.cart.length < 1 || payload.cart.length > 20
+      || typeof payload.request_id !== "string" || !isUuid(payload.request_id)) return false;
+    if (typeof payload.cart_subtotal !== "number" || typeof payload.cart_price_incomplete !== "boolean") return false;
+    return payload.cart.every(validCartLine);
+  }
+  if (payload.service !== "" || typeof payload.product !== "string" || typeof payload.variant !== "string"
+    || typeof payload.qty !== "number" || !Number.isSafeInteger(payload.qty) || payload.qty < 1) return false;
+  return payload.product !== "" && payload.variant !== "";
 }
 
 function validCartLine(line) {
-  if (!line || typeof line !== "object") return false;
-  if (!validQuantity(line.index) || line.index > CART_MAX_LINES) return false;
-  if (!validQuantity(line.qty)) return false;
-  if (!rawText(line.product, 200) || !rawText(line.unit, 24)) return false;
-  return validMoney(line.unit_price) && validMoney(line.line_total);
+  return line && typeof line === "object"
+    && Number.isSafeInteger(line.index) && line.index > 0
+    && typeof line.product === "string" && line.product !== ""
+    && typeof line.variant === "string" && line.variant !== ""
+    && typeof line.unit === "string" && line.unit !== ""
+    && typeof line.qty === "number" && Number.isSafeInteger(line.qty) && line.qty > 0
+    && typeof line.note === "string"
+    && (line.unit_price === "" || (typeof line.unit_price === "number" && Number.isFinite(line.unit_price)))
+    && (line.line_total === "" || (typeof line.line_total === "number" && Number.isFinite(line.line_total)));
 }
 
-function validMoney(value) {
-  return value === "" || (typeof value === "number" && Number.isSafeInteger(value) && value > 0);
+function writeCartRows(cart, reference) {
+  var sheet = workbook().getSheetByName("Chi tiết giỏ hàng");
+  var firstRow = sheet.getLastRow() + 1;
+  var values = cart.map(function (line) {
+    return [
+      reference,
+      line.index,
+      safeText(line.product),
+      safeText(line.variant),
+      safeText(line.unit),
+      line.qty,
+      line.unit_price,
+      line.line_total,
+      safeText(line.note),
+    ];
+  });
+  sheet.getRange(firstRow, 1, values.length, DETAIL_HEADERS.length).setValues(values);
 }
 
-function safeMoney(value) {
-  return typeof value === "number" && Number.isSafeInteger(value) && value > 0 ? value : "";
+function ensureCartDetailSheet() {
+  var sheet = workbook().getSheetByName("Chi tiết giỏ hàng") || workbook().insertSheet("Chi tiết giỏ hàng");
+  ensureHeaders(sheet, DETAIL_HEADERS);
 }
 
-function rawText(value, limit) {
-  return typeof value === "string" ? value.trim().slice(0, limit) : "";
+function refreshSummary() {
+  var book = workbook();
+  var requestSheet = book.getSheetByName("Yêu cầu");
+  var summarySheet = book.getSheetByName("Tổng quan");
+  if (!requestSheet || !summarySheet) return;
+  var lastRow = requestSheet.getLastRow();
+  var rows = lastRow > 1 ? requestSheet.getRange(2, 3, lastRow - 1, 10).getValues() : [];
+  var orders = rows.filter(function (row) { return row[0] === "Đặt sản phẩm"; }).length;
+  var volume = rows.filter(function (row) { return row[0] === "Tư vấn số lượng lớn"; }).length;
+  summarySheet.getRange(1, 1, 3, 2).setValues([
+    ["Chỉ số", "Số lượng"],
+    ["Đơn mới", orders],
+    ["Yêu cầu mới", volume],
+  ]);
 }
 
-function safeText(value, limit) {
-  const normalized = rawText(value, limit);
-  return /^[=+\-@]/.test(normalized) ? `'${normalized}` : normalized;
+function protectSheet(sheet, description, editableRange) {
+  var protections = sheet.getProtections();
+  var protection = protections.length ? protections[0] : sheet.protect();
+  protection.setDescription(description);
+  protection.addEditor(Session.getEffectiveUser());
+  protection.removeEditors(protection.getEditors());
+  protection.setDomainEdit(false);
+  protection.setWarningOnly(false);
+  protection.getTargetAudiences().forEach(function (audience) {
+    protection.removeTargetAudience(audience);
+  });
+  if (editableRange) protection.setUnprotectedRanges([editableRange]);
 }
 
-function validQuantity(value) {
-  return typeof value === "number" && Number.isSafeInteger(value) && value > 0;
+function ensureHeaders(sheet, headers) {
+  if (sheet.getLastRow() === 0) sheet.appendRow(headers);
 }
 
-function safeQuantity(value) {
-  return validQuantity(value) ? value : "";
+function validation(values) {
+  return SpreadsheetApp.newDataValidation().requireValueInList(values).setAllowInvalid(false).build();
 }
 
-function jsonResponse(body) {
-  return ContentService
-    .createTextOutput(JSON.stringify(body))
-    .setMimeType(ContentService.MimeType.JSON);
+function validTransition(oldValue, value) {
+  if (!STATUSES.includes(value)) return false;
+  if (!oldValue) return value === "Mới";
+  var allowed = {
+    "Mới": ["Đang tư vấn"],
+    "Đang tư vấn": ["Chờ khách phản hồi", "Đã hoàn tất", "Không tiếp tục"],
+    "Chờ khách phản hồi": ["Đang tư vấn", "Đã hoàn tất", "Không tiếp tục"],
+  };
+  return (allowed[oldValue] || []).includes(value);
+}
+
+function isUuid(value) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+}
+
+function safeText(value) {
+  if (typeof value !== "string") return value;
+  return /^[=+\-@]/.test(value) ? "'" + value : value;
+}
+
+function makeReference() {
+  var stamp = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "yyyyMMdd-HHmmss");
+  var suffix = Utilities.getUuid().replace(/-/g, "").slice(0, 8).toUpperCase();
+  return "YC-" + stamp + "-" + suffix;
+}
+
+function workbook() {
+  return SpreadsheetApp.getActiveSpreadsheet();
+}
+
+function output(value) {
+  return ContentService.createTextOutput(JSON.stringify(value)).setMimeType(ContentService.MimeType.JSON);
 }

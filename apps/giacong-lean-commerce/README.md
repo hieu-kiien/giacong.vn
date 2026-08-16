@@ -1,44 +1,51 @@
-# Giacong.vn — Lean B2B Demo
+# Giacong.vn
 
-Website giới thiệu và nhận yêu cầu B2B. Khách xem sản phẩm/dịch vụ, chọn quy cách và gửi yêu cầu; quản trị viên dùng Bagisto để quản lý catalog, giá, tồn kho và nội dung. Yêu cầu được ghi vào Google Sheet.
+Storefront B2B cho dịch vụ gia công và catalog sản phẩm. Khách có thể xem nội dung, chọn sản phẩm/quy cách, tạo request cart và gửi yêu cầu báo giá. Admin quản lý catalog, lead, media R2 và nội dung/branding website.
 
-## Thành phần
+## Kiến trúc
 
-- **Storefront:** Next.js 16; production target là **Cloudflare Workers qua OpenNext**.
-- **Quản trị:** Bagisto — local mở qua cùng origin Next tại `http://localhost:4317/admin`; production giữ cùng public origin và proxy về Bagisto private origin.
-- **Yêu cầu:** Google Sheet + Apps Script. Không có thanh toán, checkout hay tài khoản khách.
+- **Storefront/admin:** Next.js 16 App Router, React 19.
+- **Runtime production:** Cloudflare Workers qua OpenNext.
+- **Data:** Cloudflare D1; D1 là source of truth cho catalog, lead, audit log và CMS.
+- **Media:** Cloudflare R2, metadata và checksum lưu trong D1.
+- **Lead delivery:** Cloudflare Queues tới webhook/Google Apps Script sau khi D1 ghi thành công.
+- **Admin security:** Cloudflare Access ở production; staging public mode chỉ được bật trên host allowlist.
+- **Hostname chính:** `kienhieu.id.vn`; Giacong.vn là thương hiệu.
 
-Kiến trúc production đã khóa tại [docs/CLOUDFLARE_DEPLOYMENT.md](./docs/CLOUDFLARE_DEPLOYMENT.md). Vercel không thuộc đường production của Lean V1.
+## Chạy và kiểm tra
 
-## Chạy trên máy mới
+Từ workspace root:
 
-Workspace hiện tại đặt ứng dụng ở `apps/giacong-lean-commerce`. Cần Git, Docker Desktop, Node.js 24 và Composer. Bagisto được chuẩn bị trước, sau đó chạy website. Hướng dẫn local chi tiết nằm trong [SETUP.md](./SETUP.md).
-
-## Kiểm tra nhanh local
-
-Sau khi chạy xong, mở:
-
-- `http://localhost:4317/san-pham` — catalog khách hàng.
-- `http://localhost:4317/gui-yeu-cau` — giỏ và form gửi yêu cầu.
-- `http://localhost:4317/admin` — Bagisto Admin qua cùng origin.
-
-## Kiểm tra ứng dụng
-
-```powershell
-npm run check
+```bash
+pnpm --filter @workspace/web run dev
+pnpm --filter @workspace/web run check
+pnpm --filter @workspace/web run cf:build
+pnpm --filter @workspace/web run qa:captured
+pnpm --filter @workspace/web run qa:catalog
+pnpm --filter @workspace/web run qa:services
 ```
 
-## Build/preview Cloudflare
+Local storefront chạy qua workflow `artifacts/web: web`. Local admin có thể bị Access guard chặn; dùng staging host để kiểm tra CMS public demo.
 
-```powershell
-npm run cf:build
-npm run cf:preview
+## D1 migrations
+
+```bash
+pnpm --filter @workspace/web exec wrangler d1 migrations apply giacong-vn-catalog --local
+pnpm --filter @workspace/web exec wrangler d1 migrations apply giacong-vn-catalog-staging --remote --env staging
 ```
 
-Deploy chỉ thực hiện sau khi Cloudflare account và production vars/secrets đã được cấu hình:
+Migration mới phải được apply trước khi deploy code sử dụng bảng mới. Production migration cần được thực hiện có kiểm soát trong quy trình publish.
 
-```powershell
-npm run cf:deploy
-```
+## CMS nội dung & thương hiệu
 
-Không đưa `.env`, `.env.local`, `.dev.vars` hoặc secret Cloudflare/Google lên GitHub. Thông tin vận hành chi tiết: [docs/README.md](./docs/README.md).
+Mở `/admin/noi-dung` để chỉnh sửa:
+
+- logo, favicon, ảnh hero và màu thương hiệu;
+- SEO title/description;
+- hero, CTA, phần giới thiệu;
+- hotline, email, Zalo, Messenger, địa chỉ;
+- nội dung footer.
+
+CMS dùng typed settings, draft/published tách biệt, optimistic versioning, audit log và R2 upload cho ảnh. Public storefront tuyệt đối chỉ đọc `published_value`.
+
+Không đưa `.env`, `.env.local`, `.dev.vars` hoặc secret Cloudflare/Google lên GitHub. Kiến trúc vận hành chi tiết nằm trong thư mục `docs/`.

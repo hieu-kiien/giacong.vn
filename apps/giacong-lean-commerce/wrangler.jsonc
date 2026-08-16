@@ -1,14 +1,66 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
   "name": "giacong-vn",
-  "main": ".open-next/worker.js",
+  "main": "custom-worker.ts",
   "compatibility_date": "2026-08-14",
   "compatibility_flags": ["nodejs_compat"],
   "keep_vars": true,
-  "workers_dev": true,
+  "workers_dev": false,
+  "routes": [
+    {
+      "pattern": "kienhieu.id.vn/*",
+      "zone_name": "kienhieu.id.vn"
+    },
+    {
+      "pattern": "admin.kienhieu.id.vn/*",
+      "zone_name": "kienhieu.id.vn"
+    }
+  ],
+  "vars": {
+    "ADMIN_HOSTNAME": "admin.kienhieu.id.vn",
+    "ADMIN_HOSTNAMES": "admin.kienhieu.id.vn",
+    "ADMIN_PUBLIC": "false",
+    "TEAM_DOMAIN": "https://jolly-brook-7bc8.cloudflareaccess.com",
+    "POLICY_AUD": "3a6f8119b3824e5b5b50ba6830f697f1ac8e998bb0246307310b74c91073f35f"
+  },
   "assets": {
     "directory": ".open-next/assets",
     "binding": "ASSETS"
+  },
+  "d1_databases": [
+    {
+      "binding": "GIACONG_VN_CATALOG",
+      "database_name": "giacong-vn-catalog",
+      "database_id": "f6aabba5-e19b-4c7f-ad87-3b40e84b9bf6",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "GIACONG_VN_PRODUCT_MEDIA",
+      "bucket_name": "giacong-vn-product-media"
+    },
+    {
+      "binding": "NEXT_INC_CACHE_R2_BUCKET",
+      "bucket_name": "giacong-vn-next-cache"
+    }
+  ],
+  "queues": {
+    "producers": [
+      {
+        "binding": "GIACONG_VN_LEAD_QUEUE",
+        "queue": "giacong-vn-leads"
+      }
+    ],
+    "consumers": [
+      {
+        "queue": "giacong-vn-leads",
+        "max_batch_size": 10,
+        "max_batch_timeout": 30,
+        "max_retries": 3,
+        "dead_letter_queue": "giacong-vn-leads-dlq"
+      }
+    ]
   },
   "observability": {
     "enabled": true
@@ -18,15 +70,21 @@
       "name": "giacong-vn-staging",
       "routes": [
         {
+          "pattern": "staging.kienhieu.id.vn/*",
+          "zone_name": "kienhieu.id.vn"
+        },
+        {
           "pattern": "admin-staging.kienhieu.id.vn/*",
           "zone_name": "kienhieu.id.vn"
         }
       ],
-      // Non-secret identifiers audited from the staging Cloudflare Access app.
-      // The Worker still verifies every assertion cryptographically against JWKS.
-      // Production deliberately has no copied Access identity inputs in this phase.
+      // Staging is intentionally public for the demo; the Access identifiers are
+      // retained so the Worker can be re-locked later without a code redesign.
       "vars": {
         "ADMIN_HOSTNAME": "admin-staging.kienhieu.id.vn",
+        "ADMIN_HOSTNAMES": "admin-staging.kienhieu.id.vn",
+        "ADMIN_PUBLIC": "true",
+        "ADMIN_PUBLIC_SUBJECT": "public-demo",
         "TEAM_DOMAIN": "https://jolly-brook-7bc8.cloudflareaccess.com",
         "POLICY_AUD": "3a6f8119b3824e5b5b50ba6830f697f1ac8e998bb0246307310b74c91073f35f"
       },
@@ -38,7 +96,8 @@
         {
           "binding": "GIACONG_VN_CATALOG",
           "database_name": "giacong-vn-catalog-staging",
-          "database_id": "981b5d5e-bba9-4f7e-9e1e-a15e379cd095"
+          "database_id": "981b5d5e-bba9-4f7e-9e1e-a15e379cd095",
+          "migrations_dir": "migrations"
         }
       ],
       "r2_buckets": [
@@ -51,6 +110,23 @@
           "bucket_name": "giacong-vn-next-cache-staging"
         }
       ],
+      "queues": {
+        "producers": [
+          {
+            "binding": "GIACONG_VN_LEAD_QUEUE",
+            "queue": "giacong-vn-leads-staging"
+          }
+        ],
+        "consumers": [
+          {
+            "queue": "giacong-vn-leads-staging",
+            "max_batch_size": 10,
+            "max_batch_timeout": 30,
+            "max_retries": 3,
+            "dead_letter_queue": "giacong-vn-leads-staging-dlq"
+          }
+        ]
+      },
       "observability": {
         "enabled": true
       }

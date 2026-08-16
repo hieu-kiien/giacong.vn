@@ -42,23 +42,29 @@ export function RequestCartView() {
    */
   useEffect(() => {
     const read = readRequestCart(window.localStorage);
-    setStorageNotice(hydrationNotice(read));
-    setCart(read.state);
+    queueMicrotask(() => {
+      setStorageNotice(hydrationNotice(read));
+      setCart(read.state);
+    });
   }, []);
 
   const linesKey = cart ? JSON.stringify(toRequestCartKeys(cart)) : "";
 
   useEffect(() => {
     if (!cart || cart.lines.length === 0) {
-      setResolved(null);
-      setError(null);
-      setPending(false);
-      lastResolved.current = null;
+      queueMicrotask(() => {
+        setResolved(null);
+        setError(null);
+        setPending(false);
+        lastResolved.current = null;
+      });
       return;
     }
 
     const controller = new AbortController();
-    setPending(true);
+    queueMicrotask(() => {
+      if (!controller.signal.aborted) setPending(true);
+    });
     void (async () => {
       try {
         const response = await fetch(REQUEST_CART_REVALIDATE_ENDPOINT, {

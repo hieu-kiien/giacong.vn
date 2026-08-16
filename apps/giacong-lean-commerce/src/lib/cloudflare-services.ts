@@ -27,8 +27,8 @@ interface ServiceRow {
 
 /**
  * Static service taxonomy remains the fallback while editable copy can live in D1.
- * The current staging `services` table is empty, so this is deliberately additive:
- * no service page becomes unavailable just because managed content has not migrated.
+ * This is deliberately additive: no service page becomes unavailable just because
+ * managed content has not been migrated or a managed row is inactive.
  */
 export async function getManagedServiceFamily(slug: string): Promise<ServiceFamily | undefined> {
   const fallback = getServiceFamily(slug);

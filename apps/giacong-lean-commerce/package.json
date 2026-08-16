@@ -1,5 +1,5 @@
 {
-  "name": "giacong-lean-commerce",
+  "name": "@workspace/web",
   "version": "0.1.0",
   "private": true,
   "description": "Lean V1 B2B storefront with Cloudflare-native catalog/media and Google Sheet request intake",
@@ -8,12 +8,12 @@
     "node": ">=24"
   },
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev -H 0.0.0.0 -p ${PORT:-3000}",
     "build": "next build --webpack",
-    "start": "next start",
+    "start": "next start -H 0.0.0.0 -p ${PORT:-3000}",
     "lint": "eslint",
     "typecheck": "next typegen && tsc --noEmit",
-    "test:admin": "node --no-warnings --experimental-strip-types --test scripts/admin-access.test.mts scripts/admin-access-source-contract.test.mjs scripts/admin-session.test.mts",
+    "test:admin": "node --no-warnings --experimental-strip-types --test scripts/admin-access.test.mts scripts/admin-access-source-contract.test.mjs scripts/admin-session.test.mts scripts/site-settings.test.mts",
     "test:catalog": "node --no-warnings --experimental-strip-types --test scripts/catalog-contract.test.mts scripts/bagisto-api-timeout.test.mts",
     "test:catalog-purchase-ui": "node --no-warnings --experimental-strip-types --test scripts/catalog-purchase-ui.test.mts",
     "test:service": "node --no-warnings --experimental-strip-types --test scripts/service-contract.test.mts scripts/service-cms-contract.test.mts scripts/contact-form-context.test.mts",
@@ -21,7 +21,7 @@
     "test:header": "node --no-warnings --experimental-strip-types --test scripts/commerce-header.test.mts",
     "test:listing": "node --no-warnings --experimental-strip-types --test scripts/catalog-listing.test.mts",
     "test:detail": "node --no-warnings --experimental-strip-types --test scripts/product-detail.test.mts",
-    "test:contact": "node --no-warnings --experimental-strip-types --test scripts/contact-webhook.test.mts scripts/development-port.test.mjs scripts/google-apps-script-template.test.mjs scripts/request-cart-client.test.mts scripts/request-cart-storage.test.mts scripts/request-cart.test.mts",
+    "test:contact": "node --no-warnings --experimental-strip-types --test scripts/contact-webhook.test.mts scripts/development-port.test.mjs scripts/google-apps-script-template.test.mjs scripts/lead-queue.test.mts scripts/media-contract.test.mts scripts/request-cart-client.test.mts scripts/request-cart-storage.test.mts scripts/request-cart.test.mts",
     "qa:captured": "node scripts/verify-captured-routes.mjs",
     "qa:catalog": "node scripts/verify-catalog-storefront.mjs",
     "qa:services": "node scripts/verify-service-ia.mjs",

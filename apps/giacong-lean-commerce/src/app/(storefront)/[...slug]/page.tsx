@@ -4,7 +4,10 @@ import { join } from "node:path";
 import { notFound } from "next/navigation";
 import { cache } from "react";
 import { CapturedPage } from "@/components/CapturedPage";
+import { getPublishedSiteSettings } from "@/lib/site-settings";
 import type { CapturedPageData } from "@/types/captured-page";
+
+export const dynamic = "force-dynamic";
 
 interface CapturedRouteProps {
   params: Promise<{ slug: string[] }>;
@@ -26,10 +29,16 @@ async function readCapturedRoute(params: CapturedRouteProps["params"]): Promise<
 
 export async function generateMetadata({ params }: CapturedRouteProps): Promise<Metadata> {
   const data = await readCapturedRoute(params);
-  return { title: data.title, description: data.description };
+  const settings = await getPublishedSiteSettings();
+  return {
+    title: data.title || settings.site_title,
+    description: data.description || settings.site_description,
+    icons: settings.favicon_url ? { icon: settings.favicon_url } : undefined,
+  };
 }
 
 export default async function CapturedRoute({ params }: CapturedRouteProps) {
   const data = await readCapturedRoute(params);
-  return <CapturedPage {...data} />;
+  const settings = await getPublishedSiteSettings();
+  return <CapturedPage {...data} siteSettings={settings} />;
 }

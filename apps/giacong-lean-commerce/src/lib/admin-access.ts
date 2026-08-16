@@ -2,12 +2,17 @@ import { createRemoteJWKSet, jwtVerify } from "jose";
 
 export interface AdminAccessConfig {
   adminHostname: string;
+  additionalAdminHostnames?: string[];
   policyAudience: string;
   teamDomain: string;
+  publicAdmin?: boolean;
+  publicSubject?: string;
 }
 
 export interface AdminActor {
+  email?: string;
   subject: string;
+  publicAdmin?: boolean;
 }
 
 export type AdminAdmissionFailureCode = "FORBIDDEN" | "INTERNAL_ERROR" | "NOT_FOUND";
@@ -22,6 +27,7 @@ export type AdminAdmissionResult =
     };
 
 interface VerifiedAccessClaims {
+  email?: string;
   subject: string;
 }
 
@@ -32,17 +38,22 @@ export type AccessTokenVerifier = (
 
 export interface NormalizedAdminAccessConfig {
   adminHostname: string;
+  adminHostnames: string[];
   adminOrigin: string;
+  adminOrigins: string[];
   policyAudience: string;
   teamDomain: string;
+  publicAdmin: boolean;
+  publicSubject: string;
 }
 
 const mutationMethods = new Set(["DELETE", "PATCH", "POST", "PUT"]);
 const jwksByTeamDomain = new Map<string, ReturnType<typeof createRemoteJWKSet>>();
 
 /**
- * Admits a request only when it targets the exact admin host, is same-origin for
- * mutations, and carries a cryptographically valid Cloudflare Access JWT.
+ * Admits a request only when it targets the exact admin host and is same-origin
+ * for mutations. Staging may explicitly opt into public demo access through
+ * ADMIN_PUBLIC; production remains JWT-protected unless separately configured.
  */
 export async function admitAdminRequest(
   request: Request,
@@ -61,15 +72,25 @@ export async function admitAdminRequest(
     return failure(404, "NOT_FOUND", "Không tìm thấy.");
   }
 
-  if (requestUrl.protocol !== "https:" || requestUrl.hostname.toLowerCase() !== config.adminHostname) {
+  if (requestUrl.protocol !== "https:" || !config.adminHostnames.includes(requestUrl.hostname.toLowerCase())) {
     return failure(404, "NOT_FOUND", "Không tìm thấy.");
   }
 
   if (mutationMethods.has(request.method.toUpperCase())) {
     const origin = request.headers.get("origin")?.trim() ?? "";
-    if (origin !== config.adminOrigin) {
+    if (!config.adminOrigins.includes(origin)) {
       return failure(403, "FORBIDDEN", "Yêu cầu quản trị không được phép.");
     }
+  }
+
+  if (config.publicAdmin) {
+    return {
+      actor: {
+        publicAdmin: true,
+        subject: config.publicSubject,
+      },
+      ok: true,
+    };
   }
 
   const token = request.headers.get("cf-access-jwt-assertion")?.trim() ?? "";
@@ -82,7 +103,13 @@ export async function admitAdminRequest(
     if (!claims.subject) {
       return failure(401, "FORBIDDEN", "Phiên quản trị không hợp lệ.");
     }
-    return { actor: { subject: claims.subject }, ok: true };
+    return {
+      actor: {
+        ...(claims.email ? { email: claims.email } : {}),
+        subject: claims.subject,
+      },
+      ok: true,
+    };
   } catch {
     return failure(401, "FORBIDDEN", "Phiên quản trị không hợp lệ.");
   }
@@ -106,15 +133,22 @@ export async function verifyCloudflareAccessToken(
 
   const subject = typeof payload.sub === "string" ? payload.sub.trim() : "";
   if (!subject) throw new Error("Access JWT missing subject");
-  return { subject };
+  const email = typeof payload.email === "string" ? payload.email.trim().toLowerCase() : undefined;
+  return { email, subject };
 }
 
 export function normalizeAdminAccessConfig(
   config: AdminAccessConfig,
 ): NormalizedAdminAccessConfig | null {
-  const adminHostname = config.adminHostname.trim().toLowerCase();
+  const adminHostnames = [config.adminHostname, ...(config.additionalAdminHostnames ?? [])]
+    .map((hostname) => hostname.trim().toLowerCase())
+    .filter(Boolean);
+  if (adminHostnames.length === 0 || adminHostnames.some((hostname) => !validHostname(hostname))) return null;
+
+  const uniqueAdminHostnames = [...new Set(adminHostnames)];
+  const adminHostname = uniqueAdminHostnames[0];
   const policyAudience = config.policyAudience.trim();
-  if (!validHostname(adminHostname) || !validAudience(policyAudience)) return null;
+  if (!validAudience(policyAudience)) return null;
 
   let teamUrl: URL;
   try {
@@ -137,10 +171,19 @@ export function normalizeAdminAccessConfig(
   const teamDomain = teamUrl.origin;
   return {
     adminHostname,
+    adminHostnames: uniqueAdminHostnames,
     adminOrigin: `https://${adminHostname}`,
+    adminOrigins: uniqueAdminHostnames.map((hostname) => `https://${hostname}`),
     policyAudience,
     teamDomain,
+    publicAdmin: config.publicAdmin === true,
+    publicSubject: normalizePublicSubject(config.publicSubject),
   };
+}
+
+function normalizePublicSubject(value: string | undefined): string {
+  const subject = value?.trim() ?? "";
+  return subject || "public-demo";
 }
 
 function getRemoteJwks(teamDomain: string): ReturnType<typeof createRemoteJWKSet> {
