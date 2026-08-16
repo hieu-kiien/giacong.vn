@@ -1,0 +1,41 @@
+name: Day 2 Cloudflare IP rule diagnostic v2
+
+on:
+  push:
+    branches: [feat/cloudflare-admin-category-api]
+    paths:
+      - .github/workflows/day2-cloudflare-ip-rule-diagnostic-v2.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  diagnostic:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - name: Test accepted IP rule payload variants
+        shell: bash
+        run: |
+          set -euo pipefail
+          ip="$(curl -fsS https://api.ipify.org)"
+          endpoint="https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/firewall/access_rules/rules"
+          for label in explicit-ip whitelist omit-target challenge; do
+            case "$label" in
+              explicit-ip) body="$(jq -nc --arg ip "$ip" '{configuration:{target:"ip",value:$ip},mode:"challenge",notes:"Day2 diagnostic"}')";;
+              whitelist) body="$(jq -nc --arg ip "$ip" '{configuration:{target:"ip",value:$ip},mode:"whitelist",notes:"Day2 diagnostic"}')";;
+              omit-target) body="$(jq -nc --arg ip "$ip" '{configuration:{value:$ip},mode:"whitelist",notes:"Day2 diagnostic"}')";;
+              challenge) body="$(jq -nc --arg ip "$ip" '{configuration:{target:"ip",value:$ip},mode:"challenge",notes:"Day2 diagnostic"}')";;
+            esac
+            echo "--- $label ---"
+            response="$(curl -sS -X POST -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" -H 'Content-Type: application/json' "$endpoint" --data "$body")"
+            echo "$response" | jq '{success,errors,messages,result:(.result|if . == null then null else {id,mode,configuration,allowed_modes,notes} end)}'
+            id="$(echo "$response" | jq -r '.result.id // empty')"
+            if [ -n "$id" ]; then
+              curl -sS -X DELETE -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "$endpoint/$id" | jq '{success,errors,messages}'
+            fi
+          done
