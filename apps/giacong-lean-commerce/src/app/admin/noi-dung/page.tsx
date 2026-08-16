@@ -1,6 +1,6 @@
 "use client";
 
-import { Eye, Image as ImageIcon, Palette, RefreshCw, Save, Send, ShieldCheck, Upload } from "lucide-react";
+import { Eye, Image as ImageIcon, Palette, RefreshCw, Save, Send, SendHorizonal, ShieldCheck, Upload } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { AdminErrorState, AdminPageHeading, AdminStatusBadge } from "@/components/admin/AdminPrimitives";
 import { useAdminSession } from "@/components/admin/AdminShell";
@@ -41,6 +41,7 @@ export default function AdminContentPage() {
   const [unsavedKeys, setUnsavedKeys] = useState<Set<string>>(new Set());
   const [notice, setNotice] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
+  const [publishingAll, setPublishingAll] = useState(false);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -141,11 +142,35 @@ export default function AdminContentPage() {
         body: { key: setting.key, expectedVersion: setting.version },
       });
       setSettings((current) => current.map((item) => item.key === setting.key ? result.setting : item));
-      setNotice(`Đã phát hành “${setting.label}” ra website.`);
+      setNotice(`Đã phát hành "${setting.label}" ra website.`);
     } catch (reason: unknown) {
       setError(reason instanceof AdminClientError ? reason : new AdminClientError("Không thể phát hành nội dung.", 0));
     } finally {
       setPublishingKey(null);
+    }
+  }
+
+  async function publishAll() {
+    setPublishingAll(true);
+    setNotice(null);
+    try {
+      const result = await mutateAdmin<{ published: AdminSiteSetting[]; skipped: number; count: number }>(
+        "/api/admin/site-settings/publish-all",
+        { method: "POST", body: {} },
+      );
+      if (result.published.length > 0) {
+        const map = new Map(result.published.map((item) => [item.key, item]));
+        setSettings((current) => current.map((item) => map.get(item.key) ?? item));
+      }
+      if (result.count === 0) {
+        setNotice("Không có bản nháp nào cần phát hành.");
+      } else {
+        setNotice(`Đã phát hành ${result.count} thay đổi ra storefront.${result.skipped > 0 ? ` (${result.skipped} bị bỏ qua do xung đột)` : ""}`);
+      }
+    } catch (reason: unknown) {
+      setError(reason instanceof AdminClientError ? reason : new AdminClientError("Không thể phát hành tất cả thay đổi.", 0));
+    } finally {
+      setPublishingAll(false);
     }
   }
 
@@ -165,6 +190,18 @@ export default function AdminContentPage() {
         <div className="admin-content-toolbar-actions">
           <AdminStatusBadge kind={canEdit ? "green" : "neutral"} value={canEdit ? "Có quyền chỉnh sửa" : "Chỉ xem"} />
           <button className="admin-button admin-button-quiet" data-testid="button-content-refresh" onClick={() => setAttempt((value) => value + 1)} type="button"><RefreshCw size={14} /> Tải lại</button>
+          {canEdit ? (
+            <button
+              className="admin-button admin-button-primary"
+              data-testid="button-publish-all"
+              disabled={publishingAll || unsavedKeys.size > 0 || !settings.some((setting) => setting.dirty)}
+              onClick={() => void publishAll()}
+              type="button"
+            >
+              <SendHorizonal size={14} />
+              {publishingAll ? "Đang phát hành..." : "Phát hành tất cả"}
+            </button>
+          ) : null}
         </div>
       </div>
       {notice ? <div className="admin-content-notice" role="status">{notice}</div> : null}

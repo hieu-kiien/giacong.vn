@@ -146,6 +146,43 @@ export async function publishAdminSiteSetting(
   return toAdminSiteSetting(await getSettingRowOrThrow(database, definition.key));
 }
 
+export async function publishAllAdminSiteSettings(
+  database: D1DatabaseLike,
+  input: { actorSubject: string },
+): Promise<{ published: AdminSiteSetting[]; skipped: number }> {
+  const rows = await database.prepare(`
+    SELECT setting_key, group_name, label, description, value_type,
+      draft_value, published_value, version, updated_by, updated_at, published_by, published_at
+    FROM site_settings
+    WHERE draft_value <> published_value
+    ORDER BY setting_key
+  `).all<SiteSettingRow>();
+
+  if (rows.results.length === 0) return { published: [], skipped: 0 };
+
+  const published: AdminSiteSetting[] = [];
+  let skipped = 0;
+
+  for (const row of rows.results) {
+    const result = await database.prepare(`
+      UPDATE site_settings
+      SET published_value = draft_value, version = version + 1,
+        published_by = ?, published_at = CURRENT_TIMESTAMP,
+        updated_by = ?, updated_at = CURRENT_TIMESTAMP
+      WHERE setting_key = ? AND version = ?
+    `).bind(input.actorSubject, input.actorSubject, row.setting_key, row.version).run();
+    if (!hasChanged(result)) { skipped++; continue; }
+    await writeSiteAudit(database, input.actorSubject, "site_setting.published", row.setting_key, {
+      bulkPublish: true,
+      previousPublishedValue: row.published_value,
+    });
+    const updated = await getSettingRow(database, row.setting_key);
+    if (updated) published.push(toAdminSiteSetting(updated));
+  }
+
+  return { published, skipped };
+}
+
 export async function getPublishedSiteSettings(): Promise<PublishedSiteSettings> {
   try {
     const database = await getSiteDatabase();
