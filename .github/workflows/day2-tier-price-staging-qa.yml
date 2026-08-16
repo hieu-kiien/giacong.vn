@@ -12,12 +12,31 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       CLOUDFLARE_ACCESS_CLIENT_ID: ${{ secrets.CLOUDFLARE_ACCESS_CLIENT_ID }}
       CLOUDFLARE_ACCESS_CLIENT_SECRET: ${{ secrets.CLOUDFLARE_ACCESS_CLIENT_SECRET }}
       ADMIN_ORIGIN: https://admin-staging.kienhieu.id.vn
     steps:
       - uses: actions/checkout@v4
-      - name: Diagnose protected staging GET
+      - name: Inspect Cloudflare staging security configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+          zone="$(curl -fsS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "https://api.cloudflare.com/client/v4/zones?name=kienhieu.id.vn&status=active")"
+          echo "$zone" | jq -e '.success == true and (.result|length >= 1)' >/dev/null
+          zone_id="$(echo "$zone" | jq -r '.result[0].id')"
+          echo "ZONE_ID=$zone_id"
+          echo '--- custom firewall rulesets ---'
+          curl -fsS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "https://api.cloudflare.com/client/v4/zones/$zone_id/rulesets" \
+            | jq '{success,errors,result:[.result[]|{id,name,kind,phase,version,rules:[.rules[]?|{id,action,expression,description,enabled}]}]}'
+          echo '--- custom phase entrypoint ---'
+          curl -fsS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "https://api.cloudflare.com/client/v4/zones/$zone_id/rulesets/phases/http_request_firewall_custom/entrypoint" \
+            | jq '{success,errors,result:(.result|{id,kind,phase,version,rules:[.rules[]?|{id,action,expression,description,enabled,action_parameters}]})}'
+          echo '--- managed phase entrypoint ---'
+          curl -fsS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "https://api.cloudflare.com/client/v4/zones/$zone_id/rulesets/phases/http_request_firewall_managed/entrypoint" \
+            | jq '{success,errors,result:(.result|{id,kind,phase,version,rules:[.rules[]?|{id,action,expression,description,enabled,action_parameters}]})}'
+      - name: Confirm current Access credentials reach the edge
         shell: bash
         run: |
           set -euo pipefail
@@ -29,7 +48,5 @@ jobs:
             -o /tmp/response.json -w '%{http_code}' \
             "$ADMIN_ORIGIN/api/admin/variants/10")"
           echo "HTTP_STATUS=$status"
-          echo 'RESPONSE_BODY='
-          cat /tmp/response.json
+          head -c 1000 /tmp/response.json || true
           echo
-          exit 1
