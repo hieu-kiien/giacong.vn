@@ -1,0 +1,65 @@
+name: Day 2 Cloudflare Browser Run diagnostic v2
+
+on:
+  push:
+    branches: [feat/cloudflare-admin-category-api]
+    paths:
+      - .github/workflows/day2-cloudflare-browser-run-diagnostic-v2.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCESS_CLIENT_ID: ${{ secrets.CLOUDFLARE_ACCESS_CLIENT_ID }}
+      CLOUDFLARE_ACCESS_CLIENT_SECRET: ${{ secrets.CLOUDFLARE_ACCESS_CLIENT_SECRET }}
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Deploy temporary Browser Run worker
+        shell: bash
+        run: |
+          set -euo pipefail
+          WORKER="giacong-day2-browser2-${GITHUB_RUN_ID}"
+          trap 'npx --yes wrangler@4.36.0 delete --name "$WORKER" --force || true' EXIT
+          mkdir -p /tmp/day2-browser && cd /tmp/day2-browser
+          npm init -y >/dev/null 2>&1
+          npm install --no-save --no-package-lock @cloudflare/playwright@latest >/dev/null 2>&1
+          cat > worker.js <<'EOF'
+          import { launch } from "@cloudflare/playwright";
+          export default {
+            async fetch(request, env) {
+              if (request.headers.get("x-day2-probe") !== env.DAY2_PROBE_SECRET) return new Response("not found", {status:404});
+              const browser = await launch(env.BROWSER);
+              try {
+                const context = await browser.newContext({extraHTTPHeaders:{"CF-Access-Client-Id":env.CF_ACCESS_CLIENT_ID,"CF-Access-Client-Secret":env.CF_ACCESS_CLIENT_SECRET}});
+                const page = await context.newPage();
+                const response = await page.goto("https://admin-staging.kienhieu.id.vn/api/admin/variants/10", {waitUntil:"domcontentloaded", timeout:30000});
+                return Response.json({status:response?.status(),url:page.url(),title:await page.title(),body:(await page.locator("body").innerText()).slice(0,3000),cookies:(await context.cookies()).map(c=>c.name)});
+              } finally { await browser.close(); }
+            }
+          };
+          EOF
+          cat > wrangler.jsonc <<EOF
+          {"name":"$WORKER","main":"./worker.js","compatibility_date":"2026-08-16","compatibility_flags":["nodejs_compat"],"workers_dev":true,"browser":{"binding":"BROWSER"}}
+          EOF
+          PROBE_SECRET="$(openssl rand -hex 24)"
+          printf '%s' "$CLOUDFLARE_ACCESS_CLIENT_ID" | npx --yes wrangler@4.36.0 secret put CF_ACCESS_CLIENT_ID --config wrangler.jsonc
+          printf '%s' "$CLOUDFLARE_ACCESS_CLIENT_SECRET" | npx --yes wrangler@4.36.0 secret put CF_ACCESS_CLIENT_SECRET --config wrangler.jsonc
+          printf '%s' "$PROBE_SECRET" | npx --yes wrangler@4.36.0 secret put DAY2_PROBE_SECRET --config wrangler.jsonc
+          npx --yes wrangler@4.36.0 deploy --config wrangler.jsonc
+          for i in 1 2 3 4 5; do
+            sleep 3
+            echo "--- probe attempt $i ---"
+            status="$(curl -sS -o /tmp/probe.json -w '%{http_code}' -H "x-day2-probe: $PROBE_SECRET" "https://$WORKER.qtu1053.workers.dev/")"
+            cat /tmp/probe.json
+            echo
+            [ "$status" = "200" ] && break
+          done
+          test "$(jq -r '.status // 0' /tmp/probe.json)" = "200"
