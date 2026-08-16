@@ -64,3 +64,5 @@ test("tier replacement guards parent revision before replacing rows and auditing
   assert.match(source, /const nextVersion=version\+1/);
   assert.match(source, /results\[0\]\?\.meta\?\.changes\?\?0\)\!==1/);
 });
+
+// Day 2 runtime probe trigger marker.
