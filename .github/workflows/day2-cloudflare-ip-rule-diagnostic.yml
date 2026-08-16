@@ -1,0 +1,47 @@
+name: Day 2 Cloudflare IP rule diagnostic
+
+on:
+  push:
+    branches: [feat/cloudflare-admin-category-api]
+    paths:
+      - .github/workflows/day2-cloudflare-ip-rule-diagnostic.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  diagnostic:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - name: Probe account IP Access Rules API
+        shell: bash
+        run: |
+          set -euo pipefail
+          runner_ip="$(curl -fsS https://api.ipify.org)"
+          echo "Runner IP: $runner_ip"
+          echo "--- existing matching account rules ---"
+          curl -sS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+            "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/firewall/access_rules/rules?configuration.target=ip&configuration.value=$runner_ip" \
+            | jq '{success,errors,messages,result:[.result[]?|{id,mode,configuration,notes,allowed_modes}]}'
+          echo "--- create probe ---"
+          response="$(curl -sS -X POST \
+            -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+            -H 'Content-Type: application/json' \
+            "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/firewall/access_rules/rules" \
+            --data "$(jq -nc --arg ip "$runner_ip" '{configuration:{target:"ip",value:$ip},mode:"whitelist",notes:"Temporary Day 2 diagnostic rule; cleanup follows."}')")"
+          echo "$response" | jq '{success,errors,messages,result:(.result|if . == null then null else {id,mode,configuration,allowed_modes,notes} end)}'
+          rule_id="$(echo "$response" | jq -r '.result.id // empty')"
+          if [ -n "$rule_id" ]; then
+            echo "--- cleanup ---"
+            curl -sS -X DELETE \
+              -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+              "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/firewall/access_rules/rules/$rule_id" \
+              | jq '{success,errors,messages,result}'
+          else
+            exit 1
+          fi
