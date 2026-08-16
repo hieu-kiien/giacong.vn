@@ -18,24 +18,29 @@ jobs:
       ADMIN_ORIGIN: https://admin-staging.kienhieu.id.vn
     steps:
       - uses: actions/checkout@v4
-      - name: Inspect zone challenge controls
+      - name: Add ephemeral CI IP exception and prove protected runtime
         shell: bash
         run: |
           set -euo pipefail
           zone_id="$(curl -fsS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "https://api.cloudflare.com/client/v4/zones?name=kienhieu.id.vn&status=active" | jq -r '.result[0].id')"
-          for setting in security_level browser_check challenge_ttl; do
-            echo "--- $setting ---"
-            curl -fsS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "https://api.cloudflare.com/client/v4/zones/$zone_id/settings/$setting" | jq '{success,errors,result}' || true
-          done
-          echo '--- bot fight mode ---'
-          curl -fsS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "https://api.cloudflare.com/client/v4/zones/$zone_id/settings/bot_fight_mode" | jq '{success,errors,result}' || true
-          echo '--- bot management ---'
-          curl -fsS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "https://api.cloudflare.com/client/v4/zones/$zone_id/bot_management" | jq '{success,errors,result}' || true
-      - name: Confirm edge behavior
-        shell: bash
-        run: |
-          set -euo pipefail
-          status="$(curl --silent --show-error --max-time 25 -H "CF-Access-Client-Id: $CLOUDFLARE_ACCESS_CLIENT_ID" -H "CF-Access-Client-Secret: $CLOUDFLARE_ACCESS_CLIENT_SECRET" -o /tmp/response.json -w '%{http_code}' "$ADMIN_ORIGIN/api/admin/variants/10")"
-          echo "HTTP_STATUS=$status"
-          head -c 300 /tmp/response.json || true
-          echo
+          runner_ip="$(curl -fsS https://api.ipify.org)"
+          echo "Runner public IP: $runner_ip"
+          response="$(curl -fsS -X POST -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" -H 'Content-Type: application/json' "https://api.cloudflare.com/client/v4/zones/$zone_id/firewall/access_rules/rules" --data "$(jq -nc --arg ip "$runner_ip" '{configuration:{target:"ip",value:$ip},mode:"whitelist",notes:"Temporary GitHub Actions Day 2 staging QA; removed by workflow cleanup."}')")"
+          echo "$response" | jq -e '.success == true and .result.id != null' >/dev/null
+          rule_id="$(echo "$response" | jq -r '.result.id')"
+          echo "Temporary rule created: $rule_id"
+          cleanup() {
+            curl -fsS -X DELETE -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "https://api.cloudflare.com/client/v4/zones/$zone_id/firewall/access_rules/rules/$rule_id" >/tmp/delete-rule.json || true
+            jq '{success,errors,result}' /tmp/delete-rule.json 2>/dev/null || true
+          }
+          trap cleanup EXIT
+
+          status="$(curl --silent --show-error --max-time 25 \
+            -H "CF-Access-Client-Id: $CLOUDFLARE_ACCESS_CLIENT_ID" \
+            -H "CF-Access-Client-Secret: $CLOUDFLARE_ACCESS_CLIENT_SECRET" \
+            -o /tmp/response.json -w '%{http_code}' \
+            "$ADMIN_ORIGIN/api/admin/variants/10")"
+          echo "Protected GET HTTP status after temporary bot-protection exception: $status"
+          cat /tmp/response.json
+          test "$status" = 200
+          jq -e '.ok == true and .data.id == 10 and (.data.version | startswith("r1_")) and (.data.tierPrices | length >= 1)' /tmp/response.json >/dev/null
