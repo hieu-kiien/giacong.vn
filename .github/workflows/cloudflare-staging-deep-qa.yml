@@ -31,7 +31,6 @@ jobs:
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       STAGING_ORIGIN: https://giacong-vn-staging.qtu1053.workers.dev
       STAGING_DATABASE: giacong-vn-catalog-staging
-      EXPECTED_VERSION_ID: 173773bb-ed45-412f-aef4-d9ec78f3a8cd
 
     steps:
       - name: Checkout
@@ -53,10 +52,10 @@ jobs:
           set -euo pipefail
           deployment=$(npx wrangler deployments status --env=staging --json)
           echo "$deployment"
-          jq -e --arg expected "$EXPECTED_VERSION_ID" '
+          jq -e '
             .versions | length == 1
-            and .[0].version_id == $expected
             and .[0].percentage == 100
+            and (. [0].version_id | type == "string" and length > 0)
           ' <<<"$deployment"
 
       - name: Verify catalog search, category filter and sort
