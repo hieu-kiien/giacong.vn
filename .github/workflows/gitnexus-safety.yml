@@ -51,7 +51,10 @@ jobs:
         run: |
           set -euo pipefail
           git checkout --detach "$HEAD_SHA"
-          git diff --name-only "$BASE_SHA" "$HEAD_SHA" | tee /tmp/changed-files.txt
+          # GitNexus compare is most reliable with a named git ref. Keep the exact
+          # PR base commit by anchoring a temporary local branch to base.sha.
+          git branch --force gitnexus-base "$BASE_SHA"
+          git diff --name-only gitnexus-base "$HEAD_SHA" | tee /tmp/changed-files.txt
           test -s /tmp/changed-files.txt
 
       - name: Build GitNexus index from proposed tree
@@ -70,7 +73,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          gitnexus detect-changes --scope compare --base-ref "$BASE_SHA" | tee /tmp/gitnexus-detect-changes.txt
+          gitnexus detect-changes --scope compare --base-ref gitnexus-base | tee /tmp/gitnexus-detect-changes.txt
 
           if grep -Eq '^apps/giacong-lean-commerce/(src|scripts)/.*\.(cjs|js|jsx|mjs|mts|ts|tsx)$' /tmp/changed-files.txt \
             && grep -Fxq "No changes detected." /tmp/gitnexus-detect-changes.txt; then
@@ -81,7 +84,7 @@ jobs:
           {
             echo "## GitNexus change-impact report"
             echo
-            echo "Compared PR head with base \`$BASE_SHA\`."
+            echo "Compared PR head with exact base commit \`$BASE_SHA\` via local ref \`gitnexus-base\`."
             echo
             echo '```text'
             cat /tmp/gitnexus-detect-changes.txt
