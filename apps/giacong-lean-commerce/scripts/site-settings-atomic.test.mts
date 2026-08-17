@@ -26,11 +26,13 @@ type Row = {
 };
 
 class FakeStatement {
+  readonly database: FakeSiteDatabase;
   readonly query: string;
   values: unknown[] = [];
   runCalls = 0;
 
-  constructor(readonly database: FakeSiteDatabase, query: string) {
+  constructor(database: FakeSiteDatabase, query: string) {
+    this.database = database;
     this.query = query.replace(/\s+/g, " ").trim();
   }
 
