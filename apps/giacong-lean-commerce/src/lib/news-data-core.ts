@@ -79,7 +79,12 @@ export async function listPublishedNews(
   const category = normalizeFilter(input.category, 120);
   const query = normalizeFilter(input.query, 120);
 
-  const where = ["a.status = 'published'", "a.published_at IS NOT NULL", "a.published_at <= CURRENT_TIMESTAMP"];
+  const where = [
+    "a.archived_at IS NULL",
+    "a.status = 'published'",
+    "a.published_at IS NOT NULL",
+    "a.published_at <= CURRENT_TIMESTAMP",
+  ];
   const values: unknown[] = [];
   if (category) {
     where.push("c.slug = ?");
@@ -140,7 +145,7 @@ export async function getPublishedNewsArticle(
       a.seo_title, a.seo_description, a.published_at
     FROM articles a
     LEFT JOIN article_categories c ON c.id = a.category_id
-    WHERE a.slug = ? AND a.status = 'published'
+    WHERE a.slug = ? AND a.archived_at IS NULL AND a.status = 'published'
       AND a.published_at IS NOT NULL AND a.published_at <= CURRENT_TIMESTAMP
     LIMIT 1
   `).bind(slug).first<NewsRow>();
@@ -164,7 +169,7 @@ export async function listRelatedPublishedNews(
           a.title, a.slug, a.excerpt, a.thumbnail_url, a.is_featured, a.published_at
         FROM articles a
         LEFT JOIN article_categories c ON c.id = a.category_id
-        WHERE a.status = 'published' AND a.published_at IS NOT NULL
+        WHERE a.archived_at IS NULL AND a.status = 'published' AND a.published_at IS NOT NULL
           AND a.published_at <= CURRENT_TIMESTAMP AND a.id <> ? AND a.category_id = ?
         ORDER BY a.published_at DESC, a.id DESC
         LIMIT ?
@@ -174,7 +179,7 @@ export async function listRelatedPublishedNews(
           a.title, a.slug, a.excerpt, a.thumbnail_url, a.is_featured, a.published_at
         FROM articles a
         LEFT JOIN article_categories c ON c.id = a.category_id
-        WHERE a.status = 'published' AND a.published_at IS NOT NULL
+        WHERE a.archived_at IS NULL AND a.status = 'published' AND a.published_at IS NOT NULL
           AND a.published_at <= CURRENT_TIMESTAMP AND a.id <> ?
         ORDER BY a.published_at DESC, a.id DESC
         LIMIT ?
