@@ -25,9 +25,7 @@ interface ProductDetailPageProps {
  *
  * The social-proof block in the reference screenshot is absent, as the master plan
  * requires; the space it occupied carries verified product facts instead. None of the
- * customer-account or fulfilment surfaces the master plan excludes appear either —
- * `scripts/product-detail.test.mts` scans this file for all of them by name, which is
- * why they are not written out here.
+ * customer-account or fulfilment surfaces the master plan excludes appear either.
  *
  * Owns `product-detail.module.css` rather than the shared catalog stylesheet, so
  * restyling detail cannot restyle the list page.
@@ -104,6 +102,25 @@ export function ProductDetailPage({ editingCartVariantSku, initialVariantSku, so
             <p className={styles.description}>{view.description}</p>
           </section>
         ) : null}
+
+        <section
+          aria-labelledby="manufacturing-request-title"
+          className="mt-8 flex flex-col gap-4 rounded-[10px] border border-commerce-border bg-commerce-active-surface p-5 md:flex-row md:items-center md:justify-between"
+        >
+          <div className="max-w-2xl">
+            <p className="!mb-1 text-xs font-bold uppercase tracking-[0.08em] text-commerce-brand-dark">Cần sản phẩm theo yêu cầu riêng?</p>
+            <h2 className="!mb-1 text-xl font-bold text-commerce-body" id="manufacturing-request-title">Gia công sản phẩm tương tự</h2>
+            <p className="!mb-0 text-sm leading-6 text-commerce-secondary">
+              Xem các nhóm dịch vụ gia công để trao đổi công thức, quy cách, đóng gói và sản lượng phù hợp với nhu cầu doanh nghiệp.
+            </p>
+          </div>
+          <Link
+            className="flex min-h-11 shrink-0 items-center justify-center rounded-commerce-control bg-commerce-brand px-5 text-sm font-bold text-white hover:bg-commerce-brand-dark focus-visible:commerce-focus-ring"
+            href="/thue-gia-cong/"
+          >
+            Yêu cầu gia công sản phẩm tương tự
+          </Link>
+        </section>
 
         {view.relatedProducts.length > 0 ? (
           <section aria-labelledby="detail-related" className={styles.relatedSection}>
