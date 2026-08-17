@@ -21,7 +21,7 @@
     "test:header": "node --no-warnings --experimental-strip-types --test scripts/commerce-header.test.mts",
     "test:listing": "node --no-warnings --experimental-strip-types --test scripts/catalog-listing.test.mts",
     "test:detail": "node --no-warnings --experimental-strip-types --test scripts/product-detail.test.mts scripts/product-gallery.test.mts scripts/product-seo.test.mts",
-    "test:contact": "node --no-warnings --experimental-strip-types --test scripts/contact-webhook.test.mts scripts/development-port.test.mjs scripts/google-apps-script-template.test.mjs scripts/lead-queue.test.mts scripts/media-contract.test.mts scripts/request-cart-client.test.mts scripts/request-cart-storage.test.mts scripts/request-cart.test.mts",
+    "test:contact": "node --no-warnings --experimental-strip-types --test scripts/contact-webhook.test.mts scripts/development-port.test.mjs scripts/google-apps-script-template.test.mjs scripts/lead-queue.test.mts scripts/media-contract.test.mts scripts/media-upload-policy.test.mts scripts/request-cart-client.test.mts scripts/request-cart-storage.test.mts scripts/request-cart.test.mts",
     "test:lead-persistence": "node --no-warnings --experimental-strip-types --test scripts/lead-persistence.test.mts",
     "qa:captured": "node scripts/verify-captured-routes.mjs",
     "qa:catalog": "node scripts/verify-catalog-storefront.mjs",

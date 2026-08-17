@@ -3,11 +3,14 @@ import { adminFailure, adminSuccess } from "@/lib/admin-api.ts";
 import { getAdminProduct, getAdminProductVariant, getAdminService } from "@/lib/admin-data";
 import { requireAdmin } from "@/lib/admin-guard";
 import { createMediaAsset, listMediaAssets, type R2BucketLike } from "@/lib/media-data";
+import {
+  assertMediaMultipartLength,
+  MediaUploadValidationError,
+  validateMediaBytes,
+  validateMediaFileMetadata,
+} from "@/lib/media-upload-policy";
 
 export const dynamic = "force-dynamic";
-
-const maxUploadBytes = 10 * 1024 * 1024;
-const allowedContentTypes = new Set(["image/avif", "image/jpeg", "image/png", "image/webp"]);
 
 export async function GET(request: Request): Promise<Response> {
   const guard = await requireAdmin(request);
@@ -38,6 +41,12 @@ export async function POST(request: Request): Promise<Response> {
     return adminFailure(crypto.randomUUID(), 403, "FORBIDDEN", "Vai trò hiện tại không được upload media.");
   }
 
+  try {
+    assertMediaMultipartLength(request.headers.get("content-length"));
+  } catch (error) {
+    return mediaValidationFailure(error);
+  }
+
   let form: FormData;
   try {
     form = await request.formData();
@@ -51,13 +60,12 @@ export async function POST(request: Request): Promise<Response> {
   if ((!productId && !serviceId) || (productId && serviceId) || (variantId && !productId) || !(file instanceof File)) {
     return adminFailure(crypto.randomUUID(), 422, "VALIDATION_ERROR", "Cần productId hoặc serviceId và file ảnh.");
   }
-  if (!allowedContentTypes.has(file.type) || file.size <= 0 || file.size > maxUploadBytes) {
-    return adminFailure(
-      crypto.randomUUID(),
-      422,
-      "VALIDATION_ERROR",
-      "Ảnh phải là JPEG, PNG, WebP hoặc AVIF và không vượt quá 10 MB.",
-    );
+
+  let contentType: "image/jpeg" | "image/png" | "image/webp";
+  try {
+    contentType = validateMediaFileMetadata(file.type.toLowerCase(), file.size);
+  } catch (error) {
+    return mediaValidationFailure(error);
   }
 
   if (productId) {
@@ -74,18 +82,24 @@ export async function POST(request: Request): Promise<Response> {
   const bucket = getMediaBucket();
   if (!bucket) return adminFailure(crypto.randomUUID(), 503, "INTERNAL_ERROR", "R2 media chưa sẵn sàng.");
 
-  const bytes = await file.arrayBuffer();
-  const checksumSha256 = await digestSha256(bytes);
+  const arrayBuffer = await file.arrayBuffer();
+  try {
+    validateMediaBytes(contentType, new Uint8Array(arrayBuffer), file.size);
+  } catch (error) {
+    return mediaValidationFailure(error);
+  }
+  const checksumSha256 = await digestSha256(arrayBuffer);
+
   try {
     const media = await createMediaAsset(guard.database, bucket, {
       altText: readAltText(form.get("altText")),
-      bytes,
+      bytes: arrayBuffer,
       checksumSha256,
-      contentType: file.type,
+      contentType,
       createdBy: guard.actorSubject,
       originalFilename: safeFilename(file.name),
-       productId: productId ?? null,
-       serviceId: serviceId ?? null,
+      productId: productId ?? null,
+      serviceId: serviceId ?? null,
       variantId: variantId ?? null,
     });
     return adminSuccess(crypto.randomUUID(), { media }, 201);
@@ -117,6 +131,18 @@ function safeFilename(value: string): string {
 async function digestSha256(bytes: ArrayBuffer): Promise<string> {
   const digest = await crypto.subtle.digest("SHA-256", bytes);
   return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+function mediaValidationFailure(error: unknown): Response {
+  if (!(error instanceof MediaUploadValidationError)) {
+    return adminFailure(crypto.randomUUID(), 422, "VALIDATION_ERROR", "File ảnh không hợp lệ.");
+  }
+  return adminFailure(
+    crypto.randomUUID(),
+    error.kind === "TOO_LARGE" ? 413 : 422,
+    error.kind === "TOO_LARGE" ? "PAYLOAD_TOO_LARGE" : "VALIDATION_ERROR",
+    error.message,
+  );
 }
 
 function getMediaBucket(): R2BucketLike | null {
