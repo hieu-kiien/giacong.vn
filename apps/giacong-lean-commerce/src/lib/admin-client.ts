@@ -129,6 +129,7 @@ export class AdminClientError extends Error {
 
 const productRevisionCache = new Map<number, number>();
 const serviceRevisionCache = new Map<number, number>();
+const leadStatusCache = new Map<string, LeadStatus>();
 
 export async function fetchAdmin<T>(path: string, signal?: AbortSignal): Promise<T> {
   let response: Response;
@@ -168,8 +169,10 @@ export async function mutateAdmin<T>(
 ): Promise<T> {
   const productId = productMutationId(path);
   const serviceId = serviceMutationId(path);
+  const leadId = leadMutationId(path);
   let requestBody = withCachedProductRevision(productId, options.method, options.body);
   requestBody = withCachedServiceRevision(serviceId, options.method, requestBody);
+  requestBody = withCachedLeadStatus(leadId, options.method, requestBody);
 
   let response: Response;
   try {
@@ -196,6 +199,7 @@ export async function mutateAdmin<T>(
     if (body.code === "STALE_WRITE") {
       if (productId !== null) productRevisionCache.delete(productId);
       if (serviceId !== null) serviceRevisionCache.delete(serviceId);
+      if (leadId !== null) leadStatusCache.delete(leadId);
     }
     throw new AdminClientError(
       body.message ?? "Không thể lưu thay đổi admin.",
@@ -257,6 +261,31 @@ function withCachedServiceRevision(
   return withCachedRevision(serviceRevisionCache, serviceId, method, body);
 }
 
+function leadMutationId(path: string): string | null {
+  const match = /^\/api\/admin\/leads\/([0-9a-f-]+)$/i.exec(path);
+  if (!match) return null;
+  const id = match[1];
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id)
+    ? id
+    : null;
+}
+
+function withCachedLeadStatus(
+  leadId: string | null,
+  method: "DELETE" | "PATCH" | "POST",
+  body: unknown,
+): unknown {
+  if (leadId === null || method !== "PATCH") return body;
+  const expectedStatus = leadStatusCache.get(leadId);
+  if (!expectedStatus) return body;
+  if (isRecord(body)) {
+    return Object.prototype.hasOwnProperty.call(body, "expectedStatus")
+      ? body
+      : { ...body, expectedStatus };
+  }
+  return body === undefined ? { expectedStatus } : body;
+}
+
 function withCachedRevision(
   cache: Map<number, number>,
   entityId: number | null,
@@ -276,11 +305,15 @@ function rememberRevisionTokens(value: unknown): void {
   if (!isRecord(value)) return;
   rememberRevision(productRevisionCache, value.product);
   rememberRevision(serviceRevisionCache, value.service);
+  rememberLeadStatus(value.lead);
   if (Array.isArray(value.products)) {
     for (const product of value.products) rememberRevision(productRevisionCache, product);
   }
   if (Array.isArray(value.services)) {
     for (const service of value.services) rememberRevision(serviceRevisionCache, service);
+  }
+  if (Array.isArray(value.leads)) {
+    for (const lead of value.leads) rememberLeadStatus(lead);
   }
 }
 
@@ -298,6 +331,31 @@ function rememberRevision(cache: Map<number, number>, value: unknown): void {
   ) {
     cache.set(id, revision);
   }
+}
+
+function rememberLeadStatus(value: unknown): void {
+  if (!isRecord(value)) return;
+  const id = value.id;
+  const status = value.status;
+  if (
+    typeof id === "string"
+    && /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id)
+    && isLeadStatus(status)
+  ) {
+    leadStatusCache.set(id, status);
+  }
+}
+
+function isLeadStatus(value: unknown): value is LeadStatus {
+  return value === "new"
+    || value === "qualified"
+    || value === "contacted"
+    || value === "quotation_sent"
+    || value === "sampling"
+    || value === "negotiation"
+    || value === "won"
+    || value === "lost"
+    || value === "spam";
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
