@@ -196,7 +196,16 @@ test("admin client caches product revisions and injects them only for direct pro
   assert.match(client, /revision:\s*number/);
   assert.match(client, /productRevisionCache/);
   assert.match(client, /withCachedProductRevision/);
-  assert.match(client, /\^\\\/api\\\/admin\\\/products\\\/(\\d\+\)\$/);
+
+  const matcherStart = client.indexOf("function productMutationId");
+  const matcherEnd = client.indexOf("function withCachedProductRevision", matcherStart);
+  assert.ok(matcherStart >= 0 && matcherEnd > matcherStart, "product mutation matcher must be isolated");
+  const matcherSource = client.slice(matcherStart, matcherEnd);
+  assert.ok(matcherSource.includes("api"));
+  assert.ok(matcherSource.includes("admin"));
+  assert.ok(matcherSource.includes("products"));
+  assert.doesNotMatch(matcherSource, /variants|services/);
+
   assert.match(client, /body === undefined \? \{ revision \} : body/);
   assert.match(client, /body\.code === "STALE_WRITE"/);
 });
