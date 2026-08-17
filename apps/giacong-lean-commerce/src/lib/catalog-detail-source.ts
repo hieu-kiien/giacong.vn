@@ -8,7 +8,10 @@ import {
   findDemoCatalogProduct,
 } from "@/data/demo-catalog";
 import { getCatalogProduct, getCatalogProducts } from "@/lib/cloudflare-catalog";
-import { getCatalogProductGallery } from "@/lib/catalog-product-media";
+import {
+  enrichCatalogProductsWithPrimaryMedia,
+  getCatalogProductGallery,
+} from "@/lib/catalog-product-media";
 import { demoCatalogFallbackAllowed, demoCatalogForced, waitForDemoCatalogFallback } from "@/lib/demo-catalog-policy";
 import { buildLiveProductGallery, type ProductGalleryImage } from "@/lib/product-gallery";
 import type { CatalogProductDetail, CatalogProductParent } from "@/types/catalog";
@@ -81,7 +84,12 @@ async function readLiveRelated(product: CatalogProductDetail): Promise<readonly 
       query: "",
       sort: "name",
     });
-    return result.products.filter((item) => item.slug !== product.slug).slice(0, RELATED_LIMIT);
+    const related = await enrichCatalogProductsWithPrimaryMedia(
+      result.products.filter((item) => item.slug !== product.slug),
+    );
+    // The compact related card currently requires a real image. It is better to
+    // show fewer truthful recommendations than to invent demo packshots in production.
+    return related.filter((item) => Boolean(item.imageUrl)).slice(0, RELATED_LIMIT);
   } catch {
     return [];
   }

@@ -8,9 +8,10 @@ import {
   demoCatalogList,
 } from "@/components/catalog/catalog-listing";
 import { getCatalogCategories, getCatalogProducts } from "@/lib/cloudflare-catalog";
+import { enrichCatalogProductsWithPrimaryMedia } from "@/lib/catalog-product-media";
 import { parseCatalogFilters } from "@/lib/catalog-query";
 import { demoCatalogFallbackAllowed, demoCatalogForced, waitForDemoCatalogFallback } from "@/lib/demo-catalog-policy";
-import type { CatalogCategory, CatalogFilters, CatalogPagination } from "@/types/catalog";
+import type { CatalogCategory, CatalogFilters, CatalogPagination, CatalogProductParent } from "@/types/catalog";
 
 export const metadata: Metadata = {
   title: "Sản phẩm | Giacong.vn",
@@ -45,7 +46,7 @@ export default async function CatalogPage({ searchParams }: PageProps<"/san-pham
 /**
  * Cloudflare D1 is the canonical catalog source. Only an explicitly permitted
  * non-production environment may fall back to the isolated demo fixture.
- * Production never invents prices when D1 is unavailable.
+ * Production never invents prices or product imagery when D1/R2 data is absent.
  */
 async function loadCatalog(filters: CatalogFilters): Promise<CatalogPageData> {
   if (demoCatalogForced(process.env)) return demoCatalogData(filters);
@@ -55,8 +56,9 @@ async function loadCatalog(filters: CatalogFilters): Promise<CatalogPageData> {
       Promise.all([getCatalogCategories(), getCatalogProducts(filters)]),
       process.env,
     );
+    const products = await enrichMediaFailSoft(result.products);
     return {
-      cards: buildCatalogCards(result.products),
+      cards: buildCatalogCards(products),
       categories,
       isDemoData: false,
       pagination: result.pagination,
@@ -68,10 +70,19 @@ async function loadCatalog(filters: CatalogFilters): Promise<CatalogPageData> {
   }
 }
 
+async function enrichMediaFailSoft(products: readonly CatalogProductParent[]): Promise<CatalogProductParent[]> {
+  try {
+    return await enrichCatalogProductsWithPrimaryMedia(products);
+  } catch (error) {
+    console.warn("Catalog media unavailable; rendering catalog without media fallbacks.", error);
+    return [...products];
+  }
+}
+
 function demoCatalogData(filters: CatalogFilters): CatalogPageData {
   const demo = demoCatalogList(filters);
   return {
-    cards: buildCatalogCards(demo.products),
+    cards: buildCatalogCards(demo.products, { demoImageFallback: true }),
     categories: demoCatalogCategories(),
     isDemoData: true,
     pagination: demo.pagination,
