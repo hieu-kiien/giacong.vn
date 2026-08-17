@@ -4,6 +4,7 @@ import test from "node:test";
 
 const ciUrl = new URL("../../../.github/workflows/ci-cloudflare.yml", import.meta.url);
 const deepQaUrl = new URL("../../../.github/workflows/cloudflare-staging-deep-qa.yml", import.meta.url);
+const deepQaScriptUrl = new URL("./staging-deep-qa.mjs", import.meta.url);
 
 test("pull requests package OpenNext for staging without deploying remote state", async () => {
   const workflow = await readFile(ciUrl, "utf8");
@@ -24,6 +25,8 @@ test("validated master applies D1 migrations before deploying the same staging b
   assert.ok(workflow.includes(migration), "staging deploy must apply pending D1 migrations");
   assert.ok(workflow.includes(deploy), "staging deploy must publish the already built OpenNext package");
   assert.ok(workflow.indexOf(migration) < workflow.indexOf(deploy), "D1 migrations must complete before Worker deployment");
+  assert.match(workflow, /CLOUDFLARE_ACCESS_CLIENT_ID:\s*\$\{\{ secrets\.CLOUDFLARE_ACCESS_CLIENT_ID \}\}/);
+  assert.match(workflow, /CLOUDFLARE_ACCESS_CLIENT_SECRET:\s*\$\{\{ secrets\.CLOUDFLARE_ACCESS_CLIENT_SECRET \}\}/);
   assert.doesNotMatch(workflow, /Staging remains unchanged/);
 });
 
@@ -36,5 +39,19 @@ test("deep QA waits for successful staging deployment and checks out the deploye
   assert.match(workflow, /github\.event\.workflow_run\.head_sha/);
   assert.doesNotMatch(workflow, /\n  push:/);
   assert.match(workflow, /https:\/\/staging\.kienhieu\.id\.vn/);
+  assert.match(workflow, /CLOUDFLARE_ACCESS_CLIENT_ID/);
+  assert.match(workflow, /CLOUDFLARE_ACCESS_CLIENT_SECRET/);
+  assert.match(workflow, /node scripts\/staging-deep-qa\.mjs/);
   assert.doesNotMatch(workflow, /workers\.dev/);
+});
+
+test("staging deep QA sends the Access service token through HTTP and browser checks", async () => {
+  const script = await readFile(deepQaScriptUrl, "utf8");
+
+  assert.match(script, /requiredEnv\("CLOUDFLARE_ACCESS_CLIENT_ID"\)/);
+  assert.match(script, /requiredEnv\("CLOUDFLARE_ACCESS_CLIENT_SECRET"\)/);
+  assert.match(script, /"CF-Access-Client-Id"/);
+  assert.match(script, /"CF-Access-Client-Secret"/);
+  assert.match(script, /extraHTTPHeaders: accessHeaders/);
+  assert.match(script, /wrangler@4\.115\.0/);
 });
