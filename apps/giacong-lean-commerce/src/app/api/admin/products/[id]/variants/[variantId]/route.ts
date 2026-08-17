@@ -1,12 +1,10 @@
 import { adminFailure, adminSuccess } from "@/lib/admin-api.ts";
-import {
-  archiveAdminProductVariant,
-  getAdminProductVariant,
-} from "@/lib/admin-data";
+import { getAdminProductVariant } from "@/lib/admin-data";
 import { requireAdmin } from "@/lib/admin-guard";
 import { parseAdminVariantPayload, variantDefaults } from "@/lib/admin-variant-input";
 import {
   AdminVariantStaleWriteError,
+  archiveAdminVariantAtomically,
   updateAdminVariantAtomically,
 } from "@/lib/admin-variant-write";
 
@@ -90,13 +88,40 @@ export async function DELETE(request: Request, context: RouteContext): Promise<R
   }
   const ids = await parseIds(context);
   if (!ids) return adminFailure(crypto.randomUUID(), 404, "NOT_FOUND", "Không tìm thấy variant.");
+  const existing = await getAdminProductVariant(guard.database, ids.productId, ids.variantId);
+  if (!existing) return adminFailure(crypto.randomUUID(), 404, "NOT_FOUND", "Không tìm thấy variant.");
+
+  const payload = await readJson(request);
+  if (!hasExplicitRevision(payload)) {
+    return adminFailure(
+      crypto.randomUUID(),
+      422,
+      "VALIDATION_ERROR",
+      "Revision hiện tại là bắt buộc khi ẩn variant.",
+      { revision: "Hãy tải lại variant và gửi revision hiện tại." },
+    );
+  }
+
   try {
-    const variant = await archiveAdminProductVariant(guard.database, ids.productId, ids.variantId, guard.actorSubject);
+    await archiveAdminVariantAtomically(
+      guard.database,
+      ids.productId,
+      ids.variantId,
+      payload.revision,
+      guard.actorSubject,
+    );
+    const variant = await getAdminProductVariant(guard.database, ids.productId, ids.variantId);
     return variant
       ? adminSuccess(crypto.randomUUID(), { variant })
       : adminFailure(crypto.randomUUID(), 404, "NOT_FOUND", "Không tìm thấy variant.");
   } catch (error) {
-    return adminFailure(crypto.randomUUID(), 503, "INTERNAL_ERROR", error instanceof Error ? error.message : "Không thể ẩn variant.");
+    const stale = error instanceof AdminVariantStaleWriteError;
+    return adminFailure(
+      crypto.randomUUID(),
+      stale ? 409 : 503,
+      stale ? "STALE_WRITE" : "INTERNAL_ERROR",
+      error instanceof Error ? error.message : "Không thể ẩn variant.",
+    );
   }
 }
 
