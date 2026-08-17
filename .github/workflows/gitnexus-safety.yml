@@ -51,10 +51,7 @@ jobs:
         run: |
           set -euo pipefail
           git checkout --detach "$HEAD_SHA"
-          # GitNexus compare is most reliable with a named git ref. Keep the exact
-          # PR base commit by anchoring a temporary local branch to base.sha.
-          git branch --force gitnexus-base "$BASE_SHA"
-          git diff --name-only gitnexus-base "$HEAD_SHA" | tee /tmp/changed-files.txt
+          git diff --name-only "$BASE_SHA" "$HEAD_SHA" | tee /tmp/changed-files.txt
           test -s /tmp/changed-files.txt
 
       - name: Build GitNexus index from proposed tree
@@ -63,8 +60,27 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          # Index the exact PR head first so newly added/modified symbols exist in
+          # the graph that the impact report queries.
           gitnexus analyze . --force --skip-agents-md --skip-skills
           gitnexus status
+
+      - name: Materialize PR delta as a working-tree diff
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          # GitNexus 1.6.9 detect_changes is designed around git working-tree
+          # diffs. Keep the PR-head files in the worktree while moving HEAD back to
+          # the exact base commit, turning the committed PR delta into the diff that
+          # `--scope all` analyzes. The GitNexus graph remains the PR-head graph
+          # built in the previous step.
+          git reset --mixed "$BASE_SHA"
+          git diff --name-only HEAD | tee /tmp/materialized-changed-files.txt
+          test -s /tmp/materialized-changed-files.txt
+          diff -u /tmp/changed-files.txt /tmp/materialized-changed-files.txt
 
       - name: Detect changed symbols and affected execution flows
         if: github.event_name == 'pull_request'
@@ -73,7 +89,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          gitnexus detect-changes --scope compare --base-ref gitnexus-base | tee /tmp/gitnexus-detect-changes.txt
+          gitnexus detect-changes --scope all | tee /tmp/gitnexus-detect-changes.txt
 
           if grep -Eq '^apps/giacong-lean-commerce/(src|scripts)/.*\.(cjs|js|jsx|mjs|mts|ts|tsx)$' /tmp/changed-files.txt \
             && grep -Fxq "No changes detected." /tmp/gitnexus-detect-changes.txt; then
@@ -84,7 +100,7 @@ jobs:
           {
             echo "## GitNexus change-impact report"
             echo
-            echo "Compared PR head with exact base commit \`$BASE_SHA\` via local ref \`gitnexus-base\`."
+            echo "Indexed the PR head, then materialized its delta against exact base commit \`$BASE_SHA\` as a working-tree diff for GitNexus 1.6.9."
             echo
             echo '```text'
             cat /tmp/gitnexus-detect-changes.txt
