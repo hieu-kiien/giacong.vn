@@ -29,7 +29,11 @@ test("product metadata publishes social text without inventing an origin for rel
   assert.equal(metadata.description, item.shortDescription);
   assert.equal(metadata.openGraph?.title, `${item.name} | Giacong.vn`);
   assert.deepEqual(metadata.openGraph?.images, undefined);
-  assert.equal(metadata.twitter?.card, "summary");
+  assert.deepEqual(metadata.twitter, {
+    card: "summary",
+    title: `${item.name} | Giacong.vn`,
+    description: item.shortDescription,
+  });
 });
 
 test("product metadata uses a real absolute HTTPS image when the catalog owns one", () => {
@@ -37,8 +41,12 @@ test("product metadata uses a real absolute HTTPS image when the catalog owns on
   const metadata = buildProductMetadata({ product: item });
 
   assert.deepEqual(metadata.openGraph?.images, [{ url: item.imageUrl, alt: item.name }]);
-  assert.deepEqual(metadata.twitter?.images, [item.imageUrl]);
-  assert.equal(metadata.twitter?.card, "summary_large_image");
+  assert.deepEqual(metadata.twitter, {
+    card: "summary_large_image",
+    title: `${item.name} | Giacong.vn`,
+    description: item.shortDescription,
+    images: [item.imageUrl],
+  });
 });
 
 test("Product JSON-LD contains only canonical product facts", () => {
