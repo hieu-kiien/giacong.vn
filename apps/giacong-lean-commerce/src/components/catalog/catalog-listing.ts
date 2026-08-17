@@ -7,11 +7,9 @@
  *
  * Two rules shape everything here:
  *
- *  - **Nothing is invented.** The Bagisto list contract publishes no variants, so
- *    a card built from a list row exposes no variant SKU, no unit and no tier
- *    rows — it routes to detail instead. Only a source that actually carries
- *    variants (the demo fixture today, a richer feed later) can offer a direct
- *    add, and then only when exactly one variant is usable.
+ *  - **Nothing is invented.** A live card only renders product imagery that the
+ *    canonical catalog/media sources actually publish. Demo packshots are opt-in
+ *    and stay isolated to the explicit demo fixture path.
  *  - **Money is never computed.** `startingPrice` and `tierPrices` are passed
  *    through as the feed published them. Unit price and totals stay server-side
  *    inside `ResolvedRequestCart`.
@@ -63,7 +61,8 @@ export interface CatalogCardView {
   /** Quantity at which the feed switches to a quote, when the feed says so. */
   contactFromQuantity: number | null;
   detailHref: string;
-  fallbackImageUrl: string;
+  /** Local demo fallback; undefined on the production catalog path. */
+  fallbackImageUrl?: string;
   id: number;
   imageUrl: string | null;
   isAvailable: boolean;
@@ -78,6 +77,11 @@ export interface CatalogCardView {
   unitLabel: string | null;
 }
 
+interface CatalogCardBuildOptions {
+  /** Explicitly opt into local demo packshots for the isolated demo fixture. */
+  demoImageFallback?: boolean;
+}
+
 /** A list row, or a detail row when the source happens to carry variants. */
 type CatalogCardSource = CatalogProductParent | CatalogProductDetail;
 
@@ -85,11 +89,18 @@ function variantsOf(product: CatalogCardSource): readonly CatalogVariant[] {
   return "variants" in product && Array.isArray(product.variants) ? product.variants : [];
 }
 
-export function buildCatalogCards(products: readonly CatalogCardSource[]): CatalogCardView[] {
-  return products.map((product, index) => buildCatalogCard(product, index));
+export function buildCatalogCards(
+  products: readonly CatalogCardSource[],
+  options: CatalogCardBuildOptions = {},
+): CatalogCardView[] {
+  return products.map((product, index) => buildCatalogCard(product, index, options));
 }
 
-export function buildCatalogCard(product: CatalogCardSource, index = 0): CatalogCardView {
+export function buildCatalogCard(
+  product: CatalogCardSource,
+  index = 0,
+  options: CatalogCardBuildOptions = {},
+): CatalogCardView {
   const variants = variantsOf(product);
   const usable = variants.filter((variant) => variant.isAvailable);
   // Without variants the action can only be "go to detail": `resolveCommerceCardAction`
@@ -111,7 +122,7 @@ export function buildCatalogCard(product: CatalogCardSource, index = 0): Catalog
     categoryName: product.category?.name.trim() ?? null,
     contactFromQuantity: priceVariant?.contactFromQuantity ?? null,
     detailHref: detailHref(product.slug),
-    fallbackImageUrl: demoProductImage(index),
+    fallbackImageUrl: options.demoImageFallback ? demoProductImage(index) : undefined,
     id: product.id,
     imageUrl: product.imageUrl,
     isAvailable,
@@ -178,7 +189,7 @@ export function demoCatalogCategories(): CatalogCategory[] {
 }
 
 /**
- * Applies the same query contract the Bagisto list endpoint answers, so a card
+ * Applies the same query contract the live list endpoint answers, so a card
  * built from the fallback behaves identically to one built from the real feed —
  * search, category, sort, direction and pagination all included.
  */
