@@ -17,15 +17,22 @@ interface ProductGalleryProps {
  * the loaded image, so switching thumbnails cannot shift the layout — the behaviour
  * specification requires exactly that.
  *
- * A native `<img>` is used rather than `next/image` for the same reason
- * `CatalogProductImage` does: a Bagisto image URL is content data, and routing it
- * through the optimizer would need a remote-host allowlist this step does not own.
+ * A native `<img>` is used rather than `next/image` because product media is content
+ * data served either by the local R2 proxy route or a validated HTTPS catalog URL.
  */
 export function ProductGallery({ images }: ProductGalleryProps) {
   const [activeIndex, setActiveIndex] = useState(0);
   const active = images[activeIndex] ?? images[0];
 
-  if (!active) return null;
+  if (!active) {
+    return (
+      <div className={styles.gallery}>
+        <div className={styles.mainImage}>
+          <span className="px-6 text-center text-sm text-commerce-secondary">Chưa có hình ảnh</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={styles.gallery}>

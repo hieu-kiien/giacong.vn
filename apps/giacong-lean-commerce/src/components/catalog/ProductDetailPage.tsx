@@ -34,6 +34,7 @@ interface ProductDetailPageProps {
  */
 export function ProductDetailPage({ editingCartVariantSku, initialVariantSku, source, variantQueryWarning }: ProductDetailPageProps) {
   const view = buildProductDetailView({ product: source.product, related: source.related });
+  const gallery = source.gallery ?? view.gallery;
 
   return (
     <div className={styles.page}>
@@ -51,7 +52,7 @@ export function ProductDetailPage({ editingCartVariantSku, initialVariantSku, so
         </nav>
 
         <div className={styles.hero}>
-          <ProductGallery images={view.gallery} />
+          <ProductGallery images={gallery} />
 
           <div className={styles.commercial}>
             {view.categoryLabel ? <p className={styles.category}>{view.categoryLabel}</p> : null}
