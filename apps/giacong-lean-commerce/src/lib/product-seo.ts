@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
-import type { ProductGalleryImage } from "@/lib/product-gallery";
-import type { CatalogProductDetail } from "@/types/catalog";
+import type { ProductGalleryImage } from "./product-gallery.ts";
+import type { CatalogProductDetail } from "../types/catalog.ts";
 
 interface ProductSeoInput {
   gallery?: readonly ProductGalleryImage[];
@@ -39,7 +39,7 @@ export function buildProductMetadata({ gallery = [], product }: ProductSeoInput)
 
 /**
  * Conservative Product schema: only facts the canonical catalog owns. Lean V1
- * does not publish ratings, reviews, shipping promises, or a single checkout offer,
+ * does not publish social proof, fulfilment promises, or a single checkout offer,
  * so none are fabricated for rich-result eligibility.
  */
 export function buildProductStructuredData({ gallery = [], product }: ProductSeoInput) {
