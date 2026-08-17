@@ -1,15 +1,13 @@
 name: Cloudflare staging deep QA
 
 on:
-  push:
+  workflow_run:
+    workflows:
+      - CI and Cloudflare staging gate
+    types:
+      - completed
     branches:
       - master
-    paths:
-      - .github/workflows/cloudflare-staging-deep-qa.yml
-      - apps/giacong-lean-commerce/src/**
-      - apps/giacong-lean-commerce/wrangler.jsonc
-      - apps/giacong-lean-commerce/package.json
-      - apps/giacong-lean-commerce/package-lock.json
   workflow_dispatch:
 
 permissions:
@@ -21,6 +19,7 @@ concurrency:
 
 jobs:
   qa:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     defaults:
@@ -29,12 +28,16 @@ jobs:
     env:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_ACCESS_CLIENT_ID: ${{ secrets.CLOUDFLARE_ACCESS_CLIENT_ID }}
+      CLOUDFLARE_ACCESS_CLIENT_SECRET: ${{ secrets.CLOUDFLARE_ACCESS_CLIENT_SECRET }}
       STAGING_ORIGIN: ${{ vars.STAGING_ORIGIN || 'https://staging.kienhieu.id.vn' }}
       STAGING_DATABASE: giacong-vn-catalog-staging
 
     steps:
-      - name: Checkout
+      - name: Checkout deployed commit
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -46,223 +49,8 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Verify active staging deployment
-        shell: bash
-        run: |
-          set -euo pipefail
-          deployment=$(npx wrangler deployments status --env=staging --json)
-          echo "$deployment"
-          jq -e '
-            .versions | length == 1
-            and .[0].percentage == 100
-            and (. [0].version_id | type == "string" and length > 0)
-          ' <<<"$deployment"
-
-      - name: Verify catalog search, category filter and sort
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          curl --fail-with-body --silent --show-error --location --max-time 25 \
-            --get --data-urlencode 'q=gạo lứt' \
-            "$STAGING_ORIGIN/san-pham" > /tmp/catalog-search.html
-          grep -q 'Bột gạo lứt xay mịn' /tmp/catalog-search.html
-          if grep -q 'Hoa cúc sấy nguyên bông' /tmp/catalog-search.html; then
-            echo 'Search returned an unrelated product.'
-            exit 1
-          fi
-
-          npx wrangler d1 execute "$STAGING_DATABASE" --remote --json \
-            --command="SELECT c.slug FROM categories c INNER JOIN products p ON p.category_id = c.id WHERE p.slug = 'bot-gao-lut-xay-min' LIMIT 1;" \
-            > /tmp/category.json
-          category_slug=$(jq -r '.[0].results[0].slug // empty' /tmp/category.json)
-          test -n "$category_slug"
-          echo "Category slug: $category_slug"
-
-          curl --fail-with-body --silent --show-error --location --max-time 25 \
-            --get --data-urlencode "category=$category_slug" \
-            "$STAGING_ORIGIN/san-pham" > /tmp/catalog-category.html
-          grep -q 'Bột gạo lứt xay mịn' /tmp/catalog-category.html
-          if grep -q 'Hoa cúc sấy nguyên bông' /tmp/catalog-category.html; then
-            echo 'Category filter leaked a product from another category.'
-            exit 1
-          fi
-
-          curl --fail-with-body --silent --show-error --location --max-time 25 \
-            --get --data-urlencode 'sort=starting_price' --data-urlencode 'direction=desc' --data-urlencode 'per_page=48' \
-            "$STAGING_ORIGIN/san-pham" > /tmp/catalog-sort.html
-          python - <<'PY'
-          from pathlib import Path
-
-          html = Path('/tmp/catalog-sort.html').read_text()
-          names = [
-              'Túi zipper tráng nhôm',
-              'Lá tía tô sấy lạnh',
-              'Hoa cúc sấy nguyên bông',
-              'Bột gạo lứt xay mịn',
-              'test 1',
-          ]
-          positions = [html.find(name) for name in names]
-          if any(position < 0 for position in positions):
-              raise SystemExit(f'Missing product in sorted catalog: {dict(zip(names, positions))}')
-          if positions != sorted(positions):
-              raise SystemExit(f'Unexpected descending starting-price order: {dict(zip(names, positions))}')
-          print('Catalog sort order verified:', dict(zip(names, positions)))
-          PY
-
-      - name: Verify product API and repaired quantity thresholds
-        shell: bash
-        run: |
-          set -euo pipefail
-          curl --fail-with-body --silent --show-error --max-time 25 \
-            "$STAGING_ORIGIN/api/catalog/products/nuoc-mam-cot-pha-loang" > /tmp/fish-sauce.json
-          jq -e '
-            .product.slug == "nuoc-mam-cot-pha-loang"
-            and .product.variantCount == 2
-            and .product.availableVariantCount == 1
-            and ([.product.variants[] | select(.sku == "B2B-DEMO-NMC-10" and .contactFromQuantity == 141)] | length == 1)
-            and ([.product.variants[] | select(.sku == "B2B-DEMO-NMC-30" and .isAvailable == false)] | length == 1)
-          ' /tmp/fish-sauce.json
-
-          curl --fail-with-body --silent --show-error --max-time 25 \
-            "$STAGING_ORIGIN/api/catalog/products/sot-me-chua-ngot" > /tmp/tamarind.json
-          jq -e '
-            .product.slug == "sot-me-chua-ngot"
-            and ([.product.variants[] | select(.sku == "B2B-DEMO-SME-02" and .contactFromQuantity == 264)] | length == 1)
-          ' /tmp/tamarind.json
-
-          status=$(curl --silent --show-error --max-time 25 --output /tmp/not-found.json --write-out '%{http_code}' \
-            "$STAGING_ORIGIN/api/catalog/products/khong-ton-tai")
-          echo "Missing product API -> HTTP $status"
-          test "$status" = "404"
-
-      - name: Verify canonical cart validation matrix
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          post_cart() {
-            local name="$1"
-            local payload="$2"
-            curl --fail-with-body --silent --show-error --max-time 25 \
-              -H 'Content-Type: application/json' \
-              --data "$payload" \
-              "$STAGING_ORIGIN/api/gui-yeu-cau/xac-thuc" > "/tmp/$name.json"
-          }
-
-          post_cart valid_tier '{"lines":[{"parentSlug":"bot-gao-lut-xay-min","variantSku":"B2B-DEMO-BGL-05","quantity":100}]}'
-          jq -e '.ok == true and .cart.isSubmittable == true and .cart.lines[0].unitPrice == 74500 and .cart.lines[0].lineTotal == 7450000' /tmp/valid_tier.json
-
-          post_cart below_moq '{"lines":[{"parentSlug":"bot-gao-lut-xay-min","variantSku":"B2B-DEMO-BGL-05","quantity":24}]}'
-          jq -e '.ok == true and .cart.isSubmittable == false and .cart.lines[0].adjustments[0].code == "QUANTITY_BELOW_MOQ" and .cart.lines[0].adjustments[0].suggestedQuantity == 25' /tmp/below_moq.json
-
-          post_cart off_step '{"lines":[{"parentSlug":"bot-gao-lut-xay-min","variantSku":"B2B-DEMO-BGL-05","quantity":26}]}'
-          jq -e '.ok == true and .cart.isSubmittable == false and .cart.lines[0].adjustments[0].code == "QUANTITY_OFF_STEP" and .cart.lines[0].adjustments[0].suggestedQuantity == 30' /tmp/off_step.json
-
-          post_cart unavailable '{"lines":[{"parentSlug":"nuoc-mam-cot-pha-loang","variantSku":"B2B-DEMO-NMC-30","quantity":2}]}'
-          jq -e '.ok == true and .cart.isSubmittable == false and .cart.lines[0].adjustments[0].code == "VARIANT_UNAVAILABLE"' /tmp/unavailable.json
-
-          post_cart missing_product '{"lines":[{"parentSlug":"khong-ton-tai","variantSku":"MISSING","quantity":1}]}'
-          jq -e '.ok == true and .cart.isSubmittable == false and .cart.lines[0].adjustments[0].code == "PRODUCT_NOT_FOUND"' /tmp/missing_product.json
-
-          post_cart missing_variant '{"lines":[{"parentSlug":"bot-gao-lut-xay-min","variantSku":"MISSING","quantity":25}]}'
-          jq -e '.ok == true and .cart.isSubmittable == false and .cart.lines[0].adjustments[0].code == "VARIANT_NOT_FOUND"' /tmp/missing_variant.json
-
-          post_cart price_on_request '{"lines":[{"parentSlug":"bot-gao-lut-xay-min","variantSku":"B2B-DEMO-BGL-05","quantity":500}]}'
-          jq -e '
-            .ok == true
-            and .cart.isSubmittable == true
-            and .cart.hasPriceOnRequest == true
-            and .cart.requestType == "Tư vấn số lượng lớn"
-            and .cart.pricedSubtotal == 0
-            and .cart.lines[0].priceOnRequest == true
-            and .cart.lines[0].unitPrice == null
-            and .cart.lines[0].adjustments[0].code == "PRICE_ON_REQUEST"
-          ' /tmp/price_on_request.json
-
-      - name: Verify contact cart drift guard without submitting
-        shell: bash
-        run: |
-          set -euo pipefail
-          status=$(curl --silent --show-error --max-time 25 --output /tmp/contact-drift.json --write-out '%{http_code}' \
-            -H 'Content-Type: application/json' \
-            --data '{"email":"qa@example.com","lines":[{"parentSlug":"bot-gao-lut-xay-min","variantSku":"B2B-DEMO-BGL-05","quantity":25}],"message":"staging QA only","name":"Staging QA","phone":"0868408115","requestId":"00000000-0000-4000-8000-000000000001","snapshotToken":"0000000000000000000000000000000000000000000000000000000000000000","source":"staging-deep-qa"}' \
-            "$STAGING_ORIGIN/api/contact")
-          echo "Contact stale snapshot -> HTTP $status"
-          test "$status" = "409"
-          jq -e '.ok == false and .code == "CART_DRIFTED" and .cart.isSubmittable == true and .cart.lines[0].unitPrice == 78000' /tmp/contact-drift.json
-
-          malformed_status=$(curl --silent --show-error --max-time 25 --output /tmp/contact-malformed.json --write-out '%{http_code}' \
-            -H 'Content-Type: application/json' --data '{bad json' "$STAGING_ORIGIN/api/contact")
-          echo "Contact malformed JSON -> HTTP $malformed_status"
-          test "$malformed_status" = "400"
-
-      - name: Verify R2 media response
-        shell: bash
-        run: |
-          set -euo pipefail
-          curl --fail-with-body --silent --show-error --location --max-time 25 \
-            --dump-header /tmp/media.headers \
-            --output /tmp/media.bin \
-            "$STAGING_ORIGIN/media/products/c5be4fe1-3daa-40ad-b9df-54717ec5c863.jpg"
-          test "$(wc -c < /tmp/media.bin)" -gt 100000
-          grep -Eiq '^content-type: image/(jpeg|jpg)' /tmp/media.headers
-
       - name: Install Chromium for responsive QA
         run: npx playwright install --with-deps chromium
 
-      - name: Verify responsive layout and browser errors
-        shell: bash
-        run: |
-          set -euo pipefail
-          node --input-type=module <<'JS'
-          import { chromium } from 'playwright';
-
-          const origin = process.env.STAGING_ORIGIN;
-          const routes = [
-            '/',
-            '/san-pham',
-            '/san-pham/bot-gao-lut-xay-min',
-            '/gui-yeu-cau',
-            '/thue-gia-cong/say-thuc-pham-say',
-          ];
-          const viewports = [
-            { name: 'mobile', width: 390, height: 844 },
-            { name: 'tablet', width: 768, height: 1024 },
-            { name: 'desktop', width: 1440, height: 900 },
-          ];
-
-          const browser = await chromium.launch({ headless: true });
-          try {
-            for (const viewport of viewports) {
-              const context = await browser.newContext({ viewport });
-              for (const route of routes) {
-                const page = await context.newPage();
-                const errors = [];
-                page.on('pageerror', (error) => errors.push(`pageerror: ${error.message}`));
-                page.on('console', (message) => {
-                  if (message.type() === 'error') errors.push(`console: ${message.text()}`));
-                });
-                const response = await page.goto(`${origin}${route}`, { waitUntil: 'networkidle', timeout: 30000 });
-                if (!response || response.status() >= 400) {
-                  throw new Error(`${viewport.name} ${route}: HTTP ${response?.status() ?? 'no response'}`);
-                }
-                const dimensions = await page.evaluate(() => ({
-                  clientWidth: document.documentElement.clientWidth,
-                  scrollWidth: document.documentElement.scrollWidth,
-                }));
-                if (dimensions.scrollWidth > dimensions.clientWidth + 1) {
-                  throw new Error(`${viewport.name} ${route}: horizontal overflow ${dimensions.scrollWidth} > ${dimensions.clientWidth}`);
-                }
-                if (errors.length) {
-                  throw new Error(`${viewport.name} ${route}: ${errors.join(' | ')}`);
-                }
-                console.log(`${viewport.name} ${route}: HTTP ${response.status()}, width ${dimensions.clientWidth}/${dimensions.scrollWidth}`);
-                await page.close();
-              }
-              await context.close();
-            }
-          } finally {
-            await browser.close();
-          }
-          JS
+      - name: Run Access-authenticated staging deep QA
+        run: node scripts/staging-deep-qa.mjs
