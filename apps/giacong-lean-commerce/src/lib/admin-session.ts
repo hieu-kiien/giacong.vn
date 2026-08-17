@@ -1,28 +1,19 @@
-import { adminFailure, adminSuccess } from "./admin-api.ts";
-import type { AdminAdmissionResult } from "./admin-access.ts";
+import { adminSuccess } from "./admin-api.ts";
+import type { AdminGuardResult } from "./admin-guard.ts";
 
-export interface AdminSessionDependencies {
-  admit(request: Request): Promise<AdminAdmissionResult>;
-  requestId(): string;
-}
-
-export async function handleAdminSession(
-  request: Request,
-  dependencies: AdminSessionDependencies,
-): Promise<Response> {
-  const requestId = dependencies.requestId();
-  const admission = await dependencies.admit(request);
-  if (!admission.ok) {
-    return adminFailure(
-      requestId,
-      admission.status,
-      admission.code,
-      admission.message,
-    );
-  }
-
+export function handleAdminSession(
+  guard: Pick<AdminGuardResult, "actorSubject" | "member">,
+  requestId: string,
+): Response {
   return adminSuccess(requestId, {
     authenticated: true,
-    subject: admission.actor.subject,
+    subject: guard.actorSubject,
+    role: guard.member.role,
+    member: {
+      id: guard.member.id,
+      displayName: guard.member.displayName,
+      email: guard.member.email,
+      role: guard.member.role,
+    },
   });
 }
