@@ -11,6 +11,12 @@ export const storefrontNavigation = [
     menuItemId: "menu-item-5166",
     pathPrefix: "/thue-gia-cong",
   },
+  {
+    key: "news",
+    label: "Tin tức",
+    menuItemId: "menu-item-1541",
+    pathPrefix: "/tin-tuc",
+  },
 ] as const;
 
 export type StorefrontNavigationKey = (typeof storefrontNavigation)[number]["key"];
