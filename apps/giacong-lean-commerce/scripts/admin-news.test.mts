@@ -146,8 +146,9 @@ async function readSource(...segments: string[]): Promise<string> {
 }
 
 class FakeStatement {
+  readonly query: string;
   values: unknown[] = [];
-  constructor(readonly query: string) {}
+  constructor(query: string) { this.query = query; }
   bind(...values: unknown[]) { this.values = values; return this; }
   async all<T>() { return { results: [] as T[] }; }
   async first<T>() { return null as T | null; }
@@ -156,7 +157,8 @@ class FakeStatement {
 
 class FakeDatabase {
   readonly batches: FakeStatement[][] = [];
-  constructor(private readonly batchResults: unknown[][]) {}
+  private readonly batchResults: unknown[][];
+  constructor(batchResults: unknown[][]) { this.batchResults = batchResults; }
   prepare(query: string) { return new FakeStatement(query); }
   async batch(statements: FakeStatement[]) {
     this.batches.push(statements);
