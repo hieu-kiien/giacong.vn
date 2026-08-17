@@ -4,6 +4,13 @@ export interface AdminProductWithRevision extends AdminProduct {
   revision: number;
 }
 
+export class AdminProductRevisionError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "AdminProductRevisionError";
+  }
+}
+
 export async function attachAdminProductRevisions(
   database: D1DatabaseLike,
   products: AdminProduct[],
@@ -15,11 +22,16 @@ export async function attachAdminProductRevisions(
     FROM products
     WHERE id IN (${ids.map(() => "?").join(", ")})
   `).bind(...ids).all<{ id: number; revision: number }>();
-  const revisions = new Map(rows.results.map((row) => [row.id, positiveRevision(row.revision)]));
-  return products.map((product) => ({
-    ...product,
-    revision: revisions.get(product.id) ?? 1,
-  }));
+  const revisions = new Map<number, number>();
+  for (const row of rows.results) revisions.set(row.id, requireRevision(row.revision, row.id));
+
+  return products.map((product) => {
+    const revision = revisions.get(product.id);
+    if (!revision) {
+      throw new AdminProductRevisionError(`Thiếu revision cho sản phẩm #${product.id}.`);
+    }
+    return { ...product, revision };
+  });
 }
 
 export async function attachAdminProductRevision(
@@ -32,12 +44,16 @@ export async function attachAdminProductRevision(
     WHERE id = ?
     LIMIT 1
   `).bind(product.id).first<{ revision: number }>();
+  if (!row) throw new AdminProductRevisionError(`Thiếu revision cho sản phẩm #${product.id}.`);
   return {
     ...product,
-    revision: positiveRevision(row?.revision),
+    revision: requireRevision(row.revision, product.id),
   };
 }
 
-function positiveRevision(value: unknown): number {
-  return typeof value === "number" && Number.isInteger(value) && value > 0 ? value : 1;
+function requireRevision(value: unknown, productId: number): number {
+  if (typeof value !== "number" || !Number.isInteger(value) || value < 1) {
+    throw new AdminProductRevisionError(`Revision không hợp lệ cho sản phẩm #${productId}.`);
+  }
+  return value;
 }
