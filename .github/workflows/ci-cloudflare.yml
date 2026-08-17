@@ -104,6 +104,9 @@ jobs:
       - name: Verify Cloudflare credentials and current staging worker
         run: npx --yes wrangler@4.115.0 deployments status --env=staging --json
 
+      - name: Ensure staging Access Service Auth policy
+        run: node scripts/ensure-staging-access-service-auth.mjs
+
       - name: Build OpenNext for Cloudflare staging
         run: npm run cf:build:staging
 
