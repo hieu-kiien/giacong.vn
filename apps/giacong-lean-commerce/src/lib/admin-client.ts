@@ -36,6 +36,7 @@ export interface AdminProduct {
   isActive: boolean;
   status: string;
   leadTimeDays: number | null;
+  revision: number;
   updatedAt: string | null;
 }
 
@@ -125,6 +126,8 @@ export class AdminClientError extends Error {
   }
 }
 
+const productRevisionCache = new Map<number, number>();
+
 export async function fetchAdmin<T>(path: string, signal?: AbortSignal): Promise<T> {
   let response: Response;
   try {
@@ -153,6 +156,7 @@ export async function fetchAdmin<T>(path: string, signal?: AbortSignal): Promise
       body.code,
     );
   }
+  rememberProductRevisions(body.data);
   return body.data;
 }
 
@@ -160,14 +164,16 @@ export async function mutateAdmin<T>(
   path: string,
   options: { body?: unknown; method: "DELETE" | "PATCH" | "POST" },
 ): Promise<T> {
+  const productId = productMutationId(path);
+  const requestBody = withCachedProductRevision(productId, options.method, options.body);
   let response: Response;
   try {
     response = await fetch(path, {
-      body: options.body === undefined ? undefined : JSON.stringify(options.body),
+      body: requestBody === undefined ? undefined : JSON.stringify(requestBody),
       credentials: "include",
       headers: {
         Accept: "application/json",
-        ...(options.body === undefined ? {} : { "Content-Type": "application/json" }),
+        ...(requestBody === undefined ? {} : { "Content-Type": "application/json" }),
       },
       method: options.method,
     });
@@ -182,12 +188,14 @@ export async function mutateAdmin<T>(
     throw new AdminClientError("Máy chủ trả về dữ liệu không hợp lệ.", response.status);
   }
   if (!response.ok || body.ok === false || !body.data) {
+    if (productId !== null && body.code === "STALE_WRITE") productRevisionCache.delete(productId);
     throw new AdminClientError(
       body.message ?? "Không thể lưu thay đổi admin.",
       response.status,
       body.code,
     );
   }
+  rememberProductRevisions(body.data);
   return body.data;
 }
 
@@ -209,4 +217,53 @@ export function getInitials(value: string): string {
     .slice(0, 2)
     .map((part) => part[0]?.toUpperCase() ?? "")
     .join("") || "—";
+}
+
+function productMutationId(path: string): number | null {
+  const match = /^\/api\/admin\/products\/(\d+)$/.exec(path);
+  if (!match) return null;
+  const id = Number(match[1]);
+  return Number.isInteger(id) && id > 0 ? id : null;
+}
+
+function withCachedProductRevision(
+  productId: number | null,
+  method: "DELETE" | "PATCH" | "POST",
+  body: unknown,
+): unknown {
+  if (productId === null || (method !== "PATCH" && method !== "DELETE")) return body;
+  const revision = productRevisionCache.get(productId);
+  if (!revision) return body;
+  if (isRecord(body)) {
+    return Object.prototype.hasOwnProperty.call(body, "revision") ? body : { ...body, revision };
+  }
+  return body === undefined ? { revision } : body;
+}
+
+function rememberProductRevisions(value: unknown): void {
+  if (!isRecord(value)) return;
+  rememberProductRevision(value.product);
+  if (Array.isArray(value.products)) {
+    for (const product of value.products) rememberProductRevision(product);
+  }
+}
+
+function rememberProductRevision(value: unknown): void {
+  if (!isRecord(value)) return;
+  const id = value.id;
+  const revision = value.revision;
+  if (
+    typeof id === "number"
+    && Number.isInteger(id)
+    && id > 0
+    && typeof revision === "number"
+    && Number.isInteger(revision)
+    && revision > 0
+  ) {
+    productRevisionCache.set(id, revision);
+  }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }

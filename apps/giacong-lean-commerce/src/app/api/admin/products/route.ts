@@ -1,12 +1,16 @@
 import { adminFailure, adminSuccess } from "@/lib/admin-api.ts";
 import {
-  createAdminProduct,
+  getAdminProduct,
   listAdminCategories,
   listAdminProducts,
-  type AdminProductInput,
 } from "@/lib/admin-data";
 import { requireAdmin } from "@/lib/admin-guard";
 import { parseAdminProductPayload } from "@/lib/admin-product-input";
+import {
+  attachAdminProductRevision,
+  attachAdminProductRevisions,
+} from "@/lib/admin-product-revision";
+import { createAdminProductAtomically } from "@/lib/admin-product-write";
 
 export const dynamic = "force-dynamic";
 
@@ -27,9 +31,11 @@ export async function GET(request: Request): Promise<Response> {
       }),
       listAdminCategories(guard.database),
     ]);
+    const products = await attachAdminProductRevisions(guard.database, data.products);
     return adminSuccess(crypto.randomUUID(), {
       categories,
-      ...data,
+      products,
+      total: data.total,
       pagination: {
         currentPage: page,
         lastPage: Math.max(1, Math.ceil(data.total / pageSize)),
@@ -70,8 +76,20 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   try {
-    const product = await createAdminProduct(guard.database, parsed.input, guard.actorSubject);
-    return adminSuccess(crypto.randomUUID(), { product }, 201);
+    const productId = await createAdminProductAtomically(
+      guard.database,
+      parsed.input,
+      guard.actorSubject,
+    );
+    const product = await getAdminProduct(guard.database, productId);
+    if (!product) {
+      return adminFailure(crypto.randomUUID(), 503, "INTERNAL_ERROR", "Không đọc lại được sản phẩm vừa tạo.");
+    }
+    return adminSuccess(
+      crypto.randomUUID(),
+      { product: await attachAdminProductRevision(guard.database, product) },
+      201,
+    );
   } catch (error) {
     const unique = isUniqueError(error);
     return adminFailure(
