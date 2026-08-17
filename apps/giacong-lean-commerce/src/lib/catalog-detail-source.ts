@@ -8,7 +8,9 @@ import {
   findDemoCatalogProduct,
 } from "@/data/demo-catalog";
 import { getCatalogProduct, getCatalogProducts } from "@/lib/cloudflare-catalog";
+import { getCatalogProductGallery } from "@/lib/catalog-product-media";
 import { demoCatalogFallbackAllowed, demoCatalogForced, waitForDemoCatalogFallback } from "@/lib/demo-catalog-policy";
+import { buildLiveProductGallery, type ProductGalleryImage } from "@/lib/product-gallery";
 import type { CatalogProductDetail, CatalogProductParent } from "@/types/catalog";
 
 /** How many related products the detail rail asks for. */
@@ -17,6 +19,8 @@ const RELATED_LIMIT = 4;
 export interface CatalogDetailSourceResult {
   /** true only when a non-production demo fixture is used. */
   isDemo: boolean;
+  /** Live product media. Undefined only for the isolated demo fixture. */
+  gallery?: readonly ProductGalleryImage[];
   product: CatalogProductDetail;
   related: readonly CatalogProductParent[];
 }
@@ -32,7 +36,11 @@ export const loadCatalogProductDetail = cache(async (slug: string): Promise<Cata
   try {
     const product = await waitForDemoCatalogFallback(getCatalogProduct(slug), process.env);
     if (product) {
-      return { isDemo: false, product, related: await readLiveRelated(product) };
+      const [related, gallery] = await Promise.all([
+        readLiveRelated(product),
+        readLiveGallery(product),
+      ]);
+      return { gallery, isDemo: false, product, related };
     }
   } catch (error) {
     if (!demoAllowed) throw error;
@@ -46,6 +54,20 @@ function readDemoProduct(slug: string): CatalogDetailSourceResult | null {
   const demoProduct = findDemoCatalogProduct(slug);
   if (!demoProduct) return null;
   return { isDemo: true, product: demoProduct, related: readDemoRelated(demoProduct) };
+}
+
+async function readLiveGallery(product: CatalogProductDetail): Promise<readonly ProductGalleryImage[]> {
+  try {
+    return await getCatalogProductGallery(product);
+  } catch {
+    // Media metadata must not take an otherwise valid product page down. Preserve
+    // the canonical product image if present and render the normal empty state if not.
+    return buildLiveProductGallery({
+      assets: [],
+      productImageUrl: product.imageUrl,
+      productName: product.name,
+    });
+  }
 }
 
 async function readLiveRelated(product: CatalogProductDetail): Promise<readonly CatalogProductParent[]> {

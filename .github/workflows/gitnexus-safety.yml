@@ -63,7 +63,7 @@ jobs:
           gitnexus analyze . --force --skip-agents-md --skip-skills
           gitnexus status
 
-      - name: Detect changed symbols and affected execution flows
+      - name: Detect changed symbols and verify graph coverage
         if: github.event_name == 'pull_request'
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
@@ -72,16 +72,41 @@ jobs:
           set -euo pipefail
           gitnexus detect-changes --scope compare --base-ref "$BASE_SHA" | tee /tmp/gitnexus-detect-changes.txt
 
-          if grep -Eq '^apps/giacong-lean-commerce/(src|scripts)/.*\.(cjs|js|jsx|mjs|mts|ts|tsx)$' /tmp/changed-files.txt \
-            && grep -Fxq "No changes detected." /tmp/gitnexus-detect-changes.txt; then
-            echo "GitNexus did not map changed application/test code to the graph; failing closed." >&2
-            exit 1
+          # GitNexus 1.6.9's human formatter prints "No changes detected." when
+          # changed_count=0, even when the backend did parse changed files whose
+          # hunks do not overlap an indexed symbol (for example module-level
+          # imports/config). Do not confuse that with a missing git diff.
+          if grep -Fxq "No changes detected." /tmp/gitnexus-detect-changes.txt; then
+            gitnexus cypher \
+              "MATCH (f:File) WHERE f.filePath STARTS WITH 'apps/giacong-lean-commerce/' RETURN f.filePath AS filePath" \
+              --limit 10000 | tee /tmp/gitnexus-indexed-files.txt
+
+            missing=0
+            while IFS= read -r file; do
+              if [[ "$file" =~ ^apps/giacong-lean-commerce/(src|scripts)/.*\.(cjs|js|jsx|mjs|mts|ts|tsx)$ ]]; then
+                if ! grep -Fq "$file" /tmp/gitnexus-indexed-files.txt; then
+                  echo "GitNexus graph is missing changed code file: $file" >&2
+                  missing=1
+                fi
+              fi
+            done < /tmp/changed-files.txt
+
+            if [[ "$missing" -ne 0 ]]; then
+              echo "Changed application/test code is not fully covered by the GitNexus graph; failing closed." >&2
+              exit 1
+            fi
+
+            echo "GitNexus indexed every changed code file; no changed hunk overlapped an indexed symbol." | tee /tmp/gitnexus-coverage-note.txt
           fi
 
           {
             echo "## GitNexus change-impact report"
             echo
-            echo "Compared PR head with base \`$BASE_SHA\`."
+            echo "Compared PR head with exact base commit \`$BASE_SHA\`."
+            if [[ -f /tmp/gitnexus-coverage-note.txt ]]; then
+              echo
+              cat /tmp/gitnexus-coverage-note.txt
+            fi
             echo
             echo '```text'
             cat /tmp/gitnexus-detect-changes.txt
