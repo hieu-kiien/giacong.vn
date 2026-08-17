@@ -2,10 +2,13 @@ import { adminFailure, adminSuccess } from "@/lib/admin-api.ts";
 import {
   archiveAdminProductVariant,
   getAdminProductVariant,
-  updateAdminProductVariant,
 } from "@/lib/admin-data";
 import { requireAdmin } from "@/lib/admin-guard";
 import { parseAdminVariantPayload, variantDefaults } from "@/lib/admin-variant-input";
+import {
+  AdminVariantStaleWriteError,
+  updateAdminVariantAtomically,
+} from "@/lib/admin-variant-write";
 
 export const dynamic = "force-dynamic";
 
@@ -38,18 +41,36 @@ export async function PATCH(request: Request, context: RouteContext): Promise<Re
   if (!ids) return adminFailure(crypto.randomUUID(), 404, "NOT_FOUND", "Không tìm thấy variant.");
   const existing = await getAdminProductVariant(guard.database, ids.productId, ids.variantId);
   if (!existing) return adminFailure(crypto.randomUUID(), 404, "NOT_FOUND", "Không tìm thấy variant.");
-  const parsed = parseAdminVariantPayload(await readJson(request), variantDefaults(existing));
+
+  const payload = await readJson(request);
+  if (!hasExplicitRevision(payload)) {
+    return adminFailure(
+      crypto.randomUUID(),
+      422,
+      "VALIDATION_ERROR",
+      "Revision hiện tại là bắt buộc khi cập nhật variant.",
+      { revision: "Hãy tải lại variant và gửi revision hiện tại." },
+    );
+  }
+  const parsed = parseAdminVariantPayload(payload, variantDefaults(existing));
   if (!parsed.input) {
     return adminFailure(crypto.randomUUID(), 422, "VALIDATION_ERROR", "Dữ liệu variant chưa hợp lệ.", parsed.fieldErrors);
   }
 
   try {
-    const variant = await updateAdminProductVariant(guard.database, ids.productId, ids.variantId, parsed.input, guard.actorSubject);
+    await updateAdminVariantAtomically(
+      guard.database,
+      ids.productId,
+      ids.variantId,
+      parsed.input,
+      guard.actorSubject,
+    );
+    const variant = await getAdminProductVariant(guard.database, ids.productId, ids.variantId);
     return variant
       ? adminSuccess(crypto.randomUUID(), { variant })
       : adminFailure(crypto.randomUUID(), 404, "NOT_FOUND", "Không tìm thấy variant.");
   } catch (error) {
-    const stale = error instanceof Error && /đã thay đổi|stale/i.test(error.message);
+    const stale = error instanceof AdminVariantStaleWriteError;
     const unique = isUniqueError(error);
     return adminFailure(
       crypto.randomUUID(),
@@ -98,6 +119,13 @@ async function readJson(request: Request): Promise<unknown> {
   } catch {
     return {};
   }
+}
+
+function hasExplicitRevision(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object"
+    && value !== null
+    && !Array.isArray(value)
+    && Object.prototype.hasOwnProperty.call(value, "revision");
 }
 
 function isUniqueError(error: unknown): boolean {
