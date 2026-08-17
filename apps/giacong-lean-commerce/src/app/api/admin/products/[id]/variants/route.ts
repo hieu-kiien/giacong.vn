@@ -1,10 +1,11 @@
 import { adminFailure, adminSuccess } from "@/lib/admin-api.ts";
 import {
-  createAdminProductVariant,
+  getAdminProductVariant,
   listAdminProductVariants,
 } from "@/lib/admin-data";
 import { requireAdmin } from "@/lib/admin-guard";
 import { parseAdminVariantPayload } from "@/lib/admin-variant-input";
+import { createAdminVariantAtomically } from "@/lib/admin-variant-write";
 
 export const dynamic = "force-dynamic";
 
@@ -40,8 +41,16 @@ export async function POST(request: Request, context: RouteContext): Promise<Res
   }
 
   try {
-    const variant = await createAdminProductVariant(guard.database, productId, parsed.input, guard.actorSubject);
-    return adminSuccess(crypto.randomUUID(), { variant }, 201);
+    const variantId = await createAdminVariantAtomically(
+      guard.database,
+      productId,
+      parsed.input,
+      guard.actorSubject,
+    );
+    const variant = await getAdminProductVariant(guard.database, productId, variantId);
+    return variant
+      ? adminSuccess(crypto.randomUUID(), { variant }, 201)
+      : adminFailure(crypto.randomUUID(), 503, "INTERNAL_ERROR", "Không đọc lại được variant vừa tạo.");
   } catch (error) {
     const unique = isUniqueError(error);
     return adminFailure(

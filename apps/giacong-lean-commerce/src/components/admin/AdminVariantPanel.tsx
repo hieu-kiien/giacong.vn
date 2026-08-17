@@ -122,7 +122,10 @@ export function AdminVariantPanel({ productId }: { productId: number }) {
     if (!window.confirm(`Ẩn variant “${variant.name}” khỏi lựa chọn public?`)) return;
     setError(null);
     try {
-      await mutateAdmin(`/api/admin/products/${productId}/variants/${variant.id}`, { method: "DELETE" });
+      await mutateAdmin(`/api/admin/products/${productId}/variants/${variant.id}`, {
+        body: { revision: variant.revision },
+        method: "DELETE",
+      });
       await loadVariants();
       if (editingId === variant.id) resetDraft();
     } catch (reason: unknown) {
