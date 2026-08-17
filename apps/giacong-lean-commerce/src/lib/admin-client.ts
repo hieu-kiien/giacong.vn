@@ -84,6 +84,7 @@ export interface AdminService {
   status: string;
   leadTimeDays: number | null;
   moqSummary: string | null;
+  revision: number;
   updatedAt: string | null;
 }
 
@@ -127,6 +128,7 @@ export class AdminClientError extends Error {
 }
 
 const productRevisionCache = new Map<number, number>();
+const serviceRevisionCache = new Map<number, number>();
 
 export async function fetchAdmin<T>(path: string, signal?: AbortSignal): Promise<T> {
   let response: Response;
@@ -156,7 +158,7 @@ export async function fetchAdmin<T>(path: string, signal?: AbortSignal): Promise
       body.code,
     );
   }
-  rememberProductRevisions(body.data);
+  rememberRevisionTokens(body.data);
   return body.data;
 }
 
@@ -165,7 +167,10 @@ export async function mutateAdmin<T>(
   options: { body?: unknown; method: "DELETE" | "PATCH" | "POST" },
 ): Promise<T> {
   const productId = productMutationId(path);
-  const requestBody = withCachedProductRevision(productId, options.method, options.body);
+  const serviceId = serviceMutationId(path);
+  let requestBody = withCachedProductRevision(productId, options.method, options.body);
+  requestBody = withCachedServiceRevision(serviceId, options.method, requestBody);
+
   let response: Response;
   try {
     response = await fetch(path, {
@@ -188,14 +193,17 @@ export async function mutateAdmin<T>(
     throw new AdminClientError("Máy chủ trả về dữ liệu không hợp lệ.", response.status);
   }
   if (!response.ok || body.ok === false || !body.data) {
-    if (productId !== null && body.code === "STALE_WRITE") productRevisionCache.delete(productId);
+    if (body.code === "STALE_WRITE") {
+      if (productId !== null) productRevisionCache.delete(productId);
+      if (serviceId !== null) serviceRevisionCache.delete(serviceId);
+    }
     throw new AdminClientError(
       body.message ?? "Không thể lưu thay đổi admin.",
       response.status,
       body.code,
     );
   }
-  rememberProductRevisions(body.data);
+  rememberRevisionTokens(body.data);
   return body.data;
 }
 
@@ -231,8 +239,32 @@ function withCachedProductRevision(
   method: "DELETE" | "PATCH" | "POST",
   body: unknown,
 ): unknown {
-  if (productId === null || (method !== "PATCH" && method !== "DELETE")) return body;
-  const revision = productRevisionCache.get(productId);
+  return withCachedRevision(productRevisionCache, productId, method, body);
+}
+
+function serviceMutationId(path: string): number | null {
+  const match = /^\/api\/admin\/services\/(\d+)$/.exec(path);
+  if (!match) return null;
+  const id = Number(match[1]);
+  return Number.isInteger(id) && id > 0 ? id : null;
+}
+
+function withCachedServiceRevision(
+  serviceId: number | null,
+  method: "DELETE" | "PATCH" | "POST",
+  body: unknown,
+): unknown {
+  return withCachedRevision(serviceRevisionCache, serviceId, method, body);
+}
+
+function withCachedRevision(
+  cache: Map<number, number>,
+  entityId: number | null,
+  method: "DELETE" | "PATCH" | "POST",
+  body: unknown,
+): unknown {
+  if (entityId === null || (method !== "PATCH" && method !== "DELETE")) return body;
+  const revision = cache.get(entityId);
   if (!revision) return body;
   if (isRecord(body)) {
     return Object.prototype.hasOwnProperty.call(body, "revision") ? body : { ...body, revision };
@@ -240,15 +272,19 @@ function withCachedProductRevision(
   return body === undefined ? { revision } : body;
 }
 
-function rememberProductRevisions(value: unknown): void {
+function rememberRevisionTokens(value: unknown): void {
   if (!isRecord(value)) return;
-  rememberProductRevision(value.product);
+  rememberRevision(productRevisionCache, value.product);
+  rememberRevision(serviceRevisionCache, value.service);
   if (Array.isArray(value.products)) {
-    for (const product of value.products) rememberProductRevision(product);
+    for (const product of value.products) rememberRevision(productRevisionCache, product);
+  }
+  if (Array.isArray(value.services)) {
+    for (const service of value.services) rememberRevision(serviceRevisionCache, service);
   }
 }
 
-function rememberProductRevision(value: unknown): void {
+function rememberRevision(cache: Map<number, number>, value: unknown): void {
   if (!isRecord(value)) return;
   const id = value.id;
   const revision = value.revision;
@@ -260,7 +296,7 @@ function rememberProductRevision(value: unknown): void {
     && Number.isInteger(revision)
     && revision > 0
   ) {
-    productRevisionCache.set(id, revision);
+    cache.set(id, revision);
   }
 }
 

@@ -1,7 +1,12 @@
 import { adminFailure, adminSuccess } from "@/lib/admin-api.ts";
-import { createAdminService, listAdminServices } from "@/lib/admin-data";
+import { getAdminService, listAdminServices } from "@/lib/admin-data";
 import { requireAdmin } from "@/lib/admin-guard";
 import { parseAdminServicePayload } from "@/lib/admin-service-input";
+import {
+  attachAdminServiceRevision,
+  attachAdminServiceRevisions,
+} from "@/lib/admin-service-revision";
+import { createAdminServiceAtomically } from "@/lib/admin-service-write";
 
 export const dynamic = "force-dynamic";
 
@@ -19,8 +24,10 @@ export async function GET(request: Request): Promise<Response> {
       pageSize,
       query: url.searchParams.get("query") ?? undefined,
     });
+    const services = await attachAdminServiceRevisions(guard.database, data.services);
     return adminSuccess(crypto.randomUUID(), {
-      ...data,
+      services,
+      total: data.total,
       pagination: {
         currentPage: page,
         lastPage: Math.max(1, Math.ceil(data.total / pageSize)),
@@ -60,8 +67,20 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   try {
-    const service = await createAdminService(guard.database, parsed.input, guard.actorSubject);
-    return adminSuccess(crypto.randomUUID(), { service }, 201);
+    const serviceId = await createAdminServiceAtomically(
+      guard.database,
+      parsed.input,
+      guard.actorSubject,
+    );
+    const service = await getAdminService(guard.database, serviceId);
+    if (!service) {
+      return adminFailure(crypto.randomUUID(), 503, "INTERNAL_ERROR", "Không đọc lại được dịch vụ vừa tạo.");
+    }
+    return adminSuccess(
+      crypto.randomUUID(),
+      { service: await attachAdminServiceRevision(guard.database, service) },
+      201,
+    );
   } catch (error) {
     const unique = isUniqueError(error);
     return adminFailure(
