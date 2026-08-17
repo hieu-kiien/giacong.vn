@@ -42,8 +42,38 @@ jobs:
       - name: Run application checks
         run: npm run check
 
-  staging-gate:
-    name: Cloudflare staging gate
+  cloudflare-package:
+    name: Cloudflare package gate
+    if: github.event_name == 'pull_request'
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: apps/giacong-lean-commerce
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: apps/giacong-lean-commerce/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build OpenNext for Cloudflare staging
+        run: npm run cf:build:staging
+
+      - name: Validate Wrangler package without deploying
+        run: npx --yes wrangler@4.115.0 deploy --env=staging --dry-run --outdir=.wrangler-dry-run
+
+  staging-deploy:
+    name: Deploy Cloudflare staging
     if: github.event_name != 'pull_request'
     needs: quality
     runs-on: ubuntu-latest
@@ -69,14 +99,29 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Verify Cloudflare credentials and existing staging worker
+      - name: Verify Cloudflare credentials and current staging worker
         run: npx --yes wrangler@4.115.0 deployments status --env=staging --json
 
       - name: Build OpenNext for Cloudflare staging
         run: npm run cf:build:staging
 
-      - name: Validate Wrangler package without deploying
+      - name: Validate Wrangler package before changing remote state
         run: npx --yes wrangler@4.115.0 deploy --env=staging --dry-run --outdir=.wrangler-dry-run
 
-      - name: Staging remains unchanged
-        run: echo "Cloudflare staging gate passed. This workflow intentionally does not deploy."
+      - name: Apply pending D1 staging migrations
+        run: npx --yes wrangler@4.115.0 d1 migrations apply GIACONG_VN_CATALOG --env=staging --remote
+
+      - name: Deploy the validated OpenNext build to staging
+        run: npx opennextjs-cloudflare deploy --env=staging
+
+      - name: Verify active staging deployment
+        shell: bash
+        run: |
+          set -euo pipefail
+          deployment=$(npx --yes wrangler@4.115.0 deployments status --env=staging --json)
+          echo "$deployment"
+          jq -e '
+            .versions | length == 1
+            and .[0].percentage == 100
+            and (. [0].version_id | type == "string" and length > 0)
+          ' <<<"$deployment"
