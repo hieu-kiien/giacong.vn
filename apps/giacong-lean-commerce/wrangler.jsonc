@@ -78,13 +78,10 @@
           "zone_name": "kienhieu.id.vn"
         }
       ],
-      // Staging is intentionally public for the demo; the Access identifiers are
-      // retained so the Worker can be re-locked later without a code redesign.
       "vars": {
         "ADMIN_HOSTNAME": "admin-staging.kienhieu.id.vn",
         "ADMIN_HOSTNAMES": "admin-staging.kienhieu.id.vn",
-        "ADMIN_PUBLIC": "true",
-        "ADMIN_PUBLIC_SUBJECT": "public-demo",
+        "ADMIN_PUBLIC": "false",
         "TEAM_DOMAIN": "https://jolly-brook-7bc8.cloudflareaccess.com",
         "POLICY_AUD": "3a6f8119b3824e5b5b50ba6830f697f1ac8e998bb0246307310b74c91073f35f"
       },
