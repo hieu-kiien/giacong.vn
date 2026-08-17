@@ -1,12 +1,16 @@
 import { adminFailure, adminSuccess } from "@/lib/admin-api.ts";
 import {
-  archiveAdminProduct,
   getAdminProduct,
-  updateAdminProduct,
   validateAdminProductVariants,
 } from "@/lib/admin-data";
 import { requireAdmin } from "@/lib/admin-guard";
 import { parseAdminProductPayload, productDefaults } from "@/lib/admin-product-input";
+import { attachAdminProductRevision } from "@/lib/admin-product-revision";
+import {
+  AdminProductStaleWriteError,
+  archiveAdminProductAtomically,
+  updateAdminProductAtomically,
+} from "@/lib/admin-product-write";
 
 export const dynamic = "force-dynamic";
 
@@ -26,7 +30,7 @@ export async function GET(
   try {
     const product = await getAdminProduct(guard.database, id);
     return product
-      ? adminSuccess(crypto.randomUUID(), { product })
+      ? adminSuccess(crypto.randomUUID(), { product: await attachAdminProductRevision(guard.database, product) })
       : adminFailure(crypto.randomUUID(), 404, "NOT_FOUND", "Không tìm thấy sản phẩm.");
   } catch (error) {
     return adminFailure(
@@ -53,7 +57,17 @@ export async function PATCH(
   const existing = await getAdminProduct(guard.database, id);
   if (!existing) return adminFailure(crypto.randomUUID(), 404, "NOT_FOUND", "Không tìm thấy sản phẩm.");
 
-  const parsed = parseAdminProductPayload(await readJson(request), productDefaults(existing));
+  const payload = await readJson(request);
+  if (!hasExplicitRevision(payload)) {
+    return adminFailure(
+      crypto.randomUUID(),
+      422,
+      "VALIDATION_ERROR",
+      "Revision hiện tại là bắt buộc khi cập nhật sản phẩm.",
+      { revision: "Hãy tải lại sản phẩm và gửi revision hiện tại." },
+    );
+  }
+  const parsed = parseAdminProductPayload(payload, productDefaults(existing));
   if (!parsed.input) {
     return adminFailure(crypto.randomUUID(), 422, "VALIDATION_ERROR", "Dữ liệu sản phẩm chưa hợp lệ.", parsed.fieldErrors);
   }
@@ -73,16 +87,24 @@ export async function PATCH(
         );
       }
     }
-    const product = await updateAdminProduct(guard.database, id, parsed.input, guard.actorSubject);
+    await updateAdminProductAtomically(
+      guard.database,
+      id,
+      parsed.input,
+      payload.revision,
+      guard.actorSubject,
+    );
+    const product = await getAdminProduct(guard.database, id);
     return product
-      ? adminSuccess(crypto.randomUUID(), { product })
+      ? adminSuccess(crypto.randomUUID(), { product: await attachAdminProductRevision(guard.database, product) })
       : adminFailure(crypto.randomUUID(), 404, "NOT_FOUND", "Không tìm thấy sản phẩm.");
   } catch (error) {
+    const stale = error instanceof AdminProductStaleWriteError;
     const unique = isUniqueError(error);
     return adminFailure(
       crypto.randomUUID(),
-      unique ? 409 : 503,
-      unique ? "UNIQUE_CONFLICT" : "INTERNAL_ERROR",
+      stale ? 409 : unique ? 409 : 503,
+      stale ? "STALE_WRITE" : unique ? "UNIQUE_CONFLICT" : "INTERNAL_ERROR",
       error instanceof Error ? error.message : "Không thể cập nhật sản phẩm.",
       unique ? { slug: "Slug hoặc SKU đã tồn tại." } : undefined,
     );
@@ -101,17 +123,37 @@ export async function DELETE(
 
   const id = await parseId(context);
   if (id === null) return adminFailure(crypto.randomUUID(), 404, "NOT_FOUND", "Không tìm thấy sản phẩm.");
+  const existing = await getAdminProduct(guard.database, id);
+  if (!existing) return adminFailure(crypto.randomUUID(), 404, "NOT_FOUND", "Không tìm thấy sản phẩm.");
 
-  try {
-    const product = await archiveAdminProduct(guard.database, id, guard.actorSubject);
-    return product
-      ? adminSuccess(crypto.randomUUID(), { product })
-      : adminFailure(crypto.randomUUID(), 404, "NOT_FOUND", "Không tìm thấy sản phẩm.");
-  } catch (error) {
+  const payload = await readJson(request);
+  if (!hasExplicitRevision(payload)) {
     return adminFailure(
       crypto.randomUUID(),
-      503,
-      "INTERNAL_ERROR",
+      422,
+      "VALIDATION_ERROR",
+      "Revision hiện tại là bắt buộc khi ẩn sản phẩm.",
+      { revision: "Hãy tải lại sản phẩm và gửi revision hiện tại." },
+    );
+  }
+
+  try {
+    await archiveAdminProductAtomically(
+      guard.database,
+      id,
+      payload.revision,
+      guard.actorSubject,
+    );
+    const product = await getAdminProduct(guard.database, id);
+    return product
+      ? adminSuccess(crypto.randomUUID(), { product: await attachAdminProductRevision(guard.database, product) })
+      : adminFailure(crypto.randomUUID(), 404, "NOT_FOUND", "Không tìm thấy sản phẩm.");
+  } catch (error) {
+    const stale = error instanceof AdminProductStaleWriteError;
+    return adminFailure(
+      crypto.randomUUID(),
+      stale ? 409 : 503,
+      stale ? "STALE_WRITE" : "INTERNAL_ERROR",
       error instanceof Error ? error.message : "Không thể ẩn sản phẩm.",
     );
   }
@@ -133,6 +175,13 @@ async function readJson(request: Request): Promise<unknown> {
   } catch {
     return {};
   }
+}
+
+function hasExplicitRevision(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object"
+    && value !== null
+    && !Array.isArray(value)
+    && Object.prototype.hasOwnProperty.call(value, "revision");
 }
 
 function isUniqueError(error: unknown): boolean {
