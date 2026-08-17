@@ -5,14 +5,14 @@ import { CapturedStorefrontShell } from "@/components/site/CapturedStorefrontShe
 import { getStorefrontNavigationForPath } from "@/components/site/storefront-navigation";
 
 interface CapturedNewsFrameProps {
-  activePath: "/san-pham" | "/thue-gia-cong";
+  activePath: "/san-pham" | "/thue-gia-cong" | "/tin-tuc";
   children: ReactNode;
-  title: "Sản phẩm" | "Thuê gia công";
+  title: "Sản phẩm" | "Thuê gia công" | "Tin tức";
 }
 
 /**
- * Archive-specific content frame for the two approved index tabs. The shared site
- * Header, Footer, styles and interactions live in `CapturedStorefrontShell`.
+ * Archive-specific content frame for the approved storefront index tabs. The shared
+ * site Header, Footer, styles and interactions live in `CapturedStorefrontShell`.
  */
 export function CapturedNewsFrame({ activePath, children, title }: CapturedNewsFrameProps) {
   const activeNavigation = getStorefrontNavigationForPath(activePath)?.key;
