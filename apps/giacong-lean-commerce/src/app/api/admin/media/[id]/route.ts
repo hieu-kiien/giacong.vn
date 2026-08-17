@@ -1,7 +1,12 @@
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { adminFailure, adminSuccess } from "@/lib/admin-api.ts";
 import { requireAdmin } from "@/lib/admin-guard";
-import { deleteMediaAsset, updateMediaAssetAltText, type R2BucketLike } from "@/lib/media-data";
+import {
+  MediaAssetInUseError,
+  MediaDeleteConflictError,
+  deleteMediaAssetSafely,
+} from "@/lib/media-delete";
+import { updateMediaAssetAltText, type R2BucketLike } from "@/lib/media-data";
 
 export const dynamic = "force-dynamic";
 
@@ -20,11 +25,25 @@ export async function DELETE(request: Request, context: RouteContext): Promise<R
   const bucket = getMediaBucket();
   if (!bucket) return adminFailure(crypto.randomUUID(), 503, "INTERNAL_ERROR", "R2 media chưa sẵn sàng.");
   try {
-    const media = await deleteMediaAsset(guard.database, bucket, id);
+    const media = await deleteMediaAssetSafely(guard.database, bucket, id, guard.actorSubject);
     return media
       ? adminSuccess(crypto.randomUUID(), { media })
       : adminFailure(crypto.randomUUID(), 404, "NOT_FOUND", "Không tìm thấy media.");
   } catch (error) {
+    if (error instanceof MediaAssetInUseError) {
+      return adminFailure(
+        crypto.randomUUID(),
+        409,
+        "MEDIA_IN_USE",
+        error.message,
+        {
+          media: `Product: ${error.references.product}; Variant: ${error.references.variant}; Site settings: ${error.references.siteSetting}.`,
+        },
+      );
+    }
+    if (error instanceof MediaDeleteConflictError) {
+      return adminFailure(crypto.randomUUID(), 409, "STALE_WRITE", error.message);
+    }
     return adminFailure(crypto.randomUUID(), 503, "INTERNAL_ERROR", error instanceof Error ? error.message : "Không thể xóa media.");
   }
 }
