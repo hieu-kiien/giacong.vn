@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+import path from "node:path";
 import test from "node:test";
 
 import { findDemoCatalogProduct } from "../src/data/demo-catalog.ts";
@@ -7,6 +9,8 @@ import {
   buildProductStructuredData,
   serializeJsonLd,
 } from "../src/lib/product-seo.ts";
+
+const repoRoot = path.join(import.meta.dirname, "..");
 
 function product() {
   const result = findDemoCatalogProduct("bot-gao-lut-xay-min");
@@ -55,4 +59,16 @@ test("JSON-LD serialization cannot close its script element", () => {
   const serialized = serializeJsonLd({ name: "</script><script>alert(1)</script>" });
   assert.equal(serialized.includes("</script>"), false);
   assert.match(serialized, /\\u003c\/script>/);
+});
+
+test("product route publishes JSON-LD and the detail surface links to manufacturing services", async () => {
+  const [route, detail] = await Promise.all([
+    readFile(path.join(repoRoot, "src/app/(storefront)/san-pham/[slug]/page.tsx"), "utf8"),
+    readFile(path.join(repoRoot, "src/components/catalog/ProductDetailPage.tsx"), "utf8"),
+  ]);
+
+  assert.match(route, /application\/ld\+json/);
+  assert.match(route, /buildProductStructuredData/);
+  assert.match(detail, /Yêu cầu gia công sản phẩm tương tự/);
+  assert.match(detail, /href="\/thue-gia-cong\/"/);
 });
