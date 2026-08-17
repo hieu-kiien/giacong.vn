@@ -36,9 +36,8 @@ test("product metadata uses a real absolute HTTPS image when the catalog owns on
   const item = { ...product(), imageUrl: "https://cdn.example.test/products/bot-gao-lut.webp" };
   const metadata = buildProductMetadata({ product: item });
 
-  const images = metadata.openGraph?.images;
-  assert.ok(Array.isArray(images));
-  assert.equal(images[0]?.url.toString(), item.imageUrl);
+  assert.deepEqual(metadata.openGraph?.images, [{ url: item.imageUrl, alt: item.name }]);
+  assert.deepEqual(metadata.twitter?.images, [item.imageUrl]);
   assert.equal(metadata.twitter?.card, "summary_large_image");
 });
 
