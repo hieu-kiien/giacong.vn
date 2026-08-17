@@ -1,12 +1,16 @@
 import { adminFailure, adminSuccess } from "@/lib/admin-api.ts";
 import {
-  archiveAdminService,
   getAdminService,
-  updateAdminService,
   type AdminServiceInput,
 } from "@/lib/admin-data";
 import { requireAdmin } from "@/lib/admin-guard";
 import { parseAdminServicePayload } from "@/lib/admin-service-input";
+import { attachAdminServiceRevision } from "@/lib/admin-service-revision";
+import {
+  AdminServiceStaleWriteError,
+  archiveAdminServiceAtomically,
+  updateAdminServiceAtomically,
+} from "@/lib/admin-service-write";
 
 export const dynamic = "force-dynamic";
 
@@ -26,7 +30,7 @@ export async function GET(
   try {
     const service = await getAdminService(guard.database, id);
     return service
-      ? adminSuccess(crypto.randomUUID(), { service })
+      ? adminSuccess(crypto.randomUUID(), { service: await attachAdminServiceRevision(guard.database, service) })
       : adminFailure(crypto.randomUUID(), 404, "NOT_FOUND", "Không tìm thấy dịch vụ.");
   } catch (error) {
     return adminFailure(
@@ -53,22 +57,40 @@ export async function PATCH(
   const existing = await getAdminService(guard.database, id);
   if (!existing) return adminFailure(crypto.randomUUID(), 404, "NOT_FOUND", "Không tìm thấy dịch vụ.");
 
-  const parsed = parseAdminServicePayload(await readJson(request), serviceDefaults(existing));
+  const payload = await readJson(request);
+  if (!hasExplicitRevision(payload)) {
+    return adminFailure(
+      crypto.randomUUID(),
+      422,
+      "VALIDATION_ERROR",
+      "Revision hiện tại là bắt buộc khi cập nhật dịch vụ.",
+      { revision: "Hãy tải lại dịch vụ và gửi revision hiện tại." },
+    );
+  }
+  const parsed = parseAdminServicePayload(payload, serviceDefaults(existing));
   if (!parsed.input) {
     return adminFailure(crypto.randomUUID(), 422, "VALIDATION_ERROR", "Dữ liệu dịch vụ chưa hợp lệ.", parsed.fieldErrors);
   }
 
   try {
-    const service = await updateAdminService(guard.database, id, parsed.input, guard.actorSubject);
+    await updateAdminServiceAtomically(
+      guard.database,
+      id,
+      parsed.input,
+      payload.revision,
+      guard.actorSubject,
+    );
+    const service = await getAdminService(guard.database, id);
     return service
-      ? adminSuccess(crypto.randomUUID(), { service })
+      ? adminSuccess(crypto.randomUUID(), { service: await attachAdminServiceRevision(guard.database, service) })
       : adminFailure(crypto.randomUUID(), 404, "NOT_FOUND", "Không tìm thấy dịch vụ.");
   } catch (error) {
+    const stale = error instanceof AdminServiceStaleWriteError;
     const unique = isUniqueError(error);
     return adminFailure(
       crypto.randomUUID(),
-      unique ? 409 : 503,
-      unique ? "UNIQUE_CONFLICT" : "INTERNAL_ERROR",
+      stale ? 409 : unique ? 409 : 503,
+      stale ? "STALE_WRITE" : unique ? "UNIQUE_CONFLICT" : "INTERNAL_ERROR",
       error instanceof Error ? error.message : "Không thể cập nhật dịch vụ.",
       unique ? { slug: "Slug đã tồn tại." } : undefined,
     );
@@ -87,17 +109,37 @@ export async function DELETE(
 
   const id = await parseId(context);
   if (id === null) return adminFailure(crypto.randomUUID(), 404, "NOT_FOUND", "Không tìm thấy dịch vụ.");
+  const existing = await getAdminService(guard.database, id);
+  if (!existing) return adminFailure(crypto.randomUUID(), 404, "NOT_FOUND", "Không tìm thấy dịch vụ.");
 
-  try {
-    const service = await archiveAdminService(guard.database, id, guard.actorSubject);
-    return service
-      ? adminSuccess(crypto.randomUUID(), { service })
-      : adminFailure(crypto.randomUUID(), 404, "NOT_FOUND", "Không tìm thấy dịch vụ.");
-  } catch (error) {
+  const payload = await readJson(request);
+  if (!hasExplicitRevision(payload)) {
     return adminFailure(
       crypto.randomUUID(),
-      503,
-      "INTERNAL_ERROR",
+      422,
+      "VALIDATION_ERROR",
+      "Revision hiện tại là bắt buộc khi ẩn dịch vụ.",
+      { revision: "Hãy tải lại dịch vụ và gửi revision hiện tại." },
+    );
+  }
+
+  try {
+    await archiveAdminServiceAtomically(
+      guard.database,
+      id,
+      payload.revision,
+      guard.actorSubject,
+    );
+    const service = await getAdminService(guard.database, id);
+    return service
+      ? adminSuccess(crypto.randomUUID(), { service: await attachAdminServiceRevision(guard.database, service) })
+      : adminFailure(crypto.randomUUID(), 404, "NOT_FOUND", "Không tìm thấy dịch vụ.");
+  } catch (error) {
+    const stale = error instanceof AdminServiceStaleWriteError;
+    return adminFailure(
+      crypto.randomUUID(),
+      stale ? 409 : 503,
+      stale ? "STALE_WRITE" : "INTERNAL_ERROR",
       error instanceof Error ? error.message : "Không thể ẩn dịch vụ.",
     );
   }
@@ -141,6 +183,13 @@ async function readJson(request: Request): Promise<unknown> {
   } catch {
     return {};
   }
+}
+
+function hasExplicitRevision(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object"
+    && value !== null
+    && !Array.isArray(value)
+    && Object.prototype.hasOwnProperty.call(value, "revision");
 }
 
 function isUniqueError(error: unknown): boolean {
