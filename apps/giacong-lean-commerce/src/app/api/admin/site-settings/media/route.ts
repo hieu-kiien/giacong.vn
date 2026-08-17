@@ -1,18 +1,12 @@
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { adminFailure, adminSuccess } from "@/lib/admin-api.ts";
 import { requireAdmin } from "@/lib/admin-guard";
-import {
-  createSiteMediaAsset,
-  deleteSiteMediaAsset,
-  replaceActiveSiteMedia,
-  type SiteMediaAsset,
-} from "@/lib/site-media-data";
+import { createAndActivateSiteMedia } from "@/lib/site-media-lifecycle-core";
 import {
   siteSettingDefinitions,
   SiteSettingConflictError,
   SiteSettingNotFoundError,
   SiteSettingValidationError,
-  updateAdminSiteSetting,
 } from "@/lib/site-settings";
 import type { R2BucketLike } from "@/lib/media-data";
 import {
@@ -73,29 +67,20 @@ export async function POST(request: Request): Promise<Response> {
   } catch (error) {
     return mediaValidationFailure(error);
   }
+
   const checksumSha256 = await digestSha256(bytes);
-  let media: SiteMediaAsset | null = null;
-  let settingUpdated = false;
   try {
-    media = await createSiteMediaAsset(guard.database, bucket, {
+    const { media, setting } = await createAndActivateSiteMedia(guard.database, bucket, {
+      actorSubject: guard.actorSubject,
       bytes,
       checksumSha256,
       contentType,
-      createdBy: guard.actorSubject,
-      originalFilename: safeFilename(file.name),
-      settingKey: key,
-    });
-    const setting = await updateAdminSiteSetting(guard.database, {
-      actorSubject: guard.actorSubject,
       expectedVersion,
-      key,
-      value: media.publicUrl,
+      originalFilename: safeFilename(file.name),
+      settingKey: definition.key,
     });
-    settingUpdated = true;
-    await replaceActiveSiteMedia(guard.database, key, media.id);
     return adminSuccess(crypto.randomUUID(), { media, setting }, 201);
   } catch (error) {
-    if (media && !settingUpdated) await deleteSiteMediaAsset(guard.database, bucket, media.id).catch(() => undefined);
     return settingFailure(error);
   }
 }
