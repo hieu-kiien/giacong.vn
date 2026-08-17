@@ -103,15 +103,21 @@ export function ProductDetailPage({ editingCartVariantSku, initialVariantSku, so
           </section>
         ) : null}
 
-        <section aria-labelledby="manufacturing-request-title" className={styles.manufacturingCta}>
-          <div>
-            <p className={styles.manufacturingEyebrow}>Cần sản phẩm theo yêu cầu riêng?</p>
-            <h2 className={styles.manufacturingTitle} id="manufacturing-request-title">Gia công sản phẩm tương tự</h2>
-            <p className={styles.manufacturingDescription}>
+        <section
+          aria-labelledby="manufacturing-request-title"
+          className="mt-8 flex flex-col gap-4 rounded-[10px] border border-commerce-border bg-commerce-active-surface p-5 md:flex-row md:items-center md:justify-between"
+        >
+          <div className="max-w-2xl">
+            <p className="!mb-1 text-xs font-bold uppercase tracking-[0.08em] text-commerce-brand-dark">Cần sản phẩm theo yêu cầu riêng?</p>
+            <h2 className="!mb-1 text-xl font-bold text-commerce-body" id="manufacturing-request-title">Gia công sản phẩm tương tự</h2>
+            <p className="!mb-0 text-sm leading-6 text-commerce-secondary">
               Xem các nhóm dịch vụ gia công để trao đổi công thức, quy cách, đóng gói và sản lượng phù hợp với nhu cầu doanh nghiệp.
             </p>
           </div>
-          <Link className={styles.manufacturingAction} href="/thue-gia-cong/">
+          <Link
+            className="flex min-h-11 shrink-0 items-center justify-center rounded-commerce-control bg-commerce-brand px-5 text-sm font-bold text-white hover:bg-commerce-brand-dark focus-visible:commerce-focus-ring"
+            href="/thue-gia-cong/"
+          >
             Yêu cầu gia công sản phẩm tương tự
           </Link>
         </section>
