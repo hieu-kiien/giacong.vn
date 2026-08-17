@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { createLeadPersistence } from "../src/lib/lead-data.ts";
+import { createLeadPersistence } from "../src/lib/lead-persistence-core.ts";
 
 class FakeStatement {
   readonly query: string;
