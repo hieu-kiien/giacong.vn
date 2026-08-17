@@ -65,20 +65,19 @@ jobs:
           gitnexus analyze . --force --skip-agents-md --skip-skills
           gitnexus status
 
-      - name: Materialize PR delta as a working-tree diff
+      - name: Materialize PR delta as a staged diff
         if: github.event_name == 'pull_request'
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
         shell: bash
         run: |
           set -euo pipefail
-          # GitNexus 1.6.9 detect_changes is designed around git working-tree
-          # diffs. Keep the PR-head files in the worktree while moving HEAD back to
-          # the exact base commit, turning the committed PR delta into the diff that
-          # `--scope all` analyzes. The GitNexus graph remains the PR-head graph
-          # built in the previous step.
-          git reset --mixed "$BASE_SHA"
-          git diff --name-only HEAD | tee /tmp/materialized-changed-files.txt
+          # Keep both the PR-head worktree and index intact while moving only HEAD
+          # back to the exact base commit. This turns the committed PR delta into a
+          # staged diff, including newly added files, without changing the GitNexus
+          # graph that was built from the PR head in the previous step.
+          git reset --soft "$BASE_SHA"
+          git diff --cached --name-only HEAD | tee /tmp/materialized-changed-files.txt
           test -s /tmp/materialized-changed-files.txt
           diff -u /tmp/changed-files.txt /tmp/materialized-changed-files.txt
 
@@ -89,7 +88,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          gitnexus detect-changes --scope all | tee /tmp/gitnexus-detect-changes.txt
+          gitnexus detect-changes --scope staged | tee /tmp/gitnexus-detect-changes.txt
 
           if grep -Eq '^apps/giacong-lean-commerce/(src|scripts)/.*\.(cjs|js|jsx|mjs|mts|ts|tsx)$' /tmp/changed-files.txt \
             && grep -Fxq "No changes detected." /tmp/gitnexus-detect-changes.txt; then
@@ -100,7 +99,7 @@ jobs:
           {
             echo "## GitNexus change-impact report"
             echo
-            echo "Indexed the PR head, then materialized its delta against exact base commit \`$BASE_SHA\` as a working-tree diff for GitNexus 1.6.9."
+            echo "Indexed the PR head, then materialized its full delta against exact base commit \`$BASE_SHA\` as a staged diff for GitNexus 1.6.9."
             echo
             echo '```text'
             cat /tmp/gitnexus-detect-changes.txt
