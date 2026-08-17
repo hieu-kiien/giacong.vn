@@ -73,7 +73,7 @@ export async function DELETE(request: Request, context: CategoryRouteContext): P
     return adminFailure(
       crypto.randomUUID(),
       409,
-      "CONFLICT",
+      "INVALID_REQUEST",
       `Danh mục đang được ${articleCount} bài viết sử dụng. Hãy chuyển bài sang danh mục khác hoặc tạm ẩn danh mục.`,
     );
   }
