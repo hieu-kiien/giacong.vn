@@ -82,3 +82,34 @@ test("media metadata and audit are one D1 batch with R2 compensation on failure"
     "D1 batch capability must be verified before R2 upload begins",
   );
 });
+
+test("site-settings media reuses the same locked upload policy before R2 persistence", async () => {
+  const route = await readFile(
+    new URL("../src/app/api/admin/site-settings/media/route.ts", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(route, /assertMediaMultipartLength\(request\.headers\.get\("content-length"\)\)/);
+  assert.match(route, /validateMediaFileMetadata/);
+  assert.match(route, /validateMediaBytes/);
+  assert.doesNotMatch(route, /image\/avif/);
+  assert.doesNotMatch(route, /10 \* 1024 \* 1024/);
+  assert.ok(
+    route.indexOf("validateMediaBytes") < route.indexOf("createSiteMediaAsset(guard.database"),
+    "site media magic-byte validation must happen before persistence",
+  );
+});
+
+test("site media metadata and audit are one D1 batch with R2 compensation on failure", async () => {
+  const data = await readFile(new URL("../src/lib/site-media-data.ts", import.meta.url), "utf8");
+
+  assert.match(data, /const batchDatabase = requireBatch\(database\)/);
+  assert.match(data, /'site_media\.created', 'site_media'/);
+  assert.match(data, /await batchDatabase\.batch\(statements\)/);
+  assert.match(data, /await bucket\.delete\(storageKey\)\.catch/);
+  assert.doesNotMatch(data, /image\/avif|\.avif/);
+  assert.ok(
+    data.indexOf("const batchDatabase = requireBatch(database)") < data.indexOf("await bucket.put(storageKey"),
+    "site media must verify D1 batch capability before R2 upload begins",
+  );
+});
