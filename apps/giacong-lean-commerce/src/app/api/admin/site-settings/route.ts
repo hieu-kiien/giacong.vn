@@ -5,8 +5,8 @@ import {
   SiteSettingConflictError,
   SiteSettingNotFoundError,
   SiteSettingValidationError,
-  updateAdminSiteSetting,
 } from "@/lib/site-settings";
+import { updateAdminSiteSettingAtomic } from "@/lib/site-settings-write";
 import { requireAdmin } from "@/lib/admin-guard";
 
 export const dynamic = "force-dynamic";
@@ -33,7 +33,7 @@ export async function PATCH(request: Request): Promise<Response> {
     return adminFailure(crypto.randomUUID(), 422, "VALIDATION_ERROR", "Cần key, expectedVersion và value hợp lệ.");
   }
   try {
-    const setting = await updateAdminSiteSetting(guard.database, {
+    const setting = await updateAdminSiteSettingAtomic(guard.database, {
       actorSubject: guard.actorSubject,
       expectedVersion: body.expectedVersion,
       key: body.key,
