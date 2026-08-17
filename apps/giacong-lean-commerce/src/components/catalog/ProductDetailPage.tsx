@@ -25,9 +25,7 @@ interface ProductDetailPageProps {
  *
  * The social-proof block in the reference screenshot is absent, as the master plan
  * requires; the space it occupied carries verified product facts instead. None of the
- * customer-account or fulfilment surfaces the master plan excludes appear either —
- * `scripts/product-detail.test.mts` scans this file for all of them by name, which is
- * why they are not written out here.
+ * customer-account or fulfilment surfaces the master plan excludes appear either.
  *
  * Owns `product-detail.module.css` rather than the shared catalog stylesheet, so
  * restyling detail cannot restyle the list page.
@@ -104,6 +102,19 @@ export function ProductDetailPage({ editingCartVariantSku, initialVariantSku, so
             <p className={styles.description}>{view.description}</p>
           </section>
         ) : null}
+
+        <section aria-labelledby="manufacturing-request-title" className={styles.manufacturingCta}>
+          <div>
+            <p className={styles.manufacturingEyebrow}>Cần sản phẩm theo yêu cầu riêng?</p>
+            <h2 className={styles.manufacturingTitle} id="manufacturing-request-title">Gia công sản phẩm tương tự</h2>
+            <p className={styles.manufacturingDescription}>
+              Xem các nhóm dịch vụ gia công để trao đổi công thức, quy cách, đóng gói và sản lượng phù hợp với nhu cầu doanh nghiệp.
+            </p>
+          </div>
+          <Link className={styles.manufacturingAction} href="/thue-gia-cong/">
+            Yêu cầu gia công sản phẩm tương tự
+          </Link>
+        </section>
 
         {view.relatedProducts.length > 0 ? (
           <section aria-labelledby="detail-related" className={styles.relatedSection}>
