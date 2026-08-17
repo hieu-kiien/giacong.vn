@@ -1,6 +1,6 @@
 "use client";
 
-import { ClipboardList, LayoutDashboard, Menu, Package, PenLine, Settings2, X } from "lucide-react";
+import { ClipboardList, LayoutDashboard, Menu, Newspaper, Package, PenLine, Settings2, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
@@ -12,9 +12,6 @@ const SessionContext = createContext<SessionContextValue>({ session: null });
 
 export function useAdminSession(): AdminSession {
   const value = useContext(SessionContext).session;
-  // Client pages can be pre-rendered once before the shell finishes loading
-  // its session. Keep that phase render-safe; AdminShell still gates children
-  // until the real session has been verified.
   return value ?? { authenticated: false, subject: "", role: "viewer" };
 }
 
@@ -22,6 +19,7 @@ const navItems = [
   { href: "/admin", label: "Tổng quan", icon: LayoutDashboard },
   { href: "/admin/san-pham", label: "Sản phẩm", icon: Package },
   { href: "/admin/dich-vu", label: "Dịch vụ gia công", icon: Settings2 },
+  { href: "/admin/tin-tuc", label: "Tin tức", icon: Newspaper },
   { href: "/admin/yeu-cau", label: "Yêu cầu báo giá", icon: ClipboardList },
   { href: "/admin/noi-dung", label: "Nội dung & thương hiệu", icon: PenLine },
 ];
