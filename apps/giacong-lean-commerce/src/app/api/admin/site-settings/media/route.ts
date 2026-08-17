@@ -15,18 +15,28 @@ import {
   updateAdminSiteSetting,
 } from "@/lib/site-settings";
 import type { R2BucketLike } from "@/lib/media-data";
+import {
+  assertMediaMultipartLength,
+  MediaUploadValidationError,
+  validateMediaBytes,
+  validateMediaFileMetadata,
+} from "@/lib/media-upload-policy";
 
 export const dynamic = "force-dynamic";
 
-const maxUploadBytes = 10 * 1024 * 1024;
 const imageSettingKeys = new Set(["logo_url", "favicon_url", "hero_image_url"]);
-const allowedContentTypes = new Set(["image/avif", "image/jpeg", "image/png", "image/webp"]);
 
 export async function POST(request: Request): Promise<Response> {
   const guard = await requireAdmin(request);
   if (guard instanceof Response) return guard;
   if (!["owner", "content_manager"].includes(guard.member.role)) {
     return adminFailure(crypto.randomUUID(), 403, "FORBIDDEN", "Vai trò hiện tại không được upload media thương hiệu.");
+  }
+
+  try {
+    assertMediaMultipartLength(request.headers.get("content-length"));
+  } catch (error) {
+    return mediaValidationFailure(error);
   }
 
   let form: FormData;
@@ -46,14 +56,23 @@ export async function POST(request: Request): Promise<Response> {
   if (!expectedVersion || !(file instanceof File)) {
     return adminFailure(crypto.randomUUID(), 422, "VALIDATION_ERROR", "Cần file ảnh và expectedVersion.");
   }
-  if (!allowedContentTypes.has(file.type) || file.size <= 0 || file.size > maxUploadBytes) {
-    return adminFailure(crypto.randomUUID(), 422, "VALIDATION_ERROR", "Ảnh phải là JPEG, PNG, WebP hoặc AVIF và không vượt quá 10 MB.");
+
+  let contentType: "image/jpeg" | "image/png" | "image/webp";
+  try {
+    contentType = validateMediaFileMetadata(file.type.toLowerCase(), file.size);
+  } catch (error) {
+    return mediaValidationFailure(error);
   }
 
   const bucket = getMediaBucket();
   if (!bucket) return adminFailure(crypto.randomUUID(), 503, "INTERNAL_ERROR", "R2 media chưa sẵn sàng.");
 
   const bytes = await file.arrayBuffer();
+  try {
+    validateMediaBytes(contentType, new Uint8Array(bytes), file.size);
+  } catch (error) {
+    return mediaValidationFailure(error);
+  }
   const checksumSha256 = await digestSha256(bytes);
   let media: SiteMediaAsset | null = null;
   let settingUpdated = false;
@@ -61,7 +80,7 @@ export async function POST(request: Request): Promise<Response> {
     media = await createSiteMediaAsset(guard.database, bucket, {
       bytes,
       checksumSha256,
-      contentType: file.type,
+      contentType,
       createdBy: guard.actorSubject,
       originalFilename: safeFilename(file.name),
       settingKey: key,
@@ -86,6 +105,18 @@ function settingFailure(error: unknown): Response {
   if (error instanceof SiteSettingNotFoundError) return adminFailure(crypto.randomUUID(), 404, "NOT_FOUND", error.message);
   if (error instanceof SiteSettingValidationError) return adminFailure(crypto.randomUUID(), 422, "VALIDATION_ERROR", error.message);
   return adminFailure(crypto.randomUUID(), 503, "INTERNAL_ERROR", error instanceof Error ? error.message : "Không thể upload media website.");
+}
+
+function mediaValidationFailure(error: unknown): Response {
+  if (!(error instanceof MediaUploadValidationError)) {
+    return adminFailure(crypto.randomUUID(), 422, "VALIDATION_ERROR", "File ảnh không hợp lệ.");
+  }
+  return adminFailure(
+    crypto.randomUUID(),
+    error.kind === "TOO_LARGE" ? 413 : 422,
+    error.kind === "TOO_LARGE" ? "PAYLOAD_TOO_LARGE" : "VALIDATION_ERROR",
+    error.message,
+  );
 }
 
 function getMediaBucket(): R2BucketLike | null {
