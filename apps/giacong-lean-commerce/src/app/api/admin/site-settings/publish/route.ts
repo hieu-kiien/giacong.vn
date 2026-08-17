@@ -2,11 +2,11 @@ import { adminFailure, adminSuccess } from "@/lib/admin-api.ts";
 import { canPublishSiteContent } from "@/lib/admin-permissions";
 import { requireAdmin } from "@/lib/admin-guard";
 import {
-  publishAdminSiteSetting,
   SiteSettingConflictError,
   SiteSettingNotFoundError,
   SiteSettingValidationError,
 } from "@/lib/site-settings";
+import { publishAdminSiteSettingAtomic } from "@/lib/site-settings-write";
 
 export const dynamic = "force-dynamic";
 
@@ -26,7 +26,7 @@ export async function POST(request: Request): Promise<Response> {
     return adminFailure(crypto.randomUUID(), 422, "VALIDATION_ERROR", "Cần key và expectedVersion hợp lệ.");
   }
   try {
-    const setting = await publishAdminSiteSetting(guard.database, {
+    const setting = await publishAdminSiteSettingAtomic(guard.database, {
       actorSubject: guard.actorSubject,
       expectedVersion: body.expectedVersion,
       key: body.key,
