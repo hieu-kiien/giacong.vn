@@ -90,9 +90,10 @@ export async function updateAdminProductAtomically(
   database: D1DatabaseLike,
   productId: number,
   input: AdminProductInput,
+  expectedRevisionRaw: unknown,
   actorSubject: string,
 ): Promise<void> {
-  const expectedRevision = requireRevision(input.revision, "cập nhật");
+  const expectedRevision = requireRevision(expectedRevisionRaw, "cập nhật");
   const batchDatabase = requireBatch(database);
   const auditId = crypto.randomUUID();
   const metadataJson = JSON.stringify({ after: input, expectedRevision, productId });
