@@ -29,7 +29,7 @@ jobs:
     env:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-      STAGING_ORIGIN: https://giacong-vn-staging.qtu1053.workers.dev
+      STAGING_ORIGIN: ${{ vars.STAGING_ORIGIN || 'https://staging.kienhieu.id.vn' }}
       STAGING_DATABASE: giacong-vn-catalog-staging
 
     steps:
@@ -241,7 +241,7 @@ jobs:
                 const errors = [];
                 page.on('pageerror', (error) => errors.push(`pageerror: ${error.message}`));
                 page.on('console', (message) => {
-                  if (message.type() === 'error') errors.push(`console: ${message.text()}`);
+                  if (message.type() === 'error') errors.push(`console: ${message.text()}`));
                 });
                 const response = await page.goto(`${origin}${route}`, { waitUntil: 'networkidle', timeout: 30000 });
                 if (!response || response.status() >= 400) {
