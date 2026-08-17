@@ -1,6 +1,7 @@
 import "server-only";
 
-import type { D1DatabaseLike } from "./admin-data";
+import type { D1DatabaseLike, D1PreparedStatementLike } from "./admin-data";
+import { extensionForMediaType, type AllowedMediaContentType } from "./media-upload-policy";
 
 export interface R2BucketLike {
   delete(key: string): Promise<void>;
@@ -54,6 +55,10 @@ interface MediaRow {
   variant_id: number | null;
 }
 
+interface D1BatchDatabaseLike extends D1DatabaseLike {
+  batch(statements: D1PreparedStatementLike[]): Promise<unknown[]>;
+}
+
 export async function listMediaAssets(
   database: D1DatabaseLike,
   input: { productId?: number; serviceId?: number; variantId?: number; includeDeleted?: boolean },
@@ -92,7 +97,7 @@ export async function createMediaAsset(
     altText: string | null;
     bytes: ArrayBuffer;
     checksumSha256: string;
-    contentType: string;
+    contentType: AllowedMediaContentType;
     createdBy: string;
     originalFilename: string;
     productId: number | null;
@@ -100,14 +105,16 @@ export async function createMediaAsset(
     variantId: number | null;
   },
 ): Promise<MediaAsset> {
+  const batchDatabase = requireBatch(database);
   const id = crypto.randomUUID();
+  const namespace: MediaAsset["namespace"] = input.serviceId ? "service" : input.variantId ? "variant" : "product";
   const scope = input.serviceId
     ? `services/${input.serviceId}`
     : input.variantId
-    ? `products/${input.productId}/variants/${input.variantId}`
-    : `products/${input.productId}`;
-  const extension = extensionFor(input.contentType);
-  const storageKey = `${scope}/${id}${extension}`;
+      ? `products/${input.productId}/variants/${input.variantId}`
+      : `products/${input.productId}`;
+  const storageKey = `${scope}/${id}${extensionForMediaType(input.contentType)}`;
+
   await bucket.put(storageKey, input.bytes, {
     customMetadata: {
       assetId: id,
@@ -118,15 +125,15 @@ export async function createMediaAsset(
     httpMetadata: { contentType: input.contentType },
   });
 
-  try {
-    await database.prepare(`
+  const statements: D1PreparedStatementLike[] = [
+    database.prepare(`
       INSERT INTO media_assets (
         id, namespace, product_id, variant_id, service_id, storage_key, original_filename,
         content_type, byte_size, checksum_sha256, alt_text, created_by
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).bind(
       id,
-      input.serviceId ? "service" : input.variantId ? "variant" : "product",
+      namespace,
       input.productId,
       input.variantId,
       input.serviceId,
@@ -137,7 +144,28 @@ export async function createMediaAsset(
       input.checksumSha256,
       input.altText,
       input.createdBy,
-    ).run();
+    ),
+    database.prepare(`
+      INSERT INTO audit_logs (id, actor_subject, action, entity_type, entity_id, metadata_json)
+      VALUES (?, ?, 'media.created', 'media', ?, ?)
+    `).bind(
+      crypto.randomUUID(),
+      input.createdBy,
+      id,
+      JSON.stringify({
+        byteSize: input.bytes.byteLength,
+        checksumSha256: input.checksumSha256,
+        contentType: input.contentType,
+        namespace,
+        productId: input.productId,
+        serviceId: input.serviceId,
+        variantId: input.variantId,
+      }),
+    ),
+  ];
+
+  try {
+    await batchDatabase.batch(statements);
   } catch (error) {
     await bucket.delete(storageKey).catch(() => undefined);
     throw error;
@@ -261,9 +289,10 @@ function toMediaAsset(row: MediaRow): MediaAsset {
   };
 }
 
-function extensionFor(contentType: string): string {
-  return contentType === "image/jpeg" ? ".jpg"
-    : contentType === "image/png" ? ".png"
-      : contentType === "image/webp" ? ".webp"
-        : ".avif";
+function requireBatch(database: D1DatabaseLike): D1BatchDatabaseLike {
+  const candidate = database as D1DatabaseLike & { batch?: D1BatchDatabaseLike["batch"] };
+  if (typeof candidate.batch !== "function") {
+    throw new Error("D1 batch() là bắt buộc để lưu media an toàn.");
+  }
+  return candidate as D1BatchDatabaseLike;
 }
