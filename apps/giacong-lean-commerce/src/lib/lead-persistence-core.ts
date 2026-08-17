@@ -1,4 +1,5 @@
 import type { D1DatabaseLike, D1PreparedStatementLike } from "./admin-data";
+import { LeadIdempotencyConflictError, storedLeadPayloadMatches } from "./lead-idempotency.ts";
 
 export type LeadDeliveryStatus = "pending" | "queued" | "delivered" | "failed";
 
@@ -25,6 +26,7 @@ interface D1BatchDatabaseLike extends D1DatabaseLike {
 interface LeadRow {
   delivery_status: LeadDeliveryStatus;
   id: string;
+  payload_json: string;
   public_reference: string;
   webhook_reference: string | null;
 }
@@ -55,7 +57,10 @@ async function createLead(database: D1DatabaseLike, rawPayload: unknown): Promis
   const payload = asRecord(rawPayload);
   const requestId = readRequestId(payload.request_id) ?? crypto.randomUUID();
   const existing = await findByRequestId(database, requestId);
-  if (existing) return toPersistenceResult(existing, true);
+  if (existing) {
+    await assertIdempotentReplay(existing, payload);
+    return toPersistenceResult(existing, true);
+  }
 
   const leadId = crypto.randomUUID();
   const publicReference = `LEAD-${leadId.replaceAll("-", "").slice(0, 10).toUpperCase()}`;
@@ -124,7 +129,12 @@ async function createLead(database: D1DatabaseLike, rawPayload: unknown): Promis
   } catch (error) {
     if (!isUniqueError(error)) throw error;
     const duplicate = await findByRequestId(database, requestId);
-    if (duplicate) return toPersistenceResult(duplicate, true);
+    if (duplicate) {
+      // A concurrent writer may have won the unique request-id race. It is a safe
+      // replay only when the winning payload is exactly the same logical request.
+      await assertIdempotentReplay(duplicate, payload);
+      return toPersistenceResult(duplicate, true);
+    }
     throw error;
   }
 
@@ -162,11 +172,17 @@ async function markLeadDelivery(
 
 async function findByRequestId(database: D1DatabaseLike, requestId: string): Promise<LeadRow | null> {
   return database.prepare(`
-    SELECT id, public_reference, delivery_status, webhook_reference
+    SELECT id, public_reference, delivery_status, webhook_reference, payload_json
     FROM leads
     WHERE request_id = ?
     LIMIT 1
   `).bind(requestId).first<LeadRow>();
+}
+
+async function assertIdempotentReplay(row: LeadRow, payload: Record<string, unknown>): Promise<void> {
+  if (!await storedLeadPayloadMatches(row.payload_json, payload)) {
+    throw new LeadIdempotencyConflictError();
+  }
 }
 
 function requireBatch(database: D1DatabaseLike): D1BatchDatabaseLike {
