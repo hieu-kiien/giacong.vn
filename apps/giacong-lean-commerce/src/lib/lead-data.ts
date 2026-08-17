@@ -1,6 +1,6 @@
 import "server-only";
 
-import type { D1DatabaseLike } from "./admin-data";
+import type { D1DatabaseLike, D1PreparedStatementLike } from "./admin-data";
 
 export type LeadDeliveryStatus = "pending" | "queued" | "delivered" | "failed";
 
@@ -18,6 +18,10 @@ export interface LeadPersistence {
     leadId: string,
     result: { status: LeadDeliveryStatus; webhookReference?: string | null; error?: string | null },
   ): Promise<void>;
+}
+
+interface D1BatchDatabaseLike extends D1DatabaseLike {
+  batch(statements: D1PreparedStatementLike[]): Promise<unknown[]>;
 }
 
 interface LeadRow {
@@ -58,9 +62,10 @@ async function createLead(database: D1DatabaseLike, rawPayload: unknown): Promis
   const leadId = crypto.randomUUID();
   const publicReference = `LEAD-${leadId.replaceAll("-", "").slice(0, 10).toUpperCase()}`;
   const items = extractItems(payload);
+  const batchDatabase = requireBatch(database);
 
-  try {
-    await database.prepare(`
+  const statements: D1PreparedStatementLike[] = [
+    database.prepare(`
       INSERT INTO leads (
         id, public_reference, request_id, full_name, company_name, email, phone,
         country, message, source, delivery_status, payload_json
@@ -77,41 +82,47 @@ async function createLead(database: D1DatabaseLike, rawPayload: unknown): Promis
       readNullableText(payload.message, 2_000),
       readText(payload.source, 200) || "request_form",
       JSON.stringify(payload),
-    ).run();
+    ),
+  ];
 
-    for (const item of items) {
-      await database.prepare(`
-        INSERT INTO lead_items (
-          id, lead_id, product_slug, service_slug, quantity, unit, notes,
-          variant_sku, product_name, variant_name, unit_price, line_total,
-          currency, snapshot_json
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).bind(
-        crypto.randomUUID(),
-        leadId,
-        item.productSlug,
-        item.serviceSlug,
-        item.quantity,
-        item.unit,
-        item.notes,
-        item.variantSku,
-        item.productName,
-        item.variantName,
-        item.unitPrice,
-        item.lineTotal,
-        item.currency,
-        JSON.stringify(item.snapshot),
-      ).run();
-    }
-
-    await database.prepare(`
-      INSERT INTO lead_events (id, lead_id, actor_subject, event_type, message)
-      VALUES (?, ?, NULL, 'received', ?)
+  for (const item of items) {
+    statements.push(database.prepare(`
+      INSERT INTO lead_items (
+        id, lead_id, product_slug, service_slug, quantity, unit, notes,
+        variant_sku, product_name, variant_name, unit_price, line_total,
+        currency, snapshot_json
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).bind(
       crypto.randomUUID(),
       leadId,
-      items.length > 0 ? `${items.length} dòng nhu cầu được lưu cùng lead.` : "Lead được lưu từ request form.",
-    ).run();
+      item.productSlug,
+      item.serviceSlug,
+      item.quantity,
+      item.unit,
+      item.notes,
+      item.variantSku,
+      item.productName,
+      item.variantName,
+      item.unitPrice,
+      item.lineTotal,
+      item.currency,
+      JSON.stringify(item.snapshot),
+    ));
+  }
+
+  statements.push(database.prepare(`
+    INSERT INTO lead_events (id, lead_id, actor_subject, event_type, message)
+    VALUES (?, ?, NULL, 'received', ?)
+  `).bind(
+    crypto.randomUUID(),
+    leadId,
+    items.length > 0 ? `${items.length} dòng nhu cầu được lưu cùng lead.` : "Lead được lưu từ request form.",
+  ));
+
+  try {
+    // Cloudflare D1 batch has transactional semantics: either the lead, every item
+    // and the initial event commit together, or none of them do.
+    await batchDatabase.batch(statements);
   } catch (error) {
     if (!isUniqueError(error)) throw error;
     const duplicate = await findByRequestId(database, requestId);
@@ -158,6 +169,14 @@ async function findByRequestId(database: D1DatabaseLike, requestId: string): Pro
     WHERE request_id = ?
     LIMIT 1
   `).bind(requestId).first<LeadRow>();
+}
+
+function requireBatch(database: D1DatabaseLike): D1BatchDatabaseLike {
+  const candidate = database as D1DatabaseLike & { batch?: D1BatchDatabaseLike["batch"] };
+  if (typeof candidate.batch !== "function") {
+    throw new Error("D1 batch() is required for atomic lead persistence.");
+  }
+  return candidate as D1BatchDatabaseLike;
 }
 
 function toPersistenceResult(row: LeadRow, isDuplicate: boolean): LeadPersistenceResult {
