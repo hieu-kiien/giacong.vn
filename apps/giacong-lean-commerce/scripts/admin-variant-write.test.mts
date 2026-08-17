@@ -99,7 +99,7 @@ test("variant create, all tiers and audit are committed in one D1 batch", async 
   const batch = database.batches[0] ?? [];
   assert.equal(batch.length, 4, "variant insert + two tiers + audit must share one transaction");
   assert.match(batch[0]?.query ?? "", /INSERT INTO product_variants/);
-  assert.match(batch[0]?.query ?? "", /revision\) VALUES \([^]*, 1\) RETURNING id/i);
+  assert.match(batch[0]?.query ?? "", /revision\s*\)\s*VALUES\s*\([^]*,\s*1\)\s*RETURNING id/i);
   assert.match(batch[1]?.query ?? "", /INSERT INTO variant_tier_prices/);
   assert.match(batch[2]?.query ?? "", /INSERT INTO variant_tier_prices/);
   assert.match(batch[3]?.query ?? "", /INSERT INTO audit_logs/);
