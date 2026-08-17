@@ -5,6 +5,11 @@ import { ProductDetailPage } from "@/components/catalog/ProductDetailPage";
 import { CapturedStorefrontTabFrame } from "@/components/site/CapturedStorefrontTabFrame";
 import { legacyProductRedirects } from "@/lib/catalog-legacy-redirects";
 import { loadCatalogProductDetail } from "@/lib/catalog-detail-source";
+import {
+  buildProductMetadata,
+  buildProductStructuredData,
+  serializeJsonLd,
+} from "@/lib/product-seo";
 
 type CatalogDetailPageProps = PageProps<"/san-pham/[slug]">;
 
@@ -13,8 +18,7 @@ export async function generateMetadata({ params }: CatalogDetailPageProps): Prom
   redirectLegacyProduct(slug);
   const source = await loadCatalogProductDetail(slug);
   if (!source) return { title: "Không tìm thấy sản phẩm | Giacong.vn" };
-  const { product } = source;
-  return { title: `${product.name} | Giacong.vn`, description: product.shortDescription || product.name };
+  return buildProductMetadata({ gallery: source.gallery, product: source.product });
 }
 
 export default async function CatalogDetailPage({ params, searchParams }: CatalogDetailPageProps) {
@@ -31,16 +35,23 @@ export default async function CatalogDetailPage({ params, searchParams }: Catalo
   const editingCartVariantSku = source.product.variants.some((variant) => variant.sku === requestedCartEdit)
     ? requestedCartEdit
     : null;
+  const structuredData = buildProductStructuredData({ gallery: source.gallery, product: source.product });
 
   return (
-    <CapturedStorefrontTabFrame activePath="/san-pham">
-      <ProductDetailPage
-        initialVariantSku={selectedVariant?.sku ?? null}
-        editingCartVariantSku={editingCartVariantSku}
-        source={source}
-        variantQueryWarning={Boolean(requestedVariant && !selectedVariant)}
+    <>
+      <script
+        dangerouslySetInnerHTML={{ __html: serializeJsonLd(structuredData) }}
+        type="application/ld+json"
       />
-    </CapturedStorefrontTabFrame>
+      <CapturedStorefrontTabFrame activePath="/san-pham">
+        <ProductDetailPage
+          initialVariantSku={selectedVariant?.sku ?? null}
+          editingCartVariantSku={editingCartVariantSku}
+          source={source}
+          variantQueryWarning={Boolean(requestedVariant && !selectedVariant)}
+        />
+      </CapturedStorefrontTabFrame>
+    </>
   );
 }
 
