@@ -168,8 +168,8 @@ export async function mutateAdmin<T>(
 ): Promise<T> {
   const productId = productMutationId(path);
   const serviceId = serviceMutationId(path);
-  let requestBody = withCachedRevision(productRevisionCache, productId, options.method, options.body);
-  requestBody = withCachedRevision(serviceRevisionCache, serviceId, options.method, requestBody);
+  let requestBody = withCachedProductRevision(productId, options.method, options.body);
+  requestBody = withCachedServiceRevision(serviceId, options.method, requestBody);
 
   let response: Response;
   try {
@@ -228,18 +228,33 @@ export function getInitials(value: string): string {
 }
 
 function productMutationId(path: string): number | null {
-  return directMutationId(path, /^\/api\/admin\/products\/(\d+)$/);
-}
-
-function serviceMutationId(path: string): number | null {
-  return directMutationId(path, /^\/api\/admin\/services\/(\d+)$/);
-}
-
-function directMutationId(path: string, pattern: RegExp): number | null {
-  const match = pattern.exec(path);
+  const match = /^\/api\/admin\/products\/(\d+)$/.exec(path);
   if (!match) return null;
   const id = Number(match[1]);
   return Number.isInteger(id) && id > 0 ? id : null;
+}
+
+function withCachedProductRevision(
+  productId: number | null,
+  method: "DELETE" | "PATCH" | "POST",
+  body: unknown,
+): unknown {
+  return withCachedRevision(productRevisionCache, productId, method, body);
+}
+
+function serviceMutationId(path: string): number | null {
+  const match = /^\/api\/admin\/services\/(\d+)$/.exec(path);
+  if (!match) return null;
+  const id = Number(match[1]);
+  return Number.isInteger(id) && id > 0 ? id : null;
+}
+
+function withCachedServiceRevision(
+  serviceId: number | null,
+  method: "DELETE" | "PATCH" | "POST",
+  body: unknown,
+): unknown {
+  return withCachedRevision(serviceRevisionCache, serviceId, method, body);
 }
 
 function withCachedRevision(
