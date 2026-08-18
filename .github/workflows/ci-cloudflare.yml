@@ -45,47 +45,6 @@ jobs:
       - name: Run application checks
         run: npm run check
 
-  dependency-lock-preview:
-    name: Sync regenerated dependency lockfile
-    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'security/production-dependency-audit'
-    permissions:
-      contents: write
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    defaults:
-      run:
-        working-directory: apps/giacong-lean-commerce
-
-    steps:
-      - name: Checkout exact audit branch
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.pull_request.head.ref }}
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 24
-          cache: npm
-          cache-dependency-path: apps/giacong-lean-commerce/package-lock.json
-
-      - name: Regenerate lockfile metadata only
-        run: npm install --package-lock-only --ignore-scripts
-
-      - name: Commit regenerated lockfile when needed
-        shell: bash
-        run: |
-          set -euo pipefail
-          if git diff --quiet -- package-lock.json; then
-            echo "package-lock.json is already normalized."
-            exit 0
-          fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add package-lock.json
-          git commit -m "chore: regenerate dependency lock metadata"
-          git push origin HEAD:${{ github.event.pull_request.head.ref }}
-
   cloudflare-package:
     name: Cloudflare package gate
     if: github.event_name == 'pull_request'
