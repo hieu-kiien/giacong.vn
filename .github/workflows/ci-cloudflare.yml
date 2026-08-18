@@ -75,6 +75,22 @@ jobs:
       - name: Validate Wrangler package without deploying
         run: npx --yes wrangler@4.115.0 deploy --env=staging --dry-run --outdir=.wrangler-dry-run
 
+      - name: Probe staging edge with browser-like user agent
+        shell: bash
+        run: |
+          set -euo pipefail
+          headers="$(mktemp)"
+          status="$(curl --silent --show-error --location \
+            --dump-header "$headers" \
+            --output /dev/null \
+            --write-out '%{http_code}' \
+            --user-agent 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36' \
+            https://staging.kienhieu.id.vn/)"
+          mitigated="$(awk -F': *' 'tolower($1)=="cf-mitigated" {gsub("\\r", "", $2); value=$2} END {print value}' "$headers")"
+          server="$(awk -F': *' 'tolower($1)=="server" {gsub("\\r", "", $2); value=$2} END {print value}' "$headers")"
+          printf 'STAGING_BROWSER_UA_PROBE status=%s server=%s cf-mitigated=%s\n' \
+            "$status" "${server:-none}" "${mitigated:-none}"
+
   staging-deploy:
     name: Deploy Cloudflare staging
     if: github.event_name != 'pull_request'
