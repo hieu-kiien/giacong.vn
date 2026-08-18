@@ -54,3 +54,6 @@ jobs:
 
       - name: Run Access-authenticated staging deep QA
         run: node scripts/staging-deep-qa.mjs
+
+      - name: Run News staging regression QA
+        run: node scripts/staging-news-qa.mjs
