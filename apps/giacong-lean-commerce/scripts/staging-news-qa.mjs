@@ -56,6 +56,15 @@ function readNewsSnapshot() {
     LIMIT 1;
 
     PRAGMA table_info(news_media_assets);
+
+    SELECT name
+    FROM sqlite_master
+    WHERE type = 'trigger'
+      AND name IN (
+        'trg_articles_news_media_thumbnail_insert',
+        'trg_articles_news_media_thumbnail_update'
+      )
+    ORDER BY name ASC;
   `;
 
   const output = execFileSync(
@@ -73,7 +82,7 @@ function readNewsSnapshot() {
     { encoding: "utf8", stdio: ["ignore", "pipe", "inherit"] },
   );
   const payload = JSON.parse(output);
-  assert.ok(Array.isArray(payload) && payload.length >= 7, "News D1 snapshot returned an unexpected shape");
+  assert.ok(Array.isArray(payload) && payload.length >= 8, "News D1 snapshot returned an unexpected shape");
   return payload;
 }
 
@@ -82,6 +91,7 @@ function verifyNewsSchema(snapshot) {
   const articleColumns = snapshot[1]?.results ?? [];
   const categoryCount = Number(snapshot[2]?.results?.[0]?.total ?? 0);
   const mediaColumns = snapshot[6]?.results ?? [];
+  const triggerNames = new Set((snapshot[7]?.results ?? []).map((row) => row.name));
 
   assert.ok(categoryColumns.some((column) => column.name === "revision"), "article_categories.revision migration is missing on staging");
   assert.ok(categoryColumns.some((column) => column.name === "sort_order"), "article_categories.sort_order is missing on staging");
@@ -89,8 +99,16 @@ function verifyNewsSchema(snapshot) {
   assert.ok(articleColumns.some((column) => column.name === "revision"), "articles.revision is missing on staging");
   assert.ok(mediaColumns.some((column) => column.name === "article_id"), "news_media_assets.article_id migration is missing on staging");
   assert.ok(mediaColumns.some((column) => column.name === "storage_key"), "news_media_assets.storage_key migration is missing on staging");
+  assert.ok(
+    triggerNames.has("trg_articles_news_media_thumbnail_insert"),
+    "News media insert reference guard is missing on staging",
+  );
+  assert.ok(
+    triggerNames.has("trg_articles_news_media_thumbnail_update"),
+    "News media update reference guard is missing on staging",
+  );
   assert.ok(categoryCount >= 1, "News staging must contain at least the seeded category");
-  console.log(`News D1 schema passed with ${categoryCount} categories and News media storage.`);
+  console.log(`News D1 schema passed with ${categoryCount} categories, News media storage and reference guards.`);
 }
 
 async function verifyPublicNews(snapshot) {
