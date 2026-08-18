@@ -14,9 +14,22 @@ export interface AdminNewsInput {
   title: string;
 }
 
+export interface AdminNewsCategoryInput {
+  active: boolean;
+  description: string;
+  name: string;
+  slug: string;
+  sortOrder: number;
+}
+
 export interface AdminNewsParseResult {
   fieldErrors?: Record<string, string>;
   input?: AdminNewsInput;
+}
+
+export interface AdminNewsCategoryParseResult {
+  fieldErrors?: Record<string, string>;
+  input?: AdminNewsCategoryInput;
 }
 
 export function parseAdminNewsPayload(
@@ -66,6 +79,35 @@ export function parseAdminNewsPayload(
   return Object.keys(fieldErrors).length > 0 ? { fieldErrors } : { input };
 }
 
+export function parseAdminNewsCategoryPayload(
+  value: unknown,
+  defaults: Partial<AdminNewsCategoryInput> = {},
+): AdminNewsCategoryParseResult {
+  const source = isRecord(value) ? value : {};
+  const input: AdminNewsCategoryInput = {
+    active: booleanValue(source.active, defaults.active ?? true),
+    description: text(source.description, defaults.description ?? "", 600),
+    name: text(source.name, defaults.name ?? "", 160),
+    slug: text(source.slug, defaults.slug ?? "", 160).toLowerCase(),
+    sortOrder: nonNegativeInteger(source.sortOrder, defaults.sortOrder ?? 0),
+  };
+
+  const fieldErrors: Record<string, string> = {};
+  if (!input.name) fieldErrors.name = "Tên chuyên mục là bắt buộc.";
+  if (!input.slug) fieldErrors.slug = "Slug là bắt buộc.";
+  else if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(input.slug)) {
+    fieldErrors.slug = "Slug chỉ gồm chữ thường không dấu, số và dấu gạch ngang.";
+  }
+  if (source.active !== undefined && typeof source.active !== "boolean") {
+    fieldErrors.active = "Trạng thái hiển thị phải là true hoặc false.";
+  }
+  if (source.sortOrder !== undefined && nonNegativeIntegerOrNull(source.sortOrder) === null) {
+    fieldErrors.sortOrder = "Thứ tự phải là số nguyên không âm.";
+  }
+
+  return Object.keys(fieldErrors).length > 0 ? { fieldErrors } : { input };
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -83,6 +125,16 @@ function nullablePositiveInteger(value: unknown, fallback: number | null): numbe
   if (value === undefined) return fallback;
   const parsed = Number(value);
   return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+}
+
+function nonNegativeInteger(value: unknown, fallback: number): number {
+  if (value === undefined) return fallback;
+  return nonNegativeIntegerOrNull(value) ?? fallback;
+}
+
+function nonNegativeIntegerOrNull(value: unknown): number | null {
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed >= 0 ? parsed : null;
 }
 
 function statusValue(value: unknown, fallback: AdminNewsStatus): AdminNewsStatus {

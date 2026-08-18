@@ -3,12 +3,20 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import test from "node:test";
 
-import { parseAdminNewsPayload } from "../src/lib/admin-news-input.ts";
 import {
+  parseAdminNewsCategoryPayload,
+  parseAdminNewsPayload,
+} from "../src/lib/admin-news-input.ts";
+import {
+  AdminNewsCategoryConflictError,
+  AdminNewsCategoryStaleWriteError,
   AdminNewsStaleWriteError,
   archiveAdminNewsArticleAtomically,
   createAdminNewsArticleAtomically,
+  createAdminNewsCategoryAtomically,
+  deleteAdminNewsCategoryAtomically,
   updateAdminNewsArticleAtomically,
+  updateAdminNewsCategoryAtomically,
 } from "../src/lib/admin-news-write.ts";
 
 class FakeStatement {
@@ -68,6 +76,14 @@ const input = {
   title: "Bài viết demo",
 };
 
+const categoryInput = {
+  active: true,
+  description: "Kiến thức về gia công thực phẩm.",
+  name: "Kiến thức",
+  slug: "kien-thuc",
+  sortOrder: 20,
+};
+
 const repoRoot = path.join(import.meta.dirname, "..");
 
 function assertNoIndividualWrites(database: FakeBatchDatabase) {
@@ -91,6 +107,22 @@ test("News input rejects invalid status and featured types instead of silently f
   assert.equal(parsed.input, undefined);
   assert.equal(parsed.fieldErrors?.featured, "Cờ bài nổi bật phải là true hoặc false.");
   assert.equal(parsed.fieldErrors?.status, "Trạng thái bài viết không hợp lệ.");
+});
+
+test("News category input validates slug, active flag and non-negative ordering", () => {
+  const invalid = parseAdminNewsCategoryPayload({
+    ...categoryInput,
+    active: "yes",
+    slug: "Kiến Thức",
+    sortOrder: -1,
+  });
+  assert.equal(invalid.input, undefined);
+  assert.match(invalid.fieldErrors?.slug ?? "", /Slug/);
+  assert.match(invalid.fieldErrors?.active ?? "", /true hoặc false/);
+  assert.match(invalid.fieldErrors?.sortOrder ?? "", /không âm/);
+
+  const valid = parseAdminNewsCategoryPayload(categoryInput);
+  assert.deepEqual(valid.input, categoryInput);
 });
 
 test("News create and audit are committed in one D1 batch", async () => {
@@ -155,6 +187,54 @@ test("News delete is a revision-guarded soft archive", async () => {
   assertNoIndividualWrites(database);
 });
 
+test("News category create and audit are committed in one D1 batch", async () => {
+  const database = new FakeBatchDatabase([{ id: 12 }]);
+  const categoryId = await createAdminNewsCategoryAtomically(database, categoryInput, "actor@example.com");
+
+  assert.equal(categoryId, 12);
+  const batch = database.batches[0] ?? [];
+  assert.equal(batch.length, 2);
+  assert.match(batch[0]?.query ?? "", /INSERT INTO article_categories/);
+  assert.match(batch[0]?.query ?? "", /revision, created_at, updated_at/);
+  assert.match(batch[1]?.query ?? "", /news\.category\.created/);
+  assertNoIndividualWrites(database);
+});
+
+test("News category update is revision guarded and audited atomically", async () => {
+  const database = new FakeBatchDatabase();
+  await updateAdminNewsCategoryAtomically(database, 12, categoryInput, 4, "actor@example.com");
+
+  const batch = database.batches[0] ?? [];
+  assert.equal(batch.length, 2);
+  assert.match(batch[0]?.query ?? "", /FROM article_categories/);
+  assert.ok(batch[0]?.values.includes("news.category.updated"));
+  assert.ok(batch[0]?.values.includes(4));
+  assert.match(batch[1]?.query ?? "", /UPDATE article_categories/);
+  assert.match(batch[1]?.query ?? "", /revision = revision \+ 1/);
+  assertNoIndividualWrites(database);
+});
+
+test("stale News category update fails closed", async () => {
+  const database = new FakeBatchDatabase([]);
+  await assert.rejects(
+    updateAdminNewsCategoryAtomically(database, 12, categoryInput, 4, "actor@example.com"),
+    AdminNewsCategoryStaleWriteError,
+  );
+});
+
+test("News category delete refuses a missing guarded marker and never detaches articles silently", async () => {
+  const database = new FakeBatchDatabase([]);
+  await assert.rejects(
+    deleteAdminNewsCategoryAtomically(database, 12, 4, "actor@example.com"),
+    AdminNewsCategoryConflictError,
+  );
+  const batch = database.batches[0] ?? [];
+  assert.match(batch[0]?.query ?? "", /NOT EXISTS \(SELECT 1 FROM articles a WHERE a\.category_id = c\.id\)/);
+  assert.match(batch[1]?.query ?? "", /DELETE FROM article_categories/);
+  assert.match(batch[1]?.query ?? "", /NOT EXISTS \(SELECT 1 FROM articles WHERE category_id = \?\)/);
+  assertNoIndividualWrites(database);
+});
+
 test("News routes require revisions and expose stale-write semantics", async () => {
   const [collectionRoute, itemRoute] = await Promise.all([
     readFile(path.join(repoRoot, "src/app/api/admin/news/route.ts"), "utf8"),
@@ -167,6 +247,27 @@ test("News routes require revisions and expose stale-write semantics", async () 
   assert.match(itemRoute, /updateAdminNewsArticleAtomically/);
   assert.match(itemRoute, /archiveAdminNewsArticleAtomically/);
   assert.match(itemRoute, /STALE_WRITE/);
+});
+
+test("News category routes share the admin guard, roles, revisions and in-use protection", async () => {
+  const [collectionRoute, itemRoute, migration] = await Promise.all([
+    readFile(path.join(repoRoot, "src/app/api/admin/news/categories/route.ts"), "utf8"),
+    readFile(path.join(repoRoot, "src/app/api/admin/news/categories/[id]/route.ts"), "utf8"),
+    readFile(path.join(repoRoot, "migrations/0008_news_category_revision.sql"), "utf8"),
+  ]);
+
+  for (const source of [collectionRoute, itemRoute]) {
+    assert.match(source, /requireAdmin/);
+    assert.match(source, /content_manager/);
+    assert.match(source, /owner/);
+  }
+  assert.match(collectionRoute, /createAdminNewsCategoryAtomically/);
+  assert.match(itemRoute, /hasExplicitRevision\(payload\)/);
+  assert.match(itemRoute, /updateAdminNewsCategoryAtomically/);
+  assert.match(itemRoute, /countAdminNewsCategoryArticles/);
+  assert.match(itemRoute, /deleteAdminNewsCategoryAtomically/);
+  assert.match(itemRoute, /STALE_WRITE/);
+  assert.match(migration, /ADD COLUMN revision INTEGER NOT NULL DEFAULT 1/);
 });
 
 test("archived News articles are excluded from every public read path", async () => {
