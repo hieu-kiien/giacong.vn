@@ -91,6 +91,7 @@ export default function AdminNewsPage() {
   const [inputQuery, setInputQuery] = useState("");
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState("");
+  const [categoryId, setCategoryId] = useState("");
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [lastPage, setLastPage] = useState(1);
@@ -121,6 +122,7 @@ export default function AdminNewsPage() {
     const params = new URLSearchParams({ page: String(page), pageSize: "20" });
     if (query) params.set("query", query);
     if (status) params.set("status", status);
+    if (categoryId) params.set("categoryId", categoryId);
 
     void (async () => {
       await Promise.resolve();
@@ -143,7 +145,7 @@ export default function AdminNewsPage() {
     })();
 
     return () => controller.abort();
-  }, [session.subject, page, query, status, attempt]);
+  }, [session.subject, page, query, status, categoryId, attempt]);
 
   function submitSearch(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -261,6 +263,8 @@ export default function AdminNewsPage() {
     }
   }
 
+  const hasFilters = Boolean(query || status || categoryId);
+
   return (
     <div className="admin-content">
       <AdminPageHeading
@@ -304,6 +308,20 @@ export default function AdminNewsPage() {
             value={inputQuery}
           />
         </div>
+        <label className="admin-field" style={{ minWidth: 180 }}>
+          <span>Chuyên mục</span>
+          <select
+            className="admin-select"
+            data-testid="select-news-filter-category"
+            onChange={(event) => { setCategoryId(event.target.value); setPage(1); }}
+            value={categoryId}
+          >
+            <option value="">Tất cả chuyên mục</option>
+            {categories.map((category) => (
+              <option key={category.id} value={category.id}>{category.name}{category.active ? "" : " (đã ẩn)"}</option>
+            ))}
+          </select>
+        </label>
         <label className="admin-field" style={{ minWidth: 170 }}>
           <span>Trạng thái</span>
           <select
@@ -318,8 +336,8 @@ export default function AdminNewsPage() {
           </select>
         </label>
         <button className="admin-button admin-button-primary" data-testid="button-news-search" type="submit"><Search size={15} /> Tìm</button>
-        {(query || status) ? (
-          <button className="admin-button admin-button-quiet" onClick={() => { setInputQuery(""); setQuery(""); setStatus(""); setPage(1); }} type="button">
+        {hasFilters ? (
+          <button className="admin-button admin-button-quiet" onClick={() => { setInputQuery(""); setQuery(""); setStatus(""); setCategoryId(""); setPage(1); }} type="button">
             Xóa bộ lọc
           </button>
         ) : null}
@@ -340,8 +358,8 @@ export default function AdminNewsPage() {
 
           {articles.length === 0 ? (
             <AdminEmptyState
-              description={query || status ? "Thử thay đổi bộ lọc hoặc từ khóa." : "Tạo bản nháp đầu tiên để bắt đầu quản lý nội dung."}
-              title={query || status ? "Không tìm thấy bài viết phù hợp" : "Chưa có bài viết"}
+              description={hasFilters ? "Thử thay đổi bộ lọc hoặc từ khóa." : "Tạo bản nháp đầu tiên để bắt đầu quản lý nội dung."}
+              title={hasFilters ? "Không tìm thấy bài viết phù hợp" : "Chưa có bài viết"}
             />
           ) : (
             <>
