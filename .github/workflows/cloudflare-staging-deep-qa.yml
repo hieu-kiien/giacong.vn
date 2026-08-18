@@ -55,6 +55,9 @@ jobs:
       - name: Install Chromium for responsive QA
         run: npx playwright install --with-deps chromium
 
+      - name: Verify accessibility semantics and keyboard focus
+        run: node scripts/staging-accessibility-qa.mjs
+
       - name: Run Access-authenticated staging deep QA
         run: node scripts/staging-deep-qa.mjs
 
