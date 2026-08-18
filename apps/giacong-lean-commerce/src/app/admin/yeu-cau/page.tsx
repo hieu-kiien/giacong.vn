@@ -1,6 +1,7 @@
 "use client";
 
 import { ClipboardList, Filter, Mail, Phone } from "lucide-react";
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { AdminEmptyState, AdminErrorState, AdminLoadingTable, AdminPageHeading, AdminPagination, AdminStatusBadge } from "@/components/admin/AdminPrimitives";
 import { useAdminSession } from "@/components/admin/AdminShell";
@@ -128,7 +129,7 @@ export default function AdminLeadsPage() {
                   <tbody>
                     {leads.map((lead) => (
                       <tr data-testid={`row-lead-${lead.id}`} key={lead.id}>
-                        <td><div className="admin-lead-person"><strong>{lead.fullName}</strong><span>{lead.companyName || "Chưa có tên công ty"}{lead.country ? ` · ${lead.country}` : ""}</span></div></td>
+                        <td><div className="admin-lead-person"><strong>{lead.fullName}</strong><span>{lead.companyName || "Chưa có tên công ty"}{lead.country ? ` · ${lead.country}` : ""}</span><Link className="admin-button admin-button-quiet" data-testid={`link-lead-detail-${lead.id}`} href={`/admin/yeu-cau/${lead.id}`}>Xem chi tiết</Link></div></td>
                         <td><div className="admin-lead-person">{lead.email ? <span><Mail size={12} style={{ verticalAlign: "middle" }} /> {lead.email}</span> : null}{lead.phone ? <span><Phone size={12} style={{ verticalAlign: "middle" }} /> {lead.phone}</span> : null}{!lead.email && !lead.phone ? <span>Chưa có thông tin</span> : null}</div></td>
                         <td><div className="admin-message" title={lead.message ?? undefined}>{lead.message || "Không có nội dung"}</div><div className="admin-item-meta">{lead.source}</div></td>
                         <td>
