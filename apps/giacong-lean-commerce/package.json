@@ -24,7 +24,7 @@
     "test:detail": "node --no-warnings --experimental-strip-types --test scripts/product-detail.test.mts scripts/product-gallery.test.mts scripts/product-seo.test.mts",
     "test:contact": "node --no-warnings --experimental-strip-types --test scripts/cloudflare-ci-contract.test.mjs scripts/contact-cloudflare-catalog.test.mjs scripts/contact-webhook.test.mts scripts/development-port.test.mjs scripts/google-apps-script-template.test.mjs scripts/lead-queue.test.mts scripts/media-contract.test.mts scripts/media-delete-contract.test.mts scripts/media-upload-policy.test.mts scripts/site-media-lifecycle.test.mts scripts/request-cart-client.test.mts scripts/request-cart-storage.test.mts scripts/request-cart.test.mts",
     "test:lead-persistence": "node --no-warnings --experimental-strip-types --test scripts/lead-persistence.test.mts",
-    "test:acceptance": "node --no-warnings --test scripts/security-headers.test.mjs",
+    "test:acceptance": "node --no-warnings --test scripts/security-headers.test.mjs scripts/accessibility-acceptance.test.mjs",
     "qa:captured": "node scripts/verify-captured-routes.mjs",
     "qa:catalog": "node scripts/verify-catalog-storefront.mjs",
     "qa:services": "node scripts/verify-service-ia.mjs",
