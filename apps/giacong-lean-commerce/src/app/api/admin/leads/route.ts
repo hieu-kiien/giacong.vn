@@ -1,6 +1,7 @@
 import { adminFailure, adminSuccess } from "@/lib/admin-api.ts";
 import { listAdminLeads, type LeadStatus } from "@/lib/admin-data";
 import { requireAdmin } from "@/lib/admin-guard";
+import { getAdminLeadDeliveryDetails } from "@/lib/admin-lead-delivery-data";
 
 export const dynamic = "force-dynamic";
 
@@ -30,8 +31,22 @@ export async function GET(request: Request): Promise<Response> {
 
   try {
     const data = await listAdminLeads(guard.database, { page, pageSize, status });
+    const deliveryDetails = await getAdminLeadDeliveryDetails(
+      guard.database,
+      data.leads.map((lead) => lead.id),
+    );
+    const leads = data.leads.map((lead) => ({
+      ...lead,
+      ...(deliveryDetails.get(lead.id) ?? {
+        deliveredAt: null,
+        deliveryAttempts: 0,
+        deliveryError: null,
+        webhookReference: null,
+      }),
+    }));
     return adminSuccess(crypto.randomUUID(), {
-      ...data,
+      leads,
+      total: data.total,
       pagination: {
         currentPage: page,
         lastPage: Math.max(1, Math.ceil(data.total / pageSize)),
