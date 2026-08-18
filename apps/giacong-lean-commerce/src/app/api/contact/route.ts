@@ -3,6 +3,7 @@ import { getAdminDatabase } from "@/lib/admin-data";
 import { createLeadPersistence } from "@/lib/lead-data";
 import { getCatalogProduct } from "@/lib/cloudflare-catalog";
 import { getLeadQueue } from "@/lib/lead-queue";
+import { createQueuedLeadReplayGuard } from "@/lib/lead-queue-replay";
 import { resolveRequestCartFromCatalog } from "@/lib/request-cart-resolver";
 
 export async function POST(request: Request) {
@@ -16,11 +17,12 @@ export async function POST(request: Request) {
     );
   }
 
+  const delivery = createQueuedLeadReplayGuard(leadPersistence, getLeadQueue());
   return handleContactSubmission(request, {
     cartBatchResolver: resolveRequestCartFromCatalog,
     environment: process.env,
-    leadQueue: getLeadQueue(),
-    leadPersistence,
+    leadQueue: delivery.leadQueue,
+    leadPersistence: delivery.leadPersistence,
     productResolver: async (slug) => {
       const product = await getCatalogProduct(slug);
       if (!product) return null;
