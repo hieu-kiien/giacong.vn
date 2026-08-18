@@ -65,6 +65,17 @@ function readNewsSnapshot() {
         'trg_articles_news_media_thumbnail_update'
       )
     ORDER BY name ASC;
+
+    SELECT COUNT(*) AS invalid_internal_thumbnail_refs
+    FROM articles a
+    WHERE a.thumbnail_url LIKE '/media/news/articles/%'
+      AND NOT EXISTS (
+        SELECT 1
+        FROM news_media_assets m
+        WHERE m.article_id = a.id
+          AND m.status = 'active'
+          AND '/media/' || m.storage_key = a.thumbnail_url
+      );
   `;
 
   const output = execFileSync(
@@ -82,7 +93,7 @@ function readNewsSnapshot() {
     { encoding: "utf8", stdio: ["ignore", "pipe", "inherit"] },
   );
   const payload = JSON.parse(output);
-  assert.ok(Array.isArray(payload) && payload.length >= 8, "News D1 snapshot returned an unexpected shape");
+  assert.ok(Array.isArray(payload) && payload.length >= 9, "News D1 snapshot returned an unexpected shape");
   return payload;
 }
 
@@ -92,6 +103,7 @@ function verifyNewsSchema(snapshot) {
   const categoryCount = Number(snapshot[2]?.results?.[0]?.total ?? 0);
   const mediaColumns = snapshot[6]?.results ?? [];
   const triggerNames = new Set((snapshot[7]?.results ?? []).map((row) => row.name));
+  const invalidInternalThumbnailRefs = Number(snapshot[8]?.results?.[0]?.invalid_internal_thumbnail_refs ?? -1);
 
   assert.ok(categoryColumns.some((column) => column.name === "revision"), "article_categories.revision migration is missing on staging");
   assert.ok(categoryColumns.some((column) => column.name === "sort_order"), "article_categories.sort_order is missing on staging");
@@ -107,6 +119,7 @@ function verifyNewsSchema(snapshot) {
     triggerNames.has("trg_articles_news_media_thumbnail_update"),
     "News media update reference guard is missing on staging",
   );
+  assert.equal(invalidInternalThumbnailRefs, 0, "staging contains invalid internal News thumbnail references");
   assert.ok(categoryCount >= 1, "News staging must contain at least the seeded category");
   console.log(`News D1 schema passed with ${categoryCount} categories, News media storage and reference guards.`);
 }
