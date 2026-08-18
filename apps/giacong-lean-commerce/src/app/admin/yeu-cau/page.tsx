@@ -6,8 +6,15 @@ import { AdminEmptyState, AdminErrorState, AdminLoadingTable, AdminPageHeading, 
 import { useAdminSession } from "@/components/admin/AdminShell";
 import { AdminClientError, fetchAdmin, formatAdminDate, mutateAdmin, type AdminLead, type LeadStatus } from "@/lib/admin-client";
 
+interface AdminLeadWithDelivery extends AdminLead {
+  deliveredAt: string | null;
+  deliveryAttempts: number;
+  deliveryError: string | null;
+  webhookReference: string | null;
+}
+
 interface LeadResponse {
-  leads: AdminLead[];
+  leads: AdminLeadWithDelivery[];
   total: number;
   pagination?: { currentPage: number; lastPage: number; pageSize: number; total: number };
 }
@@ -44,7 +51,7 @@ function deliveryKind(status: AdminLead["deliveryStatus"]): "green" | "amber" | 
 
 export default function AdminLeadsPage() {
   const session = useAdminSession();
-  const [leads, setLeads] = useState<AdminLead[]>([]);
+  const [leads, setLeads] = useState<AdminLeadWithDelivery[]>([]);
   const [status, setStatus] = useState<LeadStatus | "">("");
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
@@ -80,7 +87,7 @@ export default function AdminLeadsPage() {
     return () => controller.abort();
   }, [session.subject, page, status, attempt]);
 
-  async function updateLeadStatus(lead: AdminLead, nextStatus: LeadStatus) {
+  async function updateLeadStatus(lead: AdminLeadWithDelivery, nextStatus: LeadStatus) {
     if (lead.status === nextStatus) return;
     setUpdatingId(lead.id);
     setMutationError(null);
@@ -89,7 +96,7 @@ export default function AdminLeadsPage() {
         body: { status: nextStatus },
         method: "PATCH",
       });
-      setLeads((current) => current.map((item) => item.id === lead.id ? result.lead : item));
+      setLeads((current) => current.map((item) => item.id === lead.id ? { ...item, ...result.lead } : item));
     } catch (reason: unknown) {
       setMutationError(reason instanceof AdminClientError ? reason : new AdminClientError("Không thể cập nhật trạng thái lead.", 0));
     } finally {
@@ -138,7 +145,15 @@ export default function AdminLeadsPage() {
                             {pipelineStatusOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
                           </select>
                         </td>
-                        <td><AdminStatusBadge kind={deliveryKind(lead.deliveryStatus)} value={lead.deliveryStatus} /></td>
+                        <td>
+                          <AdminStatusBadge kind={deliveryKind(lead.deliveryStatus)} value={lead.deliveryStatus} />
+                          <div className="admin-item-meta" data-testid={`lead-delivery-meta-${lead.id}`}>
+                            {lead.deliveryAttempts > 0 ? `${lead.deliveryAttempts} lần thử` : "Chưa có lần thử"}
+                            {lead.webhookReference ? ` · ${lead.webhookReference}` : ""}
+                          </div>
+                          {lead.deliveryError ? <div className="admin-message" data-testid={`lead-delivery-error-${lead.id}`} title={lead.deliveryError}>{lead.deliveryError}</div> : null}
+                          {lead.deliveredAt ? <div className="admin-item-meta">Giao thành công: {formatAdminDate(lead.deliveredAt)}</div> : null}
+                        </td>
                         <td className="admin-mono">{formatAdminDate(lead.createdAt)}</td>
                       </tr>
                     ))}
