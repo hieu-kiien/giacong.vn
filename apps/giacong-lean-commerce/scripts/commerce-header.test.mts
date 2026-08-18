@@ -682,7 +682,6 @@ test("the chrome keeps the reviewed dependency allowlist and no third-party bran
       "next",
       "react",
       "react-dom",
-      "shadcn",
       "tailwind-merge",
       "tw-animate-css",
     ],
