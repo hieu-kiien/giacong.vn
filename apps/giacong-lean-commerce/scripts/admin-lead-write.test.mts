@@ -214,3 +214,22 @@ test("admin client injects the last-read lead status only for direct lead PATCH 
   assert.match(client, /leadStatusCache\.delete\(leadId\)/);
   assert.match(client, /method !== "PATCH"/);
 });
+
+test("lead inbox exposes delivery diagnostics without adding a retry mutation", async () => {
+  const [route, readModel, page] = await Promise.all([
+    readFile(path.join(repoRoot, "src/app/api/admin/leads/route.ts"), "utf8"),
+    readFile(path.join(repoRoot, "src/lib/admin-lead-delivery-data.ts"), "utf8"),
+    readFile(path.join(repoRoot, "src/app/admin/yeu-cau/page.tsx"), "utf8"),
+  ]);
+
+  assert.match(readModel, /delivery_attempts/);
+  assert.match(readModel, /delivery_error/);
+  assert.match(readModel, /webhook_reference/);
+  assert.match(readModel, /delivered_at/);
+  assert.match(route, /getAdminLeadDeliveryDetails/);
+  assert.match(page, /lead\.deliveryAttempts/);
+  assert.match(page, /lead\.deliveryError/);
+  assert.match(page, /lead\.webhookReference/);
+  assert.match(page, /lead\.deliveredAt/);
+  assert.doesNotMatch(page, /retry-delivery|retryDelivery/);
+});
