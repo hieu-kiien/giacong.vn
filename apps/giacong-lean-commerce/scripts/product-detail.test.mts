@@ -327,9 +327,9 @@ test("the demo fallback is labelled so it can never read as production data", as
   assert.doesNotMatch(shell, /Dữ liệu demo tạm thời|demoNotice/, "the production surface must not show a demo banner");
 });
 
-test("the Bagisto adapter stays unaware of the demo fixture", async () => {
-  const adapter = await readSource("src", "lib", "bagisto-catalog.ts");
-  assert.doesNotMatch(adapter, /demo-catalog|DEMO_CATALOG|catalog-detail-source/i);
+test("the Cloudflare catalog reader stays unaware of the demo fixture", async () => {
+  const reader = await readSource("src", "lib", "cloudflare-catalog.ts");
+  assert.doesNotMatch(reader, /demo-catalog|DEMO_CATALOG|catalog-detail-source/i);
 });
 
 // ---------------------------------------------------------------------------
