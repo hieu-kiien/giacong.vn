@@ -129,13 +129,13 @@ jobs:
           - G2 acceptance run: ${run_url}
           - article id / slug: ${article_id} / ${article_slug}
           - initial asset id: ${first_asset_id}
-          - persisted-thumbnail delete: HTTP 409 `MEDIA_IN_USE` PASS
+          - persisted-thumbnail delete: HTTP 409 MEDIA_IN_USE PASS
           - replacement asset id: ${replacement_asset_id}
           - replacement public URL: ${replacement_url}
           - public replacement render: HTTP 200 PASS
-          - old asset D1 state: `deleted`
+          - old asset D1 state: deleted
           - old asset R2/media route after cleanup: HTTP 404 PASS
-          - replacement asset D1 state during acceptance: `active`
+          - replacement asset D1 state during acceptance: active
           - replacement asset R2/media route during acceptance: HTTP 200 PASS
           - controlled test-state cleanup: ${cleanup}
           - observed at: ${observed_at}
