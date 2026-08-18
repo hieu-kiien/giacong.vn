@@ -19,6 +19,8 @@ test("News media reference guard maps stale internal thumbnails to a canonical c
   assert.match(migration, /INVALID_NEWS_MEDIA_REFERENCE/);
   assert.match(migration, /m\.article_id = NEW\.id/);
   assert.match(migration, /m\.status = 'active'/);
+  assert.match(migration, /SELECT\s*\(\s*CASE[\s\S]*?END\s*\)\s*;/);
+  assert.doesNotMatch(migration, /SELECT\s+CASE\b/);
   assert.match(adminApi, /"MEDIA_REFERENCE_CONFLICT"/);
   assert.match(collectionRoute, /MEDIA_REFERENCE_CONFLICT/);
   assert.match(collectionRoute, /thumbnailUrl/);
