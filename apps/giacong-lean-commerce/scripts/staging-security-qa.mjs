@@ -20,6 +20,10 @@ for (const route of routes) {
     signal: AbortSignal.timeout(25000),
   });
 
+  if (response.status >= 400) {
+    await logSafeFailureDiagnostic(response, route);
+  }
+
   assert.ok(response.status < 400, `${route}: HTTP ${response.status}`);
   assertHsts(response, route);
   assert.equal(header(response, "x-content-type-options"), "nosniff", `${route}: X-Content-Type-Options`);
@@ -59,4 +63,41 @@ function assertHsts(response, route) {
   assert.ok(maxAge, `${route}: Strict-Transport-Security missing max-age`);
   assert.ok(Number(maxAge) >= 31536000, `${route}: HSTS max-age must be at least one year`);
   assert.ok(hsts.includes("includesubdomains"), `${route}: HSTS must include subdomains`);
+}
+
+async function logSafeFailureDiagnostic(response, route) {
+  const metadata = {
+    route,
+    status: response.status,
+    finalUrl: response.url,
+    redirected: response.redirected,
+    server: diagnosticHeader(response, "server"),
+    contentType: diagnosticHeader(response, "content-type"),
+    location: diagnosticHeader(response, "location"),
+    cfRay: diagnosticHeader(response, "cf-ray"),
+    cfMitigated: diagnosticHeader(response, "cf-mitigated"),
+    cfCacheStatus: diagnosticHeader(response, "cf-cache-status"),
+  };
+
+  let bodySnippet = "";
+  try {
+    bodySnippet = sanitizeDiagnosticText((await response.clone().text()).slice(0, 1200)).slice(0, 600);
+  } catch (error) {
+    bodySnippet = `[body unavailable: ${sanitizeDiagnosticText(error instanceof Error ? error.message : String(error))}]`;
+  }
+
+  console.error("STAGING_HTTP_FAILURE_DIAGNOSTIC", JSON.stringify({ ...metadata, bodySnippet }));
+}
+
+function diagnosticHeader(response, name) {
+  return sanitizeDiagnosticText((response.headers.get(name) ?? "").slice(0, 300));
+}
+
+function sanitizeDiagnosticText(value) {
+  return String(value)
+    .replace(/[\r\n\t]+/g, " ")
+    .replace(/\s+/g, " ")
+    .replace(/([?&](?:token|code|secret|key|signature|sig|jwt|credential)=)[^&\s"'<>]+/gi, "$1[REDACTED]")
+    .replace(/\b(?:bearer\s+)?[A-Za-z0-9_-]{48,}\b/gi, "[REDACTED_LONG_TOKEN]")
+    .trim();
 }
