@@ -49,6 +49,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Verify baseline security headers
+        run: node scripts/staging-security-qa.mjs
+
       - name: Install Chromium for responsive QA
         run: npx playwright install --with-deps chromium
 
