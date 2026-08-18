@@ -20,6 +20,9 @@ test("News staging QA verifies migrations before exercising runtime", async () =
   assert.match(qa, /column\.name === "revision"/);
   assert.match(qa, /PRAGMA table_info\(articles\)/);
   assert.match(qa, /column\.name === "archived_at"/);
+  assert.match(qa, /PRAGMA table_info\(news_media_assets\)/);
+  assert.match(qa, /column\.name === "article_id"/);
+  assert.match(qa, /column\.name === "storage_key"/);
   assert.match(qa, /STAGING_DATABASE/);
 });
 

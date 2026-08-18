@@ -54,6 +54,8 @@ function readNewsSnapshot() {
     WHERE archived_at IS NOT NULL
     ORDER BY archived_at DESC, id DESC
     LIMIT 1;
+
+    PRAGMA table_info(news_media_assets);
   `;
 
   const output = execFileSync(
@@ -71,7 +73,7 @@ function readNewsSnapshot() {
     { encoding: "utf8", stdio: ["ignore", "pipe", "inherit"] },
   );
   const payload = JSON.parse(output);
-  assert.ok(Array.isArray(payload) && payload.length >= 6, "News D1 snapshot returned an unexpected shape");
+  assert.ok(Array.isArray(payload) && payload.length >= 7, "News D1 snapshot returned an unexpected shape");
   return payload;
 }
 
@@ -79,13 +81,16 @@ function verifyNewsSchema(snapshot) {
   const categoryColumns = snapshot[0]?.results ?? [];
   const articleColumns = snapshot[1]?.results ?? [];
   const categoryCount = Number(snapshot[2]?.results?.[0]?.total ?? 0);
+  const mediaColumns = snapshot[6]?.results ?? [];
 
   assert.ok(categoryColumns.some((column) => column.name === "revision"), "article_categories.revision migration is missing on staging");
   assert.ok(categoryColumns.some((column) => column.name === "sort_order"), "article_categories.sort_order is missing on staging");
   assert.ok(articleColumns.some((column) => column.name === "archived_at"), "articles.archived_at migration is missing on staging");
   assert.ok(articleColumns.some((column) => column.name === "revision"), "articles.revision is missing on staging");
+  assert.ok(mediaColumns.some((column) => column.name === "article_id"), "news_media_assets.article_id migration is missing on staging");
+  assert.ok(mediaColumns.some((column) => column.name === "storage_key"), "news_media_assets.storage_key migration is missing on staging");
   assert.ok(categoryCount >= 1, "News staging must contain at least the seeded category");
-  console.log(`News D1 schema passed with ${categoryCount} categories.`);
+  console.log(`News D1 schema passed with ${categoryCount} categories and News media storage.`);
 }
 
 async function verifyPublicNews(snapshot) {
