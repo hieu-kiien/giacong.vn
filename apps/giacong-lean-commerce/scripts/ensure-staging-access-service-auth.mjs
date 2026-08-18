@@ -1,4 +1,8 @@
 import assert from "node:assert/strict";
+import {
+  classifyAccessApplications,
+  formatRelatedAccessApps,
+} from "./access-application-targets.mjs";
 
 const apiToken = requiredEnv("CLOUDFLARE_API_TOKEN");
 const accountId = requiredEnv("CLOUDFLARE_ACCOUNT_ID");
@@ -9,7 +13,13 @@ const accessAppRequired = process.env.ACCESS_SERVICE_AUTH_REQUIRED?.trim().toLow
 assert.match(targetDomain, /^[a-z0-9.-]+$/i, "ACCESS_SERVICE_AUTH_DOMAIN is invalid.");
 
 const applications = await cloudflareApi(`/accounts/${accountId}/access/apps?per_page=100`);
-const targetApps = (applications.result ?? []).filter((app) => app?.domain === targetDomain);
+const { exactApps: targetApps, relatedApps } = classifyAccessApplications(applications.result ?? [], targetDomain);
+if (targetApps.length === 0 && relatedApps.length > 0) {
+  throw new Error(
+    `ACCESS_APP_SCOPE_TOO_BROAD: Access application configuration covers ${targetDomain} but is not scoped exclusively `
+    + `to that whole hostname. Refusing to add an application-level Service Auth policy. ${formatRelatedAccessApps(relatedApps)}`,
+  );
+}
 if (targetApps.length === 0 && !accessAppRequired) {
   console.log(`No Access application exists for ${targetDomain}; Service Auth bootstrap is not required for this target.`);
   process.exit(0);
@@ -17,7 +27,7 @@ if (targetApps.length === 0 && !accessAppRequired) {
 assert.equal(
   targetApps.length,
   1,
-  `Expected exactly one Access application for ${targetDomain}, found ${targetApps.length}.`,
+  `Expected exactly one Access application scoped exclusively to ${targetDomain}, found ${targetApps.length}.`,
 );
 const app = targetApps[0];
 assert.ok(app?.id, "Target Access application must expose an id.");
