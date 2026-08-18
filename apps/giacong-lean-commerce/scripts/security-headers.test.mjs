@@ -27,7 +27,7 @@ test("Next emits the baseline security response headers without framework disclo
   assert.match(config, /source:\s*"\/:path\*"/);
 });
 
-test("post-deploy staging QA verifies the security headers through Cloudflare Access", async () => {
+test("post-deploy staging QA verifies security headers and emits bounded non-secret 4xx diagnostics before failing", async () => {
   const [workflow, runtime] = await Promise.all([
     readFile(workflowUrl, "utf8"),
     source("scripts/staging-security-qa.mjs"),
@@ -43,4 +43,15 @@ test("post-deploy staging QA verifies the security headers through Cloudflare Ac
   assert.match(runtime, /referrer-policy/);
   assert.match(runtime, /permissions-policy/);
   assert.match(runtime, /x-powered-by/);
+
+  const diagnosticCall = runtime.indexOf("await logSafeFailureDiagnostic(response, route)");
+  const statusAssertion = runtime.indexOf("assert.ok(response.status < 400");
+  assert.ok(diagnosticCall >= 0 && diagnosticCall < statusAssertion, "4xx diagnostics must be logged before the fail-closed assertion");
+  assert.match(runtime, /STAGING_HTTP_FAILURE_DIAGNOSTIC/);
+  assert.match(runtime, /cf-mitigated/);
+  assert.match(runtime, /cf-ray/);
+  assert.match(runtime, /cf-cache-status/);
+  assert.match(runtime, /\.slice\(0, 1200\)[\s\S]*\.slice\(0, 600\)/);
+  assert.match(runtime, /\[REDACTED_LONG_TOKEN\]/);
+  assert.doesNotMatch(runtime, /console\.(?:log|error)\([^\n]*(?:accessHeaders|CLOUDFLARE_ACCESS_CLIENT_SECRET|CF-Access-Client-Secret)/);
 });
