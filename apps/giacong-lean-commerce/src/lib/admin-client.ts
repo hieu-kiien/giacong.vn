@@ -211,6 +211,35 @@ export async function mutateAdmin<T>(
   return body.data;
 }
 
+export async function uploadAdmin<T>(path: string, form: FormData): Promise<T> {
+  let response: Response;
+  try {
+    response = await fetch(path, {
+      body: form,
+      credentials: "include",
+      headers: { Accept: "application/json" },
+      method: "POST",
+    });
+  } catch {
+    throw new AdminClientError("Không thể upload file tới máy chủ admin.", 0, "NETWORK_ERROR");
+  }
+
+  let body: { ok?: boolean; data?: T; code?: string; message?: string };
+  try {
+    body = await response.json();
+  } catch {
+    throw new AdminClientError("Máy chủ trả về dữ liệu upload không hợp lệ.", response.status);
+  }
+  if (!response.ok || body.ok === false || !body.data) {
+    throw new AdminClientError(
+      body.message ?? "Không thể upload file.",
+      response.status,
+      body.code,
+    );
+  }
+  return body.data;
+}
+
 export function formatAdminDate(value: string | null | undefined): string {
   if (!value) return "Chưa ghi nhận";
   const date = new Date(value);
