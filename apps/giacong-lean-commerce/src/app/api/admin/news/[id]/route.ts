@@ -76,12 +76,27 @@ export async function PATCH(request: Request, context: NewsRouteContext): Promis
   } catch (error) {
     const stale = error instanceof AdminNewsStaleWriteError;
     const unique = isUniqueError(error);
+    const mediaReference = isMediaReferenceError(error);
     return adminFailure(
       crypto.randomUUID(),
-      stale || unique ? 409 : 503,
-      stale ? "STALE_WRITE" : unique ? "UNIQUE_CONFLICT" : "INTERNAL_ERROR",
-      error instanceof Error ? error.message : "Không thể cập nhật bài viết.",
-      unique ? { slug: "Slug đã tồn tại." } : undefined,
+      stale || unique || mediaReference ? 409 : 503,
+      stale
+        ? "STALE_WRITE"
+        : unique
+          ? "UNIQUE_CONFLICT"
+          : mediaReference
+            ? "MEDIA_REFERENCE_CONFLICT"
+            : "INTERNAL_ERROR",
+      mediaReference
+        ? "Ảnh đại diện đã bị xóa, không hoạt động hoặc không thuộc bài viết này."
+        : error instanceof Error
+          ? error.message
+          : "Không thể cập nhật bài viết.",
+      unique
+        ? { slug: "Slug đã tồn tại." }
+        : mediaReference
+          ? { thumbnailUrl: "Hãy chọn lại một ảnh đang hoạt động trong Media bài viết." }
+          : undefined,
     );
   }
 }
@@ -183,4 +198,8 @@ function hasExplicitRevision(value: unknown): value is Record<string, unknown> {
 
 function isUniqueError(error: unknown): boolean {
   return error instanceof Error && /unique|constraint/i.test(error.message);
+}
+
+function isMediaReferenceError(error: unknown): boolean {
+  return error instanceof Error && /INVALID_NEWS_MEDIA_REFERENCE/.test(error.message);
 }
