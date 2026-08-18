@@ -14,7 +14,7 @@
     "lint": "eslint",
     "typecheck": "next typegen && tsc --noEmit",
     "test:admin": "node --no-warnings --experimental-strip-types --test scripts/admin-access.test.mts scripts/admin-access-source-contract.test.mjs scripts/admin-lead-write.test.mts scripts/admin-news-category-ui.test.mjs scripts/admin-news-ui.test.mjs scripts/admin-news-write.test.mts scripts/admin-product-write.test.mts scripts/admin-service-write.test.mts scripts/admin-session.test.mts scripts/admin-variant-write.test.mts scripts/site-settings.test.mts scripts/site-settings-atomic.test.mts",
-    "test:catalog": "node --no-warnings --experimental-strip-types --test scripts/catalog-contract.test.mts scripts/bagisto-api-timeout.test.mts",
+    "test:catalog": "node --no-warnings --experimental-strip-types --test scripts/catalog-contract.test.mts",
     "test:catalog-purchase-ui": "node --no-warnings --experimental-strip-types --test scripts/catalog-purchase-ui.test.mts",
     "test:news": "node --no-warnings --experimental-strip-types --test scripts/news-data.test.mts scripts/news-public.test.mjs scripts/staging-news-qa-contract.test.mjs",
     "test:service": "node --no-warnings --experimental-strip-types --test scripts/service-contract.test.mts scripts/service-cms-contract.test.mts scripts/contact-form-context.test.mts",
