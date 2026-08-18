@@ -87,11 +87,12 @@ export async function deleteNewsMediaAsset(
       SET status = 'deleted', deleted_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
       WHERE id = ? AND article_id = ? AND status = 'active'
         AND EXISTS (SELECT 1 FROM audit_logs WHERE id = ?)
+      RETURNING id
     `).bind(input.assetId, input.articleId, auditId),
   ];
 
   const results = await batchDatabase.batch(statements);
-  if (!markerCreated(results[0]?.results)) {
+  if (!oneRowReturned(results[0]?.results)) {
     const latest = await getNewsMediaRow(database, input.articleId, input.assetId);
     if (!latest) return { kind: "not_found" };
     const latestMedia = toNewsMediaAsset(latest);
@@ -112,8 +113,15 @@ export async function deleteNewsMediaAsset(
     throw new Error("Không thể đánh dấu media bài viết là đã xóa.");
   }
 
+  if (!oneRowReturned(results[1]?.results)) {
+    throw new Error("D1 không xác nhận tombstone media bài viết; R2 chưa bị xóa.");
+  }
+
   const latest = await getNewsMediaRow(database, input.articleId, input.assetId);
-  const deletedMedia = latest ? toNewsMediaAsset(latest) : { ...media, status: "deleted" as const };
+  if (!latest || latest.status !== "deleted") {
+    throw new Error("Không xác minh được tombstone media bài viết; R2 chưa bị xóa.");
+  }
+  const deletedMedia = toNewsMediaAsset(latest);
   const storageDeleted = await deleteStorageObject(bucket, row.storage_key);
   return { kind: "deleted", media: deletedMedia, storageDeleted };
 }
@@ -158,7 +166,7 @@ async function deleteStorageObject(bucket: NewsMediaBucketLike, storageKey: stri
   }
 }
 
-function markerCreated(rows: unknown[] | undefined): boolean {
+function oneRowReturned(rows: unknown[] | undefined): boolean {
   return Array.isArray(rows) && rows.length === 1;
 }
 
