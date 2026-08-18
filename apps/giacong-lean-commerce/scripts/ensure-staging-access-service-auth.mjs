@@ -3,18 +3,20 @@ import assert from "node:assert/strict";
 const apiToken = requiredEnv("CLOUDFLARE_API_TOKEN");
 const accountId = requiredEnv("CLOUDFLARE_ACCOUNT_ID");
 const serviceClientId = requiredEnv("CLOUDFLARE_ACCESS_CLIENT_ID");
-const stagingDomain = "staging.kienhieu.id.vn";
-const policyName = "GitHub staging deep QA";
+const targetDomain = process.env.ACCESS_SERVICE_AUTH_DOMAIN?.trim() || "staging.kienhieu.id.vn";
+const policyName = process.env.ACCESS_SERVICE_AUTH_POLICY_NAME?.trim() || `GitHub Service Auth ${targetDomain}`;
+
+assert.match(targetDomain, /^[a-z0-9.-]+$/i, "ACCESS_SERVICE_AUTH_DOMAIN is invalid.");
 
 const applications = await cloudflareApi(`/accounts/${accountId}/access/apps?per_page=100`);
-const stagingApps = (applications.result ?? []).filter((app) => app?.domain === stagingDomain);
+const targetApps = (applications.result ?? []).filter((app) => app?.domain === targetDomain);
 assert.equal(
-  stagingApps.length,
+  targetApps.length,
   1,
-  `Expected exactly one Access application for ${stagingDomain}, found ${stagingApps.length}.`,
+  `Expected exactly one Access application for ${targetDomain}, found ${targetApps.length}.`,
 );
-const app = stagingApps[0];
-assert.ok(app?.id, "Staging Access application must expose an id.");
+const app = targetApps[0];
+assert.ok(app?.id, "Target Access application must expose an id.");
 
 const serviceTokens = await cloudflareApi(`/accounts/${accountId}/access/service_tokens?per_page=1000`);
 const matchingTokens = (serviceTokens.result ?? []).filter((token) => token?.client_id === serviceClientId);
@@ -35,7 +37,7 @@ const hasMatchingServiceAuth = (policies.result ?? []).some((policy) => {
 });
 
 if (hasMatchingServiceAuth) {
-  console.log(`Access Service Auth already configured for ${stagingDomain}.`);
+  console.log(`Access Service Auth already configured for ${targetDomain}.`);
   process.exit(0);
 }
 
@@ -50,7 +52,7 @@ const created = await cloudflareApi(`/accounts/${accountId}/access/apps/${app.id
 
 assert.equal(created.success, true, "Cloudflare did not confirm Access policy creation.");
 assert.equal(created.result?.decision, "non_identity", "Created policy must be Service Auth/non_identity.");
-console.log(`Created Access Service Auth policy '${policyName}' for ${stagingDomain}.`);
+console.log(`Created Access Service Auth policy '${policyName}' for ${targetDomain}.`);
 
 function requiredEnv(name) {
   const value = process.env[name]?.trim();

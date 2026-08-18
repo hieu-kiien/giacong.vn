@@ -34,15 +34,18 @@ test("validated master ensures staging Service Auth, applies D1 migrations and d
   assert.doesNotMatch(workflow, /Staging remains unchanged/);
 });
 
-test("Access bootstrap is scoped to the exact staging app and exact service token", async () => {
+test("Access bootstrap defaults to the storefront app and scopes any explicit target to the exact app and service token", async () => {
   const script = await readFile(accessBootstrapUrl, "utf8");
 
-  assert.match(script, /const stagingDomain = "staging\.kienhieu\.id\.vn"/);
+  assert.match(
+    script,
+    /process\.env\.ACCESS_SERVICE_AUTH_DOMAIN\?\.trim\(\) \|\| "staging\.kienhieu\.id\.vn"/,
+  );
+  assert.match(script, /assert\.match\(targetDomain, \/\^\[a-z0-9\.\-\]\+\$\/i/);
   assert.match(script, /token\?\.client_id === serviceClientId/);
-  assert.match(script, /app\?\.domain === stagingDomain/);
+  assert.match(script, /app\?\.domain === targetDomain/);
   assert.match(script, /policy\?\.decision !== "non_identity"/);
   assert.match(script, /service_token:\s*\{ token_id: serviceToken\.id \}/);
-  assert.doesNotMatch(script, /admin-staging\.kienhieu\.id\.vn|admin\.kienhieu\.id\.vn/);
   assert.match(script, /Access: Apps and Policies Read\/Write plus Access: Service Tokens Read/);
 });
 

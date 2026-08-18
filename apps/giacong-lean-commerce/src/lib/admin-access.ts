@@ -31,6 +31,12 @@ interface VerifiedAccessClaims {
   subject: string;
 }
 
+export interface AccessIdentityClaims {
+  common_name?: unknown;
+  email?: unknown;
+  sub?: unknown;
+}
+
 export type AccessTokenVerifier = (
   token: string,
   config: NormalizedAdminAccessConfig,
@@ -131,10 +137,25 @@ export async function verifyCloudflareAccessToken(
     issuer: config.teamDomain,
   });
 
+  return resolveAccessIdentityClaims(payload);
+}
+
+/**
+ * Cloudflare Access user tokens carry a non-empty `sub`. Service-token
+ * application tokens intentionally use an empty `sub` and identify the token
+ * with `common_name`. Keep service identities in a separate subject namespace
+ * so they still require an explicit `admin_members` grant before admission.
+ */
+export function resolveAccessIdentityClaims(payload: AccessIdentityClaims): VerifiedAccessClaims {
   const subject = typeof payload.sub === "string" ? payload.sub.trim() : "";
-  if (!subject) throw new Error("Access JWT missing subject");
   const email = typeof payload.email === "string" ? payload.email.trim().toLowerCase() : undefined;
-  return { email, subject };
+  if (subject) return { ...(email ? { email } : {}), subject };
+
+  const commonName = typeof payload.common_name === "string" ? payload.common_name.trim() : "";
+  if (!validServiceTokenCommonName(commonName)) {
+    throw new Error("Access JWT missing a user subject or valid service token common_name");
+  }
+  return { subject: `service:${commonName}` };
 }
 
 export function normalizeAdminAccessConfig(
@@ -206,6 +227,13 @@ function validHostname(value: string): boolean {
 
 function validAudience(value: string): boolean {
   return value.length >= 16 && value.length <= 256 && /^[A-Za-z0-9._~:-]+$/.test(value);
+}
+
+function validServiceTokenCommonName(value: string): boolean {
+  return value.length >= 8
+    && value.length <= 247
+    && value.endsWith(".access")
+    && /^[A-Za-z0-9._:-]+$/.test(value);
 }
 
 function failure(

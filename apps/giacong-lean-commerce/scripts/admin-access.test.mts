@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { admitAdminRequest, normalizeAdminAccessConfig } from "../src/lib/admin-access.ts";
+import {
+  admitAdminRequest,
+  normalizeAdminAccessConfig,
+  resolveAccessIdentityClaims,
+} from "../src/lib/admin-access.ts";
 
 const baseConfig = {
   adminHostname: "admin-staging.example.test",
@@ -70,4 +74,29 @@ test("requires and verifies Access JWTs when public mode is off", async () => {
   const result = await admitAdminRequest(request, baseConfig, verify);
   assert.deepEqual(result, { actor: { subject: "access-user" }, ok: true });
   assert.equal(calls, 1);
+});
+
+test("keeps Access user subjects unchanged and normalizes email", () => {
+  const claims = resolveAccessIdentityClaims({
+    email: " ADMIN@Example.Test ",
+    sub: " user-subject ",
+  });
+  assert.deepEqual(claims, { email: "admin@example.test", subject: "user-subject" });
+});
+
+test("maps Access service-token common_name into an explicit service subject namespace", () => {
+  const claims = resolveAccessIdentityClaims({
+    common_name: "0123456789abcdef0123456789abcdef.access",
+    sub: "",
+  });
+  assert.deepEqual(claims, {
+    subject: "service:0123456789abcdef0123456789abcdef.access",
+  });
+});
+
+test("rejects an empty Access subject without a valid service-token common_name", () => {
+  assert.throws(
+    () => resolveAccessIdentityClaims({ common_name: "not-a-service-token", sub: "" }),
+    /valid service token common_name/,
+  );
 });
