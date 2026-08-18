@@ -253,7 +253,7 @@ test("no commerce primitive re-declares a forbidden V1 surface", async () => {
 });
 
 // ---------------------------------------------------------------------------
-// 3. Demo catalog data, isolated from the Bagisto adapter
+// 3. Demo catalog data remains isolated from canonical runtime readers
 // ---------------------------------------------------------------------------
 
 test("demo catalog data is flagged as demo and spans several groups", () => {
@@ -320,12 +320,12 @@ test("demo products carry single-axis variants and ascending tier prices", () =>
   assert.ok(singleVariantProducts >= 2, "demo data must include products addable with a unique variant");
 });
 
-test("demo catalog data and the Bagisto adapter stay independent", async () => {
+test("demo catalog data and the Cloudflare reader stay independent", async () => {
   const demoSource = await readSource("src", "data", "demo-catalog.ts");
-  const adapterSource = await readSource("src", "lib", "bagisto-catalog.ts");
+  const canonicalSource = await readSource("src", "lib", "cloudflare-catalog.ts");
 
-  assert.doesNotMatch(demoSource, /bagisto/i, "demo data must not import or mention the Bagisto adapter");
-  assert.doesNotMatch(adapterSource, /demo-catalog|DEMO_CATALOG/, "the Bagisto adapter must not read demo data");
+  assert.doesNotMatch(demoSource, /cloudflare-catalog|bagisto/i, "demo data must not import or mention runtime catalog readers");
+  assert.doesNotMatch(canonicalSource, /demo-catalog|DEMO_CATALOG/, "the canonical D1 reader must not fall back to demo data");
   assert.doesNotMatch(demoSource, FORBIDDEN_SURFACE_PATTERN, "demo data must not model a forbidden V1 surface");
 });
 
