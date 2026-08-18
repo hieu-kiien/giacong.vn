@@ -81,6 +81,9 @@ jobs:
     needs: quality
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    permissions:
+      contents: read
+      issues: write
     defaults:
       run:
         working-directory: apps/giacong-lean-commerce
@@ -133,3 +136,41 @@ jobs:
             and .[0].percentage == 100
             and (. [0].version_id | type == "string" and length > 0)
           ' <<<"$deployment"
+
+      - name: Record master staging deployment evidence
+        if: github.ref == 'refs/heads/master'
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          TRACKING_ISSUE: "70"
+        run: |
+          set -euo pipefail
+          deployment=$(npx --yes wrangler@4.115.0 deployments status --env=staging --json)
+          version_id=$(jq -er '
+            .versions
+            | map(select(.percentage == 100))
+            | if length == 1 then .[0].version_id else empty end
+          ' <<<"$deployment")
+          run_url="https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          observed_at=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
+          body=$(cat <<EOF
+          G1 staging deployment evidence
+
+          - source CI run id: ${GITHUB_RUN_ID}
+          - source CI run: ${run_url}
+          - master SHA: ${GITHUB_SHA}
+          - active staging Worker version: ${version_id}
+          - traffic: 100%
+          - observed at: ${observed_at}
+
+          This breadcrumb records the deployment immediately after the workflow verified a single 100% active staging version. Deep-QA evidence for the same source CI run is recorded separately after the post-deploy suite succeeds.
+          EOF
+          )
+          payload=$(jq -n --arg body "$body" '{body: $body}')
+          curl --fail-with-body --silent --show-error \
+            --request POST \
+            --header "Accept: application/vnd.github+json" \
+            --header "Authorization: Bearer ${GITHUB_TOKEN}" \
+            --header "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/issues/${TRACKING_ISSUE}/comments" \
+            --data "$payload" >/dev/null
