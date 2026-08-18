@@ -67,15 +67,20 @@ interface CountRow { total: number; }
 
 export async function listAdminNewsArticles(
   database: D1DatabaseLike,
-  input: { page?: number; pageSize?: number; query?: string; status?: string } = {},
+  input: { categoryId?: number; page?: number; pageSize?: number; query?: string; status?: string } = {},
 ): Promise<{ articles: AdminNewsArticle[]; total: number }> {
   const page = clamp(input.page, 1, 10_000, 1);
   const pageSize = clamp(input.pageSize, 1, 100, 20);
+  const categoryId = clamp(input.categoryId, 1, Number.MAX_SAFE_INTEGER, 0);
   const query = typeof input.query === "string" ? input.query.trim().slice(0, 120) : "";
   const status = input.status === "draft" || input.status === "published" ? input.status : "";
   const where = ["a.archived_at IS NULL"];
   const values: unknown[] = [];
 
+  if (categoryId) {
+    where.push("a.category_id = ?");
+    values.push(categoryId);
+  }
   if (status) {
     where.push("a.status = ?");
     values.push(status);
