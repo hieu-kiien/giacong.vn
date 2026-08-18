@@ -33,7 +33,8 @@ Already merged and treated as foundation:
 - staging semantic/keyboard accessibility acceptance;
 - production dependency SCA gate with exact, expiring exceptions for currently unavoidable findings;
 - Cloudflare recovery/rollback runbook;
-- staging synthetic performance anti-regression budgets.
+- staging synthetic performance anti-regression budgets;
+- durable issue #70 breadcrumbs for correlating a successful master staging deploy with its post-deploy QA run.
 
 Production remains **NO-GO** until G0 through G7 are green and retained evidence is reviewed before G8.
 
@@ -41,8 +42,8 @@ Production remains **NO-GO** until G0 through G7 are green and retained evidence
 
 | Gate | State | Objective | Exit evidence |
 | --- | --- | --- | --- |
-| G0 | IN PROGRESS | Reconcile source of truth | Map merged; current-state document aligned with PRs #67–#69; issue #70 synchronized |
-| G1 | TODO | Current master staging evidence | Exact master run/deployed version with security, accessibility, performance and deep-QA evidence |
+| G0 | COMPLETE | Reconcile source of truth | Map + issue #70 established; `CLOUDFLARE_CURRENT_STATE.md` aligned with merged security/recovery/performance work and current launch order |
+| G1 | IN PROGRESS | Current master staging evidence | Correlated issue #70 deployment + deep-QA breadcrumbs for the same source CI run, including exact master SHA and active Worker version |
 | G2 | TODO | News media operator acceptance | Real Access-authenticated upload/select/save/render/MEDIA_IN_USE/replace/delete flow with D1/R2 post-conditions |
 | G3 | TODO | Durable request-delivery acceptance | Queue/consumer and optional Google secondary sink proven with request mapping, retries, idempotency and failure visibility |
 | G4 | TODO | Security acceptance completion | CSP/source audit resolved and security acceptance rerun |
@@ -53,17 +54,20 @@ Production remains **NO-GO** until G0 through G7 are green and retained evidence
 
 ## G0 — Reconcile source of truth
 
-1. Keep this map and issue #70 as the remaining-work tracker.
-2. Reconcile `CLOUDFLARE_CURRENT_STATE.md` with the merged security dependency gate (#67), recovery runbook (#68), and performance gate (#69).
-3. Remove or rewrite stale “next step” text that still describes already-merged recovery documentation as future work.
-4. Do not upgrade source/build evidence into runtime/operator acceptance without observed evidence.
+Completed by the production-readiness map/tracker and the current-state reconciliation that lands with this gate update:
+
+1. `docs/PRODUCTION_READINESS_MAP.md` and issue #70 are the remaining-work tracker.
+2. `CLOUDFLARE_CURRENT_STATE.md` records the merged dependency SCA gate (#67), recovery runbook (#68), performance gate (#69), readiness map (#71) and the evidence-breadcrumb mechanism (#72) without upgrading source existence into runtime acceptance.
+3. The stale “write recovery/rollback procedure” future item is removed; the remaining recovery work is the actual staging drill.
+4. Future gate closures must keep issue #70 and current-state evidence synchronized.
 
 ## G1 — Current master staging evidence
 
 1. Observe the post-merge `master` staging deployment for the current commit.
-2. Record the exact deployed Worker version and traffic state.
-3. Confirm the staging sequence executes the security-header, accessibility, performance and broader deep-QA checks.
-4. Record failures as route-specific work; do not weaken budgets merely to make the gate green.
+2. Record the exact deployed Worker version and traffic state in issue #70.
+3. Confirm the staging sequence executes the security-header, accessibility, performance, broader deep-QA and News regression checks.
+4. Require the deployment and QA breadcrumbs to reference the same source `CI and Cloudflare staging gate` run id before G1 closes.
+5. Record failures as route-specific work; do not weaken budgets merely to make the gate green.
 
 ## G2 — News media operator acceptance
 

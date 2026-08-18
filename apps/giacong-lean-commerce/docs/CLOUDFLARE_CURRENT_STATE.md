@@ -235,6 +235,19 @@ Workflow `Cloudflare staging deep QA` gọi `scripts/staging-news-qa.mjs` sau de
 
 **Trạng thái bằng chứng tại lần cập nhật hồ sơ này:** source regression gate, migrations, media server contract và Admin UI đã merge; PR gates đã xanh. Chưa ghi “News deep staging QA/media operator acceptance đã đạt” cho các thay đổi mới này cho tới khi có bằng chứng quan sát được từ run/deployed staging và thao tác account thật tương ứng.
 
+## Acceptance, security và recovery source gates đã merge
+
+Sau khi News lifecycle được đưa vào `master`, các lớp production-readiness sau đã được bổ sung ở source/CI:
+
+- PR #65 thêm baseline response headers và staging security-header acceptance; CSP chưa được coi là đã chốt trong slice này.
+- PR #66 thêm staging semantic/keyboard accessibility acceptance trên Playwright.
+- PR #67 thêm production dependency SCA gate fail-closed. Bốn finding runtime hiện chưa thể remediated an toàn được bind chính xác theo advisory/package/node/version và có expiry `2026-09-15`; workflow cuối của PR đã qua production audit, full Quality, GitNexus, OpenNext staging build và Wrangler dry-run/package gate.
+- PR #68 đã thay thế hướng dẫn recovery cũ bằng Cloudflare recovery/production runbook hiện hành, gồm Worker rollback, D1 export/Time Travel restore, R2 reconciliation, Queue/DLQ/idempotency và production NO-GO/rollback triggers. Đây là tài liệu/quy trình đã merge, **không phải bằng chứng staging restore drill đã được thực hiện**.
+- PR #69 thêm staging synthetic performance anti-regression gate bằng Playwright với LCP/CLS/TTFB/DOMContentLoaded budgets trong điều kiện mobile-like CPU/network throttling. Gate này dùng để bắt severe regression; **không phải field p75 Core Web Vitals certification**.
+- PR #71 thêm `docs/PRODUCTION_READINESS_MAP.md` và issue #70 làm execution map G0–G8 cho phần việc còn lại. Source/build evidence và runtime/operator acceptance vẫn được giữ tách biệt.
+
+Vì vậy các việc “viết recovery/rollback procedure” và “thêm performance lab guard” không còn là future implementation work. Việc còn lại là quan sát master staging evidence, thực hiện operator/runtime acceptance, recovery drill thật và chuẩn bị production data/resources có chủ ý.
+
 ## Governance Cloudflare-native
 
 Nguồn quyết định là `docs/CLOUDFLARE_NATIVE_V1_PLAN.md`. `COMMERCE_PLATFORM_MASTER_PLAN.md` được giữ làm hồ sơ lịch sử Bagisto-era, không còn quyết định runtime/admin đích.
@@ -254,12 +267,13 @@ Admin server contract chi tiết nằm tại `docs/CLOUDFLARE_ADMIN_WRITE_CONTRA
 
 ## Cổng kế tiếp
 
-Application/runtime migration, commerce deep QA, staging-admin boundary và phần lớn Admin CRUD source đã đi qua giai đoạn foundation. Các bước ưu tiên tiếp theo là:
+Execution map hiện hành nằm tại `docs/PRODUCTION_READINESS_MAP.md` và được theo dõi ở issue #70. Application/runtime migration, commerce deep QA, staging-admin boundary và phần lớn Admin CRUD source đã đi qua giai đoạn foundation. Các bước còn lại được thực hiện theo thứ tự evidence-first sau:
 
-1. Quan sát và lưu bằng chứng run `master` của staging deployment + News deep QA mới; chỉ sau đó mới đánh dấu News runtime acceptance xanh.
+1. Quan sát và lưu bằng chứng run `master` của staging deployment, active Worker version và toàn bộ post-deploy acceptance hiện hành: security headers, accessibility, performance lab, commerce deep QA và News regression QA.
 2. Thực hiện operator acceptance trên staging cho News media qua Access: upload asset thật, chọn/lưu thumbnail, xác minh public render, thử `MEDIA_IN_USE`, đổi/lưu thumbnail rồi xóa asset cũ, và xác minh D1/R2 hậu điều kiện mà không phá article.
 3. Xác minh request-delivery chain trên account/resources thật: Cloudflare Queue binding/consumer nếu dùng async delivery, Google Apps Script ownership/deployment/authorization, request reference mapping, idempotency, schema/protection và timeout/redirect allowlist; D1 durable inbox vẫn là intake boundary.
-4. Chốt production taxonomy, SKU, variants, prices, MOQ, media, content, News content và contact/trust claims; loại toàn bộ demo/test content khỏi production dataset.
-5. Tạo/audit production D1/R2/Queue cần thiết có chủ ý và chuẩn bị migration dataset đã duyệt; không copy demo staging ngầm định.
-6. Ghi rõ backup/export, rollback procedure và production smoke checklist.
-7. Chỉ sau acceptance admin + production data/content + durable request intake/secondary delivery mới upload/promotion `giacong-vn` production.
+4. Hoàn tất security acceptance còn thiếu bằng cách audit source/script/style/Turnstile thực tế và chốt CSP hoặc một deferment hẹp, có bằng chứng và review trigger; sau đó chạy lại security acceptance.
+5. Thực hiện staging recovery drill theo runbook đã merge: tách Worker rollback khỏi D1 restore semantics, kiểm tra R2 reconciliation và Queue/DLQ/idempotency, rồi lưu operator evidence/timing.
+6. Chốt production taxonomy, SKU, variants, prices, MOQ/step/thresholds, media, site/News content và contact/trust claims; loại toàn bộ demo/test content khỏi production migration dataset và tạo manifest đã duyệt.
+7. Tạo/audit production D1/R2/Queue cần thiết có chủ ý, rehearsal migration trên dataset đã duyệt, xác minh backup/export, rollback triggers và production smoke checklist.
+8. Chỉ khi các gate trước đều xanh bằng evidence mới upload/version và promotion `giacong-vn` production; production không được dùng làm môi trường thử nghiệm.
