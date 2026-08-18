@@ -1,7 +1,7 @@
 import { handleContactSubmission } from "@/lib/contact-webhook";
 import { getAdminDatabase } from "@/lib/admin-data";
 import { createLeadPersistence } from "@/lib/lead-data";
-import { getCatalogProduct } from "@/lib/bagisto-catalog";
+import { getCatalogProduct } from "@/lib/cloudflare-catalog";
 import { getLeadQueue } from "@/lib/lead-queue";
 import { resolveRequestCartFromCatalog } from "@/lib/request-cart-resolver";
 
