@@ -1,0 +1,164 @@
+name: Cloudflare staging News media acceptance once
+
+on:
+  workflow_run:
+    workflows:
+      - Cloudflare staging deep QA
+    types:
+      - completed
+    branches:
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cloudflare-staging-news-media-acceptance-once
+  cancel-in-progress: false
+
+jobs:
+  acceptance:
+    name: G2 News media operator acceptance
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      issues: write
+    defaults:
+      run:
+        working-directory: apps/giacong-lean-commerce
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_ACCESS_CLIENT_ID: ${{ secrets.CLOUDFLARE_ACCESS_CLIENT_ID }}
+      CLOUDFLARE_ACCESS_CLIENT_SECRET: ${{ secrets.CLOUDFLARE_ACCESS_CLIENT_SECRET }}
+      STAGING_ORIGIN: ${{ vars.STAGING_ORIGIN || 'https://staging.kienhieu.id.vn' }}
+      ADMIN_STAGING_ORIGIN: ${{ vars.ADMIN_STAGING_ORIGIN || 'https://admin-staging.kienhieu.id.vn' }}
+      STAGING_DATABASE: giacong-vn-catalog-staging
+      G2_EVIDENCE_PATH: /tmp/g2-news-media-evidence.json
+
+    steps:
+      - name: Checkout accepted staging source
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
+
+      - name: Gate automatic run to the G2 acceptance change
+        id: gate
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          SOURCE_SHA: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
+        run: |
+          set -euo pipefail
+          if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          changed="$(git diff-tree --no-commit-id --name-only -r -m "$SOURCE_SHA" | sort -u)"
+          printf '%s\n' "$changed"
+          if grep -Fxq '.github/workflows/cloudflare-staging-news-media-acceptance-once.yml' <<<"$changed"; then
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "should_run=false" >> "$GITHUB_OUTPUT"
+            echo "This successful deep-QA run is unrelated to the one-time G2 acceptance change; skipping mutation."
+          fi
+
+      - name: Setup Node.js
+        if: steps.gate.outputs.should_run == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: apps/giacong-lean-commerce/package-lock.json
+
+      - name: Install dependencies
+        if: steps.gate.outputs.should_run == 'true'
+        run: npm ci
+
+      - name: Ensure storefront Access Service Auth
+        if: steps.gate.outputs.should_run == 'true'
+        env:
+          ACCESS_SERVICE_AUTH_DOMAIN: staging.kienhieu.id.vn
+          ACCESS_SERVICE_AUTH_POLICY_NAME: GitHub staging deep QA
+        run: node scripts/ensure-staging-access-service-auth.mjs
+
+      - name: Ensure admin staging Access Service Auth
+        if: steps.gate.outputs.should_run == 'true'
+        env:
+          ACCESS_SERVICE_AUTH_DOMAIN: admin-staging.kienhieu.id.vn
+          ACCESS_SERVICE_AUTH_POLICY_NAME: GitHub G2 News media acceptance
+        run: node scripts/ensure-staging-access-service-auth.mjs
+
+      - name: Run Access-authenticated News media operator acceptance
+        if: steps.gate.outputs.should_run == 'true'
+        run: node scripts/staging-news-media-operator-qa.mjs
+
+      - name: Record G2 acceptance evidence
+        if: steps.gate.outputs.should_run == 'true' && success()
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          TRACKING_ISSUE: "70"
+          SOURCE_SHA: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
+          SOURCE_DEEP_QA_RUN_ID: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.id || github.run_id }}
+        run: |
+          set -euo pipefail
+          test -s "$G2_EVIDENCE_PATH"
+          jq -e '.mediaInUseCode == "MEDIA_IN_USE" and .oldAssetD1Status == "deleted" and .oldAssetR2HttpStatus == 404 and .replacementD1Status == "active" and .replacementR2HttpStatus == 200 and .publicArticleHttpStatus == 200' "$G2_EVIDENCE_PATH" >/dev/null
+
+          article_id="$(jq -r '.articleId' "$G2_EVIDENCE_PATH")"
+          article_slug="$(jq -r '.articleSlug' "$G2_EVIDENCE_PATH")"
+          first_asset_id="$(jq -r '.firstAssetId' "$G2_EVIDENCE_PATH")"
+          replacement_asset_id="$(jq -r '.replacementAssetId' "$G2_EVIDENCE_PATH")"
+          replacement_url="$(jq -r '.replacementAssetPublicUrl' "$G2_EVIDENCE_PATH")"
+          cleanup="$(jq -c '.cleanup' "$G2_EVIDENCE_PATH")"
+          observed_at="$(jq -r '.observedAt' "$G2_EVIDENCE_PATH")"
+          run_url="https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          deep_qa_url="https://github.com/${GITHUB_REPOSITORY}/actions/runs/${SOURCE_DEEP_QA_RUN_ID}"
+
+          body=$(cat <<EOF
+          G2 News media operator acceptance evidence
+
+          - accepted source SHA: ${SOURCE_SHA}
+          - prerequisite deep-QA run: ${deep_qa_url}
+          - G2 acceptance run: ${run_url}
+          - article id / slug: ${article_id} / ${article_slug}
+          - initial asset id: ${first_asset_id}
+          - persisted-thumbnail delete: HTTP 409 `MEDIA_IN_USE` PASS
+          - replacement asset id: ${replacement_asset_id}
+          - replacement public URL: ${replacement_url}
+          - public replacement render: HTTP 200 PASS
+          - old asset D1 state: `deleted`
+          - old asset R2/media route after cleanup: HTTP 404 PASS
+          - replacement asset D1 state during acceptance: `active`
+          - replacement asset R2/media route during acceptance: HTTP 200 PASS
+          - controlled test-state cleanup: ${cleanup}
+          - observed at: ${observed_at}
+
+          The flow used Cloudflare Access service authentication against the protected staging Admin, an explicit temporary D1 admin membership, the real Admin News/media API contracts, public News rendering, and D1/R2 post-condition checks. No production resource was mutated.
+          EOF
+          )
+          payload=$(jq -n --arg body "$body" '{body: $body}')
+          curl --fail-with-body --silent --show-error \
+            --request POST \
+            --header "Accept: application/vnd.github+json" \
+            --header "Authorization: Bearer ${GITHUB_TOKEN}" \
+            --header "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/issues/${TRACKING_ISSUE}/comments" \
+            --data "$payload" >/dev/null
+
+          {
+            echo "## G2 News media operator acceptance"
+            echo
+            echo "- Article: \`${article_id}\` / \`${article_slug}\`"
+            echo "- MEDIA_IN_USE: PASS"
+            echo "- Replacement public render: PASS"
+            echo "- Old D1 tombstone + R2 removal: PASS"
+            echo "- Replacement D1/R2 state during acceptance: PASS"
+            echo "- Evidence recorded in issue #70"
+          } >> "$GITHUB_STEP_SUMMARY"
