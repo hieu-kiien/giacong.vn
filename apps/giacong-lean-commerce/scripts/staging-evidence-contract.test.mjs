@@ -22,6 +22,21 @@ test("master staging deployment records a durable issue #70 breadcrumb with comm
   assert.match(workflow, /issues\/\$\{TRACKING_ISSUE\}\/comments/);
 });
 
+test("failed master staging gate records an explicit non-acceptance breadcrumb", async () => {
+  const workflow = await readFile(ciWorkflowUrl, "utf8");
+
+  assert.match(workflow, /staging-gate-failure-evidence:/);
+  assert.match(workflow, /always\(\)/);
+  assert.match(workflow, /github\.ref == 'refs\/heads\/master'/);
+  assert.match(workflow, /needs\.quality\.result != 'success'/);
+  assert.match(workflow, /needs\.staging-deploy\.result != 'success'/);
+  assert.match(workflow, /QUALITY_RESULT: \$\{\{ needs\.quality\.result \}\}/);
+  assert.match(workflow, /STAGING_DEPLOY_RESULT: \$\{\{ needs\.staging-deploy\.result \}\}/);
+  assert.match(workflow, /G1 staging gate failure evidence/);
+  assert.match(workflow, /G1 remains OPEN/);
+  assert.match(workflow, /does not authorize production mutation/);
+});
+
 test("successful post-deploy QA records the same source CI run after every staging acceptance suite passes", async () => {
   const workflow = await readFile(deepQaWorkflowUrl, "utf8");
   const newsQa = "node scripts/staging-news-qa.mjs";
@@ -44,4 +59,18 @@ test("successful post-deploy QA records the same source CI run after every stagi
   assert.match(workflow, /Access-authenticated staging deep QA: PASS/);
   assert.match(workflow, /News staging regression QA: PASS/);
   assert.match(workflow, /issues\/\$\{TRACKING_ISSUE\}\/comments/);
+});
+
+test("failed post-deploy QA records a durable failure breadcrumb tied to the source CI run", async () => {
+  const workflow = await readFile(deepQaWorkflowUrl, "utf8");
+  const failureStep = "name: Record failed master staging QA evidence";
+
+  assert.ok(workflow.includes(failureStep));
+  assert.match(workflow, /if: failure\(\) && github\.event_name == 'workflow_run'/);
+  assert.match(workflow, /working-directory: \./);
+  assert.match(workflow, /G1 staging deep-QA failure evidence/);
+  assert.match(workflow, /SOURCE_CI_RUN_ID: \$\{\{ github\.event\.workflow_run\.id \}\}/);
+  assert.match(workflow, /SOURCE_SHA: \$\{\{ github\.event\.workflow_run\.head_sha \}\}/);
+  assert.match(workflow, /G1 remains OPEN/);
+  assert.match(workflow, /failure breadcrumb is not acceptance evidence/);
 });
