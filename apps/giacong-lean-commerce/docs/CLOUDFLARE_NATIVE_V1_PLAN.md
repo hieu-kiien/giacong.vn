@@ -24,7 +24,7 @@ Runtime đích là Cloudflare-native:
 
 - Next.js/OpenNext Worker phục vụ storefront và API;
 - Cloudflare D1 là nguồn dữ liệu canonical cho catalog, variant, tier price, managed service copy, News, cấu hình quản trị và durable lead inbox;
-- Cloudflare R2 là nguồn media sản phẩm/site theo các contract hiện hành;
+- Cloudflare R2 là nguồn media sản phẩm, dịch vụ, site và News article theo các contract hiện hành;
 - R2 riêng phục vụ incremental cache của OpenNext;
 - Cloudflare Queue là transport bất đồng bộ ưu tiên cho secondary lead delivery khi binding được provision;
 - Google Sheet + Apps Script là secondary operational sink cho lead delivery cho đến khi có quyết định khác được duyệt, không phải nguồn canonical duy nhất của request intake;
@@ -114,9 +114,10 @@ Admin staging hỗ trợ hoặc phải hoàn tất acceptance cho các nhóm sau
 6. services: sửa managed copy trong D1;
 7. lead inbox: xem durable D1 lead, delivery state và cập nhật pipeline status theo quyền;
 8. News articles: draft, publish/schedule, soft archive, category, featured, SEO và optimistic concurrency;
-9. News categories: create/update/active/sort/delete với revision guard và chặn xóa khi còn bài tham chiếu.
+9. News categories: create/update/active/sort/delete với revision guard và chặn xóa khi còn bài tham chiếu;
+10. News article media: upload/list/select thumbnail và reference-safe delete trên asset thuộc đúng article.
 
-News thumbnail hiện chỉ là URL reference trong article contract. Không mở rộng ngầm bảng `media_assets` sang News vì schema hiện hành khóa namespace/reference vào product, variant và service; nếu cần upload News vào R2 phải có migration và lifecycle contract riêng.
+News article vẫn lưu `thumbnail_url` trong article contract, nhưng media upload không tái sử dụng ngầm namespace `media_assets` của product/service. News dùng `news_media_assets` riêng với article ownership và storage key `news/articles/{articleId}/...`. Internal News thumbnail URL chỉ hợp lệ khi trỏ tới asset active thuộc chính article; D1 trigger phải chặn stale/deleted/wrong-article reference. Delete media phải fail closed khi asset còn là thumbnail, ghi audit + D1 tombstone trước khi xóa R2, và không được xóa R2 nếu D1 chưa xác nhận tombstone. UI không được tự clear hoặc tự save thumbnail để lách contract này.
 
 ### 6.2 Ranh giới bảo mật
 
@@ -156,7 +157,7 @@ Staging là cổng bắt buộc cho mọi thay đổi Cloudflare-native:
 3. version preview nếu thay runtime và cần cô lập trước promotion;
 4. smoke test catalog/detail/cart/R2;
 5. deep QA search/filter/sort, invalid cart/contact drift, responsive browser và News public visibility;
-6. News gate phải giữ archive/detail/category behavior, missing 404, scheduled-future/archived invisibility khi có dữ liệu tương ứng và schema migration prerequisites;
+6. News gate phải giữ archive/detail/category behavior, missing 404, scheduled-future/archived invisibility khi có dữ liệu tương ứng, schema migration prerequisites, `news_media_assets`, hai internal-thumbnail reference trigger và zero invalid internal News thumbnail reference;
 7. nếu có D1 mutation, audit trước và verify invariant sau;
 8. promotion staging có rollback point khi thay Worker traffic.
 
