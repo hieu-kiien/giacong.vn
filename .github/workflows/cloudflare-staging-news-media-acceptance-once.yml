@@ -80,18 +80,20 @@ jobs:
         if: steps.gate.outputs.should_run == 'true'
         run: npm ci
 
-      - name: Ensure storefront Access Service Auth
+      - name: Ensure storefront Access Service Auth when configured
         if: steps.gate.outputs.should_run == 'true'
         env:
           ACCESS_SERVICE_AUTH_DOMAIN: staging.kienhieu.id.vn
           ACCESS_SERVICE_AUTH_POLICY_NAME: GitHub staging deep QA
+          ACCESS_SERVICE_AUTH_REQUIRED: "false"
         run: node scripts/ensure-staging-access-service-auth.mjs
 
-      - name: Ensure admin staging Access Service Auth
+      - name: Ensure required admin staging Access Service Auth
         if: steps.gate.outputs.should_run == 'true'
         env:
           ACCESS_SERVICE_AUTH_DOMAIN: admin-staging.kienhieu.id.vn
           ACCESS_SERVICE_AUTH_POLICY_NAME: GitHub G2 News media acceptance
+          ACCESS_SERVICE_AUTH_REQUIRED: "true"
         run: node scripts/ensure-staging-access-service-auth.mjs
 
       - name: Run Access-authenticated News media operator acceptance
