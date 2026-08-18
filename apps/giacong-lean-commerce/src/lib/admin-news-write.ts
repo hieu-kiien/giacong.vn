@@ -2,7 +2,10 @@ import type {
   D1DatabaseLike,
   D1PreparedStatementLike,
 } from "./admin-data.ts";
-import type { AdminNewsInput } from "./admin-news-input.ts";
+import type {
+  AdminNewsCategoryInput,
+  AdminNewsInput,
+} from "./admin-news-input.ts";
 
 interface D1BatchResultLike {
   results?: unknown[];
@@ -16,6 +19,20 @@ export class AdminNewsStaleWriteError extends Error {
   constructor() {
     super("Bài viết đã thay đổi. Hãy tải lại trước khi lưu.");
     this.name = "AdminNewsStaleWriteError";
+  }
+}
+
+export class AdminNewsCategoryStaleWriteError extends Error {
+  constructor() {
+    super("Chuyên mục đã thay đổi. Hãy tải lại trước khi lưu.");
+    this.name = "AdminNewsCategoryStaleWriteError";
+  }
+}
+
+export class AdminNewsCategoryConflictError extends Error {
+  constructor() {
+    super("Chuyên mục không thể xóa vì đã thay đổi hoặc đang được bài viết sử dụng.");
+    this.name = "AdminNewsCategoryConflictError";
   }
 }
 
@@ -72,7 +89,7 @@ export async function updateAdminNewsArticleAtomically(
   expectedRevisionRaw: unknown,
   actorSubject: string,
 ): Promise<void> {
-  const expectedRevision = requireRevision(expectedRevisionRaw, "cập nhật");
+  const expectedRevision = requireRevision(expectedRevisionRaw, "cập nhật", "bài viết");
   const batchDatabase = requireBatch(database);
   const auditId = crypto.randomUUID();
   const metadataJson = JSON.stringify({ after: input, articleId, expectedRevision });
@@ -111,7 +128,7 @@ export async function updateAdminNewsArticleAtomically(
   ];
 
   const results = await batchDatabase.batch(statements);
-  assertMarkerCreated(results[0]?.results);
+  assertArticleMarkerCreated(results[0]?.results);
 }
 
 export async function archiveAdminNewsArticleAtomically(
@@ -120,7 +137,7 @@ export async function archiveAdminNewsArticleAtomically(
   expectedRevisionRaw: unknown,
   actorSubject: string,
 ): Promise<void> {
-  const expectedRevision = requireRevision(expectedRevisionRaw, "lưu trữ");
+  const expectedRevision = requireRevision(expectedRevisionRaw, "lưu trữ", "bài viết");
   const batchDatabase = requireBatch(database);
   const auditId = crypto.randomUUID();
   const metadataJson = JSON.stringify({ articleId, expectedRevision });
@@ -137,7 +154,118 @@ export async function archiveAdminNewsArticleAtomically(
   ];
 
   const results = await batchDatabase.batch(statements);
-  assertMarkerCreated(results[0]?.results);
+  assertArticleMarkerCreated(results[0]?.results);
+}
+
+export async function createAdminNewsCategoryAtomically(
+  database: D1DatabaseLike,
+  input: AdminNewsCategoryInput,
+  actorSubject: string,
+): Promise<number> {
+  const batchDatabase = requireBatch(database);
+  const auditId = crypto.randomUUID();
+  const statements: D1PreparedStatementLike[] = [
+    database.prepare(`
+      INSERT INTO article_categories (
+        name, slug, description, sort_order, is_active, revision, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+      RETURNING id
+    `).bind(
+      input.name,
+      input.slug,
+      input.description,
+      input.sortOrder,
+      input.active ? 1 : 0,
+    ),
+    database.prepare(`
+      INSERT INTO audit_logs (id, actor_subject, action, entity_type, entity_id, metadata_json)
+      SELECT ?, ?, 'news.category.created', 'news_category', CAST(id AS TEXT), ?
+      FROM article_categories
+      WHERE slug = ?
+      LIMIT 1
+    `).bind(auditId, actorSubject, JSON.stringify({ input }), input.slug),
+  ];
+
+  const results = await batchDatabase.batch(statements);
+  const createdId = returningPositiveInteger(results[0]?.results, "id");
+  if (!createdId) throw new AdminNewsAtomicWriteError("Không đọc được ID chuyên mục vừa tạo.");
+  return createdId;
+}
+
+export async function updateAdminNewsCategoryAtomically(
+  database: D1DatabaseLike,
+  categoryId: number,
+  input: AdminNewsCategoryInput,
+  expectedRevisionRaw: unknown,
+  actorSubject: string,
+): Promise<void> {
+  const expectedRevision = requireRevision(expectedRevisionRaw, "cập nhật", "chuyên mục");
+  const batchDatabase = requireBatch(database);
+  const auditId = crypto.randomUUID();
+  const metadataJson = JSON.stringify({ after: input, categoryId, expectedRevision });
+  const statements: D1PreparedStatementLike[] = [
+    categoryRevisionAuditMarker(
+      database,
+      auditId,
+      actorSubject,
+      "news.category.updated",
+      categoryId,
+      expectedRevision,
+      metadataJson,
+    ),
+    database.prepare(`
+      UPDATE article_categories
+      SET name = ?, slug = ?, description = ?, sort_order = ?, is_active = ?,
+        updated_at = CURRENT_TIMESTAMP, revision = revision + 1
+      WHERE id = ? AND revision = ?
+        AND EXISTS (SELECT 1 FROM audit_logs WHERE id = ?)
+    `).bind(
+      input.name,
+      input.slug,
+      input.description,
+      input.sortOrder,
+      input.active ? 1 : 0,
+      categoryId,
+      expectedRevision,
+      auditId,
+    ),
+  ];
+
+  const results = await batchDatabase.batch(statements);
+  assertCategoryMarkerCreated(results[0]?.results);
+}
+
+export async function deleteAdminNewsCategoryAtomically(
+  database: D1DatabaseLike,
+  categoryId: number,
+  expectedRevisionRaw: unknown,
+  actorSubject: string,
+): Promise<void> {
+  const expectedRevision = requireRevision(expectedRevisionRaw, "xóa", "chuyên mục");
+  const batchDatabase = requireBatch(database);
+  const auditId = crypto.randomUUID();
+  const metadataJson = JSON.stringify({ categoryId, expectedRevision });
+  const statements: D1PreparedStatementLike[] = [
+    database.prepare(`
+      INSERT INTO audit_logs (id, actor_subject, action, entity_type, entity_id, metadata_json)
+      SELECT ?, ?, 'news.category.deleted', 'news_category', CAST(c.id AS TEXT), ?
+      FROM article_categories c
+      WHERE c.id = ? AND c.revision = ?
+        AND NOT EXISTS (SELECT 1 FROM articles a WHERE a.category_id = c.id)
+      RETURNING id
+    `).bind(auditId, actorSubject, metadataJson, categoryId, expectedRevision),
+    database.prepare(`
+      DELETE FROM article_categories
+      WHERE id = ? AND revision = ?
+        AND NOT EXISTS (SELECT 1 FROM articles WHERE category_id = ?)
+        AND EXISTS (SELECT 1 FROM audit_logs WHERE id = ?)
+    `).bind(categoryId, expectedRevision, categoryId, auditId),
+  ];
+
+  const results = await batchDatabase.batch(statements);
+  if (!Array.isArray(results[0]?.results) || results[0]?.results.length !== 1) {
+    throw new AdminNewsCategoryConflictError();
+  }
 }
 
 function revisionAuditMarker(
@@ -168,8 +296,40 @@ function revisionAuditMarker(
   );
 }
 
-function assertMarkerCreated(rows: unknown[] | undefined): void {
+function categoryRevisionAuditMarker(
+  database: D1DatabaseLike,
+  auditId: string,
+  actorSubject: string,
+  action: string,
+  categoryId: number,
+  expectedRevision: number,
+  metadataJson: string,
+): D1PreparedStatementLike {
+  return database.prepare(`
+    INSERT INTO audit_logs (id, actor_subject, action, entity_type, entity_id, metadata_json)
+    SELECT ?, ?, ?, 'news_category', ?, ?
+    WHERE EXISTS (
+      SELECT 1 FROM article_categories
+      WHERE id = ? AND revision = ?
+    )
+    RETURNING id
+  `).bind(
+    auditId,
+    actorSubject,
+    action,
+    String(categoryId),
+    metadataJson,
+    categoryId,
+    expectedRevision,
+  );
+}
+
+function assertArticleMarkerCreated(rows: unknown[] | undefined): void {
   if (!Array.isArray(rows) || rows.length !== 1) throw new AdminNewsStaleWriteError();
+}
+
+function assertCategoryMarkerCreated(rows: unknown[] | undefined): void {
+  if (!Array.isArray(rows) || rows.length !== 1) throw new AdminNewsCategoryStaleWriteError();
 }
 
 function returningPositiveInteger(rows: unknown[] | undefined, key: string): number | null {
@@ -180,9 +340,9 @@ function returningPositiveInteger(rows: unknown[] | undefined, key: string): num
   return typeof value === "number" && Number.isInteger(value) && value > 0 ? value : null;
 }
 
-function requireRevision(value: unknown, action: string): number {
+function requireRevision(value: unknown, action: string, entityLabel: string): number {
   if (!Number.isInteger(value) || Number(value) < 1) {
-    throw new AdminNewsAtomicWriteError(`Revision hiện tại là bắt buộc khi ${action} bài viết.`);
+    throw new AdminNewsAtomicWriteError(`Revision hiện tại là bắt buộc khi ${action} ${entityLabel}.`);
   }
   return Number(value);
 }
