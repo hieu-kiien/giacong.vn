@@ -5,7 +5,11 @@ export interface AdminNewsCategory {
   id: number;
   name: string;
   slug: string;
+  description: string;
+  sortOrder: number;
   active: boolean;
+  revision: number;
+  updatedAt: string;
 }
 
 export interface AdminNewsArticle {
@@ -52,7 +56,11 @@ interface CategoryRow {
   id: number;
   name: string;
   slug: string;
+  description: string;
+  sort_order: number;
   is_active: number;
+  revision: number;
+  updated_at: string;
 }
 
 interface CountRow { total: number; }
@@ -122,16 +130,47 @@ export async function getAdminNewsArticle(
 
 export async function listAdminNewsCategories(database: D1DatabaseLike): Promise<AdminNewsCategory[]> {
   const rows = await database.prepare(`
-    SELECT id, name, slug, is_active
+    SELECT id, name, slug, description, sort_order, is_active, revision, updated_at
     FROM article_categories
     ORDER BY sort_order ASC, name ASC, id ASC
   `).all<CategoryRow>();
-  return rows.results.map((row) => ({
+  return rows.results.map(toCategory);
+}
+
+export async function getAdminNewsCategory(
+  database: D1DatabaseLike,
+  id: number,
+): Promise<AdminNewsCategory | null> {
+  const row = await database.prepare(`
+    SELECT id, name, slug, description, sort_order, is_active, revision, updated_at
+    FROM article_categories
+    WHERE id = ?
+    LIMIT 1
+  `).bind(id).first<CategoryRow>();
+  return row ? toCategory(row) : null;
+}
+
+export async function countAdminNewsCategoryArticles(
+  database: D1DatabaseLike,
+  id: number,
+): Promise<number> {
+  const row = await database.prepare("SELECT COUNT(*) AS total FROM articles WHERE category_id = ?")
+    .bind(id)
+    .first<CountRow>();
+  return Number(row?.total ?? 0);
+}
+
+function toCategory(row: CategoryRow): AdminNewsCategory {
+  return {
     id: row.id,
     name: row.name,
     slug: row.slug,
+    description: row.description,
+    sortOrder: row.sort_order,
     active: row.is_active === 1,
-  }));
+    revision: row.revision,
+    updatedAt: row.updated_at,
+  };
 }
 
 function toArticle(row: AdminNewsRow): AdminNewsArticle {
