@@ -23,6 +23,23 @@ test("Admin News UI reads canonical API and only content roles can mutate", asyn
   assert.doesNotMatch(page, /tin-tuc\.json|CapturedPage|mock|demoArticle/);
 });
 
+test("Admin News list filters canonically by category", async () => {
+  const [page, route, data] = await Promise.all([
+    source("src/app/admin/tin-tuc/page.tsx"),
+    source("src/app/api/admin/news/route.ts"),
+    source("src/lib/admin-news-data.ts"),
+  ]);
+
+  assert.match(page, /data-testid="select-news-filter-category"/);
+  assert.match(page, /params\.set\("categoryId", categoryId\)/);
+  assert.match(page, /setCategoryId\(""\)/);
+  assert.match(route, /const categoryId = parsePositiveInt\(url\.searchParams\.get\("categoryId"\), 0\) \|\| undefined/);
+  assert.match(route, /listAdminNewsArticles\(guard\.database, \{\s*categoryId,/);
+  assert.match(data, /input: \{ categoryId\?: number;/);
+  assert.match(data, /where\.push\("a\.category_id = \?"\)/);
+  assert.match(data, /SELECT COUNT\(\*\) AS total FROM articles a WHERE \$\{whereSql\}/);
+});
+
 test("Admin News mutations carry explicit revisions and handle stale writes without overwriting", async () => {
   const page = await source("src/app/admin/tin-tuc/page.tsx");
   assert.match(page, /\.\.\.\(editor\.id \? \{ revision: editor\.revision \} : \{\}\)/);
