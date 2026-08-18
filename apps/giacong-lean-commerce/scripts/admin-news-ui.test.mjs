@@ -72,3 +72,44 @@ test("Admin News only links to articles already visible on the public read path"
   assert.match(page, /publishedAt\.valueOf\(\) <= Date\.now\(\)/);
   assert.doesNotMatch(page, /article\.status === "published" \? \(\s*<Link/);
 });
+
+test("Admin News editor mounts article-owned media without bypassing article save", async () => {
+  const [page, media] = await Promise.all([
+    source("src/app/admin/tin-tuc/page.tsx"),
+    source("src/components/admin/NewsMediaLibrary.tsx"),
+  ]);
+
+  assert.match(page, /import \{ NewsMediaLibrary \} from "@\/components\/admin\/NewsMediaLibrary"/);
+  assert.match(page, /<NewsMediaLibrary\s+articleId=\{form\.id\}/);
+  assert.match(page, /onSelect=\{\(url\) => update\("thumbnailUrl", url\)\}/);
+  assert.match(page, /URL này chỉ được ghi vào bài khi bạn bấm Lưu bài viết/);
+  assert.match(media, /!articleId \? \(/);
+  assert.match(media, /Hãy tạo và lưu bản nháp trước/);
+  assert.doesNotMatch(media, /mutateAdmin|PATCH|updateAdminNewsArticle/);
+});
+
+test("Admin News media library lists and uploads only through the article media API", async () => {
+  const media = await source("src/components/admin/NewsMediaLibrary.tsx");
+
+  assert.match(media, /fetchAdmin<\{ media: AdminNewsMediaAsset\[\] \}>\(/);
+  assert.match(media, /`\/api\/admin\/news\/\$\{articleId\}\/media`/);
+  assert.match(media, /const payload = new FormData\(\)/);
+  assert.match(media, /payload\.set\("file", file\)/);
+  assert.match(media, /payload\.set\("altText", altText\.trim\(\)\)/);
+  assert.match(media, /uploadAdmin<\{ media: AdminNewsMediaAsset \}>\(/);
+  assert.match(media, /onSelect\(result\.media\.publicUrl\)/);
+  assert.match(media, /Hãy bấm Lưu bài viết để ghi thumbnail vào article revision hiện tại/);
+  assert.match(media, /Dùng làm ảnh đại diện/);
+  assert.doesNotMatch(media, /DELETE|\/media\/\$\{asset\.id\}/);
+});
+
+test("Admin multipart helper leaves the browser responsible for the boundary", async () => {
+  const client = await source("src/lib/admin-client.ts");
+
+  assert.match(client, /export async function uploadAdmin<T>/);
+  assert.match(client, /body: form/);
+  assert.match(client, /credentials: "include"/);
+  assert.match(client, /headers: \{ Accept: "application\/json" \}/);
+  const uploadSection = client.slice(client.indexOf("export async function uploadAdmin"), client.indexOf("export function formatAdminDate"));
+  assert.doesNotMatch(uploadSection, /Content-Type|multipart\/form-data/);
+});
