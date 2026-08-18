@@ -1,40 +1,42 @@
 # Giacong.vn
 
-Storefront B2B cho dịch vụ gia công và catalog sản phẩm. Khách có thể xem nội dung, chọn sản phẩm/quy cách, tạo request cart và gửi yêu cầu báo giá. Admin quản lý catalog, lead, media R2 và nội dung/branding website.
+Storefront B2B cho dịch vụ gia công và catalog sản phẩm. Khách có thể xem nội dung, chọn sản phẩm/quy cách, tạo request cart và gửi yêu cầu báo giá. Admin quản lý catalog, lead, media R2, News CMS và nội dung/branding website.
 
 ## Kiến trúc
 
 - **Storefront/admin:** Next.js 16 App Router, React 19.
-- **Runtime production:** Cloudflare Workers qua OpenNext.
-- **Data:** Cloudflare D1; D1 là source of truth cho catalog, lead, audit log và CMS.
-- **Media:** Cloudflare R2, metadata và checksum lưu trong D1.
-- **Lead delivery:** Cloudflare Queues tới webhook/Google Apps Script sau khi D1 ghi thành công.
-- **Admin security:** Cloudflare Access ở production; staging public mode chỉ được bật trên host allowlist.
+- **Runtime:** Cloudflare Workers qua OpenNext.
+- **Data:** Cloudflare D1; D1 là source of truth cho catalog, CMS, lead và audit log.
+- **Media:** Cloudflare R2; metadata/reference lifecycle được giữ trong D1.
+- **Lead delivery:** Cloudflare Queues tới webhook/Google Apps Script sau khi D1 ghi bền vững thành công; Google Sheet là secondary operational sink.
+- **Admin security:** Cloudflare Access kết hợp D1 membership/role authorization. Staging và production-like admin đều fail-closed; không dùng staging public demo.
 - **Hostname chính:** `kienhieu.id.vn`; Giacong.vn là thương hiệu.
 
-## Chạy và kiểm tra
+## Chạy local và kiểm tra
 
-Từ workspace root:
+Từ thư mục ứng dụng:
 
 ```bash
-pnpm --filter @workspace/web run dev
-pnpm --filter @workspace/web run check
-pnpm --filter @workspace/web run cf:build
-pnpm --filter @workspace/web run qa:captured
-pnpm --filter @workspace/web run qa:catalog
-pnpm --filter @workspace/web run qa:services
+cd apps/giacong-lean-commerce
+npm ci
+npm run dev
+npm run check
+npm run cf:build:staging
 ```
 
-Local storefront chạy qua workflow `artifacts/web: web`. Local admin có thể bị Access guard chặn; dùng staging host để kiểm tra CMS public demo.
+Public storefront có thể kiểm tra local. Admin local có thể bị admission guard chặn; `admin-staging.kienhieu.id.vn` là môi trường acceptance được bảo vệ cho Cloudflare Access + D1 membership.
+
+Hướng dẫn đầy đủ nằm trong [`SETUP.md`](SETUP.md).
 
 ## D1 migrations
 
+Local development:
+
 ```bash
-pnpm --filter @workspace/web exec wrangler d1 migrations apply giacong-vn-catalog --local
-pnpm --filter @workspace/web exec wrangler d1 migrations apply giacong-vn-catalog-staging --remote --env staging
+npx wrangler d1 migrations apply GIACONG_VN_CATALOG --local
 ```
 
-Migration mới phải được apply trước khi deploy code sử dụng bảng mới. Production migration cần được thực hiện có kiểm soát trong quy trình publish.
+Staging migration được pipeline trên `master` apply trước khi deploy Worker staging. Production migration chỉ được thực hiện trong production acceptance/publish procedure có rollback plan; không tự apply production từ local.
 
 ## CMS nội dung & thương hiệu
 
@@ -46,6 +48,14 @@ Mở `/admin/noi-dung` để chỉnh sửa:
 - hotline, email, Zalo, Messenger, địa chỉ;
 - nội dung footer.
 
-CMS dùng typed settings, draft/published tách biệt, optimistic versioning, audit log và R2 upload cho ảnh. Public storefront tuyệt đối chỉ đọc `published_value`.
+News CMS nằm ở `/admin/tin-tuc` và `/admin/chuyen-muc-tin-tuc`.
 
-Không đưa `.env`, `.env.local`, `.dev.vars` hoặc secret Cloudflare/Google lên GitHub. Kiến trúc vận hành chi tiết nằm trong thư mục `docs/`.
+CMS dùng typed settings/data contracts, optimistic concurrency, audit log và R2 media lifecycle. Public storefront chỉ đọc dữ liệu đã published theo contract tương ứng.
+
+## Tài liệu quyết định
+
+- [`docs/CLOUDFLARE_NATIVE_V1_PLAN.md`](docs/CLOUDFLARE_NATIVE_V1_PLAN.md): kiến trúc và scope hiện hành.
+- [`docs/CLOUDFLARE_CURRENT_STATE.md`](docs/CLOUDFLARE_CURRENT_STATE.md): bằng chứng source/runtime đã xác minh.
+- [`docs/CLOUDFLARE_ADMIN_WRITE_CONTRACT.md`](docs/CLOUDFLARE_ADMIN_WRITE_CONTRACT.md): contract write/admin.
+
+Không đưa `.env`, `.env.local`, `.dev.vars` hoặc secret Cloudflare/Google lên GitHub. Bagisto/PHP/VPS là legacy/reference, không phải commerce runtime hiện hành.
