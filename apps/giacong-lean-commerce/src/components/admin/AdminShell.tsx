@@ -1,6 +1,6 @@
 "use client";
 
-import { ClipboardList, LayoutDashboard, Menu, Newspaper, Package, PenLine, Settings2, X } from "lucide-react";
+import { ClipboardList, LayoutDashboard, Menu, Newspaper, Package, PenLine, Settings2, Tags, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
@@ -20,6 +20,7 @@ const navItems = [
   { href: "/admin/san-pham", label: "Sản phẩm", icon: Package },
   { href: "/admin/dich-vu", label: "Dịch vụ gia công", icon: Settings2 },
   { href: "/admin/tin-tuc", label: "Tin tức", icon: Newspaper },
+  { href: "/admin/chuyen-muc-tin-tuc", label: "Chuyên mục tin tức", icon: Tags },
   { href: "/admin/yeu-cau", label: "Yêu cầu báo giá", icon: ClipboardList },
   { href: "/admin/noi-dung", label: "Nội dung & thương hiệu", icon: PenLine },
 ];
