@@ -149,7 +149,7 @@ Phần admin không còn ở trạng thái “chuẩn bị implement”. Source 
 - Admin request/lead operations theo implementation hiện hành;
 - site settings/content operations;
 - R2 media lifecycle cho product/service/site media theo contract riêng;
-- News article operations và News category operations.
+- News article/category operations và article-owned News media upload/select/delete lifecycle.
 
 Các PR triển khai Admin/News gần nhất đều qua Quality gate, GitNexus safety gate khi workflow áp dụng, và Cloudflare package gate trước merge. Đây là bằng chứng build/contract của source; không tự động đồng nghĩa mọi thao tác Admin mới đã được operator thực hiện end-to-end trên staging account thật.
 
@@ -201,26 +201,39 @@ News hiện là D1-backed CMS thay vì captured/static fallback.
 - category delete bị chặn nếu còn article tham chiếu; operator được hướng dẫn tạm ẩn thay vì xóa khi cần giữ taxonomy history;
 - race giữa pre-check và delete batch vẫn fail closed và được phân loại lại thành in-use khi article vừa được gắn vào category.
 
-Pipeline staging chuẩn đã có thứ tự: apply pending D1 migrations bằng Wrangler remote trước, sau đó mới deploy OpenNext Worker staging. Vì vậy source đọc `article_categories.revision` không được deploy trước migration `0008` trong pipeline chuẩn.
+Pipeline staging chuẩn đã có thứ tự: apply pending D1 migrations bằng Wrangler remote trước, sau đó mới deploy OpenNext Worker staging. Vì vậy source đọc schema mới không được deploy trước migration tương ứng trong pipeline chuẩn.
+
+### News article media contract đã merge trong source
+
+News media không còn là URL-only placeholder. Source `master` hiện có lifecycle riêng, không phá CHECK/reference semantics của `media_assets` product/service:
+
+- migration `0009_news_media_assets.sql` tạo `news_media_assets` article-owned;
+- storage key News dùng namespace `news/articles/{articleId}/...` trong R2 hiện hành;
+- `/api/admin/news/[id]/media` list/upload asset thuộc đúng article; upload ghi R2 rồi metadata/audit theo contract và có compensation nếu D1 batch fail;
+- Admin editor list/upload/select asset và chỉ ghi `thumbnail_url` khi operator bấm lưu article, không tự PATCH article từ media component;
+- migration `0010_news_media_reference_guard.sql` thêm trigger chặn internal News thumbnail URL nếu asset không active, đã deleted hoặc thuộc article khác; article mới không được trỏ internal News media trước khi có stable article ID;
+- `DELETE /api/admin/news/[id]/media/[assetId]` chỉ cho owner/content_manager, chặn asset còn là thumbnail bằng `MEDIA_IN_USE`, ghi audit + D1 tombstone và phải xác nhận tombstone trước khi R2 bị xóa;
+- stale/deleted/wrong-article internal thumbnail write được phân loại `MEDIA_REFERENCE_CONFLICT` thay vì ghi state không hợp lệ;
+- nếu R2 cleanup fail sau tombstone, D1 vẫn giữ logical delete và response cho phép xử lý cleanup sau; không resurrect asset;
+- Admin media library có nút xóa dùng đúng server contract, disable asset đang được chọn trong form và vẫn để server persisted state là boundary quyết định.
+
+PR #55, #56 và #57 cho các lớp UI/upload, reference-safe delete và delete UI đều qua Quality, GitNexus và Cloudflare package gate trước merge. Đây là bằng chứng source/build, chưa tự động là bằng chứng operator đã thực hiện upload/select/delete end-to-end trên staging account thật.
 
 ### News staging regression gate
 
-Workflow `Cloudflare staging deep QA` đã được mở rộng để gọi `scripts/staging-news-qa.mjs` sau deployment staging thành công. Suite mới là read-only và kiểm tra:
+Workflow `Cloudflare staging deep QA` gọi `scripts/staging-news-qa.mjs` sau deployment staging thành công. Suite read-only hiện kiểm tra:
 
 - D1 schema có `article_categories.revision`, `article_categories.sort_order`, `articles.revision`, `articles.archived_at`;
+- D1 có `news_media_assets.article_id` và `news_media_assets.storage_key`;
+- `sqlite_master` có hai trigger `trg_articles_news_media_thumbnail_insert` và `trg_articles_news_media_thumbnail_update`;
+- audit hiện trạng yêu cầu số internal `/media/news/articles/...` thumbnail reference không có active asset tương ứng bằng 0;
 - `/tin-tuc` render thành công hoặc hiển thị empty state hợp lệ;
 - nếu có public article, detail và category filter phải render đúng canonical article;
 - missing article phải 404;
 - nếu staging có scheduled-future hoặc archived article, các slug đó phải 404;
 - mobile `390×844` và desktop `1440×900` không horizontal overflow và không có browser page/console error.
 
-**Trạng thái bằng chứng tại lần cập nhật hồ sơ này:** source regression gate và workflow wiring đã merge; PR Quality/GitNexus/package gates đã xanh. Chưa ghi “News deep staging QA đã đạt” trong hồ sơ này cho tới khi có bằng chứng quan sát được từ run `master` sau deployment.
-
-## Media và phạm vi News image hiện tại
-
-News article hiện lưu `thumbnail_url`, nhưng Admin editor vẫn nhận URL/path thay vì upload trực tiếp.
-
-R2 `media_assets` hiện khóa schema vào namespace `product`, `variant`, `service`; CHECK constraint và lifecycle/reference contract không có `news/article`. Vì vậy không mở rộng upload News bằng cách chỉ đổi UI hoặc tái sử dụng endpoint product/service. Một implementation đúng cần quyết định schema/reference lifecycle cho News media trước, có migration + safe deletion contract riêng.
+**Trạng thái bằng chứng tại lần cập nhật hồ sơ này:** source regression gate, migrations, media server contract và Admin UI đã merge; PR gates đã xanh. Chưa ghi “News deep staging QA/media operator acceptance đã đạt” cho các thay đổi mới này cho tới khi có bằng chứng quan sát được từ run/deployed staging và thao tác account thật tương ứng.
 
 ## Governance Cloudflare-native
 
@@ -244,9 +257,9 @@ Admin server contract chi tiết nằm tại `docs/CLOUDFLARE_ADMIN_WRITE_CONTRA
 Application/runtime migration, commerce deep QA, staging-admin boundary và phần lớn Admin CRUD source đã đi qua giai đoạn foundation. Các bước ưu tiên tiếp theo là:
 
 1. Quan sát và lưu bằng chứng run `master` của staging deployment + News deep QA mới; chỉ sau đó mới đánh dấu News runtime acceptance xanh.
-2. Xác minh request-delivery chain trên account/resources thật: Cloudflare Queue binding/consumer nếu dùng async delivery, Google Apps Script ownership/deployment/authorization, request reference mapping, idempotency, schema/protection và timeout/redirect allowlist; D1 durable inbox vẫn là intake boundary.
-3. Chốt production taxonomy, SKU, variants, prices, MOQ, media, content, News content và contact/trust claims; loại toàn bộ demo/test content khỏi production dataset.
-4. Quyết định media lifecycle cho News nếu cần upload thumbnail trực tiếp; không tái dùng `media_assets` product/service bằng cách phá CHECK/reference semantics hiện tại.
+2. Thực hiện operator acceptance trên staging cho News media qua Access: upload asset thật, chọn/lưu thumbnail, xác minh public render, thử `MEDIA_IN_USE`, đổi/lưu thumbnail rồi xóa asset cũ, và xác minh D1/R2 hậu điều kiện mà không phá article.
+3. Xác minh request-delivery chain trên account/resources thật: Cloudflare Queue binding/consumer nếu dùng async delivery, Google Apps Script ownership/deployment/authorization, request reference mapping, idempotency, schema/protection và timeout/redirect allowlist; D1 durable inbox vẫn là intake boundary.
+4. Chốt production taxonomy, SKU, variants, prices, MOQ, media, content, News content và contact/trust claims; loại toàn bộ demo/test content khỏi production dataset.
 5. Tạo/audit production D1/R2/Queue cần thiết có chủ ý và chuẩn bị migration dataset đã duyệt; không copy demo staging ngầm định.
 6. Ghi rõ backup/export, rollback procedure và production smoke checklist.
 7. Chỉ sau acceptance admin + production data/content + durable request intake/secondary delivery mới upload/promotion `giacong-vn` production.
