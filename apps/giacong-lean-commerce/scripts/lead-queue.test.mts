@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { handleContactSubmission } from "../src/lib/contact-webhook.ts";
 import { deliverQueuedLead } from "../src/lib/lead-delivery-worker.ts";
+import { createQueuedLeadReplayGuard } from "../src/lib/lead-queue-replay.ts";
 
 function formRequest() {
   const form = new FormData();
@@ -48,6 +49,79 @@ test("persists before enqueueing and returns queued without synchronous webhook 
   assert.equal(webhookCalls, 0);
   assert.deepEqual(statuses, ["queued"]);
   assert.equal(sent.length, 1);
+});
+
+test("a duplicate already queued in D1 does not enqueue or increment delivery bookkeeping again", async () => {
+  const sent: unknown[] = [];
+  const statuses: string[] = [];
+  const delivery = createQueuedLeadReplayGuard({
+    async create() {
+      return {
+        deliveryStatus: "queued" as const,
+        isDuplicate: true,
+        leadId: "lead-queued-replay",
+        publicReference: "LEAD-QUEUED",
+        webhookReference: null,
+      };
+    },
+    async markDelivery(_leadId, result) {
+      statuses.push(result.status);
+    },
+  }, {
+    async send(message) {
+      sent.push(message);
+    },
+  });
+
+  const response = await handleContactSubmission(formRequest(), {
+    environment: {},
+    leadPersistence: delivery.leadPersistence,
+    leadQueue: delivery.leadQueue,
+  });
+  const body = await response.json() as { deliveryStatus?: string; ok?: boolean; reference?: string };
+
+  assert.equal(response.status, 202);
+  assert.equal(body.ok, true);
+  assert.equal(body.deliveryStatus, "queued");
+  assert.equal(body.reference, "LEAD-QUEUED");
+  assert.deepEqual(sent, []);
+  assert.deepEqual(statuses, []);
+});
+
+test("a duplicate failed delivery remains retryable through the queue", async () => {
+  const sent: unknown[] = [];
+  const statuses: string[] = [];
+  const delivery = createQueuedLeadReplayGuard({
+    async create() {
+      return {
+        deliveryStatus: "failed" as const,
+        isDuplicate: true,
+        leadId: "lead-failed-replay",
+        publicReference: "LEAD-FAILED",
+        webhookReference: null,
+      };
+    },
+    async markDelivery(_leadId, result) {
+      statuses.push(result.status);
+    },
+  }, {
+    async send(message) {
+      sent.push(message);
+    },
+  });
+
+  const response = await handleContactSubmission(formRequest(), {
+    environment: {},
+    leadPersistence: delivery.leadPersistence,
+    leadQueue: delivery.leadQueue,
+  });
+  const body = await response.json() as { deliveryStatus?: string; ok?: boolean };
+
+  assert.equal(response.status, 202);
+  assert.equal(body.ok, true);
+  assert.equal(body.deliveryStatus, "queued");
+  assert.equal(sent.length, 1);
+  assert.deepEqual(statuses, ["queued"]);
 });
 
 test("queue consumer marks failed delivery and throws for Cloudflare retry", async () => {
