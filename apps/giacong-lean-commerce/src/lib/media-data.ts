@@ -228,7 +228,7 @@ export async function cleanupOrphanedMediaAssets(
 ): Promise<{ deleted: number; scanned: number }> {
   if (!bucket.list) throw new Error("R2 media bucket does not support list().");
   const safeLimit = Math.min(Math.max(Math.floor(limit), 1), 500);
-  const [knownRows, knownSiteRows] = await Promise.all([
+  const [knownRows, knownSiteRows, knownNewsRows] = await Promise.all([
     database.prepare(`
       SELECT storage_key, status
       FROM media_assets
@@ -239,10 +239,16 @@ export async function cleanupOrphanedMediaAssets(
       FROM site_media_assets
       WHERE status IN ('active', 'replaced', 'deleted')
     `).all<{ storage_key: string; status: "active" | "replaced" | "deleted" }>(),
+    database.prepare(`
+      SELECT storage_key, status
+      FROM news_media_assets
+      WHERE status IN ('active', 'deleted')
+    `).all<{ storage_key: string; status: "active" | "deleted" }>(),
   ]);
   const known = new Map([
     ...knownRows.results.map((row) => [row.storage_key, row.status] as const),
     ...knownSiteRows.results.map((row) => [row.storage_key, row.status] as const),
+    ...knownNewsRows.results.map((row) => [row.storage_key, row.status] as const),
   ]);
   const objects: string[] = [];
   let cursor: string | undefined;
