@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-import { createNewsMediaAsset } from "../src/lib/news-media-data.ts";
+import { createNewsMediaAsset } from "../src/lib/news-media-core.ts";
 
 type NewsMediaRow = {
   alt_text: string | null;
