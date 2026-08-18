@@ -1,6 +1,6 @@
 import { spawnSync } from "node:child_process";
 import { readFile } from "node:fs/promises";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 const root = new URL("../", import.meta.url);
 const exceptionUrl = new URL("security/npm-audit-exceptions.json", root);
@@ -243,6 +243,7 @@ async function readJson(url) {
   return JSON.parse(await readFile(url, "utf8"));
 }
 
-if (process.argv[1] && fileURLToPath(import.meta.url) === fileURLToPath(new URL(`file://${process.argv[1]}`))) {
+const invokedPath = process.argv[1] ? pathToFileURL(process.argv[1]).href : null;
+if (invokedPath === import.meta.url) {
   await run();
 }
