@@ -13,6 +13,7 @@ import {
   AdminStatusBadge,
 } from "@/components/admin/AdminPrimitives";
 import { useAdminSession } from "@/components/admin/AdminShell";
+import { NewsMediaLibrary } from "@/components/admin/NewsMediaLibrary";
 import { AdminClientError, fetchAdmin, formatAdminDate, mutateAdmin } from "@/lib/admin-client";
 
 interface AdminNewsCategory {
@@ -521,7 +522,13 @@ function NewsEditor({
           <label className="admin-field admin-field-wide">
             <span>URL ảnh đại diện</span>
             <input className="admin-input" data-testid="input-news-thumbnail" maxLength={2048} onChange={(event) => update("thumbnailUrl", event.target.value)} placeholder="/media/... hoặc https://..." value={form.thumbnailUrl} />
+            <small>URL này chỉ được ghi vào bài khi bạn bấm Lưu bài viết.</small>
           </label>
+          <NewsMediaLibrary
+            articleId={form.id}
+            onSelect={(url) => update("thumbnailUrl", url)}
+            selectedUrl={form.thumbnailUrl}
+          />
           <label className="admin-field admin-field-wide">
             <span>SEO title</span>
             <input className="admin-input" data-testid="input-news-seo-title" maxLength={180} onChange={(event) => update("seoTitle", event.target.value)} value={form.seoTitle} />
