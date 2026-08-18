@@ -121,14 +121,7 @@ export async function DELETE(request: Request, context: CategoryRouteContext): P
   }
 
   const articleCount = await countAdminNewsCategoryArticles(guard.database, id);
-  if (articleCount > 0) {
-    return adminFailure(
-      crypto.randomUUID(),
-      409,
-      "INVALID_REQUEST",
-      `Chuyên mục đang được ${articleCount} bài viết sử dụng. Hãy chuyển bài sang chuyên mục khác hoặc tạm ẩn chuyên mục.`,
-    );
-  }
+  if (articleCount > 0) return categoryInUse(articleCount);
 
   try {
     await deleteAdminNewsCategoryAtomically(
@@ -140,6 +133,10 @@ export async function DELETE(request: Request, context: CategoryRouteContext): P
     return adminSuccess(crypto.randomUUID(), { deleted: true, id });
   } catch (error) {
     const conflict = error instanceof AdminNewsCategoryConflictError;
+    if (conflict) {
+      const currentArticleCount = await countAdminNewsCategoryArticles(guard.database, id);
+      if (currentArticleCount > 0) return categoryInUse(currentArticleCount);
+    }
     return adminFailure(
       crypto.randomUUID(),
       conflict ? 409 : 503,
@@ -167,6 +164,15 @@ function categoryDefaults(category: {
     slug: category.slug,
     sortOrder: category.sortOrder,
   };
+}
+
+function categoryInUse(articleCount: number): Response {
+  return adminFailure(
+    crypto.randomUUID(),
+    409,
+    "INVALID_REQUEST",
+    `Chuyên mục đang được ${articleCount} bài viết sử dụng. Hãy chuyển bài sang chuyên mục khác hoặc tạm ẩn chuyên mục.`,
+  );
 }
 
 async function parseId(context: CategoryRouteContext): Promise<number | null> {
