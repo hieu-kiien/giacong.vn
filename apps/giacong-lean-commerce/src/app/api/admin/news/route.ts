@@ -17,10 +17,12 @@ export async function GET(request: Request): Promise<Response> {
   const url = new URL(request.url);
   const page = parsePositiveInt(url.searchParams.get("page"), 1);
   const pageSize = Math.min(parsePositiveInt(url.searchParams.get("pageSize"), 20), 100);
+  const categoryId = parsePositiveInt(url.searchParams.get("categoryId"), 0) || undefined;
 
   try {
     const [data, categories] = await Promise.all([
       listAdminNewsArticles(guard.database, {
+        categoryId,
         page,
         pageSize,
         query: url.searchParams.get("query") ?? undefined,
