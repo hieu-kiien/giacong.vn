@@ -1,0 +1,47 @@
+import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+import test from "node:test";
+
+const ciWorkflowUrl = new URL("../../../.github/workflows/ci-cloudflare.yml", import.meta.url);
+const deepQaWorkflowUrl = new URL("../../../.github/workflows/cloudflare-staging-deep-qa.yml", import.meta.url);
+
+test("master staging deployment records a durable issue #70 breadcrumb with commit, run, and active Worker version", async () => {
+  const workflow = await readFile(ciWorkflowUrl, "utf8");
+
+  assert.match(
+    workflow,
+    /staging-deploy:[\s\S]*?permissions:\s*\n\s+contents: read\s*\n\s+issues: write/,
+  );
+  assert.match(workflow, /name: Record master staging deployment evidence/);
+  assert.match(workflow, /if: github\.ref == 'refs\/heads\/master'/);
+  assert.match(workflow, /TRACKING_ISSUE: "70"/);
+  assert.match(workflow, /source CI run id: \$\{GITHUB_RUN_ID\}/);
+  assert.match(workflow, /master SHA: \$\{GITHUB_SHA\}/);
+  assert.match(workflow, /active staging Worker version: \$\{version_id\}/);
+  assert.match(workflow, /\.versions[\s\S]*select\(\.percentage == 100\)/);
+  assert.match(workflow, /issues\/\$\{TRACKING_ISSUE\}\/comments/);
+});
+
+test("successful post-deploy QA records the same source CI run after every staging acceptance suite passes", async () => {
+  const workflow = await readFile(deepQaWorkflowUrl, "utf8");
+  const newsQa = "node scripts/staging-news-qa.mjs";
+  const evidenceStep = "name: Record successful master staging QA evidence";
+
+  assert.match(
+    workflow,
+    /qa:[\s\S]*?permissions:\s*\n\s+contents: read\s*\n\s+issues: write/,
+  );
+  assert.ok(workflow.includes(newsQa));
+  assert.ok(workflow.includes(evidenceStep));
+  assert.ok(workflow.indexOf(newsQa) < workflow.indexOf(evidenceStep));
+  assert.match(workflow, /if: success\(\) && github\.event_name == 'workflow_run'/);
+  assert.match(workflow, /TRACKING_ISSUE: "70"/);
+  assert.match(workflow, /SOURCE_CI_RUN_ID: \$\{\{ github\.event\.workflow_run\.id \}\}/);
+  assert.match(workflow, /SOURCE_SHA: \$\{\{ github\.event\.workflow_run\.head_sha \}\}/);
+  assert.match(workflow, /baseline security headers: PASS/);
+  assert.match(workflow, /accessibility semantics\/keyboard focus: PASS/);
+  assert.match(workflow, /performance lab anti-regression budgets: PASS/);
+  assert.match(workflow, /Access-authenticated staging deep QA: PASS/);
+  assert.match(workflow, /News staging regression QA: PASS/);
+  assert.match(workflow, /issues\/\$\{TRACKING_ISSUE\}\/comments/);
+});
