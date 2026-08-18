@@ -62,10 +62,10 @@ test("temporary exceptions are exact GHSA/package/node/version entries with a sh
   assert.deepEqual(
     policy.exceptions.map((entry) => entry.advisory).sort(),
     [
-      "GHSA-2v37-7h3g-55p8",
-      "GHSA-6g55-p6wh-862q",
-      "GHSA-f88m-g3jw-g9cj",
-      "GHSA-r28c-9q8g-f849",
+      "GHSA-2V37-7H3G-55P8",
+      "GHSA-6G55-P6WH-862Q",
+      "GHSA-F88M-G3JW-G9CJ",
+      "GHSA-R28C-9Q8G-F849",
     ].sort(),
   );
   for (const entry of policy.exceptions) {
