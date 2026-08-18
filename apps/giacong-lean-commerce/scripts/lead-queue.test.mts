@@ -53,7 +53,7 @@ test("persists before enqueueing and returns queued without synchronous webhook 
 
 test("queue-backed form delivery persists and sends the same generated request id", async () => {
   let persistedPayload: unknown;
-  const sent: Array<{ leadId: string; payload: Record<string, unknown> }> = [];
+  const sent: Array<{ leadId: string; payload: unknown }> = [];
   const delivery = createQueuedLeadReplayGuard({
     async create(payload) {
       persistedPayload = payload;
@@ -68,7 +68,7 @@ test("queue-backed form delivery persists and sends the same generated request i
     async markDelivery() {},
   }, {
     async send(message) {
-      sent.push(message as { leadId: string; payload: Record<string, unknown> });
+      sent.push({ leadId: message.leadId, payload: message.payload });
     },
   });
 
@@ -80,11 +80,12 @@ test("queue-backed form delivery persists and sends the same generated request i
   assert.equal(response.status, 202);
 
   const persisted = persistedPayload as Record<string, unknown>;
+  const sentPayload = sent[0]?.payload as Record<string, unknown>;
   const requestId = String(persisted.request_id ?? "");
   assert.match(requestId, /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);
   assert.equal(sent.length, 1);
   assert.equal(sent[0]?.leadId, "lead-form-request-id");
-  assert.equal(sent[0]?.payload.request_id, requestId);
+  assert.equal(sentPayload.request_id, requestId);
 });
 
 test("a duplicate already queued in D1 does not enqueue or increment delivery bookkeeping again", async () => {
