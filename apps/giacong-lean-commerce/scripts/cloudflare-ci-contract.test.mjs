@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
+import { classifyAccessApplications } from "./access-application-targets.mjs";
 
 const ciUrl = new URL("../../../.github/workflows/ci-cloudflare.yml", import.meta.url);
 const deepQaUrl = new URL("../../../.github/workflows/cloudflare-staging-deep-qa.yml", import.meta.url);
@@ -52,6 +53,27 @@ test("Access bootstrap supports current destination fields and refuses broad app
   assert.match(script, /policy\?\.decision !== "non_identity"/);
   assert.match(script, /service_token:\s*\{ token_id: serviceToken\.id \}/);
   assert.match(script, /Access: Apps and Policies Read\/Write plus Access: Service Tokens Read/);
+});
+
+test("Access target discovery accepts exact destinations but rejects wildcard and multi-domain scope", () => {
+  const target = "staging.kienhieu.id.vn";
+  const exact = { id: "exact", destinations: [{ type: "public", uri: `https://${target}/*` }] };
+  const wildcard = { id: "wildcard", destinations: [{ type: "public", uri: "*.kienhieu.id.vn/*" }] };
+  const multi = {
+    id: "multi",
+    destinations: [
+      { type: "public", uri: target },
+      { type: "public", uri: "admin-staging.kienhieu.id.vn" },
+    ],
+  };
+
+  const exactResult = classifyAccessApplications([exact], target);
+  assert.deepEqual(exactResult.exactApps, [exact]);
+  assert.deepEqual(exactResult.relatedApps, []);
+
+  const broadResult = classifyAccessApplications([wildcard, multi], target);
+  assert.deepEqual(broadResult.exactApps, []);
+  assert.equal(broadResult.relatedApps.length, 2);
 });
 
 test("deep QA waits for successful staging deployment and checks out the deployed commit", async () => {
