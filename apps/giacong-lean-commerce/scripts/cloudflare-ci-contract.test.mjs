@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
+import { classifyAccessApplications } from "./access-application-targets.mjs";
 
 const ciUrl = new URL("../../../.github/workflows/ci-cloudflare.yml", import.meta.url);
 const deepQaUrl = new URL("../../../.github/workflows/cloudflare-staging-deep-qa.yml", import.meta.url);
@@ -34,7 +35,7 @@ test("validated master checks optional staging Service Auth, applies D1 migratio
   assert.doesNotMatch(workflow, /Staging remains unchanged/);
 });
 
-test("Access bootstrap treats an absent storefront Access app as optional but can require exact protected targets", async () => {
+test("Access bootstrap supports current destination fields and refuses broad application-level Service Auth", async () => {
   const script = await readFile(accessBootstrapUrl, "utf8");
 
   assert.match(
@@ -42,14 +43,37 @@ test("Access bootstrap treats an absent storefront Access app as optional but ca
     /process\.env\.ACCESS_SERVICE_AUTH_DOMAIN\?\.trim\(\) \|\| "staging\.kienhieu\.id\.vn"/,
   );
   assert.match(script, /ACCESS_SERVICE_AUTH_REQUIRED\?\.trim\(\)\.toLowerCase\(\) === "true"/);
+  assert.match(script, /classifyAccessApplications\(applications\.result \?\? \[\], targetDomain\)/);
+  assert.match(script, /ACCESS_APP_SCOPE_TOO_BROAD/);
+  assert.match(script, /application-level Service Auth policy/);
   assert.match(script, /targetApps\.length === 0 && !accessAppRequired/);
   assert.match(script, /Service Auth bootstrap is not required for this target/);
   assert.match(script, /assert\.match\(targetDomain, \/\^\[a-z0-9\.\-\]\+\$\/i/);
   assert.match(script, /token\?\.client_id === serviceClientId/);
-  assert.match(script, /app\?\.domain === targetDomain/);
   assert.match(script, /policy\?\.decision !== "non_identity"/);
   assert.match(script, /service_token:\s*\{ token_id: serviceToken\.id \}/);
   assert.match(script, /Access: Apps and Policies Read\/Write plus Access: Service Tokens Read/);
+});
+
+test("Access target discovery accepts exact destinations but rejects wildcard and multi-domain scope", () => {
+  const target = "staging.kienhieu.id.vn";
+  const exact = { id: "exact", destinations: [{ type: "public", uri: `https://${target}/*` }] };
+  const wildcard = { id: "wildcard", destinations: [{ type: "public", uri: "*.kienhieu.id.vn/*" }] };
+  const multi = {
+    id: "multi",
+    destinations: [
+      { type: "public", uri: target },
+      { type: "public", uri: "admin-staging.kienhieu.id.vn" },
+    ],
+  };
+
+  const exactResult = classifyAccessApplications([exact], target);
+  assert.deepEqual(exactResult.exactApps, [exact]);
+  assert.deepEqual(exactResult.relatedApps, []);
+
+  const broadResult = classifyAccessApplications([wildcard, multi], target);
+  assert.deepEqual(broadResult.exactApps, []);
+  assert.equal(broadResult.relatedApps.length, 2);
 });
 
 test("deep QA waits for successful staging deployment and checks out the deployed commit", async () => {
