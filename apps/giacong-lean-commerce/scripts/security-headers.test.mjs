@@ -45,13 +45,21 @@ test("post-deploy staging QA verifies security headers and emits bounded non-sec
   assert.match(runtime, /x-powered-by/);
 
   const diagnosticCall = runtime.indexOf("await logSafeFailureDiagnostic(response, route)");
+  const challengeCall = runtime.indexOf("await logCloudflareChallengeSource(route)");
   const statusAssertion = runtime.indexOf("assert.ok(response.status < 400");
   assert.ok(diagnosticCall >= 0 && diagnosticCall < statusAssertion, "4xx diagnostics must be logged before the fail-closed assertion");
+  assert.ok(challengeCall >= 0 && challengeCall < statusAssertion, "challenge source diagnostics must run before the fail-closed assertion");
   assert.match(runtime, /STAGING_HTTP_FAILURE_DIAGNOSTIC/);
+  assert.match(runtime, /CLOUDFLARE_CHALLENGE_SOURCE_DIAGNOSTIC/);
+  assert.match(runtime, /CLOUDFLARE_CHALLENGE_SOURCE_UNAVAILABLE/);
+  assert.match(runtime, /firewallEventsAdaptive/);
+  assert.match(runtime, /clientRequestHTTPHost/);
+  assert.match(runtime, /\baction\b/);
+  assert.match(runtime, /\bsource\b/);
   assert.match(runtime, /cf-mitigated/);
   assert.match(runtime, /cf-ray/);
   assert.match(runtime, /cf-cache-status/);
   assert.match(runtime, /\.slice\(0, 1200\)[\s\S]*\.slice\(0, 600\)/);
   assert.match(runtime, /\[REDACTED_LONG_TOKEN\]/);
-  assert.doesNotMatch(runtime, /console\.(?:log|error)\([^\n]*(?:accessHeaders|CLOUDFLARE_ACCESS_CLIENT_SECRET|CF-Access-Client-Secret)/);
+  assert.doesNotMatch(runtime, /console\.(?:log|error)\([^\n]*(?:accessHeaders|CLOUDFLARE_ACCESS_CLIENT_SECRET|CF-Access-Client-Secret|apiToken)/);
 });
