@@ -1,10 +1,10 @@
 "use client";
 
-import { ExternalLink, Upload } from "lucide-react";
+import { ExternalLink, Trash2, Upload } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
-import { AdminClientError, fetchAdmin, formatAdminDate, uploadAdmin } from "@/lib/admin-client";
+import { AdminClientError, fetchAdmin, formatAdminDate, mutateAdmin, uploadAdmin } from "@/lib/admin-client";
 
 interface AdminNewsMediaAsset {
   altText: string | null;
@@ -38,6 +38,7 @@ export function NewsMediaLibrary({
   const [altText, setAltText] = useState("");
   const [message, setMessage] = useState("");
   const [uploading, setUploading] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!articleId) {
@@ -100,6 +101,39 @@ export function NewsMediaLibrary({
         : new AdminClientError("Không thể upload media bài viết.", 0));
     } finally {
       setUploading(false);
+    }
+  }
+
+  async function remove(asset: AdminNewsMediaAsset) {
+    if (!articleId) return;
+    if (selectedUrl === asset.publicUrl) {
+      setError(new AdminClientError(
+        "Ảnh này đang được chọn trong editor. Hãy chọn ảnh khác, lưu bài viết rồi mới xóa asset này.",
+        409,
+        "MEDIA_IN_USE",
+      ));
+      return;
+    }
+    if (!window.confirm(`Xóa asset “${asset.originalFilename}”? Metadata sẽ giữ tombstone trong D1.`)) return;
+
+    setDeletingId(asset.id);
+    setError(null);
+    setMessage("");
+    try {
+      const result = await mutateAdmin<{ media: AdminNewsMediaAsset; storageDeleted: boolean }>(
+        `/api/admin/news/${articleId}/media/${asset.id}`,
+        { method: "DELETE" },
+      );
+      setMedia((items) => items.filter((item) => item.id !== asset.id));
+      setMessage(result.storageDeleted
+        ? "Đã xóa media khỏi thư viện và R2."
+        : "Đã xóa media khỏi thư viện. R2 cleanup chưa hoàn tất và có thể được retry an toàn.");
+    } catch (reason: unknown) {
+      setError(reason instanceof AdminClientError
+        ? reason
+        : new AdminClientError("Không thể xóa media bài viết.", 0));
+    } finally {
+      setDeletingId(null);
     }
   }
 
@@ -173,6 +207,7 @@ export function NewsMediaLibrary({
                 <tbody>
                   {media.map((asset) => {
                     const selected = selectedUrl === asset.publicUrl;
+                    const deleting = deletingId === asset.id;
                     return (
                       <tr data-testid={`row-news-media-${asset.id}`} key={asset.id}>
                         <td>
@@ -196,6 +231,16 @@ export function NewsMediaLibrary({
                               type="button"
                             >
                               {selected ? "Đang chọn" : "Dùng làm ảnh đại diện"}
+                            </button>
+                            <button
+                              className="admin-button admin-button-danger"
+                              data-testid={`button-news-media-delete-${asset.id}`}
+                              disabled={selected || deleting}
+                              onClick={() => void remove(asset)}
+                              title={selected ? "Hãy chọn và lưu ảnh đại diện khác trước khi xóa." : undefined}
+                              type="button"
+                            >
+                              <Trash2 size={14} /> {deleting ? "Đang xóa" : "Xóa"}
                             </button>
                           </div>
                         </td>
