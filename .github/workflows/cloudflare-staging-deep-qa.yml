@@ -58,6 +58,9 @@ jobs:
       - name: Verify accessibility semantics and keyboard focus
         run: node scripts/staging-accessibility-qa.mjs
 
+      - name: Verify performance lab anti-regression budgets
+        run: node scripts/staging-performance-qa.mjs
+
       - name: Run Access-authenticated staging deep QA
         run: node scripts/staging-deep-qa.mjs
 
