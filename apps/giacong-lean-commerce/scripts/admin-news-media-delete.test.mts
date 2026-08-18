@@ -59,6 +59,7 @@ class FakeDatabase {
   readonly auditIds = new Set<string>();
   readonly batches: FakeStatement[][] = [];
   readonly media = new Map<string, NewsMediaRow>();
+  confirmTombstone = true;
 
   prepare(query: string) {
     return new FakeStatement(this, query);
@@ -80,6 +81,7 @@ class FakeDatabase {
     );
 
     const markerResults: unknown[] = [];
+    const updateResults: unknown[] = [];
     if (allowed && marker) {
       const auditId = String(marker.values[0]);
       this.auditIds.add(auditId);
@@ -89,9 +91,10 @@ class FakeDatabase {
     if (allowed && row && update && this.auditIds.has(String(update.values[2]))) {
       row.status = "deleted";
       row.updated_at = "2026-08-18 04:00:00";
+      if (this.confirmTombstone) updateResults.push({ id: row.id });
     }
 
-    return [{ results: markerResults }, { results: [] }];
+    return [{ results: markerResults }, { results: updateResults }];
   }
 }
 
@@ -142,7 +145,7 @@ test("News media delete blocks an asset that is still the article thumbnail", as
   assert.deepEqual(bucket.deletes, []);
 });
 
-test("News media delete writes an audit marker and D1 tombstone before R2 cleanup", async () => {
+test("News media delete writes an audit marker and confirmed D1 tombstone before R2 cleanup", async () => {
   const database = new FakeDatabase();
   const bucket = new FakeBucket();
   const row = mediaRow();
@@ -164,7 +167,27 @@ test("News media delete writes an audit marker and D1 tombstone before R2 cleanu
   assert.match(database.batches[0]?.[0]?.query ?? "", /'news_media\.deleted', 'news_media'/);
   assert.match(database.batches[0]?.[0]?.query ?? "", /a\.thumbnail_url = '\/media\/' \|\| m\.storage_key/);
   assert.match(database.batches[0]?.[1]?.query ?? "", /status = 'deleted'/);
+  assert.match(database.batches[0]?.[1]?.query ?? "", /RETURNING id/);
   assert.deepEqual(bucket.deletes, [row.storage_key]);
+});
+
+test("News media delete never touches R2 without tombstone confirmation", async () => {
+  const database = new FakeDatabase();
+  const bucket = new FakeBucket();
+  const row = mediaRow();
+  database.media.set(row.id, row);
+  database.articleThumbnails.set(42, null);
+  database.confirmTombstone = false;
+
+  await assert.rejects(
+    deleteNewsMediaAsset(database, bucket, {
+      articleId: 42,
+      assetId: row.id,
+      deletedBy: "owner@example.com",
+    }),
+    /D1 không xác nhận tombstone/,
+  );
+  assert.deepEqual(bucket.deletes, []);
 });
 
 test("News media delete keeps the D1 tombstone when R2 cleanup must be retried", async () => {
