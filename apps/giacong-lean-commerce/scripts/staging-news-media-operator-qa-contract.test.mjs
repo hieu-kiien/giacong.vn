@@ -10,11 +10,12 @@ test("G2 News media acceptance runs only after successful staging deep QA and re
 
   assert.match(workflow, /Cloudflare staging deep QA/);
   assert.match(workflow, /github\.event\.workflow_run\.conclusion == 'success'/);
-  assert.match(workflow, /admin-staging\.kienhieu\.id\.vn/);
+  assert.match(workflow, /cloudflare-staging-news-media-acceptance-once\.yml/);
+  assert.match(workflow, /ACCESS_SERVICE_AUTH_DOMAIN: staging\.kienhieu\.id\.vn[\s\S]*?ACCESS_SERVICE_AUTH_REQUIRED: "false"/);
+  assert.match(workflow, /ACCESS_SERVICE_AUTH_DOMAIN: admin-staging\.kienhieu\.id\.vn[\s\S]*?ACCESS_SERVICE_AUTH_REQUIRED: "true"/);
   assert.match(workflow, /node scripts\/staging-news-media-operator-qa\.mjs/);
   assert.match(workflow, /issues:\s*write/);
   assert.match(workflow, /TRACKING_ISSUE:\s*"70"/);
-  assert.match(workflow, /cloudflare-staging-news-media-acceptance-once\.yml/);
 });
 
 test("G2 operator runtime exercises persisted thumbnail protection, replacement and D1/R2 post-conditions", async () => {
