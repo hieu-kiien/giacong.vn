@@ -1,5 +1,27 @@
 {
   "schemaVersion": 1,
+  "contextLocks": [
+    {
+      "package": "next",
+      "node": "node_modules/next",
+      "version": "16.2.12"
+    },
+    {
+      "package": "nanoid",
+      "node": "node_modules/nanoid",
+      "version": "3.3.16"
+    },
+    {
+      "package": "postcss",
+      "node": "node_modules/next/node_modules/postcss",
+      "version": "8.4.31"
+    },
+    {
+      "package": "sharp",
+      "node": "node_modules/sharp",
+      "version": "0.34.5"
+    }
+  ],
   "exceptions": [
     {
       "advisory": "GHSA-2v37-7h3g-55p8",
