@@ -1,0 +1,59 @@
+{
+  "schemaVersion": 1,
+  "contextLocks": [
+    {
+      "package": "next",
+      "node": "node_modules/next",
+      "version": "16.2.12"
+    },
+    {
+      "package": "nanoid",
+      "node": "node_modules/nanoid",
+      "version": "3.3.16"
+    },
+    {
+      "package": "postcss",
+      "node": "node_modules/next/node_modules/postcss",
+      "version": "8.4.31"
+    },
+    {
+      "package": "sharp",
+      "node": "node_modules/sharp",
+      "version": "0.34.5"
+    }
+  ],
+  "exceptions": [
+    {
+      "advisory": "GHSA-2V37-7H3G-55P8",
+      "package": "nanoid",
+      "node": "node_modules/nanoid",
+      "version": "3.3.16",
+      "expiresOn": "2026-09-15",
+      "reason": "Next 16.2.12 bundles PostCSS 8.4.31, which requires nanoid 3.x. No compatible nanoid 3.x release fixes the zero-size custom-generator advisory. The application does not import nanoid or accept an application-controlled generator size. Review when Next/OpenNext publish a stable compatible dependency update."
+    },
+    {
+      "advisory": "GHSA-6G55-P6WH-862Q",
+      "package": "postcss",
+      "node": "node_modules/next/node_modules/postcss",
+      "version": "8.4.31",
+      "expiresOn": "2026-09-15",
+      "reason": "The vulnerable PostCSS copy is privately bundled by Next 16.2.12. The application has no runtime PostCSS API path and only processes repository-controlled CSS during build. Do not force-replace Next's private PostCSS; review when a stable supported Next/OpenNext line carries the patched dependency."
+    },
+    {
+      "advisory": "GHSA-R28C-9Q8G-F849",
+      "package": "postcss",
+      "node": "node_modules/next/node_modules/postcss",
+      "version": "8.4.31",
+      "expiresOn": "2026-09-15",
+      "reason": "The vulnerable PostCSS copy is privately bundled by Next 16.2.12. The application has no runtime PostCSS API path and only processes repository-controlled CSS during build. Do not force-replace Next's private PostCSS; review when a stable supported Next/OpenNext line carries the patched dependency."
+    },
+    {
+      "advisory": "GHSA-F88M-G3JW-G9CJ",
+      "package": "sharp",
+      "node": "node_modules/sharp",
+      "version": "0.34.5",
+      "expiresOn": "2026-09-15",
+      "reason": "Sharp 0.34.5 is pulled by the current stable Next 16.2.12 dependency line. The application does not configure a remote image loader or remotePatterns and does not accept an arbitrary remote image source for native processing. Forcing sharp 0.35.x would cross Next's declared dependency line; review with the next stable Next/OpenNext compatibility update."
+    }
+  ]
+}
