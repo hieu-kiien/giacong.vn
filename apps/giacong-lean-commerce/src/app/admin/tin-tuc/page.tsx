@@ -372,7 +372,7 @@ export default function AdminNewsPage() {
                         <td className="admin-mono">{formatAdminDate(article.updatedAt)}</td>
                         <td>
                           <div className="admin-table-actions">
-                            {article.status === "published" ? (
+                            {isPubliclyVisible(article) ? (
                               <Link className="admin-button admin-button-quiet" href={`/tin-tuc/${article.slug}`} target="_blank">
                                 <ExternalLink size={14} /> Xem
                               </Link>
@@ -551,6 +551,12 @@ function articleToForm(article: AdminNewsArticle): NewsFormState {
 function defaultCategoryId(categories: AdminNewsCategory[]): string {
   const category = categories.find((item) => item.active && item.slug === "tin-tuc") ?? categories.find((item) => item.active);
   return category ? String(category.id) : "";
+}
+
+function isPubliclyVisible(article: AdminNewsArticle): boolean {
+  if (article.status !== "published" || !article.publishedAt) return false;
+  const publishedAt = new Date(`${article.publishedAt.replace(" ", "T")}Z`);
+  return !Number.isNaN(publishedAt.valueOf()) && publishedAt.valueOf() <= Date.now();
 }
 
 function toLocalDateTime(value: string | null): string {

@@ -47,3 +47,11 @@ test("Admin News editor protects unsaved changes and supports scheduled publishi
   assert.match(page, /new Date\(editor\.publishedAt\)\.toISOString\(\)/);
   assert.match(page, /Bài mới luôn được tạo ở draft/);
 });
+
+test("Admin News only links to articles already visible on the public read path", async () => {
+  const page = await source("src/app/admin/tin-tuc/page.tsx");
+  assert.match(page, /isPubliclyVisible\(article\)/);
+  assert.match(page, /article\.status !== "published" \|\| !article\.publishedAt/);
+  assert.match(page, /publishedAt\.valueOf\(\) <= Date\.now\(\)/);
+  assert.doesNotMatch(page, /article\.status === "published" \? \(\s*<Link/);
+});
