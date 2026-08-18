@@ -2,14 +2,18 @@ import assert from "node:assert/strict";
 
 const apiToken = requiredEnv("CLOUDFLARE_API_TOKEN");
 const accountId = requiredEnv("CLOUDFLARE_ACCOUNT_ID");
-const serviceClientId = requiredEnv("CLOUDFLARE_ACCESS_CLIENT_ID");
 const targetDomain = process.env.ACCESS_SERVICE_AUTH_DOMAIN?.trim() || "staging.kienhieu.id.vn";
 const policyName = process.env.ACCESS_SERVICE_AUTH_POLICY_NAME?.trim() || `GitHub Service Auth ${targetDomain}`;
+const accessAppRequired = process.env.ACCESS_SERVICE_AUTH_REQUIRED?.trim().toLowerCase() === "true";
 
 assert.match(targetDomain, /^[a-z0-9.-]+$/i, "ACCESS_SERVICE_AUTH_DOMAIN is invalid.");
 
 const applications = await cloudflareApi(`/accounts/${accountId}/access/apps?per_page=100`);
 const targetApps = (applications.result ?? []).filter((app) => app?.domain === targetDomain);
+if (targetApps.length === 0 && !accessAppRequired) {
+  console.log(`No Access application exists for ${targetDomain}; Service Auth bootstrap is not required for this target.`);
+  process.exit(0);
+}
 assert.equal(
   targetApps.length,
   1,
@@ -18,6 +22,7 @@ assert.equal(
 const app = targetApps[0];
 assert.ok(app?.id, "Target Access application must expose an id.");
 
+const serviceClientId = requiredEnv("CLOUDFLARE_ACCESS_CLIENT_ID");
 const serviceTokens = await cloudflareApi(`/accounts/${accountId}/access/service_tokens?per_page=1000`);
 const matchingTokens = (serviceTokens.result ?? []).filter((token) => token?.client_id === serviceClientId);
 assert.equal(
