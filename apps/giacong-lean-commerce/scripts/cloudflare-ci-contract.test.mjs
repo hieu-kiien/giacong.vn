@@ -34,7 +34,7 @@ test("validated master checks optional staging Service Auth, applies D1 migratio
   assert.doesNotMatch(workflow, /Staging remains unchanged/);
 });
 
-test("Access bootstrap treats an absent storefront Access app as optional but can require exact protected targets", async () => {
+test("Access bootstrap supports current destination fields and refuses broad application-level Service Auth", async () => {
   const script = await readFile(accessBootstrapUrl, "utf8");
 
   assert.match(
@@ -42,11 +42,13 @@ test("Access bootstrap treats an absent storefront Access app as optional but ca
     /process\.env\.ACCESS_SERVICE_AUTH_DOMAIN\?\.trim\(\) \|\| "staging\.kienhieu\.id\.vn"/,
   );
   assert.match(script, /ACCESS_SERVICE_AUTH_REQUIRED\?\.trim\(\)\.toLowerCase\(\) === "true"/);
+  assert.match(script, /classifyAccessApplications\(applications\.result \?\? \[\], targetDomain\)/);
+  assert.match(script, /ACCESS_APP_SCOPE_TOO_BROAD/);
+  assert.match(script, /application-level Service Auth policy/);
   assert.match(script, /targetApps\.length === 0 && !accessAppRequired/);
   assert.match(script, /Service Auth bootstrap is not required for this target/);
   assert.match(script, /assert\.match\(targetDomain, \/\^\[a-z0-9\.\-\]\+\$\/i/);
   assert.match(script, /token\?\.client_id === serviceClientId/);
-  assert.match(script, /app\?\.domain === targetDomain/);
   assert.match(script, /policy\?\.decision !== "non_identity"/);
   assert.match(script, /service_token:\s*\{ token_id: serviceToken\.id \}/);
   assert.match(script, /Access: Apps and Policies Read\/Write plus Access: Service Tokens Read/);
