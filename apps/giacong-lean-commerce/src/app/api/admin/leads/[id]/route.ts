@@ -1,6 +1,7 @@
 import { adminFailure, adminSuccess } from "@/lib/admin-api.ts";
 import { type LeadStatus } from "@/lib/admin-data";
 import { requireAdmin } from "@/lib/admin-guard";
+import { getAdminLeadDetail } from "@/lib/admin-lead-detail-data";
 import {
   AdminLeadStaleWriteError,
   updateAdminLeadStatusAtomically,
@@ -23,6 +24,28 @@ const leadStatuses = new Set<LeadStatus>([
   "lost",
   "spam",
 ]);
+
+export async function GET(request: Request, context: LeadRouteContext): Promise<Response> {
+  const guard = await requireAdmin(request);
+  if (guard instanceof Response) return guard;
+
+  const { id } = await context.params;
+  if (!isLeadId(id)) return adminFailure(crypto.randomUUID(), 404, "NOT_FOUND", "Không tìm thấy lead.");
+
+  try {
+    const lead = await getAdminLeadDetail(guard.database, id);
+    return lead
+      ? adminSuccess(crypto.randomUUID(), { lead })
+      : adminFailure(crypto.randomUUID(), 404, "NOT_FOUND", "Không tìm thấy lead.");
+  } catch (error) {
+    return adminFailure(
+      crypto.randomUUID(),
+      503,
+      "INTERNAL_ERROR",
+      error instanceof Error ? error.message : "Không thể tải chi tiết lead.",
+    );
+  }
+}
 
 export async function PATCH(request: Request, context: LeadRouteContext): Promise<Response> {
   const guard = await requireAdmin(request);
