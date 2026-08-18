@@ -39,9 +39,6 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Inspect production audit JSON
-        run: npm audit --omit=dev --json || true
-
       - name: Audit production dependencies
         run: npm run audit:prod
 
