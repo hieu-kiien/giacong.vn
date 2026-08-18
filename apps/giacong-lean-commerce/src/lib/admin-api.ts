@@ -5,6 +5,7 @@ export type AdminApiErrorCode =
   | "IDEMPOTENCY_CONFLICT"
   | "INVALID_REQUEST"
   | "MEDIA_IN_USE"
+  | "MEDIA_REFERENCE_CONFLICT"
   | "NOT_FOUND"
   | "PAYLOAD_TOO_LARGE"
   | "STALE_WRITE"

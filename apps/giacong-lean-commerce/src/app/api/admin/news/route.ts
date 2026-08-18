@@ -79,12 +79,21 @@ export async function POST(request: Request): Promise<Response> {
       : adminFailure(crypto.randomUUID(), 503, "INTERNAL_ERROR", "Không đọc lại được bài viết vừa tạo.");
   } catch (error) {
     const unique = isUniqueError(error);
+    const mediaReference = isMediaReferenceError(error);
     return adminFailure(
       crypto.randomUUID(),
-      unique ? 409 : 503,
-      unique ? "UNIQUE_CONFLICT" : "INTERNAL_ERROR",
-      error instanceof Error ? error.message : "Không thể tạo bài viết.",
-      unique ? { slug: "Slug đã tồn tại." } : undefined,
+      unique || mediaReference ? 409 : 503,
+      unique ? "UNIQUE_CONFLICT" : mediaReference ? "MEDIA_REFERENCE_CONFLICT" : "INTERNAL_ERROR",
+      mediaReference
+        ? "Bài viết mới chưa thể tham chiếu internal News media trước khi có article ID."
+        : error instanceof Error
+          ? error.message
+          : "Không thể tạo bài viết.",
+      unique
+        ? { slug: "Slug đã tồn tại." }
+        : mediaReference
+          ? { thumbnailUrl: "Hãy lưu draft trước, sau đó upload/chọn ảnh trong Media bài viết." }
+          : undefined,
     );
   }
 }
@@ -108,4 +117,8 @@ async function readJson(request: Request): Promise<unknown> {
 
 function isUniqueError(error: unknown): boolean {
   return error instanceof Error && /unique|constraint/i.test(error.message);
+}
+
+function isMediaReferenceError(error: unknown): boolean {
+  return error instanceof Error && /INVALID_NEWS_MEDIA_REFERENCE/.test(error.message);
 }

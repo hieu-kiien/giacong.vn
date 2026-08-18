@@ -23,6 +23,14 @@ test("News staging QA verifies migrations before exercising runtime", async () =
   assert.match(qa, /PRAGMA table_info\(news_media_assets\)/);
   assert.match(qa, /column\.name === "article_id"/);
   assert.match(qa, /column\.name === "storage_key"/);
+  assert.match(qa, /FROM sqlite_master/);
+  assert.match(qa, /trg_articles_news_media_thumbnail_insert/);
+  assert.match(qa, /trg_articles_news_media_thumbnail_update/);
+  assert.match(qa, /invalid_internal_thumbnail_refs/);
+  assert.match(qa, /a\.thumbnail_url LIKE '\/media\/news\/articles\/%'/);
+  assert.match(qa, /staging contains invalid internal News thumbnail references/);
+  assert.match(qa, /News media insert reference guard is missing on staging/);
+  assert.match(qa, /News media update reference guard is missing on staging/);
   assert.match(qa, /STAGING_DATABASE/);
 });
 
