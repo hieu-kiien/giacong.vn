@@ -85,10 +85,11 @@ test("Admin News editor mounts article-owned media without bypassing article sav
   assert.match(page, /URL này chỉ được ghi vào bài khi bạn bấm Lưu bài viết/);
   assert.match(media, /!articleId \? \(/);
   assert.match(media, /Hãy tạo và lưu bản nháp trước/);
-  assert.doesNotMatch(media, /mutateAdmin|PATCH|updateAdminNewsArticle/);
+  assert.doesNotMatch(media, /PATCH|updateAdminNewsArticle/);
+  assert.doesNotMatch(media, /`\/api\/admin\/news\/\$\{articleId\}`/);
 });
 
-test("Admin News media library lists and uploads only through the article media API", async () => {
+test("Admin News media library lists, uploads and deletes only through article-owned media APIs", async () => {
   const media = await source("src/components/admin/NewsMediaLibrary.tsx");
 
   assert.match(media, /fetchAdmin<\{ media: AdminNewsMediaAsset\[\] \}>\(/);
@@ -100,7 +101,10 @@ test("Admin News media library lists and uploads only through the article media 
   assert.match(media, /onSelect\(result\.media\.publicUrl\)/);
   assert.match(media, /Hãy bấm Lưu bài viết để ghi thumbnail vào article revision hiện tại/);
   assert.match(media, /Dùng làm ảnh đại diện/);
-  assert.doesNotMatch(media, /DELETE|\/media\/\$\{asset\.id\}/);
+  assert.match(media, /mutateAdmin<\{ media: AdminNewsMediaAsset; storageDeleted: boolean \}>\(/);
+  assert.match(media, /`\/api\/admin\/news\/\$\{articleId\}\/media\/\$\{asset\.id\}`/);
+  assert.match(media, /\{ method: "DELETE" \}/);
+  assert.doesNotMatch(media, /method: "PATCH"/);
 });
 
 test("Admin multipart helper leaves the browser responsible for the boundary", async () => {
