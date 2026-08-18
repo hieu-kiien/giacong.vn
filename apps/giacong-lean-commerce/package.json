@@ -2,7 +2,7 @@
   "name": "@workspace/web",
   "version": "0.1.0",
   "private": true,
-  "description": "Lean V1 B2B storefront with Cloudflare-native catalog/media and Google Sheet request intake",
+  "description": "Lean V1 B2B storefront with Cloudflare-native catalog/media and D1-first request intake",
   "license": "MIT",
   "engines": {
     "node": ">=24"
