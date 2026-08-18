@@ -73,17 +73,18 @@ Post-condition audit xác minh không còn contact threshold lệch quantity rul
 
 ## Migration Cloudflare-native đã merge
 
-Runtime active staging dùng:
+Runtime/source boundary hiện hành dùng:
 
 - `/san-pham` → D1
 - product detail → D1
 - commerce mega-menu → D1
 - `/api/catalog/products/[slug]` → D1
 - cart revalidation/submit canonical resolver → D1
+- `/api/contact` product resolution → cùng Cloudflare D1 catalog reader, không còn Bagisto catalog HTTP hop sau PR #51
 - managed service copy → D1 khi có row, fallback static khi table chưa có dữ liệu
 - `/media/*` → R2
 
-`next.config.ts` không còn Bagisto proxy rewrites. `.env.example` cũng không còn `BAGISTO_API_URL`, `BAGISTO_PROXY_ORIGIN` hay `BAGISTO_API_TIMEOUT_MS`.
+`next.config.ts` không còn Bagisto proxy rewrites. `.env.example` cũng không còn `BAGISTO_API_URL`, `BAGISTO_PROXY_ORIGIN` hay `BAGISTO_API_TIMEOUT_MS`. PR #51 thêm source regression để contact route và shared cart resolver không được import Bagisto trở lại; Quality, GitNexus và Cloudflare package gates đều xanh trước merge.
 
 ## Staging preview đã đạt
 
@@ -152,6 +153,21 @@ Phần admin không còn ở trạng thái “chuẩn bị implement”. Source 
 
 Các PR triển khai Admin/News gần nhất đều qua Quality gate, GitNexus safety gate khi workflow áp dụng, và Cloudflare package gate trước merge. Đây là bằng chứng build/contract của source; không tự động đồng nghĩa mọi thao tác Admin mới đã được operator thực hiện end-to-end trên staging account thật.
 
+## Durable request intake hiện là D1-first
+
+Source hiện hành không còn mô hình “chỉ gửi Google Sheet rồi mới coi là tiếp nhận”. Luồng contact đã có durable persistence trước secondary delivery:
+
+- request/cart được server validate và canonicalize trước;
+- `lead`, `lead_items` và initial `lead_event` được ghi D1 bằng batch transactional semantics;
+- `request_id` có uniqueness/idempotent replay guard, kể cả concurrent winner race;
+- khi `GIACONG_VN_LEAD_QUEUE` có binding, Worker enqueue payload sau khi durable lead đã tồn tại và ghi delivery state `queued`;
+- queue consumer giao payload tới Google Apps Script/Sheet rồi cập nhật `delivered` hoặc `failed`;
+- khi queue không sẵn sàng, code còn synchronous delivery fallback nhưng vẫn chỉ chạy sau D1 persistence;
+- lỗi enqueue hoặc secondary sink không xóa lead; response vẫn có public D1 reference và Admin có thể nhìn thấy delivery failure để xử lý;
+- `/admin/yeu-cau` là operational inbox trên durable D1 lead data.
+
+Vì vậy Google Sheet/Apps Script hiện được xem là **secondary operational sink**, không phải canonical request database duy nhất. Production acceptance vẫn phải xác minh account/deployment Google thật nếu sink này tiếp tục được vận hành, đồng thời cần xác minh Cloudflare Queue binding/consumer trên production trước khi dựa vào async delivery.
+
 ## News CMS đã merge
 
 News hiện là D1-backed CMS thay vì captured/static fallback.
@@ -215,22 +231,22 @@ Plan khóa các nguyên tắc:
 - D1/R2 là canonical data/media;
 - Bagisto không quay lại runtime;
 - Cloudflare-native admin phải nằm sau auth/admission boundary và server write contract;
-- request queue vẫn là Google Sheet + Apps Script cho đến quyết định riêng;
+- durable request intake là D1-first; Cloudflare Queue/Google Sheet là delivery/secondary-sink layer theo cấu hình hiện hành;
 - staging là cổng bắt buộc;
 - production không được dùng làm môi trường thử nghiệm.
 
 Admin server contract chi tiết nằm tại `docs/CLOUDFLARE_ADMIN_WRITE_CONTRACT.md`: hostname/Access admission, exact write shapes, stale-write protection, MOQ/step/contact/tier invariants, media policy, request id/idempotency, auditability và required regression matrix.
 
-**Production Worker `giacong-vn`, production data resources và production route `kienhieu.id.vn/*` chưa bị thay đổi bởi các bước Admin/News staging work được ghi trong hồ sơ này.**
+**Production Worker `giacong-vn`, production data resources và production route `kienhieu.id.vn/*` chưa bị thay đổi bởi các bước Admin/News/contact staging work được ghi trong hồ sơ này.**
 
 ## Cổng kế tiếp
 
 Application/runtime migration, commerce deep QA, staging-admin boundary và phần lớn Admin CRUD source đã đi qua giai đoạn foundation. Các bước ưu tiên tiếp theo là:
 
 1. Quan sát và lưu bằng chứng run `master` của staging deployment + News deep QA mới; chỉ sau đó mới đánh dấu News runtime acceptance xanh.
-2. Xác minh Google Sheet/Apps Script request intake trên account thật: ownership, deployment/authorization, idempotency, schema, protection, workflow trạng thái và timeout/redirect allowlist; hoặc ra quyết định riêng nếu chuyển queue sang D1.
+2. Xác minh request-delivery chain trên account/resources thật: Cloudflare Queue binding/consumer nếu dùng async delivery, Google Apps Script ownership/deployment/authorization, request reference mapping, idempotency, schema/protection và timeout/redirect allowlist; D1 durable inbox vẫn là intake boundary.
 3. Chốt production taxonomy, SKU, variants, prices, MOQ, media, content, News content và contact/trust claims; loại toàn bộ demo/test content khỏi production dataset.
 4. Quyết định media lifecycle cho News nếu cần upload thumbnail trực tiếp; không tái dùng `media_assets` product/service bằng cách phá CHECK/reference semantics hiện tại.
-5. Tạo/audit production D1/R2 có chủ ý và chuẩn bị migration dataset đã duyệt; không copy demo staging ngầm định.
+5. Tạo/audit production D1/R2/Queue cần thiết có chủ ý và chuẩn bị migration dataset đã duyệt; không copy demo staging ngầm định.
 6. Ghi rõ backup/export, rollback procedure và production smoke checklist.
-7. Chỉ sau acceptance admin + production data/content + request intake mới upload/promotion `giacong-vn` production.
+7. Chỉ sau acceptance admin + production data/content + durable request intake/secondary delivery mới upload/promotion `giacong-vn` production.
