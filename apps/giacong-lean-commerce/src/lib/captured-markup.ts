@@ -32,7 +32,7 @@ export function layerCapturedStyles(pageStyles: string): string {
 }
 
 export function normalizeCapturedMarkup(markup: string) {
-  const normalized = removeRedundantCapturedMainRole(markup)
+  const normalized = removeDuplicateCapturedSvgRootIds(removeRedundantCapturedMainRole(markup))
     .replace(/Sản Phẩm(?=<i class="icon-angle-down"><\/i>)/g, "Mua hàng")
     .replace(/Dịch vụ(?=<i class="icon-angle-down"><\/i>)/g, "Thuê gia công")
     .replace(/Dịch Vụ Gia Công(?=<\/a>)/g, "Thuê gia công")
@@ -60,6 +60,23 @@ function removeRedundantCapturedMainRole(markup: string): string {
       return `<div${normalizedAttributes}>`;
     },
   );
+}
+
+function removeDuplicateCapturedSvgRootIds(markup: string): string {
+  const seenSvgRootIds = new Set<string>();
+
+  return markup.replace(/<svg\b[^>]*>/gi, (openingTag) => {
+    const idMatch = /\s+id=(["'])([^"']+)\1/i.exec(openingTag);
+    if (!idMatch) return openingTag;
+
+    const id = idMatch[2];
+    if (!seenSvgRootIds.has(id)) {
+      seenSvgRootIds.add(id);
+      return openingTag;
+    }
+
+    return openingTag.replace(/\s+id=(["'])[^"']+\1/i, "");
+  });
 }
 
 function normalizeHomeMenuItems(markup: string): string {
