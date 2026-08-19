@@ -27,3 +27,15 @@ test("contact runtime and Apps Script template keep the explicit secondary-sink 
   assert.match(appsScriptSource, /CONTACT_WEBHOOK_SECRET/);
   assert.match(appsScriptSource, /validSecret\(payload\)/);
 });
+
+test("staging deploy injects Google delivery secrets from GitHub Actions without committing values", async () => {
+  const workflow = await readFile(new URL("../../../.github/workflows/ci-cloudflare.yml", import.meta.url), "utf8");
+
+  assert.match(workflow, /STAGING_GOOGLE_SHEETS_WEBHOOK_URL:\s*\$\{\{ secrets\.STAGING_GOOGLE_SHEETS_WEBHOOK_URL \}\}/);
+  assert.match(workflow, /STAGING_GOOGLE_SHEETS_WEBHOOK_SECRET:\s*\$\{\{ secrets\.STAGING_GOOGLE_SHEETS_WEBHOOK_SECRET \}\}/);
+  assert.match(workflow, /test -n "\$STAGING_GOOGLE_SHEETS_WEBHOOK_URL"/);
+  assert.match(workflow, /test -n "\$STAGING_GOOGLE_SHEETS_WEBHOOK_SECRET"/);
+  assert.match(workflow, /--secrets-file=\/tmp\/giacong-staging-google-delivery-secrets\.json/);
+  assert.match(workflow, /Remove ephemeral staging Google delivery secret file/);
+  assert.doesNotMatch(workflow, /AKfy[a-zA-Z0-9_-]{20,}/, "A real Apps Script deployment capability must never be committed to CI source.");
+});
