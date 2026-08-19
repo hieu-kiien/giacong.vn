@@ -6,6 +6,7 @@ import { classifyAccessApplications } from "./access-application-targets.mjs";
 const ciUrl = new URL("../../../.github/workflows/ci-cloudflare.yml", import.meta.url);
 const deepQaUrl = new URL("../../../.github/workflows/cloudflare-staging-deep-qa.yml", import.meta.url);
 const deepQaScriptUrl = new URL("./staging-deep-qa.mjs", import.meta.url);
+const directQaManagerUrl = new URL("./manage-staging-direct-qa.mjs", import.meta.url);
 const accessBootstrapUrl = new URL("./ensure-staging-access-service-auth.mjs", import.meta.url);
 
 test("pull requests package OpenNext for staging without deploying remote state", async () => {
@@ -76,7 +77,7 @@ test("Access target discovery accepts exact destinations but rejects wildcard an
   assert.equal(broadResult.relatedApps.length, 2);
 });
 
-test("deep QA waits for successful staging deployment and checks out the deployed commit", async () => {
+test("deep QA waits for successful deployment and separates edge from application QA", async () => {
   const workflow = await readFile(deepQaUrl, "utf8");
 
   assert.match(workflow, /workflow_run:/);
@@ -84,11 +85,26 @@ test("deep QA waits for successful staging deployment and checks out the deploye
   assert.match(workflow, /github\.event\.workflow_run\.conclusion == 'success'/);
   assert.match(workflow, /github\.event\.workflow_run\.head_sha/);
   assert.doesNotMatch(workflow, /\n  push:/);
-  assert.match(workflow, /https:\/\/staging\.kienhieu\.id\.vn/);
+  assert.match(workflow, /STAGING_EDGE_ORIGIN:[\s\S]*https:\/\/staging\.kienhieu\.id\.vn/);
+  assert.match(workflow, /staging-edge-protection-qa\.mjs/);
+  assert.match(workflow, /manage-staging-direct-qa\.mjs open/);
+  assert.match(workflow, /manage-staging-direct-qa\.mjs restore/);
   assert.match(workflow, /CLOUDFLARE_ACCESS_CLIENT_ID/);
   assert.match(workflow, /CLOUDFLARE_ACCESS_CLIENT_SECRET/);
   assert.match(workflow, /node scripts\/staging-deep-qa\.mjs/);
-  assert.doesNotMatch(workflow, /workers\.dev/);
+});
+
+test("free-tier direct QA opens only a temporary script subdomain and restores prior state", async () => {
+  const script = await readFile(directQaManagerUrl, "utf8");
+
+  assert.match(script, /\/workers\/subdomain/);
+  assert.match(script, /\/workers\/scripts\/\$\{scriptName\}\/subdomain/);
+  assert.match(script, /enabled: true, previews_enabled: false/);
+  assert.match(script, /STAGING_DIRECT_QA_PREVIOUS_ENABLED/);
+  assert.match(script, /STAGING_DIRECT_QA_PREVIOUS_PREVIEWS/);
+  assert.match(script, /STAGING_ORIGIN/);
+  assert.match(script, /\.workers\.dev/);
+  assert.doesNotMatch(script, /zones\/.*settings|bot_management|firewall\/rules|rulesets/);
 });
 
 test("staging deep QA sends the Access service token through HTTP and browser checks", async () => {
