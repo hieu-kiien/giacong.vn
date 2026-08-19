@@ -1,5 +1,6 @@
 export const STAGING_DIRECT_QA_MODE = "readonly-public-qa";
 export const STAGING_ADMIN_PREVIEW_MODE = "access-protected-admin-preview";
+export const STAGING_G2_PREVIEW_MODE = "access-protected-g2-preview";
 
 const safeContactProbeRequestId = "00000000-0000-4000-8000-000000000001";
 const safeContactProbeSnapshot = "0".repeat(64);
@@ -11,10 +12,17 @@ export function allowsStagingDirectQaRequest(request: Request, mode: string | un
   if (!isWorkersDev(url)) return true;
 
   const pathname = url.pathname;
-  if (mode?.trim() === STAGING_ADMIN_PREVIEW_MODE) {
+  const normalizedMode = mode?.trim();
+  if (normalizedMode === STAGING_ADMIN_PREVIEW_MODE) {
     return isAdminApiPath(pathname);
   }
-  if (mode?.trim() !== STAGING_DIRECT_QA_MODE) return false;
+  if (normalizedMode === STAGING_G2_PREVIEW_MODE) {
+    if (isAdminApiPath(pathname)) return true;
+    if (isAdminUiPath(pathname)) return false;
+    const method = request.method.toUpperCase();
+    return method === "GET" || method === "HEAD";
+  }
+  if (normalizedMode !== STAGING_DIRECT_QA_MODE) return false;
   if (isAdminPath(pathname)) return false;
 
   const method = request.method.toUpperCase();
@@ -71,8 +79,10 @@ function isAdminApiPath(pathname: string): boolean {
   return pathname === "/api/admin" || pathname.startsWith("/api/admin/");
 }
 
+function isAdminUiPath(pathname: string): boolean {
+  return pathname === "/admin" || pathname.startsWith("/admin/");
+}
+
 function isAdminPath(pathname: string): boolean {
-  return pathname === "/admin"
-    || pathname.startsWith("/admin/")
-    || isAdminApiPath(pathname);
+  return isAdminUiPath(pathname) || isAdminApiPath(pathname);
 }
