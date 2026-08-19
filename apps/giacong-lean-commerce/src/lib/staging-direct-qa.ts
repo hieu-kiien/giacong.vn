@@ -1,6 +1,7 @@
 export const STAGING_DIRECT_QA_MODE = "readonly-public-qa";
 export const STAGING_ADMIN_PREVIEW_MODE = "access-protected-admin-preview";
 export const STAGING_G2_PREVIEW_MODE = "access-protected-g2-preview";
+export const STAGING_G3_PREVIEW_MODE = "access-protected-g3-preview";
 
 const safeContactProbeRequestId = "00000000-0000-4000-8000-000000000001";
 const safeContactProbeSnapshot = "0".repeat(64);
@@ -21,6 +22,12 @@ export function allowsStagingDirectQaRequest(request: Request, mode: string | un
     if (isAdminUiPath(pathname)) return false;
     const method = request.method.toUpperCase();
     return method === "GET" || method === "HEAD";
+  }
+  if (normalizedMode === STAGING_G3_PREVIEW_MODE) {
+    const method = request.method.toUpperCase();
+    if (method === "GET" && isLeadAdminApiPath(pathname)) return true;
+    if (method !== "POST") return false;
+    return pathname === "/api/gui-yeu-cau/xac-thuc" || pathname === "/api/contact";
   }
   if (normalizedMode !== STAGING_DIRECT_QA_MODE) return false;
   if (isAdminPath(pathname)) return false;
@@ -77,6 +84,10 @@ function isWorkersDev(url: URL): boolean {
 
 function isAdminApiPath(pathname: string): boolean {
   return pathname === "/api/admin" || pathname.startsWith("/api/admin/");
+}
+
+function isLeadAdminApiPath(pathname: string): boolean {
+  return pathname === "/api/admin/leads" || pathname.startsWith("/api/admin/leads/");
 }
 
 function isAdminUiPath(pathname: string): boolean {
