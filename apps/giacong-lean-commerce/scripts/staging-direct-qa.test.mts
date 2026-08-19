@@ -5,6 +5,7 @@ import {
   allowsStagingDirectQaRuntimeRequest,
   STAGING_ADMIN_PREVIEW_MODE,
   STAGING_DIRECT_QA_MODE,
+  STAGING_G2_PREVIEW_MODE,
 } from "../src/lib/staging-direct-qa.ts";
 
 function request(path: string, method = "GET", host = "giacong-vn-staging.example.workers.dev", body?: string) {
@@ -44,7 +45,7 @@ test("temporary workers.dev never exposes admin or arbitrary state-changing inta
   assert.equal(await allowsStagingDirectQaRuntimeRequest(arbitraryContact, STAGING_DIRECT_QA_MODE), false);
 });
 
-test("Access-protected preview mode admits only admin API paths to the application auth boundary", async () => {
+test("Access-protected admin preview mode admits only admin API paths to the application auth boundary", async () => {
   for (const method of ["GET", "POST", "PATCH", "DELETE"]) {
     assert.equal(allowsStagingDirectQaRequest(request("/api/admin/news", method), STAGING_ADMIN_PREVIEW_MODE), true, method);
   }
@@ -53,6 +54,26 @@ test("Access-protected preview mode admits only admin API paths to the applicati
   }
   assert.equal(
     await allowsStagingDirectQaRuntimeRequest(request("/api/contact", "POST", undefined, "{}"), STAGING_ADMIN_PREVIEW_MODE),
+    false,
+  );
+});
+
+test("Access-protected G2 preview admits Admin APIs plus read-only public rendering, but no Admin UI or non-Admin writes", async () => {
+  for (const method of ["GET", "POST", "PATCH", "DELETE"]) {
+    assert.equal(allowsStagingDirectQaRequest(request("/api/admin/news", method), STAGING_G2_PREVIEW_MODE), true, method);
+  }
+  for (const path of ["/", "/tin-tuc", "/tin-tuc/g2-example", "/media/news/articles/1/example.png", "/api/catalog/products/example"]) {
+    assert.equal(allowsStagingDirectQaRequest(request(path, "GET"), STAGING_G2_PREVIEW_MODE), true, path);
+    assert.equal(allowsStagingDirectQaRequest(request(path, "HEAD"), STAGING_G2_PREVIEW_MODE), true, `${path} HEAD`);
+  }
+  for (const path of ["/admin", "/admin/tin-tuc"]) {
+    assert.equal(allowsStagingDirectQaRequest(request(path), STAGING_G2_PREVIEW_MODE), false, path);
+  }
+  for (const [path, method] of [["/api/contact", "POST"], ["/api/gui-yeu-cau/xac-thuc", "POST"], ["/tin-tuc", "POST"], ["/media/news/example.png", "DELETE"]]) {
+    assert.equal(allowsStagingDirectQaRequest(request(path, method), STAGING_G2_PREVIEW_MODE), false, `${method} ${path}`);
+  }
+  assert.equal(
+    await allowsStagingDirectQaRuntimeRequest(request("/api/contact", "POST", undefined, "{}"), STAGING_G2_PREVIEW_MODE),
     false,
   );
 });
