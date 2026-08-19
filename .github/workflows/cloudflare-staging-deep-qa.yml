@@ -61,22 +61,22 @@ jobs:
         run: node scripts/manage-staging-direct-qa.mjs open
 
       - name: Verify baseline security headers
-        run: node scripts/staging-security-qa.mjs
+        run: node scripts/run-staging-qa-with-direct-route-retry.mjs scripts/staging-security-qa.mjs
 
       - name: Install Chromium for responsive QA
         run: npx playwright install chromium
 
       - name: Verify accessibility semantics and keyboard focus
-        run: node scripts/staging-accessibility-qa.mjs
+        run: node scripts/run-staging-qa-with-direct-route-retry.mjs scripts/staging-accessibility-qa.mjs
 
       - name: Verify performance lab anti-regression budgets
-        run: node scripts/staging-performance-qa.mjs
+        run: node scripts/run-staging-qa-with-direct-route-retry.mjs scripts/staging-performance-qa.mjs
 
       - name: Run staging deep QA through guarded direct route
-        run: node scripts/staging-deep-qa.mjs
+        run: node scripts/run-staging-qa-with-direct-route-retry.mjs scripts/staging-deep-qa.mjs
 
       - name: Run News staging regression QA
-        run: node scripts/staging-news-qa.mjs
+        run: node scripts/run-staging-qa-with-direct-route-retry.mjs scripts/staging-news-qa.mjs
 
       - name: Restore persistent workers.dev state
         if: always()
