@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
+import { fetchQaRoute } from "./staging-qa-http.mjs";
 
 const origin = requiredEnv("STAGING_ORIGIN").replace(/\/$/, "");
+const directQa = process.env.STAGING_DIRECT_QA?.trim() === "1";
 const accessHeaders = {
   "CF-Access-Client-Id": requiredEnv("CLOUDFLARE_ACCESS_CLIENT_ID"),
   "CF-Access-Client-Secret": requiredEnv("CLOUDFLARE_ACCESS_CLIENT_SECRET"),
@@ -14,10 +16,13 @@ const routes = [
 ];
 
 for (const route of routes) {
-  const response = await fetch(`${origin}${route}`, {
+  const response = await fetchQaRoute(`${origin}${route}`, {
     headers: accessHeaders,
     redirect: "follow",
-    signal: AbortSignal.timeout(25000),
+  }, {
+    directQa,
+    maxAttempts: 6,
+    timeoutMs: 25000,
   });
 
   if (response.status >= 400) {
