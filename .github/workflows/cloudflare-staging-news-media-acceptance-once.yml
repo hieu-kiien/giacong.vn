@@ -1,7 +1,7 @@
 name: Cloudflare staging News media acceptance once
 
-# One-time G2 execution marker, re-armed after adding a bounded retry only for
-# recognized transient 502/503/504 failures in the guarded staging deep-QA run.
+# One-time G2 execution marker, re-armed after accessibility navigation moved
+# off flaky network-idle waiting while retaining bounded transient navigation retries.
 # The automatic gate below requires this file to be changed by the accepted
 # source commit before any staging mutation runs.
 

@@ -27,6 +27,19 @@ test("staging accessibility QA covers public semantic and keyboard acceptance", 
   assert.match(runtime, /outlineVisible \|\| shadowVisible/);
 });
 
+test("accessibility navigation waits for usable DOM without depending on network idle", async () => {
+  const runtime = await source("scripts/staging-accessibility-qa.mjs");
+
+  assert.match(runtime, /async function gotoForAudit/);
+  assert.match(runtime, /const maxAttempts = 3/);
+  assert.match(runtime, /waitUntil: "domcontentloaded"/);
+  assert.doesNotMatch(runtime, /waitUntil: "networkidle"/);
+  assert.match(runtime, /\[502, 503, 504\]\.includes\(status\)/);
+  assert.match(runtime, /error\.name === "TimeoutError"/);
+  assert.match(runtime, /page\.locator\("body"\)\.waitFor/);
+  assert.match(runtime, /status < 400/);
+});
+
 test("post-deploy deep QA runs accessibility after Chromium installation and before broader browser QA", async () => {
   const workflow = await readFile(workflowUrl, "utf8");
   const install = "npx playwright install chromium";
