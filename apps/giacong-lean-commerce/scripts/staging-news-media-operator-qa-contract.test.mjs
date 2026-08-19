@@ -22,6 +22,28 @@ test("G2 News media acceptance runs only after successful staging deep QA and re
   assert.match(workflow, /G2 remains OPEN/);
 });
 
+test("G2 proves the protected admin mutation boundary before creating staging data and emits only safe response diagnostics", async () => {
+  const workflow = await readFile(workflowUrl, "utf8");
+  const preflight = "Verify protected admin mutation boundary";
+  const operator = "Run Access-authenticated News media operator acceptance";
+
+  assert.ok(workflow.includes(preflight));
+  assert.ok(workflow.includes(operator));
+  assert.ok(workflow.indexOf(preflight) < workflow.indexOf(operator));
+  assert.match(workflow, /--request POST/);
+  assert.match(workflow, /\$\{ADMIN_STAGING_ORIGIN\}\/api\/admin\/news/);
+  assert.match(workflow, /--data '\{\}'/);
+  assert.match(workflow, /\[\[ "\$status" != "422" \]\]/);
+  assert.match(workflow, /VALIDATION_ERROR/);
+  assert.match(workflow, /G2_ADMIN_MUTATION_PREFLIGHT_DIAGNOSTIC/);
+  assert.match(workflow, /cf-mitigated:/i);
+  assert.match(workflow, /cf-ray:/i);
+  assert.match(workflow, /content-type:/i);
+  assert.match(workflow, /server:/i);
+  assert.match(workflow, /cut -c1-500/);
+  assert.doesNotMatch(workflow, /bodySnippet.*CLOUDFLARE_ACCESS_CLIENT_SECRET/);
+});
+
 test("G2 operator runtime exercises persisted thumbnail protection, replacement and D1/R2 post-conditions", async () => {
   const runtime = await readFile(new URL("scripts/staging-news-media-operator-qa.mjs", root), "utf8");
 
