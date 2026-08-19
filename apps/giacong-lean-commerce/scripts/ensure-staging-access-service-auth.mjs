@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { appendFile } from "node:fs/promises";
 import {
   classifyAccessApplications,
   formatRelatedAccessApps,
@@ -9,28 +10,51 @@ const accountId = requiredEnv("CLOUDFLARE_ACCOUNT_ID");
 const targetDomain = process.env.ACCESS_SERVICE_AUTH_DOMAIN?.trim() || "staging.kienhieu.id.vn";
 const policyName = process.env.ACCESS_SERVICE_AUTH_POLICY_NAME?.trim() || `GitHub Service Auth ${targetDomain}`;
 const accessAppRequired = process.env.ACCESS_SERVICE_AUTH_REQUIRED?.trim().toLowerCase() === "true";
+const createAppIfMissing = process.env.ACCESS_APPLICATION_CREATE_IF_MISSING?.trim().toLowerCase() === "true";
+const appName = process.env.ACCESS_APPLICATION_NAME?.trim() || `Giacong staging ${targetDomain}`;
 
 assert.match(targetDomain, /^[a-z0-9.-]+$/i, "ACCESS_SERVICE_AUTH_DOMAIN is invalid.");
+assert.ok(appName.length >= 1 && appName.length <= 350, "ACCESS_APPLICATION_NAME is invalid.");
 
-const applications = await cloudflareApi(`/accounts/${accountId}/access/apps?per_page=100`);
-const { exactApps: targetApps, relatedApps } = classifyAccessApplications(applications.result ?? [], targetDomain);
-if (targetApps.length === 0 && relatedApps.length > 0) {
-  throw new Error(
-    `ACCESS_APP_SCOPE_TOO_BROAD: Access application configuration covers ${targetDomain} but is not scoped exclusively `
-    + `to that whole hostname. Refusing to add an application-level Service Auth policy. ${formatRelatedAccessApps(relatedApps)}`,
-  );
-}
-if (targetApps.length === 0 && !accessAppRequired) {
+let applications = await cloudflareApi(`/accounts/${accountId}/access/apps?per_page=100`);
+let classified = classifyAccessApplications(applications.result ?? [], targetDomain);
+refuseBroadScope(classified.relatedApps);
+
+if (classified.exactApps.length === 0 && !accessAppRequired) {
   console.log(`No Access application exists for ${targetDomain}; Service Auth bootstrap is not required for this target.`);
   process.exit(0);
 }
+
+if (classified.exactApps.length === 0 && accessAppRequired && createAppIfMissing) {
+  const created = await cloudflareApi(`/accounts/${accountId}/access/apps`, {
+    method: "POST",
+    body: JSON.stringify({
+      app_launcher_visible: false,
+      destinations: [{ type: "public", uri: `https://${targetDomain}/*` }],
+      domain: targetDomain,
+      name: appName,
+      service_auth_401_redirect: true,
+      session_duration: "8h",
+      type: "self_hosted",
+    }),
+  });
+  assert.equal(created.result?.type, "self_hosted", "Created Access application must be self_hosted.");
+  console.log(`Created exact staging Access application '${appName}' for ${targetDomain}.`);
+
+  applications = await cloudflareApi(`/accounts/${accountId}/access/apps?per_page=100`);
+  classified = classifyAccessApplications(applications.result ?? [], targetDomain);
+  refuseBroadScope(classified.relatedApps);
+}
+
 assert.equal(
-  targetApps.length,
+  classified.exactApps.length,
   1,
-  `Expected exactly one Access application scoped exclusively to ${targetDomain}, found ${targetApps.length}.`,
+  `Expected exactly one Access application scoped exclusively to ${targetDomain}, found ${classified.exactApps.length}.`,
 );
-const app = targetApps[0];
+const app = classified.exactApps[0];
 assert.ok(app?.id, "Target Access application must expose an id.");
+assert.match(app?.aud ?? "", /^[0-9a-f]{64}$/i, "Target Access application must expose a valid AUD tag.");
+await writeGithubOutput("aud", app.aud);
 
 const serviceClientId = requiredEnv("CLOUDFLARE_ACCESS_CLIENT_ID");
 const serviceTokens = await cloudflareApi(`/accounts/${accountId}/access/service_tokens?per_page=1000`);
@@ -69,10 +93,24 @@ assert.equal(created.success, true, "Cloudflare did not confirm Access policy cr
 assert.equal(created.result?.decision, "non_identity", "Created policy must be Service Auth/non_identity.");
 console.log(`Created Access Service Auth policy '${policyName}' for ${targetDomain}.`);
 
+function refuseBroadScope(relatedApps) {
+  if (relatedApps.length === 0) return;
+  throw new Error(
+    `ACCESS_APP_SCOPE_TOO_BROAD: Access application configuration covers ${targetDomain} but is not scoped exclusively `
+    + `to that whole hostname. Refusing to add an application-level Service Auth policy. ${formatRelatedAccessApps(relatedApps)}`,
+  );
+}
+
 function requiredEnv(name) {
   const value = process.env[name]?.trim();
   if (!value) throw new Error(`${name} is required.`);
   return value;
+}
+
+async function writeGithubOutput(name, value) {
+  const outputPath = process.env.GITHUB_OUTPUT?.trim();
+  if (!outputPath) return;
+  await appendFile(outputPath, `${name}=${value}\n`, "utf8");
 }
 
 async function cloudflareApi(pathname, init = {}) {
