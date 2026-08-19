@@ -23,7 +23,7 @@ test("G2 News media acceptance runs only after successful staging deep QA and re
   assert.match(workflow, /G2 remains OPEN/);
 });
 
-test("G2 uses an Access-protected Worker preview for admin mutation without changing active staging traffic", async () => {
+test("G2 uses one Access-protected Worker preview for Admin mutation and read-only application rendering without changing active staging traffic", async () => {
   const workflow = await readFile(workflowUrl, "utf8");
   const previewAccess = await readFile(previewAccessUrl, "utf8");
   const previewConfig = await readFile(previewConfigUrl, "utf8");
@@ -46,6 +46,7 @@ test("G2 uses an Access-protected Worker preview for admin mutation without chan
     "preview routing must be restored after the operator acceptance attempt",
   );
   assert.match(workflow, /ADMIN_STAGING_ORIGIN:\s*\$\{\{ steps\.preview_access\.outputs\.origin \}\}/);
+  assert.match(workflow, /STAGING_ORIGIN:\s*\$\{\{ steps\.preview_access\.outputs\.origin \}\}/);
   assert.match(workflow, /ACTIVE_STAGING_VERSION/);
   assert.match(workflow, /Verify active staging traffic remained unchanged/);
   assert.doesNotMatch(workflow, /--request POST[\s\S]*\$\{ADMIN_STAGING_ORIGIN\}\/api\/admin\/news[\s\S]*--data '\{\}'/);
@@ -64,7 +65,7 @@ test("G2 uses an Access-protected Worker preview for admin mutation without chan
   assert.match(previewConfig, /ADMIN_HOSTNAMES/);
   assert.match(previewConfig, /POLICY_AUD/);
   assert.match(previewConfig, /STAGING_DIRECT_QA_MODE/);
-  assert.match(previewConfig, /access-protected-admin-preview/);
+  assert.match(previewConfig, /access-protected-g2-preview/);
   assert.match(previewConfig, /Production POLICY_AUD/);
   assert.match(previewConfig, /Production STAGING_DIRECT_QA_MODE/);
 
@@ -87,4 +88,6 @@ test("G2 operator runtime exercises persisted thumbnail protection, replacement 
   assert.match(runtime, /replacementR2HttpStatus:\s*200/);
   assert.match(runtime, /DELETE FROM admin_members/);
   assert.match(runtime, /articleArchived/);
+  assert.match(runtime, /public target/);
+  assert.match(runtime, /headers:\s*accessHeaders/);
 });
