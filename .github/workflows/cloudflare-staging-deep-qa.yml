@@ -73,7 +73,34 @@ jobs:
         run: node scripts/staging-performance-qa.mjs
 
       - name: Run staging deep QA through guarded direct route
-        run: node scripts/staging-deep-qa.mjs
+        shell: bash
+        run: |
+          set -uo pipefail
+          max_attempts=3
+          for attempt in $(seq 1 "$max_attempts"); do
+            log_file="$(mktemp)"
+            set +e
+            node scripts/staging-deep-qa.mjs 2>&1 | tee "$log_file"
+            status=${PIPESTATUS[0]}
+            set -e
+            if [[ "$status" -eq 0 ]]; then
+              rm -f "$log_file"
+              exit 0
+            fi
+            if ! grep -Eq 'HTTP (502|503|504)([^0-9]|$)' "$log_file"; then
+              echo "Deep QA failed without a recognized transient 502/503/504; not retrying."
+              rm -f "$log_file"
+              exit "$status"
+            fi
+            if [[ "$attempt" -ge "$max_attempts" ]]; then
+              echo "Deep QA still failed with a transient 5xx after ${max_attempts} attempts."
+              rm -f "$log_file"
+              exit "$status"
+            fi
+            echo "Deep QA attempt ${attempt}/${max_attempts} hit a transient 502/503/504; retrying after 3 seconds."
+            rm -f "$log_file"
+            sleep 3
+          done
 
       - name: Run News staging regression QA
         run: node scripts/staging-news-qa.mjs
