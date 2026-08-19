@@ -16,6 +16,10 @@ function duplicateIds(markup: string): string[] {
     .sort();
 }
 
+function inputByName(markup: string, name: string): string | null {
+  return markup.match(new RegExp(`<input\\b(?=[^>]*\\bname=(["'])${name}\\1)[^>]*>`, "i"))?.[0] ?? null;
+}
+
 test("captured WordPress content keeps one main landmark", () => {
   const input = '<main id="main"><div id="content" role="main" class="content-area"><p>Body</p></div></main>';
   const normalized = normalizeCapturedMarkup(input);
@@ -50,11 +54,28 @@ test("captured inline SVG roots keep the first id and drop repeated root ids", (
   assert.match(normalized, /<svg id="unique-svg"/);
 });
 
-test("the captured homepage normalizes to unique DOM ids", async () => {
+test("captured Contact Form 7 placeholders supply accessible names only when needed", () => {
+  const input = [
+    '<input class="wpcf7-form-control wpcf7-text" name="text-34" placeholder="Họ và tên" type="text"/>',
+    '<input aria-label="Số liên hệ" class="wpcf7-form-control wpcf7-tel" name="tel-471" placeholder="Số điện thoại" type="tel"/>',
+    '<input class="other-control" name="other" placeholder="Không đổi" type="text"/>',
+  ].join("");
+  const normalized = normalizeCapturedMarkup(input);
+
+  assert.match(inputByName(normalized, "text-34") ?? "", /aria-label="Họ và tên"/);
+  assert.equal((inputByName(normalized, "tel-471")?.match(/aria-label=/g) ?? []).length, 1);
+  assert.match(inputByName(normalized, "tel-471") ?? "", /aria-label="Số liên hệ"/);
+  assert.doesNotMatch(inputByName(normalized, "other") ?? "", /aria-label=/);
+});
+
+test("the captured homepage normalizes to unique DOM ids and named visible contact controls", async () => {
   const source = JSON.parse(
     await readFile(new URL("src/data/pages/home.json", root), "utf8"),
   ) as { markup: string };
+  const normalized = normalizeCapturedMarkup(source.markup);
 
   assert.deepEqual(duplicateIds(source.markup), ["Layer_1"]);
-  assert.deepEqual(duplicateIds(normalizeCapturedMarkup(source.markup)), []);
+  assert.deepEqual(duplicateIds(normalized), []);
+  assert.match(inputByName(normalized, "text-34") ?? "", /aria-label="Họ và tên"/);
+  assert.match(inputByName(normalized, "tel-471") ?? "", /aria-label="Số điện thoại"/);
 });
