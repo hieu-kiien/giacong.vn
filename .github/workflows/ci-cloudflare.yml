@@ -72,8 +72,23 @@ jobs:
       - name: Build OpenNext for Cloudflare staging
         run: npm run cf:build:staging
 
+      - name: Prepare non-sensitive dry-run secret placeholders
+        shell: bash
+        run: |
+          set -euo pipefail
+          jq -n \
+            --arg url "https://script.google.com/macros/s/dry-run-placeholder/exec" \
+            --arg secret "dry-run-placeholder" \
+            '{GOOGLE_SHEETS_WEBHOOK_URL: $url, GOOGLE_SHEETS_WEBHOOK_SECRET: $secret}' \
+            > /tmp/giacong-staging-dry-run-secrets.json
+          chmod 600 /tmp/giacong-staging-dry-run-secrets.json
+
       - name: Validate Wrangler package without deploying
-        run: npx --yes wrangler@4.115.0 deploy --env=staging --dry-run --outdir=.wrangler-dry-run
+        run: npx --yes wrangler@4.115.0 deploy --env=staging --dry-run --outdir=.wrangler-dry-run --secrets-file=/tmp/giacong-staging-dry-run-secrets.json
+
+      - name: Remove dry-run secret placeholders
+        if: always()
+        run: rm -f /tmp/giacong-staging-dry-run-secrets.json
 
   staging-deploy:
     name: Deploy Cloudflare staging
@@ -92,6 +107,8 @@ jobs:
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       CLOUDFLARE_ACCESS_CLIENT_ID: ${{ secrets.CLOUDFLARE_ACCESS_CLIENT_ID }}
       CLOUDFLARE_ACCESS_CLIENT_SECRET: ${{ secrets.CLOUDFLARE_ACCESS_CLIENT_SECRET }}
+      STAGING_GOOGLE_SHEETS_WEBHOOK_URL: ${{ secrets.STAGING_GOOGLE_SHEETS_WEBHOOK_URL }}
+      STAGING_GOOGLE_SHEETS_WEBHOOK_SECRET: ${{ secrets.STAGING_GOOGLE_SHEETS_WEBHOOK_SECRET }}
 
     steps:
       - name: Checkout
@@ -106,6 +123,19 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Prepare encrypted staging Google delivery secrets
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$STAGING_GOOGLE_SHEETS_WEBHOOK_URL"
+          test -n "$STAGING_GOOGLE_SHEETS_WEBHOOK_SECRET"
+          jq -n \
+            --arg url "$STAGING_GOOGLE_SHEETS_WEBHOOK_URL" \
+            --arg secret "$STAGING_GOOGLE_SHEETS_WEBHOOK_SECRET" \
+            '{GOOGLE_SHEETS_WEBHOOK_URL: $url, GOOGLE_SHEETS_WEBHOOK_SECRET: $secret}' \
+            > /tmp/giacong-staging-google-delivery-secrets.json
+          chmod 600 /tmp/giacong-staging-google-delivery-secrets.json
 
       - name: Verify Cloudflare credentials and current staging worker
         run: npx --yes wrangler@4.115.0 deployments status --env=staging --json
@@ -136,13 +166,13 @@ jobs:
         run: npx opennextjs-cloudflare build --env=staging --config=.wrangler-staging-runtime.json
 
       - name: Validate Wrangler package before changing remote state
-        run: npx --yes wrangler@4.115.0 deploy --config=.wrangler-staging-runtime.json --env=staging --dry-run --outdir=.wrangler-dry-run
+        run: npx --yes wrangler@4.115.0 deploy --config=.wrangler-staging-runtime.json --env=staging --dry-run --outdir=.wrangler-dry-run --secrets-file=/tmp/giacong-staging-google-delivery-secrets.json
 
       - name: Apply pending D1 staging migrations
         run: npx --yes wrangler@4.115.0 d1 migrations apply GIACONG_VN_CATALOG --env=staging --remote
 
       - name: Deploy the validated OpenNext build to staging
-        run: npx opennextjs-cloudflare deploy --env=staging --config=.wrangler-staging-runtime.json
+        run: npx opennextjs-cloudflare deploy --env=staging --config=.wrangler-staging-runtime.json --secrets-file=/tmp/giacong-staging-google-delivery-secrets.json
 
       - name: Verify active staging deployment
         shell: bash
@@ -193,6 +223,10 @@ jobs:
             --header "X-GitHub-Api-Version: 2022-11-28" \
             "https://api.github.com/repos/${GITHUB_REPOSITORY}/issues/${TRACKING_ISSUE}/comments" \
             --data "$payload" >/dev/null
+
+      - name: Remove ephemeral staging Google delivery secret file
+        if: always()
+        run: rm -f /tmp/giacong-staging-google-delivery-secrets.json
 
   staging-gate-failure-evidence:
     name: Record failed master staging gate evidence
