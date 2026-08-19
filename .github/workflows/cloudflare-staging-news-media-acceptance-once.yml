@@ -1,7 +1,7 @@
 name: Cloudflare staging News media acceptance once
 
-# One-time G2 execution marker, re-armed after the transient deep-QA runner
-# reliability fix. Merge this workflow change only after G1 has a correlated
+# One-time G2 execution marker, re-armed after the representative workers.dev
+# route-readiness fix. Merge this workflow change only after G1 has a correlated
 # successful master staging deployment + deep-QA evidence pair in issue #70.
 # The automatic gate below intentionally requires this file to be changed by
 # the accepted source commit before any staging mutation runs.
