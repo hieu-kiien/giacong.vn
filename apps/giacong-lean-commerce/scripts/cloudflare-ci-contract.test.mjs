@@ -60,9 +60,11 @@ test("Access bootstrap creates only an exact required staging application and re
   assert.match(script, /application-level Service Auth policy/);
   assert.match(script, /classified\.exactApps\.length === 0 && !accessAppRequired/);
   assert.match(script, /classified\.exactApps\.length === 0 && accessAppRequired && createAppIfMissing/);
-  assert.match(script, /destinations:\s*\[\{ type: "public", uri: `https:\/\/\$\{targetDomain\}\/\*` \}\]/);
+  assert.match(script, /domain:\s*targetDomain/);
   assert.match(script, /type:\s*"self_hosted"/);
   assert.match(script, /service_auth_401_redirect:\s*true/);
+  assert.doesNotMatch(script, /destinations:\s*\[/);
+  assert.match(script, /assert\.equal\(created\.result\?\.domain, targetDomain/);
   assert.match(script, /assert\.match\(app\?\.aud \?\? "", \/\^\[0-9a-f\]\{64\}\$\/i/);
   assert.match(script, /writeGithubOutput\("aud", app\.aud\)/);
   assert.match(script, /token\?\.client_id === serviceClientId/);

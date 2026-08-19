@@ -30,7 +30,6 @@ if (classified.exactApps.length === 0 && accessAppRequired && createAppIfMissing
     method: "POST",
     body: JSON.stringify({
       app_launcher_visible: false,
-      destinations: [{ type: "public", uri: `https://${targetDomain}/*` }],
       domain: targetDomain,
       name: appName,
       service_auth_401_redirect: true,
@@ -39,6 +38,7 @@ if (classified.exactApps.length === 0 && accessAppRequired && createAppIfMissing
     }),
   });
   assert.equal(created.result?.type, "self_hosted", "Created Access application must be self_hosted.");
+  assert.equal(created.result?.domain, targetDomain, "Created Access application must secure exactly the requested hostname.");
   console.log(`Created exact staging Access application '${appName}' for ${targetDomain}.`);
 
   applications = await cloudflareApi(`/accounts/${accountId}/access/apps?per_page=100`);
