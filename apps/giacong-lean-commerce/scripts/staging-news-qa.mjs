@@ -143,7 +143,7 @@ async function verifyPublicNews(snapshot) {
       assert.ok((await filtered.text()).includes(publicArticle.title), "News category filter hid its canonical public article");
     }
   } else {
-    assert.match(archiveHtml, /Chưa có bài viết đã xuất bản|Chưa tìm thấy bài viết phù hợp/i, "empty News archive did not expose an empty state");
+    assert.match(archiveHtml, /Chưa có bài viết phù hợp|Chưa có bài viết để hiển thị/i, "empty News archive did not expose an empty state");
     console.log("No currently public News article exists; archive empty-state path verified.");
   }
 
