@@ -86,6 +86,12 @@
         "TEAM_DOMAIN": "https://jolly-brook-7bc8.cloudflareaccess.com",
         "POLICY_AUD": "3a6f8119b3824e5b5b50ba6830f697f1ac8e998bb0246307310b74c91073f35f"
       },
+      "secrets": {
+        "required": [
+          "GOOGLE_SHEETS_WEBHOOK_URL",
+          "GOOGLE_SHEETS_WEBHOOK_SECRET"
+        ]
+      },
       "assets": {
         "directory": ".open-next/assets",
         "binding": "ASSETS"
