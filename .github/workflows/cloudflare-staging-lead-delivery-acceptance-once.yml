@@ -1,0 +1,260 @@
+name: Cloudflare staging lead delivery acceptance once
+
+# One-time G3 execution marker. Automatic execution is allowed only after the
+# corresponding G2 News/media operator acceptance has succeeded on master.
+
+on:
+  workflow_run:
+    workflows:
+      - Cloudflare staging News media acceptance once
+    types:
+      - completed
+    branches:
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cloudflare-staging-lead-delivery-acceptance-once
+  cancel-in-progress: false
+
+jobs:
+  acceptance:
+    name: G3 real lead delivery acceptance
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      issues: write
+    defaults:
+      run:
+        working-directory: apps/giacong-lean-commerce
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_ACCESS_CLIENT_ID: ${{ secrets.CLOUDFLARE_ACCESS_CLIENT_ID }}
+      CLOUDFLARE_ACCESS_CLIENT_SECRET: ${{ secrets.CLOUDFLARE_ACCESS_CLIENT_SECRET }}
+      STAGING_DATABASE: giacong-vn-catalog-staging
+      STAGING_WORKER_NAME: giacong-vn-staging
+      G3_EVIDENCE_PATH: /tmp/g3-lead-delivery-evidence.json
+
+    steps:
+      - name: Checkout accepted staging source
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
+
+      - name: Gate automatic run to the G3 acceptance change
+        id: gate
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          SOURCE_SHA: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
+        run: |
+          set -euo pipefail
+          if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          changed="$(git diff-tree --no-commit-id --name-only -r -m "$SOURCE_SHA" | sort -u)"
+          printf '%s\n' "$changed"
+          if grep -Fxq '.github/workflows/cloudflare-staging-lead-delivery-acceptance-once.yml' <<<"$changed"; then
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "should_run=false" >> "$GITHUB_OUTPUT"
+            echo "This successful G2 run is unrelated to the one-time G3 acceptance change; skipping mutation."
+          fi
+
+      - name: Setup Node.js
+        if: steps.gate.outputs.should_run == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: apps/giacong-lean-commerce/package-lock.json
+
+      - name: Install dependencies
+        if: steps.gate.outputs.should_run == 'true'
+        run: npm ci
+
+      - name: Capture active staging version
+        if: steps.gate.outputs.should_run == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          deployment="$(npx --yes wrangler@4.115.0 deployments status --env=staging --json)"
+          active="$(jq -er 'if (.versions | length) == 1 and .versions[0].percentage == 100 then .versions[0].version_id else error("staging must have exactly one 100% active version") end' <<<"$deployment")"
+          echo "ACTIVE_STAGING_VERSION=${active}" >> "$GITHUB_ENV"
+          echo "Captured active staging version ${active}."
+
+      - name: Prepare Access-protected staging Worker preview
+        if: steps.gate.outputs.should_run == 'true'
+        id: preview_access
+        env:
+          G2_PREVIEW_ALIAS: g3-lead
+          G2_PREVIEW_ACCESS_APPLICATION_NAME: Giacong staging protected operator previews
+          G2_PREVIEW_ACCESS_POLICY_NAME: GitHub protected preview Service Auth
+        run: node scripts/prepare-g2-preview-access.mjs
+
+      - name: Prepare preview-only staging Wrangler config
+        if: steps.gate.outputs.should_run == 'true'
+        env:
+          G3_PREVIEW_ACCESS_AUD: ${{ steps.preview_access.outputs.aud }}
+          G3_PREVIEW_HOSTNAME: ${{ steps.preview_access.outputs.hostname }}
+          WRANGLER_G3_PREVIEW_CONFIG: .wrangler-g3-preview.json
+        run: node scripts/prepare-g3-preview-wrangler.mjs
+
+      - name: Build preview-only staging Worker
+        if: steps.gate.outputs.should_run == 'true'
+        run: npx opennextjs-cloudflare build --env=staging --config=.wrangler-g3-preview.json
+
+      - name: Open temporary preview URL routing
+        if: steps.gate.outputs.should_run == 'true'
+        run: node scripts/manage-g2-preview-routing.mjs open
+
+      - name: Upload protected preview version without traffic
+        if: steps.gate.outputs.should_run == 'true'
+        run: npx opennextjs-cloudflare upload --env=staging --config=.wrangler-g3-preview.json --preview-alias=g3-lead
+
+      - name: Verify active staging traffic remained unchanged
+        if: steps.gate.outputs.should_run == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          deployment="$(npx --yes wrangler@4.115.0 deployments status --env=staging --json)"
+          active="$(jq -er 'if (.versions | length) == 1 and .versions[0].percentage == 100 then .versions[0].version_id else error("staging must have exactly one 100% active version") end' <<<"$deployment")"
+          test "$active" = "$ACTIVE_STAGING_VERSION"
+          echo "Active staging traffic remains on ${active}; G3 preview upload did not deploy traffic."
+
+      - name: Run real Queue and secondary delivery acceptance
+        if: steps.gate.outputs.should_run == 'true'
+        env:
+          G3_STAGING_ORIGIN: ${{ steps.preview_access.outputs.origin }}
+        run: node scripts/staging-lead-delivery-operator-qa.mjs
+
+      - name: Verify active staging traffic still unchanged after acceptance
+        if: steps.gate.outputs.should_run == 'true' && success()
+        shell: bash
+        run: |
+          set -euo pipefail
+          deployment="$(npx --yes wrangler@4.115.0 deployments status --env=staging --json)"
+          active="$(jq -er 'if (.versions | length) == 1 and .versions[0].percentage == 100 then .versions[0].version_id else error("staging must have exactly one 100% active version") end' <<<"$deployment")"
+          test "$active" = "$ACTIVE_STAGING_VERSION"
+          echo "G3 acceptance left active staging traffic unchanged on ${active}."
+
+      - name: Restore persistent preview URL routing state
+        if: always() && steps.gate.outputs.should_run == 'true'
+        run: node scripts/manage-g2-preview-routing.mjs restore
+
+      - name: Record G3 acceptance evidence
+        if: steps.gate.outputs.should_run == 'true' && success()
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          TRACKING_ISSUE: "70"
+          SOURCE_SHA: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
+          SOURCE_G2_RUN_ID: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.id || github.run_id }}
+          G3_PREVIEW_ORIGIN: ${{ steps.preview_access.outputs.origin }}
+        run: |
+          set -euo pipefail
+          test -s "$G3_EVIDENCE_PATH"
+          jq -e '.queueAcceptedStatus == "queued" and .deliveryStatus == "delivered" and .adminInbox.visible == true and .adminInbox.deliveryStatus == "delivered" and .invalidInputHttpStatus == 400 and .invalidInputPersistedLeadCount == 0 and .replay.httpStatus == 202 and .replay.status == "delivered" and .replay.durableLeadCount == 1 and .replay.stableLeadId == true and .replay.stableWebhookReference == true and .replay.deliveryAttemptsAfter == .replay.deliveryAttemptsBefore' "$G3_EVIDENCE_PATH" >/dev/null
+
+          request_id="$(jq -r '.requestId' "$G3_EVIDENCE_PATH")"
+          lead_id="$(jq -r '.leadId' "$G3_EVIDENCE_PATH")"
+          public_reference="$(jq -r '.publicReference' "$G3_EVIDENCE_PATH")"
+          webhook_reference="$(jq -r '.webhookReference' "$G3_EVIDENCE_PATH")"
+          attempts="$(jq -r '.deliveryAttempts' "$G3_EVIDENCE_PATH")"
+          observed_at="$(jq -r '.observedAt' "$G3_EVIDENCE_PATH")"
+          run_url="https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          g2_url="https://github.com/${GITHUB_REPOSITORY}/actions/runs/${SOURCE_G2_RUN_ID}"
+
+          body=$(cat <<EOF
+          G3 durable request-delivery acceptance evidence
+
+          - accepted source SHA: ${SOURCE_SHA}
+          - prerequisite G2 run: ${g2_url}
+          - G3 acceptance run: ${run_url}
+          - protected G3 application preview: ${G3_PREVIEW_ORIGIN}
+          - active staging Worker version before/after acceptance: ${ACTIVE_STAGING_VERSION}
+          - real staging Queue enqueue: PASS
+          - real Queue consumer to configured secondary sink: PASS
+          - durable lead id: ${lead_id}
+          - request id: ${request_id}
+          - public D1 reference: ${public_reference}
+          - secondary sink reference: ${webhook_reference}
+          - persisted delivery status: delivered
+          - delivery bookkeeping attempts: ${attempts}
+          - D1-backed Admin inbox visibility: PASS
+          - invalid-input rejection before persistence: HTTP 400 / zero lead rows PASS
+          - exact request replay: one durable lead, stable references, no extra delivery attempt PASS
+          - temporary preview URL routing: restored to prior state PASS
+          - active staging traffic: unchanged PASS
+          - observed at: ${observed_at}
+
+          One controlled staging QA lead remains intentionally retained in D1 with source `staging-g3-queue-acceptance` so the durable Admin-side evidence continues to match the secondary delivery record. No production resource was mutated.
+          EOF
+          )
+          payload=$(jq -n --arg body "$body" '{body: $body}')
+          curl --fail-with-body --silent --show-error \
+            --request POST \
+            --header "Accept: application/vnd.github+json" \
+            --header "Authorization: Bearer ${GITHUB_TOKEN}" \
+            --header "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/issues/${TRACKING_ISSUE}/comments" \
+            --data "$payload" >/dev/null
+
+          {
+            echo "## G3 durable request delivery"
+            echo
+            echo "- Queue enqueue: PASS"
+            echo "- Queue consumer + secondary delivery: PASS"
+            echo "- D1 delivered state + Admin visibility: PASS"
+            echo "- Invalid input persistence guard: PASS"
+            echo "- Exact replay / no duplicate delivery: PASS"
+            echo "- Active staging traffic unchanged: PASS"
+            echo "- Evidence recorded in issue #70"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Remove local preview runtime config
+        if: always() && steps.gate.outputs.should_run == 'true'
+        run: rm -f .wrangler-g3-preview.json
+
+      - name: Record failed G3 acceptance evidence
+        if: steps.gate.outputs.should_run == 'true' && failure()
+        shell: bash
+        working-directory: .
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          TRACKING_ISSUE: "70"
+          SOURCE_SHA: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
+          SOURCE_G2_RUN_ID: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.id || github.run_id }}
+        run: |
+          set -euo pipefail
+          run_url="https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          g2_url="https://github.com/${GITHUB_REPOSITORY}/actions/runs/${SOURCE_G2_RUN_ID}"
+          observed_at=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
+          body=$(cat <<EOF
+          G3 durable request-delivery acceptance failure evidence
+
+          - accepted source SHA: ${SOURCE_SHA}
+          - prerequisite G2 run: ${g2_url}
+          - G3 acceptance run: ${run_url}
+          - observed at: ${observed_at}
+
+          The controlled staging customer-request delivery acceptance did not complete successfully. The workflow attempted to restore the recorded preview URL routing state before retaining this breadcrumb. G3 remains OPEN. Inspect this run before retrying. No production resource was mutated.
+          EOF
+          )
+          payload=$(jq -n --arg body "$body" '{body: $body}')
+          curl --fail-with-body --silent --show-error \
+            --request POST \
+            --header "Accept: application/vnd.github+json" \
+            --header "Authorization: Bearer ${GITHUB_TOKEN}" \
+            --header "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/issues/${TRACKING_ISSUE}/comments" \
+            --data "$payload" >/dev/null
