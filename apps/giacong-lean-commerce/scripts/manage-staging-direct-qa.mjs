@@ -31,6 +31,7 @@ if (action === "open") {
   });
 
   const origin = `https://${scriptName}.${accountSubdomain}.workers.dev`;
+  await waitForDirectRoute(origin);
   await writeGithubEnv({
     STAGING_DIRECT_QA: "1",
     STAGING_ORIGIN: origin,
@@ -69,6 +70,32 @@ async function writeGithubEnv(values) {
   const githubEnv = requiredEnv("GITHUB_ENV");
   const lines = Object.entries(values).map(([key, value]) => `${key}=${value}`).join("\n");
   await appendFile(githubEnv, `${lines}\n`, "utf8");
+}
+
+async function waitForDirectRoute(origin) {
+  const attempts = 30;
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    try {
+      const response = await fetch(`${origin}/`, {
+        redirect: "manual",
+        signal: AbortSignal.timeout(5000),
+      });
+      if (response.status < 400) {
+        console.log(`Temporary workers.dev route became ready on attempt ${attempt} (HTTP ${response.status}).`);
+        return;
+      }
+      console.log(`Waiting for temporary workers.dev propagation: attempt ${attempt}/${attempts}, HTTP ${response.status}.`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.log(`Waiting for temporary workers.dev propagation: attempt ${attempt}/${attempts}, ${message.slice(0, 160)}.`);
+    }
+    if (attempt < attempts) await delay(1000);
+  }
+  throw new Error(`Temporary workers.dev route for ${scriptName} did not become reachable within ${attempts} seconds.`);
+}
+
+function delay(milliseconds) {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds));
 }
 
 async function cloudflare(pathname, init = {}) {
