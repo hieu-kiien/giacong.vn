@@ -75,6 +75,14 @@ jobs:
       - name: Validate Wrangler package without deploying
         run: npx --yes wrangler@4.115.0 deploy --env=staging --dry-run --outdir=.wrangler-dry-run
 
+      - name: Install Chromium for real-browser challenge probe
+        run: npx playwright install --with-deps chromium
+
+      - name: Probe staging edge with real Chromium
+        env:
+          STAGING_ORIGIN: https://staging.kienhieu.id.vn
+        run: node scripts/staging-real-browser-challenge-probe.mjs
+
   staging-deploy:
     name: Deploy Cloudflare staging
     if: github.event_name != 'pull_request'
