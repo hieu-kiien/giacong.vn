@@ -6,6 +6,7 @@ import {
   STAGING_ADMIN_PREVIEW_MODE,
   STAGING_DIRECT_QA_MODE,
   STAGING_G2_PREVIEW_MODE,
+  STAGING_G3_PREVIEW_MODE,
 } from "../src/lib/staging-direct-qa.ts";
 
 function request(path: string, method = "GET", host = "giacong-vn-staging.example.workers.dev", body?: string) {
@@ -75,6 +76,31 @@ test("Access-protected G2 preview admits Admin APIs plus read-only public render
   assert.equal(
     await allowsStagingDirectQaRuntimeRequest(request("/api/contact", "POST", undefined, "{}"), STAGING_G2_PREVIEW_MODE),
     false,
+  );
+});
+
+test("Access-protected G3 preview admits only cart validation, contact intake and read-only lead Admin APIs", async () => {
+  assert.equal(allowsStagingDirectQaRequest(request("/api/gui-yeu-cau/xac-thuc", "POST"), STAGING_G3_PREVIEW_MODE), true);
+  assert.equal(allowsStagingDirectQaRequest(request("/api/contact", "POST"), STAGING_G3_PREVIEW_MODE), true);
+  assert.equal(allowsStagingDirectQaRequest(request("/api/admin/leads", "GET"), STAGING_G3_PREVIEW_MODE), true);
+  assert.equal(allowsStagingDirectQaRequest(request("/api/admin/leads/11111111-1111-4111-8111-111111111111", "GET"), STAGING_G3_PREVIEW_MODE), true);
+
+  for (const [path, method] of [
+    ["/", "GET"],
+    ["/san-pham", "GET"],
+    ["/admin", "GET"],
+    ["/api/admin/news", "GET"],
+    ["/api/admin/leads", "POST"],
+    ["/api/admin/leads/11111111-1111-4111-8111-111111111111", "PATCH"],
+    ["/api/contact", "GET"],
+    ["/api/gui-yeu-cau/xac-thuc", "DELETE"],
+  ]) {
+    assert.equal(allowsStagingDirectQaRequest(request(path, method), STAGING_G3_PREVIEW_MODE), false, `${method} ${path}`);
+  }
+
+  assert.equal(
+    await allowsStagingDirectQaRuntimeRequest(request("/api/contact", "POST", undefined, "{}"), STAGING_G3_PREVIEW_MODE),
+    true,
   );
 });
 

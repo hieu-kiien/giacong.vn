@@ -1,13 +1,12 @@
-name: Cloudflare staging News media acceptance once
+name: Cloudflare staging lead delivery acceptance once
 
-# One-time G2 execution marker, re-armed so the G3 source receives a fresh
-# correlated staging deploy, deep-QA and News/media acceptance before the
-# real customer-request delivery acceptance is allowed to run.
+# One-time G3 execution marker. Automatic execution is allowed only after the
+# corresponding G2 News/media operator acceptance has succeeded on master.
 
 on:
   workflow_run:
     workflows:
-      - Cloudflare staging deep QA
+      - Cloudflare staging News media acceptance once
     types:
       - completed
     branches:
@@ -18,12 +17,12 @@ permissions:
   contents: read
 
 concurrency:
-  group: cloudflare-staging-news-media-acceptance-once
+  group: cloudflare-staging-lead-delivery-acceptance-once
   cancel-in-progress: false
 
 jobs:
   acceptance:
-    name: G2 News media operator acceptance
+    name: G3 real lead delivery acceptance
     if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -38,10 +37,9 @@ jobs:
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       CLOUDFLARE_ACCESS_CLIENT_ID: ${{ secrets.CLOUDFLARE_ACCESS_CLIENT_ID }}
       CLOUDFLARE_ACCESS_CLIENT_SECRET: ${{ secrets.CLOUDFLARE_ACCESS_CLIENT_SECRET }}
-      STAGING_ORIGIN: ${{ vars.STAGING_ORIGIN || 'https://staging.kienhieu.id.vn' }}
       STAGING_DATABASE: giacong-vn-catalog-staging
       STAGING_WORKER_NAME: giacong-vn-staging
-      G2_EVIDENCE_PATH: /tmp/g2-news-media-evidence.json
+      G3_EVIDENCE_PATH: /tmp/g3-lead-delivery-evidence.json
 
     steps:
       - name: Checkout accepted staging source
@@ -50,7 +48,7 @@ jobs:
           fetch-depth: 2
           ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
 
-      - name: Gate automatic run to the G2 acceptance change
+      - name: Gate automatic run to the G3 acceptance change
         id: gate
         shell: bash
         env:
@@ -65,11 +63,11 @@ jobs:
 
           changed="$(git diff-tree --no-commit-id --name-only -r -m "$SOURCE_SHA" | sort -u)"
           printf '%s\n' "$changed"
-          if grep -Fxq '.github/workflows/cloudflare-staging-news-media-acceptance-once.yml' <<<"$changed"; then
+          if grep -Fxq '.github/workflows/cloudflare-staging-lead-delivery-acceptance-once.yml' <<<"$changed"; then
             echo "should_run=true" >> "$GITHUB_OUTPUT"
           else
             echo "should_run=false" >> "$GITHUB_OUTPUT"
-            echo "This successful deep-QA run is unrelated to the one-time G2 acceptance change; skipping mutation."
+            echo "This successful G2 run is unrelated to the one-time G3 acceptance change; skipping mutation."
           fi
 
       - name: Setup Node.js
@@ -98,20 +96,22 @@ jobs:
         if: steps.gate.outputs.should_run == 'true'
         id: preview_access
         env:
-          G2_PREVIEW_ALIAS: g2-admin
+          G2_PREVIEW_ALIAS: g3-lead
+          G2_PREVIEW_ACCESS_APPLICATION_NAME: Giacong staging protected operator previews
+          G2_PREVIEW_ACCESS_POLICY_NAME: GitHub protected preview Service Auth
         run: node scripts/prepare-g2-preview-access.mjs
 
       - name: Prepare preview-only staging Wrangler config
         if: steps.gate.outputs.should_run == 'true'
         env:
-          G2_PREVIEW_ACCESS_AUD: ${{ steps.preview_access.outputs.aud }}
-          G2_PREVIEW_HOSTNAME: ${{ steps.preview_access.outputs.hostname }}
-          WRANGLER_G2_PREVIEW_CONFIG: .wrangler-g2-preview.json
-        run: node scripts/prepare-g2-preview-wrangler.mjs
+          G3_PREVIEW_ACCESS_AUD: ${{ steps.preview_access.outputs.aud }}
+          G3_PREVIEW_HOSTNAME: ${{ steps.preview_access.outputs.hostname }}
+          WRANGLER_G3_PREVIEW_CONFIG: .wrangler-g3-preview.json
+        run: node scripts/prepare-g3-preview-wrangler.mjs
 
       - name: Build preview-only staging Worker
         if: steps.gate.outputs.should_run == 'true'
-        run: npx opennextjs-cloudflare build --env=staging --config=.wrangler-g2-preview.json
+        run: npx opennextjs-cloudflare build --env=staging --config=.wrangler-g3-preview.json
 
       - name: Open temporary preview URL routing
         if: steps.gate.outputs.should_run == 'true'
@@ -119,7 +119,7 @@ jobs:
 
       - name: Upload protected preview version without traffic
         if: steps.gate.outputs.should_run == 'true'
-        run: npx opennextjs-cloudflare upload --env=staging --config=.wrangler-g2-preview.json --preview-alias=g2-admin
+        run: npx opennextjs-cloudflare upload --env=staging --config=.wrangler-g3-preview.json --preview-alias=g3-lead
 
       - name: Verify active staging traffic remained unchanged
         if: steps.gate.outputs.should_run == 'true'
@@ -129,20 +129,13 @@ jobs:
           deployment="$(npx --yes wrangler@4.115.0 deployments status --env=staging --json)"
           active="$(jq -er 'if (.versions | length) == 1 and .versions[0].percentage == 100 then .versions[0].version_id else error("staging must have exactly one 100% active version") end' <<<"$deployment")"
           test "$active" = "$ACTIVE_STAGING_VERSION"
-          echo "Active staging traffic remains on ${active}; preview upload did not deploy traffic."
+          echo "Active staging traffic remains on ${active}; G3 preview upload did not deploy traffic."
 
-      - name: Verify protected preview reaches Worker admin boundary
+      - name: Run real Queue and secondary delivery acceptance
         if: steps.gate.outputs.should_run == 'true'
         env:
-          ADMIN_STAGING_ORIGIN: ${{ steps.preview_access.outputs.origin }}
-        run: node scripts/staging-g2-preview-preflight.mjs
-
-      - name: Run Access-authenticated News media operator acceptance
-        if: steps.gate.outputs.should_run == 'true'
-        env:
-          ADMIN_STAGING_ORIGIN: ${{ steps.preview_access.outputs.origin }}
-          STAGING_ORIGIN: ${{ steps.preview_access.outputs.origin }}
-        run: node scripts/staging-news-media-operator-qa.mjs
+          G3_STAGING_ORIGIN: ${{ steps.preview_access.outputs.origin }}
+        run: node scripts/staging-lead-delivery-operator-qa.mjs
 
       - name: Verify active staging traffic still unchanged after acceptance
         if: steps.gate.outputs.should_run == 'true' && success()
@@ -152,60 +145,59 @@ jobs:
           deployment="$(npx --yes wrangler@4.115.0 deployments status --env=staging --json)"
           active="$(jq -er 'if (.versions | length) == 1 and .versions[0].percentage == 100 then .versions[0].version_id else error("staging must have exactly one 100% active version") end' <<<"$deployment")"
           test "$active" = "$ACTIVE_STAGING_VERSION"
-          echo "G2 acceptance left active staging traffic unchanged on ${active}."
+          echo "G3 acceptance left active staging traffic unchanged on ${active}."
 
       - name: Restore persistent preview URL routing state
         if: always() && steps.gate.outputs.should_run == 'true'
         run: node scripts/manage-g2-preview-routing.mjs restore
 
-      - name: Record G2 acceptance evidence
+      - name: Record G3 acceptance evidence
         if: steps.gate.outputs.should_run == 'true' && success()
         shell: bash
         env:
           GITHUB_TOKEN: ${{ github.token }}
           TRACKING_ISSUE: "70"
           SOURCE_SHA: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
-          SOURCE_DEEP_QA_RUN_ID: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.id || github.run_id }}
-          ADMIN_PREVIEW_ORIGIN: ${{ steps.preview_access.outputs.origin }}
+          SOURCE_G2_RUN_ID: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.id || github.run_id }}
+          G3_PREVIEW_ORIGIN: ${{ steps.preview_access.outputs.origin }}
         run: |
           set -euo pipefail
-          test -s "$G2_EVIDENCE_PATH"
-          jq -e '.mediaInUseCode == "MEDIA_IN_USE" and .oldAssetD1Status == "deleted" and .oldAssetR2HttpStatus == 404 and .replacementD1Status == "active" and .replacementR2HttpStatus == 200 and .publicArticleHttpStatus == 200' "$G2_EVIDENCE_PATH" >/dev/null
+          test -s "$G3_EVIDENCE_PATH"
+          jq -e '.queueAcceptedStatus == "queued" and .deliveryStatus == "delivered" and .adminInbox.visible == true and .adminInbox.deliveryStatus == "delivered" and .invalidInputHttpStatus == 400 and .invalidInputPersistedLeadCount == 0 and .replay.httpStatus == 202 and .replay.status == "delivered" and .replay.durableLeadCount == 1 and .replay.stableLeadId == true and .replay.stableWebhookReference == true and .replay.deliveryAttemptsAfter == .replay.deliveryAttemptsBefore' "$G3_EVIDENCE_PATH" >/dev/null
 
-          article_id="$(jq -r '.articleId' "$G2_EVIDENCE_PATH")"
-          article_slug="$(jq -r '.articleSlug' "$G2_EVIDENCE_PATH")"
-          first_asset_id="$(jq -r '.firstAssetId' "$G2_EVIDENCE_PATH")"
-          replacement_asset_id="$(jq -r '.replacementAssetId' "$G2_EVIDENCE_PATH")"
-          replacement_url="$(jq -r '.replacementAssetPublicUrl' "$G2_EVIDENCE_PATH")"
-          cleanup="$(jq -c '.cleanup' "$G2_EVIDENCE_PATH")"
-          observed_at="$(jq -r '.observedAt' "$G2_EVIDENCE_PATH")"
+          request_id="$(jq -r '.requestId' "$G3_EVIDENCE_PATH")"
+          lead_id="$(jq -r '.leadId' "$G3_EVIDENCE_PATH")"
+          public_reference="$(jq -r '.publicReference' "$G3_EVIDENCE_PATH")"
+          webhook_reference="$(jq -r '.webhookReference' "$G3_EVIDENCE_PATH")"
+          attempts="$(jq -r '.deliveryAttempts' "$G3_EVIDENCE_PATH")"
+          observed_at="$(jq -r '.observedAt' "$G3_EVIDENCE_PATH")"
           run_url="https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
-          deep_qa_url="https://github.com/${GITHUB_REPOSITORY}/actions/runs/${SOURCE_DEEP_QA_RUN_ID}"
+          g2_url="https://github.com/${GITHUB_REPOSITORY}/actions/runs/${SOURCE_G2_RUN_ID}"
 
           body=$(cat <<EOF
-          G2 News media operator acceptance evidence
+          G3 durable request-delivery acceptance evidence
 
           - accepted source SHA: ${SOURCE_SHA}
-          - prerequisite deep-QA run: ${deep_qa_url}
-          - G2 acceptance run: ${run_url}
-          - protected G2 application preview: ${ADMIN_PREVIEW_ORIGIN}
+          - prerequisite G2 run: ${g2_url}
+          - G3 acceptance run: ${run_url}
+          - protected G3 application preview: ${G3_PREVIEW_ORIGIN}
           - active staging Worker version before/after acceptance: ${ACTIVE_STAGING_VERSION}
+          - real staging Queue enqueue: PASS
+          - real Queue consumer to configured secondary sink: PASS
+          - durable lead id: ${lead_id}
+          - request id: ${request_id}
+          - public D1 reference: ${public_reference}
+          - secondary sink reference: ${webhook_reference}
+          - persisted delivery status: delivered
+          - delivery bookkeeping attempts: ${attempts}
+          - D1-backed Admin inbox visibility: PASS
+          - invalid-input rejection before persistence: HTTP 400 / zero lead rows PASS
+          - exact request replay: one durable lead, stable references, no extra delivery attempt PASS
           - temporary preview URL routing: restored to prior state PASS
-          - custom staging edge challenge boundary: preserved; verified separately by G1 PASS
-          - article id / slug: ${article_id} / ${article_slug}
-          - initial asset id: ${first_asset_id}
-          - persisted-thumbnail delete: HTTP 409 MEDIA_IN_USE PASS
-          - replacement asset id: ${replacement_asset_id}
-          - replacement public URL: ${replacement_url}
-          - read-only News application render through protected preview: HTTP 200 PASS
-          - old asset D1 state: deleted
-          - old asset R2/media route after cleanup: HTTP 404 PASS
-          - replacement asset D1 state during acceptance: active
-          - replacement asset R2/media route during acceptance: HTTP 200 PASS
-          - controlled test-state cleanup: ${cleanup}
+          - active staging traffic: unchanged PASS
           - observed at: ${observed_at}
 
-          The flow kept the challenged custom staging edge unchanged. Operator mutations and read-only rendering checks used the same Service Auth-protected no-traffic preview of the staging Worker, with an explicit temporary D1 admin membership for Admin APIs. Non-Admin writes and the Admin UI remain blocked by the preview Worker gate. Preview URL routing was restored afterwards; the root workers.dev state and active staging version were preserved. D1/R2 post-conditions were verified, and no production resource was mutated.
+          One controlled staging QA lead remains intentionally retained in D1 with source `staging-g3-queue-acceptance` so the durable Admin-side evidence continues to match the secondary delivery record. No production resource was mutated.
           EOF
           )
           payload=$(jq -n --arg body "$body" '{body: $body}')
@@ -218,25 +210,22 @@ jobs:
             --data "$payload" >/dev/null
 
           {
-            echo "## G2 News media operator acceptance"
+            echo "## G3 durable request delivery"
             echo
-            echo "- Article: \`${article_id}\` / \`${article_slug}\`"
-            echo "- Access-protected preview Admin: PASS"
-            echo "- Read-only News/media rendering through protected preview: PASS"
-            echo "- Custom staging edge challenge boundary preserved: PASS"
-            echo "- Preview URL routing restored: PASS"
+            echo "- Queue enqueue: PASS"
+            echo "- Queue consumer + secondary delivery: PASS"
+            echo "- D1 delivered state + Admin visibility: PASS"
+            echo "- Invalid input persistence guard: PASS"
+            echo "- Exact replay / no duplicate delivery: PASS"
             echo "- Active staging traffic unchanged: PASS"
-            echo "- MEDIA_IN_USE: PASS"
-            echo "- Old D1 tombstone + R2 removal: PASS"
-            echo "- Replacement D1/R2 state during acceptance: PASS"
             echo "- Evidence recorded in issue #70"
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Remove local preview runtime config
         if: always() && steps.gate.outputs.should_run == 'true'
-        run: rm -f .wrangler-g2-preview.json
+        run: rm -f .wrangler-g3-preview.json
 
-      - name: Record failed G2 operator acceptance evidence
+      - name: Record failed G3 acceptance evidence
         if: steps.gate.outputs.should_run == 'true' && failure()
         shell: bash
         working-directory: .
@@ -244,21 +233,21 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
           TRACKING_ISSUE: "70"
           SOURCE_SHA: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
-          SOURCE_DEEP_QA_RUN_ID: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.id || github.run_id }}
+          SOURCE_G2_RUN_ID: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.id || github.run_id }}
         run: |
           set -euo pipefail
           run_url="https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
-          deep_qa_url="https://github.com/${GITHUB_REPOSITORY}/actions/runs/${SOURCE_DEEP_QA_RUN_ID}"
+          g2_url="https://github.com/${GITHUB_REPOSITORY}/actions/runs/${SOURCE_G2_RUN_ID}"
           observed_at=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
           body=$(cat <<EOF
-          G2 News media operator acceptance failure evidence
+          G3 durable request-delivery acceptance failure evidence
 
           - accepted source SHA: ${SOURCE_SHA}
-          - prerequisite deep-QA run: ${deep_qa_url}
-          - G2 acceptance run: ${run_url}
+          - prerequisite G2 run: ${g2_url}
+          - G3 acceptance run: ${run_url}
           - observed at: ${observed_at}
 
-          The protected staging News media operator acceptance did not complete successfully. The workflow attempted to restore the recorded preview URL routing state before retaining this breadcrumb. G2 remains OPEN. Inspect the G2 run before retrying. This breadcrumb contains no credentials or sensitive token values and does not authorize production mutation.
+          The controlled staging customer-request delivery acceptance did not complete successfully. The workflow attempted to restore the recorded preview URL routing state before retaining this breadcrumb. G3 remains OPEN. Inspect this run before retrying. No production resource was mutated.
           EOF
           )
           payload=$(jq -n --arg body "$body" '{body: $body}')
