@@ -5,7 +5,7 @@ const aud = requiredEnv("G2_PREVIEW_ACCESS_AUD");
 const hostname = requiredEnv("G2_PREVIEW_HOSTNAME");
 const sourcePath = process.env.WRANGLER_SOURCE_CONFIG?.trim() || "wrangler.jsonc";
 const outputPath = process.env.WRANGLER_G2_PREVIEW_CONFIG?.trim() || ".wrangler-g2-preview.json";
-const adminPreviewMode = "access-protected-admin-preview";
+const g2PreviewMode = "access-protected-g2-preview";
 
 assert.match(aud, /^[0-9a-f]{64}$/i, "G2_PREVIEW_ACCESS_AUD must be a 64-character Access AUD tag.");
 assert.match(hostname, /^[a-z0-9.-]+\.workers\.dev$/i, "G2_PREVIEW_HOSTNAME must be an exact workers.dev preview hostname.");
@@ -30,7 +30,7 @@ config.env.staging.workers_dev = false;
 config.env.staging.vars.ADMIN_HOSTNAME = hostname;
 config.env.staging.vars.ADMIN_HOSTNAMES = hostname;
 config.env.staging.vars.POLICY_AUD = aud;
-config.env.staging.vars.STAGING_DIRECT_QA_MODE = adminPreviewMode;
+config.env.staging.vars.STAGING_DIRECT_QA_MODE = g2PreviewMode;
 
 await writeFile(outputPath, `${JSON.stringify(config, null, 2)}\n`, "utf8");
 
@@ -43,8 +43,8 @@ assert.equal(config.env.staging.workers_dev, false, "G2 preview config must keep
 assert.equal(config.env.staging.vars.ADMIN_HOSTNAME, hostname);
 assert.equal(config.env.staging.vars.ADMIN_HOSTNAMES, hostname);
 assert.equal(config.env.staging.vars.POLICY_AUD, aud);
-assert.equal(config.env.staging.vars.STAGING_DIRECT_QA_MODE, adminPreviewMode);
-console.log(`Prepared ${outputPath} for the exact Access-protected preview hostname and admin-API-only Worker gate; Production vars are unchanged.`);
+assert.equal(config.env.staging.vars.STAGING_DIRECT_QA_MODE, g2PreviewMode);
+console.log(`Prepared ${outputPath} for the exact Access-protected preview hostname, Admin APIs and read-only rendering; Production vars are unchanged.`);
 
 function requiredEnv(name) {
   const value = process.env[name]?.trim();
