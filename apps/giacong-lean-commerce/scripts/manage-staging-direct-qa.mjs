@@ -74,24 +74,37 @@ async function writeGithubEnv(values) {
 
 async function waitForDirectRoute(origin) {
   const attempts = 30;
+  const readinessPaths = ["/", "/san-pham"];
   for (let attempt = 1; attempt <= attempts; attempt += 1) {
-    try {
-      const response = await fetch(`${origin}/`, {
-        redirect: "manual",
-        signal: AbortSignal.timeout(5000),
-      });
-      if (response.status < 400) {
-        console.log(`Temporary workers.dev route became ready on attempt ${attempt} (HTTP ${response.status}).`);
-        return;
+    const results = [];
+    for (const pathname of readinessPaths) {
+      try {
+        const url = new URL(pathname, origin);
+        url.searchParams.set("__staging_direct_qa_ready", String(attempt));
+        const response = await fetch(url, {
+          headers: { "Cache-Control": "no-cache" },
+          redirect: "manual",
+          signal: AbortSignal.timeout(5000),
+        });
+        results.push({ pathname, status: response.status });
+      } catch (error) {
+        results.push({
+          error: error instanceof Error ? error.message.slice(0, 160) : String(error).slice(0, 160),
+          pathname,
+          status: null,
+        });
       }
-      console.log(`Waiting for temporary workers.dev propagation: attempt ${attempt}/${attempts}, HTTP ${response.status}.`);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      console.log(`Waiting for temporary workers.dev propagation: attempt ${attempt}/${attempts}, ${message.slice(0, 160)}.`);
     }
+
+    if (results.every((result) => result.status !== null && result.status < 400)) {
+      console.log(`Temporary workers.dev routes became ready on attempt ${attempt}: ${results.map((result) => `${result.pathname}=HTTP ${result.status}`).join(", ")}.`);
+      return;
+    }
+
+    console.log(`Waiting for temporary workers.dev propagation: attempt ${attempt}/${attempts}, ${results.map((result) => result.status === null ? `${result.pathname}=${result.error}` : `${result.pathname}=HTTP ${result.status}`).join(", ")}.`);
     if (attempt < attempts) await delay(1000);
   }
-  throw new Error(`Temporary workers.dev route for ${scriptName} did not become reachable within ${attempts} seconds.`);
+  throw new Error(`Temporary workers.dev route for ${scriptName} did not serve representative application routes within ${attempts} seconds.`);
 }
 
 function delay(milliseconds) {
