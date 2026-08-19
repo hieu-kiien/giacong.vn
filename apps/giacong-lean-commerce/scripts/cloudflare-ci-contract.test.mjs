@@ -94,7 +94,7 @@ test("deep QA waits for successful deployment and separates edge from applicatio
   assert.match(workflow, /node scripts\/staging-deep-qa\.mjs/);
 });
 
-test("free-tier direct QA waits for propagation, opens only a temporary script subdomain, and restores prior state", async () => {
+test("free-tier direct QA waits for representative route propagation, opens only a temporary script subdomain, and restores prior state", async () => {
   const script = await readFile(directQaManagerUrl, "utf8");
 
   assert.match(script, /\/workers\/subdomain/);
@@ -104,10 +104,12 @@ test("free-tier direct QA waits for propagation, opens only a temporary script s
   assert.match(script, /STAGING_DIRECT_QA_PREVIOUS_PREVIEWS/);
   assert.match(script, /await waitForDirectRoute\(origin\)/);
   assert.match(script, /const attempts = 30/);
-  assert.match(script, /response\.status < 400/);
+  assert.match(script, /const readinessPaths = \["\/", "\/san-pham"\]/);
+  assert.match(script, /__staging_direct_qa_ready/);
+  assert.match(script, /results\.every\(\(result\) => result\.status !== null && result\.status < 400\)/);
   assert.ok(
     script.indexOf("await waitForDirectRoute(origin)") < script.indexOf("STAGING_ORIGIN: origin"),
-    "STAGING_ORIGIN must not be published to downstream QA before workers.dev is actually reachable",
+    "STAGING_ORIGIN must not be published to downstream QA before representative workers.dev routes are reachable",
   );
   assert.match(script, /STAGING_ORIGIN/);
   assert.match(script, /\.workers\.dev/);
