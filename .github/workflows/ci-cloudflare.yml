@@ -110,20 +110,39 @@ jobs:
       - name: Verify Cloudflare credentials and current staging worker
         run: npx --yes wrangler@4.115.0 deployments status --env=staging --json
 
-      - name: Ensure staging Access Service Auth policy
+      - name: Ensure optional storefront Access Service Auth policy
+        env:
+          ACCESS_SERVICE_AUTH_DOMAIN: staging.kienhieu.id.vn
+          ACCESS_SERVICE_AUTH_POLICY_NAME: GitHub staging deep QA
+          ACCESS_SERVICE_AUTH_REQUIRED: "false"
         run: node scripts/ensure-staging-access-service-auth.mjs
 
+      - name: Ensure required staging Admin Access application and Service Auth
+        id: admin_access
+        env:
+          ACCESS_SERVICE_AUTH_DOMAIN: admin-staging.kienhieu.id.vn
+          ACCESS_SERVICE_AUTH_POLICY_NAME: GitHub G2 News media acceptance
+          ACCESS_SERVICE_AUTH_REQUIRED: "true"
+          ACCESS_APPLICATION_CREATE_IF_MISSING: "true"
+          ACCESS_APPLICATION_NAME: Giacong staging Admin
+        run: node scripts/ensure-staging-access-service-auth.mjs
+
+      - name: Prepare staging Wrangler config with current Admin Access AUD
+        env:
+          STAGING_ADMIN_ACCESS_AUD: ${{ steps.admin_access.outputs.aud }}
+        run: node scripts/prepare-staging-wrangler-access.mjs
+
       - name: Build OpenNext for Cloudflare staging
-        run: npm run cf:build:staging
+        run: npx opennextjs-cloudflare build --env=staging --config=.wrangler-staging-runtime.json
 
       - name: Validate Wrangler package before changing remote state
-        run: npx --yes wrangler@4.115.0 deploy --env=staging --dry-run --outdir=.wrangler-dry-run
+        run: npx --yes wrangler@4.115.0 deploy --config=.wrangler-staging-runtime.json --env=staging --dry-run --outdir=.wrangler-dry-run
 
       - name: Apply pending D1 staging migrations
         run: npx --yes wrangler@4.115.0 d1 migrations apply GIACONG_VN_CATALOG --env=staging --remote
 
       - name: Deploy the validated OpenNext build to staging
-        run: npx opennextjs-cloudflare deploy --env=staging
+        run: npx opennextjs-cloudflare deploy --env=staging --config=.wrangler-staging-runtime.json
 
       - name: Verify active staging deployment
         shell: bash
