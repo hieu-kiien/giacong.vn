@@ -6,6 +6,7 @@ const root = new URL("../", import.meta.url);
 const workflowUrl = new URL("../../../.github/workflows/cloudflare-staging-news-media-acceptance-once.yml", import.meta.url);
 const previewAccessUrl = new URL("scripts/prepare-g2-preview-access.mjs", root);
 const previewConfigUrl = new URL("scripts/prepare-g2-preview-wrangler.mjs", root);
+const previewRoutingUrl = new URL("scripts/manage-g2-preview-routing.mjs", root);
 
 test("G2 News media acceptance runs only after successful staging deep QA and records durable evidence", async () => {
   const workflow = await readFile(workflowUrl, "utf8");
@@ -26,11 +27,24 @@ test("G2 uses an Access-protected Worker preview for admin mutation without chan
   const workflow = await readFile(workflowUrl, "utf8");
   const previewAccess = await readFile(previewAccessUrl, "utf8");
   const previewConfig = await readFile(previewConfigUrl, "utf8");
+  const previewRouting = await readFile(previewRoutingUrl, "utf8");
 
   assert.match(workflow, /node scripts\/prepare-g2-preview-access\.mjs/);
   assert.match(workflow, /node scripts\/prepare-g2-preview-wrangler\.mjs/);
   assert.match(workflow, /opennextjs-cloudflare build --env=staging --config=\.wrangler-g2-preview\.json/);
+  assert.match(workflow, /node scripts\/manage-g2-preview-routing\.mjs open/);
   assert.match(workflow, /opennextjs-cloudflare upload --env=staging --config=\.wrangler-g2-preview\.json[\s\S]*preview-alias[\s\S]*g2-admin/);
+  assert.match(workflow, /node scripts\/manage-g2-preview-routing\.mjs restore/);
+  assert.ok(
+    workflow.indexOf("node scripts/manage-g2-preview-routing.mjs open")
+      < workflow.indexOf("opennextjs-cloudflare upload --env=staging"),
+    "preview routing must be enabled before the aliased preview version is uploaded",
+  );
+  assert.ok(
+    workflow.indexOf("node scripts/manage-g2-preview-routing.mjs restore")
+      > workflow.indexOf("node scripts/staging-news-media-operator-qa.mjs"),
+    "preview routing must be restored after the operator acceptance attempt",
+  );
   assert.match(workflow, /ADMIN_STAGING_ORIGIN:\s*\$\{\{ steps\.preview_access\.outputs\.origin \}\}/);
   assert.match(workflow, /ACTIVE_STAGING_VERSION/);
   assert.match(workflow, /Verify active staging traffic remained unchanged/);
@@ -50,6 +64,12 @@ test("G2 uses an Access-protected Worker preview for admin mutation without chan
   assert.match(previewConfig, /ADMIN_HOSTNAMES/);
   assert.match(previewConfig, /POLICY_AUD/);
   assert.match(previewConfig, /Production POLICY_AUD/);
+
+  assert.match(previewRouting, /previews_enabled:\s*true/);
+  assert.match(previewRouting, /enabled:\s*previousEnabled/);
+  assert.match(previewRouting, /G2_PREVIEW_PREVIOUS_ENABLED/);
+  assert.match(previewRouting, /G2_PREVIEW_PREVIOUS_PREVIEWS/);
+  assert.match(previewRouting, /previews_enabled:\s*previousPreviews/);
 });
 
 test("G2 operator runtime exercises persisted thumbnail protection, replacement and D1/R2 post-conditions", async () => {
