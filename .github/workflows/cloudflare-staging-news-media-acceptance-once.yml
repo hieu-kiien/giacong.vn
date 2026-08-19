@@ -1,9 +1,8 @@
 name: Cloudflare staging News media acceptance once
 
-# One-time G2 execution marker. The custom staging Admin hostname is intentionally
-# kept behind its existing Cloudflare challenge boundary. G2 mutations run only
-# through a temporarily routable, Access-protected preview of the same staging
-# Worker; the root workers.dev route and active staging deployment are preserved.
+# One-time G2 execution marker, re-armed after the preview transport was proven
+# reachable but the Worker-level readonly gate returned HTTP 404 for Admin APIs.
+# The preview now uses an admin-API-only mode while Access + JWT auth still guard it.
 
 on:
   workflow_run:
