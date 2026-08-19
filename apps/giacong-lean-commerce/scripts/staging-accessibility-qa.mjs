@@ -26,11 +26,7 @@ try {
     for (const route of routes) {
       const page = await context.newPage();
       try {
-        const response = await page.goto(`${origin}${route}`, {
-          waitUntil: "networkidle",
-          timeout: 30000,
-        });
-        assert.ok(response && response.status() < 400, `${route}: HTTP ${response?.status() ?? "no response"}`);
+        await gotoForAudit(page, route);
 
         const audit = await page.evaluate(() => {
           const text = (element) => (element.textContent ?? "").replace(/\s+/g, " ").trim();
@@ -154,6 +150,35 @@ try {
 }
 
 console.log("Staging accessibility acceptance passed.");
+
+async function gotoForAudit(page, route) {
+  const maxAttempts = 3;
+  const target = `${origin}${route}`;
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      const response = await page.goto(target, {
+        waitUntil: "domcontentloaded",
+        timeout: 30000,
+      });
+      const status = response?.status() ?? 0;
+      if (response && status < 400) {
+        await page.locator("body").waitFor({ state: "visible", timeout: 10000 });
+        return response;
+      }
+      const transient = [502, 503, 504].includes(status);
+      if (!transient || attempt === maxAttempts) {
+        assert.ok(response && status < 400, `${route}: HTTP ${response?.status() ?? "no response"}`);
+      }
+      console.log(`${route}: transient HTTP ${status} on accessibility navigation attempt ${attempt}/${maxAttempts}; retrying.`);
+    } catch (error) {
+      const timeout = error instanceof Error && error.name === "TimeoutError";
+      if (!timeout || attempt === maxAttempts) throw error;
+      console.log(`${route}: navigation timeout on accessibility attempt ${attempt}/${maxAttempts}; retrying.`);
+    }
+    await page.waitForTimeout(2000);
+  }
+  throw new Error(`${route}: accessibility navigation exhausted without a usable response.`);
+}
 
 async function verifyKeyboardFocus(page) {
   for (let index = 0; index < 12; index += 1) {
