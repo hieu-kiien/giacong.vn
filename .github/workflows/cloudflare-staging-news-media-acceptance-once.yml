@@ -2,8 +2,8 @@ name: Cloudflare staging News media acceptance once
 
 # One-time G2 execution marker. The custom staging Admin hostname is intentionally
 # kept behind its existing Cloudflare challenge boundary. G2 mutations run only
-# through an Access-protected preview of the same staging Worker and must leave
-# the active staging deployment unchanged.
+# through a temporarily routable, Access-protected preview of the same staging
+# Worker; the root workers.dev route and active staging deployment are preserved.
 
 on:
   workflow_run:
@@ -114,6 +114,10 @@ jobs:
         if: steps.gate.outputs.should_run == 'true'
         run: npx opennextjs-cloudflare build --env=staging --config=.wrangler-g2-preview.json
 
+      - name: Open temporary preview URL routing
+        if: steps.gate.outputs.should_run == 'true'
+        run: node scripts/manage-g2-preview-routing.mjs open
+
       - name: Upload protected preview version without traffic
         if: steps.gate.outputs.should_run == 'true'
         run: npx opennextjs-cloudflare upload --env=staging --config=.wrangler-g2-preview.json --preview-alias=g2-admin
@@ -150,6 +154,10 @@ jobs:
           test "$active" = "$ACTIVE_STAGING_VERSION"
           echo "G2 acceptance left active staging traffic unchanged on ${active}."
 
+      - name: Restore persistent preview URL routing state
+        if: always() && steps.gate.outputs.should_run == 'true'
+        run: node scripts/manage-g2-preview-routing.mjs restore
+
       - name: Record G2 acceptance evidence
         if: steps.gate.outputs.should_run == 'true' && success()
         shell: bash
@@ -182,6 +190,7 @@ jobs:
           - G2 acceptance run: ${run_url}
           - protected Admin preview: ${ADMIN_PREVIEW_ORIGIN}
           - active staging Worker version before/after acceptance: ${ACTIVE_STAGING_VERSION}
+          - temporary preview URL routing: restored to prior state PASS
           - article id / slug: ${article_id} / ${article_slug}
           - initial asset id: ${first_asset_id}
           - persisted-thumbnail delete: HTTP 409 MEDIA_IN_USE PASS
@@ -195,7 +204,7 @@ jobs:
           - controlled test-state cleanup: ${cleanup}
           - observed at: ${observed_at}
 
-          The flow kept the challenged custom staging Admin boundary unchanged. Operator mutations used a Service Auth policy scoped only to preview deployments of the staging Worker, with an explicit temporary D1 admin membership. The preview version received no traffic deployment; the active staging version remained unchanged. Public News rendering and D1/R2 post-conditions were verified, and no production resource was mutated.
+          The flow kept the challenged custom staging Admin boundary unchanged. Operator mutations used a Service Auth policy scoped only to preview deployments of the staging Worker, with an explicit temporary D1 admin membership. Preview URL routing was enabled only for the guarded acceptance window and restored afterwards; the root workers.dev state and active staging version were preserved. Public News rendering and D1/R2 post-conditions were verified, and no production resource was mutated.
           EOF
           )
           payload=$(jq -n --arg body "$body" '{body: $body}')
@@ -212,6 +221,7 @@ jobs:
             echo
             echo "- Article: \`${article_id}\` / \`${article_slug}\`"
             echo "- Access-protected preview Admin: PASS"
+            echo "- Preview URL routing restored: PASS"
             echo "- Active staging traffic unchanged: PASS"
             echo "- MEDIA_IN_USE: PASS"
             echo "- Replacement public render: PASS"
@@ -246,7 +256,7 @@ jobs:
           - G2 acceptance run: ${run_url}
           - observed at: ${observed_at}
 
-          The protected staging News media operator acceptance did not complete successfully. G2 remains OPEN. Inspect the G2 run before retrying. This breadcrumb contains no credentials or sensitive token values and does not authorize production mutation.
+          The protected staging News media operator acceptance did not complete successfully. The workflow attempted to restore the recorded preview URL routing state before retaining this breadcrumb. G2 remains OPEN. Inspect the G2 run before retrying. This breadcrumb contains no credentials or sensitive token values and does not authorize production mutation.
           EOF
           )
           payload=$(jq -n --arg body "$body" '{body: $body}')
