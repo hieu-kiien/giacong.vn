@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   allowsStagingDirectQaRequest,
   allowsStagingDirectQaRuntimeRequest,
+  STAGING_ADMIN_PREVIEW_MODE,
   STAGING_DIRECT_QA_MODE,
 } from "../src/lib/staging-direct-qa.ts";
 
@@ -14,7 +15,7 @@ test("custom staging host is unaffected by the direct QA policy", () => {
   assert.equal(allowsStagingDirectQaRequest(request("/api/contact", "POST", "staging.kienhieu.id.vn"), undefined), true);
 });
 
-test("workers.dev fails closed unless the staging-only mode is explicitly configured", () => {
+test("workers.dev fails closed unless a staging-only mode is explicitly configured", () => {
   assert.equal(allowsStagingDirectQaRequest(request("/"), undefined), false);
   assert.equal(allowsStagingDirectQaRequest(request("/"), "unexpected"), false);
 });
@@ -41,6 +42,19 @@ test("temporary workers.dev never exposes admin or arbitrary state-changing inta
     source: "internet",
   }));
   assert.equal(await allowsStagingDirectQaRuntimeRequest(arbitraryContact, STAGING_DIRECT_QA_MODE), false);
+});
+
+test("Access-protected preview mode admits only admin API paths to the application auth boundary", async () => {
+  for (const method of ["GET", "POST", "PATCH", "DELETE"]) {
+    assert.equal(allowsStagingDirectQaRequest(request("/api/admin/news", method), STAGING_ADMIN_PREVIEW_MODE), true, method);
+  }
+  for (const path of ["/", "/admin", "/admin/tin-tuc", "/api/contact", "/api/catalog/products/example", "/media/products/example.jpg"]) {
+    assert.equal(allowsStagingDirectQaRequest(request(path), STAGING_ADMIN_PREVIEW_MODE), false, path);
+  }
+  assert.equal(
+    await allowsStagingDirectQaRuntimeRequest(request("/api/contact", "POST", undefined, "{}"), STAGING_ADMIN_PREVIEW_MODE),
+    false,
+  );
 });
 
 test("temporary workers.dev admits only the two non-persisting contact drift probes", async () => {

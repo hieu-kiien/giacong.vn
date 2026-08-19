@@ -1,4 +1,5 @@
 export const STAGING_DIRECT_QA_MODE = "readonly-public-qa";
+export const STAGING_ADMIN_PREVIEW_MODE = "access-protected-admin-preview";
 
 const safeContactProbeRequestId = "00000000-0000-4000-8000-000000000001";
 const safeContactProbeSnapshot = "0".repeat(64);
@@ -8,9 +9,12 @@ export function allowsStagingDirectQaRequest(request: Request, mode: string | un
   if (!url) return false;
 
   if (!isWorkersDev(url)) return true;
-  if (mode?.trim() !== STAGING_DIRECT_QA_MODE) return false;
 
   const pathname = url.pathname;
+  if (mode?.trim() === STAGING_ADMIN_PREVIEW_MODE) {
+    return isAdminApiPath(pathname);
+  }
+  if (mode?.trim() !== STAGING_DIRECT_QA_MODE) return false;
   if (isAdminPath(pathname)) return false;
 
   const method = request.method.toUpperCase();
@@ -63,9 +67,12 @@ function isWorkersDev(url: URL): boolean {
   return url.hostname.toLowerCase().endsWith(".workers.dev");
 }
 
+function isAdminApiPath(pathname: string): boolean {
+  return pathname === "/api/admin" || pathname.startsWith("/api/admin/");
+}
+
 function isAdminPath(pathname: string): boolean {
   return pathname === "/admin"
     || pathname.startsWith("/admin/")
-    || pathname === "/api/admin"
-    || pathname.startsWith("/api/admin/");
+    || isAdminApiPath(pathname);
 }

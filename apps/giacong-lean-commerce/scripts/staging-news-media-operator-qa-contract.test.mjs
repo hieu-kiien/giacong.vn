@@ -63,7 +63,10 @@ test("G2 uses an Access-protected Worker preview for admin mutation without chan
   assert.match(previewConfig, /ADMIN_HOSTNAME/);
   assert.match(previewConfig, /ADMIN_HOSTNAMES/);
   assert.match(previewConfig, /POLICY_AUD/);
+  assert.match(previewConfig, /STAGING_DIRECT_QA_MODE/);
+  assert.match(previewConfig, /access-protected-admin-preview/);
   assert.match(previewConfig, /Production POLICY_AUD/);
+  assert.match(previewConfig, /Production STAGING_DIRECT_QA_MODE/);
 
   assert.match(previewRouting, /previews_enabled:\s*true/);
   assert.match(previewRouting, /enabled:\s*previousEnabled/);
