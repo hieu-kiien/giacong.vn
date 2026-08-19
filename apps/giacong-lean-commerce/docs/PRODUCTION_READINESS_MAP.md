@@ -69,6 +69,8 @@ Completed by the production-readiness map/tracker and the current-state reconcil
 4. Require the deployment and QA breadcrumbs to reference the same source `CI and Cloudflare staging gate` run id before G1 closes.
 5. Record failures as route-specific work; do not weaken budgets merely to make the gate green.
 
+Retry note, 2026-08-19: master `195c5001b1e9776a37cfdd2e5405038950ceb296` completed source CI run `32210290044` and recorded a 100% staging deployment breadcrumb, but no correlated deep-QA breadcrumb was recorded. That source run is therefore not accepted as G1 evidence. This documentation-only change deliberately forces a fresh authoritative master staging cycle; the new cycle must still satisfy the exact same correlated-evidence rule before G1 can close.
+
 ## G2 — News media operator acceptance
 
 Use the protected staging Admin through Cloudflare Access and perform a real operator flow:
