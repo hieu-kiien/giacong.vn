@@ -121,6 +121,7 @@ async function logCloudflareChallengeSource(route) {
       return;
     }
 
+    await logCloudflareBotCapability(matchingZones[0], apiToken);
     await new Promise((resolve) => setTimeout(resolve, 2500));
 
     const now = new Date();
@@ -172,6 +173,54 @@ async function logCloudflareChallengeSource(route) {
     console.error(
       "CLOUDFLARE_CHALLENGE_SOURCE_UNAVAILABLE",
       JSON.stringify({ reason: sanitizeDiagnosticText(error instanceof Error ? error.message : String(error)).slice(0, 600) }),
+    );
+  }
+}
+
+async function logCloudflareBotCapability(zone, apiToken) {
+  const planName = sanitizeDiagnosticText(String(zone?.plan?.name ?? "")).slice(0, 120);
+  const planLegacyId = sanitizeDiagnosticText(String(zone?.plan?.legacy_id ?? "")).slice(0, 120);
+
+  try {
+    const response = await cloudflareApi(`/zones/${encodeURIComponent(zone.id)}/bot_management`, apiToken);
+    const config = response?.result ?? {};
+    const sbfmFields = [
+      "sbfm_definitely_automated",
+      "sbfm_likely_automated",
+      "sbfm_verified_bots",
+      "sbfm_static_resource_protection",
+    ];
+
+    console.error(
+      "CLOUDFLARE_BOT_CAPABILITY_DIAGNOSTIC",
+      JSON.stringify({
+        zone: sanitizeDiagnosticText(String(zone?.name ?? "")).slice(0, 253),
+        planName,
+        planLegacyId,
+        fightMode: typeof config.fight_mode === "boolean" ? config.fight_mode : null,
+        hasSbfmConfiguration: sbfmFields.some((field) => Object.hasOwn(config, field)),
+        sbfmDefinitelyAutomated: config.sbfm_definitely_automated ?? null,
+        sbfmLikelyAutomated: config.sbfm_likely_automated ?? null,
+        sbfmVerifiedBots: config.sbfm_verified_bots ?? null,
+        sbfmStaticResourceProtection:
+          typeof config.sbfm_static_resource_protection === "boolean"
+            ? config.sbfm_static_resource_protection
+            : null,
+        staleFightMode:
+          typeof config.stale_zone_configuration?.fight_mode === "boolean"
+            ? config.stale_zone_configuration.fight_mode
+            : null,
+      }),
+    );
+  } catch (error) {
+    console.error(
+      "CLOUDFLARE_BOT_CAPABILITY_UNAVAILABLE",
+      JSON.stringify({
+        zone: sanitizeDiagnosticText(String(zone?.name ?? "")).slice(0, 253),
+        planName,
+        planLegacyId,
+        reason: sanitizeDiagnosticText(error instanceof Error ? error.message : String(error)).slice(0, 600),
+      }),
     );
   }
 }
