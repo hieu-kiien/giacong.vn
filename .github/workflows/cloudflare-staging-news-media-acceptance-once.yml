@@ -1,8 +1,9 @@
 name: Cloudflare staging News media acceptance once
 
-# One-time G2 execution marker, re-armed after the preview transport was proven
-# reachable but the Worker-level readonly gate returned HTTP 404 for Admin APIs.
-# The preview now uses an admin-API-only mode while Access + JWT auth still guard it.
+# One-time G2 execution marker, re-armed after the protected preview reached the
+# Admin boundary but the intentionally challenged custom staging hostname blocked
+# application-rendering verification. G2 now verifies read-only rendering through
+# the same Access-protected no-traffic preview without weakening the custom edge.
 
 on:
   workflow_run:
@@ -141,6 +142,7 @@ jobs:
         if: steps.gate.outputs.should_run == 'true'
         env:
           ADMIN_STAGING_ORIGIN: ${{ steps.preview_access.outputs.origin }}
+          STAGING_ORIGIN: ${{ steps.preview_access.outputs.origin }}
         run: node scripts/staging-news-media-operator-qa.mjs
 
       - name: Verify active staging traffic still unchanged after acceptance
@@ -187,15 +189,16 @@ jobs:
           - accepted source SHA: ${SOURCE_SHA}
           - prerequisite deep-QA run: ${deep_qa_url}
           - G2 acceptance run: ${run_url}
-          - protected Admin preview: ${ADMIN_PREVIEW_ORIGIN}
+          - protected G2 application preview: ${ADMIN_PREVIEW_ORIGIN}
           - active staging Worker version before/after acceptance: ${ACTIVE_STAGING_VERSION}
           - temporary preview URL routing: restored to prior state PASS
+          - custom staging edge challenge boundary: preserved; verified separately by G1 PASS
           - article id / slug: ${article_id} / ${article_slug}
           - initial asset id: ${first_asset_id}
           - persisted-thumbnail delete: HTTP 409 MEDIA_IN_USE PASS
           - replacement asset id: ${replacement_asset_id}
           - replacement public URL: ${replacement_url}
-          - public replacement render: HTTP 200 PASS
+          - read-only News application render through protected preview: HTTP 200 PASS
           - old asset D1 state: deleted
           - old asset R2/media route after cleanup: HTTP 404 PASS
           - replacement asset D1 state during acceptance: active
@@ -203,7 +206,7 @@ jobs:
           - controlled test-state cleanup: ${cleanup}
           - observed at: ${observed_at}
 
-          The flow kept the challenged custom staging Admin boundary unchanged. Operator mutations used a Service Auth policy scoped only to preview deployments of the staging Worker, with an explicit temporary D1 admin membership. Preview URL routing was enabled only for the guarded acceptance window and restored afterwards; the root workers.dev state and active staging version were preserved. Public News rendering and D1/R2 post-conditions were verified, and no production resource was mutated.
+          The flow kept the challenged custom staging edge unchanged. Operator mutations and read-only rendering checks used the same Service Auth-protected no-traffic preview of the staging Worker, with an explicit temporary D1 admin membership for Admin APIs. Non-Admin writes and the Admin UI remain blocked by the preview Worker gate. Preview URL routing was restored afterwards; the root workers.dev state and active staging version were preserved. D1/R2 post-conditions were verified, and no production resource was mutated.
           EOF
           )
           payload=$(jq -n --arg body "$body" '{body: $body}')
@@ -220,10 +223,11 @@ jobs:
             echo
             echo "- Article: \`${article_id}\` / \`${article_slug}\`"
             echo "- Access-protected preview Admin: PASS"
+            echo "- Read-only News/media rendering through protected preview: PASS"
+            echo "- Custom staging edge challenge boundary preserved: PASS"
             echo "- Preview URL routing restored: PASS"
             echo "- Active staging traffic unchanged: PASS"
             echo "- MEDIA_IN_USE: PASS"
-            echo "- Replacement public render: PASS"
             echo "- Old D1 tombstone + R2 removal: PASS"
             echo "- Replacement D1/R2 state during acceptance: PASS"
             echo "- Evidence recorded in issue #70"
