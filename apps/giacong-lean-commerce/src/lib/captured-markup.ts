@@ -32,7 +32,7 @@ export function layerCapturedStyles(pageStyles: string): string {
 }
 
 export function normalizeCapturedMarkup(markup: string) {
-  const normalized = markup
+  const normalized = normalizeCapturedMainLandmark(markup)
     .replace(/Sản Phẩm(?=<i class="icon-angle-down"><\/i>)/g, "Mua hàng")
     .replace(/Dịch vụ(?=<i class="icon-angle-down"><\/i>)/g, "Thuê gia công")
     .replace(/Dịch Vụ Gia Công(?=<\/a>)/g, "Thuê gia công")
@@ -48,6 +48,16 @@ export function normalizeCapturedMarkup(markup: string) {
   return normalizeHomeMenuItems(
     replaceShoppingMenu(replaceServiceMenus(normalized)),
   );
+}
+
+function normalizeCapturedMainLandmark(markup: string): string {
+  if (!/<main\b[^>]*\bid=(["'])main\1[^>]*>/i.test(markup)) return markup;
+
+  return markup.replace(/<div\b([^>]*)>/gi, (opening, attributes: string) => {
+    if (!/\bid=(["'])content\1/i.test(attributes)) return opening;
+    const normalizedAttributes = attributes.replace(/\srole=(["'])main\1/i, "");
+    return `<div${normalizedAttributes}>`;
+  });
 }
 
 function normalizeHomeMenuItems(markup: string): string {
