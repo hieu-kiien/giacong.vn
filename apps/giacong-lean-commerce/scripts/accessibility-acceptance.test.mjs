@@ -29,7 +29,7 @@ test("staging accessibility QA covers public semantic and keyboard acceptance", 
 
 test("post-deploy deep QA runs accessibility after Chromium installation and before broader browser QA", async () => {
   const workflow = await readFile(workflowUrl, "utf8");
-  const install = "npx playwright install --with-deps chromium";
+  const install = "npx playwright install chromium";
   const accessibility = "node scripts/staging-accessibility-qa.mjs";
   const deepQa = "node scripts/staging-deep-qa.mjs";
 
