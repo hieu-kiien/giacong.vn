@@ -32,7 +32,9 @@ export function layerCapturedStyles(pageStyles: string): string {
 }
 
 export function normalizeCapturedMarkup(markup: string) {
-  const normalized = removeDuplicateCapturedSvgRootIds(removeRedundantCapturedMainRole(markup))
+  const normalized = addCapturedContactFormAccessibleNames(
+    removeDuplicateCapturedSvgRootIds(removeRedundantCapturedMainRole(markup)),
+  )
     .replace(/Sản Phẩm(?=<i class="icon-angle-down"><\/i>)/g, "Mua hàng")
     .replace(/Dịch vụ(?=<i class="icon-angle-down"><\/i>)/g, "Thuê gia công")
     .replace(/Dịch Vụ Gia Công(?=<\/a>)/g, "Thuê gia công")
@@ -76,6 +78,25 @@ function removeDuplicateCapturedSvgRootIds(markup: string): string {
     }
 
     return openingTag.replace(/\s+id=(["'])[^"']+\1/i, "");
+  });
+}
+
+function addCapturedContactFormAccessibleNames(markup: string): string {
+  return markup.replace(/<input\b[^>]*>/gi, (openingTag) => {
+    if (!/\bclass=(["'])[^"']*\bwpcf7-form-control\b[^"']*\1/i.test(openingTag)) {
+      return openingTag;
+    }
+    if (/\s+(?:aria-label|aria-labelledby|title)=(["'])[^"']*\1/i.test(openingTag)) {
+      return openingTag;
+    }
+
+    const placeholder = /\s+placeholder=(["'])([^"']+)\1/i.exec(openingTag);
+    if (!placeholder || !placeholder[2].trim()) return openingTag;
+
+    return openingTag.replace(
+      /\s*(\/?)>$/,
+      ` aria-label=${placeholder[1]}${placeholder[2]}${placeholder[1]}$1>`,
+    );
   });
 }
 
