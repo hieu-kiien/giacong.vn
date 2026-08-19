@@ -16,6 +16,10 @@ test("G2 News media acceptance runs only after successful staging deep QA and re
   assert.match(workflow, /node scripts\/staging-news-media-operator-qa\.mjs/);
   assert.match(workflow, /issues:\s*write/);
   assert.match(workflow, /TRACKING_ISSUE:\s*"70"/);
+  assert.match(workflow, /Record failed G2 operator acceptance evidence/);
+  assert.match(workflow, /steps\.gate\.outputs\.should_run == 'true' && failure\(\)/);
+  assert.match(workflow, /G2 News media operator acceptance failure evidence/);
+  assert.match(workflow, /G2 remains OPEN/);
 });
 
 test("G2 operator runtime exercises persisted thumbnail protection, replacement and D1/R2 post-conditions", async () => {
