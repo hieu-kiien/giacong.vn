@@ -46,11 +46,16 @@ test("post-deploy staging QA verifies security headers and emits bounded non-sec
 
   const diagnosticCall = runtime.indexOf("await logSafeFailureDiagnostic(response, route)");
   const challengeCall = runtime.indexOf("await logCloudflareChallengeSource(route)");
-  const botCapabilityCall = runtime.indexOf("await logCloudflareBotCapability(matchingZones[0], apiToken)");
   const statusAssertion = runtime.indexOf("assert.ok(response.status < 400");
   assert.ok(diagnosticCall >= 0 && diagnosticCall < statusAssertion, "4xx diagnostics must be logged before the fail-closed assertion");
   assert.ok(challengeCall >= 0 && challengeCall < statusAssertion, "challenge source diagnostics must run before the fail-closed assertion");
-  assert.ok(botCapabilityCall >= 0 && botCapabilityCall < statusAssertion, "bot capability diagnostics must run before the fail-closed assertion");
+
+  const challengeFunctionStart = runtime.indexOf("async function logCloudflareChallengeSource(route)");
+  const botCapabilityFunctionStart = runtime.indexOf("async function logCloudflareBotCapability(zone, apiToken)");
+  assert.ok(challengeFunctionStart >= 0 && botCapabilityFunctionStart > challengeFunctionStart);
+  const challengeFunction = runtime.slice(challengeFunctionStart, botCapabilityFunctionStart);
+  assert.match(challengeFunction, /await logCloudflareBotCapability\(matchingZones\[0\], apiToken\)/);
+
   assert.match(runtime, /STAGING_HTTP_FAILURE_DIAGNOSTIC/);
   assert.match(runtime, /CLOUDFLARE_CHALLENGE_SOURCE_DIAGNOSTIC/);
   assert.match(runtime, /CLOUDFLARE_CHALLENGE_SOURCE_UNAVAILABLE/);
