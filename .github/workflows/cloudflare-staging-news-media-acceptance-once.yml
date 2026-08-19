@@ -170,3 +170,37 @@ jobs:
             echo "- Replacement D1/R2 state during acceptance: PASS"
             echo "- Evidence recorded in issue #70"
           } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Record failed G2 operator acceptance evidence
+        if: steps.gate.outputs.should_run == 'true' && failure()
+        shell: bash
+        working-directory: .
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          TRACKING_ISSUE: "70"
+          SOURCE_SHA: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
+          SOURCE_DEEP_QA_RUN_ID: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.id || github.run_id }}
+        run: |
+          set -euo pipefail
+          run_url="https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          deep_qa_url="https://github.com/${GITHUB_REPOSITORY}/actions/runs/${SOURCE_DEEP_QA_RUN_ID}"
+          observed_at=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
+          body=$(cat <<EOF
+          G2 News media operator acceptance failure evidence
+
+          - accepted source SHA: ${SOURCE_SHA}
+          - prerequisite deep-QA run: ${deep_qa_url}
+          - G2 acceptance run: ${run_url}
+          - observed at: ${observed_at}
+
+          The protected staging News media operator acceptance did not complete successfully. G2 remains OPEN. Inspect the G2 run before retrying. This breadcrumb contains no credentials or sensitive token values and does not authorize production mutation.
+          EOF
+          )
+          payload=$(jq -n --arg body "$body" '{body: $body}')
+          curl --fail-with-body --silent --show-error \
+            --request POST \
+            --header "Accept: application/vnd.github+json" \
+            --header "Authorization: Bearer ${GITHUB_TOKEN}" \
+            --header "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/issues/${TRACKING_ISSUE}/comments" \
+            --data "$payload" >/dev/null
