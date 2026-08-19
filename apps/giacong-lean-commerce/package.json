@@ -19,7 +19,7 @@
     "test:catalog-purchase-ui": "node --no-warnings --experimental-strip-types --test scripts/catalog-purchase-ui.test.mts",
     "test:news": "node --no-warnings --experimental-strip-types --test scripts/news-data.test.mts scripts/news-public.test.mjs scripts/staging-news-qa-contract.test.mjs",
     "test:service": "node --no-warnings --experimental-strip-types --test scripts/service-contract.test.mts scripts/service-cms-contract.test.mts scripts/contact-form-context.test.mts",
-    "test:commerce": "node --no-warnings --experimental-strip-types --test scripts/commerce-foundation.test.mts",
+    "test:commerce": "node --no-warnings --experimental-strip-types --test scripts/commerce-foundation.test.mts scripts/captured-markup.test.mts",
     "test:header": "node --no-warnings --experimental-strip-types --test scripts/commerce-header.test.mts",
     "test:listing": "node --no-warnings --experimental-strip-types --test scripts/catalog-listing.test.mts",
     "test:detail": "node --no-warnings --experimental-strip-types --test scripts/product-detail.test.mts scripts/product-gallery.test.mts scripts/product-seo.test.mts",
