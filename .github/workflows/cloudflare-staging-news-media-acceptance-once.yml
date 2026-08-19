@@ -1,8 +1,8 @@
 name: Cloudflare staging News media acceptance once
 
-# One-time G2 execution marker, re-armed so the G3 source receives a fresh
-# correlated staging deploy, deep-QA and News/media acceptance before the
-# real customer-request delivery acceptance is allowed to run.
+# One-time G2 execution marker, re-armed so the staging Google-delivery secret
+# source receives a fresh correlated deploy, deep-QA and News/media acceptance
+# before the real customer-request delivery acceptance is allowed to run.
 
 on:
   workflow_run:
