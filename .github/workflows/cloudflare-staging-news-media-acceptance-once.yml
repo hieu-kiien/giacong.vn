@@ -1,9 +1,8 @@
 name: Cloudflare staging News media acceptance once
 
-# One-time G2 execution marker, re-armed after the protected preview reached the
-# Admin boundary but the intentionally challenged custom staging hostname blocked
-# application-rendering verification. G2 now verifies read-only rendering through
-# the same Access-protected no-traffic preview without weakening the custom edge.
+# One-time G2 execution marker, re-armed after the current master deep-QA hit a
+# transient Cloudflare workers.dev platform 404 immediately after the direct route
+# had stabilized. G1 now retries only that exact temporary platform response.
 
 on:
   workflow_run:
