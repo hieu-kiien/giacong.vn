@@ -1,5 +1,10 @@
 name: Cloudflare staging News media acceptance once
 
+# One-time G2 execution marker. Merge this workflow change only after G1 has a
+# correlated successful master staging deployment + deep-QA evidence pair in
+# issue #70. The automatic gate below intentionally requires this file to be
+# changed by the accepted source commit before any staging mutation runs.
+
 on:
   workflow_run:
     workflows:
