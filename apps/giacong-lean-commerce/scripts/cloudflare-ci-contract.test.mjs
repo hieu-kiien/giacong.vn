@@ -8,6 +8,7 @@ const deepQaUrl = new URL("../../../.github/workflows/cloudflare-staging-deep-qa
 const deepQaScriptUrl = new URL("./staging-deep-qa.mjs", import.meta.url);
 const directQaManagerUrl = new URL("./manage-staging-direct-qa.mjs", import.meta.url);
 const accessBootstrapUrl = new URL("./ensure-staging-access-service-auth.mjs", import.meta.url);
+const stagingWranglerAccessUrl = new URL("./prepare-staging-wrangler-access.mjs", import.meta.url);
 
 test("pull requests package OpenNext for staging without deploying remote state", async () => {
   const workflow = await readFile(ciUrl, "utf8");
@@ -18,25 +19,34 @@ test("pull requests package OpenNext for staging without deploying remote state"
   assert.match(workflow, /wrangler@4\.115\.0 deploy --env=staging --dry-run/);
 });
 
-test("validated master checks optional staging Service Auth, applies D1 migrations and deploys the same build", async () => {
+test("validated master bootstraps exact Admin Access, pins its AUD into the staging-only runtime config, then deploys", async () => {
   const workflow = await readFile(ciUrl, "utf8");
-  const serviceAuth = "node scripts/ensure-staging-access-service-auth.mjs";
+  const accessBootstrap = "node scripts/ensure-staging-access-service-auth.mjs";
+  const prepareRuntime = "node scripts/prepare-staging-wrangler-access.mjs";
   const migration = "d1 migrations apply GIACONG_VN_CATALOG --env=staging --remote";
-  const deploy = "opennextjs-cloudflare deploy --env=staging";
+  const deploy = "opennextjs-cloudflare deploy --env=staging --config=.wrangler-staging-runtime.json";
 
   assert.match(workflow, /staging-deploy:/);
   assert.match(workflow, /if: github\.event_name != 'pull_request'/);
-  assert.ok(workflow.includes(serviceAuth), "staging deploy must inspect Access Service Auth before acceptance QA");
+  assert.ok(workflow.includes(accessBootstrap), "staging deploy must inspect Access before acceptance QA");
+  assert.match(workflow, /ACCESS_SERVICE_AUTH_DOMAIN:\s*admin-staging\.kienhieu\.id\.vn/);
+  assert.match(workflow, /ACCESS_SERVICE_AUTH_REQUIRED:\s*"true"/);
+  assert.match(workflow, /ACCESS_APPLICATION_CREATE_IF_MISSING:\s*"true"/);
+  assert.match(workflow, /id:\s*admin_access/);
+  assert.match(workflow, /STAGING_ADMIN_ACCESS_AUD:\s*\$\{\{ steps\.admin_access\.outputs\.aud \}\}/);
+  assert.ok(workflow.includes(prepareRuntime), "staging deploy must prepare an ephemeral Wrangler config with the current Admin AUD");
+  assert.match(workflow, /opennextjs-cloudflare build --env=staging --config=\.wrangler-staging-runtime\.json/);
+  assert.match(workflow, /wrangler@4\.115\.0 deploy --config=\.wrangler-staging-runtime\.json --env=staging --dry-run/);
   assert.ok(workflow.includes(migration), "staging deploy must apply pending D1 migrations");
-  assert.ok(workflow.includes(deploy), "staging deploy must publish the already built OpenNext package");
-  assert.ok(workflow.indexOf(serviceAuth) < workflow.indexOf(migration), "Access bootstrap must run before changing remote app state");
+  assert.ok(workflow.includes(deploy), "staging deploy must publish the validated OpenNext package with the same runtime config");
+  assert.ok(workflow.indexOf(prepareRuntime) < workflow.indexOf("opennextjs-cloudflare build --env=staging --config=.wrangler-staging-runtime.json"));
   assert.ok(workflow.indexOf(migration) < workflow.indexOf(deploy), "D1 migrations must complete before Worker deployment");
   assert.match(workflow, /CLOUDFLARE_ACCESS_CLIENT_ID:\s*\$\{\{ secrets\.CLOUDFLARE_ACCESS_CLIENT_ID \}\}/);
   assert.match(workflow, /CLOUDFLARE_ACCESS_CLIENT_SECRET:\s*\$\{\{ secrets\.CLOUDFLARE_ACCESS_CLIENT_SECRET \}\}/);
   assert.doesNotMatch(workflow, /Staging remains unchanged/);
 });
 
-test("Access bootstrap supports current destination fields and refuses broad application-level Service Auth", async () => {
+test("Access bootstrap creates only an exact required staging application and refuses broader Service Auth scope", async () => {
   const script = await readFile(accessBootstrapUrl, "utf8");
 
   assert.match(
@@ -44,16 +54,32 @@ test("Access bootstrap supports current destination fields and refuses broad app
     /process\.env\.ACCESS_SERVICE_AUTH_DOMAIN\?\.trim\(\) \|\| "staging\.kienhieu\.id\.vn"/,
   );
   assert.match(script, /ACCESS_SERVICE_AUTH_REQUIRED\?\.trim\(\)\.toLowerCase\(\) === "true"/);
+  assert.match(script, /ACCESS_APPLICATION_CREATE_IF_MISSING\?\.trim\(\)\.toLowerCase\(\) === "true"/);
   assert.match(script, /classifyAccessApplications\(applications\.result \?\? \[\], targetDomain\)/);
   assert.match(script, /ACCESS_APP_SCOPE_TOO_BROAD/);
   assert.match(script, /application-level Service Auth policy/);
-  assert.match(script, /targetApps\.length === 0 && !accessAppRequired/);
-  assert.match(script, /Service Auth bootstrap is not required for this target/);
-  assert.match(script, /assert\.match\(targetDomain, \/\^\[a-z0-9\.\-\]\+\$\/i/);
+  assert.match(script, /classified\.exactApps\.length === 0 && !accessAppRequired/);
+  assert.match(script, /classified\.exactApps\.length === 0 && accessAppRequired && createAppIfMissing/);
+  assert.match(script, /destinations:\s*\[\{ type: "public", uri: `https:\/\/\$\{targetDomain\}\/\*` \}\]/);
+  assert.match(script, /type:\s*"self_hosted"/);
+  assert.match(script, /service_auth_401_redirect:\s*true/);
+  assert.match(script, /assert\.match\(app\?\.aud \?\? "", \/\^\[0-9a-f\]\{64\}\$\/i/);
+  assert.match(script, /writeGithubOutput\("aud", app\.aud\)/);
   assert.match(script, /token\?\.client_id === serviceClientId/);
   assert.match(script, /policy\?\.decision !== "non_identity"/);
   assert.match(script, /service_token:\s*\{ token_id: serviceToken\.id \}/);
   assert.match(script, /Access: Apps and Policies Read\/Write plus Access: Service Tokens Read/);
+});
+
+test("staging runtime Wrangler preparation changes only the staging Access AUD", async () => {
+  const script = await readFile(stagingWranglerAccessUrl, "utf8");
+
+  assert.match(script, /requiredEnv\("STAGING_ADMIN_ACCESS_AUD"\)/);
+  assert.match(script, /const productionAud = config\?\.vars\?\.POLICY_AUD/);
+  assert.match(script, /config\.env\.staging\.vars\.POLICY_AUD = aud/);
+  assert.match(script, /assert\.equal\(config\.vars\.POLICY_AUD, productionAud/);
+  assert.match(script, /\.wrangler-staging-runtime\.json/);
+  assert.doesNotMatch(script, /config\.vars\.POLICY_AUD\s*=\s*aud/);
 });
 
 test("Access target discovery accepts exact destinations but rejects wildcard and multi-domain scope", () => {
