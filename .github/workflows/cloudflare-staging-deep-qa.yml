@@ -33,8 +33,10 @@ jobs:
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       CLOUDFLARE_ACCESS_CLIENT_ID: ${{ secrets.CLOUDFLARE_ACCESS_CLIENT_ID }}
       CLOUDFLARE_ACCESS_CLIENT_SECRET: ${{ secrets.CLOUDFLARE_ACCESS_CLIENT_SECRET }}
+      STAGING_EDGE_ORIGIN: ${{ vars.STAGING_ORIGIN || 'https://staging.kienhieu.id.vn' }}
       STAGING_ORIGIN: ${{ vars.STAGING_ORIGIN || 'https://staging.kienhieu.id.vn' }}
       STAGING_DATABASE: giacong-vn-catalog-staging
+      STAGING_WORKER_NAME: giacong-vn-staging
 
     steps:
       - name: Checkout deployed commit
@@ -52,6 +54,12 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Verify custom staging edge boundary
+        run: node scripts/staging-edge-protection-qa.mjs
+
+      - name: Open temporary free-tier direct Worker QA route
+        run: node scripts/manage-staging-direct-qa.mjs open
+
       - name: Verify baseline security headers
         run: node scripts/staging-security-qa.mjs
 
@@ -64,11 +72,15 @@ jobs:
       - name: Verify performance lab anti-regression budgets
         run: node scripts/staging-performance-qa.mjs
 
-      - name: Run Access-authenticated staging deep QA
+      - name: Run staging deep QA through guarded direct route
         run: node scripts/staging-deep-qa.mjs
 
       - name: Run News staging regression QA
         run: node scripts/staging-news-qa.mjs
+
+      - name: Restore persistent workers.dev state
+        if: always()
+        run: node scripts/manage-staging-direct-qa.mjs restore
 
       - name: Record successful master staging QA evidence
         if: success() && github.event_name == 'workflow_run'
@@ -91,13 +103,15 @@ jobs:
           - deployed source SHA: ${SOURCE_SHA}
           - deep-QA run: ${qa_run_url}
           - observed at: ${observed_at}
-          - baseline security headers: PASS
+          - custom staging edge boundary: PASS
+          - temporary guarded workers.dev application QA: PASS and restored
+          - baseline application security headers: PASS
           - accessibility semantics/keyboard focus: PASS
           - performance lab anti-regression budgets: PASS
-          - Access-authenticated staging deep QA: PASS
+          - staging public/runtime deep QA: PASS
           - News staging regression QA: PASS
 
-          Match this comment to the deployment breadcrumb with the same source CI run id. Together they provide the commit, active Worker version, and post-deploy acceptance evidence without copying secrets or Cloudflare credentials into GitHub.
+          Match this comment to the deployment breadcrumb with the same source CI run id. The custom hostname keeps its Cloudflare Free security boundary, while application QA uses the same deployed staging Worker through a temporary read-mostly workers.dev route that is restored before this evidence is recorded.
           EOF
           )
           payload=$(jq -n --arg body "$body" '{body: $body}')
@@ -132,7 +146,7 @@ jobs:
           - deep-QA run: ${qa_run_url}
           - observed at: ${observed_at}
 
-          The post-deploy QA workflow did not complete successfully. G1 remains OPEN. Inspect the deep-QA run to identify the failed step before retrying; this failure breadcrumb is not acceptance evidence and does not authorize production mutation.
+          The post-deploy QA workflow did not complete successfully. The workflow attempted to restore the temporary direct workers.dev state before recording this failure. G1 remains OPEN; this breadcrumb is not acceptance evidence and does not authorize production mutation.
           EOF
           )
           payload=$(jq -n --arg body "$body" '{body: $body}')

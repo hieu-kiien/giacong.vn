@@ -1,0 +1,71 @@
+export const STAGING_DIRECT_QA_MODE = "readonly-public-qa";
+
+const safeContactProbeRequestId = "00000000-0000-4000-8000-000000000001";
+const safeContactProbeSnapshot = "0".repeat(64);
+
+export function allowsStagingDirectQaRequest(request: Request, mode: string | undefined): boolean {
+  const url = requestUrl(request);
+  if (!url) return false;
+
+  if (!isWorkersDev(url)) return true;
+  if (mode?.trim() !== STAGING_DIRECT_QA_MODE) return false;
+
+  const pathname = url.pathname;
+  if (isAdminPath(pathname)) return false;
+
+  const method = request.method.toUpperCase();
+  if (method === "GET" || method === "HEAD") return true;
+
+  return method === "POST" && pathname === "/api/gui-yeu-cau/xac-thuc";
+}
+
+export async function allowsStagingDirectQaRuntimeRequest(
+  request: Request,
+  mode: string | undefined,
+): Promise<boolean> {
+  if (allowsStagingDirectQaRequest(request, mode)) return true;
+
+  const url = requestUrl(request);
+  if (!url || !isWorkersDev(url) || mode?.trim() !== STAGING_DIRECT_QA_MODE) return false;
+  if (request.method.toUpperCase() !== "POST" || url.pathname !== "/api/contact") return false;
+
+  const body = await request.clone().text();
+  if (body === "{bad json") return true;
+
+  try {
+    const payload = JSON.parse(body);
+    return payload?.source === "staging-deep-qa"
+      && payload?.requestId === safeContactProbeRequestId
+      && payload?.snapshotToken === safeContactProbeSnapshot
+      && payload?.email === "qa@example.com"
+      && payload?.name === "Staging QA"
+      && payload?.phone === "0868408115"
+      && payload?.message === "staging QA only"
+      && Array.isArray(payload?.lines)
+      && payload.lines.length === 1
+      && payload.lines[0]?.parentSlug === "bot-gao-lut-xay-min"
+      && payload.lines[0]?.variantSku === "B2B-DEMO-BGL-05"
+      && payload.lines[0]?.quantity === 25;
+  } catch {
+    return false;
+  }
+}
+
+function requestUrl(request: Request): URL | null {
+  try {
+    return new URL(request.url);
+  } catch {
+    return null;
+  }
+}
+
+function isWorkersDev(url: URL): boolean {
+  return url.hostname.toLowerCase().endsWith(".workers.dev");
+}
+
+function isAdminPath(pathname: string): boolean {
+  return pathname === "/admin"
+    || pathname.startsWith("/admin/")
+    || pathname === "/api/admin"
+    || pathname.startsWith("/api/admin/");
+}
