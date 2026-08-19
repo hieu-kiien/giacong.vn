@@ -73,15 +73,16 @@ async function writeGithubEnv(values) {
 }
 
 async function waitForDirectRoute(origin) {
-  const attempts = 30;
+  const attempts = 60;
   const readinessPaths = ["/", "/san-pham"];
+  const requiredConsecutivePasses = 3;
+  let consecutivePasses = 0;
+
   for (let attempt = 1; attempt <= attempts; attempt += 1) {
     const results = [];
     for (const pathname of readinessPaths) {
       try {
-        const url = new URL(pathname, origin);
-        url.searchParams.set("__staging_direct_qa_ready", String(attempt));
-        const response = await fetch(url, {
+        const response = await fetch(new URL(pathname, origin), {
           headers: { "Cache-Control": "no-cache" },
           redirect: "manual",
           signal: AbortSignal.timeout(5000),
@@ -97,14 +98,17 @@ async function waitForDirectRoute(origin) {
     }
 
     if (results.every((result) => result.status !== null && result.status < 400)) {
-      console.log(`Temporary workers.dev routes became ready on attempt ${attempt}: ${results.map((result) => `${result.pathname}=HTTP ${result.status}`).join(", ")}.`);
-      return;
+      consecutivePasses += 1;
+      console.log(`Temporary workers.dev exact routes passed ${consecutivePasses}/${requiredConsecutivePasses} stabilization checks on attempt ${attempt}: ${results.map((result) => `${result.pathname}=HTTP ${result.status}`).join(", ")}.`);
+      if (consecutivePasses >= requiredConsecutivePasses) return;
+    } else {
+      consecutivePasses = 0;
+      console.log(`Waiting for temporary workers.dev propagation: attempt ${attempt}/${attempts}, ${results.map((result) => result.status === null ? `${result.pathname}=${result.error}` : `${result.pathname}=HTTP ${result.status}`).join(", ")}.`);
     }
 
-    console.log(`Waiting for temporary workers.dev propagation: attempt ${attempt}/${attempts}, ${results.map((result) => result.status === null ? `${result.pathname}=${result.error}` : `${result.pathname}=HTTP ${result.status}`).join(", ")}.`);
     if (attempt < attempts) await delay(1000);
   }
-  throw new Error(`Temporary workers.dev route for ${scriptName} did not serve representative application routes within ${attempts} seconds.`);
+  throw new Error(`Temporary workers.dev route for ${scriptName} did not serve stable representative application routes within ${attempts} seconds.`);
 }
 
 function delay(milliseconds) {
