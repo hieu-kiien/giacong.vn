@@ -124,7 +124,7 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Prepare encrypted staging Google delivery secrets
+      - name: Prepare ephemeral staging Google delivery secret file
         shell: bash
         run: |
           set -euo pipefail
