@@ -37,6 +37,7 @@ jobs:
       STAGING_ORIGIN: ${{ vars.STAGING_ORIGIN || 'https://staging.kienhieu.id.vn' }}
       STAGING_DATABASE: giacong-vn-catalog-staging
       STAGING_WORKER_NAME: giacong-vn-staging
+      STAGING_PERF_LCP_BUDGET_MS: "5000"
 
     steps:
       - name: Checkout deployed commit

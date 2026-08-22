@@ -11,6 +11,7 @@ test("staging performance QA uses existing Playwright with mobile-like lab condi
   assert.match(runtime, /CLOUDFLARE_ACCESS_CLIENT_ID/);
   assert.match(runtime, /CLOUDFLARE_ACCESS_CLIENT_SECRET/);
   assert.match(runtime, /lcpMs:\s*4000/);
+  assert.match(runtime, /STAGING_PERF_LCP_BUDGET_MS/);
   assert.match(runtime, /cls:\s*0\.25/);
   assert.match(runtime, /ttfbMs:\s*2500/);
   assert.match(runtime, /domContentLoadedMs:\s*8000/);
@@ -21,6 +22,12 @@ test("staging performance QA uses existing Playwright with mobile-like lab condi
   assert.match(runtime, /connectionType:\s*"cellular4g"/);
   assert.match(runtime, /poor-boundary/);
   assert.match(runtime, /Field p75 RUM\/CrUX remains a separate launch gate/);
+});
+
+test("self-hosted staging QA declares its calibrated LCP budget in the workflow", async () => {
+  const workflow = await readFile(workflowUrl, "utf8");
+
+  assert.match(workflow, /STAGING_PERF_LCP_BUDGET_MS:\s*[\"']?5000/);
 });
 
 test("post-deploy deep QA runs performance after browser accessibility and before the broader browser suite", async () => {

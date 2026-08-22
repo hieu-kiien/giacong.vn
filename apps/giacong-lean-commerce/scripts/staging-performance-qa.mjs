@@ -9,11 +9,17 @@ const accessHeaders = {
 
 // These are deliberately anti-regression / "poor boundary" budgets, not a claim
 // that field Core Web Vitals are good. Field p75 RUM/CrUX remains a separate launch gate.
-const budgets = {
+// The self-hosted WSL workflow supplies a calibrated LCP override for local browser
+// overhead; the 4s default remains the baseline for other environments.
+const defaultBudgets = {
   lcpMs: 4000,
   cls: 0.25,
   ttfbMs: 2500,
   domContentLoadedMs: 8000,
+};
+const budgets = {
+  ...defaultBudgets,
+  lcpMs: readPositiveBudget("STAGING_PERF_LCP_BUDGET_MS", defaultBudgets.lcpMs),
 };
 
 const routes = [
@@ -146,6 +152,17 @@ async function applyMobileLikeLabConditions(cdp) {
 function requiredEnv(name) {
   const value = process.env[name]?.trim();
   if (!value) throw new Error(`${name} is required for staging performance QA.`);
+  return value;
+}
+
+function readPositiveBudget(name, fallback) {
+  const raw = process.env[name]?.trim();
+  if (!raw) return fallback;
+
+  const value = Number(raw);
+  if (!Number.isFinite(value) || value <= 0) {
+    throw new Error(`${name} must be a positive number when provided.`);
+  }
   return value;
 }
 
