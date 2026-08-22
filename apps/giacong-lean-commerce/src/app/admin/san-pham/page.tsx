@@ -4,9 +4,11 @@ import { ImageOff, RefreshCw, Search } from "lucide-react";
 import { useEffect, useState, type FormEvent } from "react";
 import { AdminEmptyState, AdminErrorState, AdminLoadingTable, AdminPageHeading, AdminPagination, AdminStatusBadge } from "@/components/admin/AdminPrimitives";
 import { AdminMediaPanel } from "@/components/admin/AdminMediaPanel";
+import { AdminProductBulkImport } from "@/components/admin/AdminProductBulkImport";
 import { useAdminSession } from "@/components/admin/AdminShell";
 import { AdminVariantPanel } from "@/components/admin/AdminVariantPanel";
 import { AdminClientError, fetchAdmin, formatAdminDate, getInitials, mutateAdmin, type AdminCategory, type AdminProduct } from "@/lib/admin-client";
+import { slugifyProductName } from "@/lib/slugify-product";
 
 interface ProductResponse {
   categories?: AdminCategory[];
@@ -25,6 +27,7 @@ type ProductFormState = {
   name: string;
   shortDescription: string;
   sku: string;
+  slugTouched: boolean;
   slug: string;
   status: "archived" | "draft" | "published" | "review";
 };
@@ -38,6 +41,7 @@ const emptyProductForm: ProductFormState = {
   name: "",
   shortDescription: "",
   sku: "",
+  slugTouched: false,
   slug: "",
   status: "draft",
 };
@@ -114,6 +118,7 @@ export default function AdminProductsPage() {
       name: product.name,
       shortDescription: product.shortDescription,
       sku: product.sku,
+      slugTouched: true,
       slug: product.slug,
       status: product.status as ProductFormState["status"],
     });
@@ -169,6 +174,7 @@ export default function AdminProductsPage() {
     <div className="admin-content">
       <AdminPageHeading kicker="Catalog / sản phẩm" title="Quản lý sản phẩm" subtitle="Tìm và kiểm tra trạng thái các sản phẩm private-label đang được quản lý trong catalog." stamp="PRODUCT CATALOG" />
       {editor ? <ProductEditor categories={categories} error={saveError} form={editor} onChange={setEditor} onCancel={() => { setEditor(null); setSaveError(null); }} onSubmit={submitProduct} saving={saving} /> : null}
+      <AdminProductBulkImport onImported={() => setAttempt((value) => value + 1)} />
       <form className="admin-toolbar" onSubmit={submitSearch}>
         <div className="admin-search-wrap">
           <label className="admin-label" htmlFor="product-search">Tìm theo tên, SKU hoặc slug</label>
@@ -250,13 +256,21 @@ function ProductEditor({
     onChange({ ...form, [key]: value });
   }
 
+  function updateName(value: string) {
+    onChange({
+      ...form,
+      name: value,
+      slug: !form.id && !form.slugTouched ? slugifyProductName(value) : form.slug,
+    });
+  }
+
   return (
     <section className="admin-editor" aria-labelledby="product-editor-heading">
       <div className="admin-editor-heading">
         <div>
           <div className="admin-kicker">Catalog / chỉnh sửa</div>
           <h2 className="admin-panel-title" id="product-editor-heading">{form.id ? "Cập nhật sản phẩm" : "Tạo sản phẩm mới"}</h2>
-          <p className="admin-panel-caption">Lưu dưới dạng draft trước; chỉ sản phẩm published và bật hiển thị mới được public read phục vụ storefront.</p>
+          <p className="admin-panel-caption">{form.id ? "Cập nhật nội dung, rồi kiểm tra lại biến thể và bậc giá trước khi publish." : "Bước 1/3 · lưu Draft trước, sau đó thêm biến thể, giá và ảnh rồi mới publish."}</p>
         </div>
         <span className="admin-stamp">{form.id ? `ID ${form.id}` : "NEW RECORD"}</span>
       </div>
@@ -265,11 +279,13 @@ function ProductEditor({
         <div className="admin-editor-grid">
           <label className="admin-field">
             <span>Tên sản phẩm <b aria-hidden="true">*</b></span>
-            <input className="admin-input" data-testid="input-product-name" onChange={(event) => update("name", event.target.value)} required value={form.name} />
+            <input aria-describedby="product-name-help" className="admin-input" data-testid="input-product-name" onChange={(event) => updateName(event.target.value)} required value={form.name} />
+            <small className="admin-field-help" id="product-name-help">Tên hiển thị cho khách và đội sales.</small>
           </label>
           <label className="admin-field">
             <span>Slug <b aria-hidden="true">*</b></span>
-            <input className="admin-input admin-mono" data-testid="input-product-slug" onChange={(event) => update("slug", event.target.value)} required value={form.slug} />
+            <input aria-describedby="product-slug-help" className="admin-input admin-mono" data-testid="input-product-slug" onChange={(event) => onChange({ ...form, slug: event.target.value, slugTouched: true })} required value={form.slug} />
+            <small className="admin-field-help" id="product-slug-help">Tự tạo từ tên; chỉ sửa khi cần giữ URL đã thống nhất.</small>
           </label>
           <label className="admin-field">
             <span>SKU <b aria-hidden="true">*</b></span>
@@ -287,11 +303,9 @@ function ProductEditor({
             <select className="admin-select" data-testid="select-product-status" onChange={(event) => {
               const status = event.target.value as ProductFormState["status"];
               onChange({ ...form, isActive: status === "published" ? form.isActive : false, status });
-            }} value={form.status}>
-              <option value="draft">Draft</option>
-              <option value="review">Chờ duyệt</option>
-              <option value="published">Published</option>
-              <option value="archived">Archived</option>
+            }} value={form.status} disabled={!form.id}>
+              <option value="draft">Draft{!form.id ? " · bắt buộc lúc tạo" : ""}</option>
+              {form.id ? <><option value="review">Chờ duyệt</option><option value="published">Published</option><option value="archived">Archived</option></> : null}
             </select>
           </label>
           <label className="admin-field">
@@ -300,7 +314,8 @@ function ProductEditor({
           </label>
           <label className="admin-field admin-field-wide">
             <span>Ảnh sản phẩm</span>
-            <input className="admin-input" data-testid="input-product-image" onChange={(event) => update("imageUrl", event.target.value)} placeholder="/media/products/... hoặc https://..." value={form.imageUrl} />
+            <input aria-describedby="product-image-help" className="admin-input" data-testid="input-product-image" onChange={(event) => update("imageUrl", event.target.value)} placeholder="/media/products/... hoặc https://..." value={form.imageUrl} />
+            <small className="admin-field-help" id="product-image-help">Sau khi lưu, bạn có thể upload ảnh vào R2 ở phần Media bên dưới.</small>
           </label>
           <label className="admin-field admin-field-wide">
             <span>Mô tả ngắn</span>
@@ -318,7 +333,7 @@ function ProductEditor({
           </label>
           <div className="admin-editor-actions">
             <button className="admin-button admin-button-quiet" data-testid="button-product-cancel" onClick={onCancel} type="button">Hủy</button>
-            <button className="admin-button admin-button-primary" data-testid="button-product-save" disabled={saving} type="submit">{saving ? "Đang lưu..." : "Lưu sản phẩm"}</button>
+            <button className="admin-button admin-button-primary" data-testid="button-product-save" disabled={saving} type="submit">{saving ? "Đang lưu..." : form.id ? "Lưu thay đổi" : "Lưu Draft và tiếp tục"}</button>
           </div>
         </div>
       </form>

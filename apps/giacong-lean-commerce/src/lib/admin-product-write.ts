@@ -21,6 +21,11 @@ export class AdminProductStaleWriteError extends Error {
 
 export class AdminProductAtomicWriteError extends Error {}
 
+export interface AdminProductImportWriteEntry {
+  input: AdminProductInput;
+  rowNumber: number;
+}
+
 export async function createAdminProductAtomically(
   database: D1DatabaseLike,
   input: AdminProductInput,
@@ -84,6 +89,77 @@ export async function createAdminProductAtomically(
   const createdId = returningPositiveInteger(results[0]?.results, "id");
   if (!createdId) throw new AdminProductAtomicWriteError("Không đọc được ID sản phẩm vừa tạo.");
   return createdId;
+}
+
+export async function createAdminProductsAtomically(
+  database: D1DatabaseLike,
+  entries: readonly AdminProductImportWriteEntry[],
+  actorSubject: string,
+): Promise<number[]> {
+  if (entries.length === 0) throw new AdminProductAtomicWriteError("Không có sản phẩm để nhập.");
+  const batchDatabase = requireBatch(database);
+  const statements = entries.flatMap(({ input, rowNumber }) => {
+    const auditId = crypto.randomUUID();
+    return [
+      database.prepare(`
+        INSERT INTO products (
+          name, slug, sku, short_description, description, image_url,
+          category_id, is_active, revision
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)
+        RETURNING id
+      `).bind(
+        input.name,
+        input.slug,
+        input.sku,
+        input.shortDescription,
+        input.description,
+        input.imageUrl,
+        input.categoryId,
+        input.isActive ? 1 : 0,
+      ),
+      database.prepare(`
+        INSERT INTO product_admin_meta (
+          product_id, status, lead_time_days, updated_by, updated_at
+        )
+        SELECT id, ?, ?, ?, CURRENT_TIMESTAMP
+        FROM products
+        WHERE slug = ? AND sku = ?
+        LIMIT 1
+        ON CONFLICT(product_id) DO UPDATE SET
+          status = excluded.status,
+          lead_time_days = excluded.lead_time_days,
+          updated_by = excluded.updated_by,
+          updated_at = CURRENT_TIMESTAMP
+      `).bind(
+        input.status,
+        input.leadTimeDays,
+        actorSubject,
+        input.slug,
+        input.sku,
+      ),
+      database.prepare(`
+        INSERT INTO audit_logs (id, actor_subject, action, entity_type, entity_id, metadata_json)
+        SELECT ?, ?, 'product.bulk_created', 'product', CAST(id AS TEXT), ?
+        FROM products
+        WHERE slug = ? AND sku = ?
+        LIMIT 1
+      `).bind(
+        auditId,
+        actorSubject,
+        JSON.stringify({ input, rowNumber, source: "bulk_product_import" }),
+        input.slug,
+        input.sku,
+      ),
+    ];
+  });
+
+  const results = await batchDatabase.batch(statements);
+  const productIds = entries.map((_, index) => {
+    const productId = returningPositiveInteger(results[index * 3]?.results, "id");
+    if (!productId) throw new AdminProductAtomicWriteError("Không đọc được ID sản phẩm vừa nhập.");
+    return productId;
+  });
+  return productIds;
 }
 
 export async function updateAdminProductAtomically(
