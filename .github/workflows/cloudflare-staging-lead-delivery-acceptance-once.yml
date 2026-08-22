@@ -1,7 +1,8 @@
 name: Cloudflare staging lead delivery acceptance once
 
-# One-time G3 execution marker. Automatic execution is allowed only after the
-# corresponding G2 News/media operator acceptance has succeeded on master.
+# One-time G3 execution marker, re-armed for the staging Google-delivery secret
+# source. Automatic execution is allowed only after the corresponding G2
+# News/media operator acceptance has succeeded on master.
 
 on:
   workflow_run:

@@ -23,7 +23,7 @@ concurrency:
 jobs:
   detect-impact:
     name: GitNexus detect changes
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, x64, giacong]
     timeout-minutes: 25
 
     steps:
