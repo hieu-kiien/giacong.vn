@@ -23,6 +23,11 @@ test("CI and GitNexus jobs use the dedicated Linux self-hosted runner", async ()
     4,
     "every CI job must use the dedicated self-hosted runner",
   );
+  assert.doesNotMatch(
+    ciWorkflow,
+    /cache:\s*npm/,
+    "self-hosted CI must not depend on the setup-node hosted cache lifecycle",
+  );
   assert.match(gitnexusWorkflow, runnerLabel);
   assert.doesNotMatch(`${ciWorkflow}\n${gitnexusWorkflow}`, /runs-on:\s+ubuntu-latest/);
 });
