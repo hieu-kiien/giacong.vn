@@ -28,6 +28,17 @@ test("contact runtime and Apps Script template keep the explicit secondary-sink 
   assert.match(appsScriptSource, /validSecret\(payload\)/);
 });
 
+test("Google webhook setup instructions use the secret property consumed by the Apps Script template", async () => {
+  const [appsScriptSource, operatorGuide] = await Promise.all([
+    readFile(new URL("../docs/google-apps-script-contact-webhook.gs", import.meta.url), "utf8"),
+    readFile(new URL("../docs/GOOGLE_SHEETS_CONTACT_WEBHOOK.md", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(appsScriptSource, /getProperty\("CONTACT_WEBHOOK_SECRET"\)/);
+  assert.match(operatorGuide, /Script Property `CONTACT_WEBHOOK_SECRET`/);
+  assert.doesNotMatch(operatorGuide, /Script Property `WEBHOOK_SECRET`/);
+});
+
 test("staging deploy injects Google delivery secrets from GitHub Actions without committing values", async () => {
   const workflow = await readFile(new URL("../../../.github/workflows/ci-cloudflare.yml", import.meta.url), "utf8");
 
