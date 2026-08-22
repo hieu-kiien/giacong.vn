@@ -6,20 +6,27 @@ import { classifyAccessApplications } from "./access-application-targets.mjs";
 const ciUrl = new URL("../../../.github/workflows/ci-cloudflare.yml", import.meta.url);
 const gitnexusUrl = new URL("../../../.github/workflows/gitnexus-safety.yml", import.meta.url);
 const deepQaUrl = new URL("../../../.github/workflows/cloudflare-staging-deep-qa.yml", import.meta.url);
+const g2Url = new URL("../../../.github/workflows/cloudflare-staging-news-media-acceptance-once.yml", import.meta.url);
+const g3Url = new URL("../../../.github/workflows/cloudflare-staging-lead-delivery-acceptance-once.yml", import.meta.url);
 const deepQaScriptUrl = new URL("./staging-deep-qa.mjs", import.meta.url);
 const directQaManagerUrl = new URL("./manage-staging-direct-qa.mjs", import.meta.url);
 const accessBootstrapUrl = new URL("./ensure-staging-access-service-auth.mjs", import.meta.url);
 const stagingWranglerAccessUrl = new URL("./prepare-staging-wrangler-access.mjs", import.meta.url);
 
-test("CI and GitNexus jobs use the dedicated Linux self-hosted runner", async () => {
-  const [ciWorkflow, gitnexusWorkflow] = await Promise.all([
+test("CI, GitNexus, and staging acceptance jobs use the dedicated Linux self-hosted runner", async () => {
+  const [ciWorkflow, gitnexusWorkflow, deepQaWorkflow, g2Workflow, g3Workflow] = await Promise.all([
     readFile(ciUrl, "utf8"),
     readFile(gitnexusUrl, "utf8"),
+    readFile(deepQaUrl, "utf8"),
+    readFile(g2Url, "utf8"),
+    readFile(g3Url, "utf8"),
   ]);
-  const runnerLabel = /runs-on:\s*\[self-hosted, linux, x64, giacong\]/g;
+  const runnerLabel = /runs-on:\s*\[self-hosted, linux, x64, giacong\]/;
+  const runnerLabelGlobal = /runs-on:\s*\[self-hosted, linux, x64, giacong\]/g;
+  const workflows = [ciWorkflow, gitnexusWorkflow, deepQaWorkflow, g2Workflow, g3Workflow];
 
   assert.equal(
-    [...ciWorkflow.matchAll(runnerLabel)].length,
+    [...ciWorkflow.matchAll(runnerLabelGlobal)].length,
     4,
     "every CI job must use the dedicated self-hosted runner",
   );
@@ -28,8 +35,11 @@ test("CI and GitNexus jobs use the dedicated Linux self-hosted runner", async ()
     /cache:\s*npm/,
     "self-hosted CI must not depend on the setup-node hosted cache lifecycle",
   );
-  assert.match(gitnexusWorkflow, runnerLabel);
-  assert.doesNotMatch(`${ciWorkflow}\n${gitnexusWorkflow}`, /runs-on:\s+ubuntu-latest/);
+  for (const workflow of workflows) {
+    assert.match(workflow, runnerLabel);
+  }
+  assert.doesNotMatch(workflows.join("\n"), /runs-on:\s+ubuntu-latest/);
+  assert.doesNotMatch(workflows.join("\n"), /cache:\s*npm/);
 });
 
 test("pull requests package OpenNext for staging without deploying remote state", async () => {

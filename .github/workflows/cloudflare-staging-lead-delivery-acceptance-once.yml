@@ -25,7 +25,7 @@ jobs:
   acceptance:
     name: G3 real lead delivery acceptance
     if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, x64, giacong]
     timeout-minutes: 30
     permissions:
       contents: read
@@ -76,8 +76,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 24
-          cache: npm
-          cache-dependency-path: apps/giacong-lean-commerce/package-lock.json
 
       - name: Install dependencies
         if: steps.gate.outputs.should_run == 'true'
