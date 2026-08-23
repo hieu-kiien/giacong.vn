@@ -4,7 +4,7 @@
 reference/
 design/
 tools/
-src/
+/src/
 
 # Generated reports/artifacts do not participate in runtime call graphs.
 **/playwright-report/

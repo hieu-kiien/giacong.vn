@@ -3,6 +3,7 @@ import { createRemoteJWKSet, jwtVerify } from "jose";
 export interface AdminAccessConfig {
   adminHostname: string;
   additionalAdminHostnames?: string[];
+  productionAdminHostname: string;
   policyAudience: string;
   teamDomain: string;
   publicAdmin?: boolean;
@@ -41,6 +42,7 @@ export interface NormalizedAdminAccessConfig {
   adminHostnames: string[];
   adminOrigin: string;
   adminOrigins: string[];
+  productionAdminHostname: string;
   policyAudience: string;
   teamDomain: string;
   publicAdmin: boolean;
@@ -74,6 +76,10 @@ export async function admitAdminRequest(
 
   if (requestUrl.protocol !== "https:" || !config.adminHostnames.includes(requestUrl.hostname.toLowerCase())) {
     return failure(404, "NOT_FOUND", "Không tìm thấy.");
+  }
+
+  if (config.publicAdmin && requestUrl.hostname.toLowerCase() === config.productionAdminHostname) {
+    return failure(500, "INTERNAL_ERROR", "Cấu hình quản trị chưa sẵn sàng.");
   }
 
   if (mutationMethods.has(request.method.toUpperCase())) {
@@ -147,6 +153,8 @@ export function normalizeAdminAccessConfig(
 
   const uniqueAdminHostnames = [...new Set(adminHostnames)];
   const adminHostname = uniqueAdminHostnames[0];
+  const productionAdminHostname = config.productionAdminHostname.trim().toLowerCase();
+  if (!validHostname(productionAdminHostname)) return null;
   const policyAudience = config.policyAudience.trim();
   if (!validAudience(policyAudience)) return null;
 
@@ -174,6 +182,7 @@ export function normalizeAdminAccessConfig(
     adminHostnames: uniqueAdminHostnames,
     adminOrigin: `https://${adminHostname}`,
     adminOrigins: uniqueAdminHostnames.map((hostname) => `https://${hostname}`),
+    productionAdminHostname,
     policyAudience,
     teamDomain,
     publicAdmin: config.publicAdmin === true,

@@ -13,6 +13,7 @@ interface AdminAccessEnv {
   ADMIN_HOSTNAMES?: string;
   ADMIN_PUBLIC?: string;
   ADMIN_PUBLIC_SUBJECT?: string;
+  PRODUCTION_ADMIN_HOSTNAME?: string;
   POLICY_AUD?: string;
   TEAM_DOMAIN?: string;
 }
@@ -28,6 +29,7 @@ export function getRuntimeAdminAccessConfig(): AdminAccessConfig {
     return {
       adminHostname: accessEnv.ADMIN_HOSTNAME ?? "",
       additionalAdminHostnames: parseHostnames(accessEnv.ADMIN_HOSTNAMES),
+      productionAdminHostname: accessEnv.PRODUCTION_ADMIN_HOSTNAME ?? "",
       publicAdmin: accessEnv.ADMIN_PUBLIC?.trim().toLowerCase() === "true",
       publicSubject: accessEnv.ADMIN_PUBLIC_SUBJECT ?? "",
       policyAudience: accessEnv.POLICY_AUD ?? "",
@@ -37,6 +39,7 @@ export function getRuntimeAdminAccessConfig(): AdminAccessConfig {
     return {
       adminHostname: "",
       additionalAdminHostnames: [],
+      productionAdminHostname: "",
       publicAdmin: false,
       publicSubject: "",
       policyAudience: "",

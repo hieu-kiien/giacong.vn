@@ -5,6 +5,7 @@ import { admitAdminRequest, normalizeAdminAccessConfig } from "../src/lib/admin-
 const baseConfig = {
   adminHostname: "admin-staging.example.test",
   additionalAdminHostnames: ["staging-worker.example.test"],
+  productionAdminHostname: "admin.example.test",
   policyAudience: "audience-1234567890",
   teamDomain: "https://team.example.cloudflareaccess.com",
 };
@@ -36,6 +37,30 @@ test("admits the explicit public staging actor only on an allowlisted host", asy
   );
   assert.equal(preview.ok, false);
   if (!preview.ok) assert.equal(preview.status, 404);
+});
+
+test("rejects public mode when the request targets the production admin hostname", async () => {
+  const result = await admitAdminRequest(
+    new Request("https://admin.example.test/api/admin/session"),
+    {
+      ...baseConfig,
+      additionalAdminHostnames: [...baseConfig.additionalAdminHostnames, "admin.example.test"],
+      publicAdmin: true,
+    },
+  );
+
+  assert.equal(result.ok, false);
+  if (!result.ok) {
+    assert.equal(result.code, "INTERNAL_ERROR");
+    assert.equal(result.status, 500);
+  }
+});
+
+test("fails closed when public mode has no production hostname guard", () => {
+  assert.equal(
+    normalizeAdminAccessConfig({ ...baseConfig, productionAdminHostname: "", publicAdmin: true }),
+    null,
+  );
 });
 
 test("requires same-origin mutations even in public staging mode", async () => {
