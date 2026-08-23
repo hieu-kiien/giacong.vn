@@ -1,4 +1,4 @@
-# Cloudflare current state — 2026-08-18
+# Cloudflare current state — 2026-08-23
 
 Hồ sơ này ghi bằng chứng runtime và implementation đã xác minh trong quá trình chuyển Lean V1 sang Cloudflare-native. Những mục mô tả runtime staging chỉ được đánh dấu đã đạt khi có bằng chứng workflow/runtime tương ứng; code đã merge nhưng chưa quan sát được runtime gate được ghi riêng.
 
@@ -246,6 +246,18 @@ Sau khi News lifecycle được đưa vào `master`, các lớp production-readi
 - PR #69 thêm staging synthetic performance anti-regression gate bằng Playwright với LCP/CLS/TTFB/DOMContentLoaded budgets trong điều kiện mobile-like CPU/network throttling. Gate này dùng để bắt severe regression; **không phải field p75 Core Web Vitals certification**.
 - PR #71 thêm `docs/PRODUCTION_READINESS_MAP.md` và issue #70 làm execution map G0–G8 cho phần việc còn lại. Source/build evidence và runtime/operator acceptance vẫn được giữ tách biệt.
 
+## Latest accepted staging chain — 2026-08-22
+
+The latest authoritative master chain is accepted through G3:
+
+- source master SHA: `4651e94d88a36dff700df832a3bcde73c5770576`;
+- G1 deployment run `32573099984` promoted Worker version `200b9734-6bef-4161-b189-84aa5f738724` to 100% staging traffic;
+- matching G1 deep-QA run `32573384328` passed edge protection, baseline security headers, accessibility, performance, commerce, responsive browser and News regression checks;
+- G2 News media operator acceptance run `32573791603` passed protected upload/select/save/render/reference-safe delete and D1/R2 post-conditions;
+- G3 durable request-delivery acceptance run `32573995446` passed real Queue enqueue/consumer delivery, D1 inbox visibility, invalid-input rejection and idempotent replay.
+
+Issue #70 retains the detailed run breadcrumbs, identifiers and timestamps. These are staging-only acceptance runs; no production resource was mutated.
+
 Vì vậy các việc “viết recovery/rollback procedure” và “thêm performance lab guard” không còn là future implementation work. Việc còn lại là quan sát master staging evidence, thực hiện operator/runtime acceptance, recovery drill thật và chuẩn bị production data/resources có chủ ý.
 
 ## Governance Cloudflare-native
@@ -269,11 +281,8 @@ Admin server contract chi tiết nằm tại `docs/CLOUDFLARE_ADMIN_WRITE_CONTRA
 
 Execution map hiện hành nằm tại `docs/PRODUCTION_READINESS_MAP.md` và được theo dõi ở issue #70. Application/runtime migration, commerce deep QA, staging-admin boundary và phần lớn Admin CRUD source đã đi qua giai đoạn foundation. Các bước còn lại được thực hiện theo thứ tự evidence-first sau:
 
-1. Quan sát và lưu bằng chứng run `master` của staging deployment, active Worker version và toàn bộ post-deploy acceptance hiện hành: security headers, accessibility, performance lab, commerce deep QA và News regression QA.
-2. Thực hiện operator acceptance trên staging cho News media qua Access: upload asset thật, chọn/lưu thumbnail, xác minh public render, thử `MEDIA_IN_USE`, đổi/lưu thumbnail rồi xóa asset cũ, và xác minh D1/R2 hậu điều kiện mà không phá article.
-3. Xác minh request-delivery chain trên account/resources thật: Cloudflare Queue binding/consumer nếu dùng async delivery, Google Apps Script ownership/deployment/authorization, request reference mapping, idempotency, schema/protection và timeout/redirect allowlist; D1 durable inbox vẫn là intake boundary.
-4. Hoàn tất security acceptance còn thiếu bằng cách audit source/script/style/Turnstile thực tế và chốt CSP hoặc một deferment hẹp, có bằng chứng và review trigger; sau đó chạy lại security acceptance.
-5. Thực hiện staging recovery drill theo runbook đã merge: tách Worker rollback khỏi D1 restore semantics, kiểm tra R2 reconciliation và Queue/DLQ/idempotency, rồi lưu operator evidence/timing.
-6. Chốt production taxonomy, SKU, variants, prices, MOQ/step/thresholds, media, site/News content và contact/trust claims; loại toàn bộ demo/test content khỏi production migration dataset và tạo manifest đã duyệt.
-7. Tạo/audit production D1/R2/Queue cần thiết có chủ ý, rehearsal migration trên dataset đã duyệt, xác minh backup/export, rollback triggers và production smoke checklist.
-8. Chỉ khi các gate trước đều xanh bằng evidence mới upload/version và promotion `giacong-vn` production; production không được dùng làm môi trường thử nghiệm.
+1. Hoàn tất security acceptance còn thiếu bằng cách audit source/script/style/Turnstile thực tế và chốt CSP hoặc một deferment hẹp, có bằng chứng và review trigger; sau đó chạy lại security acceptance.
+2. Thực hiện staging recovery drill theo runbook đã merge: tách Worker rollback khỏi D1 restore semantics, kiểm tra R2 reconciliation và Queue/DLQ/idempotency, rồi lưu operator evidence/timing.
+3. Chốt production taxonomy, SKU, variants, prices, MOQ/step/thresholds, media, site/News content và contact/trust claims; loại toàn bộ demo/test content khỏi production migration dataset và tạo manifest đã duyệt.
+4. Tạo/audit production D1/R2/Queue cần thiết có chủ ý, rehearsal migration trên dataset đã duyệt, xác minh backup/export, rollback triggers và production smoke checklist.
+5. Chỉ khi các gate trước đều xanh bằng evidence mới upload/version và promotion `giacong-vn` production; production không được dùng làm môi trường thử nghiệm.
