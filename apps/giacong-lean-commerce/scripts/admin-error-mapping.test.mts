@@ -13,6 +13,7 @@ test("classifies D1 constraint violations from the message shapes D1 actually em
   }
 
   assert.equal(isUniqueConstraintError(new Error("no such table: site_settings")), false);
+  assert.equal(isUniqueConstraintError(new Error("CHECK constraint failed: moq > 0")), false, "a CHECK violation is a validation problem, not a conflict");
   assert.equal(isUniqueConstraintError("not an error instance"), false);
 });
 

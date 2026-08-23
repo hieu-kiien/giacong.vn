@@ -16,13 +16,15 @@ export interface AdminConflictShape {
 
 /**
  * D1 surfaces constraint violations as free-form messages with no stable error
- * code property, so classification has to inspect the text. This is the one place
- * allowed to do it; every admin route maps failures through `adminErrorFrom`
- * so internals never reach a client body.
+ * code property, so classification has to inspect the text. Uniqueness only:
+ * CHECK failures are validation problems, not conflicts, so they must not be
+ * reported as "already exists". This is the one place allowed to classify;
+ * every admin route maps failures through `adminErrorFrom` so internals never
+ * reach a client body.
  */
 export function isUniqueConstraintError(error: unknown): boolean {
   if (!(error instanceof Error)) return false;
-  return /UNIQUE constraint failed|PRIMARY KEY constraint failed|CHECK constraint failed/i.test(error.message);
+  return /UNIQUE constraint failed|PRIMARY KEY constraint failed/i.test(error.message);
 }
 
 export function mapAdminWriteError(
