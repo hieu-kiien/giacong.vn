@@ -2,6 +2,8 @@ import "server-only";
 
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 
+import type { AdminCategoryInput } from "./admin-category-input";
+
 export type AdminRole = "owner" | "content_manager" | "catalog_manager" | "sales_manager" | "viewer";
 export type AdminPublishStatus = "draft" | "review" | "published" | "archived";
 export type LeadStatus =
@@ -1209,4 +1211,130 @@ function escapeLike(value: string): string {
 
 function integer(value: unknown): number {
   return typeof value === "number" && Number.isInteger(value) && value >= 0 ? value : 0;
+}
+// ---------------------------------------------------------------------------
+// Categories CRUD (contract locked 2026-08-23; UI may only build on these)
+// ---------------------------------------------------------------------------
+
+export interface AdminCategoryDetail {
+  description: string;
+  id: number;
+  imageUrl: string | null;
+  isActive: boolean;
+  name: string;
+  revision: number;
+  slug: string;
+  sortOrder: number;
+}
+
+interface CategoryDetailRow {
+  description: string;
+  id: number;
+  image_url: string | null;
+  is_active: number;
+  name: string;
+  revision: number;
+  slug: string;
+  sort_order: number;
+}
+
+function toCategoryDetail(row: CategoryDetailRow): AdminCategoryDetail {
+  return {
+    description: typeof row.description === "string" ? row.description : "",
+    id: row.id,
+    imageUrl: row.image_url ?? null,
+    isActive: row.is_active === 1,
+    name: row.name,
+    revision: row.revision,
+    slug: row.slug,
+    sortOrder: row.sort_order,
+  };
+}
+
+export async function getAdminCategory(
+  database: D1DatabaseLike,
+  id: number,
+): Promise<AdminCategoryDetail | null> {
+  const row = await database.prepare(`
+    SELECT id, name, slug, description, image_url, sort_order, is_active, revision
+    FROM categories
+    WHERE id = ?
+    LIMIT 1
+  `).bind(id).first<CategoryDetailRow>();
+  return row ? toCategoryDetail(row) : null;
+}
+
+export async function listAdminCategoryDetails(database: D1DatabaseLike): Promise<AdminCategoryDetail[]> {
+  const result = await database.prepare(`
+    SELECT id, name, slug, description, image_url, sort_order, is_active, revision
+    FROM categories
+    ORDER BY sort_order ASC, name COLLATE NOCASE ASC, id ASC
+  `).all<CategoryDetailRow>();
+  return result.results.map(toCategoryDetail);
+}
+
+export async function createAdminCategory(
+  database: D1DatabaseLike,
+  input: AdminCategoryInput,
+  actorSubject: string,
+): Promise<AdminCategoryDetail> {
+  await database.prepare(`
+    INSERT INTO categories (name, slug, description, image_url, sort_order, is_active)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `).bind(input.name, input.slug, input.description, input.imageUrl, input.sortOrder, input.isActive ? 1 : 0).run();
+
+  const created = await database.prepare("SELECT id FROM categories WHERE slug = ? LIMIT 1")
+    .bind(input.slug)
+    .first<{ id: number }>();
+  if (!created) throw new AdminDataError("Không thể đọc lại danh mục vừa tạo.");
+
+  await writeAuditLog(database, actorSubject, "category.created", "category", String(created.id), input);
+  const detail = await getAdminCategory(database, created.id);
+  if (!detail) throw new AdminDataError("Không thể đọc lại danh mục vừa tạo.");
+  return detail;
+}
+
+export async function updateAdminCategory(
+  database: D1DatabaseLike,
+  id: number,
+  input: AdminCategoryInput,
+  expectedRevision: number,
+  actorSubject: string,
+): Promise<AdminCategoryDetail | null> {
+  const existing = await getAdminCategory(database, id);
+  if (!existing) return null;
+  if (existing.revision !== expectedRevision) {
+    throw new AdminDataError("Dữ liệu danh mục đã thay đổi. Hãy tải lại trước khi lưu.");
+  }
+
+  await database.prepare(`
+    UPDATE categories
+    SET name = ?, slug = ?, description = ?, image_url = ?, sort_order = ?, is_active = ?,
+      updated_at = CURRENT_TIMESTAMP, revision = revision + 1
+    WHERE id = ?
+  `).bind(input.name, input.slug, input.description, input.imageUrl, input.sortOrder, input.isActive ? 1 : 0, id).run();
+
+  await writeAuditLog(database, actorSubject, "category.updated", "category", String(id), input);
+  return getAdminCategory(database, id);
+}
+
+export async function deleteAdminCategory(
+  database: D1DatabaseLike,
+  id: number,
+  actorSubject: string,
+): Promise<boolean> {
+  const existing = await getAdminCategory(database, id);
+  if (!existing) return false;
+
+  const reference = await database.prepare("SELECT COUNT(*) AS n FROM products WHERE category_id = ?")
+    .bind(id)
+    .first<{ n: number }>();
+  const inUse = reference?.n ?? 0;
+  if (inUse > 0) {
+    throw new AdminDataError(`CATEGORY_IN_USE: Còn ${inUse} sản phẩm đang thuộc danh mục này. Chuyển chúng sang danh mục khác trước khi xóa.`);
+  }
+
+  await database.prepare("DELETE FROM categories WHERE id = ?").bind(id).run();
+  await writeAuditLog(database, actorSubject, "category.deleted", "category", String(id), { slug: existing.slug });
+  return true;
 }

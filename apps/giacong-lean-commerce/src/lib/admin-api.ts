@@ -2,6 +2,7 @@ import type { AdminAdmissionFailureCode } from "./admin-access.ts";
 
 export type AdminApiErrorCode =
   | AdminAdmissionFailureCode
+  | "CATEGORY_IN_USE"
   | "IDEMPOTENCY_CONFLICT"
   | "INVALID_REQUEST"
   | "MEDIA_IN_USE"

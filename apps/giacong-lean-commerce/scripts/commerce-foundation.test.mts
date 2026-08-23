@@ -488,21 +488,14 @@ test("the runtime dependency baseline stays explicit and no forbidden route appe
   );
 });
 
-test("the Next app has no legacy admin BFF or admin UI", async () => {
-  assert.equal(
+test("the Cloudflare-native admin owns the category CRUD surface", async () => {
+  assert.ok(
     await exists(path.join(appDir, "api", "admin", "categories", "route.ts")),
-    false,
-    "Bagisto Admin is the only admin surface; Next must not expose the category BFF",
+    "category list/create is part of the locked admin write contract",
   );
-  assert.equal(
+  assert.ok(
     await exists(path.join(appDir, "api", "admin", "categories", "[id]", "route.ts")),
-    false,
-    "Bagisto Admin is the only admin surface; Next must not expose category mutations",
-  );
-  assert.equal(
-    await exists(path.join(repoRoot, "src", "components", "admin", "AdminCategoryPanel.tsx")),
-    false,
-    "Next must not retain components for the removed admin UI",
+    "category update/delete is part of the locked admin write contract",
   );
 });
 
