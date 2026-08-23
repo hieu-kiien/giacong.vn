@@ -1,9 +1,25 @@
+import { getCloudflareContext } from "@opennextjs/cloudflare";
+
 import { handleContactSubmission } from "@/lib/contact-webhook";
 import { getAdminDatabase } from "@/lib/admin-data";
 import { createLeadPersistence } from "@/lib/lead-data";
 import { getCatalogProduct } from "@/lib/cloudflare-catalog";
 import { getLeadQueue } from "@/lib/lead-queue";
 import { resolveRequestCartFromCatalog } from "@/lib/request-cart-resolver";
+
+interface ContactRateLimitBinding {
+  limit(key: string): Promise<{ success: boolean }>;
+}
+
+/** Absent outside the Workers runtime (next dev, unit tests): the handler then runs unthrottled. */
+function getContactRateLimiter(): ContactRateLimitBinding | undefined {
+  try {
+    const env = getCloudflareContext().env as { GIACONG_VN_CONTACT_LIMIT?: ContactRateLimitBinding };
+    return env.GIACONG_VN_CONTACT_LIMIT;
+  } catch {
+    return undefined;
+  }
+}
 
 export async function POST(request: Request) {
   let leadPersistence;
@@ -18,6 +34,7 @@ export async function POST(request: Request) {
 
   return handleContactSubmission(request, {
     cartBatchResolver: resolveRequestCartFromCatalog,
+    contactRateLimiter: getContactRateLimiter(),
     environment: process.env,
     leadQueue: getLeadQueue(),
     leadPersistence,

@@ -87,8 +87,68 @@ test("forwards normalized contact fields and optional secret to an approved Apps
   });
 });
 
-test("does not include secret when it is not configured", async () => {
-  let receivedBody = "";
+test("returns 429 with Retry-After when the contact rate limiter rejects the client", async () => {
+  let webhookCalled = false;
+  let limitedKey = "";
+  const response = await handleContactSubmission(
+    new Request("http://localhost/api/contact", {
+      body: (() => {
+        const form = new FormData();
+        Object.entries(validSubmission).forEach(([name, value]) => form.set(name, value));
+        return form;
+      })(),
+      headers: { "CF-Connecting-IP": "203.0.113.7" },
+      method: "POST",
+    }),
+    {
+      contactRateLimiter: {
+        limit: async (key: string) => {
+          limitedKey = key;
+          return { success: false };
+        },
+      },
+      environment: environment(),
+      fetch: async () => {
+        webhookCalled = true;
+        return new Response(JSON.stringify({ ok: true, reference: "YC-X" }), {
+          headers: { "Content-Type": "application/json" },
+        });
+      },
+      timeoutMs: 100,
+    },
+  );
+
+  assert.equal(response.status, 429);
+  assert.equal(response.headers.get("retry-after"), "60");
+  const body = await response.json();
+  assert.equal(body.ok, false);
+  assert.equal(webhookCalled, false, "a rate-limited submit must never reach the webhook or D1");
+  assert.equal(limitedKey, "203.0.113.7", "the client key is the connecting IP");
+});
+
+test("fails open when the rate limiter itself errors", async () => {
+  let webhookCalled = false;
+  const response = await handleContactSubmission(requestWithForm(), {
+    contactRateLimiter: {
+      limit: async () => {
+        throw new Error("limiter unavailable");
+      },
+    },
+    environment: environment(),
+    fetch: async () => {
+      webhookCalled = true;
+      return new Response(JSON.stringify({ ok: true, reference: "YC-Y" }), {
+        headers: { "Content-Type": "application/json" },
+      });
+    },
+    timeoutMs: 100,
+  });
+
+  assert.equal(response.status, 202);
+  assert.equal(webhookCalled, true, "abuse protection must never take intake down with it");
+});
+
+test("does not include secret when it is not configured", async () => {  let receivedBody = "";
   const response = await handleContactSubmission(requestWithForm(), {
     environment: environment({ GOOGLE_SHEETS_WEBHOOK_SECRET: undefined }),
     fetch: async (_url: string | URL | Request, init?: RequestInit) => {

@@ -14,6 +14,10 @@ import type { RequestCartLineKey, RequestCartResolver, ResolvedRequestCart } fro
 export interface ContactWebhookDependencies {
   cartBatchResolver?: (lines: RequestCartLineKey[]) => Promise<ResolvedRequestCart>;
   cartResolver?: RequestCartResolver;
+  /** Cloudflare Ratelimit binding shape; keyed by client IP. Abuse protection only. */
+  contactRateLimiter?: {
+    limit(key: string): Promise<{ success: boolean }>;
+  };
   environment: Readonly<Record<string, string | undefined>>;
   fetch?: typeof globalThis.fetch;
   leadQueue?: ContactLeadQueue;
@@ -308,10 +312,37 @@ async function readJsonBeforeTimeout(response: Response, signal: AbortSignal): P
   }
 }
 
+/**
+ * Cost/abuse protection for the public intake. Fails open: an unavailable limiter
+ * must never block a legitimate request, and the limiter is never a business invariant.
+ */
+async function checkContactRateLimit(
+  request: Request,
+  limiter?: ContactWebhookDependencies["contactRateLimiter"],
+): Promise<Response | null> {
+  if (!limiter) return null;
+  const key = request.headers.get("cf-connecting-ip")?.trim() || "unknown";
+  let success: boolean;
+  try {
+    ({ success } = await limiter.limit(key));
+  } catch (error) {
+    console.error("[contact] rate limiter unavailable; failing open", error);
+    return null;
+  }
+  if (success) return null;
+  return Response.json(
+    { message: "Bạn đã gửi quá nhiều yêu cầu. Vui lòng thử lại sau ít phút.", ok: false },
+    { headers: { "Cache-Control": "no-store", "Retry-After": "60" }, status: 429 },
+  );
+}
+
 export async function handleContactSubmission(
   request: Request,
   dependencies: ContactWebhookDependencies,
 ): Promise<Response> {
+  const rateLimited = await checkContactRateLimit(request, dependencies.contactRateLimiter);
+  if (rateLimited) return rateLimited;
+
   const resolved = isJsonRequest(request)
     ? await resolveCartPayload(request, dependencies)
     : await resolveFormPayload(request, dependencies);
