@@ -40,8 +40,8 @@ const INVALID_MESSAGE = "Không thêm được lựa chọn này. Vui lòng th�
  * is written. The secondary action continues to `/gui-yeu-cau/`, the one cart route.
  *
  * The figures beside the stepper are display values derived from the tier bands the
- * server already sent. They are never submitted: the request route re-reads Bagisto
- * and computes the canonical unit price and subtotal itself.
+ * server already sent. They are never submitted: the request route re-reads the
+ * Cloudflare catalog and computes the canonical unit price and subtotal itself.
  */
 export function ProductPurchasePanel({ editingCartVariantSku, initialVariantSku, variantQueryWarning, view }: ProductPurchasePanelProps) {
   const router = useRouter();
