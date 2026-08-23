@@ -38,7 +38,7 @@ test("runs focused admin, contact, catalog, and service tests before lint in the
   assert.equal(
     packageJson.scripts.check,
     "npm run test:admin && npm run test:contact && npm run test:catalog && npm run test:catalog-purchase-ui && npm run test:service"
-      + " && npm run test:commerce && npm run test:header"
+      + " && npm run test:commerce"
       + " && npm run test:listing && npm run test:detail"
       + " && npm run lint && npm run typecheck && npm run build",
   );

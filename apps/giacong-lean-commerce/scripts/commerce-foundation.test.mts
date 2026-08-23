@@ -77,6 +77,45 @@ test("the two approved tabs, direct detail pages, and request cart inherit the N
   }
 });
 
+test("the retired commerce chrome stays deleted and the shared primitives remain", async () => {
+  const chromeDir = path.join(repoRoot, "src", "components", "commerce");
+
+  for (const retired of [
+    "CommerceShell.tsx",
+    "ScopedCommerceHeader.tsx",
+    "CommerceHeader.tsx",
+    "CommerceTabHeader.tsx",
+    "CommerceTabHeader.module.css",
+    "CommerceFooter.tsx",
+    "CommerceSupportStrip.tsx",
+    "CommerceFloatingContacts.tsx",
+    "ProductMegaMenu.tsx",
+    "MobileCommerceNav.tsx",
+    "CommerceRequestBadge.tsx",
+    "CommerceIcon.tsx",
+    "commerce-navigation.ts",
+  ]) {
+    assert.equal(
+      await exists(path.join(chromeDir, retired)),
+      false,
+      `${retired} was orphaned by the (commerce) removal and must stay deleted`,
+    );
+  }
+
+  for (const survivor of ["CommerceRail.tsx", "typography.ts", "tokens.ts"]) {
+    assert.ok(
+      await exists(path.join(chromeDir, survivor)),
+      `${survivor} is still consumed by the live catalog surfaces`,
+    );
+  }
+
+  assert.equal(
+    await exists(path.join(repoRoot, "src", "lib", "commerce-nav.ts")),
+    false,
+    "commerce-nav lost its only consumer with the (commerce) layout",
+  );
+});
+
 test("captured stylesheets stay confined to the captured route group", async () => {
   // Matches an actual import specifier, not prose: `globals.css` and this suite both
   // discuss the captured cascade in comments without pulling any of it in.
@@ -195,24 +234,6 @@ test("the container primitive implements the responsive content rail", async () 
   assert.match(rail, /px-3\b/, "12px mobile padding");
   assert.match(rail, /sm:px-4\b/, "16px tablet padding");
   assert.match(rail, /lg:px-6\b/, "24px desktop padding");
-});
-
-test("the icon primitive is decorative by default and sized from tokens", async () => {
-  const icon = await readSource("src", "components", "commerce", "CommerceIcon.tsx");
-
-  assert.match(icon, /export function CommerceIcon/);
-  assert.match(icon, /aria-hidden/, "icons are decorative unless labelled");
-  assert.match(icon, /lucide-react/, "icons come from the dependency already in the project");
-  assert.doesNotMatch(icon, /Star|Heart/, "no rating or favorite iconography");
-});
-
-test("the shell primitive gives commerce routes a header slot, main region and no footer", async () => {
-  const shell = await readSource("src", "components", "commerce", "CommerceShell.tsx");
-
-  assert.match(shell, /export function CommerceShell/);
-  assert.match(shell, /<main\b/, "the shell must own the main landmark");
-  assert.match(shell, /sr-only/, "the skip link must use Tailwind's own screen-reader utility");
-  assert.doesNotMatch(shell, /<footer/i, "commerce routes ship without the captured footer");
 });
 
 test("no commerce primitive re-declares a forbidden V1 surface", async () => {
@@ -401,8 +422,6 @@ test("the shared contracts describe every commerce surface without a forbidden f
   const source = await readSource("src", "types", "commerce-ui.ts");
 
   for (const contract of [
-    "CommerceShellViewModel",
-    "CommerceMegaMenuViewModel",
     "CommerceProductCardViewModel",
     "CommerceProductDetailViewModel",
     "CommerceRequestCartViewModel",
