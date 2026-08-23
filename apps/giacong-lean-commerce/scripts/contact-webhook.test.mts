@@ -102,8 +102,8 @@ test("returns 429 with Retry-After when the contact rate limiter rejects the cli
     }),
     {
       contactRateLimiter: {
-        limit: async (key: string) => {
-          limitedKey = key;
+        limit: async (options: { key: string }) => {
+          limitedKey = options.key;
           return { success: false };
         },
       },

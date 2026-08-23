@@ -16,7 +16,7 @@ export interface ContactWebhookDependencies {
   cartResolver?: RequestCartResolver;
   /** Cloudflare Ratelimit binding shape; keyed by client IP. Abuse protection only. */
   contactRateLimiter?: {
-    limit(key: string): Promise<{ success: boolean }>;
+    limit(options: { key: string }): Promise<{ success: boolean }>;
   };
   environment: Readonly<Record<string, string | undefined>>;
   fetch?: typeof globalThis.fetch;
@@ -324,7 +324,7 @@ async function checkContactRateLimit(
   const key = request.headers.get("cf-connecting-ip")?.trim() || "unknown";
   let success: boolean;
   try {
-    ({ success } = await limiter.limit(key));
+    ({ success } = await limiter.limit({ key }));
   } catch (error) {
     console.error("[contact] rate limiter unavailable; failing open", error);
     return null;

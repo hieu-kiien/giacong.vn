@@ -8,7 +8,7 @@ import { getLeadQueue } from "@/lib/lead-queue";
 import { resolveRequestCartFromCatalog } from "@/lib/request-cart-resolver";
 
 interface ContactRateLimitBinding {
-  limit(key: string): Promise<{ success: boolean }>;
+  limit(options: { key: string }): Promise<{ success: boolean }>;
 }
 
 /** Absent outside the Workers runtime (next dev, unit tests): the handler then runs unthrottled. */
