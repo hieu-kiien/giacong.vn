@@ -16,6 +16,18 @@ test("contact intake resolves products from the Cloudflare-native catalog", asyn
 test("shared cart resolver keeps the same Cloudflare catalog boundary", async () => {
   const source = await readFile(cartResolverUrl, "utf8");
 
-  assert.match(source, /getCatalogProduct\s*}\s*from\s*"@\/lib\/cloudflare-catalog"/);
+  assert.match(source, /getCatalogProductsBySlugs\s*,?\s*}?\s*from\s*"@\/lib\/cloudflare-catalog"/);
+  assert.match(source, /getCatalogProductsBySlugs\(/);
   assert.doesNotMatch(source, /bagisto-catalog|bagisto-api|BAGISTO_API_URL/);
+});
+
+test("cart resolution batches the catalog read for all unique parent slugs", async () => {
+  const source = await readFile(cartResolverUrl, "utf8");
+
+  assert.match(source, /resolveRequestCartBatch\(lines/);
+  assert.doesNotMatch(
+    source,
+    /for \(const slug of slugs\)[^]*?await\s+getCatalogProduct\b/,
+    "per-slug catalog reads must not come back through the loop",
+  );
 });

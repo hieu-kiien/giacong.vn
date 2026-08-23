@@ -53,16 +53,40 @@ export function parseRequestCartLines(value: unknown): CartLinesParseResult {
   return { lines, ok: true };
 }
 
+export type RequestCartBatchResolver = (
+  slugs: string[],
+) => Promise<Map<string, RequestCartProductResolution | null>>;
+
 /** Re-reads the catalog for every line, then derives price, totals and the request tier. */
 export async function resolveRequestCart(
   lines: RequestCartLineKey[],
   resolver: RequestCartResolver,
 ): Promise<ResolvedRequestCart> {
+  const slugs = [...new Set(lines.map((line) => line.parentSlug))];
   const products = new Map<string, RequestCartProductResolution | null>();
-  for (const slug of new Set(lines.map((line) => line.parentSlug))) {
+  for (const slug of slugs) {
     products.set(slug, await resolver(slug));
   }
+  return assembleResolvedCart(lines, products);
+}
 
+/**
+ * Same canonical engine as {@link resolveRequestCart} but the catalog is fetched
+ * once for all unique parent slugs (one batched D1 read instead of one per line).
+ */
+export async function resolveRequestCartBatch(
+  lines: RequestCartLineKey[],
+  batchResolver: RequestCartBatchResolver,
+): Promise<ResolvedRequestCart> {
+  const slugs = [...new Set(lines.map((line) => line.parentSlug))];
+  const products = await batchResolver(slugs);
+  return assembleResolvedCart(lines, products);
+}
+
+function assembleResolvedCart(
+  lines: RequestCartLineKey[],
+  products: Map<string, RequestCartProductResolution | null>,
+): ResolvedRequestCart {
   const resolved = lines.map((line) => resolveLine(line, products.get(line.parentSlug) ?? null));
   const units = new Set(resolved.map((line) => line.unit).filter((unit) => unit !== ""));
   const uniformUnit = units.size === 1 ? [...units][0] : null;

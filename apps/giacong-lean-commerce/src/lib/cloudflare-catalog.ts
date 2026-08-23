@@ -192,42 +192,7 @@ export const getCatalogProduct = cache(async (slug: string): Promise<CatalogProd
   if (!cleanSlug) return null;
 
   const db = getCatalogDatabase();
-  const parentRow = await db.prepare(`
-    WITH variant_stats AS (
-      SELECT
-        p.id AS product_id,
-        COUNT(v.id) AS variant_count,
-        COALESCE(SUM(CASE WHEN v.is_available = 1 THEN 1 ELSE 0 END), 0) AS available_variant_count,
-        MIN(CASE
-          WHEN v.is_available = 1 THEN tp.price
-          ELSE NULL
-        END) AS starting_price
-      FROM products p
-      LEFT JOIN product_variants v ON v.product_id = p.id
-      LEFT JOIN variant_tier_prices tp ON tp.variant_id = v.id AND tp.min_quantity = v.moq
-      WHERE p.slug = ?
-      GROUP BY p.id
-    )
-    SELECT
-      p.id,
-      p.name,
-      p.slug,
-      p.sku,
-      p.short_description,
-      p.description,
-      p.image_url,
-      c.id AS category_id,
-      c.name AS category_name,
-      c.slug AS category_slug,
-      COALESCE(vs.variant_count, 0) AS variant_count,
-      COALESCE(vs.available_variant_count, 0) AS available_variant_count,
-      vs.starting_price
-    FROM products p
-    LEFT JOIN categories c ON c.id = p.category_id
-    LEFT JOIN variant_stats vs ON vs.product_id = p.id
-    WHERE p.slug = ? AND p.is_active = 1
-    LIMIT 1
-  `).bind(cleanSlug, cleanSlug).first<ProductDetailRow>();
+  const parentRow = await db.prepare(parentProductQuery()).bind(cleanSlug, cleanSlug).first<ProductDetailRow>();
 
   if (!parentRow) return null;
 
@@ -253,8 +218,154 @@ export const getCatalogProduct = cache(async (slug: string): Promise<CatalogProd
     ORDER BY tp.variant_id ASC, tp.min_quantity ASC
   `).bind(parentRow.id).all<TierRow>();
 
-  const tiersByVariant = new Map<number, CatalogTierPrice[]>();
+  return toProductDetail(parentRow, cleanSlug, variantRows.results, tierRows.results);
+});
+
+const PARENT_PRODUCT_COLUMNS = `
+    p.id,
+    p.name,
+    p.slug,
+    p.sku,
+    p.short_description,
+    p.description,
+    p.image_url,
+    c.id AS category_id,
+    c.name AS category_name,
+    c.slug AS category_slug,
+    COALESCE(vs.variant_count, 0) AS variant_count,
+    COALESCE(vs.available_variant_count, 0) AS available_variant_count,
+    vs.starting_price`;
+
+function parentProductQuery(): string {
+  return `
+    WITH variant_stats AS (
+      SELECT
+        p.id AS product_id,
+        COUNT(v.id) AS variant_count,
+        COALESCE(SUM(CASE WHEN v.is_available = 1 THEN 1 ELSE 0 END), 0) AS available_variant_count,
+        MIN(CASE
+          WHEN v.is_available = 1 THEN tp.price
+          ELSE NULL
+        END) AS starting_price
+      FROM products p
+      LEFT JOIN product_variants v ON v.product_id = p.id
+      LEFT JOIN variant_tier_prices tp ON tp.variant_id = v.id AND tp.min_quantity = v.moq
+      WHERE p.slug = ?
+      GROUP BY p.id
+    )
+    SELECT
+${PARENT_PRODUCT_COLUMNS}
+    FROM products p
+    LEFT JOIN categories c ON c.id = p.category_id
+    LEFT JOIN variant_stats vs ON vs.product_id = p.id
+    WHERE p.slug = ? AND p.is_active = 1
+    LIMIT 1
+  `;
+}
+
+/**
+ * One batched read (three statements total regardless of slug count) for cart
+ * revalidation and submit. Slugs that do not resolve stay `null`; a product with
+ * no active variants throws exactly like the single-slug path.
+ */
+export async function getCatalogProductsBySlugs(
+  slugs: string[],
+): Promise<Map<string, CatalogProductDetail | null>> {
+  const unique = [...new Set(slugs.map((slug) => slug.trim()).filter(Boolean))];
+  const result = new Map<string, CatalogProductDetail | null>(unique.map((slug) => [slug, null]));
+  if (!unique.length) return result;
+
+  const db = getCatalogDatabase();
+  const placeholders = unique.map(() => "?").join(", ");
+  const parentRows = await db.prepare(`
+    WITH variant_stats AS (
+      SELECT
+        p.id AS product_id,
+        COUNT(v.id) AS variant_count,
+        COALESCE(SUM(CASE WHEN v.is_available = 1 THEN 1 ELSE 0 END), 0) AS available_variant_count,
+        MIN(CASE
+          WHEN v.is_available = 1 THEN tp.price
+          ELSE NULL
+        END) AS starting_price
+      FROM products p
+      LEFT JOIN product_variants v ON v.product_id = p.id
+      LEFT JOIN variant_tier_prices tp ON tp.variant_id = v.id AND tp.min_quantity = v.moq
+      WHERE p.slug IN (${placeholders})
+      GROUP BY p.id
+    )
+    SELECT
+${PARENT_PRODUCT_COLUMNS}
+    FROM products p
+    LEFT JOIN categories c ON c.id = p.category_id
+    LEFT JOIN variant_stats vs ON vs.product_id = p.id
+    WHERE p.slug IN (${placeholders}) AND p.is_active = 1
+  `).bind(...unique, ...unique).all<ProductDetailRow>();
+
+  const productIds = parentRows.results.map((row) => row.id);
+  if (!productIds.length) return result;
+  const idPlaceholders = productIds.map(() => "?").join(", ");
+
+  const [variantRows, tierRows] = await Promise.all([
+    db.prepare(`
+      SELECT
+        id, product_id, name, sku, option_label, unit, moq, quantity_step,
+        contact_from_quantity, is_available, sort_order, attribute_id,
+        attribute_code, attribute_label, option_id, image_url
+      FROM product_variants
+      WHERE product_id IN (${idPlaceholders})
+      ORDER BY sort_order ASC, id ASC
+    `).bind(...productIds).all<VariantRow>(),
+    db.prepare(`
+      SELECT tp.variant_id, tp.min_quantity, tp.price, tp.currency
+      FROM variant_tier_prices tp
+      INNER JOIN product_variants v ON v.id = tp.variant_id
+      WHERE v.product_id IN (${idPlaceholders})
+      ORDER BY tp.variant_id ASC, tp.min_quantity ASC
+    `).bind(...productIds).all<TierRow>(),
+  ]);
+
+  const variantsByProduct = new Map<number, VariantRow[]>();
+  for (const row of variantRows.results) {
+    const rows = variantsByProduct.get(row.product_id) ?? [];
+    rows.push(row);
+    variantsByProduct.set(row.product_id, rows);
+  }
+  const tiersByVariant = new Map<number, TierRow[]>();
   for (const row of tierRows.results) {
+    const rows = tiersByVariant.get(row.variant_id) ?? [];
+    rows.push(row);
+    tiersByVariant.set(row.variant_id, rows);
+  }
+
+  for (const parentRow of parentRows.results) {
+    const variantRowsForProduct = variantsByProduct.get(parentRow.id) ?? [];
+    result.set(
+      parentRow.slug,
+      toProductDetail(parentRow, parentRow.slug, variantRowsForProduct, flatTiers(tiersByVariant, variantRowsForProduct)),
+    );
+  }
+  return result;
+}
+
+function flatTiers(tiersByVariant: Map<number, TierRow[]>, variantRows: VariantRow[]): TierRow[] {
+  const ids = new Set(variantRows.map((row) => row.id));
+  return [...tiersByVariant.entries()]
+    .filter(([variantId]) => ids.has(variantId))
+    .flatMap(([, rows]) => rows);
+}
+
+function toProductDetail(
+  parentRow: ProductDetailRow,
+  cleanSlug: string,
+  variantRows: VariantRow[],
+  tierRows: TierRow[],
+): CatalogProductDetail {
+  if (!variantRows.length) {
+    throw new CatalogDataError(`Sản phẩm ${cleanSlug} chưa có biến thể.`);
+  }
+
+  const tiersByVariant = new Map<number, CatalogTierPrice[]>();
+  for (const row of tierRows) {
     if (row.currency !== "VND") throw new CatalogDataError(`Variant ${row.variant_id} có tiền tệ không hợp lệ.`);
     const tier = {
       minQuantity: positiveInteger(row.min_quantity, "tier min_quantity"),
@@ -265,9 +376,9 @@ export const getCatalogProduct = cache(async (slug: string): Promise<CatalogProd
     tiersByVariant.set(row.variant_id, tiers);
   }
 
-  const variants = variantRows.results.map((row) => toVariant(row, tiersByVariant.get(row.id) ?? []));
-  const optionGroups = buildOptionGroups(variantRows.results);
-  const variantIndex = Object.fromEntries(variantRows.results.map((row) => [
+  const variants = variantRows.map((row) => toVariant(row, tiersByVariant.get(row.id) ?? []));
+  const optionGroups = buildOptionGroups(variantRows);
+  const variantIndex = Object.fromEntries(variantRows.map((row) => [
     String(positiveInteger(row.id, "variant id")),
     { [nonEmptyString(row.attribute_code, "attribute code")]: positiveInteger(row.option_id, "option id") },
   ]));
@@ -278,7 +389,7 @@ export const getCatalogProduct = cache(async (slug: string): Promise<CatalogProd
     variantIndex,
     variants,
   };
-});
+}
 
 function getCatalogDatabase(): D1DatabaseLike {
   try {
