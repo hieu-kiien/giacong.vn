@@ -12,5 +12,7 @@ export default defineConfig([
     "migrations/**",
     ".open-next/**",
     ".wrangler/**",
+    ".worktrees/**",
+    "temp/**",
   ]),
 ]);
