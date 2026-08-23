@@ -107,7 +107,8 @@ Request queue vẫn ở Google Sheet trong pha này; không xây request inbox a
 - Public storefront hostname không được trở thành đường tắt tới admin write API.
 - Không dùng credential D1/R2 phía client.
 - Không log secret, token hoặc PII không cần thiết.
-- Lean V1 chỉ cần một operator administrator; không xây granular RBAC hay customer identity.
+- V1 không có customer identity.
+- Admin nội bộ dùng 5 role: `owner`, `content_manager`, `catalog_manager`, `sales_manager`, `viewer` (xem `AdminRole` trong `src/lib/admin-data.ts`). Quyết định này được chấp thuận ngày 2026-08-23 thay cho mệnh đề trước đây "một operator administrator, không granular RBAC" — permission matrix đã triển khai và được nhiều route sử dụng, nên được giữ lại làm mô hình vận hành chuẩn.
 
 Cloudflare Access là phương án bảo vệ staging admin. Cấu hình Access self-hosted, allow policy và identity-provider state cho `admin-staging.kienhieu.id.vn` đã được audit qua Cloudflare API; Worker route staging cũng đã được khai báo trong Wrangler. Việc triển khai write API vẫn phải tự fail closed nếu request không đạt admission contract, không chỉ dựa vào việc hostname đã có Access.
 

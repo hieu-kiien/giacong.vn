@@ -53,7 +53,7 @@ Do not revive Bagisto as a runtime boundary. `bagisto/`, Bagisto-era adapters/te
 - Do not add rating, review or favorite.
 - Google Sheet + Apps Script remains the request queue until a separate decision changes it.
 - A Cloudflare-native admin is now in scope, but only behind an audited admin authentication boundary and only after server-side D1/R2 write contracts and tests are locked. Do not expose admin writes on the public storefront as an unauthenticated shortcut.
-- The V1 admin has one operator administrator and no granular RBAC/customer identity.
+- The V1 admin has no customer identity. Internal admin roles are `owner`, `content_manager`, `catalog_manager`, `sales_manager`, `viewer` (approved 2026-08-23, superseding the earlier "single operator / no granular RBAC" clause).
 - `admin-staging.kienhieu.id.vn` is the staging admin hostname target. `admin.kienhieu.id.vn` is production-only and must not be activated before the production acceptance gate.
 - Production Worker/data/routes stay untouched until all gates in the Cloudflare-native plan are satisfied.
 - Do not create demo production data implicitly; staging demo data is not production seed data.
