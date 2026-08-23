@@ -1,9 +1,11 @@
 import { spawn } from "node:child_process";
 import { readFile } from "node:fs/promises";
+import { fileURLToPath } from "node:url";
 import process from "node:process";
 import { nextBinPath } from "./next-bin.mjs";
 
 const root = new URL("../", import.meta.url);
+const rootPath = fileURLToPath(root);
 
 function waitForReady(child, timeoutMs = 20_000) {
   return new Promise((resolve, reject) => {
@@ -43,7 +45,7 @@ export async function runStorefrontSmoke(name, paths) {
   }
 
   const child = spawn(process.execPath, [nextBinPath, "dev", "-H", "127.0.0.1", "-p", String(port)], {
-    cwd: new URL(root).pathname,
+    cwd: rootPath,
     env: { ...process.env, PORT: String(port) },
     stdio: ["ignore", "pipe", "pipe"],
   });
