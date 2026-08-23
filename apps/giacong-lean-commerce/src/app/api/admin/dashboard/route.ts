@@ -1,4 +1,5 @@
 import { adminFailure, adminSuccess } from "@/lib/admin-api.ts";
+import { adminErrorFrom } from "@/lib/admin-error-mapping.ts";
 import { requireAdmin } from "@/lib/admin-guard";
 import { getAdminOverview } from "@/lib/admin-data";
 
@@ -15,11 +16,6 @@ export async function GET(request: Request): Promise<Response> {
       member: guard.member,
     });
   } catch (error) {
-    return adminFailure(
-      crypto.randomUUID(),
-      503,
-      "INTERNAL_ERROR",
-      error instanceof Error ? error.message : "Không thể tải tổng quan admin.",
-    );
+    return adminErrorFrom(crypto.randomUUID(), error, "Không thể tải tổng quan admin.");
   }
 }

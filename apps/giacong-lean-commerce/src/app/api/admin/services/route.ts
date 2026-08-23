@@ -1,5 +1,6 @@
 import { adminFailure, adminSuccess } from "@/lib/admin-api.ts";
 import { createAdminService, listAdminServices } from "@/lib/admin-data";
+import { adminErrorFrom } from "@/lib/admin-error-mapping.ts";
 import { requireAdmin } from "@/lib/admin-guard";
 import { parseAdminServicePayload } from "@/lib/admin-service-input";
 
@@ -29,12 +30,7 @@ export async function GET(request: Request): Promise<Response> {
       },
     });
   } catch (error) {
-    return adminFailure(
-      crypto.randomUUID(),
-      503,
-      "INTERNAL_ERROR",
-      error instanceof Error ? error.message : "Không thể tải danh sách dịch vụ.",
-    );
+    return adminErrorFrom(crypto.randomUUID(), error, "Không thể tải danh sách dịch vụ.");
   }
 }
 
@@ -63,14 +59,7 @@ export async function POST(request: Request): Promise<Response> {
     const service = await createAdminService(guard.database, parsed.input, guard.actorSubject);
     return adminSuccess(crypto.randomUUID(), { service }, 201);
   } catch (error) {
-    const unique = isUniqueError(error);
-    return adminFailure(
-      crypto.randomUUID(),
-      unique ? 409 : 503,
-      unique ? "UNIQUE_CONFLICT" : "INTERNAL_ERROR",
-      error instanceof Error ? error.message : "Không thể tạo dịch vụ.",
-      unique ? { slug: "Slug đã tồn tại." } : undefined,
-    );
+    return adminErrorFrom(crypto.randomUUID(), error, "Không thể tạo dịch vụ.", { fieldErrors: { slug: "Slug đã tồn tại." } });
   }
 }
 
@@ -89,8 +78,4 @@ async function readJson(request: Request): Promise<unknown> {
   } catch {
     return {};
   }
-}
-
-function isUniqueError(error: unknown): boolean {
-  return error instanceof Error && /unique|constraint/i.test(error.message);
 }

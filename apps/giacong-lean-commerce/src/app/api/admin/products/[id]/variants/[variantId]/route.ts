@@ -4,6 +4,7 @@ import {
   getAdminProductVariant,
   updateAdminProductVariant,
 } from "@/lib/admin-data";
+import { adminErrorFrom } from "@/lib/admin-error-mapping.ts";
 import { requireAdmin } from "@/lib/admin-guard";
 import { parseAdminVariantPayload, variantDefaults } from "@/lib/admin-variant-input";
 
@@ -24,7 +25,7 @@ export async function GET(request: Request, context: RouteContext): Promise<Resp
       ? adminSuccess(crypto.randomUUID(), { variant })
       : adminFailure(crypto.randomUUID(), 404, "NOT_FOUND", "Không tìm thấy variant.");
   } catch (error) {
-    return adminFailure(crypto.randomUUID(), 503, "INTERNAL_ERROR", error instanceof Error ? error.message : "Không thể tải variant.");
+    return adminErrorFrom(crypto.randomUUID(), error, "Không thể tải variant.");
   }
 }
 
@@ -50,14 +51,10 @@ export async function PATCH(request: Request, context: RouteContext): Promise<Re
       : adminFailure(crypto.randomUUID(), 404, "NOT_FOUND", "Không tìm thấy variant.");
   } catch (error) {
     const stale = error instanceof Error && /đã thay đổi|stale/i.test(error.message);
-    const unique = isUniqueError(error);
-    return adminFailure(
-      crypto.randomUUID(),
-      stale ? 409 : unique ? 409 : 503,
-      stale ? "STALE_WRITE" : unique ? "UNIQUE_CONFLICT" : "INTERNAL_ERROR",
-      error instanceof Error ? error.message : "Không thể cập nhật variant.",
-      unique ? { sku: "SKU đã tồn tại." } : undefined,
-    );
+    if (stale) {
+      return adminFailure(crypto.randomUUID(), 409, "STALE_WRITE", "Dữ liệu đã được người khác cập nhật. Hãy tải lại rồi thử lại.");
+    }
+    return adminErrorFrom(crypto.randomUUID(), error, "Không thể cập nhật variant.", { fieldErrors: { sku: "SKU đã tồn tại." } });
   }
 }
 
@@ -75,7 +72,7 @@ export async function DELETE(request: Request, context: RouteContext): Promise<R
       ? adminSuccess(crypto.randomUUID(), { variant })
       : adminFailure(crypto.randomUUID(), 404, "NOT_FOUND", "Không tìm thấy variant.");
   } catch (error) {
-    return adminFailure(crypto.randomUUID(), 503, "INTERNAL_ERROR", error instanceof Error ? error.message : "Không thể ẩn variant.");
+    return adminErrorFrom(crypto.randomUUID(), error, "Không thể ẩn variant.");
   }
 }
 
@@ -98,8 +95,4 @@ async function readJson(request: Request): Promise<unknown> {
   } catch {
     return {};
   }
-}
-
-function isUniqueError(error: unknown): boolean {
-  return error instanceof Error && /unique|constraint/i.test(error.message);
 }

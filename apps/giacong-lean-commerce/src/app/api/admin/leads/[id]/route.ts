@@ -1,5 +1,6 @@
 import { adminFailure, adminSuccess } from "@/lib/admin-api.ts";
 import { updateAdminLeadStatus, type LeadStatus } from "@/lib/admin-data";
+import { adminErrorFrom } from "@/lib/admin-error-mapping.ts";
 import { requireAdmin } from "@/lib/admin-guard";
 
 export const dynamic = "force-dynamic";
@@ -50,12 +51,7 @@ export async function PATCH(request: Request, context: LeadRouteContext): Promis
       ? adminSuccess(crypto.randomUUID(), { lead })
       : adminFailure(crypto.randomUUID(), 404, "NOT_FOUND", "Không tìm thấy lead.");
   } catch (error) {
-    return adminFailure(
-      crypto.randomUUID(),
-      503,
-      "INTERNAL_ERROR",
-      error instanceof Error ? error.message : "Không thể cập nhật trạng thái lead.",
-    );
+    return adminErrorFrom(crypto.randomUUID(), error, "Không thể cập nhật trạng thái lead.");
   }
 }
 

@@ -5,6 +5,7 @@ import {
   updateAdminProduct,
   validateAdminProductVariants,
 } from "@/lib/admin-data";
+import { adminErrorFrom } from "@/lib/admin-error-mapping.ts";
 import { requireAdmin } from "@/lib/admin-guard";
 import { parseAdminProductPayload, productDefaults } from "@/lib/admin-product-input";
 
@@ -29,12 +30,7 @@ export async function GET(
       ? adminSuccess(crypto.randomUUID(), { product })
       : adminFailure(crypto.randomUUID(), 404, "NOT_FOUND", "Không tìm thấy sản phẩm.");
   } catch (error) {
-    return adminFailure(
-      crypto.randomUUID(),
-      503,
-      "INTERNAL_ERROR",
-      error instanceof Error ? error.message : "Không thể tải sản phẩm.",
-    );
+    return adminErrorFrom(crypto.randomUUID(), error, "Không thể tải sản phẩm.");
   }
 }
 
@@ -78,14 +74,7 @@ export async function PATCH(
       ? adminSuccess(crypto.randomUUID(), { product })
       : adminFailure(crypto.randomUUID(), 404, "NOT_FOUND", "Không tìm thấy sản phẩm.");
   } catch (error) {
-    const unique = isUniqueError(error);
-    return adminFailure(
-      crypto.randomUUID(),
-      unique ? 409 : 503,
-      unique ? "UNIQUE_CONFLICT" : "INTERNAL_ERROR",
-      error instanceof Error ? error.message : "Không thể cập nhật sản phẩm.",
-      unique ? { slug: "Slug hoặc SKU đã tồn tại." } : undefined,
-    );
+    return adminErrorFrom(crypto.randomUUID(), error, "Không thể cập nhật sản phẩm.", { fieldErrors: { slug: "Slug hoặc SKU đã tồn tại." } });
   }
 }
 
@@ -108,12 +97,7 @@ export async function DELETE(
       ? adminSuccess(crypto.randomUUID(), { product })
       : adminFailure(crypto.randomUUID(), 404, "NOT_FOUND", "Không tìm thấy sản phẩm.");
   } catch (error) {
-    return adminFailure(
-      crypto.randomUUID(),
-      503,
-      "INTERNAL_ERROR",
-      error instanceof Error ? error.message : "Không thể ẩn sản phẩm.",
-    );
+    return adminErrorFrom(crypto.randomUUID(), error, "Không thể ẩn sản phẩm.");
   }
 }
 
@@ -133,8 +117,4 @@ async function readJson(request: Request): Promise<unknown> {
   } catch {
     return {};
   }
-}
-
-function isUniqueError(error: unknown): boolean {
-  return error instanceof Error && /unique|constraint/i.test(error.message);
 }

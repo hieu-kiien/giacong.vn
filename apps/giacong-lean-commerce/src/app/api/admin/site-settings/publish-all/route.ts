@@ -1,5 +1,6 @@
 import { adminFailure, adminSuccess } from "@/lib/admin-api.ts";
 import { canPublishSiteContent } from "@/lib/admin-permissions";
+import { adminErrorFrom } from "@/lib/admin-error-mapping.ts";
 import { requireAdmin } from "@/lib/admin-guard";
 import { publishAllAdminSiteSettings } from "@/lib/site-settings";
 
@@ -17,11 +18,6 @@ export async function POST(request: Request): Promise<Response> {
     });
     return adminSuccess(crypto.randomUUID(), { published, skipped, count: published.length });
   } catch (error) {
-    return adminFailure(
-      crypto.randomUUID(),
-      503,
-      "INTERNAL_ERROR",
-      error instanceof Error ? error.message : "Không thể phát hành tất cả cài đặt website.",
-    );
+    return adminErrorFrom(crypto.randomUUID(), error, "Không thể phát hành tất cả cài đặt website.");
   }
 }

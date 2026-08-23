@@ -1,6 +1,7 @@
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { adminFailure, adminSuccess } from "@/lib/admin-api.ts";
 import { getAdminProduct, getAdminProductVariant, getAdminService } from "@/lib/admin-data";
+import { adminErrorFrom } from "@/lib/admin-error-mapping.ts";
 import { requireAdmin } from "@/lib/admin-guard";
 import { createMediaAsset, listMediaAssets, type R2BucketLike } from "@/lib/media-data";
 
@@ -27,7 +28,7 @@ export async function GET(request: Request): Promise<Response> {
     });
     return adminSuccess(crypto.randomUUID(), { media });
   } catch (error) {
-    return adminFailure(crypto.randomUUID(), 503, "INTERNAL_ERROR", error instanceof Error ? error.message : "Không thể tải media.");
+    return adminErrorFrom(crypto.randomUUID(), error, "Không thể tải media.");
   }
 }
 
@@ -90,7 +91,7 @@ export async function POST(request: Request): Promise<Response> {
     });
     return adminSuccess(crypto.randomUUID(), { media }, 201);
   } catch (error) {
-    return adminFailure(crypto.randomUUID(), 503, "INTERNAL_ERROR", error instanceof Error ? error.message : "Không thể lưu media.");
+    return adminErrorFrom(crypto.randomUUID(), error, "Không thể lưu media.");
   }
 }
 

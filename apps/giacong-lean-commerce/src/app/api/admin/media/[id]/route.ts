@@ -1,5 +1,6 @@
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { adminFailure, adminSuccess } from "@/lib/admin-api.ts";
+import { adminErrorFrom } from "@/lib/admin-error-mapping.ts";
 import { requireAdmin } from "@/lib/admin-guard";
 import { deleteMediaAsset, updateMediaAssetAltText, type R2BucketLike } from "@/lib/media-data";
 
@@ -25,7 +26,7 @@ export async function DELETE(request: Request, context: RouteContext): Promise<R
       ? adminSuccess(crypto.randomUUID(), { media })
       : adminFailure(crypto.randomUUID(), 404, "NOT_FOUND", "Không tìm thấy media.");
   } catch (error) {
-    return adminFailure(crypto.randomUUID(), 503, "INTERNAL_ERROR", error instanceof Error ? error.message : "Không thể xóa media.");
+    return adminErrorFrom(crypto.randomUUID(), error, "Không thể xóa media.");
   }
 }
 

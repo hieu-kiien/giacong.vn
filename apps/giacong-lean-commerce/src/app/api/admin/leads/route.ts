@@ -1,5 +1,6 @@
 import { adminFailure, adminSuccess } from "@/lib/admin-api.ts";
 import { listAdminLeads, type LeadStatus } from "@/lib/admin-data";
+import { adminErrorFrom } from "@/lib/admin-error-mapping.ts";
 import { requireAdmin } from "@/lib/admin-guard";
 
 export const dynamic = "force-dynamic";
@@ -40,12 +41,7 @@ export async function GET(request: Request): Promise<Response> {
       },
     });
   } catch (error) {
-    return adminFailure(
-      crypto.randomUUID(),
-      503,
-      "INTERNAL_ERROR",
-      error instanceof Error ? error.message : "Chưa có bảng lead trong D1.",
-    );
+    return adminErrorFrom(crypto.randomUUID(), error, "Chưa có bảng lead trong D1.");
   }
 }
 

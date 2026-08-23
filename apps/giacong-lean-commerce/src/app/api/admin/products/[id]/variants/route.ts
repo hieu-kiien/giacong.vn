@@ -3,6 +3,7 @@ import {
   createAdminProductVariant,
   listAdminProductVariants,
 } from "@/lib/admin-data";
+import { adminErrorFrom } from "@/lib/admin-error-mapping.ts";
 import { requireAdmin } from "@/lib/admin-guard";
 import { parseAdminVariantPayload } from "@/lib/admin-variant-input";
 
@@ -22,7 +23,7 @@ export async function GET(request: Request, context: RouteContext): Promise<Resp
     const variants = await listAdminProductVariants(guard.database, productId);
     return adminSuccess(crypto.randomUUID(), { variants });
   } catch (error) {
-    return adminFailure(crypto.randomUUID(), 503, "INTERNAL_ERROR", error instanceof Error ? error.message : "Không thể tải variants.");
+    return adminErrorFrom(crypto.randomUUID(), error, "Không thể tải variants.");
   }
 }
 
@@ -43,14 +44,7 @@ export async function POST(request: Request, context: RouteContext): Promise<Res
     const variant = await createAdminProductVariant(guard.database, productId, parsed.input, guard.actorSubject);
     return adminSuccess(crypto.randomUUID(), { variant }, 201);
   } catch (error) {
-    const unique = isUniqueError(error);
-    return adminFailure(
-      crypto.randomUUID(),
-      unique ? 409 : 503,
-      unique ? "UNIQUE_CONFLICT" : "INTERNAL_ERROR",
-      error instanceof Error ? error.message : "Không thể tạo variant.",
-      unique ? { sku: "SKU đã tồn tại." } : undefined,
-    );
+    return adminErrorFrom(crypto.randomUUID(), error, "Không thể tạo variant.", { fieldErrors: { sku: "SKU đã tồn tại." } });
   }
 }
 
@@ -69,8 +63,4 @@ async function readJson(request: Request): Promise<unknown> {
   } catch {
     return {};
   }
-}
-
-function isUniqueError(error: unknown): boolean {
-  return error instanceof Error && /unique|constraint/i.test(error.message);
 }

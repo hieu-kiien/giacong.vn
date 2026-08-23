@@ -7,6 +7,7 @@ import {
   SiteSettingValidationError,
   updateAdminSiteSetting,
 } from "@/lib/site-settings";
+import { adminErrorFrom } from "@/lib/admin-error-mapping.ts";
 import { requireAdmin } from "@/lib/admin-guard";
 
 export const dynamic = "force-dynamic";
@@ -18,7 +19,7 @@ export async function GET(request: Request): Promise<Response> {
     const settings = await listAdminSiteSettings(guard.database);
     return adminSuccess(crypto.randomUUID(), { settings, canEdit: canManageSiteContent(guard.member.role), role: guard.member.role });
   } catch (error) {
-    return adminFailure(crypto.randomUUID(), 503, "INTERNAL_ERROR", error instanceof Error ? error.message : "Không thể tải cấu hình website.");
+    return adminErrorFrom(crypto.randomUUID(), error, "Không thể tải cấu hình website.");
   }
 }
 
@@ -61,5 +62,5 @@ function settingFailure(error: unknown): Response {
   if (error instanceof SiteSettingConflictError) return adminFailure(crypto.randomUUID(), 409, "STALE_WRITE", error.message);
   if (error instanceof SiteSettingNotFoundError) return adminFailure(crypto.randomUUID(), 404, "NOT_FOUND", error.message);
   if (error instanceof SiteSettingValidationError) return adminFailure(crypto.randomUUID(), 422, "VALIDATION_ERROR", error.message);
-  return adminFailure(crypto.randomUUID(), 503, "INTERNAL_ERROR", error instanceof Error ? error.message : "Không thể lưu cấu hình website.");
+  return adminErrorFrom(crypto.randomUUID(), error, "Không thể lưu cấu hình website.");
 }

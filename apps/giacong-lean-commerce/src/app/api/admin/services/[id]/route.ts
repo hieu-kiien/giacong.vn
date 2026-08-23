@@ -5,6 +5,7 @@ import {
   updateAdminService,
   type AdminServiceInput,
 } from "@/lib/admin-data";
+import { adminErrorFrom } from "@/lib/admin-error-mapping.ts";
 import { requireAdmin } from "@/lib/admin-guard";
 import { parseAdminServicePayload } from "@/lib/admin-service-input";
 
@@ -29,12 +30,7 @@ export async function GET(
       ? adminSuccess(crypto.randomUUID(), { service })
       : adminFailure(crypto.randomUUID(), 404, "NOT_FOUND", "Không tìm thấy dịch vụ.");
   } catch (error) {
-    return adminFailure(
-      crypto.randomUUID(),
-      503,
-      "INTERNAL_ERROR",
-      error instanceof Error ? error.message : "Không thể tải dịch vụ.",
-    );
+    return adminErrorFrom(crypto.randomUUID(), error, "Không thể tải dịch vụ.");
   }
 }
 
@@ -64,14 +60,7 @@ export async function PATCH(
       ? adminSuccess(crypto.randomUUID(), { service })
       : adminFailure(crypto.randomUUID(), 404, "NOT_FOUND", "Không tìm thấy dịch vụ.");
   } catch (error) {
-    const unique = isUniqueError(error);
-    return adminFailure(
-      crypto.randomUUID(),
-      unique ? 409 : 503,
-      unique ? "UNIQUE_CONFLICT" : "INTERNAL_ERROR",
-      error instanceof Error ? error.message : "Không thể cập nhật dịch vụ.",
-      unique ? { slug: "Slug đã tồn tại." } : undefined,
-    );
+    return adminErrorFrom(crypto.randomUUID(), error, "Không thể cập nhật dịch vụ.", { fieldErrors: { slug: "Slug đã tồn tại." } });
   }
 }
 
@@ -94,12 +83,7 @@ export async function DELETE(
       ? adminSuccess(crypto.randomUUID(), { service })
       : adminFailure(crypto.randomUUID(), 404, "NOT_FOUND", "Không tìm thấy dịch vụ.");
   } catch (error) {
-    return adminFailure(
-      crypto.randomUUID(),
-      503,
-      "INTERNAL_ERROR",
-      error instanceof Error ? error.message : "Không thể ẩn dịch vụ.",
-    );
+    return adminErrorFrom(crypto.randomUUID(), error, "Không thể ẩn dịch vụ.");
   }
 }
 
@@ -141,8 +125,4 @@ async function readJson(request: Request): Promise<unknown> {
   } catch {
     return {};
   }
-}
-
-function isUniqueError(error: unknown): boolean {
-  return error instanceof Error && /unique|constraint/i.test(error.message);
 }

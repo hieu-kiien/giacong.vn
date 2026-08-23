@@ -1,4 +1,5 @@
 import { adminFailure, adminSuccess } from "@/lib/admin-api.ts";
+import { adminErrorFrom } from "@/lib/admin-error-mapping.ts";
 import {
   createAdminProduct,
   listAdminCategories,
@@ -38,12 +39,7 @@ export async function GET(request: Request): Promise<Response> {
       },
     });
   } catch (error) {
-    return adminFailure(
-      crypto.randomUUID(),
-      503,
-      "INTERNAL_ERROR",
-      error instanceof Error ? error.message : "Không thể tải danh sách sản phẩm.",
-    );
+    return adminErrorFrom(crypto.randomUUID(), error, "Không thể tải danh sách sản phẩm.");
   }
 }
 
@@ -73,14 +69,10 @@ export async function POST(request: Request): Promise<Response> {
     const product = await createAdminProduct(guard.database, parsed.input, guard.actorSubject);
     return adminSuccess(crypto.randomUUID(), { product }, 201);
   } catch (error) {
-    const unique = isUniqueError(error);
-    return adminFailure(
-      crypto.randomUUID(),
-      unique ? 409 : 503,
-      unique ? "UNIQUE_CONFLICT" : "INTERNAL_ERROR",
-      errorMessage(error, "Không thể tạo sản phẩm."),
-      unique ? { slug: "Slug hoặc SKU đã tồn tại." } : undefined,
-    );
+    return adminErrorFrom(crypto.randomUUID(), error, "Không thể tạo sản phẩm.", {
+      fieldErrors: { slug: "Slug hoặc SKU đã tồn tại." },
+      message: "Slug hoặc SKU đã tồn tại.",
+    });
   }
 }
 
@@ -94,14 +86,6 @@ async function readJson(request: Request): Promise<unknown> {
   } catch {
     return {};
   }
-}
-
-function errorMessage(error: unknown, fallback: string): string {
-  return error instanceof Error ? error.message : fallback;
-}
-
-function isUniqueError(error: unknown): boolean {
-  return error instanceof Error && /unique|constraint/i.test(error.message);
 }
 
 function parsePositiveInt(value: string | null, fallback: number): number {
