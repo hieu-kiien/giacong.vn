@@ -27,6 +27,24 @@ test("Next emits the baseline security response headers without framework disclo
   assert.match(config, /source:\s*"\/:path\*"/);
 });
 
+test("Next emits a scoped Content-Security-Policy without unsafe-eval", async () => {
+  const config = await source("next.config.ts");
+
+  assert.match(config, /Content-Security-Policy/);
+  assert.match(config, /default-src 'self'/);
+  assert.match(config, /base-uri 'self'/);
+  assert.match(config, /object-src 'none'/);
+  assert.match(config, /frame-ancestors 'none'/);
+  assert.match(config, /form-action 'self'/);
+  assert.match(config, /script-src 'self'/);
+  assert.match(config, /https:\/\/static\.cloudflareinsights\.com/);
+  assert.match(config, /img-src 'self' data: blob: https:\/\/giacong\.vn https:\/\/images\.dmca\.com/);
+  assert.match(config, /connect-src 'self'/);
+  assert.match(config, /https:\/\/cloudflareinsights\.com/);
+  assert.match(config, /frame-src 'self' https:\/\/challenges\.cloudflare\.com/);
+  assert.doesNotMatch(config, /unsafe-eval/);
+});
+
 test("post-deploy staging QA verifies security headers and emits bounded non-secret 4xx diagnostics before failing", async () => {
   const [workflow, runtime] = await Promise.all([
     readFile(workflowUrl, "utf8"),
@@ -41,6 +59,10 @@ test("post-deploy staging QA verifies security headers and emits bounded non-sec
   assert.match(runtime, /x-content-type-options/);
   assert.match(runtime, /x-frame-options/);
   assert.match(runtime, /referrer-policy/);
+  assert.match(runtime, /content-security-policy/);
+  assert.match(runtime, /default-src 'self'/);
+  assert.match(runtime, /frame-ancestors 'none'/);
+  assert.match(runtime, /unsafe-eval/);
   assert.match(runtime, /permissions-policy/);
   assert.match(runtime, /x-powered-by/);
 

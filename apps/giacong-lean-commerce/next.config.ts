@@ -28,6 +28,23 @@ const baselineSecurityHeaders = [
     key: "X-DNS-Prefetch-Control",
     value: "off",
   },
+  {
+    key: "Content-Security-Policy",
+    value: [
+      "default-src 'self'",
+      "base-uri 'self'",
+      "object-src 'none'",
+      "frame-ancestors 'none'",
+      "form-action 'self'",
+      "script-src 'self' 'unsafe-inline' https://static.cloudflareinsights.com",
+      "style-src 'self' 'unsafe-inline'",
+      "img-src 'self' data: blob: https://giacong.vn https://images.dmca.com",
+      "font-src 'self' data:",
+      "connect-src 'self' https://cloudflareinsights.com https://static.cloudflareinsights.com",
+      "frame-src 'self' https://challenges.cloudflare.com",
+      "worker-src 'self' blob:",
+    ].join("; "),
+  },
 ];
 
 const nextConfig: NextConfig = {

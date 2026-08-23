@@ -55,7 +55,7 @@ The corresponding deployment, deep-QA, G2 and G3 breadcrumbs are retained in iss
 | G1 | COMPLETE | Current master staging evidence | Correlated issue #70 deployment + deep-QA breadcrumbs for source CI run `32573099984`, master SHA `4651e94d88a36dff700df832a3bcde73c5770576`, active Worker version `200b9734-6bef-4161-b189-84aa5f738724` |
 | G2 | COMPLETE | News media operator acceptance | G2 run `32573791603` proved Access-protected upload/select/save/render/MEDIA_IN_USE/replace/delete with D1/R2 post-conditions |
 | G3 | COMPLETE | Durable request-delivery acceptance | G3 run `32573995446` proved Queue/consumer delivery, D1 inbox visibility, invalid-input rejection and idempotent replay |
-| G4 | TODO | Security acceptance completion | CSP/source audit resolved and security acceptance rerun |
+| G4 | IN PROGRESS | Security acceptance completion | CSP/source audit recorded in `docs/CSP_STAGING_AUDIT.md`; the policy must be observed on the accepted master staging run and pass the security QA |
 | G5 | TODO | Recovery drill | Staging Worker/D1/R2/Queue recovery drill completed with timings and retained evidence |
 | G6 | TODO | Production data/content freeze | Approved manifest with demo/test data excluded |
 | G7 | TODO | Production resources and rehearsal | Intentional resource audit, migration rehearsal, backup/export and smoke/rollback checklist proven |
@@ -113,6 +113,8 @@ Accepted evidence, 2026-08-22: run `32573995446` proved real staging Queue enque
 2. Define a CSP compatible with the actual source set and Next/OpenNext runtime.
 3. Prefer enforcement when evidence supports it. If enforcement must be deferred, record a narrow reason, expiry/review trigger and compensating controls rather than silently omitting the gate.
 4. Re-run the security acceptance after the decision/change.
+
+Current source status, 2026-08-23: a scoped CSP is now present in `next.config.ts` and the staging security QA checks its required directives and rejects `unsafe-eval`. G4 remains open until the policy is deployed on master and the post-deploy security/deep-QA evidence is retained.
 
 ## G5 — Recovery drill
 

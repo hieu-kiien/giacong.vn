@@ -42,6 +42,22 @@ for (const route of routes) {
     `${route}: Referrer-Policy`,
   );
 
+  const contentSecurityPolicy = header(response, "content-security-policy");
+  for (const directive of [
+    "default-src 'self'",
+    "base-uri 'self'",
+    "object-src 'none'",
+    "frame-ancestors 'none'",
+    "form-action 'self'",
+    "script-src 'self'",
+    "img-src 'self' data: blob: https://giacong.vn https://images.dmca.com",
+    "connect-src 'self'",
+    "frame-src 'self' https://challenges.cloudflare.com",
+  ]) {
+    assert.ok(contentSecurityPolicy.includes(directive), `${route}: CSP missing ${directive}`);
+  }
+  assert.ok(!contentSecurityPolicy.includes("unsafe-eval"), `${route}: CSP must not allow unsafe-eval`);
+
   const permissions = header(response, "permissions-policy");
   for (const directive of ["camera=()", "microphone=()", "geolocation=()", "payment=()", "usb=()"]) {
     assert.ok(permissions.includes(directive), `${route}: Permissions-Policy missing ${directive}`);

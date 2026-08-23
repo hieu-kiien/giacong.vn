@@ -239,7 +239,7 @@ Workflow `Cloudflare staging deep QA` gọi `scripts/staging-news-qa.mjs` sau de
 
 Sau khi News lifecycle được đưa vào `master`, các lớp production-readiness sau đã được bổ sung ở source/CI:
 
-- PR #65 thêm baseline response headers và staging security-header acceptance; CSP chưa được coi là đã chốt trong slice này.
+- PR #65 thêm baseline response headers và staging security-header acceptance; CSP source policy is now added in the follow-up branch with the compatibility audit recorded in `docs/CSP_STAGING_AUDIT.md`, but master runtime acceptance is still pending.
 - PR #66 thêm staging semantic/keyboard accessibility acceptance trên Playwright.
 - PR #67 thêm production dependency SCA gate fail-closed. Bốn finding runtime hiện chưa thể remediated an toàn được bind chính xác theo advisory/package/node/version và có expiry `2026-09-15`; workflow cuối của PR đã qua production audit, full Quality, GitNexus, OpenNext staging build và Wrangler dry-run/package gate.
 - PR #68 đã thay thế hướng dẫn recovery cũ bằng Cloudflare recovery/production runbook hiện hành, gồm Worker rollback, D1 export/Time Travel restore, R2 reconciliation, Queue/DLQ/idempotency và production NO-GO/rollback triggers. Đây là tài liệu/quy trình đã merge, **không phải bằng chứng staging restore drill đã được thực hiện**.
