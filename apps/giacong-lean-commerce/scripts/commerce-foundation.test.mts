@@ -46,7 +46,11 @@ async function sourceFiles(dir: string): Promise<string[]> {
 // ---------------------------------------------------------------------------
 
 test("the two approved tabs, direct detail pages, and request cart inherit the News frame", async () => {
-  assert.ok(await exists(commerceGroupDir), "src/app/(commerce) must exist");
+  assert.equal(
+    await exists(commerceGroupDir),
+    false,
+    "the retired (commerce) group must stay deleted; (storefront) owns every commerce route",
+  );
 
   for (const route of [
     path.join("san-pham", "page.tsx"),
@@ -59,11 +63,6 @@ test("the two approved tabs, direct detail pages, and request cart inherit the N
       await exists(path.join(storefrontGroupDir, route)),
       `${route} must inherit the complete captured News frame`,
     );
-    assert.equal(
-      await exists(path.join(commerceGroupDir, route)),
-      false,
-      `${route} must not also render the clean commerce chrome`,
-    );
   }
 
   for (const route of [
@@ -72,35 +71,10 @@ test("the two approved tabs, direct detail pages, and request cart inherit the N
     path.join("san-pham", "not-found.tsx"),
   ]) {
     assert.ok(
-      await exists(path.join(commerceGroupDir, route)),
-      `${route} must be served from the (commerce) group`,
-    );
-    assert.equal(
       await exists(path.join(storefrontGroupDir, route)),
-      false,
-      `${route} must no longer be served from the captured (storefront) group`,
+      `${route} must be served from the (storefront) group after the (commerce) removal`,
     );
   }
-
-  assert.ok(
-    await exists(path.join(commerceGroupDir, "layout.tsx")),
-    "(commerce) must own a layout so commerce routes stop inheriting captured chrome",
-  );
-});
-
-test("the commerce layout imports no captured stylesheet and renders no captured footer", async () => {
-  const layout = await readSource("src", "app", "(commerce)", "layout.tsx");
-
-  // Import specifiers only. The layout's own doc comment explains what it is
-  // detached from and names those files; that prose is the point, not a violation.
-  assert.doesNotMatch(
-    layout,
-    /import\s+["'][^"']*(?:captured-layers|public\/styles\/|flatsome|woocommerce)/i,
-    "commerce layout must not import the captured cascade",
-  );
-  assert.doesNotMatch(layout, /CatalogChrome|catalog-chrome/, "commerce layout must not reuse the captured chrome");
-  assert.doesNotMatch(layout, /footerMarkup|<footer/i, "commerce routes must not render the captured footer");
-  assert.match(layout, /CommerceShell/, "commerce layout must mount the clean commerce shell");
 });
 
 test("captured stylesheets stay confined to the captured route group", async () => {
@@ -123,7 +97,7 @@ test("captured stylesheets stay confined to the captured route group", async () 
 });
 
 test("no commerce source reaches for the captured footer or global captured CSS", async () => {
-  for (const file of [...await sourceFiles(commerceGroupDir), ...await sourceFiles(commerceComponentsDir)]) {
+  for (const file of await sourceFiles(commerceComponentsDir)) {
     const source = await readFile(file, "utf8");
     const label = path.relative(repoRoot, file).replaceAll("\\", "/");
     assert.doesNotMatch(source, /ContentFooterSections|footerMarkup/, `${label} must not render captured footer markup`);
@@ -483,15 +457,15 @@ test("the runtime dependency baseline stays explicit and no forbidden route appe
 
   for (const forbidden of ["gio-hang", "thanh-toan", "tai-khoan", "dat-hang"]) {
     assert.equal(
-      await exists(path.join(commerceGroupDir, forbidden)),
+      await exists(path.join(appDir, forbidden)),
       false,
-      `/${forbidden} must not exist in the commerce group`,
+      `/${forbidden} must not exist in the Next app`,
     );
   }
   assert.equal(
-    await exists(path.join(commerceGroupDir, "quan-tri")),
+    await exists(path.join(appDir, "quan-tri")),
     false,
-    "the commerce group must not host an admin surface",
+    "the Next app must not host the retired quan-tri admin surface",
   );
 });
 

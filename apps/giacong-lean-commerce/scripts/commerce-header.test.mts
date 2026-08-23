@@ -512,16 +512,6 @@ test("the footer reads its contact values from the shared navigation data", asyn
 // 7. Wiring and guard rails
 // ---------------------------------------------------------------------------
 
-test("the commerce layout mounts the new chrome instead of the captured header", async () => {
-  const layout = await readSource("src", "app", "(commerce)", "layout.tsx");
-
-  assert.match(layout, /ScopedCommerceHeader/, "the layout mounts the route-scoped commerce header");
-  assert.doesNotMatch(layout, /StorefrontHeader/, "the captured storefront header is no longer reused here");
-  assert.match(layout, /CommerceShell/, "the clean shell still owns the landmarks");
-  assert.match(layout, /CommerceFloatingContacts/, "the shell support slot carries the floating contacts");
-  assert.match(layout, /CommerceFooter/, "the shell footer slot carries the rebuilt footer");
-});
-
 test("the captured floating rail places a live request cart above the phone action", async () => {
   const [capturedPage, cartButton, cartStyles] = await Promise.all([
     readSource("src", "components", "CapturedPage.tsx"),
@@ -619,20 +609,13 @@ test("the shell exposes the footer as a slot and still declares no footer itself
 });
 
 test("every direct page under the two approved tabs uses the one News storefront shell", async () => {
-  const commerceService = path.join(repoRoot, "src", "app", "(commerce)", "thue-gia-cong");
   const capturedService = path.join(repoRoot, "src", "app", "(storefront)", "thue-gia-cong");
-  const commerceCatalog = path.join(repoRoot, "src", "app", "(commerce)", "san-pham");
   const capturedCatalog = path.join(repoRoot, "src", "app", "(storefront)", "san-pham");
 
   assert.equal(
     await readFile(path.join(capturedService, "page.tsx"), "utf8").then(() => true, () => false),
     true,
     "the service index must inherit the complete News frame",
-  );
-  assert.equal(
-    await readFile(path.join(commerceService, "page.tsx"), "utf8").then(() => true, () => false),
-    false,
-    "the service index must not also render the commerce chrome",
   );
   assert.equal(
     await readFile(path.join(capturedService, "[family]", "page.tsx"), "utf8").then(() => true, () => false),
@@ -643,16 +626,6 @@ test("every direct page under the two approved tabs uses the one News storefront
     await readFile(path.join(capturedCatalog, "[slug]", "page.tsx"), "utf8").then(() => true, () => false),
     true,
     "product detail pages use the shared captured shell",
-  );
-  assert.equal(
-    await readFile(path.join(commerceService, "[family]", "page.tsx"), "utf8").then(() => true, () => false),
-    false,
-    "a service detail page must not keep the old commerce chrome",
-  );
-  assert.equal(
-    await readFile(path.join(commerceCatalog, "[slug]", "page.tsx"), "utf8").then(() => true, () => false),
-    false,
-    "a product detail page must not keep the old commerce chrome",
   );
 });
 
