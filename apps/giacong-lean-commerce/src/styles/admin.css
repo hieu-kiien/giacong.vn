@@ -280,6 +280,7 @@
   .admin-field { display: block; min-width: 0; }
   .admin-field > span { color: var(--admin-ink-soft); display: block; font-size: 11px; font-weight: 650; margin: 0 0 6px 1px; }
   .admin-field > span b { color: var(--admin-red); }
+  .admin-field-help { color: var(--admin-ink-muted); display: block; font-size: 10px; line-height: 1.45; margin: 5px 1px 0; }
   .admin-field-wide { grid-column: 1 / -1; }
   .admin-textarea { background: var(--admin-surface); border: 1px solid #cbd7c9; border-radius: 6px; color: var(--admin-ink); display: block; line-height: 1.5; padding: 10px 12px; resize: vertical; width: 100%; }
   .admin-editor-error { background: var(--admin-red-wash); border-left: 3px solid var(--admin-red); color: #823b34; font-size: 12px; line-height: 1.5; margin: 0 0 17px; padding: 10px 12px; }
@@ -292,6 +293,32 @@
   .admin-check.is-disabled { cursor: not-allowed; opacity: .6; }
   .admin-editor-actions, .admin-table-actions { align-items: center; display: flex; gap: 7px; }
   .admin-editor-actions .admin-button, .admin-table-actions .admin-button { min-height: 34px; padding: 0 10px; }
+
+  .admin-bulk-import { margin-bottom: 18px; }
+  .admin-bulk-import-heading { align-items: flex-start; display: flex; gap: 18px; justify-content: space-between; }
+  .admin-bulk-import-title-wrap { align-items: flex-start; color: var(--admin-green-deep); display: flex; gap: 11px; min-width: 0; }
+  .admin-bulk-import-title-wrap > svg { flex: 0 0 auto; margin-top: 2px; }
+  .admin-bulk-import-title-wrap > div { min-width: 0; }
+  .admin-bulk-import-actions { align-items: center; display: flex; flex: 0 0 auto; gap: 8px; }
+  .admin-bulk-import-body { border-top: 1px solid #e5ece2; margin-top: 18px; padding-top: 18px; }
+  .admin-bulk-import-guide { background: #f0f5eb; border-left: 3px solid #8cab67; color: var(--admin-ink-soft); display: grid; font-size: 11px; gap: 4px; line-height: 1.5; margin-bottom: 17px; padding: 10px 12px; }
+  .admin-bulk-import-guide strong { color: var(--admin-green-deep); font-size: 12px; }
+  .admin-bulk-import-format { color: var(--admin-ink-muted); font-size: 11px; line-height: 1.55; margin: -3px 0 12px; }
+  .admin-bulk-import-format code { background: #eef2eb; border-radius: 3px; color: var(--admin-green-deep); font-family: "Geist Mono", ui-monospace, monospace; font-size: 10px; padding: 2px 4px; }
+  .admin-bulk-import-file { align-items: center; color: var(--admin-green-deep); display: flex; font-size: 11px; gap: 6px; margin: 0 0 15px; }
+  .admin-bulk-import-success { align-items: flex-start; background: #edf6e5; border: 1px solid #c9dfb8; border-radius: 6px; color: #3c631c; display: flex; font-size: 12px; gap: 8px; line-height: 1.5; margin-top: 17px; padding: 10px 12px; }
+  .admin-bulk-import-success svg { flex: 0 0 auto; margin-top: 1px; }
+  .admin-bulk-import .admin-editor-error { align-items: flex-start; display: flex; gap: 8px; }
+  .admin-bulk-import .admin-editor-error svg { flex: 0 0 auto; margin-top: 2px; }
+  .admin-bulk-import .admin-editor-error small { display: block; margin-top: 4px; }
+  .admin-bulk-import .admin-editor-error ul { margin: 6px 0 0; padding-left: 18px; }
+  .admin-bulk-import-preview-heading { align-items: flex-end; display: flex; justify-content: space-between; margin-top: 19px; }
+  .admin-bulk-import-preview-heading > div { display: grid; gap: 4px; }
+  .admin-bulk-import-preview-heading strong { color: var(--admin-ink); font-size: 12px; }
+  .admin-bulk-import-preview-heading span { color: var(--admin-ink-muted); font-size: 11px; }
+  .admin-bulk-import-table-scroll { border: 1px solid #e1e9de; border-radius: 6px; margin-top: 9px; max-height: 360px; overflow: auto; }
+  .admin-bulk-import-table-scroll .admin-table { min-width: 720px; }
+  .admin-bulk-import-draft-note { color: var(--admin-ink-muted); font-size: 11px; line-height: 1.5; margin: 0; max-width: 640px; }
 
   .admin-table-panel { overflow: hidden; padding: 0; }
   .admin-table-scroll { overflow-x: auto; }
@@ -440,6 +467,9 @@
     .admin-search-wrap { max-width: none; }
     .admin-filter-field { min-width: 0; }
     .admin-toolbar .admin-button { width: 100%; }
+    .admin-bulk-import-heading { display: block; }
+    .admin-bulk-import-actions { margin-top: 15px; }
+    .admin-bulk-import-actions .admin-button { flex: 1; }
     .admin-editor { padding: 17px; }
     .admin-editor-grid { grid-template-columns: 1fr; }
     .admin-field-wide { grid-column: auto; }

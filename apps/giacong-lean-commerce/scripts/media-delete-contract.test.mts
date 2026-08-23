@@ -5,8 +5,12 @@ import test from "node:test";
 const dataUrl = new URL("../src/lib/media-delete.ts", import.meta.url);
 const routeUrl = new URL("../src/app/api/admin/media/[id]/route.ts", import.meta.url);
 
+async function readMediaDeleteSource(): Promise<string> {
+  return (await readFile(dataUrl, "utf8")).replace(/\r\n/g, "\n");
+}
+
 test("media delete checks every canonical image reference before deletion", async () => {
-  const source = await readFile(dataUrl, "utf8");
+  const source = await readMediaDeleteSource();
 
   assert.match(source, /FROM products WHERE image_url = \?/);
   assert.match(source, /FROM product_variants WHERE image_url = \?/);
@@ -16,7 +20,7 @@ test("media delete checks every canonical image reference before deletion", asyn
 });
 
 test("reference checks are repeated inside the D1 transaction marker", async () => {
-  const source = await readFile(dataUrl, "utf8");
+  const source = await readMediaDeleteSource();
   const markerStart = source.indexOf("INSERT INTO audit_logs");
   const markerEnd = source.indexOf("RETURNING id", markerStart);
   assert.ok(markerStart >= 0 && markerEnd > markerStart, "delete audit marker must exist");
@@ -29,7 +33,7 @@ test("reference checks are repeated inside the D1 transaction marker", async () 
 });
 
 test("D1 soft-delete and audit commit before the R2 object is deleted", async () => {
-  const source = await readFile(dataUrl, "utf8");
+  const source = await readMediaDeleteSource();
   const batchIndex = source.indexOf("await batchDatabase.batch(statements)");
   const r2DeleteIndex = source.indexOf("await bucket.delete(initial.storage_key)");
 
@@ -41,7 +45,7 @@ test("D1 soft-delete and audit commit before the R2 object is deleted", async ()
 });
 
 test("already soft-deleted media retries the idempotent R2 delete without another D1 mutation", async () => {
-  const source = await readFile(dataUrl, "utf8");
+  const source = await readMediaDeleteSource();
   const guardedMutation = source.indexOf('if (initial.status !== "deleted")');
   const batch = source.indexOf("await batchDatabase.batch(statements)", guardedMutation);
   const blockEnd = source.indexOf("\n  }\n\n  // Delete from R2", guardedMutation);
