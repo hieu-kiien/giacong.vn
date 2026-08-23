@@ -45,7 +45,7 @@ Thumbs.db
 *.tsbuildinfo
 next-env.d.ts
 
-# Legacy Vercel local metadata; production deployment target is Cloudflare Workers.
+# Ignore generated local deployment metadata; production deployment target is Cloudflare Workers.
 .vercel
 
 # Local settings (not project config)

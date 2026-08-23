@@ -1,4 +1,4 @@
-# SRC https://github.com/vercel/next.js/blob/canary/examples/with-docker/Dockerfile
+# Source pattern: Next.js Docker example; this image is a local/legacy helper, not the production deployment target.
 
 # ============================================
 # Stage 1: Dependencies Installation Stage

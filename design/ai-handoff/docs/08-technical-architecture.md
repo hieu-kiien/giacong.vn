@@ -1,4 +1,6 @@
-# 08. Technical Architecture
+# 08. Historical Technical Architecture
+
+> Historical handoff only. Do not use this proposal as the current architecture or deployment decision. The current target is Cloudflare Workers through OpenNext; see `apps/giacong-lean-commerce/docs/CLOUDFLARE_DEPLOYMENT.md`.
 
 ## 1. Stack
 - Next.js App Router.
@@ -12,7 +14,7 @@
 - CMS: Sanity hoặc Strapi; local adapter cho MVP.
 - Lead storage: Supabase/PostgreSQL hoặc CRM webhook.
 - Email: Resend hoặc SMTP provider.
-- Hosting: Vercel hoặc hạ tầng Node tương thích.
+- Hosting: Cloudflare Workers qua OpenNext.
 
 ## 2. Folder structure
 ```text
