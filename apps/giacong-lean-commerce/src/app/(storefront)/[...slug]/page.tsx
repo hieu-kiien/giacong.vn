@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
-import { readFile } from "node:fs/promises";
-import { join } from "node:path";
 import { notFound } from "next/navigation";
 import { cache } from "react";
+import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { CapturedPage } from "@/components/CapturedPage";
 import { getPublishedSiteSettings } from "@/lib/site-settings";
 import type { CapturedPageData } from "@/types/captured-page";
@@ -13,13 +12,43 @@ interface CapturedRouteProps {
   params: Promise<{ slug: string[] }>;
 }
 
+interface CapturedAssetsEnv {
+  ASSETS?: {
+    fetch(input: string): Promise<Response>;
+  };
+}
+
+const capturedAssetBaseUrl = "https://assets.local/captured-pages";
+const capturedAssetFilePattern = /^[A-Za-z0-9_-]+\.json$/;
+
+async function readCapturedAsset<T>(file: string): Promise<T> {
+  if (!capturedAssetFilePattern.test(file)) {
+    throw new Error("Captured page asset name is invalid.");
+  }
+
+  const { env } = getCloudflareContext();
+  const assets = (env as unknown as CapturedAssetsEnv).ASSETS;
+  if (!assets) throw new Error("Missing ASSETS binding for captured pages.");
+
+  const response = await assets.fetch(`${capturedAssetBaseUrl}/${file}`);
+  if (!response.ok) {
+    await response.body?.cancel();
+    throw new Error(`Captured page asset unavailable: ${file}`);
+  }
+
+  const payload: unknown = await response.json();
+  return payload as T;
+}
+
+const readCapturedManifest = cache(async (): Promise<Record<string, string>> => (
+  readCapturedAsset<Record<string, string>>("manifest.json")
+));
+
 const readCapturedPath = cache(async (path: string): Promise<CapturedPageData> => {
-  const manifest = JSON.parse(await readFile(join(process.cwd(), "src", "data", "pages", "manifest.json"), "utf8")) as Record<string, string>;
+  const manifest = await readCapturedManifest();
   const file = manifest[path];
   if (!file) notFound();
-  return JSON.parse(
-    await readFile(join(process.cwd(), "src", "data", "pages", file), "utf8"),
-  ) as CapturedPageData;
+  return readCapturedAsset<CapturedPageData>(file);
 });
 
 async function readCapturedRoute(params: CapturedRouteProps["params"]): Promise<CapturedPageData> {
