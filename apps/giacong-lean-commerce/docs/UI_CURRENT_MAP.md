@@ -41,7 +41,12 @@ src/app/(storefront)/
 ├── [...slug]/page.tsx             237 trang clone cũ
 ├── san-pham/
 │   ├── page.tsx                   Danh mục sản phẩm
-│   └── [slug]/page.tsx            Chi tiết sản phẩm
+│   ├── loading.tsx                Skeleton danh mục khi tải
+│   └── [slug]/
+│       ├── page.tsx               Chi tiết sản phẩm
+│       └── loading.tsx            Skeleton chi tiết khi tải
+├── gui-yeu-cau/
+│   └── loading.tsx                Skeleton giỏ yêu cầu khi tải
 └── thue-gia-cong/
     ├── page.tsx                   Danh mục dịch vụ
     └── [family]/page.tsx          Trang theo nhóm dịch vụ
@@ -62,8 +67,8 @@ flowchart TD
   Request["Khách mở URL"] --> Storefront["(storefront) layout: CSS clone chung"]
   Storefront --> Exact{"URL có route cụ thể?"}
   Exact -->|/| Home["page.tsx → home.json → CapturedPage"]
-  Exact -->|/san-pham| ProductList["CatalogList → Bagisto API"]
-  Exact -->|/san-pham/[slug]| ProductDetail["CatalogDetail → Bagisto API"]
+  Exact -->|/san-pham| ProductList["CatalogList → Cloudflare D1"]
+  Exact -->|/san-pham/[slug]| ProductDetail["CatalogDetail → Cloudflare D1"]
   Exact -->|/san-pham/a/b| Product404["[...path] → 404"]
   Exact -->|/thue-gia-cong| ServiceDirectory["ServiceLanding + ServiceDirectory"]
   Exact -->|/thue-gia-cong/[family]| ServiceFamily["ServiceFamilyDetail"]
@@ -76,12 +81,12 @@ flowchart TD
 | Route gốc | Khi khách truy cập | Thành phần UI | Nguồn dữ liệu |
 |---|---|---|---|
 | `/` | Hiển thị trang chủ clone | `CapturedPage` | `pages/home.json` |
-| `/san-pham` | Hiển thị catalog B2B | `CatalogList` | Bagisto API |
-| `/san-pham/[slug]` | Hiển thị chi tiết một sản phẩm | `CatalogDetail` | Bagisto API; slug legacy có thể redirect vĩnh viễn |
+| `/san-pham` | Hiển thị catalog B2B | `CatalogList` | Cloudflare D1 |
+| `/san-pham/[slug]` | Hiển thị chi tiết một sản phẩm | `CatalogDetail` | Cloudflare D1; slug legacy có thể redirect vĩnh viễn |
 | `/san-pham/[...path]` | URL catalog nhiều cấp | 404 | Không có UI fallback |
 | `/thue-gia-cong` | Hiển thị directory dịch vụ | `ServiceLanding`, `ServiceDirectory` | `service-families.ts` |
 | `/thue-gia-cong/[family]` | Hiển thị một trong 13 nhóm | `ServiceFamilyDetail` | `service-families.ts` |
 | `/lien-he` | Không có route riêng | Rơi vào `[...slug]` | `pages/lien-he.json` |
 | `/gia-cong-sua-hat`, `/dich-vu-say`, `/tin-tuc`, … | Không có route riêng | Rơi vào `[...slug]` | 237 file trong `pages/` |
 
-Quản trị nội bộ chỉ thực hiện trong Bagisto Admin. Dự án Next.js không còn route `/quan-tri/*`, BFF quản trị hay proxy dành riêng cho quản trị.
+Quản trị nội bộ dùng admin Cloudflare-native tại `/admin` (bảo vệ bởi Cloudflare Access ở production; staging chạy public demo mode trên `admin-staging.kienhieu.id.vn`). Route `/quan-tri/*`, BFF quản trị và proxy Bagisto đã được xóa khỏi runtime. Ghi chú 2026-08-23: route group `(commerce)` và các chrome component mồ côi đã bị xóa — toàn bộ storefront phục vụ từ `(storefront)`; catalog đọc D1 qua adapter batched; POST `/api/contact` có rate limit 5 yêu cầu/phút/IP (trả 429 + Retry-After).
