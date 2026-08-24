@@ -861,10 +861,23 @@ export async function archiveAdminService(
 
 export async function listAdminLeads(
   database: D1DatabaseLike,
-  input: { page: number; pageSize: number; status?: LeadStatus },
+  input: { page: number; pageSize: number; query?: string; status?: LeadStatus },
 ): Promise<{ leads: AdminLead[]; total: number }> {
-  const where = input.status ? "WHERE status = ?" : "";
-  const params = input.status ? [input.status] : [];
+  const conditions: string[] = [];
+  const params: Array<string | number> = [];
+  if (input.status) {
+    conditions.push("status = ?");
+    params.push(input.status);
+  }
+  const trimmedQuery = input.query?.trim() ?? "";
+  if (trimmedQuery) {
+    const pattern = `%${trimmedQuery.replace(/[\\%_]/g, (match) => `\\${match}`)}%`;
+    conditions.push(
+      "(full_name LIKE ? ESCAPE '\\' OR company_name LIKE ? ESCAPE '\\' OR email LIKE ? ESCAPE '\\' OR phone LIKE ? ESCAPE '\\')",
+    );
+    params.push(pattern, pattern, pattern, pattern);
+  }
+  const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
   const count = await database.prepare(`
     SELECT COUNT(*) AS total FROM leads ${where}
   `).bind(...params).first<{ total: number }>();

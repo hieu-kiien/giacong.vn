@@ -30,7 +30,7 @@ export async function GET(request: Request): Promise<Response> {
     : undefined;
 
   try {
-    const data = await listAdminLeads(guard.database, { page, pageSize, status });
+    const data = await listAdminLeads(guard.database, { page, pageSize, query: url.searchParams.get("query") ?? undefined, status });
     return adminSuccess(crypto.randomUUID(), {
       ...data,
       pagination: {

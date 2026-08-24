@@ -1,9 +1,11 @@
 "use client";
 
-import { ClipboardList, Filter, Mail, Phone } from "lucide-react";
-import { useEffect, useState } from "react";
+import { ClipboardList, Filter, Mail, Phone, Search } from "lucide-react";
+import { useEffect, useState, type FormEvent } from "react";
 import { AdminEmptyState, AdminErrorState, AdminLoadingTable, AdminPageHeading, AdminPagination, AdminStatusBadge } from "@/components/admin/AdminPrimitives";
+import { AdminModal } from "@/components/admin/AdminDialog";
 import { useAdminSession } from "@/components/admin/AdminShell";
+import { useAdminToast } from "@/components/admin/AdminToast";
 import { AdminClientError, fetchAdmin, formatAdminDate, mutateAdmin, type AdminLead, type LeadStatus } from "@/lib/admin-client";
 
 interface LeadResponse {
@@ -44,8 +46,12 @@ function deliveryKind(status: AdminLead["deliveryStatus"]): "green" | "amber" | 
 
 export default function AdminLeadsPage() {
   const session = useAdminSession();
+  const { showToast } = useAdminToast();
   const [leads, setLeads] = useState<AdminLead[]>([]);
   const [status, setStatus] = useState<LeadStatus | "">("");
+  const [query, setQuery] = useState("");
+  const [inputQuery, setInputQuery] = useState("");
+  const [detailLead, setDetailLead] = useState<AdminLead | null>(null);
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [lastPage, setLastPage] = useState(1);
@@ -59,6 +65,7 @@ export default function AdminLeadsPage() {
     const controller = new AbortController();
     const params = new URLSearchParams({ page: String(page), pageSize: "20" });
     if (status) params.set("status", status);
+    if (query) params.set("query", query);
     void (async () => {
       await Promise.resolve();
       if (controller.signal.aborted) return;
@@ -78,7 +85,13 @@ export default function AdminLeadsPage() {
       }
     })();
     return () => controller.abort();
-  }, [session.subject, page, status, attempt]);
+  }, [session.subject, page, query, status, attempt]);
+
+  function submitSearch(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setPage(1);
+    setQuery(inputQuery.trim());
+  }
 
   async function updateLeadStatus(lead: AdminLead, nextStatus: LeadStatus) {
     if (lead.status === nextStatus) return;
@@ -90,8 +103,11 @@ export default function AdminLeadsPage() {
         method: "PATCH",
       });
       setLeads((current) => current.map((item) => item.id === lead.id ? result.lead : item));
+      if (detailLead?.id === lead.id) setDetailLead(result.lead);
+      showToast("success", `Đã chuyển “${lead.fullName}” sang ${statusLabels[nextStatus]}.`);
     } catch (reason: unknown) {
       setMutationError(reason instanceof AdminClientError ? reason : new AdminClientError("Không thể cập nhật trạng thái lead.", 0));
+      showToast("error", reason instanceof AdminClientError ? reason.message : "Không thể cập nhật trạng thái lead.");
     } finally {
       setUpdatingId(null);
     }
@@ -102,6 +118,26 @@ export default function AdminLeadsPage() {
       <AdminPageHeading kicker="Kinh doanh / intake" title="Yêu cầu báo giá" subtitle="Inbox tập trung cho các yêu cầu private-label gửi về từ storefront và các kênh tiếp nhận." stamp="LEAD INBOX" />
       {mutationError ? <p className="admin-editor-error" role="alert">{mutationError.code ? `${mutationError.code} · ` : ""}{mutationError.message}</p> : null}
       <div className="admin-toolbar">
+        <form className="admin-search-wrap" onSubmit={submitSearch}>
+          <label className="admin-label" htmlFor="lead-search">Tìm theo tên, công ty, email, SĐT</label>
+          <Search aria-hidden="true" />
+          <input className="admin-input has-icon" data-testid="input-lead-search" id="lead-search" onChange={(event) => setInputQuery(event.target.value)} placeholder="Ví dụ: Nguyễn, công ty ABC, gmail..." value={inputQuery} />
+        </form>
+        <button className="admin-button admin-button-primary" data-testid="button-lead-search" type="submit">Tìm</button>
+        {query ? (
+          <button
+            className="admin-button admin-button-quiet"
+            data-testid="button-lead-clear-search"
+            onClick={() => {
+              setInputQuery("");
+              setQuery("");
+              setPage(1);
+            }}
+            type="button"
+          >
+            Xóa tìm kiếm
+          </button>
+        ) : null}
         <div className="admin-filter-field">
           <label className="admin-label" htmlFor="lead-status">Lọc theo trạng thái</label>
           <select className="admin-select" data-testid="select-lead-status" id="lead-status" onChange={(event) => { setStatus(event.target.value as LeadStatus | ""); setPage(1); }} value={status}>
@@ -121,7 +157,18 @@ export default function AdminLeadsPage() {
                   <tbody>
                     {leads.map((lead) => (
                       <tr data-testid={`row-lead-${lead.id}`} key={lead.id}>
-                        <td><div className="admin-lead-person"><strong>{lead.fullName}</strong><span>{lead.companyName || "Chưa có tên công ty"}{lead.country ? ` · ${lead.country}` : ""}</span></div></td>
+                        <td>
+                          <button
+                            className="admin-lead-person"
+                            data-testid={`button-lead-detail-${lead.id}`}
+                            onClick={() => setDetailLead(lead)}
+                            style={{ background: "none", border: "none", cursor: "pointer", padding: 0, textAlign: "left" }}
+                            type="button"
+                          >
+                            <strong>{lead.fullName}</strong>
+                            <span>{lead.companyName || "Chưa có tên công ty"}{lead.country ? ` · ${lead.country}` : ""} · Xem chi tiết</span>
+                          </button>
+                        </td>
                         <td><div className="admin-lead-person">{lead.email ? <span><Mail size={12} style={{ verticalAlign: "middle" }} /> {lead.email}</span> : null}{lead.phone ? <span><Phone size={12} style={{ verticalAlign: "middle" }} /> {lead.phone}</span> : null}{!lead.email && !lead.phone ? <span>Chưa có thông tin</span> : null}</div></td>
                         <td><div className="admin-message" title={lead.message ?? undefined}>{lead.message || "Không có nội dung"}</div><div className="admin-item-meta">{lead.source}</div></td>
                         <td>
@@ -148,8 +195,35 @@ export default function AdminLeadsPage() {
               <AdminPagination lastPage={lastPage} onPage={setPage} page={page} pageSize={20} total={total} />
             </>
           )}
-        </section>
-      )}
-    </div>
+          </section>
+        )}
+        {detailLead ? (
+          <AdminModal labelledBy="admin-lead-detail-title" onClose={() => setDetailLead(null)} title={`Chi tiết yêu cầu — ${detailLead.fullName}`}>
+            <h2 hidden id="admin-lead-detail-title">Chi tiết yêu cầu</h2>
+            <dl style={{ display: "grid", gap: 10, margin: 0 }}>
+              {[
+                ["Người liên hệ", detailLead.fullName],
+                ["Công ty", detailLead.companyName || "—"],
+                ["Quốc gia", detailLead.country || "—"],
+                ["Email", detailLead.email || "—"],
+                ["Điện thoại", detailLead.phone || "—"],
+                ["Nguồn", detailLead.source],
+                ["Tiếp nhận", formatAdminDate(detailLead.createdAt)],
+                ["Cập nhật", formatAdminDate(detailLead.updatedAt)],
+                ["Gửi dữ liệu", detailLead.deliveryStatus],
+              ].map(([label, value]) => (
+                <div key={label} style={{ display: "grid", gridTemplateColumns: "130px 1fr", gap: 8 }}>
+                  <dt style={{ color: "var(--admin-ink-muted)", fontWeight: 600 }}>{label}</dt>
+                  <dd style={{ margin: 0 }}>{value}</dd>
+                </div>
+              ))}
+            </dl>
+            <div style={{ marginTop: 14 }}>
+              <strong style={{ fontSize: 13 }}>Nội dung</strong>
+              <p className="admin-message" style={{ margin: "6px 0 0", whiteSpace: "pre-wrap" }}>{detailLead.message || "Không có nội dung"}</p>
+            </div>
+          </AdminModal>
+        ) : null}
+      </div>
   );
 }

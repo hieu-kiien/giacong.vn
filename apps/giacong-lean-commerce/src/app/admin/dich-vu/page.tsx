@@ -5,6 +5,8 @@ import { useEffect, useState, type FormEvent } from "react";
 import { AdminMediaPanel } from "@/components/admin/AdminMediaPanel";
 import { AdminEmptyState, AdminErrorState, AdminLoadingTable, AdminPageHeading, AdminPagination, AdminStatusBadge } from "@/components/admin/AdminPrimitives";
 import { useAdminSession } from "@/components/admin/AdminShell";
+import { AdminConfirmDialog } from "@/components/admin/AdminDialog";
+import { useAdminToast } from "@/components/admin/AdminToast";
 import { AdminClientError, fetchAdmin, formatAdminDate, mutateAdmin, type AdminService } from "@/lib/admin-client";
 
 interface ServiceResponse {
@@ -38,6 +40,8 @@ const emptyServiceForm: ServiceFormState = {
 
 export default function AdminServicesPage() {
   const session = useAdminSession();
+  const { showToast } = useAdminToast();
+  const [confirmArchive, setConfirmArchive] = useState<AdminService | null>(null);
   const [services, setServices] = useState<AdminService[]>([]);
   const [inputQuery, setInputQuery] = useState("");
   const [query, setQuery] = useState("");
@@ -131,6 +135,7 @@ export default function AdminServicesPage() {
       );
       setEditor(null);
       setAttempt((value) => value + 1);
+      showToast("success", "Đã lưu dịch vụ.");
     } catch (reason: unknown) {
       setSaveError(reason instanceof AdminClientError ? reason : new AdminClientError("Không thể lưu dịch vụ.", 0));
     } finally {
@@ -139,13 +144,13 @@ export default function AdminServicesPage() {
   }
 
   async function archiveService(service: AdminService) {
-    if (!window.confirm(`Ẩn dịch vụ “${service.name}” khỏi storefront?`)) return;
     setArchivingId(service.id);
     setSaveError(null);
     try {
       await mutateAdmin<{ service: AdminService }>(`/api/admin/services/${service.id}`, { method: "DELETE" });
       if (editor?.id === service.id) setEditor(null);
       setAttempt((value) => value + 1);
+      showToast("success", `Đã ẩn dịch vụ “${service.name}”.`);
     } catch (reason: unknown) {
       setSaveError(reason instanceof AdminClientError ? reason : new AdminClientError("Không thể ẩn dịch vụ.", 0));
     } finally {
@@ -185,7 +190,7 @@ export default function AdminServicesPage() {
                         <td className="admin-description">{service.moqSummary || "Chưa có"}</td>
                         <td className="admin-mono">{service.leadTimeDays !== null ? `${service.leadTimeDays} ngày` : "Chưa có"}</td>
                         <td className="admin-mono">{formatAdminDate(service.updatedAt)}</td>
-                        <td><div className="admin-table-actions"><button className="admin-button admin-button-quiet" data-testid={`button-service-edit-${service.id}`} onClick={() => openEdit(service)} type="button">Sửa</button>{service.isActive ? <button className="admin-button admin-button-danger" data-testid={`button-service-archive-${service.id}`} disabled={archivingId === service.id} onClick={() => void archiveService(service)} type="button">{archivingId === service.id ? "Đang ẩn" : "Ẩn"}</button> : null}</div></td>
+                        <td><div className="admin-table-actions"><button className="admin-button admin-button-quiet" data-testid={`button-service-edit-${service.id}`} onClick={() => openEdit(service)} type="button">Sửa</button>{service.isActive ? <button className="admin-button admin-button-danger" data-testid={`button-service-archive-${service.id}`} disabled={archivingId === service.id} onClick={() => setConfirmArchive(service)} type="button">{archivingId === service.id ? "Đang ẩn" : "Ẩn"}</button> : null}</div></td>
                       </tr>
                     ))}
                   </tbody>
@@ -196,6 +201,15 @@ export default function AdminServicesPage() {
           )}
         </section>
       )}
+      {confirmArchive ? (
+        <AdminConfirmDialog
+          confirmLabel="Ẩn dịch vụ"
+          message={`Ẩn dịch vụ “${confirmArchive.name}” khỏi storefront? Dữ liệu vẫn được giữ và có thể bật lại.`}
+          onConfirm={() => void archiveService(confirmArchive)}
+          onDismiss={() => setConfirmArchive(null)}
+          title="Ẩn dịch vụ?"
+        />
+      ) : null}
     </div>
   );
 }

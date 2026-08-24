@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { AdminConfirmDialog } from "@/components/admin/AdminDialog";
 import { AdminClientError, fetchAdmin, mutateAdmin, type AdminProductVariant, type AdminTierPrice } from "@/lib/admin-client";
 
 interface VariantResponse {
@@ -48,6 +49,7 @@ export function AdminVariantPanel({ productId }: { productId: number }) {
   const [variants, setVariants] = useState<AdminProductVariant[]>([]);
   const [draft, setDraft] = useState<VariantDraft>(blankDraft);
   const [editingId, setEditingId] = useState<number | null>(null);
+  const [pendingArchive, setPendingArchive] = useState<AdminProductVariant | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<AdminClientError | null>(null);
@@ -119,7 +121,6 @@ export function AdminVariantPanel({ productId }: { productId: number }) {
   }
 
   async function archiveVariant(variant: AdminProductVariant) {
-    if (!window.confirm(`Ẩn variant “${variant.name}” khỏi lựa chọn public?`)) return;
     setError(null);
     try {
       await mutateAdmin(`/api/admin/products/${productId}/variants/${variant.id}`, { method: "DELETE" });
@@ -166,7 +167,7 @@ export function AdminVariantPanel({ productId }: { productId: number }) {
                 <td>
                   <div className="admin-table-actions">
                     <button className="admin-button admin-button-quiet" onClick={() => editVariant(variant)} type="button">Sửa</button>
-                    {variant.isAvailable ? <button className="admin-button admin-button-danger" onClick={() => void archiveVariant(variant)} type="button">Ẩn</button> : null}
+                    {variant.isAvailable ? <button className="admin-button admin-button-danger" onClick={() => setPendingArchive(variant)} type="button">Ẩn</button> : null}
                   </div>
                 </td>
               </tr>
@@ -218,7 +219,17 @@ export function AdminVariantPanel({ productId }: { productId: number }) {
           <div className="admin-editor-actions"><button className="admin-button admin-button-quiet" onClick={resetDraft} type="button">Hủy</button><button className="admin-button admin-button-primary" disabled={saving} type="submit">{saving ? "Đang lưu..." : "Lưu variant"}</button></div>
         </div>
       </form>
-    </section>
+    
+      {pendingArchive ? (
+        <AdminConfirmDialog
+          confirmLabel="Ẩn variant"
+          message={`Ẩn variant “${pendingArchive.name}” khỏi lựa chọn public? Dữ liệu tier price vẫn được giữ.`}
+          onConfirm={() => void archiveVariant(pendingArchive)}
+          onDismiss={() => setPendingArchive(null)}
+          title="Ẩn variant?"
+        />
+      ) : null}
+</section>
   );
 }
 

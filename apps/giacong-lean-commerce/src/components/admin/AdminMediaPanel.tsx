@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState, type ChangeEvent } from "react";
+import { AdminConfirmDialog } from "@/components/admin/AdminDialog";
 import { AdminClientError, fetchAdmin, mutateAdmin, type AdminProductVariant } from "@/lib/admin-client";
 
 interface MediaAsset {
@@ -35,6 +36,7 @@ export function AdminMediaPanel({ productId, serviceId, title }: AdminMediaPanel
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [savingAltId, setSavingAltId] = useState<string | null>(null);
+  const [pendingRemove, setPendingRemove] = useState<MediaAsset | null>(null);
   const [error, setError] = useState<AdminClientError | null>(null);
 
   const loadMedia = useCallback(async () => {
@@ -116,7 +118,6 @@ export function AdminMediaPanel({ productId, serviceId, title }: AdminMediaPanel
   }
 
   async function remove(asset: MediaAsset) {
-    if (!window.confirm(`Xóa asset “${asset.originalFilename}”? Dữ liệu metadata sẽ giữ lại ở trạng thái deleted.`)) return;
     setError(null);
     try {
       await mutateAdmin(`/api/admin/media/${asset.id}`, { method: "DELETE" });
@@ -169,7 +170,7 @@ export function AdminMediaPanel({ productId, serviceId, title }: AdminMediaPanel
                     value={altDrafts[asset.id] ?? ""}
                   />
                   <button className="admin-button admin-button-quiet" disabled={savingAltId === asset.id} onClick={() => void saveAltText(asset)} type="button">{savingAltId === asset.id ? "Đang lưu" : "Lưu alt"}</button>
-                  <button className="admin-button admin-button-danger" onClick={() => void remove(asset)} type="button">Xóa</button>
+                  <button className="admin-button admin-button-danger" onClick={() => setPendingRemove(asset)} type="button">Xóa</button>
                 </div>
               </td>
             </tr>)}
@@ -177,7 +178,16 @@ export function AdminMediaPanel({ productId, serviceId, title }: AdminMediaPanel
           </tbody>
         </table>
       </div>
-    </section>
+          {pendingRemove ? (
+        <AdminConfirmDialog
+          confirmLabel="Xóa media"
+          message={`Xóa asset “${pendingRemove.originalFilename}”? Dữ liệu metadata sẽ giữ lại ở trạng thái deleted.`}
+          onConfirm={() => void remove(pendingRemove)}
+          onDismiss={() => setPendingRemove(null)}
+          title="Xóa media asset?"
+        />
+      ) : null}
+</section>
   );
 }
 
