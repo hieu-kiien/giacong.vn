@@ -20,6 +20,8 @@ export interface CatalogProductParent {
   description: string;
   id: number;
   imageUrl: string | null;
+  /** Lowest MOQ across active variants; null when the source has no variants. */
+  minimumOrderQuantity: number | null;
   name: string;
   shortDescription: string;
   sku: string;

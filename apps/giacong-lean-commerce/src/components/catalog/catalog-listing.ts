@@ -118,7 +118,10 @@ export function buildCatalogCard(product: CatalogCardSource, index = 0): Catalog
     id: product.id,
     imageUrl: product.imageUrl,
     isAvailable,
-    minimumOrderQuantity: priceVariant?.minimumOrderQuantity ?? null,
+    // Detail rows prefer the priced variant's MOQ; parent rows fall back to the
+    // product-level minimum the feed computed across active variants.
+    minimumOrderQuantity: priceVariant?.minimumOrderQuantity
+      ?? ("minimumOrderQuantity" in product ? product.minimumOrderQuantity : null),
     name: product.name,
     purchase,
     shortDescription: product.shortDescription,

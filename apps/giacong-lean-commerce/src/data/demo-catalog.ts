@@ -143,6 +143,9 @@ function product(input: DemoProductInput): CatalogProductDetail {
     shortDescription: input.shortDescription,
     sku: `${DEMO_SKU_PREFIX}-${input.slug.toUpperCase()}`,
     slug: input.slug,
+    minimumOrderQuantity: available.length > 0
+      ? Math.min(...available.map((variant) => variant.minimumOrderQuantity))
+      : Math.min(...built.map((variant) => variant.minimumOrderQuantity)),
     startingPrice: { currency: "VND", price: Math.min(...prices) },
     type: "configurable",
     variantCount: built.length,
@@ -453,6 +456,7 @@ export const DEMO_CATALOG_LIST: readonly CatalogProductParent[] = DEMO_CATALOG_P
     description: product.description,
     id: product.id,
     imageUrl: product.imageUrl,
+    minimumOrderQuantity: product.minimumOrderQuantity,
     name: product.name,
     shortDescription: product.shortDescription,
     sku: product.sku,
