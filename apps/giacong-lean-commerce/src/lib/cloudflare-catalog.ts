@@ -237,7 +237,8 @@ const PARENT_PRODUCT_COLUMNS = `
     c.slug AS category_slug,
     COALESCE(vs.variant_count, 0) AS variant_count,
     COALESCE(vs.available_variant_count, 0) AS available_variant_count,
-    vs.starting_price`;
+    vs.starting_price,
+    vs.minimum_order_quantity`;
 
 function parentProductQuery(): string {
   return `
@@ -249,7 +250,8 @@ function parentProductQuery(): string {
         MIN(CASE
           WHEN v.is_available = 1 THEN tp.price
           ELSE NULL
-        END) AS starting_price
+        END) AS starting_price,
+        MIN(CASE WHEN v.is_available = 1 THEN v.moq ELSE NULL END) AS minimum_order_quantity
       FROM products p
       LEFT JOIN product_variants v ON v.product_id = p.id
       LEFT JOIN variant_tier_prices tp ON tp.variant_id = v.id AND tp.min_quantity = v.moq
@@ -289,7 +291,8 @@ export async function getCatalogProductsBySlugs(
         MIN(CASE
           WHEN v.is_available = 1 THEN tp.price
           ELSE NULL
-        END) AS starting_price
+        END) AS starting_price,
+        MIN(CASE WHEN v.is_available = 1 THEN v.moq ELSE NULL END) AS minimum_order_quantity
       FROM products p
       LEFT JOIN product_variants v ON v.product_id = p.id
       LEFT JOIN variant_tier_prices tp ON tp.variant_id = v.id AND tp.min_quantity = v.moq
