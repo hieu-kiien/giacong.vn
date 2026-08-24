@@ -1,4 +1,4 @@
-@layer components {
+﻿@layer components {
   .admin-app {
     --admin-ink: #1e2a27;
     --admin-ink-soft: #55635d;
@@ -121,7 +121,7 @@
   .admin-main { flex: 1; min-width: 0; }
   .admin-topbar {
     align-items: center;
-    background: rgb(247 248 244 / 92%);
+    background: #f7f8f4;
     border-bottom: 1px solid var(--admin-border);
     display: flex;
     height: 72px;
