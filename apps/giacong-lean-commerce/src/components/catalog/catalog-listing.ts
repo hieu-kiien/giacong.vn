@@ -67,7 +67,10 @@ export interface CatalogCardView {
   id: number;
   imageUrl: string | null;
   isAvailable: boolean;
+  minimumOrderQuantity: number | null;
   name: string;
+  shortDescription: string;
+  sku: string;
   /** Null whenever the source cannot prove a single usable variant. */
   purchase: CatalogCardPurchaseRule | null;
   slug: string;
@@ -115,8 +118,11 @@ export function buildCatalogCard(product: CatalogCardSource, index = 0): Catalog
     id: product.id,
     imageUrl: product.imageUrl,
     isAvailable,
+    minimumOrderQuantity: priceVariant?.minimumOrderQuantity ?? null,
     name: product.name,
     purchase,
+    shortDescription: product.shortDescription,
+    sku: product.sku,
     slug: product.slug,
     specLabel: specLabel(product, priceVariant),
     startingPrice: product.startingPrice?.price ?? null,

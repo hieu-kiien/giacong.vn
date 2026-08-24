@@ -280,7 +280,7 @@ export function CatalogList({
           {cards.length ? (
             <div
               aria-busy={isPending}
-              className={`${viewMode === "grid" ? "grid grid-cols-1 gap-3 min-[440px]:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 lg:gap-5" : "grid grid-cols-1 gap-3"} ${isPending ? "opacity-60" : ""}`}
+              className={`${viewMode === "grid" ? "grid grid-cols-1 gap-3 min-[440px]:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 lg:gap-5" : "grid grid-cols-1 gap-3"} ${isPending ? "opacity-60" : ""}`}
               data-catalog-grid
             >
               {cards.map((card) => <CatalogProductCard card={card} key={card.id} />)}
@@ -288,7 +288,7 @@ export function CatalogList({
           ) : isPending ? (
             <div
               aria-busy="true"
-              className="grid grid-cols-1 gap-3 min-[440px]:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 lg:gap-5"
+              className="grid grid-cols-1 gap-3 min-[440px]:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 lg:gap-5"
               data-catalog-grid
             >
               {/* One skeleton per column of the widest row, so the grid keeps its shape. */}

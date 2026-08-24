@@ -714,6 +714,12 @@
 /* Mobile: the tier table reflows into stacked rows rather than scrolling --- */
 
 @media (max-width: 639px) {
+  /* Keep the gallery from consuming the first viewport before the price. */
+  .mainImage {
+    aspect-ratio: auto;
+    height: 260px;
+  }
+
   .tierTable,
   .tierTable caption,
   .tierTable tbody,

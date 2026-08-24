@@ -71,6 +71,17 @@ export function CatalogProductCard({ card }: CatalogProductCardProps) {
           {card.specLabel}
         </p>
 
+        {card.shortDescription ? (
+          <p className="!mb-0 line-clamp-2 text-[10.5px] !leading-4 text-commerce-secondary" data-catalog-description>
+            {card.shortDescription}
+          </p>
+        ) : null}
+
+        <p className="!mb-0 text-[10px] !leading-4 text-commerce-secondary" data-catalog-identifiers>
+          {card.sku ? <span>SKU: {card.sku}</span> : null}
+          {card.minimumOrderQuantity ? <span>{card.sku ? " · " : ""}MOQ {card.minimumOrderQuantity}</span> : null}
+        </p>
+
         <p className="!mb-0 flex flex-wrap items-baseline justify-start gap-0.5 !leading-4" data-catalog-price>
           {card.startingPrice === null ? (
             <span className={`${COMMERCE_TYPOGRAPHY.price} !text-[15px] !leading-4`}>Liên hệ</span>
