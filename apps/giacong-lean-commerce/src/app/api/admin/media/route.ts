@@ -17,11 +17,13 @@ export async function GET(request: Request): Promise<Response> {
   const productId = parsePositiveInt(url.searchParams.get("productId"));
   const serviceId = parsePositiveInt(url.searchParams.get("serviceId"));
   const variantId = parsePositiveInt(url.searchParams.get("variantId"));
-  if ((!productId && !serviceId) || (productId && serviceId) || (variantId && !productId)) {
+  const listAll = url.searchParams.get("all") === "1";
+  if (!listAll && ((!productId && !serviceId) || (productId && serviceId) || (variantId && !productId))) {
     return adminFailure(crypto.randomUUID(), 422, "VALIDATION_ERROR", "Cần productId hoặc serviceId hợp lệ.");
   }
   try {
     const media = await listMediaAssets(guard.database, {
+      all: listAll,
       productId: productId ?? undefined,
       serviceId: serviceId ?? undefined,
       variantId: variantId ?? undefined,

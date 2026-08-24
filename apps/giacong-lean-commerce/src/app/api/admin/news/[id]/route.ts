@@ -2,7 +2,7 @@ import { adminFailure, adminSuccess } from "@/lib/admin-api.ts";
 import { adminErrorFrom } from "@/lib/admin-error-mapping.ts";
 import { requireAdmin } from "@/lib/admin-guard";
 import { parseAdminNewsPayload } from "@/lib/admin-news-input";
-import { deleteAdminNewsPost, updateAdminNewsPost } from "@/lib/admin-data";
+import { deleteAdminNewsPost, getAdminNewsPost, updateAdminNewsPost } from "@/lib/admin-data";
 
 export const dynamic = "force-dynamic";
 
@@ -17,6 +17,25 @@ function canManageNews(role: string): boolean {
 async function parseId(context: NewsRouteContext): Promise<number | null> {
   const raw = Number((await context.params).id);
   return Number.isInteger(raw) && raw > 0 ? raw : null;
+}
+
+export async function GET(
+  request: Request,
+  context: NewsRouteContext,
+): Promise<Response> {
+  const guard = await requireAdmin(request);
+  if (guard instanceof Response) return guard;
+  const id = await parseId(context);
+  if (id === null) return adminFailure(crypto.randomUUID(), 404, "NOT_FOUND", "Không tìm thấy bài viết.");
+
+  try {
+    const post = await getAdminNewsPost(guard.database, id);
+    return post
+      ? adminSuccess(crypto.randomUUID(), { post })
+      : adminFailure(crypto.randomUUID(), 404, "NOT_FOUND", "Không tìm thấy bài viết.");
+  } catch (error) {
+    return adminErrorFrom(crypto.randomUUID(), error, "Không thể tải bài viết.");
+  }
 }
 
 export async function PATCH(

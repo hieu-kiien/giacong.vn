@@ -4,6 +4,7 @@ import { ImageOff, RefreshCw, Search } from "lucide-react";
 import { useEffect, useState, type FormEvent } from "react";
 import { AdminCategoryPanel } from "@/components/admin/AdminCategoryPanel";
 import { AdminConfirmDialog } from "@/components/admin/AdminDialog";
+import { AdminMediaPickerModal } from "@/components/admin/AdminMediaPickerModal";
 import { AdminEmptyState, AdminErrorState, AdminLoadingTable, AdminPageHeading, AdminPagination, AdminStatusBadge } from "@/components/admin/AdminPrimitives";
 import { AdminMediaPanel } from "@/components/admin/AdminMediaPanel";
 import { AdminModal } from "@/components/admin/AdminDialog";
@@ -72,6 +73,7 @@ export default function AdminProductsPage() {
   const [archivingId, setArchivingId] = useState<number | null>(null);
   const [confirmArchive, setConfirmArchive] = useState<AdminProduct | null>(null);
   const [categoryPanelOpen, setCategoryPanelOpen] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -286,6 +288,8 @@ function ProductEditor({
   onSubmit,
   saving,
 }: ProductEditorProps) {
+  const [pickerOpen, setPickerOpen] = useState(false);
+
   function update<K extends keyof ProductFormState>(key: K, value: ProductFormState[K]) {
     onChange({ ...form, [key]: value });
   }
@@ -340,13 +344,25 @@ function ProductEditor({
           </label>
           <label className="admin-field admin-field-wide">
             <span>Ảnh sản phẩm</span>
-            <input className="admin-input" data-testid="input-product-image" onChange={(event) => update("imageUrl", event.target.value)} placeholder="/media/products/... hoặc https://..." value={form.imageUrl} />
+            <div className="admin-input-actions">
+              <input className="admin-input" data-testid="input-product-image" onChange={(event) => update("imageUrl", event.target.value)} placeholder="/media/products/... hoặc https://..." value={form.imageUrl} />
+              <button className="admin-button admin-button-quiet" onClick={() => setPickerOpen(true)} type="button">Chọn từ thư viện</button>
+            </div>
             <span className="admin-image-preview">
               {form.imageUrl
                 ? // eslint-disable-next-line @next/next/no-img-element
                   <img alt={`Xem trước ảnh ${form.name}`} src={form.imageUrl} />
-                : <span className="admin-image-preview-fallback">Chưa có ảnh — dán đường dẫn hoặc chọn từ thư viện media để xem trước tại đây.</span>}
+                : <span className="admin-image-preview-fallback">Chưa có ảnh — dán đường dẫn, chọn từ thư viện hoặc upload ở panel bên dưới để xem trước tại đây.</span>}
             </span>
+            {pickerOpen ? (
+              <AdminMediaPickerModal
+                onClose={() => setPickerOpen(false)}
+                onSelect={(publicUrl) => {
+                  update("imageUrl", publicUrl);
+                  setPickerOpen(false);
+                }}
+              />
+            ) : null}
           </label>
           <label className="admin-field admin-field-wide">
             <span>Mô tả ngắn</span>

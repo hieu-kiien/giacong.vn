@@ -8,9 +8,10 @@ import { useAdminSession } from "@/components/admin/AdminShell";
 import { AdminClientError, fetchAdmin } from "@/lib/admin-client";
 
 interface DashboardData {
-  counts: { products: number; activeProducts: number; services: number; activeServices: number; leads: number };
+  counts: { draftProducts: number; products: number; activeProducts: number; services: number; activeServices: number; leads: number; newLeads: number; news: number };
   dataReadiness: Record<string, boolean>;
   member: { displayName: string; role: string; email: string | null };
+  recentLeads: Array<{ createdAt: string; fullName: string; id: string; status: string }>;
 }
 
 export default function AdminDashboardPage() {
@@ -50,10 +51,22 @@ export default function AdminDashboardPage() {
             <AdminMetric label="Sản phẩm hoạt động" value={data.counts.activeProducts} foot="Đang hiển thị trên storefront" testId="metric-active-products" />
             <AdminMetric label="Dịch vụ gia công" value={data.counts.services} foot={`${data.counts.activeServices} đang hoạt động`} testId="metric-services" />
             <AdminMetric label="Dịch vụ hoạt động" value={data.counts.activeServices} foot="Đang nhận yêu cầu" testId="metric-active-services" />
-            <AdminMetric label="Yêu cầu báo giá" value={data.counts.leads} foot="Tổng lead đã tiếp nhận" testId="metric-leads" />
+            <AdminMetric label="Yêu cầu báo giá" value={data.counts.leads} foot={`${data.counts.newLeads} mới chưa xử lý`} testId="metric-leads" />
+            <AdminMetric label="Sản phẩm bản nháp" value={data.counts.draftProducts} foot="Chưa xuất bản trên storefront" testId="metric-draft-products" />
+            <AdminMetric label="Bài viết tin tức" value={data.counts.news} foot="Tổng bài trong /tin-tuc" testId="metric-news" />
           </div>
           <div className="admin-grid-2">
-            <DataReadiness data={data.dataReadiness} />
+                        <section className="admin-panel" aria-labelledby="recent-leads-heading">
+              <div className="admin-panel-heading"><div><h2 className="admin-panel-title" id="recent-leads-heading">Yêu cầu mới nhất</h2><p className="admin-panel-caption">5 lead gần đây nhất từ inbox</p></div><ClipboardList aria-hidden="true" color="#6e8c42" size={19} /></div>
+              <div className="admin-brief-list">
+                {data.recentLeads.length === 0 ? <p style={{ color: "var(--admin-ink-muted)", padding: "0 21px 16px" }}>Chưa có yêu cầu nào được tiếp nhận.</p> : data.recentLeads.map((lead) => (
+                  <Link className="admin-brief-row" href="/admin/yeu-cau" key={lead.id}>
+                    <span className="admin-brief-copy"><strong>{lead.fullName}</strong><span>{lead.status} · {lead.createdAt.slice(0, 10)}</span></span>
+                    <ArrowUpRight size={14} />
+                  </Link>
+                ))}
+              </div>
+            </section><DataReadiness data={data.dataReadiness} />
             <section className="admin-panel" aria-labelledby="quick-links-heading">
               <div className="admin-panel-heading"><div><h2 className="admin-panel-title" id="quick-links-heading">Điểm vào nhanh</h2><p className="admin-panel-caption">Các màn hình cần dùng hàng ngày</p></div><ArrowUpRight aria-hidden="true" color="#6e8c42" size={19} /></div>
               <div className="admin-brief-list">

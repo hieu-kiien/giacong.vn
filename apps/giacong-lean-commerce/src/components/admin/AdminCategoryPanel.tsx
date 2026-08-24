@@ -6,6 +6,7 @@
 import { Pencil, Plus, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { AdminConfirmDialog } from "@/components/admin/AdminDialog";
+import { AdminMediaPickerModal } from "@/components/admin/AdminMediaPickerModal";
 import { AdminField } from "@/components/admin/AdminField";
 import { useAdminSession } from "@/components/admin/AdminShell";
 import { useAdminToast } from "@/components/admin/AdminToast";
@@ -55,6 +56,7 @@ export function AdminCategoryPanel({ onChanged }: { onChanged: () => void }) {
   const [formError, setFormError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<AdminCategoryDetail | null>(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   const reload = useCallback(async () => {
     setLoading(true);
@@ -313,6 +315,15 @@ export function AdminCategoryPanel({ onChanged }: { onChanged: () => void }) {
           title="Xóa danh mục?"
         />
       ) : null}
-    </div>
+          {pickerOpen ? (
+        <AdminMediaPickerModal
+          onClose={() => setPickerOpen(false)}
+          onSelect={(publicUrl) => {
+            setEditor((current) => (current ? { ...current, imageUrl: publicUrl } : current));
+            setPickerOpen(false);
+          }}
+        />
+      ) : null}
+</div>
   );
 }

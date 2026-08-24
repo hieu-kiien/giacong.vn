@@ -56,21 +56,25 @@ interface MediaRow {
 
 export async function listMediaAssets(
   database: D1DatabaseLike,
-  input: { productId?: number; serviceId?: number; variantId?: number; includeDeleted?: boolean },
+  input: { all?: boolean; productId?: number; serviceId?: number; variantId?: number; includeDeleted?: boolean },
 ): Promise<MediaAsset[]> {
   const filters: string[] = [];
   const params: unknown[] = [];
-  if (input.productId) {
-    filters.push("product_id = ?");
-    params.push(input.productId);
-  }
-  if (input.variantId) {
-    filters.push("variant_id = ?");
-    params.push(input.variantId);
-  }
-  if (input.serviceId) {
-    filters.push("service_id = ?");
-    params.push(input.serviceId);
+  if (input.all) {
+    // Library-wide listing for the media picker; entity filters take precedence.
+  } else {
+    if (input.productId) {
+      filters.push("product_id = ?");
+      params.push(input.productId);
+    }
+    if (input.variantId) {
+      filters.push("variant_id = ?");
+      params.push(input.variantId);
+    }
+    if (input.serviceId) {
+      filters.push("service_id = ?");
+      params.push(input.serviceId);
+    }
   }
   if (!input.includeDeleted) filters.push("status = 'active'");
   const where = filters.length ? `WHERE ${filters.join(" AND ")}` : "";

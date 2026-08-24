@@ -557,3 +557,29 @@
   color: #fff5f3;
 }
 .admin-app .admin-button-danger:hover { background: #8c352b; }
+
+.admin-picker-cell {
+  align-items: stretch;
+  background: #fff;
+  border: 1px solid var(--admin-border);
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  overflow: hidden;
+  padding: 6px;
+  text-align: left;
+}
+.admin-picker-cell:hover { border-color: var(--admin-green); }
+.admin-picker-cell img { aspect-ratio: 1; border-radius: 5px; object-fit: cover; width: 100%; }
+.admin-picker-cell span {
+  color: var(--admin-ink-soft);
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-input-actions { display: flex; gap: 8px; }
+.admin-input-actions .admin-input { flex: 1; }

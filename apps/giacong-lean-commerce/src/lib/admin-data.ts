@@ -247,7 +247,7 @@ export async function listAdminCategories(database: D1DatabaseLike): Promise<Adm
 }
 
 export async function getAdminOverview(database: D1DatabaseLike) {
-  const [products, services, leads, members, metaTables] = await Promise.all([
+  const [products, services, leads, members, metaTables, news, draftProducts, recentLeads] = await Promise.all([
     countRows(database, "products"),
     countRows(database, "services"),
     countRows(database, "leads"),
@@ -257,6 +257,19 @@ export async function getAdminOverview(database: D1DatabaseLike) {
       tableExists(database, "service_admin_meta"),
       tableExists(database, "audit_logs"),
     ]),
+    tableExists(database, "news_posts").then((ready) => (
+      ready ? countRows(database, "news_posts") : Promise.resolve({ count: 0, ready: false })
+    )),
+    countRows(database, "products", "is_active = 1").catch(() => ({ count: 0, ready: false })),
+    database.prepare(`
+      SELECT id, full_name, status, created_at
+      FROM leads
+      ORDER BY created_at DESC
+      LIMIT 5
+    `).all<{ created_at: string; full_name: string; id: string; status: string }>().then(
+      (result) => result.results,
+      () => [],
+    ),
   ]);
 
   return {
@@ -270,10 +283,21 @@ export async function getAdminOverview(database: D1DatabaseLike) {
     counts: {
       activeProducts: products.ready ? await countRows(database, "products", "is_active = 1").then((result) => result.count) : 0,
       activeServices: services.ready ? await countRows(database, "services", "is_active = 1").then((result) => result.count) : 0,
+      draftProducts: draftProducts.count,
       leads: leads.ready ? leads.count : 0,
+      news: news.count,
+      newLeads: leads.ready
+        ? await countRows(database, "leads", "status = 'new'").then((result) => result.count)
+        : 0,
       products: products.count,
       services: services.count,
     },
+    recentLeads: recentLeads.map((row) => ({
+      createdAt: row.created_at,
+      fullName: row.full_name,
+      id: row.id,
+      status: row.status,
+    })),
   };
 }
 
