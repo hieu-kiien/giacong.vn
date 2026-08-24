@@ -115,13 +115,15 @@ export interface AdminLead {
 
 export class AdminClientError extends Error {
   readonly code?: string;
+  readonly fieldErrors?: Record<string, string>;
   readonly status: number;
 
-  constructor(message: string, status: number, code?: string) {
+  constructor(message: string, status: number, code?: string, fieldErrors?: Record<string, string>) {
     super(message);
     this.name = "AdminClientError";
     this.status = status;
     this.code = code;
+    this.fieldErrors = fieldErrors;
   }
 }
 
@@ -139,7 +141,7 @@ export async function fetchAdmin<T>(path: string, signal?: AbortSignal): Promise
     throw new AdminClientError("Không thể kết nối tới máy chủ admin.", 0, "NETWORK_ERROR");
   }
 
-  let body: { ok?: boolean; data?: T; code?: string; message?: string };
+  let body: { fieldErrors?: Record<string, string>; ok?: boolean; data?: T; code?: string; message?: string };
   try {
     body = await response.json();
   } catch {
@@ -175,7 +177,7 @@ export async function mutateAdmin<T>(
     throw new AdminClientError("Không thể kết nối tới máy chủ admin.", 0, "NETWORK_ERROR");
   }
 
-  let body: { ok?: boolean; data?: T; code?: string; message?: string };
+  let body: { fieldErrors?: Record<string, string>; ok?: boolean; data?: T; code?: string; message?: string };
   try {
     body = await response.json();
   } catch {
@@ -186,6 +188,7 @@ export async function mutateAdmin<T>(
       body.message ?? "Không thể lưu thay đổi admin.",
       response.status,
       body.code,
+      body.fieldErrors,
     );
   }
   return body.data;

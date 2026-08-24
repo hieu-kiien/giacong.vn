@@ -2,10 +2,14 @@
 
 import { ImageOff, RefreshCw, Search } from "lucide-react";
 import { useEffect, useState, type FormEvent } from "react";
+import { AdminCategoryPanel } from "@/components/admin/AdminCategoryPanel";
+import { AdminConfirmDialog } from "@/components/admin/AdminDialog";
 import { AdminEmptyState, AdminErrorState, AdminLoadingTable, AdminPageHeading, AdminPagination, AdminStatusBadge } from "@/components/admin/AdminPrimitives";
 import { AdminMediaPanel } from "@/components/admin/AdminMediaPanel";
-import { useAdminSession } from "@/components/admin/AdminShell";
+import { AdminModal } from "@/components/admin/AdminDialog";
 import { AdminVariantPanel } from "@/components/admin/AdminVariantPanel";
+import { useAdminSession } from "@/components/admin/AdminShell";
+import { useAdminToast } from "@/components/admin/AdminToast";
 import { AdminClientError, fetchAdmin, formatAdminDate, getInitials, mutateAdmin, type AdminCategory, type AdminProduct } from "@/lib/admin-client";
 
 interface ProductResponse {
@@ -44,6 +48,7 @@ const emptyProductForm: ProductFormState = {
 
 export default function AdminProductsPage() {
   const session = useAdminSession();
+  const { showToast } = useAdminToast();
   const [products, setProducts] = useState<AdminProduct[]>([]);
   const [query, setQuery] = useState("");
   const [inputQuery, setInputQuery] = useState("");
@@ -58,6 +63,8 @@ export default function AdminProductsPage() {
   const [saveError, setSaveError] = useState<AdminClientError | null>(null);
   const [saving, setSaving] = useState(false);
   const [archivingId, setArchivingId] = useState<number | null>(null);
+  const [confirmArchive, setConfirmArchive] = useState<AdminProduct | null>(null);
+  const [categoryPanelOpen, setCategoryPanelOpen] = useState(false);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -143,23 +150,26 @@ export default function AdminProductsPage() {
       );
       setEditor(null);
       setAttempt((value) => value + 1);
+      showToast("success", editor.id ? "Đã lưu thay đổi sản phẩm." : "Đã tạo sản phẩm mới (draft).");
     } catch (reason: unknown) {
       setSaveError(reason instanceof AdminClientError ? reason : new AdminClientError("Không thể lưu sản phẩm.", 0));
+      showToast("error", reason instanceof AdminClientError ? reason.message : "Không thể lưu sản phẩm.");
     } finally {
       setSaving(false);
     }
   }
 
   async function archiveProduct(product: AdminProduct) {
-    if (!window.confirm(`Ẩn sản phẩm “${product.name}” khỏi storefront?`)) return;
     setArchivingId(product.id);
     setSaveError(null);
     try {
       await mutateAdmin<{ product: AdminProduct }>(`/api/admin/products/${product.id}`, { method: "DELETE" });
       if (editor?.id === product.id) setEditor(null);
       setAttempt((value) => value + 1);
+      showToast("success", `Đã ẩn sản phẩm “${product.name}”.`);
     } catch (reason: unknown) {
       setSaveError(reason instanceof AdminClientError ? reason : new AdminClientError("Không thể ẩn sản phẩm.", 0));
+      showToast("error", reason instanceof AdminClientError ? reason.message : "Không thể ẩn sản phẩm.");
     } finally {
       setArchivingId(null);
     }
@@ -178,6 +188,14 @@ export default function AdminProductsPage() {
         <button className="admin-button admin-button-primary" data-testid="button-product-search" type="submit"><Search size={15} /> Tìm sản phẩm</button>
         {query ? <button className="admin-button admin-button-quiet" data-testid="button-product-clear-search" onClick={clearSearch} type="button">Xóa tìm kiếm</button> : null}
         <button className="admin-button admin-button-primary" data-testid="button-product-create" onClick={openCreate} type="button">Thêm sản phẩm</button>
+        <button
+          className="admin-button admin-button-quiet"
+          data-testid="button-open-category-panel"
+          onClick={() => setCategoryPanelOpen(true)}
+          type="button"
+        >
+          Quản lý danh mục
+        </button>
       </form>
       {error ? <AdminErrorState error={error} onRetry={() => setAttempt((value) => value + 1)} /> : loading ? <AdminLoadingTable /> : (
         <section className="admin-panel admin-table-panel" aria-labelledby="product-table-heading">
@@ -209,7 +227,7 @@ export default function AdminProductsPage() {
                          <td>
                            <div className="admin-table-actions">
                              <button className="admin-button admin-button-quiet" data-testid={`button-product-edit-${product.id}`} onClick={() => openEdit(product)} type="button">Sửa</button>
-                             {product.isActive ? <button className="admin-button admin-button-danger" data-testid={`button-product-archive-${product.id}`} disabled={archivingId === product.id} onClick={() => void archiveProduct(product)} type="button">{archivingId === product.id ? "Đang ẩn" : "Ẩn"}</button> : null}
+                             {product.isActive ? <button className="admin-button admin-button-danger" data-testid={`button-product-archive-${product.id}`} disabled={archivingId === product.id} onClick={() => setConfirmArchive(product)} type="button">{archivingId === product.id ? "Đang ẩn" : "Ẩn"}</button> : null}
                            </div>
                          </td>
                       </tr>
@@ -223,6 +241,21 @@ export default function AdminProductsPage() {
         </section>
       )}
       {!loading && !error && products.length > 0 ? <p className="admin-stamp" style={{ marginTop: 15 }}><ImageOff size={12} style={{ verticalAlign: "middle" }} /> Ảnh không có sẽ được giữ dưới dạng chữ viết tắt · <RefreshCw size={11} style={{ verticalAlign: "middle" }} /> đọc mới từ API mỗi lần lọc</p> : null}
+      {confirmArchive ? (
+        <AdminConfirmDialog
+          message={`Ẩn sản phẩm “${confirmArchive.name}” khỏi storefront? Sản phẩm vẫn giữ nguyên dữ liệu và có thể bật hiển thị lại sau.`}
+          confirmLabel="Ẩn sản phẩm"
+          onConfirm={() => void archiveProduct(confirmArchive)}
+          onDismiss={() => setConfirmArchive(null)}
+          title="Ẩn sản phẩm?"
+        />
+      ) : null}
+      {categoryPanelOpen ? (
+        <AdminModal labelledBy="admin-category-panel-title" onClose={() => setCategoryPanelOpen(false)} title="Quản lý danh mục" width="wide">
+          <h2 hidden id="admin-category-panel-title">Quản lý danh mục</h2>
+          <AdminCategoryPanel onChanged={() => setAttempt((value) => value + 1)} />
+        </AdminModal>
+      ) : null}
     </div>
   );
 }
