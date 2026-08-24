@@ -1,7 +1,7 @@
 export interface AdminSession {
   authenticated: boolean;
   subject: string;
-  role?: string;
+  role: string;
 }
 
 export type AdminSiteSettingType = "text" | "multiline" | "url" | "image" | "color";
@@ -36,6 +36,9 @@ export interface AdminProduct {
   isActive: boolean;
   status: string;
   leadTimeDays: number | null;
+  minimumOrderQuantity: number | null;
+  startingPrice: number | null;
+  variantCount: number | null;
   updatedAt: string | null;
 }
 

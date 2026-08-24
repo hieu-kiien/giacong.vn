@@ -47,10 +47,16 @@ function replaceFirstElementText(markup: string, pattern: RegExp, value: string)
 function replaceHeroImage(markup: string, imageUrl: string): string {
   if (!imageUrl) return markup;
   const safe = escapeAttr(imageUrl);
-  const heroImage = /(<img\b[^>]*?)\s(src|srcset)=(["'])[^"']*\3([^>]*\b(?:gia-cong-thuc-pham|hero)[^>]*>)/i;
+  const heroImage = /<img\b[^>]*\b(?:gia-cong-thuc-pham|hero)[^>]*>/i;
   const match = heroImage.exec(markup);
   if (!match) return markup;
-  return `${markup.slice(0, match.index)}${match[1]} src="${safe}"${match[4]}${markup.slice(match.index + match[0].length)}`;
+  // The captured hero <img> carries src, srcset and sizes; the browser prefers
+  // srcset, so all responsive attributes must go when a custom image is set.
+  const updated = match[0]
+    .replace(/\ssrcset=(["'])[^"']*\1/gi, "")
+    .replace(/\ssizes=(["'])[^"']*\1/gi, "")
+    .replace(/\ssrc=(["'])[^"']*\1/i, ` src="${safe}"`);
+  return `${markup.slice(0, match.index)}${updated}${markup.slice(match.index + match[0].length)}`;
 }
 
 function replaceLogo(markup: string, logoUrl: string): string {

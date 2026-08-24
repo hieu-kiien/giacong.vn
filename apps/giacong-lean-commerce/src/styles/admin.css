@@ -1,4 +1,4 @@
-﻿@layer components {
+@layer components {
   .admin-app {
     --admin-ink: #1e2a27;
     --admin-ink-soft: #55635d;
@@ -124,7 +124,7 @@
     background: #f7f8f4;
     border-bottom: 1px solid var(--admin-border);
     display: flex;
-    height: 72px;
+    height: 96px;
     justify-content: space-between;
     padding: 0 clamp(20px, 4vw, 58px);
     position: sticky;
@@ -295,13 +295,13 @@
 
   .admin-table-panel { overflow: hidden; padding: 0; }
   .admin-table-scroll { overflow-x: auto; }
-  .admin-table { border-collapse: collapse; min-width: 820px; width: 100%; }
+  .admin-table { border-collapse: collapse; min-width: 1080px; width: 100%; }
   .admin-table th { background: #f1f4ee; color: #68776c; font-size: 10px; font-weight: 700; letter-spacing: .08em; padding: 12px 18px; text-align: left; text-transform: uppercase; white-space: nowrap; }
   .admin-table td { border-top: 1px solid #e8ede7; font-size: 12px; padding: 15px 18px; vertical-align: middle; }
   .admin-table tbody tr:hover { background: #fbfcf9; }
   .admin-item-name { font-weight: 650; max-width: 260px; }
   .admin-item-meta { color: var(--admin-ink-muted); font-family: "Geist Mono", ui-monospace, monospace; font-size: 10px; margin-top: 5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .admin-thumb { align-items: center; background: #e8f0df; border: 1px solid #d5e2c6; border-radius: 8px; color: var(--admin-green-deep); display: inline-flex; flex: 0 0 72px; font-size: 17px; font-weight: 700; height: 72px; justify-content: center; overflow: hidden; width: 72px; }
+  .admin-thumb { align-items: center; background: #e8f0df; border: 1px solid #d5e2c6; border-radius: 8px; color: var(--admin-green-deep); display: inline-flex; flex: 0 0 96px; font-size: 17px; font-weight: 700; height: 96px; justify-content: center; overflow: hidden; width: 96px; }
   .admin-thumb img { display: block; height: 100%; object-fit: cover; width: 100%; }
   .admin-product-cell { align-items: center; display: flex; gap: 14px; min-width: 300px; }
   .admin-item-desc { color: var(--admin-ink-soft); display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; font-size: 12.5px; line-height: 1.4; margin-top: 3px; max-width: 420px; overflow: hidden; }

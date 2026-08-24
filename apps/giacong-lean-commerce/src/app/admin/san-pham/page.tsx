@@ -213,7 +213,7 @@ export default function AdminProductsPage() {
             <>
               <div className="admin-table-scroll">
                 <table className="admin-table">
-                   <thead><tr><th scope="col">Sản phẩm</th><th scope="col">Danh mục / SKU</th><th scope="col">Trạng thái</th><th scope="col">Lead time</th><th scope="col">Cập nhật</th><th scope="col">Thao tác</th></tr></thead>
+                   <thead><tr><th scope="col">Sản phẩm</th><th scope="col">Danh mục / SKU</th><th scope="col">Quy cách</th><th scope="col">MOQ / Giá từ</th><th scope="col">Trạng thái</th><th scope="col">Lead time</th><th scope="col">Cập nhật</th><th scope="col">Thao tác</th></tr></thead>
                   <tbody>
                     {products.map((product) => (
                       <tr data-testid={`row-product-${product.id}`} key={product.id}>
@@ -230,6 +230,11 @@ export default function AdminProductsPage() {
                           </div>
                         </td>
                         <td><div>{product.categoryName || "Chưa phân loại"}</div><div className="admin-item-meta">SKU: {product.sku || "chưa có"}</div></td>
+                        <td className="admin-mono">{product.variantCount ?? 0} quy cách</td>
+                        <td>
+                          <div>{product.minimumOrderQuantity ? `MOQ ${product.minimumOrderQuantity}` : "—"}</div>
+                          <div className="admin-item-meta">{product.startingPrice ? `từ ${new Intl.NumberFormat("vi-VN").format(product.startingPrice)}đ` : "Chưa có giá"}</div>
+                        </td>
                         <td><AdminStatusBadge kind={product.isActive && product.status === "published" ? "green" : product.status === "draft" || product.status === "review" ? "amber" : "neutral"} value={product.isActive ? statusLabelsVN[product.status as ProductFormState["status"]] ?? product.status : "Tạm ẩn"} /></td>
                         <td className="admin-mono">{product.leadTimeDays ? `${product.leadTimeDays} ngày` : "Chưa có"}</td>
                          <td className="admin-mono">{formatAdminDate(product.updatedAt)}</td>

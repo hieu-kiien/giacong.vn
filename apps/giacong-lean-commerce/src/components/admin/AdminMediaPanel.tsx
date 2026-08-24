@@ -37,6 +37,7 @@ export function AdminMediaPanel({ productId, serviceId, title }: AdminMediaPanel
   const [uploading, setUploading] = useState(false);
   const [savingAltId, setSavingAltId] = useState<string | null>(null);
   const [pendingRemove, setPendingRemove] = useState<MediaAsset | null>(null);
+  const [settingMainId, setSettingMainId] = useState<string | null>(null);
   const [error, setError] = useState<AdminClientError | null>(null);
 
   const loadMedia = useCallback(async () => {
@@ -127,6 +128,49 @@ export function AdminMediaPanel({ productId, serviceId, title }: AdminMediaPanel
     }
   }
 
+  // Upload alone never touches the product record; this promotes an asset to the
+  // product's main image by re-reading the product and patching only imageUrl.
+  async function setAsMainImage(asset: MediaAsset) {
+    if (!productId) return;
+    setSettingMainId(asset.id);
+    setError(null);
+    try {
+      const { product } = await fetchAdmin<{
+        product: {
+          categoryId: number | null;
+          description: string;
+          imageUrl: string | null;
+          isActive: boolean;
+          leadTimeDays: number | null;
+          name: string;
+          shortDescription: string;
+          sku: string;
+          slug: string;
+          status: string;
+        };
+      }>(`/api/admin/products/${productId}`);
+      await mutateAdmin(`/api/admin/products/${productId}`, {
+        body: {
+          categoryId: product.categoryId,
+          description: product.description,
+          imageUrl: asset.publicUrl,
+          isActive: product.isActive,
+          leadTimeDays: product.leadTimeDays,
+          name: product.name,
+          shortDescription: product.shortDescription,
+          sku: product.sku,
+          slug: product.slug,
+          status: product.status,
+        },
+        method: "PATCH",
+      });
+      window.dispatchEvent(new CustomEvent("admin:product-updated"));
+    } catch (reason: unknown) {
+      setError(reason instanceof AdminClientError ? reason : new AdminClientError("Kh\u00f4ng th\u1ec3 \u0111\u1eb7t \u1ea3nh ch\u00ednh.", 0));
+    } finally {
+      setSettingMainId(null);
+    }
+  }
   return (
     <section className="admin-editor" aria-labelledby="media-editor-heading" style={{ marginTop: 18 }}>
       <div className="admin-editor-heading">
@@ -170,6 +214,17 @@ export function AdminMediaPanel({ productId, serviceId, title }: AdminMediaPanel
                     value={altDrafts[asset.id] ?? ""}
                   />
                   <button className="admin-button admin-button-quiet" disabled={savingAltId === asset.id} onClick={() => void saveAltText(asset)} type="button">{savingAltId === asset.id ? "Đang lưu" : "Lưu alt"}</button>
+                  {productId && !variantId ? (
+                    <button
+                      className="admin-button admin-button-quiet"
+                      data-testid={`button-media-set-main-${asset.id}`}
+                      disabled={settingMainId === asset.id}
+                      onClick={() => void setAsMainImage(asset)}
+                      type="button"
+                    >
+                      {settingMainId === asset.id ? "Đang đặt..." : "Dùng làm ảnh chính"}
+                    </button>
+                  ) : null}
                   <button className="admin-button admin-button-danger" onClick={() => setPendingRemove(asset)} type="button">Xóa</button>
                 </div>
               </td>
