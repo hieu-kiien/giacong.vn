@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { AdminClientError, fetchAdmin, getInitials, type AdminSession } from "@/lib/admin-client";
+import { AdminToastProvider } from "@/components/admin/AdminToast";
 
 interface AdminShellProps { children: ReactNode; }
 interface SessionContextValue { session: AdminSession | null; }
@@ -68,7 +69,8 @@ export function AdminShell({ children }: AdminShellProps) {
 
   return (
     <SessionContext.Provider value={{ session }}>
-      <div className="admin-app">
+      <AdminToastProvider>
+        <div className="admin-app">
         <div className="admin-shell">
           <aside className={`admin-sidebar${mobileOpen ? " is-open" : ""}`} aria-label="Điều hướng admin">
             <Link className="admin-brand" href="/admin" onClick={() => setMobileOpen(false)}>
@@ -119,7 +121,8 @@ export function AdminShell({ children }: AdminShellProps) {
             {children}
           </main>
         </div>
-      </div>
+        </div>
+      </AdminToastProvider>
     </SessionContext.Provider>
   );
 }

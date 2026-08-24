@@ -461,3 +461,95 @@
     .admin-access-card { padding: 26px 22px; }
   }
 }
+/* --- UI system additions (2026-08-23): toast, modal, confirm, form fields --- */
+
+.admin-toast-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: min(92vw, 380px);
+  position: fixed;
+  right: 18px;
+  top: 18px;
+  z-index: 90;
+}
+.admin-toast {
+  align-items: flex-start;
+  background: var(--admin-surface);
+  border: 1px solid var(--admin-border);
+  border-radius: 10px;
+  box-shadow: 0 10px 26px rgba(30, 42, 39, 0.14);
+  color: var(--admin-ink);
+  display: flex;
+  gap: 9px;
+  padding: 11px 12px;
+}
+.admin-toast-success .admin-toast-icon { color: #4d770f; }
+.admin-toast-error { border-color: #ecc8c2; }
+.admin-toast-error .admin-toast-icon { color: var(--admin-red); }
+.admin-toast-info .admin-toast-icon { color: var(--admin-blue); }
+.admin-toast-message { flex: 1; font-size: 13.5px; line-height: 1.45; }
+.admin-toast-close {
+  background: none;
+  border: none;
+  color: var(--admin-ink-muted);
+  cursor: pointer;
+  padding: 2px;
+}
+
+.admin-modal-overlay {
+  align-items: center;
+  backdrop-filter: blur(1.5px);
+  background: rgba(24, 34, 29, 0.44);
+  display: flex;
+  inset: 0;
+  justify-content: center;
+  padding: 20px;
+  position: fixed;
+  z-index: 80;
+}
+.admin-modal {
+  background: var(--admin-surface);
+  border: 1px solid var(--admin-border);
+  border-radius: 12px;
+  box-shadow: 0 22px 48px rgba(24, 34, 29, 0.24);
+  max-height: min(86dvh, 720px);
+  outline: none;
+  overflow: auto;
+  width: 100%;
+}
+.admin-modal-narrow { max-width: 480px; }
+.admin-modal-wide { max-width: 780px; }
+.admin-modal-header {
+  align-items: center;
+  border-bottom: 1px solid var(--admin-border);
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  padding: 14px 18px;
+}
+.admin-modal-header h2 { font-size: 16px; margin: 0; }
+.admin-modal-body { padding: 16px 18px 18px; }
+.admin-modal-footer {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 18px;
+}
+.admin-confirm-message { color: var(--admin-ink-soft); line-height: 1.55; margin: 0; }
+
+.admin-field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+.admin-field-label { font-size: 13px; font-weight: 600; }
+.admin-field-optional { color: var(--admin-ink-muted); font-weight: 400; }
+.admin-field-hint { color: var(--admin-ink-muted); font-size: 12.5px; margin: 0; }
+.admin-field-error { color: var(--admin-red); font-size: 12.5px; font-weight: 500; margin: 0; }
+.admin-field.has-error input,
+.admin-field.has-error select,
+.admin-field.has-error textarea { border-color: #d99389; }
+
+.admin-app .admin-button-danger {
+  background: var(--admin-red);
+  border-color: var(--admin-red);
+  color: #fff5f3;
+}
+.admin-app .admin-button-danger:hover { background: #8c352b; }
