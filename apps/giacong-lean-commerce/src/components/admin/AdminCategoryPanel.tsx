@@ -157,6 +157,7 @@ export function AdminCategoryPanel({ onChanged }: { onChanged: () => void }) {
           <table className="admin-table" data-testid="table-admin-categories">
             <thead>
               <tr>
+                <th scope="col">Ảnh</th>
                 <th scope="col">Danh mục</th>
                 <th scope="col">Thứ tự</th>
                 <th scope="col">Hiển thị</th>
@@ -166,6 +167,14 @@ export function AdminCategoryPanel({ onChanged }: { onChanged: () => void }) {
             <tbody>
               {categories.map((category) => (
                 <tr data-testid={`row-category-${category.id}`} key={category.id}>
+                  <td>
+                    <span className="admin-thumb">
+                      {category.imageUrl
+                        ? // eslint-disable-next-line @next/next/no-img-element
+                          <img alt={`Ảnh danh mục ${category.name}`} src={category.imageUrl} />
+                        : <span>{category.name.slice(0, 2).toUpperCase()}</span>}
+                    </span>
+                  </td>
                   <td>
                     <div className="admin-item-name">{category.name}</div>
                     <div className="admin-item-meta">{category.slug}{category.description ? ` · ${category.description}` : ""}</div>
@@ -210,7 +219,7 @@ export function AdminCategoryPanel({ onChanged }: { onChanged: () => void }) {
                 </tr>
               ))}
               {categories.length === 0 ? (
-                <tr><td colSpan={canManage ? 4 : 3}>Chưa có danh mục nào.</td></tr>
+                <tr><td colSpan={canManage ? 5 : 4}>Chưa có danh mục nào.</td></tr>
               ) : null}
             </tbody>
           </table>
@@ -258,6 +267,12 @@ export function AdminCategoryPanel({ onChanged }: { onChanged: () => void }) {
               placeholder="https://..."
               value={editor.imageUrl}
             />
+            <span className="admin-image-preview">
+              {editor.imageUrl
+                ? // eslint-disable-next-line @next/next/no-img-element
+                  <img alt={`Xem trước ảnh danh mục ${editor.name}`} src={editor.imageUrl} />
+                : <span className="admin-image-preview-fallback">Chưa có ảnh — dán đường dẫn để xem trước tại đây.</span>}
+            </span>
           </AdminField>
           <AdminField error={fieldErrors.sortOrder} hint="Số nhỏ hiển thị trước." id="category-sort" label="Thứ tự sắp xếp">
             <input

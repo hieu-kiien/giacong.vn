@@ -75,7 +75,7 @@ export function AdminShell({ children }: AdminShellProps) {
           <aside className={`admin-sidebar${mobileOpen ? " is-open" : ""}`} aria-label="Điều hướng admin">
             <Link className="admin-brand" href="/admin" onClick={() => setMobileOpen(false)}>
               <span className="admin-brand-mark" aria-hidden="true">g.</span>
-              <span className="admin-brand-copy"><strong>Giacong.vn</strong><span>Operations console</span></span>
+              <span className="admin-brand-copy"><strong>Giacong.vn</strong><span>Khu vực vận hành</span></span>
             </Link>
             <p className="admin-nav-label">Vận hành</p>
             <nav className="admin-nav">
@@ -147,7 +147,7 @@ function AdminAccessScreen({ status, error, onRetry }: { status: "blocked" | "un
       <section className="admin-access-card" aria-labelledby="admin-access-title">
         <Link className="admin-brand" href="/admin">
           <span className="admin-brand-mark" aria-hidden="true">g.</span>
-          <span className="admin-brand-copy"><strong>Giacong.vn</strong><span>Operations console</span></span>
+          <span className="admin-brand-copy"><strong>Giacong.vn</strong><span>Khu vực vận hành</span></span>
         </Link>
         <h1 id="admin-access-title">{isBlocked ? "Khu vực này cần Cloudflare Access" : "Admin chưa sẵn sàng"}</h1>
         <p>

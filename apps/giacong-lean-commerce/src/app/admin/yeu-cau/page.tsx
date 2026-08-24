@@ -115,7 +115,7 @@ export default function AdminLeadsPage() {
 
   return (
     <div className="admin-content">
-      <AdminPageHeading kicker="Kinh doanh / intake" title="Yêu cầu báo giá" subtitle="Inbox tập trung cho các yêu cầu private-label gửi về từ storefront và các kênh tiếp nhận." stamp="LEAD INBOX" />
+      <AdminPageHeading kicker="Kinh doanh / intake" title="Yêu cầu báo giá" subtitle="Inbox tập trung cho các yêu cầu private-label gửi về từ storefront và các kênh tiếp nhận." stamp="HỘP YÊU CẦU" />
       {mutationError ? <p className="admin-editor-error" role="alert">{mutationError.code ? `${mutationError.code} · ` : ""}{mutationError.message}</p> : null}
       <div className="admin-toolbar">
         <form className="admin-search-wrap" onSubmit={submitSearch}>

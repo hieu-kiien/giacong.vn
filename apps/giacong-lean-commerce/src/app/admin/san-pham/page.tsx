@@ -46,6 +46,13 @@ const emptyProductForm: ProductFormState = {
   status: "draft",
 };
 
+const statusLabelsVN: Record<ProductFormState["status"], string> = {
+  archived: "Lưu trữ",
+  draft: "Bản nháp",
+  published: "Đã xuất bản",
+  review: "Chờ duyệt",
+};
+
 export default function AdminProductsPage() {
   const session = useAdminSession();
   const { showToast } = useAdminToast();
@@ -177,7 +184,7 @@ export default function AdminProductsPage() {
 
   return (
     <div className="admin-content">
-      <AdminPageHeading kicker="Catalog / sản phẩm" title="Quản lý sản phẩm" subtitle="Tìm và kiểm tra trạng thái các sản phẩm private-label đang được quản lý trong catalog." stamp="PRODUCT CATALOG" />
+      <AdminPageHeading kicker="Danh mục / sản phẩm" title="Quản lý sản phẩm" subtitle="Tìm và kiểm tra trạng thái các sản phẩm private-label đang được quản lý trong catalog." stamp="DANH MỤC SẢN PHẨM" />
       {editor ? <ProductEditor categories={categories} error={saveError} form={editor} onChange={setEditor} onCancel={() => { setEditor(null); setSaveError(null); }} onSubmit={submitProduct} saving={saving} /> : null}
       <form className="admin-toolbar" onSubmit={submitSearch}>
         <div className="admin-search-wrap">
@@ -214,14 +221,14 @@ export default function AdminProductsPage() {
                               {product.imageUrl ? (
                                 // R2 hostnames are runtime-configured and cannot be statically allow-listed.
                                 // eslint-disable-next-line @next/next/no-img-element
-                                <img alt="" src={product.imageUrl} />
+                                <img alt={`Ảnh sản phẩm ${product.name}`} src={product.imageUrl} />
                               ) : <span>{getInitials(product.name)}</span>}
                             </span>
-                            <div className="admin-item-name">{product.name}<div className="admin-item-meta">{product.slug}</div></div>
+                            <div className="admin-item-name">{product.name}<div className="admin-item-meta">{product.slug}</div><div className="admin-item-desc">{product.shortDescription || "Chưa có mô tả ngắn"}</div></div>
                           </div>
                         </td>
-                        <td><div>{product.categoryName || "Chưa phân loại"}</div><div className="admin-item-meta">{product.sku || "Chưa có SKU"}</div></td>
-                        <td><AdminStatusBadge kind={product.isActive && product.status === "published" ? "green" : product.status === "draft" || product.status === "review" ? "amber" : "neutral"} value={product.isActive ? product.status : "Tạm ẩn"} /></td>
+                        <td><div>{product.categoryName || "Chưa phân loại"}</div><div className="admin-item-meta">SKU: {product.sku || "chưa có"}</div></td>
+                        <td><AdminStatusBadge kind={product.isActive && product.status === "published" ? "green" : product.status === "draft" || product.status === "review" ? "amber" : "neutral"} value={product.isActive ? statusLabelsVN[product.status as ProductFormState["status"]] ?? product.status : "Tạm ẩn"} /></td>
                         <td className="admin-mono">{product.leadTimeDays ? `${product.leadTimeDays} ngày` : "Chưa có"}</td>
                          <td className="admin-mono">{formatAdminDate(product.updatedAt)}</td>
                          <td>
@@ -291,7 +298,7 @@ function ProductEditor({
           <h2 className="admin-panel-title" id="product-editor-heading">{form.id ? "Cập nhật sản phẩm" : "Tạo sản phẩm mới"}</h2>
           <p className="admin-panel-caption">Lưu dưới dạng draft trước; chỉ sản phẩm published và bật hiển thị mới được public read phục vụ storefront.</p>
         </div>
-        <span className="admin-stamp">{form.id ? `ID ${form.id}` : "NEW RECORD"}</span>
+        <span className="admin-stamp">{form.id ? `Mã ${form.id}` : "BẢN GHI MỚI"}</span>
       </div>
       {error ? <p className="admin-editor-error" role="alert">{error.code ? `${error.code} · ` : ""}{error.message}</p> : null}
       <form onSubmit={onSubmit}>
@@ -321,10 +328,10 @@ function ProductEditor({
               const status = event.target.value as ProductFormState["status"];
               onChange({ ...form, isActive: status === "published" ? form.isActive : false, status });
             }} value={form.status}>
-              <option value="draft">Draft</option>
+              <option value="draft">Bản nháp</option>
               <option value="review">Chờ duyệt</option>
-              <option value="published">Published</option>
-              <option value="archived">Archived</option>
+              <option value="published">Đã xuất bản</option>
+              <option value="archived">Lưu trữ</option>
             </select>
           </label>
           <label className="admin-field">
@@ -334,6 +341,12 @@ function ProductEditor({
           <label className="admin-field admin-field-wide">
             <span>Ảnh sản phẩm</span>
             <input className="admin-input" data-testid="input-product-image" onChange={(event) => update("imageUrl", event.target.value)} placeholder="/media/products/... hoặc https://..." value={form.imageUrl} />
+            <span className="admin-image-preview">
+              {form.imageUrl
+                ? // eslint-disable-next-line @next/next/no-img-element
+                  <img alt={`Xem trước ảnh ${form.name}`} src={form.imageUrl} />
+                : <span className="admin-image-preview-fallback">Chưa có ảnh — dán đường dẫn hoặc chọn từ thư viện media để xem trước tại đây.</span>}
+            </span>
           </label>
           <label className="admin-field admin-field-wide">
             <span>Mô tả ngắn</span>

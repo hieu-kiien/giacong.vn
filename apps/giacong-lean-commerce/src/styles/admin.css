@@ -301,9 +301,13 @@
   .admin-table tbody tr:hover { background: #fbfcf9; }
   .admin-item-name { font-weight: 650; max-width: 260px; }
   .admin-item-meta { color: var(--admin-ink-muted); font-family: "Geist Mono", ui-monospace, monospace; font-size: 10px; margin-top: 5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .admin-thumb { align-items: center; background: #e8f0df; border-radius: 6px; color: var(--admin-green-deep); display: inline-flex; flex: 0 0 34px; font-size: 12px; font-weight: 700; height: 34px; justify-content: center; overflow: hidden; width: 34px; }
-  .admin-thumb img { height: 100%; object-fit: cover; width: 100%; }
-  .admin-product-cell { align-items: center; display: flex; gap: 10px; min-width: 230px; }
+  .admin-thumb { align-items: center; background: #e8f0df; border: 1px solid #d5e2c6; border-radius: 8px; color: var(--admin-green-deep); display: inline-flex; flex: 0 0 72px; font-size: 17px; font-weight: 700; height: 72px; justify-content: center; overflow: hidden; width: 72px; }
+  .admin-thumb img { display: block; height: 100%; object-fit: cover; width: 100%; }
+  .admin-product-cell { align-items: center; display: flex; gap: 14px; min-width: 300px; }
+  .admin-item-desc { color: var(--admin-ink-soft); display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; font-size: 12.5px; line-height: 1.4; margin-top: 3px; max-width: 420px; overflow: hidden; }
+  .admin-image-preview { align-items: center; background: #f2f5ee; border: 1px dashed #c9d6ba; border-radius: 8px; display: inline-flex; justify-content: center; margin-bottom: 10px; max-width: 280px; overflow: hidden; }
+  .admin-image-preview img { display: block; max-height: 160px; object-fit: contain; width: 100%; }
+  .admin-image-preview-fallback { color: var(--admin-ink-muted); font-size: 12.5px; padding: 22px 16px; text-align: center; }
   .admin-description { color: var(--admin-ink-soft); line-height: 1.45; max-width: 270px; }
   .admin-mono { color: #53625a; font-family: "Geist Mono", ui-monospace, monospace; font-size: 10px; }
   .admin-badge { border-radius: 999px; display: inline-flex; font-size: 10px; font-weight: 700; letter-spacing: .01em; padding: 5px 8px; white-space: nowrap; }

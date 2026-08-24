@@ -160,7 +160,7 @@ export default function AdminServicesPage() {
 
   return (
     <div className="admin-content">
-      <AdminPageHeading kicker="Năng lực sản xuất" title="Dịch vụ gia công" subtitle="Quản lý danh mục năng lực sản xuất, MOQ và thời gian lead time đang công bố." stamp="SERVICE DIRECTORY" />
+      <AdminPageHeading kicker="Năng lực sản xuất" title="Dịch vụ gia công" subtitle="Quản lý danh mục năng lực sản xuất, MOQ và thời gian lead time đang công bố." stamp="DANH MỤC DỊCH VỤ" />
       {editor ? <ServiceEditor error={saveError} form={editor} onChange={setEditor} onCancel={() => { setEditor(null); setSaveError(null); }} onSubmit={submitService} saving={saving} /> : null}
       {editor?.id ? <AdminMediaPanel serviceId={editor.id} title="Ảnh dịch vụ và hồ sơ năng lực" /> : null}
       <form className="admin-toolbar" onSubmit={submitSearch}>
@@ -236,14 +236,14 @@ function ServiceEditor({ error, form, onCancel, onChange, onSubmit, saving }: Se
           <h2 className="admin-panel-title" id="service-editor-heading">{form.id ? "Cập nhật dịch vụ" : "Tạo dịch vụ mới"}</h2>
           <p className="admin-panel-caption">Lưu dưới dạng draft trước; chỉ dịch vụ published và bật hiển thị mới được public read phục vụ storefront.</p>
         </div>
-        <span className="admin-stamp">{form.id ? `ID ${form.id}` : "NEW RECORD"}</span>
+        <span className="admin-stamp">{form.id ? `ID ${form.id}` : "BẢN GHI MỚI"}</span>
       </div>
       {error ? <p className="admin-editor-error" role="alert">{error.code ? `${error.code} · ` : ""}{error.message}</p> : null}
       <form onSubmit={onSubmit}>
         <div className="admin-editor-grid">
           <label className="admin-field"><span>Tên dịch vụ <b aria-hidden="true">*</b></span><input className="admin-input" data-testid="input-service-name" onChange={(event) => update("name", event.target.value)} required value={form.name} /></label>
           <label className="admin-field"><span>Slug <b aria-hidden="true">*</b></span><input className="admin-input admin-mono" data-testid="input-service-slug" onChange={(event) => update("slug", event.target.value)} required value={form.slug} /></label>
-          <label className="admin-field"><span>Trạng thái phát hành</span><select className="admin-select" data-testid="select-service-status" onChange={(event) => { const status = event.target.value as ServiceFormState["status"]; onChange({ ...form, isActive: status === "published" ? form.isActive : false, status }); }} value={form.status}><option value="draft">Draft</option><option value="review">Chờ duyệt</option><option value="published">Published</option><option value="archived">Archived</option></select></label>
+          <label className="admin-field"><span>Trạng thái phát hành</span><select className="admin-select" data-testid="select-service-status" onChange={(event) => { const status = event.target.value as ServiceFormState["status"]; onChange({ ...form, isActive: status === "published" ? form.isActive : false, status }); }} value={form.status}><option value="draft">Bản nháp</option><option value="review">Chờ duyệt</option><option value="published">Đã xuất bản</option><option value="archived">Lưu trữ</option></select></label>
           <label className="admin-field"><span>Lead time (ngày)</span><input className="admin-input admin-mono" data-testid="input-service-lead-time" inputMode="numeric" min="0" onChange={(event) => update("leadTimeDays", event.target.value)} type="number" value={form.leadTimeDays} /></label>
           <label className="admin-field admin-field-wide"><span>MOQ / quy mô tối thiểu</span><input className="admin-input" data-testid="input-service-moq" onChange={(event) => update("moqSummary", event.target.value)} placeholder="Ví dụ: từ 500 kg / mẻ" value={form.moqSummary} /></label>
           <label className="admin-field admin-field-wide"><span>Tóm tắt</span><textarea className="admin-textarea" data-testid="input-service-summary" onChange={(event) => update("summary", event.target.value)} rows={2} value={form.summary} /></label>
