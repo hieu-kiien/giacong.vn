@@ -3,6 +3,7 @@ import "server-only";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 
 import type { AdminCategoryInput } from "./admin-category-input";
+import type { AdminNewsInput } from "./admin-news-input";
 
 export type AdminRole = "owner" | "content_manager" | "catalog_manager" | "sales_manager" | "viewer";
 export type AdminPublishStatus = "draft" | "review" | "published" | "archived";
@@ -1349,5 +1350,174 @@ export async function deleteAdminCategory(
 
   await database.prepare("DELETE FROM categories WHERE id = ?").bind(id).run();
   await writeAuditLog(database, actorSubject, "category.deleted", "category", String(id), { slug: existing.slug });
+  return true;
+}
+
+// ---------------------------------------------------------------------------
+// News posts CRUD (contract locked 2026-08-24; storefront reads published only)
+// ---------------------------------------------------------------------------
+
+export interface AdminNewsPost {
+  content: string;
+  coverImageUrl: string | null;
+  excerpt: string;
+  id: number;
+  isPublished: boolean;
+  publishedAt: string | null;
+  revision: number;
+  slug: string;
+  title: string;
+  updatedAt: string;
+}
+
+export interface AdminNewsListItem {
+  excerpt: string;
+  id: number;
+  isPublished: boolean;
+  publishedAt: string | null;
+  revision: number;
+  slug: string;
+  title: string;
+  updatedAt: string;
+}
+
+interface NewsRow {
+  content: string;
+  cover_image_url: string | null;
+  excerpt: string;
+  id: number;
+  is_published: number;
+  published_at: string | null;
+  revision: number;
+  slug: string;
+  title: string;
+  updated_at: string;
+}
+
+function toNewsPost(row: NewsRow): AdminNewsPost {
+  return {
+    content: row.content,
+    coverImageUrl: row.cover_image_url ?? null,
+    excerpt: row.excerpt,
+    id: row.id,
+    isPublished: row.is_published === 1,
+    publishedAt: row.published_at ?? null,
+    revision: row.revision,
+    slug: row.slug,
+    title: row.title,
+    updatedAt: row.updated_at,
+  };
+}
+
+export async function getAdminNewsPost(database: D1DatabaseLike, id: number): Promise<AdminNewsPost | null> {
+  const row = await database.prepare(`
+    SELECT id, slug, title, excerpt, content, cover_image_url, is_published, published_at, revision, updated_at
+    FROM news_posts
+    WHERE id = ?
+    LIMIT 1
+  `).bind(id).first<NewsRow>();
+  return row ? toNewsPost(row) : null;
+}
+
+export async function listAdminNewsPosts(
+  database: D1DatabaseLike,
+  input: { page: number; pageSize: number },
+): Promise<{ posts: AdminNewsListItem[]; total: number }> {
+  const count = await database.prepare("SELECT COUNT(*) AS total FROM news_posts").first<{ total: number }>();
+  const rows = await database.prepare(`
+    SELECT id, slug, title, excerpt, '' AS content, cover_image_url, is_published, published_at, revision, updated_at
+    FROM news_posts
+    ORDER BY COALESCE(published_at, updated_at) DESC, id DESC
+    LIMIT ? OFFSET ?
+  `).bind(input.pageSize, (input.page - 1) * input.pageSize).all<NewsRow & { content: string }>();
+  return {
+    posts: rows.results.map((row) => ({
+      excerpt: row.excerpt,
+      id: row.id,
+      isPublished: row.is_published === 1,
+      publishedAt: row.published_at ?? null,
+      revision: row.revision,
+      slug: row.slug,
+      title: row.title,
+      updatedAt: row.updated_at,
+    })),
+    total: count?.total ?? 0,
+  };
+}
+
+export async function createAdminNewsPost(
+  database: D1DatabaseLike,
+  input: AdminNewsInput,
+  actorSubject: string,
+): Promise<AdminNewsPost> {
+  await database.prepare(`
+    INSERT INTO news_posts (slug, title, excerpt, content, cover_image_url, is_published, published_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+  `).bind(
+    input.slug,
+    input.title,
+    input.excerpt,
+    input.content,
+    input.coverImageUrl,
+    input.isPublished ? 1 : 0,
+    input.isPublished ? new Date().toISOString() : null,
+  ).run();
+
+  const created = await database.prepare("SELECT id FROM news_posts WHERE slug = ? LIMIT 1")
+    .bind(input.slug)
+    .first<{ id: number }>();
+  if (!created) throw new AdminDataError("Không thể đọc lại bài viết vừa tạo.");
+
+  await writeAuditLog(database, actorSubject, "news.created", "news_post", String(created.id), input);
+  const post = await getAdminNewsPost(database, created.id);
+  if (!post) throw new AdminDataError("Không thể đọc lại bài viết vừa tạo.");
+  return post;
+}
+
+export async function updateAdminNewsPost(
+  database: D1DatabaseLike,
+  id: number,
+  input: AdminNewsInput,
+  expectedRevision: number,
+  actorSubject: string,
+): Promise<AdminNewsPost | null> {
+  const existing = await getAdminNewsPost(database, id);
+  if (!existing) return null;
+  if (existing.revision !== expectedRevision) {
+    throw new AdminDataError("Bài viết đã thay đổi. Hãy tải lại trước khi lưu.");
+  }
+
+  const publishingNow = input.isPublished && !existing.isPublished;
+  await database.prepare(`
+    UPDATE news_posts
+    SET slug = ?, title = ?, excerpt = ?, content = ?, cover_image_url = ?, is_published = ?,
+      published_at = COALESCE(published_at, ?),
+      updated_at = CURRENT_TIMESTAMP, revision = revision + 1
+    WHERE id = ?
+  `).bind(
+    input.slug,
+    input.title,
+    input.excerpt,
+    input.content,
+    input.coverImageUrl,
+    input.isPublished ? 1 : 0,
+    publishingNow ? new Date().toISOString() : null,
+    id,
+  ).run();
+
+  await writeAuditLog(database, actorSubject, "news.updated", "news_post", String(id), input);
+  return getAdminNewsPost(database, id);
+}
+
+export async function deleteAdminNewsPost(
+  database: D1DatabaseLike,
+  id: number,
+  actorSubject: string,
+): Promise<boolean> {
+  const existing = await getAdminNewsPost(database, id);
+  if (!existing) return false;
+
+  await database.prepare("DELETE FROM news_posts WHERE id = ?").bind(id).run();
+  await writeAuditLog(database, actorSubject, "news.deleted", "news_post", String(id), { slug: existing.slug });
   return true;
 }
