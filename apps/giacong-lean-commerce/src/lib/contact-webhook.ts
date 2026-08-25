@@ -113,7 +113,9 @@ interface WebhookResponse {
   reference: string;
 }
 
-const DEFAULT_TIMEOUT_MS = 5_000;
+// The Apps Script round trip is POST → 302 → GET plus sheet writes; observed
+// executions run up to ~5s, so the budget must cover the full chain.
+const DEFAULT_TIMEOUT_MS = 15_000;
 const MAX_REDIRECTS = 3;
 const ALLOWED_WEBHOOK_HOSTS = new Set([
   "script.google.com",
