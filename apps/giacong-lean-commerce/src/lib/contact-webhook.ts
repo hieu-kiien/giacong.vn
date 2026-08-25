@@ -613,16 +613,13 @@ export async function deliverToWebhook(
           return failure("Không thể tiếp nhận yêu cầu. Vui lòng thử lại.", 502);
         }
         requestUrl = destination;
-        if (response.status === 303) {
+        if ([301, 302, 303].includes(response.status)) {
           requestInit = {
             cache: "no-store",
             headers: { Accept: "application/json" },
             method: "GET",
           };
         }
-        // 301/302: Google Apps Script redirects POST /exec to its content
-        // service (allowlisted above) and expects the JSON body again —
-        // downgrading to GET makes doPost see an empty payload.
         continue;
       }
       if (!response.ok || !hasJsonContentType(response)) {
