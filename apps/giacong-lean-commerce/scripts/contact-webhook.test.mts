@@ -405,7 +405,7 @@ test("returns a timeout without exposing upstream details", async () => {
   });
 });
 
-test("follows an allowlisted 302 manually without forwarding the JSON body", async () => {
+test("follows an allowlisted 302 by re-POSTing the JSON body to the trusted host", async () => {
   const requests: Array<{ url: string; init: RequestInit | undefined }> = [];
   const response = await handleContactSubmission(requestWithForm(), {
     environment: environment(),
@@ -429,9 +429,10 @@ test("follows an allowlisted 302 manually without forwarding the JSON body", asy
   assert.equal(requests[0].init?.method, "POST");
   assert.equal(requests[0].init?.redirect, "manual");
   assert.equal(requests[1].url, "https://script.googleusercontent.com/macros/redirect");
-  assert.equal(requests[1].init?.method, "GET");
-  assert.equal(requests[1].init?.body, undefined);
-  assert.equal(new Headers(requests[1].init?.headers).get("content-type"), null);
+  // Google Apps Script redirects POST /exec to its content service and expects
+  // the JSON body again; dropping it makes doPost see an empty payload.
+  assert.equal(requests[1].init?.method, "POST");
+  assert.equal(new Headers(requests[1].init?.headers).get("content-type"), "application/json");
 });
 
 test("rejects a redirect outside the allowlist before it can receive the JSON body", async () => {
