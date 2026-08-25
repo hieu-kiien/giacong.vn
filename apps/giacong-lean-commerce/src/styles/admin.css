@@ -518,7 +518,8 @@
   border-radius: 12px;
   box-shadow: 0 22px 48px rgba(24, 34, 29, 0.24);
   max-height: min(86dvh, 720px);
-  outline: none;
+  /* No `outline: none` here: keyboard focus falls through to the global
+     `.admin-app :focus-visible` ring instead of being silently removed. */
   overflow: auto;
   width: 100%;
 }

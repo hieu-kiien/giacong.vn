@@ -21,6 +21,12 @@ export function applySiteSettingsToMarkup(markup: string, settings: PublishedSit
 
   result = replaceFirstElementText(result, /<h1\b[^>]*class=(["'])[^"']*\bentry-title\b[^"']*\1[^>]*>[\s\S]*?<\/h1>/i, settings.hero_title);
   result = replaceFirstElementText(result, /<h3\b[^>]*class=(["'])[^"']*\bentry-title\b[^"']*\1[^>]*>[\s\S]*?<\/h3>/i, settings.hero_eyebrow);
+  // The captured eyebrow is an h3 under an h1; promote it so the document
+  // outline never skips a level (h1 → h3). First entry-title h3 only.
+  result = result.replace(
+    /<h3\b([^>]*class=(["'])[^"']*\bentry-title\b[^"']*\2[^>]*)>([\s\S]*?)<\/h3>/i,
+    "<h2$1>$3</h2>",
+  );
   result = replaceFirstElementText(result, /<h2\b[^>]*class=(["'])[^"']*\bentry-title\b[^"']*\1[^>]*>[\s\S]*?<\/h2>/i, settings.about_title);
   result = replaceHeroImage(result, settings.hero_image_url);
   result = replaceLogo(result, settings.logo_url);
@@ -31,7 +37,7 @@ export function applySiteSettingsToMarkup(markup: string, settings: PublishedSit
 export function siteBrandStyles(settings: PublishedSiteSettings): string {
   const primary = safeColor(settings.primary_color, "#6cbe45");
   const accent = safeColor(settings.accent_color, "#bde875");
-  return `:root{--giacong-primary:${primary};--giacong-accent:${accent}}.button.primary,.button.bg-primary{background-color:${primary}!important;border-color:${primary}!important}.button.primary:hover,.button.bg-primary:hover{filter:brightness(.92)}.button.is-outline:hover{background-color:${primary}!important;border-color:${primary}!important}.text-primary,.has-text-color{color:${primary}}`;
+  return `:root{--giacong-primary:${primary};--giacong-accent:${accent}}.button.primary,.button.bg-primary{background-color:${primary}!important;border-color:${primary}!important}.button.primary:hover,.button.bg-primary:hover{filter:brightness(.92)}.button.is-outline:hover{background-color:${primary}!important;border-color:${primary}!important}.button.primary:focus-visible,.button.bg-primary:focus-visible,.button.is-outline:focus-visible{outline:2px solid ${primary};outline-offset:2px}.text-primary,.has-text-color{color:${primary}}`;
 }
 
 function replaceFirstElementText(markup: string, pattern: RegExp, value: string): string {
