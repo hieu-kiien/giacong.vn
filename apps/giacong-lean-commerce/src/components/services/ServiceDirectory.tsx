@@ -19,6 +19,7 @@ import Link from "next/link";
 import { type FormEvent, useMemo, useState } from "react";
 
 import styles from "@/components/services/service-index.module.css";
+import { ServiceImage } from "@/components/services/ServiceImage";
 import { serviceFamilies, type ServiceFamily } from "@/data/service-families";
 
 const FEATURED_SERVICE_COUNT = 3;
@@ -57,6 +58,22 @@ function ServiceIcon({ slug }: { slug: keyof typeof SERVICE_ICON_BY_SLUG }) {
   return <Icon {...iconProps} />;
 }
 
+/**
+ * A family's promoted R2 image replaces the icon circle when it loads; any
+ * failure degrades back to the icon so a dead URL never leaves an empty frame.
+ */
+function ServiceFamilyImage({ family }: { family: FilteredServiceFamily }) {
+  return (
+    <span className={styles.iconCircle} data-service-image>
+      <ServiceImage
+        className="size-full rounded-full object-cover"
+        fallback={<ServiceIcon slug={family.slug as keyof typeof SERVICE_ICON_BY_SLUG} />}
+        src={family.imageUrl}
+      />
+    </span>
+  );
+}
+
 function ServiceGroupCard({ family }: { family: FilteredServiceFamily }) {
   return (
     <section
@@ -65,9 +82,7 @@ function ServiceGroupCard({ family }: { family: FilteredServiceFamily }) {
       data-service-group
     >
       <header className={styles.cardHeader}>
-        <span className={styles.iconCircle} data-service-icon>
-          <ServiceIcon slug={family.slug as keyof typeof SERVICE_ICON_BY_SLUG} />
-        </span>
+        <ServiceFamilyImage family={family} />
         <span className={styles.cardHeading}>
           <h3 id={`family-${family.slug}`}>
             <Link href={family.hubHref} prefetch={false}>{family.name}</Link>
@@ -117,11 +132,11 @@ function ServiceGroupCard({ family }: { family: FilteredServiceFamily }) {
  * to the archive giacong.vn already serves, and `Xem trang nhóm` goes to this project's
  * own grouped view at `/thue-gia-cong/<slug>/`.
  */
-export function ServiceDirectory() {
+export function ServiceDirectory({ families = serviceFamilies }: { families?: readonly ServiceFamily[] }) {
   const [query, setQuery] = useState("");
   const normalizedQuery = normalizeSearch(query);
   const filteredFamilies = useMemo(
-    () => serviceFamilies
+    () => families
       .map((family) => {
         const familyMatches = normalizeSearch(family.name).includes(normalizedQuery);
         return {
@@ -137,7 +152,7 @@ export function ServiceDirectory() {
       .filter((family) => (
         normalizedQuery.length === 0 || family.selfMatch || family.offerings.length > 0
       )),
-    [normalizedQuery],
+    [families, normalizedQuery],
   );
   const featuredFamilies = filteredFamilies.slice(0, FEATURED_SERVICE_COUNT);
   const remainingFamilies = filteredFamilies.slice(FEATURED_SERVICE_COUNT);

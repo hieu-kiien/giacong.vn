@@ -3,13 +3,17 @@ import Link from "next/link";
 import { ServiceDirectory } from "@/components/services/ServiceDirectory";
 import indexStyles from "@/components/services/service-index.module.css";
 import styles from "@/components/services/service.module.css";
+import type { ServiceFamily } from "@/data/service-families";
 
 /**
  * Content-only portion of `/thue-gia-cong`. `CapturedNewsFrame` owns the approved
  * News header, title band, main landmark and footer; this component stays inside the
  * 1115px content rail measured from the service reference.
+ *
+ * `families` lets the server page overlay managed D1 copy/images onto the static
+ * taxonomy; without it the directory falls back to the icon-only static list.
  */
-export function ServiceLanding() {
+export function ServiceLanding({ families }: { families?: readonly ServiceFamily[] }) {
   return (
     <div className={indexStyles.landing}>
       <div className={indexStyles.rail}>
@@ -17,7 +21,7 @@ export function ServiceLanding() {
           Mười ba nhóm dịch vụ gia công. Chọn nhóm gần nhất với sản phẩm của bạn để xem
           các trang dịch vụ chi tiết.
         </p>
-        <ServiceDirectory />
+        <ServiceDirectory families={families} />
       </div>
     </div>
   );

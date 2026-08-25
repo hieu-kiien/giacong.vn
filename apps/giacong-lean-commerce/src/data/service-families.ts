@@ -9,6 +9,11 @@ export interface ServiceFamily {
   summary: string;
   description: string;
   /**
+   * Main image promoted from R2 media (`/media/...`). Absent or null means the
+   * family renders its icon fallback — a missing image must never break a card.
+   */
+  imageUrl?: string | null;
+  /**
    * The hub page giacong.vn already serves for this group — a captured archive route.
    * Distinct from `/thue-gia-cong/<slug>/`, which is this project's own wrapper: the
    * index offers both, so a visitor can reach either the real archive or the grouped

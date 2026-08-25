@@ -32,6 +32,26 @@
   border-bottom: 0;
   color: #fff;
   padding: 38px 0 72px;
+  position: relative;
+}
+
+/*
+ * A promoted R2 image sits behind the copy at reduced opacity so the brand
+ * band stays readable; a failed or absent image simply leaves the plain band.
+ */
+.heroImage {
+  height: 100%;
+  inset-inline: 0;
+  object-fit: cover;
+  opacity: .32;
+  pointer-events: none;
+  position: absolute;
+  top: 0;
+  width: 100%;
+}
+
+.hero > .inner {
+  position: relative;
 }
 
 .crumbs {

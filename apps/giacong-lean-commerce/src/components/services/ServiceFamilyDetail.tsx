@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { ContactBand } from "@/components/services/ServiceLanding";
+import { ServiceImage } from "@/components/services/ServiceImage";
 import styles from "@/components/services/service.module.css";
 import type { ServiceFamily } from "@/data/service-families";
 
@@ -12,6 +13,13 @@ export function ServiceFamilyDetail({ family }: ServiceFamilyDetailProps) {
   return (
     <div className={styles.main}>
       <section className={styles.hero}>
+        {family.imageUrl ? (
+          <ServiceImage
+            alt=""
+            className={styles.heroImage}
+            src={family.imageUrl}
+          />
+        ) : null}
         <div className={styles.inner}>
           <nav className={styles.crumbs} aria-label="Breadcrumb"><Link href="/">Trang chủ</Link><span aria-hidden="true">/</span><Link href="/thue-gia-cong/">Thuê gia công</Link><span aria-hidden="true">/</span>{family.name}</nav>
           <p className={styles.eyebrow}>Nhóm dịch vụ</p>
