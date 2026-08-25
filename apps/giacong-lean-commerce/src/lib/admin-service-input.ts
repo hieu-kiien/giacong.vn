@@ -14,6 +14,7 @@ export function parseAdminServicePayload(
   const summary = textField(merged.summary, "Tóm tắt", 2000, fieldErrors, "summary", false);
   const description = textField(merged.description, "Mô tả", 12000, fieldErrors, "description", false);
   const moqSummary = nullableTextField(merged.moqSummary, "MOQ", 1000, fieldErrors, "moqSummary");
+  const imageUrl = parseImageUrl(merged.imageUrl, fieldErrors);
   const status = parseStatus(merged.status, fieldErrors);
   const leadTimeDays = parseNullableNonNegativeInteger(merged.leadTimeDays, "Lead time", fieldErrors, "leadTimeDays");
   const requestedActive = merged.isActive === true;
@@ -31,6 +32,7 @@ export function parseAdminServicePayload(
     fieldErrors,
     input: {
       description,
+      imageUrl,
       isActive,
       leadTimeDays,
       moqSummary,
@@ -40,6 +42,25 @@ export function parseAdminServicePayload(
       summary,
     },
   };
+}
+
+/**
+ * The main image is an R2 media URL (`/media/...`) or an absolute http(s) URL.
+ * Anything else is rejected rather than stored, mirroring the news cover rule.
+ */
+function parseImageUrl(value: unknown, errors: Record<string, string>): string | null {
+  if (value === null || value === undefined || value === "") return null;
+  if (typeof value !== "string") {
+    errors.imageUrl = "Ảnh chính phải là URL.";
+    return null;
+  }
+  const result = value.trim();
+  if (!result) return null;
+  if (result.length > 500 || !/^(https?:\/\/.+|\/media\/.+)/i.test(result)) {
+    errors.imageUrl = "Ảnh chính phải là URL http(s) hoặc đường dẫn /media/.";
+    return null;
+  }
+  return result;
 }
 
 function textField(

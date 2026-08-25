@@ -82,6 +82,7 @@ export interface AdminService {
   slug: string;
   summary: string;
   description: string;
+  imageUrl: string | null;
   isActive: boolean;
   status: string;
   leadTimeDays: number | null;

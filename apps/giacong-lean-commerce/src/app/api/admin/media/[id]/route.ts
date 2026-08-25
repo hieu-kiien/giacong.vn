@@ -2,7 +2,7 @@ import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { adminFailure, adminSuccess } from "@/lib/admin-api.ts";
 import { adminErrorFrom } from "@/lib/admin-error-mapping.ts";
 import { requireAdmin } from "@/lib/admin-guard";
-import { deleteMediaAsset, updateMediaAssetAltText, type R2BucketLike } from "@/lib/media-data";
+import { deleteMediaAsset, MediaReferenceError, updateMediaAssetAltText, type R2BucketLike } from "@/lib/media-data";
 
 export const dynamic = "force-dynamic";
 
@@ -26,6 +26,14 @@ export async function DELETE(request: Request, context: RouteContext): Promise<R
       ? adminSuccess(crypto.randomUUID(), { media })
       : adminFailure(crypto.randomUUID(), 404, "NOT_FOUND", "Không tìm thấy media.");
   } catch (error) {
+    if (error instanceof MediaReferenceError) {
+      return adminFailure(
+        crypto.randomUUID(),
+        409,
+        "MEDIA_IN_USE",
+        `Ảnh này đang là ảnh chính của: ${error.message}. Hãy chọn ảnh chính khác trước khi xóa.`,
+      );
+    }
     return adminErrorFrom(crypto.randomUUID(), error, "Không thể xóa media.");
   }
 }

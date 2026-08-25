@@ -157,6 +157,31 @@ export async function createMediaAsset(
   return toMediaAsset(created);
 }
 
+export class MediaReferenceError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "MediaReferenceError";
+  }
+}
+
+/**
+ * Live rows that still point at this asset as their main image. Deleting such an
+ * asset would orphan an active reference, so the caller must refuse with a
+ * conflict instead of deleting.
+ */
+export async function findActiveMainImageReferences(
+  database: D1DatabaseLike,
+  storageKey: string,
+): Promise<Array<{ kind: "product" | "service"; id: number; name: string }>> {
+  const publicUrl = `/media/${storageKey}`;
+  const rows = await database.prepare(`
+    SELECT 'product' AS kind, id, name FROM products WHERE image_url = ?
+    UNION ALL
+    SELECT 'service' AS kind, id, name FROM services WHERE image_url = ?
+  `).bind(publicUrl, publicUrl).all<{ id: number; kind: "product" | "service"; name: string }>();
+  return rows.results;
+}
+
 export async function deleteMediaAsset(
   database: D1DatabaseLike,
   bucket: R2BucketLike,
@@ -169,7 +194,15 @@ export async function deleteMediaAsset(
     FROM media_assets WHERE id = ? LIMIT 1
   `).bind(assetId).first<MediaRow>();
   if (!row) return null;
-  if (row.status === "active") await bucket.delete(row.storage_key);
+  if (row.status === "active") {
+    const references = await findActiveMainImageReferences(database, row.storage_key);
+    if (references.length > 0) {
+      throw new MediaReferenceError(
+        references.map((reference) => `${reference.kind === "service" ? "Dịch vụ" : "Sản phẩm"} #${reference.id} (${reference.name})`).join(", "),
+      );
+    }
+    await bucket.delete(row.storage_key);
+  }
   await database.prepare(`
     UPDATE media_assets
     SET status = 'deleted', deleted_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP

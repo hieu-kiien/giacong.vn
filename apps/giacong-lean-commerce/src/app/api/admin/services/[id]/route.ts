@@ -93,6 +93,7 @@ function canManageServices(role: string): boolean {
 
 function serviceDefaults(service: {
   description: string;
+  imageUrl: string | null;
   isActive: boolean;
   leadTimeDays: number | null;
   moqSummary: string | null;
@@ -103,6 +104,7 @@ function serviceDefaults(service: {
 }): Partial<AdminServiceInput> {
   return {
     description: service.description,
+    imageUrl: service.imageUrl,
     isActive: service.isActive,
     leadTimeDays: service.leadTimeDays,
     moqSummary: service.moqSummary,

@@ -26,3 +26,13 @@ test("media API supports product, service, alt-text updates, and bounded cleanup
   assert.match(siteMediaRoute, /createSiteMediaAsset/);
   assert.match(siteMediaData, /site-settings\/\$\{input\.settingKey\}/);
 });
+
+test("media deletion refuses to orphan an active main-image reference", async () => {
+  const data = await readFile(new URL("../src/lib/media-data.ts", import.meta.url), "utf8");
+  assert.match(
+    data,
+    /findActiveMainImageReferences/,
+    "deleteMediaAsset must resolve live products/services image references before deleting",
+  );
+  assert.match(data, /services/, "the reference check must cover the services.image_url surface");
+});

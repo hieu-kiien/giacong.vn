@@ -18,6 +18,7 @@ interface ServiceResponse {
 type ServiceFormState = {
   description: string;
   id?: number;
+  imageUrl: string;
   isActive: boolean;
   leadTimeDays: string;
   moqSummary: string;
@@ -29,6 +30,7 @@ type ServiceFormState = {
 
 const emptyServiceForm: ServiceFormState = {
   description: "",
+  imageUrl: "",
   isActive: false,
   leadTimeDays: "",
   moqSummary: "",
@@ -81,6 +83,28 @@ export default function AdminServicesPage() {
     return () => controller.abort();
   }, [session.subject, page, query, attempt]);
 
+  useEffect(() => {
+    // The media panel promotes a main image without touching this form; keep the
+    // open editor (and the table) in sync when it does.
+    function syncMainImage() {
+      setAttempt((value) => value + 1);
+      setEditor((current) => {
+        if (!current?.id) return current;
+        void (async () => {
+          try {
+            const { service } = await fetchAdmin<{ service: AdminService }>(`/api/admin/services/${current.id}`);
+            setEditor((latest) => latest?.id === service.id ? { ...latest, imageUrl: service.imageUrl ?? "" } : latest);
+          } catch {
+            // The editor keeps its previous image value; the table reload above still reflects D1.
+          }
+        })();
+        return current;
+      });
+    }
+    window.addEventListener("admin:service-updated", syncMainImage);
+    return () => window.removeEventListener("admin:service-updated", syncMainImage);
+  }, []);
+
   function submitSearch(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setPage(1);
@@ -103,6 +127,7 @@ export default function AdminServicesPage() {
     setEditor({
       description: service.description,
       id: service.id,
+      imageUrl: service.imageUrl ?? "",
       isActive: service.isActive,
       leadTimeDays: service.leadTimeDays === null ? "" : String(service.leadTimeDays),
       moqSummary: service.moqSummary ?? "",
@@ -120,6 +145,7 @@ export default function AdminServicesPage() {
     setSaveError(null);
     const payload = {
       description: editor.description,
+      imageUrl: editor.imageUrl.trim() || null,
       isActive: editor.isActive,
       leadTimeDays: editor.leadTimeDays === "" ? null : Number(editor.leadTimeDays),
       moqSummary: editor.moqSummary || null,
@@ -247,6 +273,20 @@ function ServiceEditor({ error, form, onCancel, onChange, onSubmit, saving }: Se
           <label className="admin-field"><span>Lead time (ngày)</span><input className="admin-input admin-mono" data-testid="input-service-lead-time" inputMode="numeric" min="0" onChange={(event) => update("leadTimeDays", event.target.value)} type="number" value={form.leadTimeDays} /></label>
           <label className="admin-field admin-field-wide"><span>MOQ / quy mô tối thiểu</span><input className="admin-input" data-testid="input-service-moq" onChange={(event) => update("moqSummary", event.target.value)} placeholder="Ví dụ: từ 500 kg / mẻ" value={form.moqSummary} /></label>
           <label className="admin-field admin-field-wide"><span>Tóm tắt</span><textarea className="admin-textarea" data-testid="input-service-summary" onChange={(event) => update("summary", event.target.value)} rows={2} value={form.summary} /></label>
+          <div className="admin-field admin-field-wide">
+            <span>Ảnh chính</span>
+            <div className="admin-item-meta" data-testid="service-main-image">
+              {form.imageUrl ? (
+                <>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img alt="Ảnh chính dịch vụ" src={form.imageUrl} style={{ borderRadius: 8, height: 52, marginRight: 8, objectFit: "cover", verticalAlign: "middle", width: 72 }} />
+                  <button className="admin-button admin-button-quiet" data-testid="button-service-clear-image" onClick={() => update("imageUrl", "")} type="button">Gỡ ảnh chính</button>
+                </>
+              ) : (
+                <>Chưa có. Upload ảnh ở panel bên dưới rồi chọn “Dùng làm ảnh chính”.</>
+              )}
+            </div>
+          </div>
           <label className="admin-field admin-field-wide"><span>Mô tả chi tiết</span><textarea className="admin-textarea" data-testid="input-service-description" onChange={(event) => update("description", event.target.value)} rows={5} value={form.description} /></label>
         </div>
         <div className="admin-editor-footer">

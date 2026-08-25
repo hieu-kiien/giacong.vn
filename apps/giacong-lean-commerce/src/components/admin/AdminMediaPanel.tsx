@@ -171,6 +171,47 @@ export function AdminMediaPanel({ productId, serviceId, title }: AdminMediaPanel
       setSettingMainId(null);
     }
   }
+
+  // Same promotion rule for services: re-read, then patch only imageUrl.
+  async function setAsServiceMainImage(asset: MediaAsset) {
+    if (!serviceId) return;
+    setSettingMainId(asset.id);
+    setError(null);
+    try {
+      const { service } = await fetchAdmin<{
+        service: {
+          description: string;
+          imageUrl: string | null;
+          isActive: boolean;
+          leadTimeDays: number | null;
+          moqSummary: string | null;
+          name: string;
+          slug: string;
+          status: string;
+          summary: string;
+        };
+      }>(`/api/admin/services/${serviceId}`);
+      await mutateAdmin(`/api/admin/services/${serviceId}`, {
+        body: {
+          description: service.description,
+          imageUrl: asset.publicUrl,
+          isActive: service.isActive,
+          leadTimeDays: service.leadTimeDays,
+          moqSummary: service.moqSummary,
+          name: service.name,
+          slug: service.slug,
+          status: service.status,
+          summary: service.summary,
+        },
+        method: "PATCH",
+      });
+      window.dispatchEvent(new CustomEvent("admin:service-updated"));
+    } catch (reason: unknown) {
+      setError(reason instanceof AdminClientError ? reason : new AdminClientError("Không thể đặt ảnh chính.", 0));
+    } finally {
+      setSettingMainId(null);
+    }
+  }
   return (
     <section className="admin-editor" aria-labelledby="media-editor-heading" style={{ marginTop: 18 }}>
       <div className="admin-editor-heading">
@@ -220,6 +261,17 @@ export function AdminMediaPanel({ productId, serviceId, title }: AdminMediaPanel
                       data-testid={`button-media-set-main-${asset.id}`}
                       disabled={settingMainId === asset.id}
                       onClick={() => void setAsMainImage(asset)}
+                      type="button"
+                    >
+                      {settingMainId === asset.id ? "Đang đặt..." : "Dùng làm ảnh chính"}
+                    </button>
+                  ) : null}
+                  {serviceId ? (
+                    <button
+                      className="admin-button admin-button-quiet"
+                      data-testid={`button-media-set-service-main-${asset.id}`}
+                      disabled={settingMainId === asset.id}
+                      onClick={() => void setAsServiceMainImage(asset)}
                       type="button"
                     >
                       {settingMainId === asset.id ? "Đang đặt..." : "Dùng làm ảnh chính"}

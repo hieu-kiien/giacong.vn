@@ -133,6 +133,7 @@ export interface AdminService {
   slug: string;
   summary: string;
   description: string;
+  imageUrl: string | null;
   isActive: boolean;
   status: AdminPublishStatus;
   leadTimeDays: number | null;
@@ -142,6 +143,7 @@ export interface AdminService {
 
 export interface AdminServiceInput {
   description: string;
+  imageUrl: string | null;
   isActive: boolean;
   leadTimeDays: number | null;
   moqSummary: string | null;
@@ -754,7 +756,7 @@ export async function listAdminServices(
   `).bind(...params).first<{ total: number }>();
   const rows = await database.prepare(`
     SELECT
-      s.id, s.name, s.slug, s.summary, s.description, s.is_active
+      s.id, s.name, s.slug, s.summary, s.description, s.is_active, s.image_url
       ${hasMeta ? ", m.status, m.lead_time_days, m.moq_summary, m.updated_at AS meta_updated_at" : ""}
     FROM services s
     ${hasMeta ? "LEFT JOIN service_admin_meta m ON m.service_id = s.id" : ""}
@@ -768,6 +770,7 @@ export async function listAdminServices(
     summary: string;
     description: string;
     is_active: number;
+    image_url?: string | null;
     status?: AdminPublishStatus;
     lead_time_days?: number | null;
     moq_summary?: string | null;
@@ -778,6 +781,7 @@ export async function listAdminServices(
     services: rows.results.map((row) => ({
       description: row.description,
       id: row.id,
+      imageUrl: row.image_url ?? null,
       isActive: row.is_active === 1,
       leadTimeDays: row.lead_time_days ?? null,
       moqSummary: row.moq_summary ?? null,
@@ -798,7 +802,7 @@ export async function getAdminService(
   const hasMeta = await tableExists(database, "service_admin_meta");
   const row = await database.prepare(`
     SELECT
-      s.id, s.name, s.slug, s.summary, s.description, s.is_active
+      s.id, s.name, s.slug, s.summary, s.description, s.is_active, s.image_url
       ${hasMeta ? ", m.status, m.lead_time_days, m.moq_summary, m.updated_at AS meta_updated_at" : ""}
     FROM services s
     ${hasMeta ? "LEFT JOIN service_admin_meta m ON m.service_id = s.id" : ""}
@@ -815,13 +819,14 @@ export async function createAdminService(
   actorSubject: string,
 ): Promise<AdminService> {
   await database.prepare(`
-    INSERT INTO services (slug, name, summary, description, meta_title, is_active)
-    VALUES (?, ?, ?, ?, '', ?)
+    INSERT INTO services (slug, name, summary, description, image_url, meta_title, is_active)
+    VALUES (?, ?, ?, ?, ?, '', ?)
   `).bind(
     input.slug,
     input.name,
     input.summary,
     input.description,
+    input.imageUrl,
     input.isActive ? 1 : 0,
   ).run();
 
@@ -848,7 +853,7 @@ export async function updateAdminService(
 
   await database.prepare(`
     UPDATE services
-    SET slug = ?, name = ?, summary = ?, description = ?,
+    SET slug = ?, name = ?, summary = ?, description = ?, image_url = ?,
       is_active = ?, updated_at = CURRENT_TIMESTAMP, revision = revision + 1
     WHERE id = ?
   `).bind(
@@ -856,6 +861,7 @@ export async function updateAdminService(
     input.name,
     input.summary,
     input.description,
+    input.imageUrl,
     input.isActive ? 1 : 0,
     id,
   ).run();
@@ -1041,6 +1047,7 @@ type ServiceRow = {
   summary: string;
   description: string;
   is_active: number;
+  image_url?: string | null;
   status?: AdminPublishStatus;
   lead_time_days?: number | null;
   moq_summary?: string | null;
@@ -1162,6 +1169,7 @@ function toAdminService(row: ServiceRow): AdminService {
   return {
     description: row.description,
     id: row.id,
+    imageUrl: row.image_url ?? null,
     isActive: row.is_active === 1,
     leadTimeDays: row.lead_time_days ?? null,
     moqSummary: row.moq_summary ?? null,
