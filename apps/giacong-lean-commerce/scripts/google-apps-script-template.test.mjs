@@ -216,6 +216,29 @@ const validProductPayload = {
   variant: "Vị vani",
 };
 
+// Cross-contract guard: the Worker's resolvePayload() emits exactly this shape for a
+// generic contact form with no service context (contact-webhook.ts:252-260).
+const workerGenericContactPayload = {
+  email: "customer@example.test",
+  message: "Khách gửi từ form liên hệ.",
+  name: "Nguyễn Văn B",
+  phone: "0900000001",
+  product: "",
+  qty: "",
+  request_type: "Tư vấn dịch vụ",
+  secret: "shared-secret",
+  service: "Liên hệ chung",
+  source: "/lien-he/",
+  variant: "",
+};
+
+test("accepts the Worker's generic contact payload even without a service context", async () => {
+  const { context } = await loadTemplate();
+  const output = submit(context, workerGenericContactPayload);
+  const response = JSON.parse(output.value);
+  assert.deepEqual(response, { ok: true, reference: "YC-20260725-100000-ABCD1234" });
+});
+
 test("stores user-controlled values as safe plain text instead of spreadsheet formulas", async () => {
   const { context, rows } = await loadTemplate();
   const output = submit(context, {

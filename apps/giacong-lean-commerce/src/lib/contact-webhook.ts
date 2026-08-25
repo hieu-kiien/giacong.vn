@@ -255,7 +255,9 @@ async function resolvePayload(
       product: "",
       qty: "",
       request_type: "Tư vấn dịch vụ",
-      service: submission.service ? "Sấy & thực phẩm sấy" : "",
+      // The Apps Script contract rejects "Tư vấn dịch vụ" with an empty
+      // service, so a generic contact carries an explicit catch-all label.
+      service: submission.service ? "Sấy & thực phẩm sấy" : "Liên hệ chung",
       variant: "",
     };
   }

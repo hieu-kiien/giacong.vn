@@ -81,7 +81,7 @@ test("forwards normalized contact fields and optional secret to an approved Apps
     qty: "",
     request_type: "Tư vấn dịch vụ",
     secret: "shared-secret",
-    service: "",
+    service: "Liên hệ chung",
     source: "/lien-he/",
     variant: "",
   });
@@ -250,7 +250,7 @@ test("accepts the single canonical service and preserves legacy generic contact 
     qty: "",
     request_type: "Tư vấn dịch vụ",
     secret: "shared-secret",
-    service: "",
+    service: "Liên hệ chung",
     source: "/lien-he/",
     variant: "",
   });
