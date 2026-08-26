@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 
-import { CapturedPage } from "@/components/CapturedPage";
+import { CapturedHomePage } from "@/components/site/CapturedHomePage";
 import { PageBlocks } from "@/components/site/PageBlocks";
 import { CapturedStorefrontShell } from "@/components/site/CapturedStorefrontShell";
 import homePage from "@/data/pages/home.json";
@@ -30,5 +30,5 @@ export default async function Home() {
       </CapturedStorefrontShell>
     );
   }
-  return <CapturedPage {...data} siteSettings={settings} />;
+  return <CapturedHomePage {...data} siteSettings={settings} />;
 }

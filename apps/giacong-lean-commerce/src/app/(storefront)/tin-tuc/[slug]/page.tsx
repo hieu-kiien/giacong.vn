@@ -31,8 +31,9 @@ export default async function NewsDetailPage({ params }: NewsDetailPageProps) {
   if (!post) notFound();
 
   return (
-    <CapturedStorefrontShell activeNavigation="products">
-      <article style={{ margin: "0 auto", maxWidth: 820, padding: "28px 16px 56px" }}>
+    <CapturedStorefrontShell>
+      <main className="giacong-news-detail" id="main">
+        <article>
         <p style={{ color: "#84918a", fontSize: 13, margin: "0 0 6px" }}>
           <Link href="/tin-tuc/" style={{ color: "#4d770f", textDecoration: "none" }}>← Tin tức</Link>
           {post.publishedAt ? ` · ${formatDate(post.publishedAt)}` : ""}
@@ -43,7 +44,8 @@ export default async function NewsDetailPage({ params }: NewsDetailPageProps) {
             <img alt="" src={post.coverImageUrl} style={{ borderRadius: 10, height: "auto", marginBottom: 20, maxWidth: "100%" }} />
           : null}
         <div style={{ color: "#2c3833", fontSize: 16, lineHeight: 1.75, whiteSpace: "pre-wrap" }}>{post.content}</div>
-      </article>
+        </article>
+      </main>
     </CapturedStorefrontShell>
   );
 }

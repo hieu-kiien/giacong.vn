@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 
 import { CapturedStorefrontShell } from "@/components/site/CapturedStorefrontShell";
 import { getPublishedNews } from "@/lib/news-public";
@@ -21,32 +22,64 @@ export default async function NewsListingPage() {
   const posts = await getPublishedNews();
 
   return (
-    <CapturedStorefrontShell activeNavigation="products">
-      <section className="catalog" style={{ margin: "0 auto", maxWidth: 1180, padding: "28px 16px 56px" }}>
-        <h1 style={{ fontSize: 30, fontWeight: 700, letterSpacing: "-0.02em", margin: "0 0 6px" }}>Tin tức</h1>
-        <p style={{ color: "#55635d", margin: "0 0 24px" }}>Thông tin mới nhất về sản phẩm và năng lực sản xuất.</p>
-        {posts.length === 0 ? (
-          <p style={{ color: "#55635d" }}>Chưa có bài viết nào được xuất bản.</p>
-        ) : (
-          <div style={{ display: "grid", gap: 18 }}>
-            {posts.map((post) => (
-              <article key={post.slug} style={{ background: "#fff", border: "1px solid #e2e8df", borderRadius: 10, display: "flex", gap: 16, overflow: "hidden", padding: 14 }}>
-                {post.coverImageUrl
-                  ? // eslint-disable-next-line @next/next/no-img-element
-                    <img alt="" src={post.coverImageUrl} style={{ borderRadius: 8, flex: "0 0 168px", height: 112, objectFit: "cover", width: 168 }} />
-                  : null}
-                <div style={{ minWidth: 0 }}>
-                  <h2 style={{ fontSize: 19, fontWeight: 700, lineHeight: 1.3, margin: "0 0 6px" }}>
-                    <a href={`/tin-tuc/${post.slug}/`} style={{ color: "inherit", textDecoration: "none" }}>{post.title}</a>
-                  </h2>
-                  <p style={{ color: "#55635d", fontSize: 14, lineHeight: 1.5, margin: "0 0 8px" }}>{post.excerpt}</p>
-                  <time style={{ color: "#84918a", fontSize: 12.5 }}>{formatDate(post.publishedAt)}</time>
-                </div>
-              </article>
-            ))}
+    <CapturedStorefrontShell>
+      <main className="giacong-news-page" id="main">
+        <section aria-labelledby="news-page-title" className="giacong-page-hero">
+          <div aria-hidden="true" className="giacong-page-hero__orb giacong-page-hero__orb--one" />
+          <div aria-hidden="true" className="giacong-page-hero__orb giacong-page-hero__orb--two" />
+          <div className="giacong-page-hero__inner">
+            <p className="giacong-page-hero__eyebrow">Giacong.vn cập nhật</p>
+            <h1 id="news-page-title">Tin tức</h1>
+            <nav aria-label="Breadcrumb" className="giacong-page-hero__breadcrumb">
+              <Link href="/">Trang chủ</Link>
+              <span aria-hidden="true">»</span>
+              <span aria-current="page">Tin tức</span>
+            </nav>
           </div>
-        )}
-      </section>
+        </section>
+
+        <section aria-labelledby="news-list-title" className="giacong-news-list">
+          <div className="giacong-content-rail">
+            <header className="giacong-news-list__header">
+              <div>
+                <p className="giacong-section-kicker">Góc chia sẻ</p>
+                <h2 id="news-list-title">Kiến thức và hoạt động mới nhất</h2>
+              </div>
+              <p>Thông tin về sản phẩm, năng lực sản xuất và những cập nhật từ Giacong.vn.</p>
+            </header>
+
+            {posts.length === 0 ? (
+              <div className="giacong-news-empty" data-testid="news-empty-state">
+                <span aria-hidden="true" className="giacong-news-empty__mark">g.</span>
+                <h3>Chưa có bài viết mới</h3>
+                <p>Nội dung đang được cập nhật. Bạn có thể tìm lại tin tức theo từ khóa khi bài viết được phát hành.</p>
+                <form action="/tin-tuc/" className="giacong-news-search" role="search">
+                  <label className="screen-reader-text" htmlFor="news-search">Tìm trong tin tức</label>
+                  <input id="news-search" name="s" placeholder="Tìm trong tin tức" type="search" />
+                  <button type="submit">Tìm kiếm</button>
+                </form>
+              </div>
+            ) : (
+              <div className="giacong-news-cards">
+                {posts.map((post) => (
+                  <article className="giacong-news-card" key={post.slug}>
+                    {post.coverImageUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img alt="" className="giacong-news-card__image" loading="lazy" src={post.coverImageUrl} />
+                    ) : null}
+                    <div className="giacong-news-card__body">
+                      <time dateTime={post.publishedAt ?? undefined}>{formatDate(post.publishedAt)}</time>
+                      <h3><Link href={`/tin-tuc/${post.slug}/`}>{post.title}</Link></h3>
+                      <p>{post.excerpt}</p>
+                      <Link className="giacong-news-card__link" href={`/tin-tuc/${post.slug}/`}>Đọc bài viết <span aria-hidden="true">→</span></Link>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            )}
+          </div>
+        </section>
+      </main>
     </CapturedStorefrontShell>
   );
 }
