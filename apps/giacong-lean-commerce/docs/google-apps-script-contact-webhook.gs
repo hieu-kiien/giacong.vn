@@ -207,12 +207,17 @@ function refreshSummary() {
 }
 
 function protectSheet(sheet, description, editableRange) {
-  var protections = sheet.getProtections();
+  var protections = sheet.getProtections(SpreadsheetApp.ProtectionType.SHEET);
   var protection = protections.length ? protections[0] : sheet.protect();
   protection.setDescription(description);
-  protection.addEditor(Session.getEffectiveUser());
-  protection.removeEditors(protection.getEditors());
-  protection.setDomainEdit(false);
+  var self = Session.getEffectiveUser();
+  var selfEmail = typeof self === "string" ? self : self.getEmail();
+  protection.removeEditors(protection.getEditors().filter(function (u) {
+    var email = typeof u === "string" ? u : u.getEmail();
+    return email !== selfEmail;
+  }));
+  protection.addEditor(self);
+  try { protection.setDomainEdit(false); } catch (domainEditIgnored) { /* consumer accounts have no domain */ }
   protection.setWarningOnly(false);
   protection.getTargetAudiences().forEach(function (audience) {
     protection.removeTargetAudience(audience);

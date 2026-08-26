@@ -173,6 +173,7 @@ async function loadTemplate(uuids = ["abcd1234-0000-0000-0000-000000000000"]) {
     PropertiesService: { getScriptProperties: () => ({ getProperty: () => "shared-secret" }) },
     Session: { getEffectiveUser: () => "owner@example.test", getScriptTimeZone: () => "Asia/Ho_Chi_Minh" },
     SpreadsheetApp: {
+      ProtectionType: { SHEET: "SHEET" },
       newDataValidation: () => {
         const rule = { values: [], allowInvalid: true };
         return {
@@ -359,8 +360,10 @@ test("reuses one native sheet protection and leaves Yêu cầu L:N editable", as
     const protection = activeProtections[0];
     assert.equal(protection, sheet === requestSheet ? requestProtectionBeforeSetup : summaryProtectionBeforeSetup);
     assert.deepEqual(protection.getEditors(), ["owner@example.test"]);
-    assert.equal(protection.calls[0].method, "addEditor");
-    assert.equal(protection.calls[1].method, "removeEditors");
+    // The owner must survive removeEditors: the script itself runs as the owner
+    // and still has to write rows after the protection is (re)applied.
+    assert.equal(protection.calls[0].method, "removeEditors");
+    assert.equal(protection.calls[1].method, "addEditor");
     assert.equal(protection.canDomainEdit(), false);
     assert.equal(protection.isWarningOnly(), false);
     assert.deepEqual(protection.getTargetAudiences(), []);
