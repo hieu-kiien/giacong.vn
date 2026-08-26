@@ -35,7 +35,7 @@ Required checks:
 
 Wrong-host requests to `/api/admin/**` should be hidden with `404`. Invalid/missing Access identity on the correct admin host is rejected with a safe `401` or `403` response. Do not return JWT/JWKS details, claims, stack traces or internal configuration values.
 
-Lean V1 has one operator administrator. Granular RBAC, customer identity and teams are out of scope.
+Lean V1 has no customer identity or customer team management. Internal administration uses the D1-backed roles `owner`, `content_manager`, `catalog_manager`, `sales_manager` and `viewer`. `owner` has full administrative access, while the other roles are limited to their documented capabilities and `viewer` is read-only. Cloudflare Access authenticates the operator; the `admin_members` record authorizes the operation. Any member or role change must be owner-only, same-origin, audited and fail closed.
 
 ## 3. HTTP and JSON contract
 

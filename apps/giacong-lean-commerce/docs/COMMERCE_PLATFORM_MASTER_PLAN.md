@@ -1,6 +1,8 @@
 # Hồ sơ sản phẩm và kỹ thuật — Lean V1
 
-**Trạng thái:** nguồn quyết định hiện hành và hồ sơ Lean V1 duy nhất.
+> **HỒ SƠ LỊCH SỬ — ĐÃ ĐƯỢC THAY THẾ.** Tài liệu này mô tả giai đoạn Bagisto-era và không còn là nguồn quyết định cho runtime, admin, RBAC hay hạ tầng hiện tại. Hãy đọc [`CLOUDFLARE_NATIVE_V1_PLAN.md`](./CLOUDFLARE_NATIVE_V1_PLAN.md) và [`CLOUDFLARE_ADMIN_WRITE_CONTRACT.md`](./CLOUDFLARE_ADMIN_WRITE_CONTRACT.md). Các đoạn nói về “Bagisto Admin duy nhất”, “một administrator”, “không granular RBAC”, “không Next.js admin” hoặc “không page builder” chỉ là trạng thái/lựa chọn lịch sử.
+
+**Trạng thái:** hồ sơ lịch sử, đã được thay thế; không dùng làm nguồn quyết định hiện hành.
 **Ranh giới tài liệu:** [GOOGLE_SHEETS_CONTACT_WEBHOOK.md](./GOOGLE_SHEETS_CONTACT_WEBHOOK.md) mô tả webhook hiện tại. `docs/research/PAGE_TOPOLOGY.md` chỉ là bố cục clone, không phải sitemap đích. Bộ handoff `giacong-product-ai-handoff` là đầu vào thiết kế (business rule, IA, component spec, data model, ảnh tham chiếu), không phải nguồn quyết định; khi mâu thuẫn, hồ sơ này thắng.
 **Ranh giới triển khai:** hồ sơ này không sửa code/UI/Bagisto, không ghi trực tiếp bảng core Bagisto, không đổi cổng `3000`, `8000`, `8001`. Website có đúng một origin public: Next sở hữu `/`, còn `/admin`, `/api/b2b` và asset Bagisto được proxy tới backend nội bộ `127.0.0.1:18001`. Cổng public cũ `8081` đã bị loại bỏ và không được đưa lại vào tài liệu hoặc cấu hình runtime. Không push.
 **Hostname public mục tiêu hiện tại:** `https://kienhieu.id.vn`. `giacong.vn` là tên repository/nguồn tham khảo cũ, không phải hostname triển khai; không tự động đổi các brand hoặc nội dung tham khảo chỉ vì thay đổi hostname.
