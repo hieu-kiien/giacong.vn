@@ -25,3 +25,8 @@ temp/
 Thumbs.db
 .vscode/
 .idea/
+
+# Local agent tooling (skills installed for review pipelines)
+apps/giacong-lean-commerce/.agents/
+apps/giacong-lean-commerce/.playwright-cli/
+apps/giacong-lean-commerce/skills-lock.json

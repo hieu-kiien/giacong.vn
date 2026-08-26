@@ -163,3 +163,17 @@ Application/runtime migration, deep QA và staging-admin edge/route audit đã �
 5. Chốt production taxonomy, SKU, variants, prices, MOQ, media, content và contact/trust claims.
 6. Tạo/audit production D1/R2 có chủ ý và migration dataset đã duyệt; không copy demo staging ngầm định.
 7. Chỉ sau acceptance admin + production data + request intake mới upload/promotion `giacong-vn` production.
+
+## Trạng thái production + Google Sheet intake — 2026-08-26
+
+Bằng chứng đã xác minh trong đợt staging QA + production promotion:
+
+- Production Worker `giacong-vn` chạy version mới nhất @100% (`wrangler versions deploy` có kiểm soát, rollback point `88df8e93`).
+- Production D1 đã áp dụng migrations 0004/0007/0008; backup export tại `.runtime/production-d1-backup-20260825.sql`.
+- Ba lệch dữ liệu seed đã sửa có guard: contact threshold `B2B-SEED-SME-02` 260→264, `B2B-SEED-NMC-10` 140→141; bổ sung cột `variant_count`/`available_variant_count`; `option_id` 0→id cho 34 variants.
+- Rate limit POST `/api/gui-yeu-cau/xac-thuc` hoạt động trên staging thật: 429 + Retry-After 60 tại ngưỡng 30 req/phút/IP (biên ±1 do eventual consistency của simple ratelimit).
+- Google Sheet intake live: Web App Apps Script (consumer Google account) nhận lead từ `/api/contact` → queue → `doPost` → Sheet, `delivery_status: delivered` với reference `YC-*`. Idempotency theo `request_id`, chống công thức, protection giữ L:N editable.
+- Template Apps Script đã vá cho tài khoản consumer: `getProtections(ProtectionType.SHEET)`, thứ tự removeEditors/addEditor giữ chủ sheet, bọc `setDomainEdit` trong try/catch. Đồng bộ tại `docs/google-apps-script-contact-webhook.gs` + regression test.
+- Media chính dịch vụ: cột `services.image_url` (migration 0008), admin "Dùng làm ảnh chính", xóa media có guard 409 `MEDIA_IN_USE` khi đang tham chiếu.
+- Admin UI: typography 6 bước cỡ, focus-visible đầy đủ, skeleton listing khớp grid thật.
+- Việc còn mở: khách tự nhập dữ liệu thật qua `admin.kienhieu.id.vn`; chủ dự án chuyển DNS `giacong.vn` tại Tenten; giám sát 24h đầu.
