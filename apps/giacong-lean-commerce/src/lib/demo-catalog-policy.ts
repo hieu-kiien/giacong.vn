@@ -28,7 +28,7 @@ export function demoCatalogFallbackAllowed(
 
 /**
  * Keeps an explicit, complete catalogue available for local presentation while the
- * Bagisto catalogue is still being populated. Production can never enable it.
+ * Cloudflare D1 catalogue is unavailable locally. Production can never enable it.
  */
 export function demoCatalogForced(environment: DemoCatalogFallbackEnvironment): boolean {
   if (!demoCatalogFallbackAllowed(environment)) return false;

@@ -1,11 +1,11 @@
 // Demo contact channels for the accepted-request handoff.
-// Every value here is demo data from the master plan and must be replaced with real data
+// Every value here is demo data from the current plan and must be replaced with real data
 // before a public launch. Prepared content deliberately carries only the reference and the
 // server-resolved lines: no name, phone or email ever leaves the page this way.
 import type { ResolvedRequestCart } from "../types/request-cart.ts";
 
 export interface RequestCartChannel {
-  /** Demo data pending owner confirmation, per the master plan. */
+  /** Demo data pending owner confirmation, per the current plan. */
   demo: true;
   /** Chat channels cannot receive text through a URL, so the content is copied first. */
   copyFirst: boolean;

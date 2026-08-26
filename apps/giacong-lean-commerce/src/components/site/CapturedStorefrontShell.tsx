@@ -9,10 +9,11 @@ import {
 import newsPage from "@/data/pages/tin-tuc.json";
 import { layerCapturedStyles, normalizeCapturedMarkup } from "@/lib/captured-markup";
 import { applySiteSettingsToMarkup, siteBrandStyles } from "@/lib/site-markup";
+import { applyNavigationToMarkup, getPublishedSiteNavigation } from "@/lib/site-navigation";
 import { getPublishedSiteSettings } from "@/lib/site-settings";
 
 interface CapturedStorefrontShellProps {
-  activeNavigation: StorefrontNavigationKey;
+  activeNavigation?: StorefrontNavigationKey;
   children: ReactNode;
 }
 
@@ -31,7 +32,8 @@ function extractElement(markup: string, tag: "header" | "footer", startAt = 0): 
   return { end: outerEnd, markup: markup.slice(start, outerEnd) };
 }
 
-function activateDesktopNavigation(markup: string, activeNavigation: StorefrontNavigationKey): string {
+function activateDesktopNavigation(markup: string, activeNavigation?: StorefrontNavigationKey): string {
+  if (!activeNavigation) return markup;
   const activeMenuId = getStorefrontNavigation(activeNavigation)?.menuItemId;
   if (!activeMenuId) return markup;
 
@@ -59,9 +61,14 @@ export async function CapturedStorefrontShell({
   activeNavigation,
   children,
 }: CapturedStorefrontShellProps) {
-  const settings = await getPublishedSiteSettings();
+  const [settings, navigation] = await Promise.all([getPublishedSiteSettings(), getPublishedSiteNavigation()]);
+  const activeCapturedMenuId = activeNavigation ? getStorefrontNavigation(activeNavigation)?.menuItemId : undefined;
   const headerMarkup = applySiteSettingsToMarkup(
-    activateDesktopNavigation(capturedHeader.markup, activeNavigation),
+    applyNavigationToMarkup(
+      activateDesktopNavigation(capturedHeader.markup, activeNavigation),
+      navigation,
+      activeCapturedMenuId,
+    ),
     settings,
   );
   const footerMarkup = applySiteSettingsToMarkup(capturedFooter.markup, settings);

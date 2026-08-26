@@ -2,6 +2,7 @@ import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { adminFailure, adminSuccess } from "@/lib/admin-api.ts";
 import { adminErrorFrom } from "@/lib/admin-error-mapping.ts";
 import { requireAdmin } from "@/lib/admin-guard";
+import { canManageMedia } from "@/lib/admin-permissions.ts";
 import { cleanupOrphanedMediaAssets, type R2BucketLike } from "@/lib/media-data";
 
 export const dynamic = "force-dynamic";
@@ -9,7 +10,7 @@ export const dynamic = "force-dynamic";
 export async function POST(request: Request): Promise<Response> {
   const guard = await requireAdmin(request);
   if (guard instanceof Response) return guard;
-  if (!["owner", "content_manager"].includes(guard.member.role)) {
+  if (!canManageMedia(guard.member.role)) {
     return adminFailure(crypto.randomUUID(), 403, "FORBIDDEN", "Vai trò hiện tại không được cleanup media.");
   }
   const bucket = getMediaBucket();

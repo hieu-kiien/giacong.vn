@@ -5,6 +5,7 @@ import {
 } from "@/lib/admin-data";
 import { adminErrorFrom } from "@/lib/admin-error-mapping.ts";
 import { requireAdmin } from "@/lib/admin-guard";
+import { canManageCatalog } from "@/lib/admin-permissions.ts";
 import { parseAdminVariantPayload } from "@/lib/admin-variant-input";
 
 export const dynamic = "force-dynamic";
@@ -46,10 +47,6 @@ export async function POST(request: Request, context: RouteContext): Promise<Res
   } catch (error) {
     return adminErrorFrom(crypto.randomUUID(), error, "Không thể tạo variant.", { fieldErrors: { sku: "SKU đã tồn tại." } });
   }
-}
-
-function canManageCatalog(role: string): boolean {
-  return role === "owner" || role === "content_manager";
 }
 
 function parsePositiveInt(value: string): number | null {

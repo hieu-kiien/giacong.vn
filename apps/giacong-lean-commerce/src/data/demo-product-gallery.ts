@@ -3,7 +3,7 @@
  *
  * The catalog contract allows `imageUrl: null`, and the design tokens forbid a
  * generic gray placeholder box: product imagery must sit on a warm surface. Until
- * the real photography is approved (**Chờ xác nhận** in the master plan) the detail
+ * the real photography is approved (**Chờ xác nhận** in the current plan) the detail
  * gallery fills its thumbnail rail from the demo packshots already tracked in
  * `public/images/products/`.
  *

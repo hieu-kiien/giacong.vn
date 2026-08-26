@@ -7,6 +7,7 @@ import {
   type AdminProductInput,
 } from "@/lib/admin-data";
 import { requireAdmin } from "@/lib/admin-guard";
+import { canManageCatalog } from "@/lib/admin-permissions.ts";
 import { parseAdminProductPayload } from "@/lib/admin-product-input";
 
 export const dynamic = "force-dynamic";
@@ -74,10 +75,6 @@ export async function POST(request: Request): Promise<Response> {
       message: "Slug hoặc SKU đã tồn tại.",
     });
   }
-}
-
-function canManageCatalog(role: string): boolean {
-  return role === "owner" || role === "catalog_manager" || role === "content_manager";
 }
 
 async function readJson(request: Request): Promise<unknown> {

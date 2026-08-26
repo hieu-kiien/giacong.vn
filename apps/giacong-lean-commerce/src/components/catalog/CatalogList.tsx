@@ -34,7 +34,7 @@ interface CatalogListProps {
  * actually allows (`CATALOG_SORTS` in `@/lib/catalog-query`).
  *
  * Two departures from the captured control. Its sixth option orders by a score the
- * master plan forbids this project to carry in any form, so it is dropped rather than
+ * current plan forbids this project to carry in any form, so it is dropped rather than
  * mapped onto something else. And its `popularity` has no
  * upstream column here, so the nearest honest thing the feed can order by is how many
  * quy cách a product has — labelled as that rather than as popularity, which would

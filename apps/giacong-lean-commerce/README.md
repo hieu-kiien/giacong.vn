@@ -1,6 +1,6 @@
 # Giacong.vn
 
-Storefront B2B cho dịch vụ gia công và catalog sản phẩm. Khách có thể xem nội dung, chọn sản phẩm/quy cách, tạo request cart và gửi yêu cầu báo giá. Admin quản lý catalog, lead, media R2 và nội dung/branding website.
+Storefront B2B cho dịch vụ gia công và catalog sản phẩm. Khách có thể xem nội dung, chọn sản phẩm/quy cách, tạo request cart và gửi yêu cầu báo giá. Admin Cloudflare-native quản lý catalog, lead, media R2, nội dung, page, menu và quyền thành viên.
 
 ## Kiến trúc
 
@@ -30,10 +30,12 @@ Local storefront chạy qua workflow `artifacts/web: web`. Local admin có thể
 ## D1 migrations
 
 ```bash
+pnpm --filter @workspace/web run db:local:bootstrap
 pnpm --filter @workspace/web exec wrangler d1 migrations apply giacong-vn-catalog --local
 pnpm --filter @workspace/web exec wrangler d1 migrations apply giacong-vn-catalog-staging --remote --env staging
 ```
 
+Local bootstrap chỉ tạo baseline schema catalog trống; không chứa dữ liệu production.
 Migration mới phải được apply trước khi deploy code sử dụng bảng mới. Production migration cần được thực hiện có kiểm soát trong quy trình publish.
 
 ## CMS nội dung & thương hiệu
@@ -47,5 +49,14 @@ Mở `/admin/noi-dung` để chỉnh sửa:
 - nội dung footer.
 
 CMS dùng typed settings, draft/published tách biệt, optimistic versioning, audit log và R2 upload cho ảnh. Public storefront tuyệt đối chỉ đọc `published_value`.
+
+## Admin control plane
+
+- `/admin/thiet-ke`: page builder schema an toàn cho hero, rich text, image, feature grid, CTA và contact;
+- `/admin/dieu-huong`: primary navigation desktop/mobile, draft/publish và optimistic versioning;
+- `/admin/thanh-vien`: owner-only member/role management với `owner`, `content_manager`, `catalog_manager`, `sales_manager`, `viewer`;
+- mọi API admin đều kiểm tra Cloudflare Access admission, capability server-side, validation và audit log.
+
+Migration `0009_admin_control_plane.sql` phải được apply vào môi trường trước khi dùng ba màn hình mới. Page builder không chạy HTML/CSS/JavaScript tùy ý; thay đổi schema hoặc logic mới vẫn cần code review.
 
 Không đưa `.env`, `.env.local`, `.dev.vars` hoặc secret Cloudflare/Google lên GitHub. Kiến trúc vận hành chi tiết nằm trong thư mục `docs/`.

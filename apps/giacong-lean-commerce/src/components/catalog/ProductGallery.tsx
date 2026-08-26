@@ -18,7 +18,7 @@ interface ProductGalleryProps {
  * specification requires exactly that.
  *
  * A native `<img>` is used rather than `next/image` for the same reason
- * `CatalogProductImage` does: a Bagisto image URL is content data, and routing it
+ * `CatalogProductImage` does: a catalog image URL is content data, and routing it
  * through the optimizer would need a remote-host allowlist this step does not own.
  */
 export function ProductGallery({ images }: ProductGalleryProps) {

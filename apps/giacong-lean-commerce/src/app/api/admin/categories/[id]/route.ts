@@ -5,16 +5,13 @@ import {
 } from "@/lib/admin-data";
 import { adminErrorFrom } from "@/lib/admin-error-mapping.ts";
 import { requireAdmin } from "@/lib/admin-guard";
+import { canManageCatalog } from "@/lib/admin-permissions.ts";
 import { parseAdminCategoryPayload } from "@/lib/admin-category-input";
 
 export const dynamic = "force-dynamic";
 
 interface CategoryRouteContext {
   params: Promise<{ id: string }>;
-}
-
-function canManageCatalog(role: string): boolean {
-  return role === "owner" || role === "catalog_manager";
 }
 
 async function parseId(context: CategoryRouteContext): Promise<number | null> {

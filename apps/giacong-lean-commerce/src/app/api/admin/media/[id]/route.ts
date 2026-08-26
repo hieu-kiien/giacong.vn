@@ -2,6 +2,7 @@ import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { adminFailure, adminSuccess } from "@/lib/admin-api.ts";
 import { adminErrorFrom } from "@/lib/admin-error-mapping.ts";
 import { requireAdmin } from "@/lib/admin-guard";
+import { canManageMedia } from "@/lib/admin-permissions.ts";
 import { deleteMediaAsset, MediaReferenceError, updateMediaAssetAltText, type R2BucketLike } from "@/lib/media-data";
 
 export const dynamic = "force-dynamic";
@@ -67,10 +68,6 @@ export async function PATCH(request: Request, context: RouteContext): Promise<Re
   return media
     ? adminSuccess(crypto.randomUUID(), { media })
     : adminFailure(crypto.randomUUID(), 404, "NOT_FOUND", "Không tìm thấy media đang hoạt động.");
-}
-
-function canManageMedia(role: string): boolean {
-  return role === "owner" || role === "content_manager" || role === "catalog_manager";
 }
 
 function isUuid(value: string): boolean {

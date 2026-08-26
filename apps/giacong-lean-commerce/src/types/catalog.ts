@@ -26,7 +26,7 @@ export interface CatalogProductParent {
   shortDescription: string;
   sku: string;
   slug: string;
-  /** Null when the Bagisto product is available for consultation but has no price yet. */
+  /** Null when the D1 product is available for consultation but has no price yet. */
   startingPrice: CatalogStartingPrice | null;
   type: "configurable";
   variantCount: number;
@@ -84,7 +84,7 @@ export interface CatalogProductList {
   products: CatalogProductParent[];
 }
 
-/** Sort columns the Bagisto catalog service exposes, by contract. */
+/** Sort columns the Cloudflare catalog service exposes, by contract. */
 export type CatalogSort = "available_variant_count" | "id" | "name" | "starting_price" | "variant_count";
 
 export type CatalogSortDirection = "asc" | "desc";

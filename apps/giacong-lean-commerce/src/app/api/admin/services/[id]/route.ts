@@ -7,6 +7,7 @@ import {
 } from "@/lib/admin-data";
 import { adminErrorFrom } from "@/lib/admin-error-mapping.ts";
 import { requireAdmin } from "@/lib/admin-guard";
+import { canManageServices } from "@/lib/admin-permissions.ts";
 import { parseAdminServicePayload } from "@/lib/admin-service-input";
 
 export const dynamic = "force-dynamic";
@@ -85,10 +86,6 @@ export async function DELETE(
   } catch (error) {
     return adminErrorFrom(crypto.randomUUID(), error, "Không thể ẩn dịch vụ.");
   }
-}
-
-function canManageServices(role: string): boolean {
-  return role === "owner" || role === "content_manager";
 }
 
 function serviceDefaults(service: {

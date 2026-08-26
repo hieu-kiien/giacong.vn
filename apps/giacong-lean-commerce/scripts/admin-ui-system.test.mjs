@@ -38,3 +38,21 @@ test("the shell mounts the toast provider so every admin page shares feedback", 
 
   assert.match(shell, /AdminToastProvider/);
 });
+
+test("the admin control plane exposes page, navigation and member management surfaces", async () => {
+  const shell = await readSource("components", "admin", "AdminShell.tsx");
+  const builder = await readSource("components", "admin", "AdminPageBuilder.tsx");
+  const navigation = await readSource("components", "admin", "AdminNavigationManager.tsx");
+  const members = await readSource("components", "admin", "AdminMembersManager.tsx");
+
+  assert.match(shell, /\/admin\/thiet-ke/);
+  assert.match(shell, /\/admin\/dieu-huong/);
+  assert.match(shell, /\/admin\/thanh-vien/);
+  assert.match(builder, /\/api\/admin\/pages/);
+  assert.match(builder, /Page builder chỉ nhận schema an toàn/);
+  assert.doesNotMatch(builder, /dangerouslySetInnerHTML/);
+  assert.match(navigation, /\/api\/admin\/navigation/);
+  assert.match(navigation, /Phát hành tất cả/);
+  assert.match(members, /\/api\/admin\/members/);
+  assert.match(members, /Granular RBAC/);
+});

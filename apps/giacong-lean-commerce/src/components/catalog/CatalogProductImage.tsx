@@ -41,8 +41,8 @@ export function CatalogProductImage({
     return (
       <div className={`commerce-image-frame !aspect-[10/7] rounded-b-none bg-commerce-active-surface ${className ?? ""}`}>
         {source ? (
-          // Content-owned URLs from Bagisto plus local packshots; the native img
-          // avoids remote-host configuration for the upstream case.
+          // Content-owned URLs from D1/R2 plus local packshots; the native img
+          // avoids remote-host configuration for content-managed images.
           // eslint-disable-next-line @next/next/no-img-element
           <img
             alt={alt}
@@ -65,7 +65,7 @@ export function CatalogProductImage({
   return (
     <div className={`${styles.image} ${className ?? ""}`}>
       {source ? (
-        // The Bagisto image URL is content data; the native img avoids remote image host config.
+        // The catalog image URL is content data; the native img avoids remote image host config.
         // eslint-disable-next-line @next/next/no-img-element
         <img alt={alt} onError={() => setFailed(true)} src={source} />
       ) : (

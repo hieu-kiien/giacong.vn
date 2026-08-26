@@ -2,6 +2,7 @@ import { adminFailure, adminSuccess } from "@/lib/admin-api.ts";
 import { updateAdminLeadStatus, type LeadStatus } from "@/lib/admin-data";
 import { adminErrorFrom } from "@/lib/admin-error-mapping.ts";
 import { requireAdmin } from "@/lib/admin-guard";
+import { canManageLeads } from "@/lib/admin-permissions.ts";
 
 export const dynamic = "force-dynamic";
 
@@ -53,10 +54,6 @@ export async function PATCH(request: Request, context: LeadRouteContext): Promis
   } catch (error) {
     return adminErrorFrom(crypto.randomUUID(), error, "Không thể cập nhật trạng thái lead.");
   }
-}
-
-function canManageLeads(role: string): boolean {
-  return role === "owner" || role === "sales_manager";
 }
 
 function isLeadId(value: string): boolean {

@@ -7,7 +7,7 @@
  *
  * Two rules shape everything here:
  *
- *  - **Nothing is invented.** The Bagisto list contract publishes no variants, so
+ *  - **Nothing is invented.** The D1 list contract publishes no variants, so
  *    a card built from a list row exposes no variant SKU, no unit and no tier
  *    rows — it routes to detail instead. Only a source that actually carries
  *    variants (the demo fixture today, a richer feed later) can offer a direct
@@ -187,7 +187,7 @@ export function demoCatalogCategories(): CatalogCategory[] {
 }
 
 /**
- * Applies the same query contract the Bagisto list endpoint answers, so a card
+ * Applies the same query contract the D1 list endpoint answers, so a card
  * built from the fallback behaves identically to one built from the real feed —
  * search, category, sort, direction and pagination all included.
  */

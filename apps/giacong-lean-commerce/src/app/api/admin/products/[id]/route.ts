@@ -7,6 +7,7 @@ import {
 } from "@/lib/admin-data";
 import { adminErrorFrom } from "@/lib/admin-error-mapping.ts";
 import { requireAdmin } from "@/lib/admin-guard";
+import { canManageCatalog } from "@/lib/admin-permissions.ts";
 import { parseAdminProductPayload, productDefaults } from "@/lib/admin-product-input";
 
 export const dynamic = "force-dynamic";
@@ -99,10 +100,6 @@ export async function DELETE(
   } catch (error) {
     return adminErrorFrom(crypto.randomUUID(), error, "Không thể ẩn sản phẩm.");
   }
-}
-
-function canManageCatalog(role: string): boolean {
-  return role === "owner" || role === "catalog_manager" || role === "content_manager";
 }
 
 async function parseId(context: ProductRouteContext): Promise<number | null> {

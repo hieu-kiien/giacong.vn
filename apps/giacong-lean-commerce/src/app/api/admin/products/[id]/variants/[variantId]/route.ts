@@ -6,6 +6,7 @@ import {
 } from "@/lib/admin-data";
 import { adminErrorFrom } from "@/lib/admin-error-mapping.ts";
 import { requireAdmin } from "@/lib/admin-guard";
+import { canManageCatalog } from "@/lib/admin-permissions.ts";
 import { parseAdminVariantPayload, variantDefaults } from "@/lib/admin-variant-input";
 
 export const dynamic = "force-dynamic";
@@ -83,10 +84,6 @@ async function parseIds(context: RouteContext): Promise<{ productId: number; var
   return Number.isInteger(productId) && productId > 0 && Number.isInteger(variantId) && variantId > 0
     ? { productId, variantId }
     : null;
-}
-
-function canManageCatalog(role: string): boolean {
-  return role === "owner" || role === "content_manager";
 }
 
 async function readJson(request: Request): Promise<unknown> {

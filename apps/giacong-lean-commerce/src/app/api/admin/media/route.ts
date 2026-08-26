@@ -3,6 +3,7 @@ import { adminFailure, adminSuccess } from "@/lib/admin-api.ts";
 import { getAdminProduct, getAdminProductVariant, getAdminService } from "@/lib/admin-data";
 import { adminErrorFrom } from "@/lib/admin-error-mapping.ts";
 import { requireAdmin } from "@/lib/admin-guard";
+import { canManageMedia } from "@/lib/admin-permissions.ts";
 import { createMediaAsset, listMediaAssets, type R2BucketLike } from "@/lib/media-data";
 
 export const dynamic = "force-dynamic";
@@ -95,10 +96,6 @@ export async function POST(request: Request): Promise<Response> {
   } catch (error) {
     return adminErrorFrom(crypto.randomUUID(), error, "Không thể lưu media.");
   }
-}
-
-function canManageMedia(role: string): boolean {
-  return role === "owner" || role === "content_manager" || role === "catalog_manager";
 }
 
 function parsePositiveInt(value: FormDataEntryValue | string | null): number | null {

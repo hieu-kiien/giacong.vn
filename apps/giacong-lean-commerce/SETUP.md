@@ -2,63 +2,62 @@
 
 ## Yêu cầu
 
-- Docker Desktop đang chạy.
-- PHP 8.3 hoặc 8.4 cùng Composer 2.
-- Node.js 24 trở lên.
+- Node.js 24 trở lên;
+- Wrangler 4 và quyền truy cập D1/R2 nếu cần kiểm tra staging;
+- Cloudflare Access riêng nếu cần mở admin production/staging.
 
-## 1. Khởi động Bagisto
+Lean V1 hiện chạy Next.js/OpenNext trên Cloudflare. Bagisto/Docker legacy không thuộc
+checkout sạch và không cần khởi động để chạy storefront hoặc admin; lịch sử kiến trúc
+cũ chỉ được giữ trong Git history/tài liệu tham khảo.
 
-Mở PowerShell trong thư mục `giacong-bagisto`:
+## 1. Cài dependency và biến môi trường
 
-```powershell
-Copy-Item .env.example .env
-composer install
-```
-
-Mở `.env` và đặt tối thiểu các giá trị sau:
-
-```dotenv
-APP_URL=http://localhost:18001
-DB_DATABASE=bagisto
-DB_USERNAME=sail
-DB_PASSWORD=password
-BAGISTO_PORT=18001
-```
-
-Khởi động và cài dữ liệu demo:
-
-```powershell
-docker compose up -d
-docker compose exec -u sail laravel.test php artisan bagisto:install
-docker compose exec -u sail laravel.test php artisan b2b:catalog:seed-demo
-```
-
-Sau khi cài xong, đăng nhập quản trị tại `http://localhost:18001/admin` bằng `admin@example.com` và `admin123`. Đổi mật khẩu nếu dùng ngoài môi trường demo.
-
-## 2. Khởi động website
-
-Mở PowerShell khác trong thư mục `giacong.vn`:
+Mở PowerShell trong thư mục `giacong-lean-commerce`:
 
 ```powershell
 Copy-Item .env.example .env.local
 npm ci
-npm run dev -- -p 4317
 ```
 
-Giữ hai giá trị Bagisto mặc định trong `.env.local`:
+Chỉ thêm các secret cần thiết vào `.env.local` hoặc Cloudflare secrets. Không thêm `BAGISTO_API_URL`, `BAGISTO_PROXY_ORIGIN` hay credential D1/R2 phía client. `GOOGLE_SHEETS_WEBHOOK_URL` chỉ cần khi kiểm thử request intake thật.
 
-```dotenv
-BAGISTO_API_URL=http://127.0.0.1:18001
-BAGISTO_PROXY_ORIGIN=http://127.0.0.1:18001
-```
+## 2. Chuẩn bị D1 local
 
-Nếu cần nhận yêu cầu thật, thêm URL Apps Script vào `GOOGLE_SHEETS_WEBHOOK_URL`. Không cần đặt biến này để xem demo.
-
-## 3. Dừng dịch vụ
+Các migration trong `migrations/` là migration bổ sung cho catalog D1 đã tồn tại;
+baseline dữ liệu thật không nằm trong Git. Với database local trống, tạo schema
+catalog tối thiểu trước rồi mới áp migration:
 
 ```powershell
-# Trong giacong-bagisto
-docker compose down
+npm run db:local:bootstrap
+npx wrangler d1 migrations apply giacong-vn-catalog --local
 ```
 
-Website Next.js dừng bằng `Ctrl+C` tại cửa sổ đang chạy nó.
+`db:local:bootstrap` chỉ chạy local và chỉ tạo schema, không đưa dữ liệu demo vào
+database. Migration `0009_admin_control_plane.sql` tạo page builder, navigation và
+revision cho admin member. Nếu local database đã có dữ liệu cũ, kiểm tra migration
+history trước khi apply; không dùng lệnh reset/xóa database để chữa lỗi schema.
+
+## 3. Chạy website
+
+```powershell
+$env:PORT = "3000"
+npm run dev
+```
+
+Storefront local chạy tại `http://localhost:3000`. Admin local vẫn đi qua admission contract; nếu không có Cloudflare Access/public staging mode hợp lệ, màn hình sẽ fail closed. Dùng `admin-staging.kienhieu.id.vn` để kiểm thử admin staging theo policy đã cấp quyền.
+
+## 4. Kiểm tra trước khi deploy
+
+```powershell
+npm run test:admin
+npm run test:catalog
+npm run lint
+npm run typecheck
+npm run build
+```
+
+Staging luôn đi trước production. Apply migration, backup, smoke test và audit dữ liệu theo [`docs/CLOUDFLARE_DEPLOYMENT.md`](docs/CLOUDFLARE_DEPLOYMENT.md) và [`docs/PRODUCTION_ACCEPTANCE_CHECKLIST.md`](docs/PRODUCTION_ACCEPTANCE_CHECKLIST.md). Không chạy mutation production từ máy local.
+
+## 5. Dừng website
+
+Dừng Next.js bằng `Ctrl+C` tại cửa sổ đang chạy.

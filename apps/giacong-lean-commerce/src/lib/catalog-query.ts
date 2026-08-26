@@ -8,7 +8,7 @@ import type {
 type SearchParameter = string | string[] | undefined;
 
 /**
- * Sort columns the Bagisto catalog service maps to a physical column. Keeping the
+ * Sort columns the Cloudflare D1 catalog service maps to a physical column. Keeping the
  * allowlist here means an unsupported value degrades to the default instead of
  * reaching the upstream API, so a query parameter can never select a column.
  */
@@ -22,7 +22,7 @@ export const CATALOG_SORTS: readonly CatalogSort[] = [
 
 export const CATALOG_SORT_DIRECTIONS: readonly CatalogSortDirection[] = ["asc", "desc"];
 
-/** Page sizes the catalog contract accepts, all inside Bagisto's `between:1,48` rule. */
+/** Page sizes the catalog contract accepts, all inside the D1 read-model limit. */
 export const CATALOG_PAGE_SIZES: readonly CatalogPageSize[] = [12, 24, 48];
 
 export const DEFAULT_CATALOG_SORT: CatalogSort = "name";

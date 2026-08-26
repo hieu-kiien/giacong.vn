@@ -152,13 +152,26 @@ Admin server contract chi tiết đã được khóa trong `docs/CLOUDFLARE_ADMI
 
 **Production Worker `giacong-vn`, production data resources và production route `kienhieu.id.vn/*` chưa bị thay đổi bởi các bước staging/admin-prep trên.**
 
+## Control plane admin đã có trong mã nguồn
+
+Nhánh hiện tại đã bổ sung bề mặt Next.js/D1/R2 để xử lý khoảng trống mà kế hoạch Bagisto-era từng để lại:
+
+- `/admin/noi-dung`: site settings, brand, SEO, liên hệ và media R2;
+- `/admin/thiet-ke`: page builder schema an toàn, draft/preview/publish cho page;
+- `/admin/dieu-huong`: nhãn, href, thứ tự, active state và publish cho primary menu desktop/mobile;
+- `/admin/thanh-vien`: owner quản lý `accessSubject`, vai trò và trạng thái thành viên;
+- `admin-permissions.ts`: capability matrix server-side cho owner, content manager, catalog manager, sales manager và viewer;
+- migration `0009_admin_control_plane.sql`: `site_pages`, `site_navigation_items` và revision cho `admin_members`.
+
+Các màn hình mới là code đã kiểm thử, chưa có nghĩa migration đã được apply vào D1 staging/production. Không truy cập admin production hoặc ghi dữ liệu production cho tới khi có kế hoạch migration và acceptance riêng.
+
 ## Cổng kế tiếp
 
-Application/runtime migration, deep QA và staging-admin edge/route audit đã đạt. Các bước tiếp theo là:
+Application/runtime migration, deep QA và staging-admin edge/route audit đã đạt. Control plane mới đã có trong code; các bước tiếp theo là:
 
-1. Implement server-side admin write contract trên staging, bắt đầu bằng admission/auth helpers + category/product D1 repository, có test RED→GREEN và fail-closed behavior.
-2. Thêm D1 migration cho audit log trước khi bật mutation endpoint.
-3. Hoàn tất variants/tier-price contract rồi media R2 contract, sau đó mới dựng admin UI CRUD category → product → variant → tier → media → services.
+1. Apply `0009_admin_control_plane.sql` vào local/staging theo kế hoạch có backup; verify tables, seed menu và owner `accessSubject`.
+2. Chạy admin acceptance trên staging: Access admission, role matrix, CRUD draft/publish, stale-write, media/page/navigation và audit log.
+3. Dùng browser smoke test để kiểm tra responsive admin và published page/menu trên staging; không dùng production làm môi trường thử.
 4. Xác minh Google Sheet/Apps Script trên account thật hoặc ra quyết định riêng nếu chuyển request inbox sang D1.
 5. Chốt production taxonomy, SKU, variants, prices, MOQ, media, content và contact/trust claims.
 6. Tạo/audit production D1/R2 có chủ ý và migration dataset đã duyệt; không copy demo staging ngầm định.

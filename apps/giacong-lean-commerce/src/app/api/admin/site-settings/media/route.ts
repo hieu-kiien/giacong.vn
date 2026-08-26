@@ -2,6 +2,7 @@ import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { adminFailure, adminSuccess } from "@/lib/admin-api.ts";
 import { adminErrorFrom } from "@/lib/admin-error-mapping.ts";
 import { requireAdmin } from "@/lib/admin-guard";
+import { canManageSiteContent } from "@/lib/admin-permissions.ts";
 import {
   createSiteMediaAsset,
   deleteSiteMediaAsset,
@@ -26,7 +27,7 @@ const allowedContentTypes = new Set(["image/avif", "image/jpeg", "image/png", "i
 export async function POST(request: Request): Promise<Response> {
   const guard = await requireAdmin(request);
   if (guard instanceof Response) return guard;
-  if (!["owner", "content_manager"].includes(guard.member.role)) {
+  if (!canManageSiteContent(guard.member.role)) {
     return adminFailure(crypto.randomUUID(), 403, "FORBIDDEN", "Vai trò hiện tại không được upload media thương hiệu.");
   }
 

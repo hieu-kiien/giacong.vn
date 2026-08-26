@@ -3,8 +3,8 @@
  *
  * Isolated from the catalog adapter on purpose: it imports nothing from the
  * upstream client, and the adapter never reads it, so no demo row can leak into a
- * production response. The master plan permits demo content at this stage
- * (`docs/COMMERCE_PLATFORM_MASTER_PLAN.md` §3) provided it is clearly temporary —
+ * production response. The Cloudflare-native plan permits demo content at this stage
+ * (`docs/CLOUDFLARE_NATIVE_V1_PLAN.md`) provided it is clearly temporary —
  * taxonomy, SKUs, imagery and real prices are still **Chờ xác nhận**.
  *
  * Shapes are the same `CatalogProductDetail`/`CatalogCategory` contracts the

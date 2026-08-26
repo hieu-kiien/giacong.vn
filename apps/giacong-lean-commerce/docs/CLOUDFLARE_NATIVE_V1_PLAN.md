@@ -97,6 +97,10 @@ Admin staging cần hỗ trợ theo thứ tự:
 4. tier prices: create/update/delete với validation quantity/price;
 5. product media: upload R2, chọn media cho product/variant, xóa object chỉ khi không còn reference;
 6. services: sửa managed copy trong D1.
+7. website control plane: site settings, SEO, structured page sections, primary navigation và publish workflow;
+8. owner control: quản lý member, role, active state và audit của tài khoản admin.
+
+Page builder V1 dùng schema section an toàn gồm hero, rich text, image, feature grid, CTA và contact. Đây là quyền tự chủ với nội dung/layout đã được mô hình hóa; không cấp quyền chạy HTML/CSS/JavaScript tùy ý hoặc tự tạo server code từ admin.
 
 Request queue vẫn ở Google Sheet trong pha này; không xây request inbox admin trước khi có quyết định riêng.
 
@@ -112,7 +116,7 @@ Request queue vẫn ở Google Sheet trong pha này; không xây request inbox a
 
 Cloudflare Access là phương án bảo vệ staging admin. Cấu hình Access self-hosted, allow policy và identity-provider state cho `admin-staging.kienhieu.id.vn` đã được audit qua Cloudflare API; Worker route staging cũng đã được khai báo trong Wrangler. Việc triển khai write API vẫn phải tự fail closed nếu request không đạt admission contract, không chỉ dựa vào việc hostname đã có Access.
 
-### 6.3 Contract write trước UI
+### 6.3 Contract write và UI control plane
 
 Contract chi tiết đã được khóa tại [`CLOUDFLARE_ADMIN_WRITE_CONTRACT.md`](CLOUDFLARE_ADMIN_WRITE_CONTRACT.md). Trước khi dựng màn hình CRUD, implementation phải tuân thủ và test các nhóm yêu cầu sau:
 
@@ -126,7 +130,7 @@ Contract chi tiết đã được khóa tại [`CLOUDFLARE_ADMIN_WRITE_CONTRACT.
 - error mapping không lộ nội bộ;
 - auditability và request id/idempotency tối thiểu cho write operation.
 
-UI admin chỉ được xây trên contract server đã test xanh.
+UI admin hiện được xây trên contract server đã test xanh: `/admin/noi-dung`, `/admin/thiet-ke`, `/admin/dieu-huong` và `/admin/thanh-vien` dùng cùng admission, capability, versioning, error envelope và toast feedback. Migration `0009_admin_control_plane.sql` phải được apply vào từng môi trường trước khi bật các màn hình dùng bảng mới.
 
 ## 7. Staging gate
 

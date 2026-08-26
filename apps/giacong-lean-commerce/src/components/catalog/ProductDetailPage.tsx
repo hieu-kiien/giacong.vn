@@ -23,9 +23,9 @@ interface ProductDetailPageProps {
  * 1280 px and folds under the commercial column below that. Mobile is a single
  * column, so the gallery stacks above the commercial information.
  *
- * The social-proof block in the reference screenshot is absent, as the master plan
+ * The social-proof block in the reference screenshot is absent, as the current plan
  * requires; the space it occupied carries verified product facts instead. None of the
- * customer-account or fulfilment surfaces the master plan excludes appear either —
+ * customer-account or fulfilment surfaces the current plan excludes appear either —
  * `scripts/product-detail.test.mts` scans this file for all of them by name, which is
  * why they are not written out here.
  *

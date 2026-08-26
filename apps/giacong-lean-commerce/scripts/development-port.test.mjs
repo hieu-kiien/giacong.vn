@@ -18,6 +18,13 @@ test("allows the local IP hostname used by the product demo", async () => {
   assert.match(nextConfig, /allowedDevOrigins:\s*\[[^\]]*"127\.0\.0\.1"/);
 });
 
+test("keeps dev and start scripts portable across Windows and POSIX shells", async () => {
+  const packageJson = JSON.parse(await readFile(new URL("package.json", root), "utf8"));
+
+  assert.equal(packageJson.scripts.dev, "next dev -H 0.0.0.0");
+  assert.equal(packageJson.scripts.start, "next start -H 0.0.0.0");
+});
+
 test("Cloudflare bindings replace the former Bagisto proxy boundary", async () => {
   const [nextConfig, wrangler, catalog] = await Promise.all([
     readFile(new URL("next.config.ts", root), "utf8"),

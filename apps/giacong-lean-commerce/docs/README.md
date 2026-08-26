@@ -4,9 +4,9 @@
 
 | Tài liệu | Vai trò |
 | --- | --- |
-| [CLOUDFLARE_NATIVE_V1_PLAN.md](./CLOUDFLARE_NATIVE_V1_PLAN.md) | Nguồn quyết định hiện hành về runtime Cloudflare-native, D1/R2, admin, RBAC và phạm vi Lean V1 |
-| [CLOUDFLARE_ADMIN_WRITE_CONTRACT.md](./CLOUDFLARE_ADMIN_WRITE_CONTRACT.md) | Hợp đồng bảo mật và toàn vẹn dữ liệu cho các API ghi admin |
-| [CLOUDFLARE_DEPLOYMENT.md](./CLOUDFLARE_DEPLOYMENT.md) | Phụ lục triển khai bắt buộc: Cloudflare Workers/OpenNext là production target |
+| [CLOUDFLARE_NATIVE_V1_PLAN.md](./CLOUDFLARE_NATIVE_V1_PLAN.md) | Nguồn quyết định hiện hành về runtime Cloudflare-native, admin control plane, RBAC và phạm vi Lean V1 |
+| [CLOUDFLARE_ADMIN_WRITE_CONTRACT.md](./CLOUDFLARE_ADMIN_WRITE_CONTRACT.md) | Hợp đồng guard, validation, optimistic concurrency, error mapping và audit cho API admin |
+| [CLOUDFLARE_DEPLOYMENT.md](./CLOUDFLARE_DEPLOYMENT.md) | Phụ lục triển khai bắt buộc: khóa Cloudflare Workers/OpenNext là production target; khi nội dung deployment cũ mâu thuẫn, phụ lục này thắng cho tới khi master plan được đồng bộ toàn văn |
 | [UI_CURRENT_MAP.md](./UI_CURRENT_MAP.md) | Bản đồ route và giao diện đang có |
 | [GOOGLE_SHEETS_CONTACT_WEBHOOK.md](./GOOGLE_SHEETS_CONTACT_WEBHOOK.md) | Hướng dẫn vận hành webhook và Google Sheet |
 | [PRODUCTION_ACCEPTANCE_CHECKLIST.md](./PRODUCTION_ACCEPTANCE_CHECKLIST.md) | Checklist cổng production acceptance: staging, admin CRUD, Google Sheet live, dữ liệu thật, rollback/promotion |
@@ -15,7 +15,7 @@
 
 ## Tài liệu tham khảo lịch sử
 
-- [COMMERCE_PLATFORM_MASTER_PLAN.md](./COMMERCE_PLATFORM_MASTER_PLAN.md): master plan thời kỳ Bagisto; chỉ dùng để truy nguyên quyết định/migration cũ, không dùng làm nguồn kiến trúc hiện tại.
+- [COMMERCE_PLATFORM_MASTER_PLAN.md](./COMMERCE_PLATFORM_MASTER_PLAN.md): hồ sơ Bagisto-era đã được thay thế; chỉ dùng để truy nguyên lịch sử.
 - [ORIGINAL_GIACONG_VN_MAP.md](./ORIGINAL_GIACONG_VN_MAP.md): cấu trúc website gốc trước khi dựng lại.
 - `research/`: số đo, hành vi và đặc tả dùng trong giai đoạn clone; không phải roadmap.
 - `design-references/`: ảnh chụp website gốc và mockup kiểm chứng còn được tham chiếu.

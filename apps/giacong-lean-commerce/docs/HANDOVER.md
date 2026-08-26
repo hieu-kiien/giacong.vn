@@ -22,7 +22,10 @@ Tài liệu dành cho người vận hành (khách + chủ dự án). Quyết đ
 3. Sản phẩm: tạo draft → điền SKU/MOQ/bước số lượng/ngưỡng liên hệ/giá tier → publish. Ràng buộc bất biến (MOQ > 0, tier đúng bậc từ MOQ theo bước, ngưỡng liên hệ nằm trên số lượng hợp lệ) được server kiểm tra — vi phạm sẽ bị từ chối.
 4. Ảnh: upload qua panel media (≤ 10MB, jpg/png/webp/avif) → "Dùng làm ảnh chính". Xóa ảnh đang là ảnh chính sẽ bị chặn 409 — chọn ảnh chính khác trước.
 5. CMS (logo/hero/hotline): tab Nội dung → lưu draft → Publish riêng biệt; có chống ghi đè (stale-write).
-6. Mọi thay đổi ghi quan trọng đều vào `admin_audit_log` trong D1.
+6. Thiết kế page: `/admin/thiet-ke` cho phép chỉnh các section schema an toàn, xem preview draft rồi Publish; không nhập HTML/CSS/JavaScript tùy ý.
+7. Điều hướng: `/admin/dieu-huong` chỉnh nhãn, href, thứ tự, ẩn/hiện primary menu desktop/mobile; chỉ bản Publish mới ra storefront.
+8. Thành viên & quyền: `/admin/thanh-vien` chỉ owner được thêm/sửa role và active state. `accessSubject` phải khớp identity Cloudflare Access; không dùng shared administrator account.
+9. Mọi thay đổi ghi quan trọng đều vào `audit_logs` trong D1.
 
 ## 3. Vận hành Google Sheet (request intake)
 
@@ -61,4 +64,4 @@ npx wrangler queues info giacong-vn-leads-dlq      # hàng đợi lead thất b�
 
 - Lỗi 502/504 lặp lại trên `/api/contact` (kiểm tra Web App còn "Bất kỳ ai" và Sheet còn quota).
 - Cần thêm trường mới trên form/Sheet (thay đổi contract — phải cập nhật cả Worker lẫn Apps Script + test).
-- Thêm admin viên: cấu hình Cloudflare Access policy + bản ghi `admin_members` trong D1.
+- Thêm admin viên: apply migration `0009_admin_control_plane.sql`, cấu hình Cloudflare Access policy, sau đó dùng `/admin/thanh-vien` để tạo bản ghi `admin_members`. Không ghi trực tiếp production khi chưa có backup/acceptance.

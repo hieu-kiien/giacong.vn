@@ -1,14 +1,11 @@
 import { adminFailure, adminSuccess } from "@/lib/admin-api.ts";
 import { adminErrorFrom } from "@/lib/admin-error-mapping.ts";
 import { requireAdmin } from "@/lib/admin-guard";
+import { canManageNews } from "@/lib/admin-permissions.ts";
 import { parseAdminNewsPayload } from "@/lib/admin-news-input";
 import { createAdminNewsPost, listAdminNewsPosts } from "@/lib/admin-data";
 
 export const dynamic = "force-dynamic";
-
-function canManageNews(role: string): boolean {
-  return role === "owner" || role === "content_manager";
-}
 
 export async function GET(request: Request): Promise<Response> {
   const guard = await requireAdmin(request);

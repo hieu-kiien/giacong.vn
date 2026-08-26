@@ -1,11 +1,12 @@
 "use client";
 
-import { ClipboardList, LayoutDashboard, Menu, Newspaper, Package, PenLine, Settings2, X } from "lucide-react";
+import { ClipboardList, LayoutDashboard, LayoutTemplate, Menu, Newspaper, Package, PanelTop, PenLine, Settings2, UsersRound, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { AdminClientError, fetchAdmin, getInitials, type AdminSession } from "@/lib/admin-client";
 import { AdminToastProvider } from "@/components/admin/AdminToast";
+import { canManage, type AdminCapability } from "@/lib/admin-permissions";
 
 interface AdminShellProps { children: ReactNode; }
 interface SessionContextValue { session: AdminSession | null; }
@@ -19,13 +20,21 @@ export function useAdminSession(): AdminSession {
   return value ?? { authenticated: false, subject: "", role: "viewer" };
 }
 
-const navItems = [
-  { href: "/admin", label: "Tổng quan", icon: LayoutDashboard },
-  { href: "/admin/san-pham", label: "Sản phẩm", icon: Package },
-  { href: "/admin/dich-vu", label: "Dịch vụ gia công", icon: Settings2 },
-  { href: "/admin/tin-tuc", label: "Tin tức", icon: Newspaper },
-  { href: "/admin/yeu-cau", label: "Yêu cầu báo giá", icon: ClipboardList },
-  { href: "/admin/noi-dung", label: "Nội dung & thương hiệu", icon: PenLine },
+const navItems: ReadonlyArray<{
+  href: string;
+  label: string;
+  icon: typeof LayoutDashboard;
+  readCapability: AdminCapability;
+}> = [
+  { href: "/admin", label: "Tổng quan", icon: LayoutDashboard, readCapability: "dashboard.read" },
+  { href: "/admin/san-pham", label: "Sản phẩm", icon: Package, readCapability: "catalog.read" },
+  { href: "/admin/dich-vu", label: "Dịch vụ gia công", icon: Settings2, readCapability: "services.read" },
+  { href: "/admin/tin-tuc", label: "Tin tức", icon: Newspaper, readCapability: "news.read" },
+  { href: "/admin/yeu-cau", label: "Yêu cầu báo giá", icon: ClipboardList, readCapability: "leads.read" },
+  { href: "/admin/noi-dung", label: "Nội dung & thương hiệu", icon: PenLine, readCapability: "content.read" },
+  { href: "/admin/thiet-ke", label: "Thiết kế page", icon: LayoutTemplate, readCapability: "pages.read" },
+  { href: "/admin/dieu-huong", label: "Điều hướng", icon: PanelTop, readCapability: "navigation.read" },
+  { href: "/admin/thanh-vien", label: "Thành viên & quyền", icon: UsersRound, readCapability: "members.read" },
 ];
 
 export function AdminShell({ children }: AdminShellProps) {
@@ -68,6 +77,9 @@ export function AdminShell({ children }: AdminShellProps) {
     return <AdminAccessScreen status={status === "blocked" ? "blocked" : "unavailable"} error={error} onRetry={() => setAttempt((value) => value + 1)} />;
   }
 
+  const visibleNavItems = navItems.filter((item) => canManage(session.role, item.readCapability));
+  const currentNavItem = navItems.find((item) => item.href === pathname);
+
   return (
     <SessionContext.Provider value={{ session }}>
       <AdminToastProvider>
@@ -80,7 +92,7 @@ export function AdminShell({ children }: AdminShellProps) {
             </Link>
             <p className="admin-nav-label">Vận hành</p>
             <nav className="admin-nav">
-              {navItems.map(({ href, icon: Icon, label }) => (
+              {visibleNavItems.map(({ href, icon: Icon, label }) => (
                 <Link
                   aria-current={pathname === href ? "page" : undefined}
                   className="admin-nav-link"
@@ -112,7 +124,7 @@ export function AdminShell({ children }: AdminShellProps) {
                 >
                   {mobileOpen ? <X aria-hidden="true" /> : <Menu aria-hidden="true" />}
                 </button>
-                <span>Giacong.vn / <strong>{navItems.find((item) => item.href === pathname)?.label ?? "Admin"}</strong></span>
+                <span>Giacong.vn / <strong>{currentNavItem?.label ?? "Admin"}</strong></span>
               </div>
               <div className="admin-topbar-meta">
                 <span className="admin-live-dot">Kết nối trực tiếp</span>
