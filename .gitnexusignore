@@ -1,9 +1,7 @@
-# Historical/reference workspace material is not part of the Cloudflare-native runtime.
+# Design handoff material is not part of the Cloudflare-native runtime.
 # Keep the code-intelligence graph focused on the active implementation so impact
-# analysis is faster and does not mix legacy replicas with production-bound code.
-reference/
+# analysis is faster and does not mix reference material with production-bound code.
 design/
-tools/
 /src/
 
 # Generated reports/artifacts do not participate in runtime call graphs.
