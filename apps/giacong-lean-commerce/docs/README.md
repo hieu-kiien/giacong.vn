@@ -10,6 +10,7 @@
 | [GOOGLE_SHEETS_CONTACT_WEBHOOK.md](./GOOGLE_SHEETS_CONTACT_WEBHOOK.md) | Hướng dẫn vận hành webhook và Google Sheet |
 | [PRODUCTION_ACCEPTANCE_CHECKLIST.md](./PRODUCTION_ACCEPTANCE_CHECKLIST.md) | Checklist cổng production acceptance: staging, admin CRUD, Google Sheet live, dữ liệu thật, rollback/promotion |
 | [google-apps-script-contact-webhook.gs](./google-apps-script-contact-webhook.gs) | Mã Apps Script được kiểm thử; chỉnh cùng hướng dẫn webhook |
+| [HANDOVER.md](./HANDOVER.md) | Tài liệu bàn giao vận hành: bản đồ hệ thống, admin, Google Sheet, triển khai/rollback, giám sát |
 
 ## Tài liệu tham khảo lịch sử
 
