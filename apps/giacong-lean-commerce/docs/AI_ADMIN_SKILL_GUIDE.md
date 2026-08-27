@@ -7,6 +7,25 @@ Skill này dành riêng cho việc xây dựng, đánh giá và kiểm duyệt a
 Skill repo-scoped: `.agents/skills/giacong-admin/SKILL.md`
 Phạm vi ứng dụng: `apps/giacong-lean-commerce/`
 
+## Ma trận skill hiện hành
+
+`giacong-admin` là skill điều phối duy nhất được lưu trong repo. Các skill còn lại là skill global/user hoặc skill cục bộ dùng chung; không sao chép chúng vào repo vì sẽ tạo bản trùng và làm Codex phải chọn giữa hai bản.
+
+| Nhu cầu | Skill | Trạng thái với dự án |
+| --- | --- | --- |
+| Điều phối admin và giữ Lean V1 | `giacong-admin` | Repo-scoped, bắt buộc cho admin |
+| Xây component/UI | `frontend-ui-engineering`, `ui-styling` | Giữ; dùng primitive đã có trong repo |
+| Token, spacing, typography, states | `design-system` | Giữ phần web UI; không dùng phần slide |
+| UX, navigation, bảng, responsive, motion | `ui-ux-pro-max` | Giữ sau khi chuyển hướng sang Next.js/web |
+| Hiểu kiến trúc và blast radius | `gitnexus-exploring`, `gitnexus-impact-analysis` | Giữ; bắt buộc trước sửa symbol |
+| Kiểm duyệt chất lượng | `code-review-and-quality` | Giữ trước merge |
+| QA browser/DOM/screenshot | `browser-testing-with-devtools` | Có điều kiện; cần Chrome DevTools MCP |
+| Chia lát thay đổi | `incremental-implementation` | Giữ cho thay đổi nhiều file |
+| Đối chiếu API/framework | `source-driven-development` | Giữ khi quyết định phụ thuộc version |
+| Cổng bằng chứng cuối | `verification-before-completion` | Giữ trước commit/kết luận |
+
+Skill `brand` vẫn là tiện ích tùy chọn cho công việc nhận diện thương hiệu storefront; không tự kích hoạt khi chỉ làm admin. Các skill thiết kế banner/slide độc lập đã được đưa ra khỏi bộ dự án.
+
 ## Khi nào dùng
 
 Kích hoạt khi yêu cầu liên quan đến:
@@ -16,7 +35,7 @@ Kích hoạt khi yêu cầu liên quan đến:
 - review UI/UX, accessibility, responsive, loading/error/empty state hoặc kiểm duyệt thay đổi admin;
 - kiểm tra admin có còn lẫn Bagisto, route cũ hoặc hợp đồng ghi dữ liệu sai hay không.
 
-Không tự mở rộng sang quản lý thành viên/khách hàng, checkout, đơn hàng, thanh toán, page builder hoặc marketplace nếu người dùng chưa yêu cầu và tài liệu quyết định chưa cho phép.
+Không tự mở rộng sang tài khoản khách hàng, checkout, đơn hàng, thanh toán hoặc marketplace. Quản lý thành viên ở đây chỉ là thành viên nội bộ của admin theo quyết định Lean V1 và phải giữ owner/auth contract. Page builder tự do HTML/CSS/JS không được thêm; chỉ dùng schema section an toàn đã được quyết định.
 
 ## Cách gọi
 
