@@ -14,15 +14,16 @@ Storefront B2B cho dịch vụ gia công và catalog sản phẩm. Khách có th
 
 ## Chạy và kiểm tra
 
-Từ workspace root:
+Từ thư mục `apps/giacong-lean-commerce/`:
 
 ```bash
-pnpm --filter @workspace/web run dev
-pnpm --filter @workspace/web run check
-pnpm --filter @workspace/web run cf:build
-pnpm --filter @workspace/web run qa:captured
-pnpm --filter @workspace/web run qa:catalog
-pnpm --filter @workspace/web run qa:services
+npm ci
+npm run dev
+npm run check
+npm run cf:build
+npm run qa:captured
+npm run qa:catalog
+npm run qa:services
 ```
 
 Local storefront chạy qua workflow `artifacts/web: web`. Local admin có thể bị Access guard chặn; dùng staging host để kiểm tra CMS public demo.
@@ -30,9 +31,9 @@ Local storefront chạy qua workflow `artifacts/web: web`. Local admin có thể
 ## D1 migrations
 
 ```bash
-pnpm --filter @workspace/web run db:local:bootstrap
-pnpm --filter @workspace/web exec wrangler d1 migrations apply giacong-vn-catalog --local
-pnpm --filter @workspace/web exec wrangler d1 migrations apply giacong-vn-catalog-staging --remote --env staging
+npm run db:local:bootstrap
+npx wrangler@4.115.0 d1 migrations apply giacong-vn-catalog --local
+npx wrangler@4.115.0 d1 migrations apply giacong-vn-catalog-staging --remote --env staging
 ```
 
 Local bootstrap chỉ tạo baseline schema catalog trống; không chứa dữ liệu production.
@@ -60,3 +61,8 @@ CMS dùng typed settings, draft/published tách biệt, optimistic versioning, a
 Migration `0009_admin_control_plane.sql` phải được apply vào môi trường trước khi dùng ba màn hình mới. Page builder không chạy HTML/CSS/JavaScript tùy ý; thay đổi schema hoặc logic mới vẫn cần code review.
 
 Không đưa `.env`, `.env.local`, `.dev.vars` hoặc secret Cloudflare/Google lên GitHub. Kiến trúc vận hành chi tiết nằm trong thư mục `docs/`.
+
+Lộ trình admin visual và bản đồ file cần đọc trước khi bắt đầu thay đổi admin:
+
+- [`docs/ADMIN_VISUAL_ROADMAP.md`](docs/ADMIN_VISUAL_ROADMAP.md)
+- [`docs/ADMIN_VISUAL_FILE_MAP.md`](docs/ADMIN_VISUAL_FILE_MAP.md)

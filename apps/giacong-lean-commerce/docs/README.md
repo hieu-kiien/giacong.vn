@@ -11,6 +11,9 @@
 | [GOOGLE_SHEETS_CONTACT_WEBHOOK.md](./GOOGLE_SHEETS_CONTACT_WEBHOOK.md) | Hướng dẫn vận hành webhook và Google Sheet |
 | [PRODUCTION_ACCEPTANCE_CHECKLIST.md](./PRODUCTION_ACCEPTANCE_CHECKLIST.md) | Checklist cổng production acceptance: staging, admin CRUD, Google Sheet live, dữ liệu thật, rollback/promotion |
 | [AI_ADMIN_SKILL_GUIDE.md](./AI_ADMIN_SKILL_GUIDE.md) | Hợp đồng sử dụng skill repo-scoped `giacong-admin` để xây dựng và kiểm duyệt admin |
+| [ADMIN_VISUAL_ROADMAP.md](./ADMIN_VISUAL_ROADMAP.md) | Lộ trình triển khai admin storefront-first từ nền tảng, MVP nhỏ đến bản đầy đủ; gồm gate, test và Definition of Done |
+| [ADMIN_VISUAL_FILE_MAP.md](./ADMIN_VISUAL_FILE_MAP.md) | Bản đồ file, route, data source, quyền, test ownership và vùng editable của admin visual |
+| [SUBAGENT_TEAM_OPERATING_MODEL.md](./SUBAGENT_TEAM_OPERATING_MODEL.md) | Mô hình Control Tower, các team subagent, ownership, handoff, parallelism policy và quality gates để thực thi roadmap |
 | [google-apps-script-contact-webhook.gs](./google-apps-script-contact-webhook.gs) | Mã Apps Script được kiểm thử; chỉnh cùng hướng dẫn webhook |
 | [HANDOVER.md](./HANDOVER.md) | Tài liệu bàn giao vận hành: bản đồ hệ thống, admin, Google Sheet, triển khai/rollback, giám sát |
 

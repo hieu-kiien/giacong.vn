@@ -6,6 +6,8 @@ Workspace này tách các nguồn theo vai trò để tránh nhầm lẫn giữa
 
 - Ứng dụng đang phát triển: [`apps/giacong-lean-commerce`](apps/giacong-lean-commerce/)
 - Phạm vi và quyết định hiện hành: [`apps/giacong-lean-commerce/docs/CLOUDFLARE_NATIVE_V1_PLAN.md`](apps/giacong-lean-commerce/docs/CLOUDFLARE_NATIVE_V1_PLAN.md)
+- Lộ trình admin visual: [`apps/giacong-lean-commerce/docs/ADMIN_VISUAL_ROADMAP.md`](apps/giacong-lean-commerce/docs/ADMIN_VISUAL_ROADMAP.md)
+- Bản đồ file và ownership: [`apps/giacong-lean-commerce/docs/ADMIN_VISUAL_FILE_MAP.md`](apps/giacong-lean-commerce/docs/ADMIN_VISUAL_FILE_MAP.md)
 
 ## Cấu trúc
 
@@ -20,3 +22,4 @@ Workspace này tách các nguồn theo vai trò để tránh nhầm lẫn giữa
 - Không phát triển tính năng mới trong `design/` nếu mục tiêu là storefront Lean V1.
 - Không xem dữ liệu crawl, ảnh tham chiếu hoặc gói handoff là nội dung production đã xác nhận.
 - Các thư mục `node_modules`, `.next`, báo cáo test và cache là dữ liệu có thể tái tạo; không cần sao chép giữa các repo.
+- Workspace root không phải npm workspace; chạy lệnh ứng dụng từ `apps/giacong-lean-commerce/` bằng `npm` theo [SETUP.md](apps/giacong-lean-commerce/SETUP.md).
