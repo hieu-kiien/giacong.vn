@@ -1,0 +1,4 @@
+interface:
+  display_name: "Giacong Admin Quality"
+  short_description: "Build and review the Giacong admin safely"
+  default_prompt: "Use $giacong-admin to review or improve the Giacong.vn admin."

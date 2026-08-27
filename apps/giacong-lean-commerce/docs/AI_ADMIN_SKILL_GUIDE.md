@@ -4,7 +4,7 @@
 
 Skill này dành riêng cho việc xây dựng, đánh giá và kiểm duyệt admin của Giacong.vn. Nó giúp AI làm việc trên admin hiện có theo đúng Lean V1, thay vì tự tạo một hệ thống quản trị song song hoặc kéo Bagisto quay lại runtime.
 
-Skill local: `.codex/skills/giacong-admin/SKILL.md`
+Skill repo-scoped: `.agents/skills/giacong-admin/SKILL.md`
 Phạm vi ứng dụng: `apps/giacong-lean-commerce/`
 
 ## Khi nào dùng
