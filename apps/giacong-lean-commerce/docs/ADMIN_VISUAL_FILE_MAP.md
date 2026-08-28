@@ -214,6 +214,7 @@ khối lượng mà contextual UI làm khó hiểu.
 | scripts/admin-members.test.mts | internal role/member guard |
 | scripts/admin-categories.test.mts | category admin contract |
 | scripts/admin-service-input.test.mts | service input safety |
+| scripts/admin-visual-mode.test.mjs | P1 admin storefront context and public isolation |
 | scripts/storefront-visual-contract.test.mjs | public visual/source boundaries |
 | scripts/captured-route-runtime.test.mjs | captured asset/runtime path |
 | scripts/development-port.test.mjs | reserved-port and local runner rules |

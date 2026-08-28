@@ -76,6 +76,138 @@
   --color-focus: #2e90fa;
 }
 
+@layer components {
+  .admin-visual-mode-banner {
+    align-items: center;
+    background: var(--color-brand-800, #285f00);
+    border: 1px solid rgb(201 227 151 / 50%);
+    border-radius: 12px;
+    box-shadow: 0 12px 30px rgb(25 62 0 / 22%);
+    color: #f7fff1;
+    display: flex;
+    gap: 14px;
+    justify-content: space-between;
+    left: auto;
+    max-width: min(calc(100vw - 32px), 440px);
+    padding: 10px 12px 10px 14px;
+    position: fixed;
+    right: 16px;
+    top: 16px;
+    z-index: 2147483000;
+  }
+
+  .admin-visual-mode-banner--blocked,
+  .admin-visual-mode-banner--unavailable {
+    background: #4a3520;
+    border-color: rgb(255 220 157 / 60%);
+  }
+
+  .admin-visual-mode-copy {
+    align-items: flex-start;
+    display: flex;
+    gap: 9px;
+    min-width: 0;
+  }
+
+  .admin-visual-mode-copy > svg {
+    color: #d6edaa;
+    flex: 0 0 auto;
+    margin-top: 1px;
+  }
+
+  .admin-visual-mode-banner--blocked .admin-visual-mode-copy > svg,
+  .admin-visual-mode-banner--unavailable .admin-visual-mode-copy > svg {
+    color: #ffdc9d;
+  }
+
+  .admin-visual-mode-copy span {
+    display: block;
+    min-width: 0;
+  }
+
+  .admin-visual-mode-copy strong {
+    display: block;
+    font-size: 13px;
+    font-weight: 750;
+    line-height: 1.3;
+  }
+
+  .admin-visual-mode-copy small {
+    color: rgb(247 255 241 / 78%);
+    display: block;
+    font-size: 11px;
+    line-height: 1.45;
+    margin-top: 2px;
+  }
+
+  .admin-visual-mode-link,
+  .admin-visual-mode-retry {
+    align-items: center;
+    border: 1px solid rgb(214 237 170 / 60%);
+    border-radius: 999px;
+    color: #f7fff1;
+    display: inline-flex;
+    flex: 0 0 auto;
+    font-size: 11px;
+    font-weight: 700;
+    gap: 6px;
+    min-height: 36px;
+    padding: 7px 10px;
+    text-decoration: none;
+    white-space: nowrap;
+  }
+
+  .admin-visual-mode-link:hover,
+  .admin-visual-mode-retry:hover {
+    background: rgb(255 255 255 / 12%);
+  }
+
+  .admin-visual-mode-retry {
+    background: transparent;
+    cursor: pointer;
+    font-family: inherit;
+  }
+
+  .admin-visual-mode-pending {
+    color: rgb(247 255 241 / 70%);
+    flex: 0 0 auto;
+    font-size: 11px;
+    white-space: nowrap;
+  }
+
+  .admin-visual-mode-link:focus-visible,
+  .admin-visual-mode-retry:focus-visible {
+    outline: 3px solid #c9e397;
+    outline-offset: 2px;
+  }
+
+  .admin-visual-mode-spinner { animation: admin-visual-mode-spin 1s linear infinite; }
+
+  @keyframes admin-visual-mode-spin {
+    to { transform: rotate(360deg); }
+  }
+
+  @media (max-width: 640px) {
+    .admin-visual-mode-banner {
+      align-items: flex-start;
+      flex-wrap: wrap;
+      gap: 8px 12px;
+      left: 10px;
+      max-width: none;
+      right: 10px;
+      top: 10px;
+    }
+
+    .admin-visual-mode-copy { flex: 1 1 220px; }
+    .admin-visual-mode-link,
+    .admin-visual-mode-retry { margin-left: auto; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .admin-visual-mode-spinner { animation: none; }
+  }
+}
+
 /* Source-aligned visual enhancements sit outside the captured layer so they
  * can intentionally win over the legacy page stylesheet on these four routes. */
   @keyframes giacong-gallery-in {
