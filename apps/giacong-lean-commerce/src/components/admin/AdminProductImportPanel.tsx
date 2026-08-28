@@ -1,7 +1,7 @@
 "use client";
 
 import { FileSpreadsheet, Upload } from "lucide-react";
-import { useState, type ChangeEvent } from "react";
+import { useRef, useState, type ChangeEvent } from "react";
 import { AdminClientError } from "@/lib/admin-client";
 import {
   MAX_ADMIN_PRODUCT_IMPORT_BYTES,
@@ -35,6 +35,7 @@ export function AdminProductImportPanel({ categories, onImported, role }: AdminP
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   async function handleFile(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -78,9 +79,10 @@ export function AdminProductImportPanel({ categories, onImported, role }: AdminP
         throw new AdminClientError(body.message ?? "Không thể nhập sản phẩm.", response.status, body.code);
       }
       const result = body.data;
-      setMessage(result.replayed
-        ? `Đây là lần gửi lại an toàn. Catalog đã có ${result.createdCount} sản phẩm từ lần nhập trước.`
-        : `Đã nhập ${result.createdCount} sản phẩm ở trạng thái bản nháp và tạm ẩn.`);
+      const replayLabel = result.replayed ? "Đây là lần gửi lại an toàn. " : "";
+      setMessage(result.createdCount < validRows.length
+        ? `${replayLabel}Kết quả nhập một phần: đã tạo ${result.createdCount}/${validRows.length} sản phẩm; ${validRows.length - result.createdCount} dòng chưa được tạo.`
+        : `${replayLabel}Đã nhập ${result.createdCount} sản phẩm ở trạng thái bản nháp và tạm ẩn.`);
       onImported();
     } catch (reason: unknown) {
       setError(reason instanceof AdminClientError ? `${reason.code ? `${reason.code} · ` : ""}${reason.message}` : "Không thể kết nối tới máy chủ admin.");
@@ -105,7 +107,8 @@ export function AdminProductImportPanel({ categories, onImported, role }: AdminP
         <p>Dòng bắt buộc: <code>name</code>, <code>slug</code>, <code>sku</code>. Các cột khác có thể để trống; danh mục dùng slug, tối đa 50 dòng.</p>
         <code className="admin-import-sample">{sampleCsv}</code>
       </div>
-      <label className="admin-button admin-button-quiet admin-import-file-label" htmlFor="product-import-file"><Upload aria-hidden="true" size={15} /> Chọn file CSV<input accept=".csv,text/csv" disabled={!canImport || loading} hidden id="product-import-file" onChange={(event) => void handleFile(event)} type="file" /></label>
+      <button className="admin-button admin-button-quiet admin-import-file-label" disabled={!canImport || loading} onClick={() => inputRef.current?.click()} type="button"><Upload aria-hidden="true" size={15} /> Chọn file CSV</button>
+      <input ref={inputRef} accept=".csv,text/csv" disabled={!canImport || loading} hidden id="product-import-file" onChange={(event) => void handleFile(event)} type="file" />
       {fileName ? <p className="admin-field-hint">Đã chọn: {fileName} · {rows.length} dòng dữ liệu · {validRows.length} dòng hợp lệ</p> : null}
       {errors.length > 0 ? <div className="admin-import-errors" role="alert"><strong>{errors.length} cảnh báo cần xem lại</strong><ul>{errors.slice(0, 12).map((item, index) => <li key={`${item.row}-${item.field}-${index}`}>{item.row > 0 ? `Dòng ${item.row}: ` : "File: "}{item.message}</li>)}</ul>{errors.length > 12 ? <p>Còn {errors.length - 12} cảnh báo khác.</p> : null}</div> : null}
       {message ? <p className="admin-import-success" role="status">{message}</p> : null}
