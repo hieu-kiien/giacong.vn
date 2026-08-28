@@ -467,6 +467,7 @@ test("the runtime dependency baseline stays explicit and no forbidden route appe
       "next",
       "react",
       "react-dom",
+      "server-only",
       "shadcn",
       "tailwind-merge",
       "tw-animate-css",

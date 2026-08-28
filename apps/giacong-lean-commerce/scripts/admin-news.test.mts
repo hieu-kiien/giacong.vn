@@ -7,7 +7,6 @@ const valid = {
   content: "Đoạn đầu.\n\nĐoạn sau.",
   coverImageUrl: "https://media.example.test/news/cover.jpg",
   excerpt: "Tóm tắt ngắn cho danh sách tin.",
-  isPublished: false,
   slug: "ra-mat-dong-bot-moi",
   title: "Ra mắt dòng bột mới",
 };
@@ -29,10 +28,10 @@ test("rejects missing title/slug and unsafe cover URLs per field", () => {
 });
 
 test("published posts require non-empty excerpt for the listing surface", () => {
-  const ok = parseAdminNewsPayload({ ...valid, isPublished: true });
-  assert.equal(ok.input?.isPublished, true);
+  const draft = parseAdminNewsPayload({ ...valid, excerpt: "   " });
+  assert.equal(draft.input?.excerpt, "");
 
-  const blocked = parseAdminNewsPayload({ ...valid, excerpt: "   ", isPublished: true });
-  assert.equal(blocked.input, null);
-  assert.ok(blocked.fieldErrors?.excerpt);
+  // Publishing validates the persisted draft at the publish boundary rather
+  // than accepting a checkbox that can accidentally overwrite public data.
+  assert.equal("isPublished" in (draft.input ?? {}), false);
 });

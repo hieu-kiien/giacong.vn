@@ -2,8 +2,16 @@ import { adminFailure, adminSuccess } from "@/lib/admin-api.ts";
 import { adminErrorFrom } from "@/lib/admin-error-mapping.ts";
 import { requireAdmin } from "@/lib/admin-guard";
 import { canManageNews } from "@/lib/admin-permissions.ts";
+import { hasOnlyKeys, isAdminRequestId, readBoundedAdminJson } from "@/lib/admin-request";
 import { parseAdminNewsPayload } from "@/lib/admin-news-input";
-import { deleteAdminNewsPost, getAdminNewsPost, updateAdminNewsPost } from "@/lib/admin-data";
+import {
+  AdminNewsConflictError,
+  AdminNewsIdempotencyConflictError,
+  AdminNewsValidationError,
+  deleteAdminNewsPost,
+  getAdminNewsPost,
+  updateAdminNewsPost,
+} from "@/lib/admin-data";
 
 export const dynamic = "force-dynamic";
 
@@ -47,36 +55,40 @@ export async function PATCH(
   const id = await parseId(context);
   if (id === null) return adminFailure(crypto.randomUUID(), 404, "NOT_FOUND", "Không tìm thấy bài viết.");
 
-  let payload: Record<string, unknown> = {};
-  try {
-    const body: unknown = await request.json();
-    payload = typeof body === "object" && body !== null && !Array.isArray(body)
-      ? body as Record<string, unknown>
-      : {};
-  } catch {
-    return adminFailure(crypto.randomUUID(), 400, "INVALID_REQUEST", "Dữ liệu gửi lên không hợp lệ.");
+  const parsedRequest = await readBoundedAdminJson(request);
+  if (!parsedRequest.ok) return adminFailure(parsedRequest.requestId, parsedRequest.status, parsedRequest.code, parsedRequest.message);
+  const body = parsedRequest.body;
+  const requestId = isRecord(body) && typeof body.requestId === "string"
+    ? body.requestId.trim().toLowerCase()
+    : parsedRequest.requestId;
+  if (
+    !isRecord(body)
+    || !isAdminRequestId(body.requestId)
+    || typeof body.revision !== "number"
+    || !Number.isInteger(body.revision)
+    || body.revision < 1
+    || !hasOnlyKeys(body, ["requestId", "revision", "content", "coverImageUrl", "excerpt", "slug", "title"])
+  ) {
+    return adminFailure(requestId, 400, "INVALID_REQUEST", "Cần requestId, revision và các trường bài viết hợp lệ.");
   }
 
-  const expectedRevision = Number(payload.revision);
-  if (!Number.isInteger(expectedRevision) || expectedRevision < 1) {
-    return adminFailure(crypto.randomUUID(), 409, "STALE_WRITE", "Thiếu phiên bản dữ liệu (revision). Hãy tải lại bài viết rồi lưu lại.");
-  }
+  const expectedRevision = body.revision;
 
-  const parsed = parseAdminNewsPayload(payload);
+  const parsed = parseAdminNewsPayload(body);
   if (!parsed.input) {
-    return adminFailure(crypto.randomUUID(), 422, "VALIDATION_ERROR", "Dữ liệu bài viết chưa hợp lệ.", parsed.fieldErrors);
+    return adminFailure(requestId, 422, "VALIDATION_ERROR", "Dữ liệu bài viết chưa hợp lệ.", parsed.fieldErrors);
   }
 
   try {
-    const post = await updateAdminNewsPost(guard.database, id, parsed.input, expectedRevision, guard.actorSubject);
+    const post = await updateAdminNewsPost(guard.database, id, parsed.input, expectedRevision, guard.actorSubject, requestId);
     return post
-      ? adminSuccess(crypto.randomUUID(), { post })
-      : adminFailure(crypto.randomUUID(), 404, "NOT_FOUND", "Không tìm thấy bài viết.");
+      ? adminSuccess(requestId, { post })
+      : adminFailure(requestId, 404, "NOT_FOUND", "Không tìm thấy bài viết.");
   } catch (error) {
-    if (error instanceof Error && /đã thay đổi|stale/i.test(error.message)) {
-      return adminFailure(crypto.randomUUID(), 409, "STALE_WRITE", "Bài viết đã được người khác cập nhật. Hãy tải lại rồi thử lại.");
-    }
-    return adminErrorFrom(crypto.randomUUID(), error, "Không thể cập nhật bài viết.", {
+    if (error instanceof AdminNewsConflictError) return adminFailure(requestId, 409, "STALE_WRITE", error.message);
+    if (error instanceof AdminNewsIdempotencyConflictError) return adminFailure(requestId, 409, "IDEMPOTENCY_CONFLICT", error.message);
+    if (error instanceof AdminNewsValidationError) return adminFailure(requestId, 422, "VALIDATION_ERROR", error.message);
+    return adminErrorFrom(requestId, error, "Không thể cập nhật bài viết.", {
       fieldErrors: { slug: "Slug bài viết đã tồn tại." },
       message: "Slug bài viết đã tồn tại.",
     });
@@ -95,12 +107,36 @@ export async function DELETE(
   const id = await parseId(context);
   if (id === null) return adminFailure(crypto.randomUUID(), 404, "NOT_FOUND", "Không tìm thấy bài viết.");
 
-  try {
-    const deleted = await deleteAdminNewsPost(guard.database, id, guard.actorSubject);
-    return deleted
-      ? adminSuccess(crypto.randomUUID(), { deleted: true })
-      : adminFailure(crypto.randomUUID(), 404, "NOT_FOUND", "Không tìm thấy bài viết.");
-  } catch (error) {
-    return adminErrorFrom(crypto.randomUUID(), error, "Không thể xóa bài viết.");
+  const parsedRequest = await readBoundedAdminJson(request);
+  if (!parsedRequest.ok) return adminFailure(parsedRequest.requestId, parsedRequest.status, parsedRequest.code, parsedRequest.message);
+  const body = parsedRequest.body;
+  const requestId = isRecord(body) && typeof body.requestId === "string"
+    ? body.requestId.trim().toLowerCase()
+    : parsedRequest.requestId;
+  if (
+    !isRecord(body)
+    || !isAdminRequestId(body.requestId)
+    || typeof body.revision !== "number"
+    || !Number.isInteger(body.revision)
+    || body.revision < 1
+    || !hasOnlyKeys(body, ["requestId", "revision"])
+  ) {
+    return adminFailure(requestId, 400, "INVALID_REQUEST", "Cần requestId và revision hợp lệ để xóa bài viết.");
   }
+
+  try {
+    const deleted = await deleteAdminNewsPost(guard.database, id, body.revision, guard.actorSubject, requestId);
+    return deleted
+      ? adminSuccess(requestId, { deleted: true })
+      : adminFailure(requestId, 404, "NOT_FOUND", "Không tìm thấy bài viết.");
+  } catch (error) {
+    if (error instanceof AdminNewsConflictError) return adminFailure(requestId, 409, "STALE_WRITE", error.message);
+    if (error instanceof AdminNewsIdempotencyConflictError) return adminFailure(requestId, 409, "IDEMPOTENCY_CONFLICT", error.message);
+    if (error instanceof AdminNewsValidationError) return adminFailure(requestId, 422, "VALIDATION_ERROR", error.message);
+    return adminErrorFrom(requestId, error, "Không thể xóa bài viết.");
+  }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }

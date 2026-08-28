@@ -1,11 +1,13 @@
-export interface AdminNewsInput {
+export interface AdminNewsDraftInput {
   content: string;
   coverImageUrl: string | null;
   excerpt: string;
-  isPublished: boolean;
   slug: string;
   title: string;
 }
+
+/** Backwards-compatible name for server adapters that accept a draft payload. */
+export type AdminNewsInput = AdminNewsDraftInput;
 
 type FieldErrors = Record<string, string>;
 
@@ -14,8 +16,8 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 /**
- * Editorial payload contract for news posts. Publishing requires a listing
- * excerpt so /tin-tuc never renders an empty card; drafts are free-form.
+ * Editorial payload contract for news drafts. Publication is a separate
+ * mutation so editing a published post never changes the public snapshot.
  */
 export function parseAdminNewsPayload(
   payload: unknown,
@@ -48,20 +50,25 @@ export function parseAdminNewsPayload(
 
   let coverImageUrl: string | null = null;
   const rawCover = typeof source.coverImageUrl === "string" ? source.coverImageUrl.trim() : "";
-  if (rawCover && !/^https?:\/\/.+/i.test(rawCover)) {
-    fieldErrors.coverImageUrl = "Ảnh bìa phải là URL http(s).";
+  if (rawCover && !isSafeImageUrl(rawCover)) {
+    fieldErrors.coverImageUrl = "Ảnh bìa phải là URL http(s) hoặc media nội bộ an toàn.";
   } else if (rawCover) {
     coverImageUrl = rawCover;
-  }
-
-  const isPublished = source.isPublished === true;
-  if (isPublished && !rawExcerpt) {
-    fieldErrors.excerpt = "Bài đăng cần tóm tắt để hiển thị trong danh sách tin.";
   }
 
   if (Object.keys(fieldErrors).length > 0) return { fieldErrors, input: null };
   return {
     fieldErrors,
-    input: { content: rawContent, coverImageUrl, excerpt: rawExcerpt, isPublished, slug, title: rawTitle },
+    input: { content: rawContent, coverImageUrl, excerpt: rawExcerpt, slug, title: rawTitle },
   };
+}
+
+function isSafeImageUrl(value: string): boolean {
+  if (value.startsWith("/media/") && !/[\s<>"']/.test(value)) return true;
+  try {
+    const url = new URL(value);
+    return (url.protocol === "http:" || url.protocol === "https:") && !/[\s<>]/.test(value);
+  } catch {
+    return false;
+  }
 }

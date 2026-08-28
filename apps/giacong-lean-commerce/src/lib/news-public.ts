@@ -49,9 +49,11 @@ export async function getPublishedNews(limit = 30): Promise<PublicNewsListItem[]
   const db = getNewsDatabase();
   if (!db) return [];
   const rows = await db.prepare(`
-    SELECT slug, title, excerpt, cover_image_url, published_at, '' AS content
+    SELECT published_slug AS slug, published_title AS title,
+      published_excerpt AS excerpt, published_cover_image_url AS cover_image_url,
+      published_at, '' AS content
     FROM news_posts
-    WHERE is_published = 1
+    WHERE is_published = 1 AND published_slug IS NOT NULL
     ORDER BY published_at DESC, id DESC
     LIMIT ?
   `).bind(limit).all<PublicNewsRow & { cover_image_url: string | null }>();
@@ -71,9 +73,11 @@ export async function getPublishedNewsPost(slug: string): Promise<PublicNewsPost
   const db = getNewsDatabase();
   if (!db) return null;
   const row = await db.prepare(`
-    SELECT slug, title, excerpt, content, cover_image_url, published_at
+    SELECT published_slug AS slug, published_title AS title,
+      published_excerpt AS excerpt, published_content AS content,
+      published_cover_image_url AS cover_image_url, published_at
     FROM news_posts
-    WHERE slug = ? AND is_published = 1
+    WHERE published_slug = ? AND is_published = 1
     LIMIT 1
   `).bind(clean).first<PublicNewsRow>();
   if (!row) return null;

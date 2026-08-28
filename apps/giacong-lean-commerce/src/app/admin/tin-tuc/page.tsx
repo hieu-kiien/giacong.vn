@@ -1,6 +1,6 @@
 "use client";
 
-import { Newspaper, Pencil, Plus, Trash2 } from "lucide-react";
+import { Eye, EyeOff, Newspaper, Pencil, Plus, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { AdminConfirmDialog } from "@/components/admin/AdminDialog";
 import { AdminField } from "@/components/admin/AdminField";
@@ -27,12 +27,17 @@ interface NewsListResponse {
   pagination?: { currentPage: number; lastPage: number; pageSize: number; total: number };
 }
 
+interface NewsBatchResponse {
+  changedCount: number;
+  selectedCount: number;
+  skipped: Array<{ id: number; reason: string }>;
+}
+
 interface NewsFormState {
   content: string;
   coverImageUrl: string;
   excerpt: string;
   id?: number;
-  isPublished: boolean;
   revision?: number;
   slug: string;
   title: string;
@@ -42,7 +47,6 @@ const emptyForm: NewsFormState = {
   content: "",
   coverImageUrl: "",
   excerpt: "",
-  isPublished: false,
   slug: "",
   title: "",
 };
@@ -65,6 +69,7 @@ export default function AdminNewsPage() {
   const [saving, setSaving] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<AdminNewsListItem | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
 
   useEffect(() => {
     const controller = new AbortController();
@@ -96,22 +101,23 @@ export default function AdminNewsPage() {
     setFieldErrors({});
     setFormError(null);
     try {
+      const body: Record<string, unknown> = {
+        content: editor.content,
+        coverImageUrl: editor.coverImageUrl || null,
+        excerpt: editor.excerpt,
+        requestId: crypto.randomUUID(),
+        slug: editor.slug,
+        title: editor.title,
+      };
+      if (editor.id && editor.revision) body.revision = editor.revision;
       await mutateAdmin(
         editor.id ? `/api/admin/news/${editor.id}` : "/api/admin/news",
         {
-          body: {
-            content: editor.content,
-            coverImageUrl: editor.coverImageUrl || null,
-            excerpt: editor.excerpt,
-            isPublished: editor.isPublished,
-            revision: editor.revision,
-            slug: editor.slug,
-            title: editor.title,
-          },
+          body,
           method: editor.id ? "PATCH" : "POST",
         },
       );
-      showToast("success", editor.isPublished ? "Đã lưu và xuất bản bài viết." : "Đã lưu bài viết (nháp).");
+      showToast("success", "Đã lưu bản nháp. Bài đang hiển thị công khai không đổi cho tới khi bạn bấm Phát hành.");
       setEditor(null);
       setAttempt((value) => value + 1);
     } catch (reason: unknown) {
@@ -130,7 +136,10 @@ export default function AdminNewsPage() {
   async function confirmDelete() {
     if (!pendingDelete) return;
     try {
-      await mutateAdmin(`/api/admin/news/${pendingDelete.id}`, { method: "DELETE" });
+      await mutateAdmin(`/api/admin/news/${pendingDelete.id}`, {
+        body: { requestId: crypto.randomUUID(), revision: pendingDelete.revision },
+        method: "DELETE",
+      });
       showToast("success", `Đã xóa bài “${pendingDelete.title}”.`);
       setPendingDelete(null);
       setAttempt((value) => value + 1);
@@ -138,6 +147,69 @@ export default function AdminNewsPage() {
       setPendingDelete(null);
       showToast("error", reason instanceof AdminClientError ? reason.message : "Không thể xóa bài viết.");
     }
+  }
+
+  async function togglePublication(post: AdminNewsListItem) {
+    try {
+      await mutateAdmin(`/api/admin/news/${post.id}/publish`, {
+        body: { expectedRevision: post.revision, publish: !post.isPublished, requestId: crypto.randomUUID() },
+        method: "POST",
+      });
+      showToast("success", post.isPublished ? "Đã ẩn bài viết khỏi website." : "Đã phát hành bài viết lên website.");
+      setAttempt((value) => value + 1);
+    } catch (reason: unknown) {
+      showToast("error", reason instanceof AdminClientError ? reason.message : "Không thể thay đổi trạng thái bài viết.");
+    }
+  }
+
+  async function runBatch(publish: boolean) {
+    const selectedPosts = posts.filter((post) => selectedIds.has(post.id));
+    if (selectedPosts.length === 0) return;
+    try {
+      const result = await mutateAdmin<NewsBatchResponse>("/api/admin/news/batch", {
+        body: {
+          items: selectedPosts.map((post) => ({ expectedRevision: post.revision, id: post.id })),
+          publish,
+          requestId: crypto.randomUUID(),
+        },
+        method: "POST",
+      });
+      const skipped = result.skipped?.length ?? 0;
+      showToast(
+        skipped > 0 ? "error" : "success",
+        `${publish ? "Đã phát hành" : "Đã ẩn"} ${result.changedCount} / ${result.selectedCount} bài viết.${skipped > 0 ? ` ${skipped} bài chưa xử lý, hãy tải lại để xem lý do.` : ""}`,
+      );
+      setSelectedIds(new Set());
+      setAttempt((value) => value + 1);
+    } catch (reason: unknown) {
+      showToast("error", reason instanceof AdminClientError ? reason.message : "Không thể xử lý hàng loạt bài viết.");
+    }
+  }
+
+  function toggleSelected(id: number) {
+    setSelectedIds((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleAllVisible() {
+    setSelectedIds((current) => {
+      const next = new Set(current);
+      const allSelected = posts.length > 0 && posts.every((post) => next.has(post.id));
+      for (const post of posts) {
+        if (allSelected) next.delete(post.id);
+        else next.add(post.id);
+      }
+      return next;
+    });
+  }
+
+  function changePage(nextPage: number) {
+    setSelectedIds(new Set());
+    setPage(nextPage);
   }
 
   async function openEdit(post: AdminNewsListItem) {
@@ -150,7 +222,6 @@ export default function AdminNewsPage() {
         coverImageUrl: result.post.coverImageUrl ?? "",
         excerpt: result.post.excerpt,
         id: result.post.id,
-        isPublished: result.post.isPublished,
         revision: result.post.revision,
         slug: result.post.slug,
         title: result.post.title,
@@ -208,10 +279,9 @@ export default function AdminNewsPage() {
               </div>
             </div>
             <div className="admin-editor-footer">
-              <label className="admin-check">
-                <input checked={editor.isPublished} data-testid="checkbox-news-published" onChange={(event) => setEditor({ ...editor, isPublished: event.target.checked })} type="checkbox" />
-                <span><strong>Xuất bản bài viết</strong><small>Bài xuất bản hiển thị công khai tại /tin-tuc.</small></span>
-              </label>
+              <span className="admin-item-meta" data-testid="news-draft-hint">
+                Lưu lần này chỉ cập nhật bản nháp. Muốn đưa nội dung lên website, hãy bấm “Phát hành” sau khi kiểm tra.
+              </span>
               <div className="admin-editor-actions">
                 <button className="admin-button admin-button-quiet" data-testid="button-news-cancel" onClick={() => { setEditor(null); setFormError(null); setFieldErrors({}); }} type="button">Hủy</button>
                 <button className="admin-button admin-button-primary" data-testid="button-news-save" disabled={saving} type="submit">{saving ? "Đang lưu..." : "Lưu bài viết"}</button>
@@ -232,20 +302,29 @@ export default function AdminNewsPage() {
         <>
           <div className="admin-toolbar">
             <span className="admin-count"><Newspaper size={13} style={{ verticalAlign: "middle" }} /> {total} bài viết</span>
-            {canManage ? (
-              <button
-                className="admin-button admin-button-primary"
-                data-testid="button-news-create"
-                onClick={() => {
-                  setFieldErrors({});
-                  setFormError(null);
-                  setEditor({ ...emptyForm });
-                }}
-                type="button"
-              >
-                <Plus size={15} /> Viết bài mới
-              </button>
-            ) : null}
+            <div className="admin-content-toolbar-actions">
+              {canManage && selectedIds.size > 0 ? (
+                <>
+                  <span className="admin-item-meta" data-testid="news-selection-count">Đã chọn {selectedIds.size}</span>
+                  <button className="admin-button admin-button-quiet" data-testid="button-news-batch-publish" onClick={() => void runBatch(true)} type="button"><Eye size={13} /> Phát hành đã chọn</button>
+                  <button className="admin-button admin-button-quiet" data-testid="button-news-batch-unpublish" onClick={() => void runBatch(false)} type="button"><EyeOff size={13} /> Ẩn đã chọn</button>
+                </>
+              ) : null}
+              {canManage ? (
+                <button
+                  className="admin-button admin-button-primary"
+                  data-testid="button-news-create"
+                  onClick={() => {
+                    setFieldErrors({});
+                    setFormError(null);
+                    setEditor({ ...emptyForm });
+                  }}
+                  type="button"
+                >
+                  <Plus size={15} /> Viết bài mới
+                </button>
+              ) : null}
+            </div>
           </div>
           {error ? <AdminErrorState error={error} onRetry={() => setAttempt((value) => value + 1)} /> : loading ? <AdminLoadingTable /> : (
             <section className="admin-panel admin-table-panel" aria-labelledby="news-table-heading">
@@ -254,10 +333,11 @@ export default function AdminNewsPage() {
                 <>
                   <div className="admin-table-scroll">
                     <table className="admin-table">
-                      <thead><tr><th scope="col">Bài viết</th><th scope="col">Trạng thái</th><th scope="col">Xuất bản</th><th scope="col">Cập nhật</th>{canManage ? <th scope="col">Thao tác</th> : null}</tr></thead>
+                      <thead><tr>{canManage ? <th scope="col"><input aria-label="Chọn tất cả bài viết trong trang" checked={posts.length > 0 && posts.every((post) => selectedIds.has(post.id))} onChange={toggleAllVisible} type="checkbox" /></th> : null}<th scope="col">Bài viết</th><th scope="col">Trạng thái</th><th scope="col">Xuất bản</th><th scope="col">Cập nhật</th>{canManage ? <th scope="col">Thao tác</th> : null}</tr></thead>
                       <tbody>
                         {posts.map((post) => (
                           <tr data-testid={`row-news-${post.id}`} key={post.id}>
+                            {canManage ? <td><input aria-label={`Chọn bài ${post.title}`} checked={selectedIds.has(post.id)} onChange={() => toggleSelected(post.id)} type="checkbox" /></td> : null}
                             <td>
                               <div className="admin-item-name">{post.title}</div>
                               <div className="admin-item-meta">{post.slug}</div>
@@ -275,7 +355,10 @@ export default function AdminNewsPage() {
                                     onClick={() => void openEdit(post)}
                                     type="button"
                                   >
-                                    <Pencil size={13} /> Sửa
+                                    <Pencil size={13} /> Sửa nháp
+                                  </button>
+                                  <button className="admin-button admin-button-quiet" data-testid={`button-news-publish-${post.id}`} onClick={() => void togglePublication(post)} type="button">
+                                    {post.isPublished ? <EyeOff size={13} /> : <Eye size={13} />} {post.isPublished ? "Ẩn khỏi web" : "Phát hành"}
                                   </button>
                                   <button className="admin-button admin-button-danger" data-testid={`button-news-delete-${post.id}`} onClick={() => setPendingDelete(post)} type="button"><Trash2 size={13} /> Xóa</button>
                                 </div>
@@ -286,7 +369,7 @@ export default function AdminNewsPage() {
                       </tbody>
                     </table>
                   </div>
-                  <AdminPagination lastPage={lastPage} onPage={setPage} page={page} pageSize={20} total={total} />
+                  <AdminPagination lastPage={lastPage} onPage={changePage} page={page} pageSize={20} total={total} />
                 </>
               )}
             </section>

@@ -3,7 +3,7 @@ import "server-only";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 
 import type { AdminCategoryInput } from "./admin-category-input";
-import type { AdminNewsInput } from "./admin-news-input";
+import type { AdminNewsDraftInput } from "./admin-news-input";
 
 export type AdminRole = "owner" | "content_manager" | "catalog_manager" | "sales_manager" | "viewer";
 export type AdminPublishStatus = "draft" | "review" | "published" | "archived";
@@ -1397,19 +1397,25 @@ export async function deleteAdminCategory(
 }
 
 // ---------------------------------------------------------------------------
-// News posts CRUD (contract locked 2026-08-24; storefront reads published only)
+// News posts CRUD (draft/published contract locked 2026-08-28; storefront
+// reads only the published snapshot).
 // ---------------------------------------------------------------------------
 
-export interface AdminNewsPost {
+export interface AdminNewsSnapshot {
   content: string;
   coverImageUrl: string | null;
   excerpt: string;
-  id: number;
-  isPublished: boolean;
-  publishedAt: string | null;
-  revision: number;
   slug: string;
   title: string;
+}
+
+export interface AdminNewsPost extends AdminNewsSnapshot {
+  draft: AdminNewsSnapshot;
+  id: number;
+  isPublished: boolean;
+  published: AdminNewsSnapshot | null;
+  publishedAt: string | null;
+  revision: number;
   updatedAt: string;
 }
 
@@ -1427,10 +1433,20 @@ export interface AdminNewsListItem {
 interface NewsRow {
   content: string;
   cover_image_url: string | null;
+  draft_content: string;
+  draft_cover_image_url: string | null;
+  draft_excerpt: string;
+  draft_slug: string;
+  draft_title: string;
   excerpt: string;
   id: number;
   is_published: number;
   published_at: string | null;
+  published_content: string | null;
+  published_cover_image_url: string | null;
+  published_excerpt: string | null;
+  published_slug: string | null;
+  published_title: string | null;
   revision: number;
   slug: string;
   title: string;
@@ -1438,23 +1454,68 @@ interface NewsRow {
 }
 
 function toNewsPost(row: NewsRow): AdminNewsPost {
+  const draft: AdminNewsSnapshot = {
+    content: row.draft_content,
+    coverImageUrl: row.draft_cover_image_url ?? null,
+    excerpt: row.draft_excerpt,
+    slug: row.draft_slug,
+    title: row.draft_title,
+  };
+  const published = row.published_slug
+    ? {
+        content: row.published_content ?? "",
+        coverImageUrl: row.published_cover_image_url ?? null,
+        excerpt: row.published_excerpt ?? "",
+        slug: row.published_slug,
+        title: row.published_title ?? "",
+      }
+    : null;
   return {
-    content: row.content,
-    coverImageUrl: row.cover_image_url ?? null,
-    excerpt: row.excerpt,
+    ...draft,
+    draft,
     id: row.id,
-    isPublished: row.is_published === 1,
+    isPublished: row.is_published === 1 && published !== null,
+    published,
     publishedAt: row.published_at ?? null,
     revision: row.revision,
-    slug: row.slug,
-    title: row.title,
     updatedAt: row.updated_at,
   };
 }
 
+export class AdminNewsConflictError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "AdminNewsConflictError";
+  }
+}
+
+export class AdminNewsIdempotencyConflictError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "AdminNewsIdempotencyConflictError";
+  }
+}
+
+export class AdminNewsStorageError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "AdminNewsStorageError";
+  }
+}
+
+export class AdminNewsValidationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "AdminNewsValidationError";
+  }
+}
+
 export async function getAdminNewsPost(database: D1DatabaseLike, id: number): Promise<AdminNewsPost | null> {
   const row = await database.prepare(`
-    SELECT id, slug, title, excerpt, content, cover_image_url, is_published, published_at, revision, updated_at
+    SELECT id, slug, title, excerpt, content, cover_image_url,
+      draft_slug, draft_title, draft_excerpt, draft_content, draft_cover_image_url,
+      published_slug, published_title, published_excerpt, published_content, published_cover_image_url,
+      is_published, published_at, revision, updated_at
     FROM news_posts
     WHERE id = ?
     LIMIT 1
@@ -1468,20 +1529,23 @@ export async function listAdminNewsPosts(
 ): Promise<{ posts: AdminNewsListItem[]; total: number }> {
   const count = await database.prepare("SELECT COUNT(*) AS total FROM news_posts").first<{ total: number }>();
   const rows = await database.prepare(`
-    SELECT id, slug, title, excerpt, '' AS content, cover_image_url, is_published, published_at, revision, updated_at
+    SELECT id, slug, title, excerpt, content, cover_image_url,
+      draft_slug, draft_title, draft_excerpt, draft_content, draft_cover_image_url,
+      published_slug, published_title, published_excerpt, published_content, published_cover_image_url,
+      is_published, published_at, revision, updated_at
     FROM news_posts
-    ORDER BY COALESCE(published_at, updated_at) DESC, id DESC
+    ORDER BY updated_at DESC, id DESC
     LIMIT ? OFFSET ?
   `).bind(input.pageSize, (input.page - 1) * input.pageSize).all<NewsRow & { content: string }>();
   return {
     posts: rows.results.map((row) => ({
-      excerpt: row.excerpt,
+      excerpt: row.draft_excerpt,
       id: row.id,
-      isPublished: row.is_published === 1,
+      isPublished: row.is_published === 1 && Boolean(row.published_slug),
       publishedAt: row.published_at ?? null,
       revision: row.revision,
-      slug: row.slug,
-      title: row.title,
+      slug: row.draft_slug,
+      title: row.draft_title,
       updatedAt: row.updated_at,
     })),
     total: count?.total ?? 0,
@@ -1490,77 +1554,584 @@ export async function listAdminNewsPosts(
 
 export async function createAdminNewsPost(
   database: D1DatabaseLike,
-  input: AdminNewsInput,
+  input: AdminNewsDraftInput,
   actorSubject: string,
+  requestId: string,
 ): Promise<AdminNewsPost> {
-  await database.prepare(`
-    INSERT INTO news_posts (slug, title, excerpt, content, cover_image_url, is_published, published_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
+  const normalizedRequestId = normalizeNewsRequestId(requestId);
+  const payloadSha256 = await fingerprintNewsMutation({ input, operation: "draft" });
+  const existingMutation = await findNewsMutation(database, normalizedRequestId);
+  if (existingMutation) {
+    assertMatchingNewsMutation(existingMutation, "draft", payloadSha256);
+    return readNewsPostFromMutation(database, existingMutation);
+  }
+
+  const databaseWithBatch = requireNewsBatch(database);
+  const insert = database.prepare(`
+    INSERT INTO news_posts (
+      slug, title, excerpt, content, cover_image_url, is_published, published_at,
+      draft_slug, draft_title, draft_excerpt, draft_content, draft_cover_image_url,
+      last_request_id
+    ) VALUES (?, ?, ?, ?, ?, 0, NULL, ?, ?, ?, ?, ?, ?)
   `).bind(
     input.slug,
     input.title,
     input.excerpt,
     input.content,
     input.coverImageUrl,
-    input.isPublished ? 1 : 0,
-    input.isPublished ? new Date().toISOString() : null,
-  ).run();
+    input.slug,
+    input.title,
+    input.excerpt,
+    input.content,
+    input.coverImageUrl,
+    normalizedRequestId,
+  );
+  const audit = database.prepare(`
+    INSERT INTO admin_news_audit (
+      request_id, actor_subject, action, operation, entity_type, entity_key,
+      previous_revision, resulting_revision, payload_sha256
+    )
+    SELECT ?, ?, 'create', 'draft', 'news_post', CAST(id AS TEXT), NULL, revision, ?
+    FROM news_posts
+    WHERE last_request_id = ? AND draft_slug = ?
+    LIMIT 1
+  `).bind(normalizedRequestId, actorSubject, payloadSha256, normalizedRequestId, input.slug);
 
-  const created = await database.prepare("SELECT id FROM news_posts WHERE slug = ? LIMIT 1")
-    .bind(input.slug)
+  try {
+    const results = await databaseWithBatch.batch([insert, audit]);
+    assertNewsBatchResult(results, 2);
+    if (!hasChanged(results[0]) || !hasChanged(results[1])) {
+      throw new AdminNewsStorageError("News create chưa ghi được audit đồng bộ.");
+    }
+  } catch (error) {
+    const racedMutation = await findNewsMutation(database, normalizedRequestId);
+    if (racedMutation) {
+      assertMatchingNewsMutation(racedMutation, "draft", payloadSha256);
+      return readNewsPostFromMutation(database, racedMutation);
+    }
+    throw error;
+  }
+
+  const created = await database.prepare("SELECT id FROM news_posts WHERE last_request_id = ? LIMIT 1")
+    .bind(normalizedRequestId)
     .first<{ id: number }>();
-  if (!created) throw new AdminDataError("Không thể đọc lại bài viết vừa tạo.");
-
-  await writeAuditLog(database, actorSubject, "news.created", "news_post", String(created.id), input);
+  if (!created) throw new AdminNewsStorageError("Không thể đọc lại bài viết vừa tạo.");
   const post = await getAdminNewsPost(database, created.id);
-  if (!post) throw new AdminDataError("Không thể đọc lại bài viết vừa tạo.");
+  if (!post) throw new AdminNewsStorageError("Không thể đọc lại bài viết vừa tạo.");
   return post;
 }
 
 export async function updateAdminNewsPost(
   database: D1DatabaseLike,
   id: number,
-  input: AdminNewsInput,
+  input: AdminNewsDraftInput,
   expectedRevision: number,
   actorSubject: string,
+  requestId: string,
 ): Promise<AdminNewsPost | null> {
+  const normalizedRequestId = normalizeNewsRequestId(requestId);
+  const payloadSha256 = await fingerprintNewsMutation({
+    expectedRevision,
+    id,
+    input,
+    operation: "draft",
+  });
+  const existingMutation = await findNewsMutation(database, normalizedRequestId);
+  if (existingMutation) {
+    assertMatchingNewsMutation(existingMutation, "draft", payloadSha256);
+    return readNewsPostFromMutation(database, existingMutation);
+  }
+
   const existing = await getAdminNewsPost(database, id);
   if (!existing) return null;
   if (existing.revision !== expectedRevision) {
-    throw new AdminDataError("Bài viết đã thay đổi. Hãy tải lại trước khi lưu.");
+    throw new AdminNewsConflictError("Bài viết đã thay đổi. Hãy tải lại trước khi lưu.");
   }
 
-  const publishingNow = input.isPublished && !existing.isPublished;
-  await database.prepare(`
+  const databaseWithBatch = requireNewsBatch(database);
+  const update = database.prepare(`
     UPDATE news_posts
-    SET slug = ?, title = ?, excerpt = ?, content = ?, cover_image_url = ?, is_published = ?,
-      published_at = COALESCE(published_at, ?),
-      updated_at = CURRENT_TIMESTAMP, revision = revision + 1
-    WHERE id = ?
+    SET slug = ?, title = ?, excerpt = ?, content = ?, cover_image_url = ?,
+      draft_slug = ?, draft_title = ?, draft_excerpt = ?, draft_content = ?, draft_cover_image_url = ?,
+      updated_at = CURRENT_TIMESTAMP, revision = revision + 1, last_request_id = ?
+    WHERE id = ? AND revision = ?
   `).bind(
     input.slug,
     input.title,
     input.excerpt,
     input.content,
     input.coverImageUrl,
-    input.isPublished ? 1 : 0,
-    publishingNow ? new Date().toISOString() : null,
+    input.slug,
+    input.title,
+    input.excerpt,
+    input.content,
+    input.coverImageUrl,
+    normalizedRequestId,
     id,
-  ).run();
-
-  await writeAuditLog(database, actorSubject, "news.updated", "news_post", String(id), input);
+    expectedRevision,
+  );
+  const audit = database.prepare(`
+    INSERT INTO admin_news_audit (
+      request_id, actor_subject, action, operation, entity_type, entity_key,
+      previous_revision, resulting_revision, payload_sha256
+    )
+    SELECT ?, ?, 'update', 'draft', 'news_post', CAST(id AS TEXT), ?, revision, ?
+    FROM news_posts
+    WHERE id = ? AND revision = ? AND last_request_id = ?
+  `).bind(
+    normalizedRequestId,
+    actorSubject,
+    expectedRevision,
+    payloadSha256,
+    id,
+    expectedRevision + 1,
+    normalizedRequestId,
+  );
+  try {
+    const results = await databaseWithBatch.batch([update, audit]);
+    assertNewsBatchResult(results, 2);
+    if (!hasChanged(results[0])) return resolveNewsConflict(database, normalizedRequestId, payloadSha256, "draft");
+    if (!hasChanged(results[1])) throw new AdminNewsStorageError("News draft chưa ghi được audit đồng bộ.");
+  } catch (error) {
+    const racedMutation = await findNewsMutation(database, normalizedRequestId);
+    if (racedMutation) {
+      assertMatchingNewsMutation(racedMutation, "draft", payloadSha256);
+      return readNewsPostFromMutation(database, racedMutation);
+    }
+    throw error;
+  }
   return getAdminNewsPost(database, id);
 }
 
 export async function deleteAdminNewsPost(
   database: D1DatabaseLike,
   id: number,
+  expectedRevision: number,
   actorSubject: string,
+  requestId: string,
 ): Promise<boolean> {
+  const normalizedRequestId = normalizeNewsRequestId(requestId);
+  const payloadSha256 = await fingerprintNewsMutation({ expectedRevision, id, operation: "delete" });
+  const existingMutation = await findNewsMutation(database, normalizedRequestId);
+  if (existingMutation) {
+    assertMatchingNewsMutation(existingMutation, "delete", payloadSha256);
+    return true;
+  }
+
   const existing = await getAdminNewsPost(database, id);
   if (!existing) return false;
+  if (existing.revision !== expectedRevision) {
+    throw new AdminNewsConflictError("Bài viết đã thay đổi. Hãy tải lại trước khi xóa.");
+  }
 
-  await database.prepare("DELETE FROM news_posts WHERE id = ?").bind(id).run();
-  await writeAuditLog(database, actorSubject, "news.deleted", "news_post", String(id), { slug: existing.slug });
+  const databaseWithBatch = requireNewsBatch(database);
+  const audit = database.prepare(`
+    INSERT INTO admin_news_audit (
+      request_id, actor_subject, action, operation, entity_type, entity_key,
+      previous_revision, resulting_revision, payload_sha256
+    )
+    SELECT ?, ?, 'delete', 'delete', 'news_post', CAST(id AS TEXT), revision, NULL, ?
+    FROM news_posts
+    WHERE id = ? AND revision = ?
+  `).bind(normalizedRequestId, actorSubject, payloadSha256, id, expectedRevision);
+  const deletion = database.prepare("DELETE FROM news_posts WHERE id = ? AND revision = ?")
+    .bind(id, expectedRevision);
+  try {
+    const results = await databaseWithBatch.batch([audit, deletion]);
+    assertNewsBatchResult(results, 2);
+    if (!hasChanged(results[0]) || !hasChanged(results[1])) {
+      throw new AdminNewsConflictError("Bài viết đã thay đổi. Hãy tải lại trước khi xóa.");
+    }
+  } catch (error) {
+    const racedMutation = await findNewsMutation(database, normalizedRequestId);
+    if (racedMutation) {
+      assertMatchingNewsMutation(racedMutation, "delete", payloadSha256);
+      return true;
+    }
+    throw error;
+  }
   return true;
+}
+
+export async function publishAdminNewsPost(
+  database: D1DatabaseLike,
+  id: number,
+  expectedRevision: number,
+  actorSubject: string,
+  requestId: string,
+): Promise<AdminNewsPost | null> {
+  return setAdminNewsPublication(database, id, expectedRevision, actorSubject, requestId, true);
+}
+
+export async function unpublishAdminNewsPost(
+  database: D1DatabaseLike,
+  id: number,
+  expectedRevision: number,
+  actorSubject: string,
+  requestId: string,
+): Promise<AdminNewsPost | null> {
+  return setAdminNewsPublication(database, id, expectedRevision, actorSubject, requestId, false);
+}
+
+export type NewsBatchSkipReason = "not_found" | "stale" | "validation";
+
+export interface AdminNewsBatchItem {
+  expectedRevision: number;
+  id: number;
+}
+
+export interface AdminNewsBatchResult {
+  changed: AdminNewsPost[];
+  changedCount: number;
+  selectedCount: number;
+  skipped: Array<{ id: number; reason: NewsBatchSkipReason }>;
+}
+
+export async function batchAdminNewsPublication(
+  database: D1DatabaseLike,
+  input: {
+    actorSubject: string;
+    items: AdminNewsBatchItem[];
+    publish: boolean;
+    requestId: string;
+  },
+): Promise<AdminNewsBatchResult> {
+  if (input.items.length > 100) throw new AdminNewsValidationError("Mỗi lần chỉ được xử lý tối đa 100 bài viết.");
+  const items = [...input.items].sort((left, right) => left.id - right.id);
+  if (items.some((item) => !Number.isInteger(item.id) || item.id < 1 || !Number.isInteger(item.expectedRevision) || item.expectedRevision < 1)) {
+    throw new AdminNewsValidationError("Danh sách bài viết hoặc revision không hợp lệ.");
+  }
+  if (new Set(items.map((item) => item.id)).size !== items.length) {
+    throw new AdminNewsValidationError("Danh sách bài viết không được chứa lựa chọn trùng.");
+  }
+
+  const requestId = normalizeNewsRequestId(input.requestId);
+  const operation = input.publish ? "publish" : "unpublish";
+  const payloadSha256 = await fingerprintNewsMutation({ items, operation: "status_batch", publish: input.publish });
+  const existingMutation = await findNewsBulkMutation(database, requestId);
+  if (existingMutation) {
+    assertMatchingNewsBulkMutation(existingMutation, payloadSha256);
+    return readNewsBulkResult(database, requestId, existingMutation, items, input.publish);
+  }
+
+  const snapshots = await Promise.all(items.map(async (item) => ({
+    item,
+    post: await getAdminNewsPost(database, item.id),
+  })));
+  const eligible = snapshots.filter(({ item, post }) => post && post.revision === item.expectedRevision && (!input.publish || Boolean(post.draft.excerpt.trim())));
+  const databaseWithBatch = requireNewsBatch(database);
+  const statements: D1PreparedStatementLike[] = [database.prepare(`
+    INSERT INTO admin_news_bulk_audit (
+      request_id, actor_subject, action, operation, payload_sha256,
+      selected_count, changed_count
+    ) VALUES (?, ?, 'update', 'status_batch', ?, ?, 0)
+  `).bind(requestId, input.actorSubject, payloadSha256, items.length)];
+
+  for (const { item } of eligible) {
+    const childRequestId = crypto.randomUUID();
+    const childPayloadSha256 = await fingerprintNewsMutation({
+      expectedRevision: item.expectedRevision,
+      id: item.id,
+      operation,
+    });
+    const update = input.publish
+      ? database.prepare(`
+        UPDATE news_posts
+        SET published_slug = draft_slug, published_title = draft_title,
+          published_excerpt = draft_excerpt, published_content = draft_content,
+          published_cover_image_url = draft_cover_image_url,
+          is_published = 1, published_at = CURRENT_TIMESTAMP,
+          updated_at = CURRENT_TIMESTAMP, revision = revision + 1, last_request_id = ?
+        WHERE id = ? AND revision = ?
+      `).bind(childRequestId, item.id, item.expectedRevision)
+      : database.prepare(`
+        UPDATE news_posts
+        SET is_published = 0, updated_at = CURRENT_TIMESTAMP,
+          revision = revision + 1, last_request_id = ?
+        WHERE id = ? AND revision = ?
+      `).bind(childRequestId, item.id, item.expectedRevision);
+    const audit = database.prepare(`
+      INSERT INTO admin_news_audit (
+        request_id, actor_subject, action, operation, entity_type, entity_key,
+        previous_revision, resulting_revision, payload_sha256, bulk_request_id
+      )
+      SELECT ?, ?, 'update', ?, 'news_post', CAST(id AS TEXT), ?, revision, ?, ?
+      FROM news_posts
+      WHERE id = ? AND revision = ? AND last_request_id = ?
+    `).bind(
+      childRequestId,
+      input.actorSubject,
+      operation,
+      item.expectedRevision,
+      childPayloadSha256,
+      requestId,
+      item.id,
+      item.expectedRevision + 1,
+      childRequestId,
+    );
+    statements.push(update, audit);
+  }
+  statements.push(database.prepare(`
+    UPDATE admin_news_bulk_audit
+    SET changed_count = (
+      SELECT COUNT(*) FROM admin_news_audit WHERE bulk_request_id = ?
+    )
+    WHERE request_id = ?
+  `).bind(requestId, requestId));
+
+  try {
+    const results = await databaseWithBatch.batch(statements);
+    assertNewsBatchResult(results, statements.length);
+    if (!hasChanged(results[0]) || !hasChanged(results.at(-1))) {
+      throw new AdminNewsStorageError("News bulk chưa ghi được audit envelope.");
+    }
+    for (let index = 1; index < results.length - 1; index += 2) {
+      if (hasChanged(results[index]) !== hasChanged(results[index + 1])) {
+        throw new AdminNewsStorageError("News bulk có bài viết thiếu audit đồng bộ.");
+      }
+    }
+  } catch (error) {
+    const racedMutation = await findNewsBulkMutation(database, requestId);
+    if (racedMutation) {
+      assertMatchingNewsBulkMutation(racedMutation, payloadSha256);
+      return readNewsBulkResult(database, requestId, racedMutation, items, input.publish);
+    }
+    throw error;
+  }
+  const mutation = await findNewsBulkMutation(database, requestId);
+  if (!mutation) throw new AdminNewsStorageError("Không đọc lại được audit news bulk.");
+  return readNewsBulkResult(database, requestId, mutation, items, input.publish);
+}
+
+async function setAdminNewsPublication(
+  database: D1DatabaseLike,
+  id: number,
+  expectedRevision: number,
+  actorSubject: string,
+  requestId: string,
+  publish: boolean,
+): Promise<AdminNewsPost | null> {
+  const operation = publish ? "publish" : "unpublish";
+  const normalizedRequestId = normalizeNewsRequestId(requestId);
+  const payloadSha256 = await fingerprintNewsMutation({ expectedRevision, id, operation });
+  const existingMutation = await findNewsMutation(database, normalizedRequestId);
+  if (existingMutation) {
+    assertMatchingNewsMutation(existingMutation, operation, payloadSha256);
+    return readNewsPostFromMutation(database, existingMutation);
+  }
+
+  const existing = await getAdminNewsPost(database, id);
+  if (!existing) return null;
+  if (existing.revision !== expectedRevision) {
+    throw new AdminNewsConflictError("Bài viết đã thay đổi. Hãy tải lại trước khi phát hành.");
+  }
+  if (publish && !existing.draft.excerpt.trim()) {
+    throw new AdminNewsValidationError("Bài viết cần tóm tắt trước khi phát hành.");
+  }
+
+  const databaseWithBatch = requireNewsBatch(database);
+  const update = publish
+    ? database.prepare(`
+      UPDATE news_posts
+      SET published_slug = draft_slug, published_title = draft_title,
+        published_excerpt = draft_excerpt, published_content = draft_content,
+        published_cover_image_url = draft_cover_image_url,
+        is_published = 1, published_at = CURRENT_TIMESTAMP,
+        updated_at = CURRENT_TIMESTAMP, revision = revision + 1, last_request_id = ?
+      WHERE id = ? AND revision = ?
+    `).bind(normalizedRequestId, id, expectedRevision)
+    : database.prepare(`
+      UPDATE news_posts
+      SET is_published = 0, updated_at = CURRENT_TIMESTAMP,
+        revision = revision + 1, last_request_id = ?
+      WHERE id = ? AND revision = ?
+    `).bind(normalizedRequestId, id, expectedRevision);
+  const audit = database.prepare(`
+    INSERT INTO admin_news_audit (
+      request_id, actor_subject, action, operation, entity_type, entity_key,
+      previous_revision, resulting_revision, payload_sha256
+    )
+    SELECT ?, ?, 'update', ?, 'news_post', CAST(id AS TEXT), ?, revision, ?
+    FROM news_posts
+    WHERE id = ? AND revision = ? AND last_request_id = ?
+  `).bind(
+    normalizedRequestId,
+    actorSubject,
+    operation,
+    expectedRevision,
+    payloadSha256,
+    id,
+    expectedRevision + 1,
+    normalizedRequestId,
+  );
+  try {
+    const results = await databaseWithBatch.batch([update, audit]);
+    assertNewsBatchResult(results, 2);
+    if (!hasChanged(results[0])) {
+      return resolveNewsConflict(database, normalizedRequestId, payloadSha256, operation);
+    }
+    if (!hasChanged(results[1])) throw new AdminNewsStorageError("News publication chưa ghi được audit đồng bộ.");
+  } catch (error) {
+    const racedMutation = await findNewsMutation(database, normalizedRequestId);
+    if (racedMutation) {
+      assertMatchingNewsMutation(racedMutation, operation, payloadSha256);
+      return readNewsPostFromMutation(database, racedMutation);
+    }
+    throw error;
+  }
+  return getAdminNewsPost(database, id);
+}
+
+interface NewsMutationRow {
+  action: "create" | "delete" | "update";
+  entity_key: string;
+  operation: "delete" | "draft" | "publish" | "unpublish";
+  payload_sha256: string;
+}
+
+interface NewsBulkMutationRow {
+  changed_count: number;
+  operation: "status_batch";
+  payload_sha256: string;
+  selected_count: number;
+}
+
+interface D1DatabaseWithBatch extends D1DatabaseLike {
+  batch(statements: D1PreparedStatementLike[]): Promise<unknown[]>;
+}
+
+async function findNewsMutation(database: D1DatabaseLike, requestId: string): Promise<NewsMutationRow | null> {
+  return database.prepare(`
+    SELECT action, operation, entity_key, payload_sha256
+    FROM admin_news_audit
+    WHERE request_id = ?
+    LIMIT 1
+  `).bind(requestId).first<NewsMutationRow>();
+}
+
+async function findNewsBulkMutation(database: D1DatabaseLike, requestId: string): Promise<NewsBulkMutationRow | null> {
+  return database.prepare(`
+    SELECT operation, payload_sha256, selected_count, changed_count
+    FROM admin_news_bulk_audit
+    WHERE request_id = ?
+    LIMIT 1
+  `).bind(requestId).first<NewsBulkMutationRow>();
+}
+
+function assertMatchingNewsMutation(
+  mutation: NewsMutationRow,
+  operation: NewsMutationRow["operation"],
+  payloadSha256: string,
+): void {
+  if (mutation.operation !== operation || mutation.payload_sha256 !== payloadSha256) {
+    throw new AdminNewsIdempotencyConflictError("requestId đã được dùng cho một payload khác.");
+  }
+}
+
+function assertMatchingNewsBulkMutation(mutation: NewsBulkMutationRow, payloadSha256: string): void {
+  if (mutation.operation !== "status_batch" || mutation.payload_sha256 !== payloadSha256) {
+    throw new AdminNewsIdempotencyConflictError("requestId đã được dùng cho một bulk payload khác.");
+  }
+}
+
+async function readNewsBulkResult(
+  database: D1DatabaseLike,
+  requestId: string,
+  mutation: NewsBulkMutationRow,
+  items: AdminNewsBatchItem[],
+  publish: boolean,
+): Promise<AdminNewsBatchResult> {
+  const auditRows = await database.prepare(`
+    SELECT entity_key
+    FROM admin_news_audit
+    WHERE bulk_request_id = ?
+    ORDER BY id ASC
+  `).bind(requestId).all<{ entity_key: string }>();
+  if (auditRows.results.length !== mutation.changed_count) {
+    throw new AdminNewsStorageError("News bulk audit không khớp số bài đã xử lý.");
+  }
+  const changedIds = new Set(
+    auditRows.results
+      .map((row) => Number(row.entity_key))
+      .filter((id) => Number.isInteger(id) && id > 0),
+  );
+  const currentPosts = await Promise.all(items.map(async (item) => ({
+    item,
+    post: await getAdminNewsPost(database, item.id),
+  })));
+  const changed = currentPosts
+    .filter(({ item }) => changedIds.has(item.id))
+    .map(({ post }) => post)
+    .filter((post): post is AdminNewsPost => Boolean(post));
+  const skipped = currentPosts
+    .filter(({ item }) => !changedIds.has(item.id))
+    .map(({ item, post }) => ({ id: item.id, reason: newsBatchSkipReason(post, publish) }));
+  return {
+    changed,
+    changedCount: mutation.changed_count,
+    selectedCount: mutation.selected_count,
+    skipped,
+  };
+}
+
+function newsBatchSkipReason(
+  post: AdminNewsPost | null,
+  publish: boolean,
+): NewsBatchSkipReason {
+  if (!post) return "not_found";
+  if (publish && !post.draft.excerpt.trim()) return "validation";
+  return "stale";
+}
+
+async function readNewsPostFromMutation(database: D1DatabaseLike, mutation: NewsMutationRow): Promise<AdminNewsPost> {
+  const id = Number(mutation.entity_key);
+  const post = Number.isInteger(id) && id > 0 ? await getAdminNewsPost(database, id) : null;
+  if (!post) throw new AdminNewsStorageError("Không đọc lại được kết quả news từ audit.");
+  return post;
+}
+
+async function resolveNewsConflict(
+  database: D1DatabaseLike,
+  requestId: string,
+  payloadSha256: string,
+  operation: NewsMutationRow["operation"],
+): Promise<AdminNewsPost> {
+  const mutation = await findNewsMutation(database, requestId);
+  if (mutation) {
+    assertMatchingNewsMutation(mutation, operation, payloadSha256);
+    return readNewsPostFromMutation(database, mutation);
+  }
+  throw new AdminNewsConflictError("Bài viết đã thay đổi ở phiên khác. Hãy tải lại rồi thử lại.");
+}
+
+function requireNewsBatch(database: D1DatabaseLike): D1DatabaseWithBatch {
+  const databaseWithBatch = database as D1DatabaseWithBatch;
+  if (typeof databaseWithBatch.batch !== "function") {
+    throw new AdminNewsStorageError("D1 atomic batch chưa sẵn sàng cho news write.");
+  }
+  return databaseWithBatch;
+}
+
+function assertNewsBatchResult(results: unknown[], expectedLength: number): void {
+  if (results.length !== expectedLength) throw new AdminNewsStorageError("D1 news batch trả về kết quả không hợp lệ.");
+}
+
+function hasChanged(result: unknown): boolean {
+  if (typeof result !== "object" || result === null) return true;
+  const meta = (result as { meta?: { changes?: unknown } }).meta;
+  return meta?.changes === undefined || Number(meta.changes) > 0;
+}
+
+function normalizeNewsRequestId(value: string): string {
+  const requestId = value.trim().toLowerCase();
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(requestId)) {
+    throw new AdminNewsValidationError("requestId phải là UUID hợp lệ.");
+  }
+  return requestId;
+}
+
+async function fingerprintNewsMutation(input: Record<string, unknown>): Promise<string> {
+  const bytes = new TextEncoder().encode(JSON.stringify(input));
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
 }
