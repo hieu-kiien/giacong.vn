@@ -15,20 +15,24 @@ Không thêm file mới vào map chỉ vì đã nghĩ ra tên. File chỉ đư�
 khi tồn tại trong checkout; file “dự kiến” phải được tạo trong phase tương ứng.
 
 **Checkpoint 2026-08-29:** P1 host-gated admin context, P2 settings write
-contract (per-setting + bulk publish), contextual editor MVP và P5 product bulk
-import UI đã có trong `master`. Local Playwright deep QA đã pass storefront
-public ở mobile/tablet/desktop, catalog, detail, cart và keyboard; public
-staging cũng pass cùng ma trận. `admin-staging.kienhieu.id.vn` trả Cloudflare
-Access login khi không có phiên hợp lệ, vì vậy admin read-back/browser evidence
-cho context thật và frontend motion worktree còn mở; không coi local Next dev là
-bằng chứng Access.
+contract (per-setting + bulk publish), contextual editor MVP, P3 contextual
+news-detail hand-off và P5 product bulk import UI đã có trong `master`. Local
+Playwright deep QA đã pass storefront public ở mobile/tablet/desktop, catalog,
+detail, cart và keyboard; public staging cũng pass cùng ma trận. Public staging
+`/tin-tuc` không phát sinh admin session request hay contextual control. Tuy
+nhiên `admin-staging.kienhieu.id.vn` vẫn trả Cloudflare Access login khi không có
+phiên hợp lệ, vì vậy admin read-back/browser evidence cho context thật và
+frontend motion worktree còn mở; không coi local Next dev là bằng chứng Access.
 
-**Checkpoint P3 2026-08-28:** contract backend news/media đã vào `master`: news
+**Checkpoint P3 2026-08-29:** contract backend news/media đã vào `master`: news
 có snapshot `draft_*` và `published_*`, publish/unpublish riêng, batch status tối
 đa 100 item, optimistic revision, request-id idempotency và audit D1; media
 upload có bounded multipart, giới hạn file 8 MiB và kiểm tra magic bytes
-JPEG/PNG/WebP. Đây chưa phải P3 hoàn tất: contextual storefront adapter,
-browser evidence và staging runtime acceptance còn mở.
+JPEG/PNG/WebP. Storefront news detail hiện có contextual action chỉ qua
+`AdminVisualMode` khi session ready và role owner/content_manager; action mở
+`/admin/tin-tuc?edit=<id>`, còn admin page đọc lại bài qua API canonical. P3
+chưa hoàn tất: admin browser desktop/mobile/keyboard, staging read-back và media
+runtime acceptance còn mở.
 
 ## 1. Luật ownership
 
@@ -73,7 +77,7 @@ browser evidence và staging runtime acceptance còn mở.
 | Brand/contact/hero | src/lib/site-settings.ts, src/lib/site-markup.ts, src/lib/admin-request.ts | site settings API + bounded JSON + input validation | published_value và fallback default | content.read/write/publish | scripts/site-settings.test.mts, scripts/site-settings-write-contract.test.mts, scripts/admin-request.test.mts, scripts/site-markup-hero.test.mjs |
 | Managed pages | src/lib/site-pages.ts, src/lib/page-builder.ts | page API + safe block parser | published blocks chỉ khi enabled/published | pages.read/write/publish | scripts/site-pages.test.mts |
 | Primary/footer navigation | src/lib/site-navigation.ts | navigation API + trusted link normalization | published items; footer renderer cần xác minh riêng | navigation.read/write/publish | scripts/site-pages.test.mts có contract liên quan |
-| News | src/lib/news-public.ts, src/lib/admin-news-input.ts, src/lib/admin-data.ts | news API + draft input + publish/batch contract | public chỉ đọc `published_*`; draft chỉnh riêng, publish explicit; contract P3 đã có trong master | news.read/write và content publish theo quyết định | scripts/admin-news.test.mts, scripts/admin-news-write-contract.test.mts |
+| News | src/lib/news-public.ts, src/lib/admin-news-input.ts, src/lib/admin-data.ts | news API + draft input + publish/batch contract | public chỉ đọc `published_*`; detail trả published id cho contextual hand-off; draft chỉnh riêng, publish explicit; contract P3 đã có trong master | news.read/write và content publish theo quyết định | scripts/admin-news.test.mts, scripts/admin-news-write-contract.test.mts, scripts/admin-visual-news-media.test.mjs |
 | Media | src/lib/media-data.ts, src/lib/site-media-data.ts, src/lib/media-input.ts | media API/R2 guard + bounded multipart + signature validation | reference phải còn hợp lệ; JPEG/PNG/WebP tối đa 8 MiB | media.read/write | scripts/media-contract.test.mts |
 | Product/category/variant | src/lib/admin-product-input.ts, src/lib/admin-category-input.ts, src/lib/admin-variant-input.ts và catalog adapters | admin API + D1 canonical rules; bulk import contract | product/service public read theo trạng thái; import luôn tạo draft/inactive | catalog.read/write/publish | scripts/admin-categories.test.mts, scripts/admin-product-import.test.mts, catalog/detail suites |
 | Service | src/lib/admin-service-input.ts, service data adapters | service API + D1 | active/published service read | services.read/write | scripts/admin-service-input.test.mts, scripts/service-contract.test.mts |
@@ -93,8 +97,8 @@ browser evidence và staging runtime acceptance còn mở.
 | Members | AdminMembersManager.tsx | owner quản lý admin roles | trang đặc biệt, không inline trên storefront |
 | Category/variant | AdminCategoryPanel.tsx, AdminVariantPanel.tsx | catalog sub-editors | dùng trong catalog/bulk flow, không nhồi hết vào homepage |
 | Product bulk import | AdminProductImportPanel.tsx, src/app/admin/san-pham/page.tsx | chọn CSV, preview lỗi, import atomic và retry cùng request ID | giữ ở catalog control plane; không biến thành inline editor |
-| Storefront admin context | AdminVisualMode.tsx | host/session gate, trạng thái loading/blocked/unavailable/ready | chỉ mount trên exact admin hostname; public không tải control |
-| Contextual settings editor | AdminVisualEditor.tsx, AdminVisualEditor.module.css | toolbar nhỏ cho brand/hero, draft/preview/publish và role-aware feedback | MVP cho region đã map; preview hiện là draft card có nhãn rõ ràng |
+| Storefront admin context | AdminVisualMode.tsx, AdminNewsContextualAction.tsx, AdminNewsContextualAction.module.css | host/session gate, context role và contextual news action; trạng thái loading/blocked/unavailable/ready | chỉ hiện action trên exact admin hostname sau session ready; public không fetch admin session và không render control |
+| Contextual settings editor | AdminVisualEditor.tsx, AdminVisualEditor.module.css | toolbar nhỏ cho brand/hero, draft/preview/publish và role-aware feedback | MVP cho region đã map; preview hiện là draft card có nhãn rõ ràng; news detail hand-off dùng editor back office hiện có |
 | Admin CSS | src/styles/admin.css | styling control plane | giữ token/brand language, không tạo dashboard stack mới |
 
 ### Visual layer: file đã có và file chưa cần tạo
@@ -123,7 +127,7 @@ use case thứ ba chứng minh editor hiện tại không còn đủ đơn giả
 | Settings | /api/admin/site-settings, /api/admin/site-settings/publish, /api/admin/site-settings/publish-all, /api/admin/site-settings/media | P2; per-setting và bulk publish có requestId, stale, idempotency và audit batch; contextual editor đã tích hợp, staging/admin read-back còn mở |
 | Pages | /api/admin/pages, /api/admin/pages/[pageKey], /api/admin/pages/[pageKey]/publish | P4 |
 | Navigation | /api/admin/navigation, /api/admin/navigation/[id], /publish, /publish-all | P4 |
-| News | /api/admin/news, /api/admin/news/[id], /api/admin/news/[id]/publish, /api/admin/news/batch | P3; draft save, explicit publish/unpublish và batch status đã có; contextual/browser/staging còn mở |
+| News | /api/admin/news, /api/admin/news/[id], /api/admin/news/[id]/publish, /api/admin/news/batch | P3; draft save, explicit publish/unpublish, batch status và contextual deep-link đã có; browser/admin staging read-back còn mở |
 | Media | /api/admin/media, /api/admin/media/[id], /api/admin/media/cleanup | P3/P5 |
 | Catalog | /api/admin/categories, /products, /products/[id], variants routes, /api/admin/products/import | P5; bulk import backend + UI đã có, tối đa 50 dòng, atomic/idempotent/audited và retry UI giữ request ID; browser/staging còn mở |
 | Services | /api/admin/services, /api/admin/services/[id] | P5 |
@@ -182,7 +186,7 @@ admin_visual tổng hợp tất cả domain.
 | global.primaryNavigation | desktop/mobile menu | site navigation | navigation write/publish | supported | P4 |
 | global.footer | footer links/copy | site settings/navigation/captured footer | content/navigation | model/render cần audit | P4 |
 | news.list | cards/listing | news posts | news write + publish contract | structured public/admin | P3 |
-| news.detail | title/excerpt/body/cover | news posts | news write + publish contract | structured public/admin | P3 |
+| news.detail | title/excerpt/body/cover + contextual edit action trên admin host | news posts; published id cho hand-off | news write + publish contract | structured public/admin; hand-off code đã có, runtime evidence còn mở | P3 |
 | catalog.product | product card/detail data | D1 catalog | catalog write/publish | structured | P5 |
 | service.detail | service copy/media | D1 services/R2 | services write | structured | P5 |
 | page.blocks | managed sections | site pages/PageBlocks | pages write/publish | safe builder exists | P4 |

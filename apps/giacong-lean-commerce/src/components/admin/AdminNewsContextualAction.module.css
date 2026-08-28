@@ -1,0 +1,38 @@
+.action {
+  display: flex;
+  justify-content: flex-end;
+  max-width: 100%;
+  margin: 0 0 1rem;
+}
+
+.action a {
+  border: 1px solid #6e8c42;
+  border-radius: 0.5rem;
+  color: #4d770f;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  padding: 0.625rem 0.875rem;
+  text-decoration: none;
+  transition: background-color 160ms ease, color 160ms ease;
+}
+
+.action a:hover {
+  background: #4d770f;
+  color: #fff;
+}
+
+.action a:focus-visible {
+  outline: 3px solid #b5cf83;
+  outline-offset: 3px;
+}
+
+@media (max-width: 480px) {
+  .action {
+    justify-content: stretch;
+  }
+
+  .action a {
+    text-align: center;
+    width: 100%;
+  }
+}

@@ -2,6 +2,7 @@
 
 import { Eye, EyeOff, Newspaper, Pencil, Plus, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { useSearchParams } from "next/navigation";
 import { AdminConfirmDialog } from "@/components/admin/AdminDialog";
 import { AdminField } from "@/components/admin/AdminField";
 import { AdminMediaPickerModal } from "@/components/admin/AdminMediaPickerModal";
@@ -54,6 +55,7 @@ const emptyForm: NewsFormState = {
 export default function AdminNewsPage() {
   const session = useAdminSession();
   const { showToast } = useAdminToast();
+  const searchParams = useSearchParams();
   const canManage = session.role === "owner" || session.role === "content_manager";
 
   const [posts, setPosts] = useState<AdminNewsListItem[]>([]);
@@ -70,6 +72,36 @@ export default function AdminNewsPage() {
   const [pendingDelete, setPendingDelete] = useState<AdminNewsListItem | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+
+  const openEditById = useCallback(async (id: number) => {
+    setFieldErrors({});
+    setFormError(null);
+    try {
+      const result = await fetchAdmin<{ post: NewsFormState & { coverImageUrl: string | null } }>(`/api/admin/news/${id}`);
+      setEditor({
+        content: result.post.content,
+        coverImageUrl: result.post.coverImageUrl ?? "",
+        excerpt: result.post.excerpt,
+        id: result.post.id,
+        revision: result.post.revision,
+        slug: result.post.slug,
+        title: result.post.title,
+      });
+    } catch (reason: unknown) {
+      showToast("error", reason instanceof AdminClientError ? reason.message : "Không thể tải bài viết được yêu cầu.");
+    }
+  }, [showToast]);
+
+  const editQuery = searchParams.get("edit");
+  useEffect(() => {
+    if (!editQuery) return;
+    const id = Number(editQuery);
+    if (!Number.isSafeInteger(id) || id <= 0) {
+      showToast("error", "Không thể tải bài viết được yêu cầu.");
+      return;
+    }
+    void openEditById(id);
+  }, [editQuery, openEditById, showToast]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -213,22 +245,7 @@ export default function AdminNewsPage() {
   }
 
   async function openEdit(post: AdminNewsListItem) {
-    setFieldErrors({});
-    setFormError(null);
-    try {
-      const result = await fetchAdmin<{ post: NewsFormState & { coverImageUrl: string | null } }>(`/api/admin/news/${post.id}`);
-      setEditor({
-        content: result.post.content,
-        coverImageUrl: result.post.coverImageUrl ?? "",
-        excerpt: result.post.excerpt,
-        id: result.post.id,
-        revision: result.post.revision,
-        slug: result.post.slug,
-        title: result.post.title,
-      });
-    } catch (reason: unknown) {
-      showToast("error", reason instanceof AdminClientError ? reason.message : "Không thể tải bài viết.");
-    }
+    await openEditById(post.id);
   }
 
   return (

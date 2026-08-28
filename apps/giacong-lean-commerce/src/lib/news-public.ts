@@ -22,6 +22,7 @@ export interface PublicNewsListItem {
 
 export interface PublicNewsPost extends PublicNewsListItem {
   content: string;
+  id: number;
 }
 
 interface PublicNewsEnv {
@@ -73,7 +74,7 @@ export async function getPublishedNewsPost(slug: string): Promise<PublicNewsPost
   const db = getNewsDatabase();
   if (!db) return null;
   const row = await db.prepare(`
-    SELECT published_slug AS slug, published_title AS title,
+    SELECT id, published_slug AS slug, published_title AS title,
       published_excerpt AS excerpt, published_content AS content,
       published_cover_image_url AS cover_image_url, published_at
     FROM news_posts
@@ -85,6 +86,7 @@ export async function getPublishedNewsPost(slug: string): Promise<PublicNewsPost
     content: row.content,
     coverImageUrl: row.cover_image_url ?? null,
     excerpt: row.excerpt,
+    id: row.id,
     publishedAt: row.published_at ?? null,
     slug: row.slug,
     title: row.title,

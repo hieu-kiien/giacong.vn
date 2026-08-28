@@ -78,7 +78,7 @@ giới hạn phải được ghi đúng như vậy, không coi là xanh hoàn to
   còn migration phải apply. Các bảng admin/CMS chính gồm site_settings,
   site_pages, site_navigation_items, admin_members, news_posts và media_assets
   đã tồn tại.
-- Các suite focused sau khi merge hiện tại đã pass: test:admin 85/85,
+- Các suite focused sau khi merge hiện tại đã pass: test:admin 90/90,
   test:contact 103/103, test:catalog 5/5, test:catalog-purchase-ui 1/1,
   test:service 3/3, test:commerce 32/32, test:listing 4/4 và test:detail
   29/29; UI import 2/2 và harness timing 1/1.
@@ -266,14 +266,18 @@ staging/admin evidence.
 
 ### P3 — MVP-2: Tin tức và media
 
-**Checkpoint 2026-08-28:** backend P3 đã vào `master` và focused contract tests
+**Checkpoint 2026-08-29:** backend P3 đã vào `master` và focused contract tests
 đã pass. Migration `0012_news_draft_publish_contract.sql` tách bản nháp khỏi
 snapshot public; lưu nháp không đổi storefront, publish/unpublish là mutation
 riêng, batch tối đa 100 bài có kết quả skipped, revision, idempotency và audit
 envelope/per-item. Media product/site đã giới hạn multipart trước khi parse,
-file tối đa 8 MiB và kiểm tra chữ ký JPEG/PNG/WebP. P3 chưa được đánh dấu hoàn
-tất cho tới khi có contextual storefront mapping, browser desktop/mobile/keyboard
-evidence và staging read-back.
+file tối đa 8 MiB và kiểm tra chữ ký JPEG/PNG/WebP. Contextual action cho news
+detail đã nối qua `AdminVisualMode` và deep-link về `/admin/tin-tuc?edit=<id>`;
+admin page đọc lại bài bằng `/api/admin/news/<id>`, ID không hợp lệ báo lỗi an
+toàn. Public staging `/tin-tuc` đã kiểm tra không có admin session request hoặc
+control. P3 chưa được đánh dấu hoàn tất cho tới khi có admin browser
+desktop/mobile/keyboard, staging read-back bằng phiên Access thật và media
+runtime acceptance.
 
 **Mục tiêu:** quản trị nội dung thường xuyên mà không phải quay lại nhiều màn hình
 khó hiểu.
@@ -449,7 +453,7 @@ Chỉ tạo các file này khi phase tương ứng bắt đầu; không tạo pl
 
 - scripts/admin-visual-mode.test.mjs — P1;
 - scripts/admin-visual-regions.test.mts — P2;
-- scripts/admin-visual-news-media.test.mts — P3 contextual/browser slice;
+- scripts/admin-visual-news-media.test.mjs — P3 contextual/browser contract slice;
 - scripts/admin-news-write-contract.test.mts — P3 news persistence contract đã có;
 - scripts/admin-product-import.test.mts — P5 product import persistence contract;
 - scripts/admin-visual-pages-navigation.test.mts — P4;

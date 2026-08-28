@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { CapturedStorefrontShell } from "@/components/site/CapturedStorefrontShell";
+import { AdminNewsContextualAction } from "@/components/admin/AdminNewsContextualAction";
 import { getPublishedNewsPost } from "@/lib/news-public";
 
 export const dynamic = "force-dynamic";
@@ -34,6 +35,7 @@ export default async function NewsDetailPage({ params }: NewsDetailPageProps) {
     <CapturedStorefrontShell>
       <main className="giacong-news-detail" id="main">
         <article>
+        <AdminNewsContextualAction newsId={post.id} />
         <p style={{ color: "#84918a", fontSize: 13, margin: "0 0 6px" }}>
           <Link href="/tin-tuc/" style={{ color: "#4d770f", textDecoration: "none" }}>← Tin tức</Link>
           {post.publishedAt ? ` · ${formatDate(post.publishedAt)}` : ""}

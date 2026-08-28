@@ -2,14 +2,25 @@
 
 import { CircleAlert, ExternalLink, LoaderCircle, RefreshCw, ShieldCheck } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 
 import { AdminClientError, fetchAdmin, type AdminSession } from "@/lib/admin-client";
 import { isAdminSessionReady } from "@/lib/admin-visual-contract";
 
 import { AdminVisualEditor } from "./AdminVisualEditor";
 
-type AdminVisualStatus = "loading" | "ready" | "blocked" | "unavailable";
+export type AdminVisualStatus = "loading" | "ready" | "blocked" | "unavailable";
+
+export interface AdminVisualContextValue {
+  session: AdminSession | null;
+  status: AdminVisualStatus;
+}
+
+const AdminVisualContext = createContext<AdminVisualContextValue>({ session: null, status: "unavailable" });
+
+export function useAdminVisualContext(): AdminVisualContextValue {
+  return useContext(AdminVisualContext);
+}
 
 interface AdminVisualModeProps {
   children: ReactNode;
@@ -45,19 +56,21 @@ export function AdminVisualMode({ children }: AdminVisualModeProps) {
   }, [attempt]);
 
   return (
-    <>
-      {children}
-      <AdminVisualStatusBar
-        onRetry={() => {
-          setSession(null);
-          setStatus("loading");
-          setAttempt((value) => value + 1);
-        }}
-        role={session?.role}
-        status={status}
-      />
-      {status === "ready" && session ? <AdminVisualEditor session={session} /> : null}
-    </>
+    <AdminVisualContext.Provider value={{ session, status }}>
+      <>
+        {children}
+        <AdminVisualStatusBar
+          onRetry={() => {
+            setSession(null);
+            setStatus("loading");
+            setAttempt((value) => value + 1);
+          }}
+          role={session?.role}
+          status={status}
+        />
+        {status === "ready" && session ? <AdminVisualEditor session={session} /> : null}
+      </>
+    </AdminVisualContext.Provider>
   );
 }
 
