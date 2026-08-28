@@ -330,6 +330,13 @@ back office.
 
 ### P5 — MVP-4: Trung tâm vận hành đầy đủ và xử lý hàng loạt
 
+**Checkpoint 2026-08-28:** hai lát đầu của P5 đã vào `master`: AdminShell được
+nhóm lại theo ngôn ngữ dễ hiểu, có nhãn vai trò/link storefront; backend product
+bulk import có giới hạn stream 64 KiB, tối đa 50 dòng, owner/catalog_manager,
+UUID idempotency, fingerprint ổn định trước lookup category và D1 batch atomic
+cho product/meta/audit. Đây chưa phải P5 hoàn tất: UI import, batch các domain
+còn lại, browser/mobile evidence và staging acceptance vẫn mở.
+
 **Mục tiêu:** admin có toàn quyền vận hành trong phạm vi Lean V1, không hy sinh
 tính rõ ràng cho người mới.
 
@@ -437,6 +444,7 @@ Chỉ tạo các file này khi phase tương ứng bắt đầu; không tạo pl
 - scripts/admin-visual-regions.test.mts — P2;
 - scripts/admin-visual-news-media.test.mts — P3 contextual/browser slice;
 - scripts/admin-news-write-contract.test.mts — P3 news persistence contract đã có;
+- scripts/admin-product-import.test.mts — P5 product import persistence contract;
 - scripts/admin-visual-pages-navigation.test.mts — P4;
 - scripts/admin-visual-bulk.test.mts — P5;
 - browser/staging harness — P1 trở đi, đặt cạnh harness hiện có và ghi vào file

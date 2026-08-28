@@ -242,6 +242,29 @@ Validation:
 
 Product detail response includes variants and tier prices so the editor starts from one canonical snapshot.
 
+### Product bulk import P5 contract
+
+`POST /api/admin/products/import` is the JSON-only bulk import boundary. It
+requires `Content-Type: application/json`, one valid UUID v4 in
+`Idempotency-Key` or `X-Request-Id` (both may be sent only when identical), a
+streamed body no larger than 64 KiB, and at most 50 rows. The body is exactly
+`{ rows }`; each row uses the reviewed import fields and category references are
+resolved server-side by slug. Only `owner` and `catalog_manager` may call it.
+
+The server validates every row before any write. A successful import always
+creates inactive `draft` products, and returns `{ createdCount, productIds,
+replayed }`. Product rows, `product_admin_meta`, the idempotency marker and one
+audit row per product are written in one D1 batch; a failed row or uniqueness
+conflict leaves the batch unchanged. A repeated UUID with the same canonical
+raw rows replays the original product IDs without re-reading categories or
+writing again. Reusing it for another payload returns
+`409 IDEMPOTENCY_CONFLICT`. Category/row validation is returned as `422`,
+uniqueness as `409 UNIQUE_CONFLICT`, and unsupported content type as `415`.
+
+This slice intentionally exposes no CSV upload UI yet: the parser/helper and
+server JSON contract are ready for the P5 admin surface, while browser and
+staging evidence remain release gates.
+
 ## 9. Variant contract
 
 Routes:
