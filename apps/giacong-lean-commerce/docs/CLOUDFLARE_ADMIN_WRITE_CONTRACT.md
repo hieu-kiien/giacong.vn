@@ -142,6 +142,39 @@ one linked per-setting audit for every successful row in the same D1 batch. Rows
 that lose an optimistic-version race are returned as `skipped`; replaying the
 same request ID returns the recorded result without repeating any write.
 
+### News P3 contract
+
+News editing uses two persisted snapshots. The editable draft is stored in
+`draft_slug`, `draft_title`, `draft_excerpt`, `draft_content` and
+`draft_cover_image_url`; the public snapshot is stored in the corresponding
+`published_*` fields. The legacy unprefixed columns remain a compatibility
+projection of the draft. Public list/detail queries must select only the
+published snapshot and require `is_published = 1`.
+
+Routes and exact mutation bodies:
+
+- `POST /api/admin/news`: `{ requestId, slug, title, excerpt, content,
+  coverImageUrl }` creates a draft at revision `1`;
+- `PATCH /api/admin/news/[id]`: `{ requestId, revision, slug, title, excerpt,
+  content, coverImageUrl }` updates only the draft and increments revision once;
+- `DELETE /api/admin/news/[id]`: `{ requestId, revision }` deletes only when
+  the supplied revision is current;
+- `POST /api/admin/news/[id]/publish`: `{ requestId, expectedRevision,
+  publish }` copies the validated draft to the public snapshot when `publish`
+  is true, or hides it when false;
+- `POST /api/admin/news/batch`: `{ requestId, publish, items }`, where `items`
+  contains unique `{ id, expectedRevision }` entries and is capped at 100.
+
+News writes use the same bounded JSON, same-origin, capability, revision and
+request-id rules as other admin mutations. Publishing requires a non-empty
+excerpt. A batch returns `changed`, `changedCount`, `selectedCount` and safe
+per-item `skipped` reasons (`not_found`, `stale`, `validation`) rather than
+claiming success for the whole selection. Draft/update, publish/unpublish and
+delete audits are coupled to their D1 mutation; batch writes also record one
+`admin_news_bulk_audit` envelope and one child audit for every changed item.
+Migration `0012_news_draft_publish_contract.sql` must be applied and verified
+before enabling these writes on staging.
+
 ## 6. Canonical normalization
 
 The server performs only deterministic normalization:

@@ -19,6 +19,13 @@ contract (per-setting + bulk publish) đã có trong `master` sau khi merge lane
 bulk. P2 vẫn chưa đạt đầy đủ cho tới khi có contextual editor và
 browser/staging evidence.
 
+**Checkpoint P3 2026-08-28:** lane news/media đã khóa contract backend trong
+worktree cô lập: news có snapshot `draft_*` và `published_*`, publish/unpublish
+riêng, batch status tối đa 100 item, optimistic revision, request-id
+idempotency và audit D1; media upload có bounded multipart, giới hạn file 8 MiB
+và kiểm tra magic bytes JPEG/PNG/WebP. Đây chưa phải P3 hoàn tất: contextual
+storefront adapter, browser evidence và staging runtime acceptance còn mở.
+
 ## 1. Luật ownership
 
 | Khu vực | Trách nhiệm | Không làm ở đây |
@@ -62,8 +69,8 @@ browser/staging evidence.
 | Brand/contact/hero | src/lib/site-settings.ts, src/lib/site-markup.ts, src/lib/admin-request.ts | site settings API + bounded JSON + input validation | published_value và fallback default | content.read/write/publish | scripts/site-settings.test.mts, scripts/site-settings-write-contract.test.mts, scripts/admin-request.test.mts, scripts/site-markup-hero.test.mjs |
 | Managed pages | src/lib/site-pages.ts, src/lib/page-builder.ts | page API + safe block parser | published blocks chỉ khi enabled/published | pages.read/write/publish | scripts/site-pages.test.mts |
 | Primary/footer navigation | src/lib/site-navigation.ts | navigation API + trusted link normalization | published items; footer renderer cần xác minh riêng | navigation.read/write/publish | scripts/site-pages.test.mts có contract liên quan |
-| News | src/lib/news-public.ts, src/lib/admin-news-input.ts | news API + payload validation | hiện dựa trên is_published; cần unified draft/publish cho P3 | news.read/write và content publish theo quyết định | scripts/admin-news.test.mts |
-| Media | src/lib/media-data.ts, src/lib/site-media-data.ts | media API/R2 guard | reference phải còn hợp lệ | media.read/write | scripts/media-contract.test.mts |
+| News | src/lib/news-public.ts, src/lib/admin-news-input.ts, src/lib/admin-data.ts | news API + draft input + publish/batch contract | public chỉ đọc `published_*`; draft chỉnh riêng, publish explicit; contract P3 đã có trong lane | news.read/write và content publish theo quyết định | scripts/admin-news.test.mts, scripts/admin-news-write-contract.test.mts |
+| Media | src/lib/media-data.ts, src/lib/site-media-data.ts, src/lib/media-input.ts | media API/R2 guard + bounded multipart + signature validation | reference phải còn hợp lệ; JPEG/PNG/WebP tối đa 8 MiB | media.read/write | scripts/media-contract.test.mts |
 | Product/category/variant | src/lib/admin-product-input.ts, src/lib/admin-category-input.ts, src/lib/admin-variant-input.ts và catalog adapters | admin API + D1 canonical rules | product/service public read theo trạng thái | catalog.read/write/publish | scripts/admin-categories.test.mts, catalog/detail suites |
 | Service | src/lib/admin-service-input.ts, service data adapters | service API + D1 | active/published service read | services.read/write | scripts/admin-service-input.test.mts, scripts/service-contract.test.mts |
 | Leads | src/lib/admin-data.ts, lead API | status transition + Google Sheet queue contract | back office only | leads.read/write | contact/lead queue suites |
@@ -109,7 +116,7 @@ còn cần sau khi vertical slice chứng minh được design đơn giản hơn
 | Settings | /api/admin/site-settings, /api/admin/site-settings/publish, /api/admin/site-settings/publish-all, /api/admin/site-settings/media | P2; per-setting và bulk publish đã có requestId, stale, idempotency và audit batch; contextual/browser/staging còn mở |
 | Pages | /api/admin/pages, /api/admin/pages/[pageKey], /api/admin/pages/[pageKey]/publish | P4 |
 | Navigation | /api/admin/navigation, /api/admin/navigation/[id], /publish, /publish-all | P4 |
-| News | /api/admin/news, /api/admin/news/[id] | P3 |
+| News | /api/admin/news, /api/admin/news/[id], /api/admin/news/[id]/publish, /api/admin/news/batch | P3; draft save, explicit publish/unpublish và batch status đã có; contextual/browser/staging còn mở |
 | Media | /api/admin/media, /api/admin/media/[id], /api/admin/media/cleanup | P3/P5 |
 | Catalog | /api/admin/categories, /products, /products/[id], variants routes | P5 |
 | Services | /api/admin/services, /api/admin/services/[id] | P5 |
@@ -143,6 +150,7 @@ sự giải quyết orchestration mà client không nên làm.
 | migrations/0009_admin_control_plane.sql | pages/navigation/member revision | P4/P5 |
 | migrations/0010_site_settings_write_contract.sql | settings request id, audit coupling và `last_request_id` | P2; phải apply local/staging trước runtime write |
 | migrations/0011_site_settings_bulk_publish.sql | bulk publish audit envelope và liên kết audit từng setting | P2; phải apply local/staging trước bulk write |
+| migrations/0012_news_draft_publish_contract.sql | news draft/published snapshots, news audit và bulk audit | P3; phải apply local/staging trước news write |
 | wrangler.jsonc | Worker/env/routes/D1/R2 | staging trước, production gate |
 | custom-worker.ts, open-next.config.ts | Cloudflare/OpenNext runtime | không đổi chỉ để shortcut local |
 | .env.example, .nvmrc, package-lock.json | local reproducibility | không commit secret |
@@ -217,7 +225,8 @@ khối lượng mà contextual UI làm khó hiểu.
 | scripts/site-settings.test.mts | settings draft/publish/version/role |
 | scripts/site-pages.test.mts | page blocks/publish/navigation contract |
 | scripts/admin-news.test.mts | news payload/public constraints |
-| scripts/media-contract.test.mts | media references/deletion/credentials |
+| scripts/admin-news-write-contract.test.mts | news migration, draft/public isolation, revision, idempotency, publish/batch audit |
+| scripts/media-contract.test.mts | media references/deletion/credentials, bounded upload và magic bytes |
 | scripts/admin-members.test.mts | internal role/member guard |
 | scripts/admin-categories.test.mts | category admin contract |
 | scripts/admin-service-input.test.mts | service input safety |

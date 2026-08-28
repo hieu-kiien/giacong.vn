@@ -73,14 +73,14 @@ Thứ tự ưu tiên khi có mâu thuẫn:
 - package-lock.json tồn tại; dependency tree sau khi cài lại khớp các package
   quan trọng trong lockfile.
 - Wrangler local dùng version trong package (4.115.0) qua npx.
-- Local D1 đã bootstrap và áp đủ 10 migration; d1 migrations list báo không
+- Local D1 đã bootstrap và áp đủ 13 migration; d1 migrations list báo không
   còn migration phải apply. Các bảng admin/CMS chính gồm site_settings,
   site_pages, site_navigation_items, admin_members, news_posts và media_assets
   đã tồn tại.
-- Các suite hiện có đã chạy được 213 test case pass trước các bước lint,
-  typecheck và build: test:admin, test:contact, test:catalog,
-  test:catalog-purchase-ui, test:service, test:commerce, test:listing,
-  test:detail.
+- Lượt full `npm run check` mới nhất đã pass: test:admin 65/65,
+  test:contact 103/103, test:catalog 5/5, test:catalog-purchase-ui 1/1,
+  test:service 3/3, test:commerce 32/32, test:listing 4/4 và test:detail
+  29/29; lint, typecheck và build đều exit 0.
 - Lint không in diagnostic lỗi; next typegen hoàn tất; build đã compile và
   sinh route output.
 - File `src/components/admin/AdminCategoryPanel.tsx` ở root workspace là bản
@@ -259,6 +259,16 @@ database hay route API, còn public vẫn sạch và dữ liệu chưa publish k
 
 ### P3 — MVP-2: Tin tức và media
 
+**Checkpoint 2026-08-28:** backend P3 đã được triển khai trong lane cô lập và
+kiểm chứng local. Migration `0012_news_draft_publish_contract.sql` tách bản
+nháp khỏi snapshot public; lưu nháp không đổi storefront, publish/unpublish là
+mutation riêng, batch tối đa 100 bài có kết quả skipped, revision, idempotency
+và audit envelope/per-item. Media product/site đã giới hạn multipart trước khi
+parse, file tối đa 8 MiB và kiểm tra chữ ký JPEG/PNG/WebP. Focused contract
+tests và full check đều xanh. P3 chưa được đánh dấu hoàn tất cho tới khi merge
+vào baseline, có contextual storefront mapping, browser desktop/mobile/keyboard
+evidence và staging read-back.
+
 **Mục tiêu:** quản trị nội dung thường xuyên mà không phải quay lại nhiều màn hình
 khó hiểu.
 
@@ -425,7 +435,8 @@ Chỉ tạo các file này khi phase tương ứng bắt đầu; không tạo pl
 
 - scripts/admin-visual-mode.test.mjs — P1;
 - scripts/admin-visual-regions.test.mts — P2;
-- scripts/admin-visual-news-media.test.mts — P3;
+- scripts/admin-visual-news-media.test.mts — P3 contextual/browser slice;
+- scripts/admin-news-write-contract.test.mts — P3 news persistence contract đã có;
 - scripts/admin-visual-pages-navigation.test.mts — P4;
 - scripts/admin-visual-bulk.test.mts — P5;
 - browser/staging harness — P1 trở đi, đặt cạnh harness hiện có và ghi vào file
