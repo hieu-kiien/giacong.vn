@@ -1,7 +1,7 @@
 # Lộ trình Giacong Visual Admin
 
 **Trạng thái:** kế hoạch thực thi chính
-**Cập nhật:** 2026-08-28
+**Cập nhật:** 2026-08-29
 **Phạm vi:** apps/giacong-lean-commerce
 **Bản đồ đi kèm:** ADMIN_VISUAL_FILE_MAP.md
 
@@ -82,10 +82,10 @@ giới hạn phải được ghi đúng như vậy, không coi là xanh hoàn to
   test:contact 103/103, test:catalog 5/5, test:catalog-purchase-ui 1/1,
   test:service 3/3, test:commerce 32/32, test:listing 4/4 và test:detail
   29/29; UI import 2/2 và harness timing 1/1.
-- Deep QA Playwright local-only đã pass responsive route matrix, catalog
-  search/sort/filter, detail mobile stacking, cart localStorage → request route
-  và keyboard reachability. Đây là evidence runtime storefront, không thay cho
-  Cloudflare Access/admin staging.
+- Deep QA Playwright đã pass responsive route matrix, catalog search/sort/filter,
+  detail mobile stacking, cart localStorage → request route và keyboard
+  reachability ở local fixture và public staging (2026-08-29). Đây là evidence
+  runtime storefront; admin staging vẫn cần một phiên Cloudflare Access hợp lệ.
 - File `src/components/admin/AdminCategoryPanel.tsx` ở root workspace là bản
   trùng không thuộc app triển khai, không có caller trong app và đã được loại bỏ;
   bản canonical vẫn ở `apps/giacong-lean-commerce/src/components/admin/AdminCategoryPanel.tsx`.

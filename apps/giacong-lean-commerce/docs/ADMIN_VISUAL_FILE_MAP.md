@@ -14,12 +14,14 @@ Mục tiêu của file này là trả lời nhanh bốn câu hỏi trước khi 
 Không thêm file mới vào map chỉ vì đã nghĩ ra tên. File chỉ được đánh dấu “đã có”
 khi tồn tại trong checkout; file “dự kiến” phải được tạo trong phase tương ứng.
 
-**Checkpoint 2026-08-28:** P1 host-gated admin context, P2 settings write
+**Checkpoint 2026-08-29:** P1 host-gated admin context, P2 settings write
 contract (per-setting + bulk publish), contextual editor MVP và P5 product bulk
 import UI đã có trong `master`. Local Playwright deep QA đã pass storefront
-public ở mobile/tablet/desktop, catalog, detail, cart và keyboard. Staging
-Cloudflare Access/admin read-back, browser evidence cho admin context thật và
-frontend motion worktree còn mở; không coi local Next dev là bằng chứng Access.
+public ở mobile/tablet/desktop, catalog, detail, cart và keyboard; public
+staging cũng pass cùng ma trận. `admin-staging.kienhieu.id.vn` trả Cloudflare
+Access login khi không có phiên hợp lệ, vì vậy admin read-back/browser evidence
+cho context thật và frontend motion worktree còn mở; không coi local Next dev là
+bằng chứng Access.
 
 **Checkpoint P3 2026-08-28:** contract backend news/media đã vào `master`: news
 có snapshot `draft_*` và `published_*`, publish/unpublish riêng, batch status tối
