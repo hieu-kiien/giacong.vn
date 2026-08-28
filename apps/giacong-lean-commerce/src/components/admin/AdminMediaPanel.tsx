@@ -218,13 +218,13 @@ export function AdminMediaPanel({ productId, serviceId, title }: AdminMediaPanel
         <div>
           <div className="admin-kicker">Catalog / R2 media</div>
           <h3 className="admin-panel-title" id="media-editor-heading">{title ?? (productId ? "Ảnh sản phẩm và variant" : "Ảnh dịch vụ")}</h3>
-          <p className="admin-panel-caption">Upload đi qua Worker vào R2, metadata và checksum SHA-256 được lưu trong D1. Chỉ nhận ảnh tối đa 10 MB.</p>
+          <p className="admin-panel-caption">Upload đi qua Worker vào R2, metadata và checksum SHA-256 được lưu trong D1. Chỉ nhận JPEG, PNG hoặc WebP tối đa 8 MiB.</p>
         </div>
         <span className="admin-stamp">{loading ? "ĐANG TẢI" : `${media.length} ASSETS`}</span>
       </div>
       {error ? <p className="admin-editor-error" role="alert">{error.code ? `${error.code} · ` : ""}{error.message}</p> : null}
       <div className="admin-editor-grid">
-        <label className="admin-field admin-field-wide"><span>File ảnh</span><input accept="image/jpeg,image/png,image/webp,image/avif" className="admin-input" onChange={chooseFile} type="file" /></label>
+        <label className="admin-field admin-field-wide"><span>File ảnh</span><input accept="image/jpeg,image/png,image/webp" className="admin-input" onChange={chooseFile} type="file" /></label>
         {productId ? <label className="admin-field"><span>Gắn vào variant</span><select className="admin-select" onChange={(event) => setVariantId(event.target.value)} value={variantId}><option value="">Sản phẩm</option>{variants.map((variant) => <option key={variant.id} value={variant.id}>{variant.name} · {variant.sku}</option>)}</select></label> : <div className="admin-field"><span>Namespace</span><div className="admin-input">Dịch vụ</div></div>}
         <label className="admin-field"><span>Alt text</span><input className="admin-input" maxLength={300} onChange={(event) => setAltText(event.target.value)} placeholder="Mô tả ảnh cho accessibility" value={altText} /></label>
       </div>

@@ -5,11 +5,14 @@ import { adminErrorFrom } from "@/lib/admin-error-mapping.ts";
 import { requireAdmin } from "@/lib/admin-guard";
 import { canManageMedia } from "@/lib/admin-permissions.ts";
 import { createMediaAsset, listMediaAssets, type R2BucketLike } from "@/lib/media-data";
+import {
+  adminMediaMaxBytes,
+  adminMediaMaxRequestBytes,
+  readBoundedAdminMultipart,
+  validateAdminImageBytes,
+} from "@/lib/media-input";
 
 export const dynamic = "force-dynamic";
-
-const maxUploadBytes = 10 * 1024 * 1024;
-const allowedContentTypes = new Set(["image/avif", "image/jpeg", "image/png", "image/webp"]);
 
 export async function GET(request: Request): Promise<Response> {
   const guard = await requireAdmin(request);
@@ -42,12 +45,18 @@ export async function POST(request: Request): Promise<Response> {
     return adminFailure(crypto.randomUUID(), 403, "FORBIDDEN", "Vai trò hiện tại không được upload media.");
   }
 
-  let form: FormData;
-  try {
-    form = await request.formData();
-  } catch {
-    return adminFailure(crypto.randomUUID(), 422, "VALIDATION_ERROR", "Request upload không hợp lệ.");
+  const boundedForm = await readBoundedAdminMultipart(request);
+  if (!boundedForm.ok) {
+    return adminFailure(
+      crypto.randomUUID(),
+      boundedForm.reason === "too_large" ? 413 : 422,
+      boundedForm.reason === "too_large" ? "PAYLOAD_TOO_LARGE" : "VALIDATION_ERROR",
+      boundedForm.reason === "too_large"
+        ? `Request upload không được vượt quá ${adminMediaMaxRequestBytes / 1024} KiB.`
+        : "Request upload không hợp lệ.",
+    );
   }
+  const form = boundedForm.form;
   const productId = parsePositiveInt(form.get("productId"));
   const serviceId = parsePositiveInt(form.get("serviceId"));
   const variantId = parsePositiveInt(form.get("variantId"));
@@ -55,12 +64,12 @@ export async function POST(request: Request): Promise<Response> {
   if ((!productId && !serviceId) || (productId && serviceId) || (variantId && !productId) || !(file instanceof File)) {
     return adminFailure(crypto.randomUUID(), 422, "VALIDATION_ERROR", "Cần productId hoặc serviceId và file ảnh.");
   }
-  if (!allowedContentTypes.has(file.type) || file.size <= 0 || file.size > maxUploadBytes) {
+  if (file.size <= 0 || file.size > adminMediaMaxBytes) {
     return adminFailure(
       crypto.randomUUID(),
       422,
       "VALIDATION_ERROR",
-      "Ảnh phải là JPEG, PNG, WebP hoặc AVIF và không vượt quá 10 MB.",
+      "Ảnh phải là JPEG, PNG hoặc WebP và không vượt quá 8 MiB.",
     );
   }
 
@@ -79,6 +88,8 @@ export async function POST(request: Request): Promise<Response> {
   if (!bucket) return adminFailure(crypto.randomUUID(), 503, "INTERNAL_ERROR", "R2 media chưa sẵn sàng.");
 
   const bytes = await file.arrayBuffer();
+  const imageError = validateAdminImageBytes(file.type, bytes);
+  if (imageError) return adminFailure(crypto.randomUUID(), 422, "VALIDATION_ERROR", imageError);
   const checksumSha256 = await digestSha256(bytes);
   try {
     const media = await createMediaAsset(guard.database, bucket, {
@@ -88,8 +99,8 @@ export async function POST(request: Request): Promise<Response> {
       contentType: file.type,
       createdBy: guard.actorSubject,
       originalFilename: safeFilename(file.name),
-       productId: productId ?? null,
-       serviceId: serviceId ?? null,
+      productId: productId ?? null,
+      serviceId: serviceId ?? null,
       variantId: variantId ?? null,
     });
     return adminSuccess(crypto.randomUUID(), { media }, 201);

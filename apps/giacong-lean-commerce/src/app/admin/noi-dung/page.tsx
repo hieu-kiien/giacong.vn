@@ -291,7 +291,7 @@ function SettingEditor({
         <label className="admin-setting-upload">
           <span><Upload size={13} /> Upload ảnh vào R2</span>
           <input
-            accept="image/jpeg,image/png,image/webp,image/avif"
+            accept="image/jpeg,image/png,image/webp"
             disabled={!canEdit || uploading}
             onChange={(event) => {
               const file = event.target.files?.[0];
@@ -300,7 +300,7 @@ function SettingEditor({
             }}
             type="file"
           />
-          <small>{uploading ? "Đang upload và lưu draft..." : "Tối đa 10 MB · JPEG, PNG, WebP, AVIF"}</small>
+          <small>{uploading ? "Đang upload và lưu draft..." : "Tối đa 8 MiB · JPEG, PNG, WebP"}</small>
         </label>
       ) : null}
       <div className="admin-setting-meta">
