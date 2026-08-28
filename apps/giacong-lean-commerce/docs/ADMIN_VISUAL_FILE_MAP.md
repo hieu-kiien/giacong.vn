@@ -1,7 +1,7 @@
 # Bản đồ file Giacong Visual Admin
 
 **Trạng thái:** bản đồ ownership và source-of-truth
-**Cập nhật:** 2026-08-27
+**Cập nhật:** 2026-08-28
 **Roadmap:** ADMIN_VISUAL_ROADMAP.md
 
 Mục tiêu của file này là trả lời nhanh bốn câu hỏi trước khi sửa code:
@@ -13,6 +13,10 @@ Mục tiêu của file này là trả lời nhanh bốn câu hỏi trước khi 
 
 Không thêm file mới vào map chỉ vì đã nghĩ ra tên. File chỉ được đánh dấu “đã có”
 khi tồn tại trong checkout; file “dự kiến” phải được tạo trong phase tương ứng.
+
+**Checkpoint 2026-08-28:** P1 host-gated admin context và P2 settings write
+contract đã có trong `master`. P2 vẫn chưa đạt đầy đủ cho tới khi có contextual
+editor, browser/staging evidence và kiểm tra riêng cho bulk publish.
 
 ## 1. Luật ownership
 
@@ -54,7 +58,7 @@ khi tồn tại trong checkout; file “dự kiến” phải được tạo tro
 
 | Domain | Read model | Write/normalization | Published behavior | Capability chính | Test hiện có |
 | --- | --- | --- | --- | --- | --- |
-| Brand/contact/hero | src/lib/site-settings.ts, src/lib/site-markup.ts | site settings API + input validation | published_value và fallback default | content.read/write/publish | scripts/site-settings.test.mts, scripts/site-markup-hero.test.mjs |
+| Brand/contact/hero | src/lib/site-settings.ts, src/lib/site-markup.ts, src/lib/admin-request.ts | site settings API + bounded JSON + input validation | published_value và fallback default | content.read/write/publish | scripts/site-settings.test.mts, scripts/site-settings-write-contract.test.mts, scripts/admin-request.test.mts, scripts/site-markup-hero.test.mjs |
 | Managed pages | src/lib/site-pages.ts, src/lib/page-builder.ts | page API + safe block parser | published blocks chỉ khi enabled/published | pages.read/write/publish | scripts/site-pages.test.mts |
 | Primary/footer navigation | src/lib/site-navigation.ts | navigation API + trusted link normalization | published items; footer renderer cần xác minh riêng | navigation.read/write/publish | scripts/site-pages.test.mts có contract liên quan |
 | News | src/lib/news-public.ts, src/lib/admin-news-input.ts | news API + payload validation | hiện dựa trên is_published; cần unified draft/publish cho P3 | news.read/write và content publish theo quyết định | scripts/admin-news.test.mts |
@@ -101,7 +105,7 @@ còn cần sau khi vertical slice chứng minh được design đơn giản hơn
 | --- | --- | --- |
 | Session | /api/admin/session | P1 |
 | Dashboard | /api/admin/dashboard | P5 |
-| Settings | /api/admin/site-settings, /api/admin/site-settings/publish, /api/admin/site-settings/publish-all, /api/admin/site-settings/media | P2 |
+| Settings | /api/admin/site-settings, /api/admin/site-settings/publish, /api/admin/site-settings/publish-all, /api/admin/site-settings/media | P2; per-setting PATCH/POST đã có requestId, stale, idempotency và audit batch; bulk publish còn gate riêng |
 | Pages | /api/admin/pages, /api/admin/pages/[pageKey], /api/admin/pages/[pageKey]/publish | P4 |
 | Navigation | /api/admin/navigation, /api/admin/navigation/[id], /publish, /publish-all | P4 |
 | News | /api/admin/news, /api/admin/news/[id] | P3 |
@@ -136,6 +140,7 @@ sự giải quyết orchestration mà client không nên làm.
 | migrations/0004_site_settings.sql | settings draft/published | dùng cho P2 |
 | migrations/0007_news_posts.sql | news storage | P3 cần đánh giá semantics |
 | migrations/0009_admin_control_plane.sql | pages/navigation/member revision | P4/P5 |
+| migrations/0010_site_settings_write_contract.sql | settings request id, audit coupling và `last_request_id` | P2; phải apply local/staging trước runtime write |
 | wrangler.jsonc | Worker/env/routes/D1/R2 | staging trước, production gate |
 | custom-worker.ts, open-next.config.ts | Cloudflare/OpenNext runtime | không đổi chỉ để shortcut local |
 | .env.example, .nvmrc, package-lock.json | local reproducibility | không commit secret |
@@ -215,6 +220,8 @@ khối lượng mà contextual UI làm khó hiểu.
 | scripts/admin-categories.test.mts | category admin contract |
 | scripts/admin-service-input.test.mts | service input safety |
 | scripts/admin-visual-mode.test.mjs | P1 admin storefront context and public isolation |
+| scripts/site-settings-write-contract.test.mts | settings idempotency, stale writes, publish isolation và UI request IDs |
+| scripts/admin-request.test.mts | bounded JSON body, content type, UUID request ID và exact-key checks |
 | scripts/storefront-visual-contract.test.mjs | public visual/source boundaries |
 | scripts/captured-route-runtime.test.mjs | captured asset/runtime path |
 | scripts/development-port.test.mjs | reserved-port and local runner rules |

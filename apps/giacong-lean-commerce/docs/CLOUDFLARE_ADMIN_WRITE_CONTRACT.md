@@ -117,6 +117,27 @@ Tier-price replacement uses the parent variant revision as its concurrency token
 - Schema changes use explicit tracked D1 migrations only. Runtime code never creates/alters schema.
 - Before staging schema/data mutation, guard the expected state; after mutation, verify postconditions and invariants.
 
+### Site settings P2 contract
+
+The per-setting write slice uses these routes:
+
+- `PATCH /api/admin/site-settings` with exactly `requestId`, `key`,
+  `expectedVersion` and `value`;
+- `POST /api/admin/site-settings/publish` with exactly `requestId`, `key` and
+  `expectedVersion`.
+
+Both routes require a valid UUID request ID, `application/json`, a body no larger
+than 64 KiB, a positive integer version and the existing content
+write/publish capability. A successful mutation increments the setting version
+once and writes the setting update plus its audit record in one D1 batch. A
+repeated request ID with the same canonical payload is idempotent; reusing it for
+another operation or payload returns `409 IDEMPOTENCY_CONFLICT`.
+
+The schema for this slice is `migrations/0010_site_settings_write_contract.sql`.
+The separate `publish-all` bulk route remains an advanced operation and must not
+be treated as covered by the per-setting idempotency contract until its own bulk
+request, audit and staging tests are green.
+
 ## 6. Canonical normalization
 
 The server performs only deterministic normalization:

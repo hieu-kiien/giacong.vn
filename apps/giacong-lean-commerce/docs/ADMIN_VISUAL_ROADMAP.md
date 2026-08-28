@@ -215,6 +215,12 @@ không chuyên môn.
 
 ### P2 — MVP-1: Một lát chỉnh sửa end-to-end
 
+**Checkpoint 2026-08-28:** Per-setting settings write contract đã vào `master`
+qua migration `0010_site_settings_write_contract.sql`, gồm bounded JSON,
+version/stale protection, request-id idempotency và audit coupling. Các gate còn
+mở của P2 là contextual editor/region mapping, browser responsive evidence,
+staging acceptance và contract riêng cho bulk publish.
+
 **Mục tiêu:** hoàn thành trọn vẹn một flow có giá trị cao, bắt đầu từ brand/hero
 đã có mapping.
 
