@@ -44,3 +44,8 @@ test("admin capabilities separate owner, content, catalog, sales and viewer acce
   assert.equal(canManage("viewer", "members.read"), false);
   assert.equal(canManage("administrator", "pages.write"), false);
 });
+
+test("admin role validation fails closed for inherited object keys", () => {
+  assert.equal(canManage("constructor", "catalog.write"), false);
+  assert.equal(canManage("toString", "catalog.write"), false);
+});

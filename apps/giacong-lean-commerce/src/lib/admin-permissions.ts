@@ -67,7 +67,7 @@ const roleCapabilities: Record<AdminRole, ReadonlySet<AdminCapability>> = {
 };
 
 export function isAdminRole(value: string): value is AdminRole {
-  return value in roleCapabilities;
+  return Object.hasOwn(roleCapabilities, value);
 }
 
 export function canManage(role: AdminRole | string, capability: AdminCapability): boolean {
