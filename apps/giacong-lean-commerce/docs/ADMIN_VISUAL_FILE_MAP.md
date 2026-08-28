@@ -14,17 +14,19 @@ Mục tiêu của file này là trả lời nhanh bốn câu hỏi trước khi 
 Không thêm file mới vào map chỉ vì đã nghĩ ra tên. File chỉ được đánh dấu “đã có”
 khi tồn tại trong checkout; file “dự kiến” phải được tạo trong phase tương ứng.
 
-**Checkpoint 2026-08-28:** P1 host-gated admin context và P2 settings write
-contract (per-setting + bulk publish) đã có trong `master` sau khi merge lane
-bulk. P2 vẫn chưa đạt đầy đủ cho tới khi có contextual editor và
-browser/staging evidence.
+**Checkpoint 2026-08-28:** P1 host-gated admin context, P2 settings write
+contract (per-setting + bulk publish), contextual editor MVP và P5 product bulk
+import UI đã có trong `master`. Local Playwright deep QA đã pass storefront
+public ở mobile/tablet/desktop, catalog, detail, cart và keyboard. Staging
+Cloudflare Access/admin read-back, browser evidence cho admin context thật và
+frontend motion worktree còn mở; không coi local Next dev là bằng chứng Access.
 
-**Checkpoint P3 2026-08-28:** lane news/media đã khóa contract backend trong
-worktree cô lập: news có snapshot `draft_*` và `published_*`, publish/unpublish
-riêng, batch status tối đa 100 item, optimistic revision, request-id
-idempotency và audit D1; media upload có bounded multipart, giới hạn file 8 MiB
-và kiểm tra magic bytes JPEG/PNG/WebP. Đây chưa phải P3 hoàn tất: contextual
-storefront adapter, browser evidence và staging runtime acceptance còn mở.
+**Checkpoint P3 2026-08-28:** contract backend news/media đã vào `master`: news
+có snapshot `draft_*` và `published_*`, publish/unpublish riêng, batch status tối
+đa 100 item, optimistic revision, request-id idempotency và audit D1; media
+upload có bounded multipart, giới hạn file 8 MiB và kiểm tra magic bytes
+JPEG/PNG/WebP. Đây chưa phải P3 hoàn tất: contextual storefront adapter,
+browser evidence và staging runtime acceptance còn mở.
 
 ## 1. Luật ownership
 
@@ -69,7 +71,7 @@ storefront adapter, browser evidence và staging runtime acceptance còn mở.
 | Brand/contact/hero | src/lib/site-settings.ts, src/lib/site-markup.ts, src/lib/admin-request.ts | site settings API + bounded JSON + input validation | published_value và fallback default | content.read/write/publish | scripts/site-settings.test.mts, scripts/site-settings-write-contract.test.mts, scripts/admin-request.test.mts, scripts/site-markup-hero.test.mjs |
 | Managed pages | src/lib/site-pages.ts, src/lib/page-builder.ts | page API + safe block parser | published blocks chỉ khi enabled/published | pages.read/write/publish | scripts/site-pages.test.mts |
 | Primary/footer navigation | src/lib/site-navigation.ts | navigation API + trusted link normalization | published items; footer renderer cần xác minh riêng | navigation.read/write/publish | scripts/site-pages.test.mts có contract liên quan |
-| News | src/lib/news-public.ts, src/lib/admin-news-input.ts, src/lib/admin-data.ts | news API + draft input + publish/batch contract | public chỉ đọc `published_*`; draft chỉnh riêng, publish explicit; contract P3 đã có trong lane | news.read/write và content publish theo quyết định | scripts/admin-news.test.mts, scripts/admin-news-write-contract.test.mts |
+| News | src/lib/news-public.ts, src/lib/admin-news-input.ts, src/lib/admin-data.ts | news API + draft input + publish/batch contract | public chỉ đọc `published_*`; draft chỉnh riêng, publish explicit; contract P3 đã có trong master | news.read/write và content publish theo quyết định | scripts/admin-news.test.mts, scripts/admin-news-write-contract.test.mts |
 | Media | src/lib/media-data.ts, src/lib/site-media-data.ts, src/lib/media-input.ts | media API/R2 guard + bounded multipart + signature validation | reference phải còn hợp lệ; JPEG/PNG/WebP tối đa 8 MiB | media.read/write | scripts/media-contract.test.mts |
 | Product/category/variant | src/lib/admin-product-input.ts, src/lib/admin-category-input.ts, src/lib/admin-variant-input.ts và catalog adapters | admin API + D1 canonical rules; bulk import contract | product/service public read theo trạng thái; import luôn tạo draft/inactive | catalog.read/write/publish | scripts/admin-categories.test.mts, scripts/admin-product-import.test.mts, catalog/detail suites |
 | Service | src/lib/admin-service-input.ts, service data adapters | service API + D1 | active/published service read | services.read/write | scripts/admin-service-input.test.mts, scripts/service-contract.test.mts |
@@ -88,22 +90,25 @@ storefront adapter, browser evidence và staging runtime acceptance còn mở.
 | Navigation | AdminNavigationManager.tsx | primary menu manager | giữ full editor; contextual edit gọi vào đúng item |
 | Members | AdminMembersManager.tsx | owner quản lý admin roles | trang đặc biệt, không inline trên storefront |
 | Category/variant | AdminCategoryPanel.tsx, AdminVariantPanel.tsx | catalog sub-editors | dùng trong catalog/bulk flow, không nhồi hết vào homepage |
+| Product bulk import | AdminProductImportPanel.tsx, src/app/admin/san-pham/page.tsx | chọn CSV, preview lỗi, import atomic và retry cùng request ID | giữ ở catalog control plane; không biến thành inline editor |
+| Storefront admin context | AdminVisualMode.tsx | host/session gate, trạng thái loading/blocked/unavailable/ready | chỉ mount trên exact admin hostname; public không tải control |
+| Contextual settings editor | AdminVisualEditor.tsx, AdminVisualEditor.module.css | toolbar nhỏ cho brand/hero, draft/preview/publish và role-aware feedback | MVP cho region đã map; preview hiện là draft card có nhãn rõ ràng |
 | Admin CSS | src/styles/admin.css | styling control plane | giữ token/brand language, không tạo dashboard stack mới |
 
-### File dự kiến cho visual layer
+### Visual layer: file đã có và file chưa cần tạo
 
-Chỉ tạo khi P1/P2 bắt đầu và sau khi contract được chốt:
+Vertical slice hiện tại chứng minh chưa cần tách thành nhiều abstraction:
 
-| File dự kiến | Trách nhiệm | Không được làm |
+| File canonical | Trách nhiệm | Không được làm |
 | --- | --- | --- |
 | src/components/admin/AdminVisualMode.tsx | context/entry state cho admin storefront | không tự cấp quyền |
-| src/components/admin/AdminEditableRegion.tsx | outline, contextual action, keyboard/focus | không tự ghi D1/R2 |
-| src/components/admin/AdminVisualActions.tsx | nút Sửa, Xem trước, Lưu nháp, Phát hành | không chứa domain validation lặp lại |
-| src/lib/admin-visual-regions.ts | registry region → source/capability/editor | không map node HTML mơ hồ |
-| src/lib/admin-visual-contract.ts | type/response/state contract nếu thật sự cần | không tạo abstraction trước use case thứ ba |
+| src/components/admin/AdminVisualEditor.tsx | toolbar/drawer và flow brand/home settings | không ghi D1/R2 trực tiếp |
+| src/components/admin/AdminVisualEditor.module.css | layout, focus, mobile và reduced-motion cho editor | không tạo token riêng ngoài hệ thống |
+| src/lib/admin-visual-contract.ts | exact host gate và session-ready contract | không quyết định capability server |
 
-Tên trên là map dự kiến, không phải cam kết tạo đủ năm file. Nếu một file không
-còn cần sau khi vertical slice chứng minh được design đơn giản hơn, xóa khỏi map.
+Các file `AdminEditableRegion.tsx`, `AdminVisualActions.tsx` và
+`admin-visual-regions.ts` chưa tồn tại và chưa được tạo: chỉ mở chúng khi có
+use case thứ ba chứng minh editor hiện tại không còn đủ đơn giản.
 
 ## 5. API và server boundary
 
@@ -113,12 +118,12 @@ còn cần sau khi vertical slice chứng minh được design đơn giản hơn
 | --- | --- | --- |
 | Session | /api/admin/session | P1 |
 | Dashboard | /api/admin/dashboard | P5 |
-| Settings | /api/admin/site-settings, /api/admin/site-settings/publish, /api/admin/site-settings/publish-all, /api/admin/site-settings/media | P2; per-setting và bulk publish đã có requestId, stale, idempotency và audit batch; contextual/browser/staging còn mở |
+| Settings | /api/admin/site-settings, /api/admin/site-settings/publish, /api/admin/site-settings/publish-all, /api/admin/site-settings/media | P2; per-setting và bulk publish có requestId, stale, idempotency và audit batch; contextual editor đã tích hợp, staging/admin read-back còn mở |
 | Pages | /api/admin/pages, /api/admin/pages/[pageKey], /api/admin/pages/[pageKey]/publish | P4 |
 | Navigation | /api/admin/navigation, /api/admin/navigation/[id], /publish, /publish-all | P4 |
 | News | /api/admin/news, /api/admin/news/[id], /api/admin/news/[id]/publish, /api/admin/news/batch | P3; draft save, explicit publish/unpublish và batch status đã có; contextual/browser/staging còn mở |
 | Media | /api/admin/media, /api/admin/media/[id], /api/admin/media/cleanup | P3/P5 |
-| Catalog | /api/admin/categories, /products, /products/[id], variants routes, /api/admin/products/import | P5; bulk import backend tối đa 50 dòng, atomic/idempotent/audited đã có; UI/browser/staging còn mở |
+| Catalog | /api/admin/categories, /products, /products/[id], variants routes, /api/admin/products/import | P5; bulk import backend + UI đã có, tối đa 50 dòng, atomic/idempotent/audited và retry UI giữ request ID; browser/staging còn mở |
 | Services | /api/admin/services, /api/admin/services/[id] | P5 |
 | Leads | /api/admin/leads, /api/admin/leads/[id] | P5, special page |
 | Members | /api/admin/members, /api/admin/members/[id] | P5, special page |
@@ -232,12 +237,14 @@ khối lượng mà contextual UI làm khó hiểu.
 | scripts/admin-categories.test.mts | category admin contract |
 | scripts/admin-service-input.test.mts | service input safety |
 | scripts/admin-visual-mode.test.mjs | P1 admin storefront context and public isolation |
+| scripts/admin-product-import-ui.test.mjs | bulk import picker, preview, atomic result guard và retry request ID |
 | scripts/site-settings-write-contract.test.mts | settings idempotency, stale writes, publish isolation và UI request IDs |
 | scripts/admin-request.test.mts | bounded JSON body, content type, UUID request ID và exact-key checks |
 | scripts/site-settings-bulk-contract.test.mts | bulk publish batch, per-setting audit, stale skip, replay và route/migration contract |
 | scripts/storefront-visual-contract.test.mjs | public visual/source boundaries |
 | scripts/captured-route-runtime.test.mjs | captured asset/runtime path |
 | scripts/development-port.test.mjs | reserved-port and local runner rules |
+| scripts/qa-deep-staging.test.mjs | harness chờ streamed storefront content trước detail/keyboard assertions |
 
 Test file mới chỉ được thêm cho gap thật, ưu tiên mở rộng test canonical trước khi
 tạo test wrapper mới.

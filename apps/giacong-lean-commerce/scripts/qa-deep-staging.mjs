@@ -23,6 +23,15 @@ async function noHorizontalOverflow(page) {
   return page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1);
 }
 
+async function waitForRenderedSelector(page, selector, timeout = 15_000) {
+  try {
+    await page.locator(selector).first().waitFor({ state: "visible", timeout });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 const browser = await chromium.launch();
 try {
   // 1. Responsive smoke: every route at every viewport renders without horizontal overflow.
@@ -65,9 +74,13 @@ try {
     const mobile = await browser.newContext({ viewport: { width: 390, height: 844 } });
     const mpage = await mobile.newPage();
     await mpage.goto(`${baseUrl}/san-pham/bot-gao-lut-xay-min`, { waitUntil: "domcontentloaded", timeout: 45_000 });
+    await waitForRenderedSelector(mpage, "h1");
+    await waitForRenderedSelector(mpage, '[class*="gallery"]');
+    await waitForRenderedSelector(mpage, '[class*="commercial"]');
+    await waitForRenderedSelector(mpage, 'button[class*="secondaryAction"]');
 
     const gallery = mpage.locator('[class*="gallery"]').first();
-    const panel = mpage.locator('[class*="purchasePanel"], [class*="infoColumn"]').first();
+    const panel = mpage.locator('[class*="commercial"]').first();
     if ((await gallery.count()) && (await panel.count())) {
       const gTop = (await gallery.boundingBox())?.y ?? 0;
       const pTop = (await panel.boundingBox())?.y ?? 0;
@@ -98,6 +111,7 @@ try {
     const kb = await browser.newContext({ viewport: { width: 1440, height: 900 } });
     const kpage = await kb.newPage();
     await kpage.goto(`${baseUrl}/san-pham`, { waitUntil: "domcontentloaded", timeout: 45_000 });
+    await waitForRenderedSelector(kpage, 'input[type=search]');
     let reachedInteractive = false;
     for (let i = 0; i < 12; i += 1) {
       await kpage.keyboard.press("Tab");

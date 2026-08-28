@@ -1,7 +1,7 @@
 # Lộ trình Giacong Visual Admin
 
 **Trạng thái:** kế hoạch thực thi chính
-**Cập nhật:** 2026-08-27
+**Cập nhật:** 2026-08-28
 **Phạm vi:** apps/giacong-lean-commerce
 **Bản đồ đi kèm:** ADMIN_VISUAL_FILE_MAP.md
 
@@ -62,13 +62,14 @@ Thứ tự ưu tiên khi có mâu thuẫn:
 
 ## 2. Baseline đã kiểm tra
 
-Đây là trạng thái sau đợt chuẩn bị ngày 2026-08-27. Các mục có giới hạn phải
-được ghi đúng như vậy, không coi là xanh hoàn toàn.
+Đây là trạng thái sau các lát implementation và QA ngày 2026-08-28. Các mục có
+giới hạn phải được ghi đúng như vậy, không coi là xanh hoàn toàn.
 
 ### 2.1 Đã xác minh
 
-- Checkout Git ban đầu sạch, đang ở master; thay đổi của đợt này chỉ là cleanup
-  và tài liệu.
+- `master` đang chứa các lát đã review của P1/P2/P5: host-gated visual context,
+  settings write contract, contextual brand/hero editor, AdminShell grouping và
+  product bulk import UI/backend.
 - Node v24.14.0, npm 11.9.0, .nvmrc yêu cầu Node 24.
 - package-lock.json tồn tại; dependency tree sau khi cài lại khớp các package
   quan trọng trong lockfile.
@@ -77,12 +78,14 @@ Thứ tự ưu tiên khi có mâu thuẫn:
   còn migration phải apply. Các bảng admin/CMS chính gồm site_settings,
   site_pages, site_navigation_items, admin_members, news_posts và media_assets
   đã tồn tại.
-- Lượt full `npm run check` mới nhất đã pass: test:admin 65/65,
+- Các suite focused sau khi merge hiện tại đã pass: test:admin 85/85,
   test:contact 103/103, test:catalog 5/5, test:catalog-purchase-ui 1/1,
   test:service 3/3, test:commerce 32/32, test:listing 4/4 và test:detail
-  29/29; lint, typecheck và build đều exit 0.
-- Lint không in diagnostic lỗi; next typegen hoàn tất; build đã compile và
-  sinh route output.
+  29/29; UI import 2/2 và harness timing 1/1.
+- Deep QA Playwright local-only đã pass responsive route matrix, catalog
+  search/sort/filter, detail mobile stacking, cart localStorage → request route
+  và keyboard reachability. Đây là evidence runtime storefront, không thay cho
+  Cloudflare Access/admin staging.
 - File `src/components/admin/AdminCategoryPanel.tsx` ở root workspace là bản
   trùng không thuộc app triển khai, không có caller trong app và đã được loại bỏ;
   bản canonical vẫn ở `apps/giacong-lean-commerce/src/components/admin/AdminCategoryPanel.tsx`.
@@ -93,11 +96,11 @@ Thứ tự ưu tiên khi có mâu thuẫn:
 
 ### 2.2 Còn phải lưu ý
 
-- Lần chạy full `npm run check` cuối cùng đã exit 0, bao gồm test, lint, typecheck
-  và build. Tuy nhiên log build vẫn có WSARecv/SQLite busy do một Next dev
-  server/workerd khác đang chạy trong cùng workspace. Trước mỗi release gate phải
-  dừng các dev server dùng cùng app rồi chạy lại full command từ đầu để có log
-  sạch.
+- Lần chạy full `npm run check` trước đợt merge mới đã exit 0; sau các lát mới,
+  các suite focused và deep QA đã pass nhưng cần chạy lại lint/typecheck/build
+  trong một cửa sổ release không có dev server trước khi đánh dấu production
+  ready. Các wrapper PowerShell trên máy có thể giữ process sau khi Node đã in
+  hết kết quả, nên phải ghi nhận output và exit code thực tế riêng.
 - Build local không có dữ liệu CMS nếu D1 chưa bootstrap; khi đó code fallback về
   default và có log no such table. Đây là lỗi setup, không được dùng làm bằng
   chứng cho admin runtime.
@@ -178,6 +181,9 @@ visual vào một pull request lớn.
 
 ### P1 — MVP-0: Admin mode shell, chưa cho write
 
+**Trạng thái:** code và contract đã có trong `master`; browser proof cho public
+local đã pass. Proof admin thật vẫn chờ staging Cloudflare Access.
+
 **Mục tiêu:** admin đã vào được cùng storefront và hiểu mình đang ở chế độ nào,
 nhưng chưa có mutation inline.
 
@@ -215,13 +221,12 @@ không chuyên môn.
 
 ### P2 — MVP-1: Một lát chỉnh sửa end-to-end
 
-**Checkpoint 2026-08-28:** Per-setting settings write contract đã vào `master`
-qua migration `0010_site_settings_write_contract.sql`, gồm bounded JSON,
-version/stale protection, request-id idempotency và audit coupling. Bulk
-`publish-all` cũng đã có request contract, audit envelope và replay-safe D1 batch
-qua migration `0011_site_settings_bulk_publish.sql`. Các gate còn mở của P2 là
-contextual editor/region mapping, browser responsive evidence và staging
-acceptance.
+**Checkpoint 2026-08-28:** Per-setting settings write contract, bulk
+`publish-all` và contextual editor brand/hero đã vào `master`. Editor dùng
+canonical `/api/admin/site-settings`, có role-aware read/write/publish, draft,
+preview card, loading/error/stale feedback và keyboard/mobile handling. Gate còn
+mở của P2 là browser proof trên admin host thật, staging read-back và kiểm tra
+preview bằng renderer storefront đầy đủ thay cho draft card MVP.
 
 **Mục tiêu:** hoàn thành trọn vẹn một flow có giá trị cao, bắt đầu từ brand/hero
 đã có mapping.
@@ -256,17 +261,18 @@ acceptance.
 
 **Đạt khi:** một người ít chuyên môn có thể đổi hero/phone/logo mà không cần biết
 database hay route API, còn public vẫn sạch và dữ liệu chưa publish không rò ra.
+Lưu ý: local contract/UI đã đạt phần MVP; phase chưa đóng cho tới khi có
+staging/admin evidence.
 
 ### P3 — MVP-2: Tin tức và media
 
-**Checkpoint 2026-08-28:** backend P3 đã được triển khai trong lane cô lập và
-kiểm chứng local. Migration `0012_news_draft_publish_contract.sql` tách bản
-nháp khỏi snapshot public; lưu nháp không đổi storefront, publish/unpublish là
-mutation riêng, batch tối đa 100 bài có kết quả skipped, revision, idempotency
-và audit envelope/per-item. Media product/site đã giới hạn multipart trước khi
-parse, file tối đa 8 MiB và kiểm tra chữ ký JPEG/PNG/WebP. Focused contract
-tests và full check đều xanh. P3 chưa được đánh dấu hoàn tất cho tới khi merge
-vào baseline, có contextual storefront mapping, browser desktop/mobile/keyboard
+**Checkpoint 2026-08-28:** backend P3 đã vào `master` và focused contract tests
+đã pass. Migration `0012_news_draft_publish_contract.sql` tách bản nháp khỏi
+snapshot public; lưu nháp không đổi storefront, publish/unpublish là mutation
+riêng, batch tối đa 100 bài có kết quả skipped, revision, idempotency và audit
+envelope/per-item. Media product/site đã giới hạn multipart trước khi parse,
+file tối đa 8 MiB và kiểm tra chữ ký JPEG/PNG/WebP. P3 chưa được đánh dấu hoàn
+tất cho tới khi có contextual storefront mapping, browser desktop/mobile/keyboard
 evidence và staging read-back.
 
 **Mục tiêu:** quản trị nội dung thường xuyên mà không phải quay lại nhiều màn hình
@@ -330,12 +336,13 @@ back office.
 
 ### P5 — MVP-4: Trung tâm vận hành đầy đủ và xử lý hàng loạt
 
-**Checkpoint 2026-08-28:** hai lát đầu của P5 đã vào `master`: AdminShell được
-nhóm lại theo ngôn ngữ dễ hiểu, có nhãn vai trò/link storefront; backend product
-bulk import có giới hạn stream 64 KiB, tối đa 50 dòng, owner/catalog_manager,
-UUID idempotency, fingerprint ổn định trước lookup category và D1 batch atomic
-cho product/meta/audit. Đây chưa phải P5 hoàn tất: UI import, batch các domain
-còn lại, browser/mobile evidence và staging acceptance vẫn mở.
+**Checkpoint 2026-08-28:** AdminShell được nhóm lại theo ngôn ngữ dễ hiểu, có
+nhãn vai trò/link storefront; product bulk import đã có backend + UI. Contract
+giữ giới hạn stream 64 KiB/tối đa 50 dòng, owner/catalog_manager, UUID
+idempotency, fingerprint ổn định trước lookup category và D1 batch atomic cho
+product/meta/audit. UI có preview lỗi, guard kết quả atomic, retry giữ request
+ID và thông báo dễ hiểu. P5 vẫn chưa hoàn tất: batch các domain còn lại,
+browser/admin staging evidence và full operational acceptance còn mở.
 
 **Mục tiêu:** admin có toàn quyền vận hành trong phạm vi Lean V1, không hy sinh
 tính rõ ràng cho người mới.

@@ -6,7 +6,11 @@
 
 ## 1. Kết luận điều hành
 
-Đây không phải dự án xanh hoàn toàn. Nền tảng hiện tại đã có storefront, catalog, request cart, admin control plane, Cloudflare Access, D1/R2, draft/publish và bộ test đáng kể. Phần còn thiếu là lớp visual editing gắn vào storefront, chuẩn hóa một số semantics và hoàn thiện vận hành admin/bulk.
+Đây không phải dự án xanh hoàn toàn. Nền tảng hiện tại đã có storefront, catalog,
+request cart, admin control plane, Cloudflare Access, D1/R2, draft/publish, host-
+gated visual context, contextual settings editor và product bulk import. Phần
+còn thiếu là staging/admin evidence, visual renderer parity, các batch domain còn
+lại và hardening/release.
 
 Mô hình phù hợp nhất là:
 
@@ -53,7 +57,10 @@ Nếu hai tài liệu hoặc branch mâu thuẫn, Control Tower phải dừng l�
 
 ### 2.2 Bức tranh kỹ thuật đã xác minh
 
-GitNexus hiện lập chỉ mục repo `giacong.vn` với 532 file, 2.887 symbol, 7.493 quan hệ, 118 community và 214 execution flow; index bám commit nền hiện tại. Đây là codebase đủ lớn để cần phân vai và call-graph review, nhưng chưa lớn đến mức cần một bộ máy nhiều tầng nặng nề.
+GitNexus hiện lập chỉ mục repo `giacong.vn` với khoảng 532 file, 3.630 symbol,
+9.209 quan hệ và 257 execution flow; index phải được refresh sau mỗi lát merge.
+Đây là codebase đủ lớn để cần phân vai và call-graph review, nhưng chưa lớn đến
+mức cần một bộ máy nhiều tầng nặng nề.
 
 Các trục chính:
 
@@ -63,8 +70,8 @@ Các trục chính:
 | Admin boundary | `AdminShell`, session, Access/JWT, role/capability, API guard | Security/Platform owner duyệt mọi thay đổi quyền hoặc boundary |
 | Data/runtime | D1 canonical catalog/content, R2 media, migrations, audit/revision | Backend/Data phải khóa invariant và rollback trước UI |
 | Admin UI | CRUD cho catalog, service, news, media, pages, navigation, members, leads | Có thể tái dùng primitive hiện tại; không dựng lại dashboard từ đầu |
-| Visual admin | region registry và các file visual mới đang là kế hoạch, chưa phải runtime hoàn chỉnh | P1/P2 phải tạo vertical slice nhỏ để chứng minh mô hình |
-| Bulk | current `master` chưa có general bulk API; branch `codex/bulk-product-import` có CSV draft import riêng | Cần integration/contract review, không cherry-pick cả branch |
+| Visual admin | host/session context và editor MVP cho brand/hero đã vào `master`; chưa phải renderer parity đầy đủ | Mở thêm region chỉ khi có source, capability và browser evidence |
+| Bulk | product import backend + UI đã vào `master`, atomic/idempotent/audited, giới hạn 50 dòng | Batch domain khác chỉ mở sau contract riêng; không tạo generic bulk framework sớm |
 | Quality/release | test scripts, lint, typecheck, build, Wrangler/OpenNext và staging workflows đã có | QA/Release dùng pipeline hiện tại, không tự tạo pipeline song song |
 
 ### 2.3 Các hub rủi ro cao cần được bảo vệ
@@ -77,7 +84,10 @@ Các trục chính:
 
 ### 2.4 Workstream tiềm ẩn trong các branch
 
-Branch `codex/bulk-product-import` có một lát CSV import sản phẩm khá hoàn chỉnh: parse CSV có BOM/quoted newline, preview, giới hạn 50 dòng, tạo draft all-or-none và test. Tuy nhiên trước khi đưa vào `master` cần kiểm tra lại capability, giới hạn body thực tế, request id/idempotency và quy ước payload bulk so với contract 64 KiB.
+Lát `codex/bulk-product-import` đã được harvest thành các commit nhỏ trên
+`master`, sau khi kiểm tra capability, giới hạn body, request id/idempotency và
+all-or-none semantics. Phần cần tiếp tục là browser/admin staging evidence và
+batch cho domain khác; không merge nguyên branch cũ.
 
 Các branch hardening, self-hosted staging gates và performance có giá trị tham khảo nhưng phân kỳ lớn với `master`. Team phải “harvest theo change card, rebase trên baseline hiện tại, test lại”, không merge nguyên branch theo cảm tính.
 
@@ -148,29 +158,34 @@ Reviewers phải độc lập với agent vừa viết lát đó. Một reviewer
 
 ### 4.1 Quy mô hoạt động khuyến nghị
 
-Không cần chạy 15 agent liên tục. Với codebase này, cấu hình hiệu quả là:
+Không cần chạy 15 agent liên tục. Với codebase này, cấu hình hiệu quả là tối đa
+4 task/agent hoạt động đồng thời:
 
 - 1 Control Tower luôn giữ context và quyết định;
 - 1 agent Product/Architecture cho mỗi lát đang chuẩn bị;
 - 1 implementer chính cho một lát đang code;
 - 1 QA/reviewer độc lập sau implement;
-- 1 Release agent khi có staging evidence;
-- tối đa 2 agent nghiên cứu read-only chạy song song.
+- 1 Release agent chỉ mở khi đã có staging evidence (có thể thay QA/reviewer);
+- không mở thêm agent nếu task không độc lập hoặc đang có worktree người dùng sửa.
 
-Tức là thường 4–7 vai trò hoạt động, nhưng chỉ **một write lane cho một dependency chain**.
+Chỉ **một write lane cho một dependency chain**. Các task mới phải dùng chế độ
+thường, không ưu tiên nhanh; nếu tạo agent thì dùng gpt-5.6-luna và chọn
+reasoning theo độ khó, không tự đổi model.
 
 ### 4.2 Gợi ý model tier
 
-Đây là policy phân bổ năng lực, không khóa vào một model cụ thể:
+Policy hiện hành khi Control Tower tạo agent:
 
-| Công việc | Model tier | Reasoning |
+| Công việc | Model | Reasoning |
 | --- | --- | --- |
-| Control Tower, architecture, security, migration, release decision | frontier/strongest | high hoặc xhigh |
-| Backend/renderer integration | balanced strong | medium hoặc high |
-| UI mechanical work, inventory, test harness nhỏ | fast capable | low hoặc medium |
-| Independent review | model khác implementer | medium/high, ưu tiên độc lập |
+| Architecture, security, migration, release decision | gpt-5.6-luna | high |
+| Backend/renderer integration | gpt-5.6-luna | medium hoặc high |
+| UI mechanical work, inventory, test harness nhỏ | gpt-5.6-luna | low hoặc medium |
+| Independent review | gpt-5.6-luna | medium/high, ưu tiên task độc lập |
 
-Không dùng model rẻ hơn để quyết định scope, auth boundary, migration hoặc production gate chỉ vì task trông ngắn.
+Service tier luôn là chế độ thường; không dùng fast/priority cho agent. Không
+chọn reasoning thấp cho scope, auth boundary, migration hoặc production gate chỉ
+vì task trông ngắn.
 
 ### 4.3 Quy tắc worktree và file lock
 
@@ -433,13 +448,30 @@ Một phase chỉ được đánh dấu đạt khi có bảng evidence, không d
 
 ## 13. Kế hoạch kích hoạt thực tế tiếp theo
 
-Không kích hoạt toàn đội cùng lúc. Trình tự nên là:
+Các lát P1, P2 và phần product import của P5 đã được thực hiện trên `master`.
+Từ checkpoint này, Control Tower chỉ mở agent khi có đầu ra độc lập rõ ràng; tối
+đa 4 task đồng thời, chế độ thường, và tuyệt đối không đụng worktree frontend
+motion đang dirty của người dùng.
 
-1. Control Tower đóng baseline bằng một commit sạch chứa cleanup/docs hiện tại.
-2. Explorer/Architecture rà lại P1 và chốt `AdminVisualMode` contract, region registry và public isolation.
-3. Backend/QA tạo RED tests cho session/context và các boundary liên quan; impact trước khi sửa hub.
-4. Experience làm P1 read-only shell, browser QA xác nhận behavior.
-5. Chỉ khi P1 đạt gate mới mở P2 với một vùng nhỏ: brand/contact/hero.
-6. Sau mỗi phase, cập nhật file map/roadmap/evidence rồi mới mở phase kế tiếp.
+Trình tự còn lại:
 
-Đây là cách nhanh nhất để hoàn thành toàn bộ dự án mà vẫn giữ được khả năng kiểm soát: các phần độc lập được nghiên cứu song song, còn mọi thay đổi có khả năng lan truyền đều đi qua một owner, một contract và một chuỗi review rõ ràng.
+1. Release/QA chạy lại lint, typecheck, build và full check sau khi dừng các dev
+   server; lưu output/exit code thật.
+2. Browser QA chạy staging public/admin bằng Cloudflare Access: public không có
+   control, admin owner/content manager có context/editor, role khác bị giới
+   hạn; chụp evidence desktop/mobile/keyboard/focus.
+3. Backend/Data áp migration staging nếu thiếu và read-back draft → publish,
+   product import atomic/replay, audit và stale behavior; không gọi mutation
+   production.
+4. Experience owner xử lý worktree motion riêng, commit/rebase trên baseline
+   hiện tại rồi mới tạo change card để review; Control Tower không tự stage hay
+   cherry-pick file dirty đó.
+5. Sau khi các gate trên xanh, mở P3/P4/P5 còn thiếu theo từng vertical slice:
+   news/media contextual, pages/navigation và batch domain khác; mỗi slice cập
+   nhật file map/roadmap/evidence trước khi chuyển tiếp.
+6. Chỉ khi staging acceptance, rollback note, production checklist và người
+   quyết định nội dung đã duyệt thì mới xem xét production promotion.
+
+Đây là mô hình ưu tiên kết quả nhưng vẫn kiểm soát ngữ cảnh: agent chỉ nhận lát
+nhỏ, độc lập, có artifact bàn giao; dependency chain luôn có một owner, một
+contract và một chuỗi review rõ ràng.
