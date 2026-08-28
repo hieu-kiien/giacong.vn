@@ -156,9 +156,10 @@ export default function AdminContentPage() {
     setPublishingAll(true);
     setNotice(null);
     try {
+      const requestId = crypto.randomUUID();
       const result = await mutateAdmin<{ published: AdminSiteSetting[]; skipped: number; count: number }>(
         "/api/admin/site-settings/publish-all",
-        { method: "POST", body: {} },
+        { method: "POST", body: { requestId } },
       );
       if (result.published.length > 0) {
         const map = new Map(result.published.map((item) => [item.key, item]));

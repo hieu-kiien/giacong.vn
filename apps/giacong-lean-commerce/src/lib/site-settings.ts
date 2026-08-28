@@ -189,7 +189,7 @@ export async function publishAdminSiteSetting(
 
 export async function publishAllAdminSiteSettings(
   database: D1DatabaseLike,
-  input: { actorSubject: string },
+  input: { actorSubject: string; requestId?: string },
 ): Promise<{ published: AdminSiteSetting[]; skipped: number }> {
   const rows = await database.prepare(`
     SELECT setting_key, group_name, label, description, value_type,
@@ -199,29 +199,94 @@ export async function publishAllAdminSiteSettings(
     ORDER BY setting_key
   `).all<SiteSettingRow>();
 
-  if (rows.results.length === 0) return { published: [], skipped: 0 };
+  const requestId = normalizeRequestId(input.requestId);
+  const payloadSha256 = await fingerprintSiteSettingBulkPublish();
+  const existingMutation = await findSiteSettingBulkMutation(database, requestId);
+  if (existingMutation) {
+    assertMatchingBulkMutation(existingMutation, payloadSha256);
+    return readBulkSiteSettingResult(database, requestId, existingMutation);
+  }
 
-  const published: AdminSiteSetting[] = [];
-  let skipped = 0;
+  const statements: D1PreparedStatementLike[] = [database.prepare(`
+    INSERT INTO admin_site_setting_bulk_audit (
+      request_id, actor_subject, action, operation, payload_sha256,
+      selected_count, published_count
+    ) VALUES (?, ?, 'update', 'publish_all', ?, ?, 0)
+  `).bind(requestId, input.actorSubject, payloadSha256, rows.results.length)];
 
   for (const row of rows.results) {
-    const result = await database.prepare(`
+    const settingRequestId = crypto.randomUUID();
+    statements.push(database.prepare(`
       UPDATE site_settings
       SET published_value = draft_value, version = version + 1,
         published_by = ?, published_at = CURRENT_TIMESTAMP,
-        updated_by = ?, updated_at = CURRENT_TIMESTAMP
+        updated_by = ?, updated_at = CURRENT_TIMESTAMP, last_request_id = ?
       WHERE setting_key = ? AND version = ?
-    `).bind(input.actorSubject, input.actorSubject, row.setting_key, row.version).run();
-    if (!hasChanged(result)) { skipped++; continue; }
-    await writeSiteAudit(database, input.actorSubject, "site_setting.published", row.setting_key, {
-      bulkPublish: true,
-      previousPublishedValue: row.published_value,
-    });
-    const updated = await getSettingRow(database, row.setting_key);
-    if (updated) published.push(toAdminSiteSetting(updated));
+    `).bind(input.actorSubject, input.actorSubject, settingRequestId, row.setting_key, row.version));
+    statements.push(database.prepare(`
+      INSERT INTO admin_site_setting_audit (
+        request_id, actor_subject, action, operation, entity_type, entity_key,
+        previous_revision, resulting_revision, payload_sha256, bulk_request_id
+      )
+      SELECT ?, ?, 'update', 'publish', 'site_setting', setting_key,
+        ?, version, ?, ?
+      FROM site_settings
+      WHERE setting_key = ? AND version = ? AND last_request_id = ?
+    `).bind(
+      settingRequestId,
+      input.actorSubject,
+      row.version,
+      await fingerprintSiteSettingMutation({
+        expectedVersion: row.version,
+        key: row.setting_key,
+        operation: "publish",
+      }),
+      requestId,
+      row.setting_key,
+      row.version + 1,
+      settingRequestId,
+    ));
   }
 
-  return { published, skipped };
+  statements.push(database.prepare(`
+    UPDATE admin_site_setting_bulk_audit
+    SET published_count = (
+      SELECT COUNT(*) FROM admin_site_setting_audit WHERE bulk_request_id = ?
+    )
+    WHERE request_id = ?
+  `).bind(requestId, requestId));
+
+  const databaseWithBatch = database as D1DatabaseWithBatch;
+  if (typeof databaseWithBatch.batch !== "function") {
+    throw new SiteSettingStorageError("D1 atomic batch chưa sẵn sàng cho bulk publish settings.");
+  }
+  try {
+    const results = await databaseWithBatch.batch(statements);
+    if (results.length !== statements.length) {
+      throw new SiteSettingStorageError("D1 bulk batch trả về kết quả không hợp lệ.");
+    }
+    if (!hasChanged(results[0]) || !hasChanged(results.at(-1))) {
+      throw new SiteSettingStorageError("Bulk publish chưa ghi được audit envelope.");
+    }
+    for (let index = 1; index < results.length - 1; index += 2) {
+      const updateChanged = hasChanged(results[index]);
+      const auditChanged = hasChanged(results[index + 1]);
+      if (updateChanged !== auditChanged) {
+        throw new SiteSettingStorageError("Bulk publish có setting thiếu audit đồng bộ.");
+      }
+    }
+  } catch (error) {
+    const racedMutation = await findSiteSettingBulkMutation(database, requestId);
+    if (racedMutation) {
+      assertMatchingBulkMutation(racedMutation, payloadSha256);
+      return readBulkSiteSettingResult(database, requestId, racedMutation);
+    }
+    throw error;
+  }
+
+  const mutation = await findSiteSettingBulkMutation(database, requestId);
+  if (!mutation) throw new SiteSettingStorageError("Không đọc được audit bulk publish vừa ghi.");
+  return readBulkSiteSettingResult(database, requestId, mutation);
 }
 
 export async function getPublishedSiteSettings(): Promise<PublishedSiteSettings> {
@@ -262,6 +327,13 @@ interface SiteSettingMutationRow {
   payload_sha256: string;
 }
 
+interface SiteSettingBulkMutationRow {
+  operation: "publish_all";
+  payload_sha256: string;
+  selected_count: number;
+  published_count: number;
+}
+
 interface AtomicSiteSettingMutation {
   actorSubject: string;
   expectedVersion: number;
@@ -288,6 +360,18 @@ async function findSiteSettingMutation(
   `).bind(requestId).first<SiteSettingMutationRow>();
 }
 
+async function findSiteSettingBulkMutation(
+  database: D1DatabaseLike,
+  requestId: string,
+): Promise<SiteSettingBulkMutationRow | null> {
+  return database.prepare(`
+    SELECT operation, payload_sha256, selected_count, published_count
+    FROM admin_site_setting_bulk_audit
+    WHERE request_id = ?
+    LIMIT 1
+  `).bind(requestId).first<SiteSettingBulkMutationRow>();
+}
+
 function assertMatchingMutation(
   mutation: SiteSettingMutationRow,
   operation: SiteSettingMutationOperation,
@@ -296,6 +380,41 @@ function assertMatchingMutation(
   if (mutation.operation !== operation || mutation.payload_sha256 !== payloadSha256) {
     throw new SiteSettingIdempotencyConflictError("requestId đã được dùng cho một payload khác.");
   }
+}
+
+function assertMatchingBulkMutation(
+  mutation: SiteSettingBulkMutationRow,
+  payloadSha256: string,
+): void {
+  if (mutation.operation !== "publish_all" || mutation.payload_sha256 !== payloadSha256) {
+    throw new SiteSettingIdempotencyConflictError("requestId đã được dùng cho một payload khác.");
+  }
+}
+
+async function readBulkSiteSettingResult(
+  database: D1DatabaseLike,
+  requestId: string,
+  mutation: SiteSettingBulkMutationRow,
+): Promise<{ published: AdminSiteSetting[]; skipped: number }> {
+  const auditRows = await database.prepare(`
+    SELECT entity_key
+    FROM admin_site_setting_audit
+    WHERE bulk_request_id = ?
+    ORDER BY id ASC
+  `).bind(requestId).all<{ entity_key: string }>();
+  if (auditRows.results.length !== mutation.published_count) {
+    throw new SiteSettingStorageError("Bulk audit không khớp số setting đã phát hành.");
+  }
+
+  const settings = await listAdminSiteSettings(database);
+  const settingsByKey = new Map(settings.map((setting) => [setting.key, setting]));
+  const published = auditRows.results
+    .map((row) => isSiteSettingKey(row.entity_key) ? settingsByKey.get(row.entity_key) : undefined)
+    .filter((setting): setting is AdminSiteSetting => Boolean(setting));
+  if (published.length !== mutation.published_count) {
+    throw new SiteSettingStorageError("Không đọc được setting vừa phát hành trong bulk.");
+  }
+  return { published, skipped: mutation.selected_count - mutation.published_count };
 }
 
 async function applyAtomicSiteSettingMutation(
@@ -389,6 +508,12 @@ async function fingerprintSiteSettingMutation(input: {
         operation: input.operation,
       };
   const bytes = new TextEncoder().encode(JSON.stringify(payload));
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+async function fingerprintSiteSettingBulkPublish(): Promise<string> {
+  const bytes = new TextEncoder().encode(JSON.stringify({ operation: "publish_all" }));
   const digest = await crypto.subtle.digest("SHA-256", bytes);
   return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
 }

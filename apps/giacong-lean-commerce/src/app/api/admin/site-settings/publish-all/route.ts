@@ -1,8 +1,12 @@
 import { adminFailure, adminSuccess } from "@/lib/admin-api.ts";
+import { hasOnlyKeys, isAdminRequestId, readBoundedAdminJson } from "@/lib/admin-request";
 import { canPublishSiteContent } from "@/lib/admin-permissions";
 import { adminErrorFrom } from "@/lib/admin-error-mapping.ts";
 import { requireAdmin } from "@/lib/admin-guard";
-import { publishAllAdminSiteSettings } from "@/lib/site-settings";
+import {
+  publishAllAdminSiteSettings,
+  SiteSettingIdempotencyConflictError,
+} from "@/lib/site-settings";
 
 export const dynamic = "force-dynamic";
 
@@ -12,12 +16,29 @@ export async function POST(request: Request): Promise<Response> {
   if (!canPublishSiteContent(guard.member.role)) {
     return adminFailure(crypto.randomUUID(), 403, "FORBIDDEN", "Vai trò hiện tại không được phát hành nội dung.");
   }
+  const parsed = await readBoundedAdminJson(request);
+  if (!parsed.ok) return adminFailure(parsed.requestId, parsed.status, parsed.code, parsed.message);
+  const body = parsed.body;
+  const requestId = isRecord(body) && isAdminRequestId(body.requestId)
+    ? body.requestId.trim().toLowerCase()
+    : parsed.requestId;
+  if (!isRecord(body) || !isAdminRequestId(body.requestId) || !hasOnlyKeys(body, ["requestId"])) {
+    return adminFailure(requestId, 400, "INVALID_REQUEST", "Cần requestId hợp lệ cho thao tác phát hành hàng loạt.");
+  }
   try {
     const { published, skipped } = await publishAllAdminSiteSettings(guard.database, {
       actorSubject: guard.actorSubject,
+      requestId,
     });
-    return adminSuccess(crypto.randomUUID(), { published, skipped, count: published.length });
+    return adminSuccess(requestId, { published, skipped, count: published.length });
   } catch (error) {
-    return adminErrorFrom(crypto.randomUUID(), error, "Không thể phát hành tất cả cài đặt website.");
+    if (error instanceof SiteSettingIdempotencyConflictError) {
+      return adminFailure(requestId, 409, "IDEMPOTENCY_CONFLICT", error.message);
+    }
+    return adminErrorFrom(requestId, error, "Không thể phát hành tất cả cài đặt website.");
   }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
