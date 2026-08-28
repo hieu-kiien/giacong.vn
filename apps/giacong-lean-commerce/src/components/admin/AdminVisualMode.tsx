@@ -7,6 +7,8 @@ import { useEffect, useState, type ReactNode } from "react";
 import { AdminClientError, fetchAdmin, type AdminSession } from "@/lib/admin-client";
 import { isAdminSessionReady } from "@/lib/admin-visual-contract";
 
+import { AdminVisualEditor } from "./AdminVisualEditor";
+
 type AdminVisualStatus = "loading" | "ready" | "blocked" | "unavailable";
 
 interface AdminVisualModeProps {
@@ -54,6 +56,7 @@ export function AdminVisualMode({ children }: AdminVisualModeProps) {
         role={session?.role}
         status={status}
       />
+      {status === "ready" && session ? <AdminVisualEditor session={session} /> : null}
     </>
   );
 }
@@ -127,7 +130,7 @@ function getStatusCopy(status: AdminVisualStatus, role?: string) {
     };
   }
   return {
-    detail: `Đang xem storefront với vai trò ${getRoleLabel(role)}. P1 chưa có chỉnh sửa trực tiếp.`,
+    detail: `Đang xem storefront với vai trò ${getRoleLabel(role)}. Có thể chỉnh sửa vùng được hỗ trợ.`,
     title: "Chế độ quản trị",
   };
 }

@@ -64,3 +64,27 @@ test("the storefront shell keeps admin context out of public source paths", asyn
   assert.match(layout, /isAdminHost\s*\?/);
   assert.match(visualMode, /data-testid={`admin-visual-/);
 });
+
+test("contextual editor uses the canonical site-settings draft and publish contract", async () => {
+  const source = await readSource("../src/components/admin/AdminVisualEditor.tsx");
+  const styles = await readSource("../src/components/admin/AdminVisualEditor.module.css");
+
+  assert.match(source, /fetchAdmin<SiteSettingsResponse>\("\/api\/admin\/site-settings"/);
+  assert.match(source, /mutateAdmin<\{ setting: AdminSiteSetting \}>\("\/api\/admin\/site-settings"/);
+  assert.match(source, /mutateAdmin<\{ setting: AdminSiteSetting \}>\("\/api\/admin\/site-settings\/publish"/);
+  assert.match(source, /expectedVersion: setting\.version/);
+  assert.match(source, /draftValue/);
+  assert.match(source, /setting\.dirty/);
+  assert.match(source, /Mở trung tâm quản trị/);
+  assert.match(source, /aria-modal="true"/);
+  assert.match(styles, /prefers-reduced-motion/);
+  assert.doesNotMatch(source, /api\/admin\/visual/);
+});
+
+test("admin visual mode mounts contextual controls only after a ready admin session", async () => {
+  const source = await readSource("../src/components/admin/AdminVisualMode.tsx");
+
+  assert.match(source, /<AdminVisualEditor session=\{session\} \/>/);
+  assert.match(source, /status === "ready"/);
+  assert.doesNotMatch(source, /<AdminVisualEditor session=\{null\}/);
+});
