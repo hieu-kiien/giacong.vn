@@ -217,9 +217,11 @@ không chuyên môn.
 
 **Checkpoint 2026-08-28:** Per-setting settings write contract đã vào `master`
 qua migration `0010_site_settings_write_contract.sql`, gồm bounded JSON,
-version/stale protection, request-id idempotency và audit coupling. Các gate còn
-mở của P2 là contextual editor/region mapping, browser responsive evidence,
-staging acceptance và contract riêng cho bulk publish.
+version/stale protection, request-id idempotency và audit coupling. Bulk
+`publish-all` cũng đã có request contract, audit envelope và replay-safe D1 batch
+qua migration `0011_site_settings_bulk_publish.sql`. Các gate còn mở của P2 là
+contextual editor/region mapping, browser responsive evidence và staging
+acceptance.
 
 **Mục tiêu:** hoàn thành trọn vẹn một flow có giá trị cao, bắt đầu từ brand/hero
 đã có mapping.

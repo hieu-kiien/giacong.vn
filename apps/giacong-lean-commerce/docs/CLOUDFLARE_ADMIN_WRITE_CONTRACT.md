@@ -133,10 +133,14 @@ once and writes the setting update plus its audit record in one D1 batch. A
 repeated request ID with the same canonical payload is idempotent; reusing it for
 another operation or payload returns `409 IDEMPOTENCY_CONFLICT`.
 
-The schema for this slice is `migrations/0010_site_settings_write_contract.sql`.
-The separate `publish-all` bulk route remains an advanced operation and must not
-be treated as covered by the per-setting idempotency contract until its own bulk
-request, audit and staging tests are green.
+The schemas for this slice are `migrations/0010_site_settings_write_contract.sql`
+and `migrations/0011_site_settings_bulk_publish.sql`.
+
+`POST /api/admin/site-settings/publish-all` also requires exactly `requestId` and
+uses the same 64 KiB/request-id boundary. It records one bulk audit envelope and
+one linked per-setting audit for every successful row in the same D1 batch. Rows
+that lose an optimistic-version race are returned as `skipped`; replaying the
+same request ID returns the recorded result without repeating any write.
 
 ## 6. Canonical normalization
 
