@@ -56,3 +56,21 @@ test("the admin control plane exposes page, navigation and member management sur
   assert.match(members, /\/api\/admin\/members/);
   assert.match(members, /Granular RBAC/);
 });
+
+test("the shell groups routes in plain-language control-plane sections", async () => {
+  const shell = await readSource("components", "admin", "AdminShell.tsx");
+
+  for (const label of [
+    "Chỉnh sửa website",
+    "Catalog",
+    "Nội dung",
+    "Yêu cầu khách hàng",
+    "Cài đặt",
+    "Tài khoản & quyền",
+  ]) {
+    assert.match(shell, new RegExp(label.replace(/[&]/g, "\\&")));
+  }
+  assert.match(shell, /Vai trò/);
+  assert.match(shell, /Xem storefront/);
+  assert.match(shell, /aria-current=\{pathname === href \|\| pathname\.startsWith\(\`\$\{href\}\/\`\)/);
+});

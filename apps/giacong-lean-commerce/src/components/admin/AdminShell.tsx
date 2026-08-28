@@ -1,6 +1,6 @@
 "use client";
 
-import { ClipboardList, LayoutDashboard, LayoutTemplate, Menu, Newspaper, Package, PanelTop, PenLine, Settings2, UsersRound, X } from "lucide-react";
+import { ClipboardList, ExternalLink, LayoutDashboard, LayoutTemplate, Menu, Newspaper, Package, PanelTop, PenLine, Settings2, UsersRound, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
@@ -20,22 +20,61 @@ export function useAdminSession(): AdminSession {
   return value ?? { authenticated: false, subject: "", role: "viewer" };
 }
 
-const navItems: ReadonlyArray<{
+interface AdminNavItem {
   href: string;
   label: string;
   icon: typeof LayoutDashboard;
   readCapability: AdminCapability;
-}> = [
-  { href: "/admin", label: "Tổng quan", icon: LayoutDashboard, readCapability: "dashboard.read" },
-  { href: "/admin/san-pham", label: "Sản phẩm", icon: Package, readCapability: "catalog.read" },
-  { href: "/admin/dich-vu", label: "Dịch vụ gia công", icon: Settings2, readCapability: "services.read" },
-  { href: "/admin/tin-tuc", label: "Tin tức", icon: Newspaper, readCapability: "news.read" },
-  { href: "/admin/yeu-cau", label: "Yêu cầu báo giá", icon: ClipboardList, readCapability: "leads.read" },
-  { href: "/admin/noi-dung", label: "Nội dung & thương hiệu", icon: PenLine, readCapability: "content.read" },
-  { href: "/admin/thiet-ke", label: "Thiết kế page", icon: LayoutTemplate, readCapability: "pages.read" },
-  { href: "/admin/dieu-huong", label: "Điều hướng", icon: PanelTop, readCapability: "navigation.read" },
-  { href: "/admin/thanh-vien", label: "Thành viên & quyền", icon: UsersRound, readCapability: "members.read" },
+}
+
+interface AdminNavGroup {
+  label: string;
+  items: ReadonlyArray<AdminNavItem>;
+}
+
+const navGroups: ReadonlyArray<AdminNavGroup> = [
+  {
+    label: "Chỉnh sửa website",
+    items: [
+      { href: "/admin/noi-dung", label: "Nội dung & thương hiệu", icon: PenLine, readCapability: "content.read" },
+      { href: "/admin/thiet-ke", label: "Thiết kế page", icon: LayoutTemplate, readCapability: "pages.read" },
+    ],
+  },
+  {
+    label: "Catalog",
+    items: [
+      { href: "/admin/san-pham", label: "Sản phẩm", icon: Package, readCapability: "catalog.read" },
+      { href: "/admin/dich-vu", label: "Dịch vụ gia công", icon: Settings2, readCapability: "services.read" },
+    ],
+  },
+  {
+    label: "Nội dung",
+    items: [
+      { href: "/admin/tin-tuc", label: "Tin tức", icon: Newspaper, readCapability: "news.read" },
+      { href: "/admin/dieu-huong", label: "Điều hướng", icon: PanelTop, readCapability: "navigation.read" },
+    ],
+  },
+  {
+    label: "Yêu cầu khách hàng",
+    items: [{ href: "/admin/yeu-cau", label: "Yêu cầu báo giá", icon: ClipboardList, readCapability: "leads.read" }],
+  },
+  {
+    label: "Cài đặt",
+    items: [{ href: "/admin", label: "Tổng quan", icon: LayoutDashboard, readCapability: "dashboard.read" }],
+  },
+  {
+    label: "Tài khoản & quyền",
+    items: [{ href: "/admin/thanh-vien", label: "Thành viên & quyền", icon: UsersRound, readCapability: "members.read" }],
+  },
 ];
+
+const roleLabels: Record<string, string> = {
+  catalog_manager: "Quản lý catalog",
+  content_manager: "Quản lý nội dung",
+  owner: "Chủ sở hữu",
+  sales_manager: "Quản lý yêu cầu",
+  viewer: "Người xem",
+};
 
 export function AdminShell({ children }: AdminShellProps) {
   const pathname = usePathname();
@@ -77,8 +116,10 @@ export function AdminShell({ children }: AdminShellProps) {
     return <AdminAccessScreen status={status === "blocked" ? "blocked" : "unavailable"} error={error} onRetry={() => setAttempt((value) => value + 1)} />;
   }
 
-  const visibleNavItems = navItems.filter((item) => canManage(session.role, item.readCapability));
-  const currentNavItem = navItems.find((item) => item.href === pathname);
+  const visibleNavGroups = navGroups
+    .map((group) => ({ ...group, items: group.items.filter((item) => canManage(session.role, item.readCapability)) }))
+    .filter((group) => group.items.length > 0);
+  const currentNavItem = navGroups.flatMap((group) => group.items).find((item) => pathname === item.href || pathname.startsWith(`${item.href}/`));
 
   return (
     <SessionContext.Provider value={{ session }}>
@@ -90,20 +131,24 @@ export function AdminShell({ children }: AdminShellProps) {
               <span className="admin-brand-mark" aria-hidden="true">g.</span>
               <span className="admin-brand-copy"><strong>Giacong.vn</strong><span>Khu vực vận hành</span></span>
             </Link>
-            <p className="admin-nav-label">Vận hành</p>
-            <nav className="admin-nav">
-              {visibleNavItems.map(({ href, icon: Icon, label }) => (
-                <Link
-                  aria-current={pathname === href ? "page" : undefined}
-                  className="admin-nav-link"
-                  data-testid={`link-admin-${label}`}
-                  href={href}
-                  key={href}
-                  onClick={() => setMobileOpen(false)}
-                >
-                  <Icon aria-hidden="true" />
-                  <span>{label}</span>
-                </Link>
+            <nav aria-label="Các khu vực quản trị" className="admin-nav">
+              {visibleNavGroups.map((group) => (
+                <div className="admin-nav-group" key={group.label}>
+                  <p className="admin-nav-label">{group.label}</p>
+                  {group.items.map(({ href, icon: Icon, label }) => (
+                    <Link
+                      aria-current={pathname === href || pathname.startsWith(`${href}/`) ? "page" : undefined}
+                      className="admin-nav-link"
+                      data-testid={`link-admin-${label}`}
+                      href={href}
+                      key={href}
+                      onClick={() => setMobileOpen(false)}
+                    >
+                      <Icon aria-hidden="true" />
+                      <span>{label}</span>
+                    </Link>
+                  ))}
+                </div>
               ))}
             </nav>
             <div className="admin-sidebar-footer">
@@ -127,7 +172,12 @@ export function AdminShell({ children }: AdminShellProps) {
                 <span>Giacong.vn / <strong>{currentNavItem?.label ?? "Admin"}</strong></span>
               </div>
               <div className="admin-topbar-meta">
+                <Link className="admin-storefront-link" href="/" rel="noreferrer" target="_blank">
+                  Xem storefront
+                  <ExternalLink aria-hidden="true" size={14} />
+                </Link>
                 <span className="admin-live-dot">Kết nối trực tiếp</span>
+                <span className="admin-role-label">Vai trò: {roleLabels[session.role] ?? "Tài khoản được cấp quyền"}</span>
                 <span aria-label={`Tài khoản ${session.subject}`} className="admin-avatar" title={session.subject}>{getInitials(session.subject)}</span>
               </div>
             </header>

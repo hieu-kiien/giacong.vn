@@ -92,7 +92,9 @@
     margin: 0 12px 9px;
     text-transform: uppercase;
   }
-  .admin-nav { display: grid; gap: 4px; }
+  .admin-nav { display: grid; gap: 17px; }
+  .admin-nav-group { display: grid; gap: 4px; }
+  .admin-nav-group .admin-nav-label { margin-bottom: 5px; }
   .admin-nav-link {
     align-items: center;
     border-radius: 7px;
@@ -134,6 +136,8 @@
   .admin-crumb { color: var(--admin-ink-muted); font-size: 13px; }
   .admin-crumb strong { color: var(--admin-ink); font-weight: 650; }
   .admin-topbar-meta { align-items: center; display: flex; gap: 12px; }
+  .admin-storefront-link { align-items: center; color: var(--admin-green-deep); display: inline-flex; font-size: 11px; gap: 5px; text-decoration: none; }
+  .admin-storefront-link:hover { text-decoration: underline; }
   .admin-live-dot { align-items: center; color: var(--admin-green-deep); display: flex; font-size: 11px; gap: 7px; }
   .admin-live-dot::before {
     background: #7caf42;
@@ -156,6 +160,7 @@
     justify-content: center;
     width: 32px;
   }
+  .admin-role-label { border-left: 1px solid var(--admin-border); color: var(--admin-ink-soft); font-size: 11px; padding-left: 12px; white-space: nowrap; }
   .admin-mobile-menu { display: none; }
   .admin-content { margin: 0 auto; max-width: 1500px; padding: 42px clamp(20px, 4vw, 58px) 64px; }
   .admin-page-heading { align-items: flex-end; display: flex; justify-content: space-between; margin-bottom: 30px; gap: 22px; }
@@ -433,6 +438,8 @@
     .admin-mobile-menu { align-items: center; background: transparent; border: 0; color: var(--admin-ink); cursor: pointer; display: inline-flex; height: 42px; justify-content: center; margin-right: 8px; width: 42px; }
     .admin-topbar { height: 64px; padding: 0 17px; }
     .admin-topbar-meta .admin-live-dot { display: none; }
+    .admin-role-label { display: none; }
+    .admin-storefront-link { font-size: 12px; }
     .admin-crumb { align-items: center; display: flex; }
     .admin-content { padding: 29px 17px 52px; }
     .admin-page-heading { align-items: flex-start; display: block; margin-bottom: 23px; }
