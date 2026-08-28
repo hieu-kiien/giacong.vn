@@ -161,6 +161,27 @@ test("page updates reject stale versions and unsafe block payloads", async () =>
   );
 });
 
+test("page blocks reject unknown fields instead of dropping arbitrary payload", async () => {
+  const database = new FakePageDatabase();
+  await assert.rejects(
+    updateAdminSitePage(database, {
+      actorSubject: "editor",
+      blocks: [{
+        type: "rich_text",
+        title: "Giới thiệu",
+        body: "Nội dung đã duyệt.",
+        html: `<div>${"x".repeat(48_000)}</div>`,
+      }],
+      draftEnabled: true,
+      expectedVersion: 1,
+      pageKey: "home",
+      seoDescription: "",
+      seoTitle: "",
+    }),
+    SitePageValidationError,
+  );
+});
+
 test("navigation changes only trusted links and text in the captured menu", () => {
   const markup = '<ul class="header-nav-main"><li id="menu-item-2"><a href="/two">Two</a></li><li id="menu-item-1"><a href="/old"><img src="/icon.svg" />Old<i class="icon-angle-down"></i></a></li><li id="menu-item-3"><a href="/three">Three</a></li></ul>';
   const items: PublishedNavigationItem[] = [{

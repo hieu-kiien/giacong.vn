@@ -22,6 +22,15 @@ export class PageBuilderValidationError extends Error {
   }
 }
 
+const allowedBlockKeys: Readonly<Record<string, readonly string[]>> = {
+  cta: ["type", "title", "body", "label", "href"],
+  contact: ["type", "title", "body"],
+  feature_grid: ["type", "title", "items"],
+  hero: ["type", "eyebrow", "title", "description", "imageUrl", "primaryCta", "secondaryCta"],
+  image: ["type", "imageUrl", "alt", "caption"],
+  rich_text: ["type", "title", "body"],
+};
+
 export function parsePageBlocks(value: unknown): PageBlock[] {
   if (!Array.isArray(value)) throw new PageBuilderValidationError("Page phải là một danh sách section.");
   if (value.length > MAX_PAGE_BLOCKS) throw new PageBuilderValidationError(`Page chỉ được có tối đa ${MAX_PAGE_BLOCKS} section.`);
@@ -50,6 +59,7 @@ function parseBlock(value: unknown, index: number): PageBlock {
   const path = `Section ${index + 1}`;
   const record = asRecord(value, path);
   const type = readRequiredText(record.type, `${path}.type`, 40);
+  assertAllowedKeys(record, allowedBlockKeys[type] ?? ["type"], path);
   switch (type) {
     case "hero":
       return {
@@ -80,6 +90,7 @@ function parseBlock(value: unknown, index: number): PageBlock {
         title: readText(record.title, `${path}.title`, 240),
         items: items.map((item, itemIndex) => {
           const itemRecord = asRecord(item, `${path}.items[${itemIndex}]`);
+          assertAllowedKeys(itemRecord, ["title", "description"], `${path}.items[${itemIndex}]`);
           return {
             title: readRequiredText(itemRecord.title, `${path}.items[${itemIndex}].title`, 180),
             description: readRequiredText(itemRecord.description, `${path}.items[${itemIndex}].description`, 600),
@@ -105,7 +116,18 @@ function parseBlock(value: unknown, index: number): PageBlock {
 function readCta(value: unknown, path: string): PageCta | null {
   if (value === null || value === undefined || value === "") return null;
   const record = asRecord(value, path);
+  assertAllowedKeys(record, ["label", "href"], path);
   return { label: readRequiredText(record.label, `${path}.label`, 120), href: readRequiredUrl(record.href, `${path}.href`) };
+}
+
+function assertAllowedKeys(
+  record: Record<string, unknown>,
+  allowedKeys: readonly string[],
+  path: string,
+): void {
+  const allowed = new Set(allowedKeys);
+  const unknownKey = Object.keys(record).find((key) => !allowed.has(key));
+  if (unknownKey) throw new PageBuilderValidationError(`${path}.${unknownKey} không được phép.`);
 }
 
 function readText(value: unknown, path: string, maxLength: number): string {
