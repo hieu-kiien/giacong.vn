@@ -9,6 +9,7 @@ import {
   MAX_ADMIN_PRODUCT_IMPORT_BYTES,
   MAX_ADMIN_PRODUCT_IMPORT_ROWS,
   fingerprintAdminProductImport,
+  fingerprintAdminProductImportRows,
   parseProductImportCsv,
   prepareAdminProductImportRows,
   type AdminProductImportRow,
@@ -254,6 +255,18 @@ test("canonical import fingerprint is deterministic and changes with accepted da
   assert.notEqual(first, changed);
 });
 
+test("retry fingerprint stays stable when the category lookup changes after the first write", async () => {
+  const first = await fingerprintAdminProductImportRows(validRows);
+  const retry = await fingerprintAdminProductImportRows(validRows.map((row) => ({ ...row })));
+  const changed = await fingerprintAdminProductImportRows([
+    { ...validRows[0]!, categorySlug: "inactive-category" },
+    validRows[1]!,
+  ]);
+
+  assert.equal(first, retry);
+  assert.notEqual(first, changed);
+});
+
 test("bulk product create, meta and per-item audit use one D1 batch", async () => {
   const database = new FakeBatchDatabase();
   const entries = prepareAdminProductImportRows(validRows, categories).entries;
@@ -291,4 +304,5 @@ test("bulk product route is protected, bounded, idempotent and atomic", async ()
   assert.match(route, /IDEMPOTENCY_CONFLICT/);
   assert.match(route, /PAYLOAD_TOO_LARGE/);
   assert.match(route, /UNSUPPORTED_MEDIA/);
+  assert.ok(route.indexOf("const replay = await findAdminProductImportReplay") < route.indexOf("categories = await listAdminCategories"));
 });

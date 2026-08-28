@@ -148,11 +148,26 @@ export function canonicalizeAdminProductImport(entries: readonly AdminProductImp
 }
 
 export async function fingerprintAdminProductImport(entries: readonly AdminProductImportEntry[]): Promise<string> {
+  return fingerprintCanonicalValue(canonicalizeAdminProductImport(entries));
+}
+
+export async function fingerprintAdminProductImportRows(rows: readonly unknown[]): Promise<string> {
+  return fingerprintCanonicalValue(canonicalizeJsonValue(rows));
+}
+
+async function fingerprintCanonicalValue(value: string): Promise<string> {
   const digest = await crypto.subtle.digest(
     "SHA-256",
-    new TextEncoder().encode(canonicalizeAdminProductImport(entries)),
+    new TextEncoder().encode(value),
   );
   return [...new Uint8Array(digest)].map((value) => value.toString(16).padStart(2, "0")).join("");
+}
+
+function canonicalizeJsonValue(value: unknown): string {
+  return JSON.stringify(value, (_key, nested) => {
+    if (typeof nested !== "object" || nested === null || Array.isArray(nested)) return nested;
+    return Object.fromEntries(Object.entries(nested).sort(([left], [right]) => left.localeCompare(right)));
+  });
 }
 
 function importFieldName(field: string): string {

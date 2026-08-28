@@ -3,7 +3,7 @@ import { listAdminCategories, type AdminCategory } from "@/lib/admin-data";
 import { isUniqueConstraintError } from "@/lib/admin-error-mapping.ts";
 import {
   findAdminProductImportConflicts,
-  fingerprintAdminProductImport,
+  fingerprintAdminProductImportRows,
   importErrorsToFieldErrors,
   prepareAdminProductImportRows,
 } from "@/lib/admin-product-import";
@@ -55,6 +55,20 @@ export async function POST(request: Request): Promise<Response> {
     return adminFailure(requestId, 400, "INVALID_REQUEST", "Request nhập sản phẩm phải có trường rows là một mảng.");
   }
 
+  let payloadSha256: string;
+  try {
+    payloadSha256 = await fingerprintAdminProductImportRows(body.value.rows);
+  } catch {
+    return adminFailure(requestId, 500, "INTERNAL_ERROR", "Không thể kiểm tra dấu vân tay request nhập sản phẩm.");
+  }
+
+  try {
+    const replay = await findAdminProductImportReplay(guard.database, requestId);
+    if (replay) return replayResponse(requestId, replay.payloadSha256, payloadSha256, replay.productIds);
+  } catch {
+    return adminFailure(requestId, 500, "INTERNAL_ERROR", "Không thể đọc trạng thái lần nhập trước.");
+  }
+
   let categories: AdminCategory[];
   try {
     categories = await listAdminCategories(guard.database);
@@ -81,17 +95,7 @@ export async function POST(request: Request): Promise<Response> {
     );
   }
 
-  let payloadSha256: string;
   try {
-    payloadSha256 = await fingerprintAdminProductImport(prepared.entries);
-  } catch {
-    return adminFailure(requestId, 500, "INTERNAL_ERROR", "Không thể kiểm tra dấu vân tay request nhập sản phẩm.");
-  }
-
-  try {
-    const replay = await findAdminProductImportReplay(guard.database, requestId);
-    if (replay) return replayResponse(requestId, replay.payloadSha256, payloadSha256, replay.productIds);
-
     const conflicts = await findAdminProductImportConflicts(guard.database, prepared.entries);
     if (conflicts.length > 0) {
       return adminFailure(
