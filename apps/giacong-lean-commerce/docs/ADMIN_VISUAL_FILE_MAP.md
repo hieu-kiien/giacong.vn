@@ -15,8 +15,9 @@ Không thêm file mới vào map chỉ vì đã nghĩ ra tên. File chỉ đư�
 khi tồn tại trong checkout; file “dự kiến” phải được tạo trong phase tương ứng.
 
 **Checkpoint 2026-08-28:** P1 host-gated admin context và P2 settings write
-contract đã có trong `master`. P2 vẫn chưa đạt đầy đủ cho tới khi có contextual
-editor, browser/staging evidence và kiểm tra riêng cho bulk publish.
+contract (per-setting + bulk publish) đã có trong `master` sau khi merge lane
+bulk. P2 vẫn chưa đạt đầy đủ cho tới khi có contextual editor và
+browser/staging evidence.
 
 ## 1. Luật ownership
 
@@ -105,7 +106,7 @@ còn cần sau khi vertical slice chứng minh được design đơn giản hơn
 | --- | --- | --- |
 | Session | /api/admin/session | P1 |
 | Dashboard | /api/admin/dashboard | P5 |
-| Settings | /api/admin/site-settings, /api/admin/site-settings/publish, /api/admin/site-settings/publish-all, /api/admin/site-settings/media | P2; per-setting PATCH/POST đã có requestId, stale, idempotency và audit batch; bulk publish còn gate riêng |
+| Settings | /api/admin/site-settings, /api/admin/site-settings/publish, /api/admin/site-settings/publish-all, /api/admin/site-settings/media | P2; per-setting và bulk publish đã có requestId, stale, idempotency và audit batch; contextual/browser/staging còn mở |
 | Pages | /api/admin/pages, /api/admin/pages/[pageKey], /api/admin/pages/[pageKey]/publish | P4 |
 | Navigation | /api/admin/navigation, /api/admin/navigation/[id], /publish, /publish-all | P4 |
 | News | /api/admin/news, /api/admin/news/[id] | P3 |
@@ -141,6 +142,7 @@ sự giải quyết orchestration mà client không nên làm.
 | migrations/0007_news_posts.sql | news storage | P3 cần đánh giá semantics |
 | migrations/0009_admin_control_plane.sql | pages/navigation/member revision | P4/P5 |
 | migrations/0010_site_settings_write_contract.sql | settings request id, audit coupling và `last_request_id` | P2; phải apply local/staging trước runtime write |
+| migrations/0011_site_settings_bulk_publish.sql | bulk publish audit envelope và liên kết audit từng setting | P2; phải apply local/staging trước bulk write |
 | wrangler.jsonc | Worker/env/routes/D1/R2 | staging trước, production gate |
 | custom-worker.ts, open-next.config.ts | Cloudflare/OpenNext runtime | không đổi chỉ để shortcut local |
 | .env.example, .nvmrc, package-lock.json | local reproducibility | không commit secret |
@@ -222,6 +224,7 @@ khối lượng mà contextual UI làm khó hiểu.
 | scripts/admin-visual-mode.test.mjs | P1 admin storefront context and public isolation |
 | scripts/site-settings-write-contract.test.mts | settings idempotency, stale writes, publish isolation và UI request IDs |
 | scripts/admin-request.test.mts | bounded JSON body, content type, UUID request ID và exact-key checks |
+| scripts/site-settings-bulk-contract.test.mts | bulk publish batch, per-setting audit, stale skip, replay và route/migration contract |
 | scripts/storefront-visual-contract.test.mjs | public visual/source boundaries |
 | scripts/captured-route-runtime.test.mjs | captured asset/runtime path |
 | scripts/development-port.test.mjs | reserved-port and local runner rules |
