@@ -1,8 +1,10 @@
 import { adminFailure, adminSuccess } from "@/lib/admin-api.ts";
+import { hasOnlyKeys, isAdminRequestId, readBoundedAdminJson } from "@/lib/admin-request";
 import { canManageSiteContent } from "@/lib/admin-permissions";
 import {
   listAdminSiteSettings,
   SiteSettingConflictError,
+  SiteSettingIdempotencyConflictError,
   SiteSettingNotFoundError,
   SiteSettingValidationError,
   updateAdminSiteSetting,
@@ -29,28 +31,35 @@ export async function PATCH(request: Request): Promise<Response> {
   if (!canManageSiteContent(guard.member.role)) {
     return adminFailure(crypto.randomUUID(), 403, "FORBIDDEN", "Vai trò hiện tại chỉ được xem nội dung website.");
   }
-  const body = await readJson(request);
-  if (!isRecord(body) || typeof body.key !== "string" || typeof body.expectedVersion !== "number" || !Number.isInteger(body.expectedVersion)) {
-    return adminFailure(crypto.randomUUID(), 422, "VALIDATION_ERROR", "Cần key, expectedVersion và value hợp lệ.");
+  const parsed = await readBoundedAdminJson(request);
+  if (!parsed.ok) return adminFailure(parsed.requestId, parsed.status, parsed.code, parsed.message);
+  const body = parsed.body;
+  const requestId = isRecord(body) && typeof body.requestId === "string"
+    ? body.requestId.trim().toLowerCase()
+    : parsed.requestId;
+  if (
+    !isRecord(body)
+    || !isAdminRequestId(body.requestId)
+    || typeof body.key !== "string"
+    || typeof body.expectedVersion !== "number"
+    || !Number.isInteger(body.expectedVersion)
+    || body.expectedVersion <= 0
+    || !("value" in body)
+    || !hasOnlyKeys(body, ["requestId", "key", "expectedVersion", "value"])
+  ) {
+    return adminFailure(requestId, 400, "INVALID_REQUEST", "Cần requestId, key, expectedVersion và value hợp lệ.");
   }
   try {
     const setting = await updateAdminSiteSetting(guard.database, {
       actorSubject: guard.actorSubject,
       expectedVersion: body.expectedVersion,
       key: body.key,
+      requestId,
       value: body.value,
     });
-    return adminSuccess(crypto.randomUUID(), { setting });
+    return adminSuccess(requestId, { setting });
   } catch (error) {
-    return settingFailure(error);
-  }
-}
-
-async function readJson(request: Request): Promise<unknown> {
-  try {
-    return await request.json();
-  } catch {
-    return {};
+    return settingFailure(error, requestId);
   }
 }
 
@@ -58,9 +67,10 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function settingFailure(error: unknown): Response {
-  if (error instanceof SiteSettingConflictError) return adminFailure(crypto.randomUUID(), 409, "STALE_WRITE", error.message);
-  if (error instanceof SiteSettingNotFoundError) return adminFailure(crypto.randomUUID(), 404, "NOT_FOUND", error.message);
-  if (error instanceof SiteSettingValidationError) return adminFailure(crypto.randomUUID(), 422, "VALIDATION_ERROR", error.message);
-  return adminErrorFrom(crypto.randomUUID(), error, "Không thể lưu cấu hình website.");
+function settingFailure(error: unknown, requestId: string): Response {
+  if (error instanceof SiteSettingConflictError) return adminFailure(requestId, 409, "STALE_WRITE", error.message);
+  if (error instanceof SiteSettingIdempotencyConflictError) return adminFailure(requestId, 409, "IDEMPOTENCY_CONFLICT", error.message);
+  if (error instanceof SiteSettingNotFoundError) return adminFailure(requestId, 404, "NOT_FOUND", error.message);
+  if (error instanceof SiteSettingValidationError) return adminFailure(requestId, 422, "VALIDATION_ERROR", error.message);
+  return adminErrorFrom(requestId, error, "Không thể lưu cấu hình website.");
 }

@@ -22,11 +22,14 @@ type Row = {
   updated_at: string;
   published_by: string | null;
   published_at: string | null;
+  last_request_id?: string | null;
 };
 
 class FakeSiteDatabase {
   readonly rows = new Map<string, Row>();
   readonly audits: string[] = [];
+  readonly mutationAudits = new Map<string, { operation: string; payload_sha256: string }>();
+  batchCalls = 0;
 
   constructor() {
     this.rows.set("brand_name", this.row("brand_name", "brand", "text", "Draft brand", "Published brand"));
@@ -36,75 +39,75 @@ class FakeSiteDatabase {
 
   prepare(query: string) {
     let values: unknown[] = [];
-    return {
+    const statement = {
       bind: (...nextValues: unknown[]) => {
         values = nextValues;
-        return this.prepareWithValues(query, () => values);
+        return statement;
       },
       all: async <T,>() => ({ results: [...this.rows.values()] as unknown as T[] }),
-      first: async <T,>() => {
-        const key = String(values[0]);
-        return (this.rows.get(key) ?? null) as unknown as T | null;
-      },
-      run: async () => {
-        if (query.includes("INSERT INTO audit_logs")) {
-          this.audits.push(String(values[2]));
-          return { meta: { changes: 1 } };
-        }
-        const key = String(values[2] ?? values[0]);
-        const row = this.rows.get(key);
-        if (!row) return { meta: { changes: 0 } };
-        const expectedVersion = Number(values.at(-1));
-        if (row.version !== expectedVersion) return { meta: { changes: 0 } };
-        if (query.includes("published_value = draft_value")) {
-          row.published_value = row.draft_value;
-          row.published_by = String(values[0]);
-          row.published_at = "2026-08-16T00:00:00Z";
-          row.updated_by = String(values[1]);
-        } else {
-          row.draft_value = String(values[0]);
-          row.updated_by = String(values[1]);
-        }
-        row.version += 1;
-        row.updated_at = "2026-08-16T00:00:00Z";
-        return { meta: { changes: 1 } };
-      },
+      first: async <T,>() => this.first<T>(query, values),
+      run: async () => this.run(query, values),
     };
+    return statement;
   }
 
-  private prepareWithValues(query: string, readValues: () => unknown[]) {
-    const statement = this.prepare(query);
-    return {
-      ...statement,
-      first: async <T,>() => {
-        const key = String(readValues()[0]);
-        return (this.rows.get(key) ?? null) as unknown as T | null;
-      },
-      run: async () => {
-        if (query.includes("INSERT INTO audit_logs")) {
-          this.audits.push(String(readValues()[3]));
-          return { meta: { changes: 1 } };
-        }
-        const values = readValues();
-        const key = String(values[2] ?? values[0]);
-        const row = this.rows.get(key);
-        if (!row) return { meta: { changes: 0 } };
-        const expectedVersion = Number(values.at(-1));
-        if (row.version !== expectedVersion) return { meta: { changes: 0 } };
-        if (query.includes("published_value = draft_value")) {
-          row.published_value = row.draft_value;
-          row.published_by = String(values[0]);
-          row.published_at = "2026-08-16T00:00:00Z";
-          row.updated_by = String(values[1]);
-        } else {
-          row.draft_value = String(values[0]);
-          row.updated_by = String(values[1]);
-        }
-        row.version += 1;
-        row.updated_at = "2026-08-16T00:00:00Z";
-        return { meta: { changes: 1 } };
-      },
-    };
+  async batch(statements: Array<{ run: () => Promise<unknown> }>) {
+    this.batchCalls += 1;
+    const results: unknown[] = [];
+    for (const statement of statements) results.push(await statement.run());
+    return results;
+  }
+
+  private async first<T>(query: string, values: unknown[]): Promise<T | null> {
+    if (query.includes("admin_site_setting_audit")) {
+      return (this.mutationAudits.get(String(values[0])) ?? null) as T | null;
+    }
+    return (this.rows.get(String(values[0])) ?? null) as T | null;
+  }
+
+  private async run(query: string, values: unknown[]) {
+    if (query.includes("INSERT INTO admin_site_setting_audit")) {
+      const requestId = String(values[0]);
+      const key = String(values[5]);
+      const row = this.rows.get(key);
+      if (!row || row.last_request_id !== requestId || row.version !== Number(values[6])) {
+        return { meta: { changes: 0 } };
+      }
+      this.mutationAudits.set(requestId, {
+        operation: String(values[2]),
+        payload_sha256: String(values[4]),
+      });
+      this.audits.push(key);
+      return { meta: { changes: 1 } };
+    }
+    if (query.includes("INSERT INTO audit_logs")) {
+      this.audits.push(String(values[3]));
+      return { meta: { changes: 1 } };
+    }
+    if (!query.includes("UPDATE site_settings")) return { meta: { changes: 1 } };
+
+    const key = String(values.find((value) => this.rows.has(String(value))) ?? "");
+    const row = this.rows.get(key);
+    const expectedVersion = Number(values.at(-1));
+    const requestId = String(values.find((value) => this.isUuid(value)) ?? "");
+    if (!row || row.version !== expectedVersion) return { meta: { changes: 0 } };
+    if (query.includes("published_value = draft_value")) {
+      row.published_value = row.draft_value;
+      row.published_by = String(values[0]);
+      row.published_at = "2026-08-16T00:00:00Z";
+      row.updated_by = String(values[1]);
+    } else {
+      row.draft_value = String(values[0]);
+      row.updated_by = String(values[1]);
+    }
+    row.last_request_id = requestId;
+    row.version += 1;
+    row.updated_at = "2026-08-16T00:00:00Z";
+    return { meta: { changes: 1 } };
+  }
+
+  private isUuid(value: unknown): boolean {
+    return typeof value === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
   }
 
   private row(
@@ -119,6 +122,7 @@ class FakeSiteDatabase {
       draft_value: draft,
       group_name: group,
       label: key,
+      last_request_id: null,
       published_at: null,
       published_by: null,
       published_value: published,

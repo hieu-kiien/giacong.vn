@@ -84,9 +84,10 @@ export default function AdminContentPage() {
     setSavingKey(setting.key);
     setNotice(null);
     try {
+      const requestId = crypto.randomUUID();
       const result = await mutateAdmin<{ setting: AdminSiteSetting }>("/api/admin/site-settings", {
         method: "PATCH",
-        body: { key: setting.key, value: setting.draftValue, expectedVersion: setting.version },
+        body: { requestId, key: setting.key, value: setting.draftValue, expectedVersion: setting.version },
       });
       setSettings((current) => current.map((item) => item.key === setting.key ? result.setting : item));
       setUnsavedKeys((current) => {
@@ -137,9 +138,10 @@ export default function AdminContentPage() {
     setPublishingKey(setting.key);
     setNotice(null);
     try {
+      const requestId = crypto.randomUUID();
       const result = await mutateAdmin<{ setting: AdminSiteSetting }>("/api/admin/site-settings/publish", {
         method: "POST",
-        body: { key: setting.key, expectedVersion: setting.version },
+        body: { requestId, key: setting.key, expectedVersion: setting.version },
       });
       setSettings((current) => current.map((item) => item.key === setting.key ? result.setting : item));
       setNotice(`Đã phát hành "${setting.label}" ra website.`);
