@@ -8,6 +8,7 @@ import { AdminMediaPickerModal } from "@/components/admin/AdminMediaPickerModal"
 import { AdminEmptyState, AdminErrorState, AdminLoadingTable, AdminPageHeading, AdminPagination, AdminStatusBadge } from "@/components/admin/AdminPrimitives";
 import { AdminMediaPanel } from "@/components/admin/AdminMediaPanel";
 import { AdminModal } from "@/components/admin/AdminDialog";
+import { AdminProductImportPanel } from "@/components/admin/AdminProductImportPanel";
 import { AdminVariantPanel } from "@/components/admin/AdminVariantPanel";
 import { useAdminSession } from "@/components/admin/AdminShell";
 import { useAdminToast } from "@/components/admin/AdminToast";
@@ -187,6 +188,7 @@ export default function AdminProductsPage() {
   return (
     <div className="admin-content">
       <AdminPageHeading kicker="Danh mục / sản phẩm" title="Quản lý sản phẩm" subtitle="Tìm và kiểm tra trạng thái các sản phẩm private-label đang được quản lý trong catalog." stamp="DANH MỤC SẢN PHẨM" />
+      <AdminProductImportPanel categories={categories} onImported={() => setAttempt((value) => value + 1)} role={session.role} />
       {editor ? <ProductEditor categories={categories} error={saveError} form={editor} onChange={setEditor} onCancel={() => { setEditor(null); setSaveError(null); }} onSubmit={submitProduct} saving={saving} /> : null}
       <form className="admin-toolbar" onSubmit={submitSearch}>
         <div className="admin-search-wrap">
