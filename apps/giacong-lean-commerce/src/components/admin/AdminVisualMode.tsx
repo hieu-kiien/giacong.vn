@@ -20,8 +20,6 @@ export function AdminVisualMode({ children }: AdminVisualModeProps) {
 
   useEffect(() => {
     const controller = new AbortController();
-    setSession(null);
-    setStatus("loading");
 
     void fetchAdmin<AdminSession>("/api/admin/session", controller.signal)
       .then((data) => {
@@ -48,7 +46,11 @@ export function AdminVisualMode({ children }: AdminVisualModeProps) {
     <>
       {children}
       <AdminVisualStatusBar
-        onRetry={() => setAttempt((value) => value + 1)}
+        onRetry={() => {
+          setSession(null);
+          setStatus("loading");
+          setAttempt((value) => value + 1);
+        }}
         role={session?.role}
         status={status}
       />
