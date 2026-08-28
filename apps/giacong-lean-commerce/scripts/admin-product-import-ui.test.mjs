@@ -16,13 +16,17 @@ test("product import UI panel exists and exposes the safe CSV workflow", async (
   assert.match(source, /role="alert"/);
   assert.match(source, /aria-busy/);
   assert.match(source, /replayed/);
+  assert.match(source, /const \[requestId, setRequestId\] = useState<string \| null>\(null\)/);
+  assert.match(source, /const nextRequestId = requestId \?\? crypto\.randomUUID\(\)/);
+  assert.match(source, /setRequestId\(null\)/);
+  assert.match(source, /batch phải atomic/);
   assert.match(source, /catalog_manager/);
   assert.match(source, /<button className="admin-button admin-button-quiet admin-import-file-label"/);
   assert.match(source, /onClick=\{\(\) => inputRef\.current\?\.click\(\)\}/);
   assert.match(source, /type="button"/);
   assert.match(source, /inputRef/);
-  assert.match(source, /result\.createdCount < validRows\.length/);
-  assert.match(source, /Kết quả nhập một phần/);
+  assert.doesNotMatch(source, /result\.createdCount < validRows\.length/);
+  assert.doesNotMatch(source, /Kết quả nhập một phần/);
 });
 
 test("product page integrates bulk import without changing the API surface", async () => {

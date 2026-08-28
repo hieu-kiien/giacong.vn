@@ -35,6 +35,7 @@ export function AdminProductImportPanel({ categories, onImported, role }: AdminP
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [requestId, setRequestId] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   async function handleFile(event: ChangeEvent<HTMLInputElement>) {
@@ -43,6 +44,7 @@ export function AdminProductImportPanel({ categories, onImported, role }: AdminP
     setFileName(file.name);
     setMessage(null);
     setError(null);
+    setRequestId(null);
     if (file.size > MAX_ADMIN_PRODUCT_IMPORT_BYTES) {
       setRows([]);
       setValidRows([]);
@@ -67,11 +69,12 @@ export function AdminProductImportPanel({ categories, onImported, role }: AdminP
     setMessage(null);
     setError(null);
     try {
-      const requestId = crypto.randomUUID();
+      const nextRequestId = requestId ?? crypto.randomUUID();
+      setRequestId(nextRequestId);
       const response = await fetch("/api/admin/products/import", {
         body: JSON.stringify({ rows: validRows }),
         credentials: "include",
-        headers: { Accept: "application/json", "Content-Type": "application/json", "Idempotency-Key": requestId },
+        headers: { Accept: "application/json", "Content-Type": "application/json", "Idempotency-Key": nextRequestId },
         method: "POST",
       });
       const body = await response.json() as { ok?: boolean; data?: ImportResult; message?: string; code?: string };
@@ -79,10 +82,12 @@ export function AdminProductImportPanel({ categories, onImported, role }: AdminP
         throw new AdminClientError(body.message ?? "Không thể nhập sản phẩm.", response.status, body.code);
       }
       const result = body.data;
+      if (result.createdCount !== validRows.length) {
+        throw new AdminClientError("Máy chủ trả về kết quả không nhất quán; batch phải atomic nên chưa xác nhận thay đổi.", 502, "ATOMIC_RESULT_MISMATCH");
+      }
       const replayLabel = result.replayed ? "Đây là lần gửi lại an toàn. " : "";
-      setMessage(result.createdCount < validRows.length
-        ? `${replayLabel}Kết quả nhập một phần: đã tạo ${result.createdCount}/${validRows.length} sản phẩm; ${validRows.length - result.createdCount} dòng chưa được tạo.`
-        : `${replayLabel}Đã nhập ${result.createdCount} sản phẩm ở trạng thái bản nháp và tạm ẩn.`);
+      setMessage(`${replayLabel}Đã nhập ${result.createdCount} sản phẩm ở trạng thái bản nháp và tạm ẩn.`);
+      setRequestId(null);
       onImported();
     } catch (reason: unknown) {
       setError(reason instanceof AdminClientError ? `${reason.code ? `${reason.code} · ` : ""}${reason.message}` : "Không thể kết nối tới máy chủ admin.");
@@ -97,7 +102,7 @@ export function AdminProductImportPanel({ categories, onImported, role }: AdminP
         <div>
           <div className="admin-kicker">Catalog / nhập hàng loạt</div>
           <h2 className="admin-panel-title" id="product-import-heading">Nhập nhiều sản phẩm từ CSV</h2>
-          <p className="admin-panel-caption">Tải file mẫu, xem trước lỗi, rồi chỉ gửi các dòng hợp lệ. Sản phẩm mới luôn là bản nháp và tạm ẩn.</p>
+          <p className="admin-panel-caption">Tải file mẫu, xem trước lỗi, rồi gửi một batch chỉ gồm dòng hợp lệ. Batch hợp lệ được xử lý nguyên tử; sản phẩm mới luôn là bản nháp và tạm ẩn.</p>
         </div>
         <FileSpreadsheet aria-hidden="true" size={21} />
       </div>
@@ -113,7 +118,7 @@ export function AdminProductImportPanel({ categories, onImported, role }: AdminP
       {errors.length > 0 ? <div className="admin-import-errors" role="alert"><strong>{errors.length} cảnh báo cần xem lại</strong><ul>{errors.slice(0, 12).map((item, index) => <li key={`${item.row}-${item.field}-${index}`}>{item.row > 0 ? `Dòng ${item.row}: ` : "File: "}{item.message}</li>)}</ul>{errors.length > 12 ? <p>Còn {errors.length - 12} cảnh báo khác.</p> : null}</div> : null}
       {message ? <p className="admin-import-success" role="status">{message}</p> : null}
       {error ? <p className="admin-editor-error" role="alert">{error}</p> : null}
-      <div className="admin-editor-footer"><span className="admin-field-hint">{validRows.length > 0 ? `Sẽ nhập ${validRows.length} dòng hợp lệ; dòng lỗi sẽ được bỏ qua.` : "Chưa có dòng hợp lệ để nhập."}</span><button className="admin-button admin-button-primary" disabled={!canImport || validRows.length === 0 || loading} onClick={() => void submitImport()} type="button">{loading ? "Đang nhập…" : "Chỉ nhập dòng hợp lệ"}</button></div>
+      <div className="admin-editor-footer"><span className="admin-field-hint">{validRows.length > 0 ? `Sẽ gửi ${validRows.length} dòng hợp lệ; dòng lỗi không được gửi.` : "Chưa có dòng hợp lệ để nhập."}</span><button className="admin-button admin-button-primary" disabled={!canImport || validRows.length === 0 || loading} onClick={() => void submitImport()} type="button">{loading ? "Đang nhập…" : "Chỉ nhập dòng hợp lệ"}</button></div>
     </section>
   );
 }
