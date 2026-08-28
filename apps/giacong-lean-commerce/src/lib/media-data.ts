@@ -172,13 +172,15 @@ export class MediaReferenceError extends Error {
 export async function findActiveMainImageReferences(
   database: D1DatabaseLike,
   storageKey: string,
-): Promise<Array<{ kind: "product" | "service"; id: number; name: string }>> {
+): Promise<Array<{ kind: "product" | "service" | "variant"; id: number; name: string }>> {
   const publicUrl = `/media/${storageKey}`;
   const rows = await database.prepare(`
     SELECT 'product' AS kind, id, name FROM products WHERE image_url = ?
     UNION ALL
+    SELECT 'variant' AS kind, id, name FROM product_variants WHERE image_url = ?
+    UNION ALL
     SELECT 'service' AS kind, id, name FROM services WHERE image_url = ?
-  `).bind(publicUrl, publicUrl).all<{ id: number; kind: "product" | "service"; name: string }>();
+  `).bind(publicUrl, publicUrl, publicUrl).all<{ id: number; kind: "product" | "service" | "variant"; name: string }>();
   return rows.results;
 }
 
@@ -198,7 +200,7 @@ export async function deleteMediaAsset(
     const references = await findActiveMainImageReferences(database, row.storage_key);
     if (references.length > 0) {
       throw new MediaReferenceError(
-        references.map((reference) => `${reference.kind === "service" ? "Dịch vụ" : "Sản phẩm"} #${reference.id} (${reference.name})`).join(", "),
+        references.map((reference) => `${reference.kind === "service" ? "Dịch vụ" : reference.kind === "variant" ? "Biến thể" : "Sản phẩm"} #${reference.id} (${reference.name})`).join(", "),
       );
     }
     await bucket.delete(row.storage_key);

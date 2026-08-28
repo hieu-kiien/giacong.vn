@@ -36,3 +36,12 @@ test("media deletion refuses to orphan an active main-image reference", async ()
   );
   assert.match(data, /services/, "the reference check must cover the services.image_url surface");
 });
+
+test("media reference guard includes active variant main-image references", async () => {
+  const data = await readFile(new URL("../src/lib/media-data.ts", import.meta.url), "utf8");
+  assert.match(
+    data,
+    /SELECT 'variant' AS kind, id, name FROM product_variants WHERE image_url = \?/,
+    "deleteMediaAsset must resolve live product_variants image references before deleting",
+  );
+});
