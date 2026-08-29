@@ -1,6 +1,6 @@
 "use client";
 
-import { ClipboardList, ExternalLink, LayoutDashboard, LayoutTemplate, Menu, Newspaper, Package, PanelTop, PenLine, Settings2, UsersRound, X } from "lucide-react";
+import { ClipboardList, ExternalLink, History, LayoutDashboard, LayoutTemplate, Menu, Newspaper, Package, PanelTop, PenLine, Settings2, UsersRound, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
@@ -25,6 +25,7 @@ interface AdminNavItem {
   label: string;
   icon: typeof LayoutDashboard;
   readCapability: AdminCapability;
+  ownerOnly?: boolean;
 }
 
 interface AdminNavGroup {
@@ -64,7 +65,10 @@ const navGroups: ReadonlyArray<AdminNavGroup> = [
   },
   {
     label: "Tài khoản & quyền",
-    items: [{ href: "/admin/thanh-vien", label: "Thành viên & quyền", icon: UsersRound, readCapability: "members.read" }],
+    items: [
+      { href: "/admin/thanh-vien", label: "Thành viên & quyền", icon: UsersRound, readCapability: "members.read" },
+      { href: "/admin/audit", label: "Lịch sử thay đổi", icon: History, readCapability: "members.read", ownerOnly: true },
+    ],
   },
 ];
 
@@ -117,7 +121,7 @@ export function AdminShell({ children }: AdminShellProps) {
   }
 
   const visibleNavGroups = navGroups
-    .map((group) => ({ ...group, items: group.items.filter((item) => canManage(session.role, item.readCapability)) }))
+    .map((group) => ({ ...group, items: group.items.filter((item) => canManage(session.role, item.readCapability) && (!item.ownerOnly || session.role === "owner")) }))
     .filter((group) => group.items.length > 0);
   const currentNavItem = navGroups.flatMap((group) => group.items).find((item) => pathname === item.href || pathname.startsWith(`${item.href}/`));
 

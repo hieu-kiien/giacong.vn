@@ -30,6 +30,9 @@ hiện có focus trap, restore focus và confirm message liên kết qua
 QA riêng. Commit `f7dcc52` bổ sung pause cho carousel khi hover/focus hoặc
 reduced-motion. Repo chính không có GIF/video runtime; phần motion fidelity đang
 được giữ riêng trong worktree frontend dirty.
+Lát P6 đầu tiên đã thêm audit/history read-only owner-only ở `/admin/audit` và
+`/api/admin/audit`, tổng hợp các audit table hiện có mà không trả metadata payload;
+browser/admin staging read-back vẫn là gate riêng.
 
 **Checkpoint P3 2026-08-29:** contract backend news/media đã vào `master`: news
 có snapshot `draft_*` và `published_*`, publish/unpublish riêng, batch status tối
@@ -102,6 +105,7 @@ runtime acceptance còn mở.
 | Page builder | AdminPageBuilder.tsx | safe blocks, draft/preview/publish; chọn page theo query `?page=` từ contextual hand-off | vẫn là advanced editor/back office; inline là shortcut |
 | Navigation | AdminNavigationManager.tsx | primary menu manager | giữ full editor; contextual edit gọi vào đúng item |
 | Members | AdminMembersManager.tsx | owner quản lý admin roles | trang đặc biệt, không inline trên storefront |
+| Audit/history | src/app/admin/audit/page.tsx, src/app/api/admin/audit/route.ts, src/lib/admin-audit.ts | owner-only timeline read-only, filter/pagination, revision/request id | trang đặc biệt P6; không có rollback nếu chưa được phê duyệt |
 | Category/variant | AdminCategoryPanel.tsx, AdminVariantPanel.tsx | catalog sub-editors | dùng trong catalog/bulk flow, không nhồi hết vào homepage |
 | Product bulk import/archive | AdminProductImportPanel.tsx, src/app/admin/san-pham/page.tsx, src/lib/admin-product-batch.ts | chọn CSV, preview lỗi, import atomic; chọn sản phẩm đang hiển thị, snapshot revision, xác nhận và soft-archive batch | giữ ở catalog control plane; viewer read-only; không biến thành inline editor |
 | Storefront admin context | AdminVisualMode.tsx, AdminNewsContextualAction.tsx, AdminPageContextualAction.tsx, AdminNewsContextualAction.module.css | host/session gate, context role và contextual news/page actions; trạng thái loading/blocked/unavailable/ready | chỉ hiện action trên exact admin hostname sau session ready; public không fetch admin session và không render control |
@@ -141,6 +145,7 @@ use case thứ ba chứng minh editor hiện tại không còn đủ đơn giả
 | Services | /api/admin/services, /api/admin/services/[id], /api/admin/services/batch | P5; batch archive có snapshot revision riêng, tối đa 100 item, stale skip, atomic audit/idempotency; browser/staging còn mở |
 | Leads | /api/admin/leads, /api/admin/leads/[id] | P5, special page |
 | Members | /api/admin/members, /api/admin/members/[id] | P5, special page |
+| Audit | /api/admin/audit | P6; owner-only, GET read-only, bounded filter/pagination, gom audit table tùy theo migration đã có |
 
 ### API rule for new visual actions
 
@@ -247,6 +252,7 @@ khối lượng mà contextual UI làm khó hiểu.
 | scripts/admin-news-write-contract.test.mts | news migration, draft/public isolation, revision, idempotency, publish/batch audit |
 | scripts/admin-product-import.test.mts | product import parser, bounds, role guard, raw retry fingerprint và D1 atomic batch/audit |
 | scripts/admin-product-batch.test.mts | product archive parser, D1 atomic batch, per-item stale skip, audit/replay, race rollback và role-aware UI guard |
+| scripts/admin-audit.test.mts | audit query bounds, optional table merge, safe normalized entries và owner-only route/page contract |
 | scripts/media-contract.test.mts | media references/deletion/credentials, bounded upload và magic bytes |
 | scripts/admin-members.test.mts | internal role/member guard |
 | scripts/admin-categories.test.mts | category admin contract |

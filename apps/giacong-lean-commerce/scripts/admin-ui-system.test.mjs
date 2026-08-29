@@ -52,6 +52,8 @@ test("the admin control plane exposes page, navigation and member management sur
   assert.match(shell, /\/admin\/thiet-ke/);
   assert.match(shell, /\/admin\/dieu-huong/);
   assert.match(shell, /\/admin\/thanh-vien/);
+  assert.match(shell, /\/admin\/audit/);
+  assert.match(shell, /ownerOnly/);
   assert.match(builder, /\/api\/admin\/pages/);
   assert.match(builder, /Page builder chỉ nhận schema an toàn/);
   assert.doesNotMatch(builder, /dangerouslySetInnerHTML/);
@@ -77,4 +79,5 @@ test("the shell groups routes in plain-language control-plane sections", async (
   assert.match(shell, /Vai trò/);
   assert.match(shell, /Xem storefront/);
   assert.match(shell, /aria-current=\{pathname === href \|\| pathname\.startsWith\(\`\$\{href\}\/\`\)/);
+  assert.match(shell, /Lịch sử thay đổi/);
 });

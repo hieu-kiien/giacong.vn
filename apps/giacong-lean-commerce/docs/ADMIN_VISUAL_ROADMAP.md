@@ -405,6 +405,12 @@ người mới tìm được việc cần làm trong vài bước; batch không 
 **Mục tiêu:** biến MVP thành hệ thống có thể vận hành lâu dài, không mở rộng sang
 những domain Lean V1 chưa phê duyệt.
 
+**Checkpoint 2026-08-29:** đã có lát audit/history read-only owner-only tại
+`/admin/audit` và `/api/admin/audit`, tổng hợp an toàn các audit table đã
+được migrate, có bounded search/pagination và không trả metadata payload. P6
+chưa đóng vì browser/admin staging, consistency audit, runbook và production
+acceptance còn mở.
+
 **Công việc:**
 
 - audit/history/revision hiển thị đủ để biết ai đổi gì, lúc nào, từ bản nào;
@@ -477,6 +483,7 @@ Chỉ tạo các file này khi phase tương ứng bắt đầu; không tạo pl
 - scripts/admin-news-write-contract.test.mts — P3 news persistence contract đã có;
 - scripts/admin-product-import.test.mts — P5 product import persistence contract;
 - scripts/admin-product-batch.test.mts — P5 product archive batch contract và mock D1;
+- scripts/admin-audit.test.mts — P6 audit/history bounds, source merge và owner-only contract;
 - scripts/admin-service-batch.test.mts — P5 service archive batch contract và mock D1;
 - scripts/admin-visual-pages-navigation.test.mjs — P4;
 - scripts/admin-visual-bulk.test.mts — P5;
