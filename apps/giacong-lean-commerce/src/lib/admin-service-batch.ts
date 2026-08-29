@@ -160,6 +160,9 @@ export async function archiveAdminServicesAtomically(
       assertMatchingMutation(racedMutation, requestId, payloadSha256);
       return readServiceBatchReplay(database, requestId, racedMutation, items.length);
     }
+    if (isServiceBatchStaleConstraint(error)) {
+      throw new AdminServiceBatchConflictError("Dịch vụ đã thay đổi ở phiên khác. Hãy tải lại rồi thử lại.");
+    }
     throw error;
   }
   assertBatchResults(batchResults, statements.length, eligible.length, hasServiceMeta);
@@ -436,6 +439,10 @@ function requireBatch(database: D1DatabaseLike): D1DatabaseWithBatch {
     throw new AdminServiceBatchStorageError("D1 batch() là bắt buộc để ẩn dịch vụ an toàn.");
   }
   return candidate;
+}
+
+function isServiceBatchStaleConstraint(error: unknown): boolean {
+  return error instanceof Error && /UNIQUE constraint failed:\s*admin_audit_log\.request_id/i.test(error.message);
 }
 
 function serviceBatchEntityKey(requestId: string): string {

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 import {
+  AdminServiceBatchConflictError,
   AdminServiceBatchIdempotencyConflictError,
   archiveAdminServicesAtomically,
   parseAdminServiceBatchItems,
@@ -27,6 +28,7 @@ class FakeServiceBatchDatabase implements D1DatabaseLike {
   readonly childAudits = new Set<string>();
   readonly meta = new Set<number>();
   batchCalls = 0;
+  raceAfterSnapshotId: number | null = null;
   private lastChanges = 0;
 
   prepare(query: string): D1PreparedStatementLike {
@@ -53,17 +55,46 @@ class FakeServiceBatchDatabase implements D1DatabaseLike {
   async all<T>(query: string, values: unknown[]): Promise<{ results: T[] }> {
     if (!query.includes("FROM services")) return { results: [] };
     const ids = new Set(values.map(Number));
-    return { results: [...this.rows.values()].filter((row) => ids.has(row.id)) as T[] };
+    const results = [...this.rows.values()]
+      .filter((row) => ids.has(row.id))
+      .map((row) => ({ ...row })) as T[];
+    if (this.raceAfterSnapshotId !== null) {
+      const row = this.rows.get(this.raceAfterSnapshotId);
+      if (row) row.revision += 1;
+      this.raceAfterSnapshotId = null;
+    }
+    return { results };
   }
 
   async batch(statements: D1PreparedStatementLike[]): Promise<Array<{ results?: unknown[] }>> {
     this.batchCalls += 1;
+    const rowsBefore = new Map([...this.rows].map(([id, row]) => [id, { ...row }]));
+    const markersBefore = new Map(this.markers);
+    const envelopesBefore = new Map(this.envelopes);
+    const childAuditsBefore = new Set(this.childAudits);
+    const metaBefore = new Set(this.meta);
+    const lastChangesBefore = this.lastChanges;
     const results: Array<{ results?: unknown[] }> = [];
-    for (const statement of statements) {
-      const current = statement as FakeServiceBatchStatement;
-      results.push(this.execute(current.query, current.values));
+    try {
+      for (const statement of statements) {
+        const current = statement as FakeServiceBatchStatement;
+        results.push(this.execute(current.query, current.values));
+      }
+      return results;
+    } catch (error) {
+      this.rows.clear();
+      for (const [id, row] of rowsBefore) this.rows.set(id, row);
+      this.markers.clear();
+      for (const [id, marker] of markersBefore) this.markers.set(id, marker);
+      this.envelopes.clear();
+      for (const [id, metadata] of envelopesBefore) this.envelopes.set(id, metadata);
+      this.childAudits.clear();
+      for (const id of childAuditsBefore) this.childAudits.add(id);
+      this.meta.clear();
+      for (const id of metaBefore) this.meta.add(id);
+      this.lastChanges = lastChangesBefore;
+      throw error;
     }
-    return results;
   }
 
   private execute(query: string, values: unknown[]): { results?: unknown[] } {
@@ -198,6 +229,25 @@ test("service batch archives active rows, reports skips, and replays idempotentl
   );
 });
 
+test("service batch maps a concurrent revision race to stale write and rolls back", async () => {
+  const database = new FakeServiceBatchDatabase();
+  database.raceAfterSnapshotId = 1;
+
+  await assert.rejects(
+    () => archiveAdminServicesAtomically(database, {
+      actorSubject: "owner@example.com",
+      items: [{ expectedRevision: 1, id: 1 }],
+      requestId: "66666666-6666-4666-8666-666666666666",
+    }),
+    AdminServiceBatchConflictError,
+  );
+  assert.deepEqual(database.rows.get(1), { id: 1, is_active: 1, revision: 2 });
+  assert.equal(database.markers.size, 0);
+  assert.equal(database.envelopes.size, 0);
+  assert.equal(database.childAudits.size, 0);
+  assert.equal(database.meta.size, 0);
+});
+
 test("service batch route is bounded, authorized and idempotent", async () => {
   const [route, writer] = await Promise.all([
     read("src/app/api/admin/services/batch/route.ts"),
@@ -208,6 +258,7 @@ test("service batch route is bounded, authorized and idempotent", async () => {
   assert.match(route, /canManageServices/);
   assert.match(route, /hasOnlyKeys/);
   assert.match(route, /archiveAdminServicesAtomically/);
+  assert.match(route, /STALE_WRITE/);
   assert.match(writer, /admin_audit_log/);
   assert.match(writer, /payload_sha256/);
   assert.match(writer, /batch\(/);
