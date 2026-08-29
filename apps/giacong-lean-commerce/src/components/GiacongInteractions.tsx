@@ -55,6 +55,10 @@ export function GiacongInteractions({
     let taxonomyShow: HTMLDivElement | undefined;
     let taxonomyLess: HTMLDivElement | undefined;
     let current = 0;
+    const motionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+    let reducedMotion = motionQuery.matches;
+    let hovered = false;
+    let focused = false;
 
     const generatedMobileProductItem = createMobileProductItem(
       menu,
@@ -161,6 +165,26 @@ export function GiacongInteractions({
         slide.hidden = slideIndex !== current;
       });
     };
+    const handleMotionPreference = (event: MediaQueryListEvent) => {
+      reducedMotion = event.matches;
+    };
+    const handleSliderEnter = () => {
+      hovered = true;
+    };
+    const handleSliderLeave = () => {
+      hovered = false;
+    };
+    const handleSliderFocusIn = () => {
+      focused = true;
+    };
+    const handleSliderFocusOut = (event: FocusEvent) => {
+      const nextTarget = event.relatedTarget;
+      if (!(nextTarget instanceof Node) || !slider?.contains(nextTarget)) focused = false;
+    };
+    const advanceSlide = () => {
+      if (reducedMotion || hovered || focused) return;
+      showSlide(current + 1);
+    };
     const handleSubmenu = (event: Event) => {
       handleMobileAccordion(event, menu);
     };
@@ -174,9 +198,14 @@ export function GiacongInteractions({
     document.addEventListener("click", handleSubmenu);
     document.addEventListener("keydown", handleMenuKeydown);
     window.addEventListener("scroll", updateStickyHeader, { passive: true });
+    motionQuery.addEventListener("change", handleMotionPreference);
+    slider?.addEventListener("mouseenter", handleSliderEnter);
+    slider?.addEventListener("mouseleave", handleSliderLeave);
+    slider?.addEventListener("focusin", handleSliderFocusIn);
+    slider?.addEventListener("focusout", handleSliderFocusOut);
     showSlide(0);
     updateStickyHeader();
-    const timer = window.setInterval(() => showSlide(current + 1), 6000);
+    const timer = slides.length >= 2 ? window.setInterval(advanceSlide, 6000) : undefined;
 
     return () => {
       trigger?.removeEventListener("click", toggleMenu);
@@ -186,8 +215,13 @@ export function GiacongInteractions({
       document.removeEventListener("click", handleSubmenu);
       document.removeEventListener("keydown", handleMenuKeydown);
       window.removeEventListener("scroll", updateStickyHeader);
+      motionQuery.removeEventListener("change", handleMotionPreference);
+      slider?.removeEventListener("mouseenter", handleSliderEnter);
+      slider?.removeEventListener("mouseleave", handleSliderLeave);
+      slider?.removeEventListener("focusin", handleSliderFocusIn);
+      slider?.removeEventListener("focusout", handleSliderFocusOut);
       disconnectContactForms();
-      window.clearInterval(timer);
+      if (timer !== undefined) window.clearInterval(timer);
       generatedToggles.forEach((button) => button.remove());
       restoreMobileMenuIcons();
       generatedMobileProductItem?.remove();

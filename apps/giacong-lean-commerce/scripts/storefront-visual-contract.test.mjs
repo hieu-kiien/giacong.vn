@@ -6,6 +6,7 @@ const read = (path) => readFile(new URL(path, import.meta.url), "utf8");
 const homePage = await read("../src/components/site/CapturedHomePage.tsx");
 const newsPage = await read("../src/app/(storefront)/tin-tuc/page.tsx");
 const globals = await read("../src/app/globals.css");
+const interactions = await read("../src/components/GiacongInteractions.tsx");
 
 test("home hero uses four independent local image elements", () => {
   assert.match(homePage, /data-testid=["']home-hero-gallery["']/);
@@ -30,4 +31,11 @@ test("captured content routes opt into restrained motion with reduced-motion fal
   assert.match(globals, /\.section01 \.section-bg/);
   assert.match(globals, /\.section-duong-dan \.section-bg/);
   assert.match(globals, /prefers-reduced-motion:\s*reduce/);
+});
+
+test("the captured hero carousel pauses for hover/focus and reduced motion", () => {
+  assert.match(interactions, /matchMedia\(["']\(prefers-reduced-motion: reduce\)["']\)/);
+  assert.match(interactions, /addEventListener\(["']mouseenter["']/);
+  assert.match(interactions, /addEventListener\(["']focusin["']/);
+  assert.match(interactions, /reducedMotion \|\| hovered \|\| focused/);
 });
