@@ -448,8 +448,9 @@ Một phase chỉ được đánh dấu đạt khi có bảng evidence, không d
 
 ## 13. Kế hoạch kích hoạt thực tế tiếp theo
 
-Các lát P1, P2, contextual news hand-off của P3, managed-page hand-off của P4 và
-phần product import của P5 đã được thực hiện trên `master`. Từ checkpoint này,
+Các lát P1, P2, contextual news hand-off của P3, managed-page hand-off của P4,
+product import và service archive batch của P5, cùng accessibility hardening cho
+dialog dùng chung của P6 đã được thực hiện trên `master`. Từ checkpoint này,
 Control Tower chỉ mở agent khi có đầu ra độc lập rõ ràng; tối đa 4 task đồng
 thời, chế độ thường, và tuyệt đối không đụng worktree frontend motion đang dirty
 của người dùng.
