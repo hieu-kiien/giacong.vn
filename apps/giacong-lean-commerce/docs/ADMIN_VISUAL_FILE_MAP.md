@@ -16,8 +16,8 @@ khi tồn tại trong checkout; file “dự kiến” phải được tạo tro
 
 **Checkpoint 2026-08-29:** P1 host-gated admin context, P2 settings write
 contract (per-setting + bulk publish), contextual editor MVP, P3 contextual
-news-detail hand-off, P4 managed-page hand-off và P5 product bulk import UI đã
-có trong `master`. Local
+news-detail hand-off, P4 managed-page hand-off, P5 product bulk import UI và
+service bulk archive contract đã có trong `master`. Local
 Playwright deep QA đã pass storefront public ở mobile/tablet/desktop, catalog,
 detail, cart và keyboard; public staging cũng pass cùng ma trận. Public staging
 `/tin-tuc` không phát sinh admin session request hay contextual control. Tuy
@@ -81,7 +81,7 @@ runtime acceptance còn mở.
 | News | src/lib/news-public.ts, src/lib/admin-news-input.ts, src/lib/admin-data.ts | news API + draft input + publish/batch contract | public chỉ đọc `published_*`; detail trả published id cho contextual hand-off; draft chỉnh riêng, publish explicit; contract P3 đã có trong master | news.read/write và content publish theo quyết định | scripts/admin-news.test.mts, scripts/admin-news-write-contract.test.mts, scripts/admin-visual-news-media.test.mjs |
 | Media | src/lib/media-data.ts, src/lib/site-media-data.ts, src/lib/media-input.ts | media API/R2 guard + bounded multipart + signature validation | reference phải còn hợp lệ; JPEG/PNG/WebP tối đa 8 MiB | media.read/write | scripts/media-contract.test.mts |
 | Product/category/variant | src/lib/admin-product-input.ts, src/lib/admin-category-input.ts, src/lib/admin-variant-input.ts và catalog adapters | admin API + D1 canonical rules; bulk import contract | product/service public read theo trạng thái; import luôn tạo draft/inactive | catalog.read/write/publish | scripts/admin-categories.test.mts, scripts/admin-product-import.test.mts, catalog/detail suites |
-| Service | src/lib/admin-service-input.ts, service data adapters | service API + D1 | active/published service read | services.read/write | scripts/admin-service-input.test.mts, scripts/service-contract.test.mts |
+| Service | src/lib/admin-service-input.ts, src/lib/admin-service-batch.ts, service data adapters | service API + additive revision snapshot/batch contract + D1 | active/published service read | services.read/write | scripts/admin-service-input.test.mts, scripts/admin-service-batch.test.mts, scripts/service-contract.test.mts |
 | Leads | src/lib/admin-data.ts, lead API | status transition + Google Sheet queue contract | back office only | leads.read/write | contact/lead queue suites |
 | Admin members | src/lib/admin-members.ts, src/lib/admin-members-input.ts | owner-only API + D1 | internal control plane only | members.read/write | scripts/admin-members.test.mts |
 
@@ -132,7 +132,7 @@ use case thứ ba chứng minh editor hiện tại không còn đủ đơn giả
 | News | /api/admin/news, /api/admin/news/[id], /api/admin/news/[id]/publish, /api/admin/news/batch | P3; draft save, explicit publish/unpublish, batch status và contextual deep-link đã có; browser/admin staging read-back còn mở |
 | Media | /api/admin/media, /api/admin/media/[id], /api/admin/media/cleanup | P3/P5 |
 | Catalog | /api/admin/categories, /products, /products/[id], variants routes, /api/admin/products/import | P5; bulk import backend + UI đã có, tối đa 50 dòng, atomic/idempotent/audited và retry UI giữ request ID; browser/staging còn mở |
-| Services | /api/admin/services, /api/admin/services/[id] | P5 |
+| Services | /api/admin/services, /api/admin/services/[id], /api/admin/services/batch | P5; batch archive có snapshot revision riêng, tối đa 100 item, stale skip, atomic audit/idempotency; browser/staging còn mở |
 | Leads | /api/admin/leads, /api/admin/leads/[id] | P5, special page |
 | Members | /api/admin/members, /api/admin/members/[id] | P5, special page |
 
@@ -246,6 +246,7 @@ khối lượng mà contextual UI làm khó hiểu.
 | scripts/admin-service-input.test.mts | service input safety |
 | scripts/admin-visual-mode.test.mjs | P1 admin storefront context and public isolation |
 | scripts/admin-product-import-ui.test.mjs | bulk import picker, preview, atomic result guard và retry request ID |
+| scripts/admin-service-batch.test.mts | service batch parser, D1 atomic archive mock, per-item skip, audit/replay và UI guard |
 | scripts/site-settings-write-contract.test.mts | settings idempotency, stale writes, publish isolation và UI request IDs |
 | scripts/admin-request.test.mts | bounded JSON body, content type, UUID request ID và exact-key checks |
 | scripts/site-settings-bulk-contract.test.mts | bulk publish batch, per-setting audit, stale skip, replay và route/migration contract |

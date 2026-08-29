@@ -348,13 +348,17 @@ back office.
 
 ### P5 — MVP-4: Trung tâm vận hành đầy đủ và xử lý hàng loạt
 
-**Checkpoint 2026-08-28:** AdminShell được nhóm lại theo ngôn ngữ dễ hiểu, có
-nhãn vai trò/link storefront; product bulk import đã có backend + UI. Contract
-giữ giới hạn stream 64 KiB/tối đa 50 dòng, owner/catalog_manager, UUID
-idempotency, fingerprint ổn định trước lookup category và D1 batch atomic cho
-product/meta/audit. UI có preview lỗi, guard kết quả atomic, retry giữ request
-ID và thông báo dễ hiểu. P5 vẫn chưa hoàn tất: batch các domain còn lại,
-browser/admin staging evidence và full operational acceptance còn mở.
+**Checkpoint 2026-08-29:** AdminShell được nhóm lại theo ngôn ngữ dễ hiểu, có
+nhãn vai trò/link storefront; product bulk import và service bulk archive đã có
+backend + UI. Product import giữ giới hạn stream 64 KiB/tối đa 50 dòng,
+owner/catalog_manager, UUID idempotency, fingerprint ổn định trước lookup
+category và D1 batch atomic cho product/meta/audit. Service archive dùng route
+snapshot revision additive, tối đa 100 item, `expectedRevision`, per-item
+`stale/already_archived/not_found`, D1 batch, audit child/envelope và replay
+idempotency mà không thay đổi `AdminService` read model dùng chung. UI có preview
+lỗi, guard kết quả atomic, retry giữ request ID và thông báo dễ hiểu. P5 vẫn
+chưa hoàn tất: batch các domain còn lại, browser/admin staging evidence và full
+operational acceptance còn mở.
 
 **Mục tiêu:** admin có toàn quyền vận hành trong phạm vi Lean V1, không hy sinh
 tính rõ ràng cho người mới.
@@ -365,7 +369,8 @@ tính rõ ràng cho người mới.
    Catalog, Nội dung, Yêu cầu khách hàng, Cài đặt, Tài khoản & quyền.
 2. Chuẩn hóa table contract: search, filter, sort, pagination, select all trong
    phạm vi trang, trạng thái, empty/loading/error/stale.
-3. Bổ sung batch action theo từng domain: sản phẩm/danh mục, dịch vụ, tin, media,
+3. Bổ sung batch action theo từng domain: product import và service archive đã có
+   contract/UI; tiếp tục sản phẩm/danh mục còn thiếu, tin, media,
    navigation/page nếu contract cho phép.
 4. Batch response phải trả được thành công/thất bại theo item, reason an toàn,
    request id/idempotency và audit; không dùng một thông báo đã xong cho kết quả
@@ -464,6 +469,7 @@ Chỉ tạo các file này khi phase tương ứng bắt đầu; không tạo pl
 - scripts/admin-visual-news-media.test.mjs — P3 contextual/browser contract slice;
 - scripts/admin-news-write-contract.test.mts — P3 news persistence contract đã có;
 - scripts/admin-product-import.test.mts — P5 product import persistence contract;
+- scripts/admin-service-batch.test.mts — P5 service archive batch contract và mock D1;
 - scripts/admin-visual-pages-navigation.test.mjs — P4;
 - scripts/admin-visual-bulk.test.mts — P5;
 - browser/staging harness — P1 trở đi, đặt cạnh harness hiện có và ghi vào file

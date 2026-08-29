@@ -8,11 +8,22 @@ import { useAdminSession } from "@/components/admin/AdminShell";
 import { AdminConfirmDialog } from "@/components/admin/AdminDialog";
 import { useAdminToast } from "@/components/admin/AdminToast";
 import { AdminClientError, fetchAdmin, formatAdminDate, mutateAdmin, type AdminService } from "@/lib/admin-client";
+import { canManageServices } from "@/lib/admin-permissions";
 
 interface ServiceResponse {
   services: AdminService[];
   total: number;
   pagination?: { currentPage: number; lastPage: number; pageSize: number; total: number };
+}
+
+interface ServiceBatchSnapshotResponse {
+  services: Array<{ id: number; isActive: boolean; revision: number }>;
+}
+
+interface ServiceBatchResponse {
+  changedCount: number;
+  selectedCount: number;
+  skipped: Array<{ id: number; reason: string }>;
 }
 
 type ServiceFormState = {
@@ -43,7 +54,9 @@ const emptyServiceForm: ServiceFormState = {
 export default function AdminServicesPage() {
   const session = useAdminSession();
   const { showToast } = useAdminToast();
+  const canManage = canManageServices(session.role);
   const [confirmArchive, setConfirmArchive] = useState<AdminService | null>(null);
+  const [confirmBatchArchive, setConfirmBatchArchive] = useState<AdminService[]>([]);
   const [services, setServices] = useState<AdminService[]>([]);
   const [inputQuery, setInputQuery] = useState("");
   const [query, setQuery] = useState("");
@@ -57,6 +70,8 @@ export default function AdminServicesPage() {
   const [saveError, setSaveError] = useState<AdminClientError | null>(null);
   const [saving, setSaving] = useState(false);
   const [archivingId, setArchivingId] = useState<number | null>(null);
+  const [batchArchiving, setBatchArchiving] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
 
   useEffect(() => {
     const controller = new AbortController();
@@ -82,6 +97,10 @@ export default function AdminServicesPage() {
     })();
     return () => controller.abort();
   }, [session.subject, page, query, attempt]);
+
+  useEffect(() => {
+    setSelectedIds(new Set());
+  }, [page, query]);
 
   useEffect(() => {
     // The media panel promotes a main image without touching this form; keep the
@@ -184,6 +203,62 @@ export default function AdminServicesPage() {
     }
   }
 
+  async function archiveSelectedServices() {
+    const selectedServices = confirmBatchArchive.filter((service) => service.isActive);
+    if (selectedServices.length === 0) return;
+    setBatchArchiving(true);
+    setSaveError(null);
+    try {
+      const ids = selectedServices.map((service) => service.id).join(",");
+      const snapshotResult = await fetchAdmin<ServiceBatchSnapshotResponse>(`/api/admin/services/batch?ids=${encodeURIComponent(ids)}`);
+      const snapshots = new Map(snapshotResult.services.map((service) => [service.id, service]));
+      const result = await mutateAdmin<ServiceBatchResponse>("/api/admin/services/batch", {
+        body: {
+          items: selectedServices.map((service) => ({
+            expectedRevision: snapshots.get(service.id)?.revision ?? 1,
+            id: service.id,
+          })),
+          requestId: crypto.randomUUID(),
+        },
+        method: "POST",
+      });
+      const skipped = result.skipped?.length ?? 0;
+      showToast(
+        skipped > 0 ? "error" : "success",
+        `Đã ẩn ${result.changedCount} / ${result.selectedCount} dịch vụ.${skipped > 0 ? ` ${skipped} dịch vụ chưa xử lý, hãy tải lại để kiểm tra.` : ""}`,
+      );
+      setSelectedIds(new Set());
+      setAttempt((value) => value + 1);
+    } catch (reason: unknown) {
+      showToast("error", reason instanceof AdminClientError ? reason.message : "Không thể ẩn hàng loạt dịch vụ.");
+    } finally {
+      setBatchArchiving(false);
+      setConfirmBatchArchive([]);
+    }
+  }
+
+  function toggleSelected(id: number) {
+    setSelectedIds((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleAllVisible() {
+    const activeServices = services.filter((service) => service.isActive);
+    setSelectedIds((current) => {
+      const next = new Set(current);
+      const allSelected = activeServices.length > 0 && activeServices.every((service) => next.has(service.id));
+      for (const service of activeServices) {
+        if (allSelected) next.delete(service.id);
+        else next.add(service.id);
+      }
+      return next;
+    });
+  }
+
   return (
     <div className="admin-content">
       <AdminPageHeading kicker="Năng lực sản xuất" title="Dịch vụ gia công" subtitle="Quản lý danh mục năng lực sản xuất, MOQ và thời gian lead time đang công bố." stamp="DANH MỤC DỊCH VỤ" />
@@ -197,7 +272,13 @@ export default function AdminServicesPage() {
         </div>
         <button className="admin-button admin-button-primary" data-testid="button-service-search" type="submit"><Search size={15} /> Tìm dịch vụ</button>
         {query ? <button className="admin-button admin-button-quiet" data-testid="button-service-clear-search" onClick={clearSearch} type="button">Xóa tìm kiếm</button> : null}
-        <button className="admin-button admin-button-primary" data-testid="button-service-create" onClick={openCreate} type="button">Thêm dịch vụ</button>
+        {canManage && selectedIds.size > 0 ? (
+          <>
+            <span aria-live="polite" className="admin-item-meta" data-testid="service-selection-count">Đã chọn {selectedIds.size}</span>
+            <button className="admin-button admin-button-danger" data-testid="button-service-batch-archive" disabled={batchArchiving} onClick={() => setConfirmBatchArchive(services.filter((service) => selectedIds.has(service.id) && service.isActive))} type="button">Ẩn đã chọn</button>
+          </>
+        ) : null}
+        {canManage ? <button className="admin-button admin-button-primary" data-testid="button-service-create" onClick={openCreate} type="button">Thêm dịch vụ</button> : null}
       </form>
       {error ? <AdminErrorState error={error} onRetry={() => setAttempt((value) => value + 1)} /> : loading ? <AdminLoadingTable /> : (
         <section className="admin-panel admin-table-panel" aria-labelledby="service-table-heading">
@@ -206,17 +287,18 @@ export default function AdminServicesPage() {
             <>
               <div className="admin-table-scroll">
                 <table className="admin-table">
-                  <thead><tr><th scope="col">Dịch vụ</th><th scope="col">Tóm tắt</th><th scope="col">Trạng thái</th><th scope="col">MOQ</th><th scope="col">Lead time</th><th scope="col">Cập nhật</th><th scope="col">Thao tác</th></tr></thead>
+                  <thead><tr>{canManage ? <th scope="col"><input aria-label="Chọn tất cả dịch vụ trong trang" checked={services.some((service) => service.isActive) && services.filter((service) => service.isActive).every((service) => selectedIds.has(service.id))} onChange={toggleAllVisible} type="checkbox" /></th> : null}<th scope="col">Dịch vụ</th><th scope="col">Tóm tắt</th><th scope="col">Trạng thái</th><th scope="col">MOQ</th><th scope="col">Lead time</th><th scope="col">Cập nhật</th>{canManage ? <th scope="col">Thao tác</th> : null}</tr></thead>
                   <tbody>
                     {services.map((service) => (
                       <tr data-testid={`row-service-${service.id}`} key={service.id}>
+                        {canManage ? <td><input aria-label={`Chọn dịch vụ ${service.name}`} checked={selectedIds.has(service.id)} disabled={!service.isActive || batchArchiving} onChange={() => toggleSelected(service.id)} type="checkbox" /></td> : null}
                         <td><div className="admin-item-name">{service.name}<div className="admin-item-meta">{service.slug}</div></div></td>
                         <td><div className="admin-description">{service.summary || service.description || "Chưa có tóm tắt"}</div></td>
                         <td><AdminStatusBadge kind={service.isActive && service.status === "published" ? "green" : service.status === "draft" || service.status === "review" ? "amber" : "neutral"} value={service.isActive ? service.status : "Tạm ẩn"} /></td>
                         <td className="admin-description">{service.moqSummary || "Chưa có"}</td>
                         <td className="admin-mono">{service.leadTimeDays !== null ? `${service.leadTimeDays} ngày` : "Chưa có"}</td>
                         <td className="admin-mono">{formatAdminDate(service.updatedAt)}</td>
-                        <td><div className="admin-table-actions"><button className="admin-button admin-button-quiet" data-testid={`button-service-edit-${service.id}`} onClick={() => openEdit(service)} type="button">Sửa</button>{service.isActive ? <button className="admin-button admin-button-danger" data-testid={`button-service-archive-${service.id}`} disabled={archivingId === service.id} onClick={() => setConfirmArchive(service)} type="button">{archivingId === service.id ? "Đang ẩn" : "Ẩn"}</button> : null}</div></td>
+                        {canManage ? <td><div className="admin-table-actions"><button className="admin-button admin-button-quiet" data-testid={`button-service-edit-${service.id}`} onClick={() => openEdit(service)} type="button">Sửa</button>{service.isActive ? <button className="admin-button admin-button-danger" data-testid={`button-service-archive-${service.id}`} disabled={archivingId === service.id || batchArchiving} onClick={() => setConfirmArchive(service)} type="button">{archivingId === service.id ? "Đang ẩn" : "Ẩn"}</button> : null}</div></td> : null}
                       </tr>
                     ))}
                   </tbody>
@@ -234,6 +316,15 @@ export default function AdminServicesPage() {
           onConfirm={() => void archiveService(confirmArchive)}
           onDismiss={() => setConfirmArchive(null)}
           title="Ẩn dịch vụ?"
+        />
+      ) : null}
+      {confirmBatchArchive.length > 0 ? (
+        <AdminConfirmDialog
+          confirmLabel="Ẩn các dịch vụ"
+          message={`Ẩn ${confirmBatchArchive.length} dịch vụ khỏi storefront? Dữ liệu vẫn được giữ và có thể bật lại.`}
+          onConfirm={() => void archiveSelectedServices()}
+          onDismiss={() => setConfirmBatchArchive([])}
+          title="Ẩn các dịch vụ đã chọn?"
         />
       ) : null}
     </div>

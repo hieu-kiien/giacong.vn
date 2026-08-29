@@ -8,9 +8,9 @@
 
 Đây không phải dự án xanh hoàn toàn. Nền tảng hiện tại đã có storefront, catalog,
 request cart, admin control plane, Cloudflare Access, D1/R2, draft/publish, host-
-gated visual context, contextual settings editor và product bulk import. Phần
-còn thiếu là staging/admin evidence, visual renderer parity, các batch domain còn
-lại và hardening/release.
+gated visual context, contextual settings editor, product bulk import và service
+archive batch. Phần còn thiếu là staging/admin evidence, visual renderer parity,
+các batch domain còn lại và hardening/release.
 
 Mô hình phù hợp nhất là:
 
@@ -71,7 +71,7 @@ Các trục chính:
 | Data/runtime | D1 canonical catalog/content, R2 media, migrations, audit/revision | Backend/Data phải khóa invariant và rollback trước UI |
 | Admin UI | CRUD cho catalog, service, news, media, pages, navigation, members, leads | Có thể tái dùng primitive hiện tại; không dựng lại dashboard từ đầu |
 | Visual admin | host/session context và editor MVP cho brand/hero đã vào `master`; chưa phải renderer parity đầy đủ | Mở thêm region chỉ khi có source, capability và browser evidence |
-| Bulk | product import backend + UI đã vào `master`, atomic/idempotent/audited, giới hạn 50 dòng | Batch domain khác chỉ mở sau contract riêng; không tạo generic bulk framework sớm |
+| Bulk | product import và service archive batch đã vào `master`, mỗi lát atomic/idempotent/audited, giới hạn riêng 50/100 item | Batch domain khác chỉ mở sau contract riêng; không tạo generic bulk framework sớm |
 | Quality/release | test scripts, lint, typecheck, build, Wrangler/OpenNext và staging workflows đã có | QA/Release dùng pipeline hiện tại, không tự tạo pipeline song song |
 
 ### 2.3 Các hub rủi ro cao cần được bảo vệ
@@ -469,9 +469,9 @@ Trình tự còn lại:
    cherry-pick file dirty đó.
 5. Sau khi các gate trên xanh, mở P3/P4/P5 còn thiếu theo từng vertical slice:
    admin news/media runtime acceptance, footer/navigation evidence và batch domain
-   khác; contextual news/page hand-off đã có code/contract nhưng chưa đóng phase
-   vì thiếu browser Access read-back. Mỗi slice cập nhật file map/roadmap/evidence
-   trước khi chuyển tiếp.
+   khác; service archive batch đã có code/contract nhưng chưa đóng phase vì thiếu
+   browser Access read-back. Contextual news/page hand-off cũng chưa đóng phase vì
+   cùng blocker. Mỗi slice cập nhật file map/roadmap/evidence trước khi chuyển tiếp.
 6. Chỉ khi staging acceptance, rollback note, production checklist và người
    quyết định nội dung đã duyệt thì mới xem xét production promotion.
 

@@ -361,7 +361,10 @@ Routes:
 
 - `GET /api/admin/services`
 - `GET /api/admin/services/[id]`
+- `GET /api/admin/services/batch?ids=<comma-separated-ids>` — manager-only revision snapshot trước batch action;
+- `POST /api/admin/services/batch` — manager-only archive nhiều service trong phạm vi tối đa 100 item;
 - `PATCH /api/admin/services/[id]`
+- `DELETE /api/admin/services/[id]`
 
 Fields:
 
@@ -371,7 +374,11 @@ Fields:
 - `description`: string, 0..30000 chars;
 - `metaTitle`: string, 0..180 chars;
 - `isActive`: boolean;
-- update: `version`.
+- service row hiện tại giữ nguyên read shape dùng chung; không thêm `revision` trực tiếp vào `AdminService` trong lát này vì interface có fan-out lớn;
+- batch archive nhận `{ requestId, items: [{ id, expectedRevision }] }`, đọc snapshot revision server-side, chỉ archive item active khớp revision;
+- batch trả `changedCount`, `selectedCount`, `replayed` và `skipped[]` với reason `not_found`, `stale` hoặc `already_archived`;
+- batch archive cập nhật `services.revision`, đồng bộ `service_admin_meta` khi có bảng, ghi audit child/envelope và dùng `admin_audit_log` để idempotency;
+- update/delete legacy hiện hữu vẫn là contract riêng; không coi batch snapshot là thay đổi ngầm cho các route đó.
 
 Creating service taxonomy remains deferred until existing service-page mapping is reconciled. Initial UI may be edit-only for managed rows.
 
