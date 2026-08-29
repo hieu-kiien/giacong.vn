@@ -78,7 +78,7 @@ giới hạn phải được ghi đúng như vậy, không coi là xanh hoàn to
   còn migration phải apply. Các bảng admin/CMS chính gồm site_settings,
   site_pages, site_navigation_items, admin_members, news_posts và media_assets
   đã tồn tại.
-- Các suite focused sau khi merge hiện tại đã pass: test:admin 95/95,
+- Các suite focused sau khi merge hiện tại đã pass: test:admin 102/102,
   test:contact 103/103, test:catalog 5/5, test:catalog-purchase-ui 1/1,
   test:service 3/3, test:commerce 32/32, test:listing 4/4 và test:detail
   29/29; UI import 2/2 và harness timing 1/1.
@@ -101,6 +101,10 @@ giới hạn phải được ghi đúng như vậy, không coi là xanh hoàn to
   trong một cửa sổ release không có dev server trước khi đánh dấu production
   ready. Các wrapper PowerShell trên máy có thể giữ process sau khi Node đã in
   hết kết quả, nên phải ghi nhận output và exit code thực tế riêng.
+- Commit `cf3856c` bổ sung regression cho race revision của service batch: lỗi
+  guard có chủ đích được map thành `STALE_WRITE`, transaction không để lại
+  marker/audit dở dang. Lát P6 kế tiếp bổ sung focus trap, restore focus và
+  `aria-describedby` cho dialog dùng chung; browser runtime evidence vẫn mở.
 - Build local không có dữ liệu CMS nếu D1 chưa bootstrap; khi đó code fallback về
   default và có log no such table. Đây là lỗi setup, không được dùng làm bằng
   chứng cho admin runtime.

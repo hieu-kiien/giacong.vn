@@ -1,7 +1,7 @@
 # Bản đồ file Giacong Visual Admin
 
 **Trạng thái:** bản đồ ownership và source-of-truth
-**Cập nhật:** 2026-08-28
+**Cập nhật:** 2026-08-29
 **Roadmap:** ADMIN_VISUAL_ROADMAP.md
 
 Mục tiêu của file này là trả lời nhanh bốn câu hỏi trước khi sửa code:
@@ -24,6 +24,10 @@ detail, cart và keyboard; public staging cũng pass cùng ma trận. Public sta
 nhiên `admin-staging.kienhieu.id.vn` vẫn trả Cloudflare Access login khi không có
 phiên hợp lệ, vì vậy admin read-back/browser evidence cho context thật và
 frontend motion worktree còn mở; không coi local Next dev là bằng chứng Access.
+Commit `cf3856c` đã bổ sung stale-race regression cho service batch. `AdminModal`
+hiện có focus trap, restore focus và confirm message liên kết qua
+`aria-describedby`; contract test đã pass, còn browser runtime evidence là gate
+QA riêng.
 
 **Checkpoint P3 2026-08-29:** contract backend news/media đã vào `master`: news
 có snapshot `draft_*` và `published_*`, publish/unpublish riêng, batch status tối
@@ -91,7 +95,7 @@ runtime acceptance còn mở.
 | --- | --- | --- | --- |
 | Admin shell | src/components/admin/AdminShell.tsx | sidebar/topbar, session, nav filter | giữ làm control plane; thêm đường vào storefront edit |
 | Primitives | src/components/admin/AdminPrimitives.tsx | heading, state, table-level UI | dùng chung cho back office và drawer đặc biệt |
-| Dialog/field/toast | src/components/admin/AdminDialog.tsx, AdminField.tsx, AdminToast.tsx | feedback và form guard | tái sử dụng cho contextual editor |
+| Dialog/field/toast | src/components/admin/AdminDialog.tsx, AdminField.tsx, AdminToast.tsx | feedback, focus-trapped modal/confirm và form guard | tái sử dụng cho contextual editor; browser focus evidence còn mở |
 | Media | AdminMediaPanel.tsx, AdminMediaPickerModal.tsx | media list/picker | mở từ storefront khi capability cho phép |
 | Page builder | AdminPageBuilder.tsx | safe blocks, draft/preview/publish; chọn page theo query `?page=` từ contextual hand-off | vẫn là advanced editor/back office; inline là shortcut |
 | Navigation | AdminNavigationManager.tsx | primary menu manager | giữ full editor; contextual edit gọi vào đúng item |

@@ -22,6 +22,10 @@ test("destructive actions route through the confirm dialog, never window.confirm
   assert.match(dialog, /export function AdminModal/);
   assert.match(dialog, /export function AdminConfirmDialog/);
   assert.match(dialog, /aria-modal="true"/);
+  assert.match(dialog, /aria-describedby=\{describedBy\}/);
+  assert.match(dialog, /id="admin-confirm-message"/);
+  assert.match(dialog, /event\.key !== "Tab"/);
+  assert.match(dialog, /previouslyFocused/);
   assert.match(dialog, /Escape/);
   assert.doesNotMatch(dialog, /window\.confirm/);
 });

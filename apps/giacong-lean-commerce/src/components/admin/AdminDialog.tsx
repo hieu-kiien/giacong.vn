@@ -7,29 +7,82 @@
 import { X } from "lucide-react";
 import { useEffect, useRef, type ReactNode } from "react";
 
+const focusableSelector = [
+  "a[href]",
+  "area[href]",
+  "button:not([disabled])",
+  "input:not([disabled]):not([type=hidden])",
+  "select:not([disabled])",
+  "textarea:not([disabled])",
+  "[contenteditable]",
+  "[tabindex]:not([tabindex='-1'])",
+].join(",");
+
 interface AdminModalProps {
   children: ReactNode;
+  describedBy?: string;
   labelledBy: string;
   onClose: () => void;
   title: string;
   width?: "narrow" | "wide";
 }
 
-export function AdminModal({ children, labelledBy, onClose, title, width = "narrow" }: AdminModalProps) {
+export function AdminModal({ children, describedBy, labelledBy, onClose, title, width = "narrow" }: AdminModalProps) {
   const surfaceRef = useRef<HTMLDivElement>(null);
+  const onCloseRef = useRef(onClose);
 
   useEffect(() => {
-    function onKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") onClose();
-    }
-    document.addEventListener("keydown", onKeyDown);
-    surfaceRef.current?.focus();
-    return () => document.removeEventListener("keydown", onKeyDown);
+    onCloseRef.current = onClose;
   }, [onClose]);
+
+  useEffect(() => {
+    const previouslyFocused = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const surface = surfaceRef.current;
+
+    function getFocusableElements(): HTMLElement[] {
+      return surface ? Array.from(surface.querySelectorAll<HTMLElement>(focusableSelector)) : [];
+    }
+
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        onCloseRef.current();
+        return;
+      }
+      if (event.key !== "Tab" || !surface) return;
+
+      const focusable = getFocusableElements();
+      if (focusable.length === 0) {
+        event.preventDefault();
+        surface.focus();
+        return;
+      }
+
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && (document.activeElement === first || document.activeElement === surface)) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    }
+
+    document.addEventListener("keydown", onKeyDown);
+    const firstFocusable = getFocusableElements()[0];
+    (firstFocusable ?? surface)?.focus();
+
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+      if (previouslyFocused?.isConnected) previouslyFocused.focus();
+    };
+  }, []);
 
   return (
     <div className="admin-modal-overlay" onClick={onClose}>
       <div
+        aria-describedby={describedBy}
         aria-labelledby={labelledBy}
         aria-modal="true"
         className={`admin-modal admin-modal-${width}`}
@@ -70,8 +123,8 @@ export function AdminConfirmDialog({
   title,
 }: AdminConfirmDialogProps) {
   return (
-    <AdminModal labelledBy="admin-confirm-title" onClose={onDismiss} title={title} width="narrow">
-      <p className="admin-confirm-message">{message}</p>
+    <AdminModal describedBy="admin-confirm-message" labelledBy="admin-confirm-title" onClose={onDismiss} title={title} width="narrow">
+      <p className="admin-confirm-message" id="admin-confirm-message">{message}</p>
       <footer className="admin-modal-footer">
         <button className="admin-button admin-button-quiet" onClick={onDismiss} type="button">{cancelLabel}</button>
         <button
