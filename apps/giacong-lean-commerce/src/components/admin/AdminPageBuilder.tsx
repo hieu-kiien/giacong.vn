@@ -1,6 +1,7 @@
 "use client";
 
 import { ArrowDown, ArrowUp, Eye, Plus, Save, Send, Trash2 } from "lucide-react";
+import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { AdminErrorState, AdminPageHeading, AdminStatusBadge } from "@/components/admin/AdminPrimitives";
@@ -46,6 +47,8 @@ const blockLabels: Record<BuilderBlockType, string> = {
 
 export function AdminPageBuilder() {
   const session = useAdminSession();
+  const searchParams = useSearchParams();
+  const requestedPage = searchParams.get("page")?.trim().toLowerCase() ?? "";
   const [data, setData] = useState<PagesResponse | null>(null);
   const [selectedKey, setSelectedKey] = useState("");
   const [blocks, setBlocks] = useState<PageBlock[]>([]);
@@ -71,7 +74,9 @@ export function AdminPageBuilder() {
     try {
       const next = await fetchAdmin<PagesResponse>("/api/admin/pages");
       setData(next);
-      const nextKey = next.pages.some((page) => page.pageKey === selectedKey)
+      const nextKey = next.pages.some((page) => page.pageKey === requestedPage)
+        ? requestedPage
+        : next.pages.some((page) => page.pageKey === selectedKey)
         ? selectedKey
         : next.pages[0]?.pageKey ?? "";
       const nextPage = next.pages.find((page) => page.pageKey === nextKey);

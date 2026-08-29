@@ -448,10 +448,11 @@ Một phase chỉ được đánh dấu đạt khi có bảng evidence, không d
 
 ## 13. Kế hoạch kích hoạt thực tế tiếp theo
 
-Các lát P1, P2, contextual news hand-off của P3 và phần product import của P5 đã
-được thực hiện trên `master`. Từ checkpoint này, Control Tower chỉ mở agent khi
-có đầu ra độc lập rõ ràng; tối đa 4 task đồng thời, chế độ thường, và tuyệt đối
-không đụng worktree frontend motion đang dirty của người dùng.
+Các lát P1, P2, contextual news hand-off của P3, managed-page hand-off của P4 và
+phần product import của P5 đã được thực hiện trên `master`. Từ checkpoint này,
+Control Tower chỉ mở agent khi có đầu ra độc lập rõ ràng; tối đa 4 task đồng
+thời, chế độ thường, và tuyệt đối không đụng worktree frontend motion đang dirty
+của người dùng.
 
 Trình tự còn lại:
 
@@ -467,10 +468,10 @@ Trình tự còn lại:
    hiện tại rồi mới tạo change card để review; Control Tower không tự stage hay
    cherry-pick file dirty đó.
 5. Sau khi các gate trên xanh, mở P3/P4/P5 còn thiếu theo từng vertical slice:
-   admin news/media runtime acceptance, pages/navigation và batch domain khác;
-   contextual news hand-off đã có code/contract nhưng chưa đóng phase vì thiếu
-   browser Access read-back. Mỗi slice cập nhật file map/roadmap/evidence trước
-   khi chuyển tiếp.
+   admin news/media runtime acceptance, footer/navigation evidence và batch domain
+   khác; contextual news/page hand-off đã có code/contract nhưng chưa đóng phase
+   vì thiếu browser Access read-back. Mỗi slice cập nhật file map/roadmap/evidence
+   trước khi chuyển tiếp.
 6. Chỉ khi staging acceptance, rollback note, production checklist và người
    quyết định nội dung đã duyệt thì mới xem xét production promotion.
 

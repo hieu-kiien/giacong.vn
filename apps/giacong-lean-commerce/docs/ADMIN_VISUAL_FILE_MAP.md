@@ -16,7 +16,8 @@ khi tồn tại trong checkout; file “dự kiến” phải được tạo tro
 
 **Checkpoint 2026-08-29:** P1 host-gated admin context, P2 settings write
 contract (per-setting + bulk publish), contextual editor MVP, P3 contextual
-news-detail hand-off và P5 product bulk import UI đã có trong `master`. Local
+news-detail hand-off, P4 managed-page hand-off và P5 product bulk import UI đã
+có trong `master`. Local
 Playwright deep QA đã pass storefront public ở mobile/tablet/desktop, catalog,
 detail, cart và keyboard; public staging cũng pass cùng ma trận. Public staging
 `/tin-tuc` không phát sinh admin session request hay contextual control. Tuy
@@ -52,12 +53,12 @@ runtime acceptance còn mở.
 | Concern | File canonical hiện tại | Trạng thái | Phase đụng tới |
 | --- | --- | --- | --- |
 | Home route | src/app/(storefront)/page.tsx | đã có; đọc published settings/page rồi chọn managed blocks hoặc captured home | P1–P4 |
-| Nested captured route | src/app/(storefront)/[...slug]/page.tsx | đã có; shared shell + managed page hoặc captured fallback | P1–P4 |
+| Nested captured route | src/app/(storefront)/[...slug]/page.tsx | đã có; shared shell + managed page hoặc captured fallback; managed branch truyền pageKey cho contextual editor hand-off | P1–P4 |
 | Storefront layout | src/app/(storefront)/layout.tsx | đã có; owner của boundary chung public/storefront | P1 |
 | Captured home render | src/components/site/CapturedHomePage.tsx | đã có; HTML string + settings mapping giới hạn | P2, P4 |
 | Captured page render | src/components/CapturedPage.tsx | đã có; captured markup fallback | P1–P4 |
 | Header/footer shell | src/components/site/CapturedStorefrontShell.tsx | đã có; áp settings/navigation vào captured shell | P2, P4 |
-| Safe block render | src/components/site/PageBlocks.tsx | đã có; renderer dùng chung với page builder preview | P4 |
+| Safe block render | src/components/site/PageBlocks.tsx | đã có; renderer dùng chung với page builder preview; nhận pageKey tùy chọn để gắn action trên managed page | P4 |
 | News frame | src/components/CapturedNewsFrame.tsx | đã có; cần adapter nếu inline news được bật | P3 |
 | Request cart | src/components/request-cart/ | đã có; không đưa vào visual admin scope | không mở rộng |
 | Public nav interactions | src/components/site/storefront-navigation.ts, src/components/storefront/ | đã có; public behavior phải giữ nguyên | P1–P4 |
@@ -92,13 +93,13 @@ runtime acceptance còn mở.
 | Primitives | src/components/admin/AdminPrimitives.tsx | heading, state, table-level UI | dùng chung cho back office và drawer đặc biệt |
 | Dialog/field/toast | src/components/admin/AdminDialog.tsx, AdminField.tsx, AdminToast.tsx | feedback và form guard | tái sử dụng cho contextual editor |
 | Media | AdminMediaPanel.tsx, AdminMediaPickerModal.tsx | media list/picker | mở từ storefront khi capability cho phép |
-| Page builder | AdminPageBuilder.tsx | safe blocks, draft/preview/publish | vẫn là advanced editor/back office; inline là shortcut |
+| Page builder | AdminPageBuilder.tsx | safe blocks, draft/preview/publish; chọn page theo query `?page=` từ contextual hand-off | vẫn là advanced editor/back office; inline là shortcut |
 | Navigation | AdminNavigationManager.tsx | primary menu manager | giữ full editor; contextual edit gọi vào đúng item |
 | Members | AdminMembersManager.tsx | owner quản lý admin roles | trang đặc biệt, không inline trên storefront |
 | Category/variant | AdminCategoryPanel.tsx, AdminVariantPanel.tsx | catalog sub-editors | dùng trong catalog/bulk flow, không nhồi hết vào homepage |
 | Product bulk import | AdminProductImportPanel.tsx, src/app/admin/san-pham/page.tsx | chọn CSV, preview lỗi, import atomic và retry cùng request ID | giữ ở catalog control plane; không biến thành inline editor |
-| Storefront admin context | AdminVisualMode.tsx, AdminNewsContextualAction.tsx, AdminNewsContextualAction.module.css | host/session gate, context role và contextual news action; trạng thái loading/blocked/unavailable/ready | chỉ hiện action trên exact admin hostname sau session ready; public không fetch admin session và không render control |
-| Contextual settings editor | AdminVisualEditor.tsx, AdminVisualEditor.module.css | toolbar nhỏ cho brand/hero, draft/preview/publish và role-aware feedback | MVP cho region đã map; preview hiện là draft card có nhãn rõ ràng; news detail hand-off dùng editor back office hiện có |
+| Storefront admin context | AdminVisualMode.tsx, AdminNewsContextualAction.tsx, AdminPageContextualAction.tsx, AdminNewsContextualAction.module.css | host/session gate, context role và contextual news/page actions; trạng thái loading/blocked/unavailable/ready | chỉ hiện action trên exact admin hostname sau session ready; public không fetch admin session và không render control |
+| Contextual settings editor | AdminVisualEditor.tsx, AdminVisualEditor.module.css | toolbar nhỏ cho brand/hero, draft/preview/publish và role-aware feedback | MVP cho region đã map; preview hiện là draft card có nhãn rõ ràng; news/page hand-off dùng editor back office hiện có |
 | Admin CSS | src/styles/admin.css | styling control plane | giữ token/brand language, không tạo dashboard stack mới |
 
 ### Visual layer: file đã có và file chưa cần tạo
@@ -110,6 +111,7 @@ Vertical slice hiện tại chứng minh chưa cần tách thành nhiều abstra
 | src/components/admin/AdminVisualMode.tsx | context/entry state cho admin storefront | không tự cấp quyền |
 | src/components/admin/AdminVisualEditor.tsx | toolbar/drawer và flow brand/home settings | không ghi D1/R2 trực tiếp |
 | src/components/admin/AdminVisualEditor.module.css | layout, focus, mobile và reduced-motion cho editor | không tạo token riêng ngoài hệ thống |
+| src/components/admin/AdminNewsContextualAction.tsx, AdminPageContextualAction.tsx | link contextual theo session context tới editor canonical | không tự fetch session, không ghi dữ liệu, không hiện trên public context |
 | src/lib/admin-visual-contract.ts | exact host gate và session-ready contract | không quyết định capability server |
 
 Các file `AdminEditableRegion.tsx`, `AdminVisualActions.tsx` và
@@ -125,7 +127,7 @@ use case thứ ba chứng minh editor hiện tại không còn đủ đơn giả
 | Session | /api/admin/session | P1 |
 | Dashboard | /api/admin/dashboard | P5 |
 | Settings | /api/admin/site-settings, /api/admin/site-settings/publish, /api/admin/site-settings/publish-all, /api/admin/site-settings/media | P2; per-setting và bulk publish có requestId, stale, idempotency và audit batch; contextual editor đã tích hợp, staging/admin read-back còn mở |
-| Pages | /api/admin/pages, /api/admin/pages/[pageKey], /api/admin/pages/[pageKey]/publish | P4 |
+| Pages | /api/admin/pages, /api/admin/pages/[pageKey], /api/admin/pages/[pageKey]/publish | P4; contextual hand-off đã nối tới page builder, API contract không đổi |
 | Navigation | /api/admin/navigation, /api/admin/navigation/[id], /publish, /publish-all | P4 |
 | News | /api/admin/news, /api/admin/news/[id], /api/admin/news/[id]/publish, /api/admin/news/batch | P3; draft save, explicit publish/unpublish, batch status và contextual deep-link đã có; browser/admin staging read-back còn mở |
 | Media | /api/admin/media, /api/admin/media/[id], /api/admin/media/cleanup | P3/P5 |
@@ -189,7 +191,7 @@ admin_visual tổng hợp tất cả domain.
 | news.detail | title/excerpt/body/cover + contextual edit action trên admin host | news posts; published id cho hand-off | news write + publish contract | structured public/admin; hand-off code đã có, runtime evidence còn mở | P3 |
 | catalog.product | product card/detail data | D1 catalog | catalog write/publish | structured | P5 |
 | service.detail | service copy/media | D1 services/R2 | services write | structured | P5 |
-| page.blocks | managed sections | site pages/PageBlocks | pages write/publish | safe builder exists | P4 |
+| page.blocks | managed sections + contextual edit action trên admin host | site pages/PageBlocks | pages write/publish | safe builder và deep-link hand-off đã có, browser evidence còn mở | P4 |
 | ops.leads | request inbox | D1 + Sheet queue | leads read/write | back office only | P5 |
 | ops.members | internal admin accounts/roles | D1 admin_members | owner only | back office only | P5 |
 | ops.audit | change history | audit/revision tables | owner/approved read | special page only if needed | P6 |

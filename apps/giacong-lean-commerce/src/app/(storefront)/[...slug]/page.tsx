@@ -81,7 +81,7 @@ export default async function CapturedRoute({ params }: CapturedRouteProps) {
   if (managedPage?.blocks.length) {
     return (
       <CapturedStorefrontShell activeNavigation={getStorefrontNavigationForPath(routePath)?.key}>
-        <PageBlocks blocks={managedPage.blocks} />
+        <PageBlocks blocks={managedPage.blocks} pageKey={managedPage.pageKey} />
       </CapturedStorefrontShell>
     );
   }

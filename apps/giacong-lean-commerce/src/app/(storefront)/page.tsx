@@ -26,7 +26,7 @@ export default async function Home() {
   if (managedPage?.blocks.length) {
     return (
       <CapturedStorefrontShell>
-        <PageBlocks blocks={managedPage.blocks} />
+        <PageBlocks blocks={managedPage.blocks} pageKey={managedPage.pageKey} />
       </CapturedStorefrontShell>
     );
   }

@@ -67,9 +67,9 @@ giới hạn phải được ghi đúng như vậy, không coi là xanh hoàn to
 
 ### 2.1 Đã xác minh
 
-- `master` đang chứa các lát đã review của P1/P2/P5: host-gated visual context,
-  settings write contract, contextual brand/hero editor, AdminShell grouping và
-  product bulk import UI/backend.
+- `master` đang chứa các lát đã review của P1/P2/P3/P4/P5: host-gated visual
+  context, settings write contract, contextual brand/hero editor, contextual
+  news/page hand-off, AdminShell grouping và product bulk import UI/backend.
 - Node v24.14.0, npm 11.9.0, .nvmrc yêu cầu Node 24.
 - package-lock.json tồn tại; dependency tree sau khi cài lại khớp các package
   quan trọng trong lockfile.
@@ -78,7 +78,7 @@ giới hạn phải được ghi đúng như vậy, không coi là xanh hoàn to
   còn migration phải apply. Các bảng admin/CMS chính gồm site_settings,
   site_pages, site_navigation_items, admin_members, news_posts và media_assets
   đã tồn tại.
-- Các suite focused sau khi merge hiện tại đã pass: test:admin 90/90,
+- Các suite focused sau khi merge hiện tại đã pass: test:admin 95/95,
   test:contact 103/103, test:catalog 5/5, test:catalog-purchase-ui 1/1,
   test:service 3/3, test:commerce 32/32, test:listing 4/4 và test:detail
   29/29; UI import 2/2 và harness timing 1/1.
@@ -309,6 +309,14 @@ tin và catalog manager xử lý media mà không làm hỏng ảnh đang dùng.
 
 ### P4 — MVP-3: Trang, section và navigation
 
+**Checkpoint 2026-08-29:** managed page renderer đã nhận `pageKey` tùy chọn và
+hiển thị contextual action chỉ sau khi `AdminVisualMode` xác nhận session ready
+với role owner/content_manager. Nút mở `/admin/thiet-ke?page=<pageKey>`; builder
+đọc query rồi chọn đúng page sau khi gọi API pages canonical. Captured fallback
+không truyền `pageKey`, public không tự fetch session. Contract P4 mới đạt cho
+managed-page hand-off; footer renderer, browser route matrix và staging Access
+read-back vẫn mở.
+
 **Mục tiêu:** chuyển các vùng layout cần thay đổi thường xuyên sang cấu trúc an
 toàn có thể chỉnh sửa.
 
@@ -456,7 +464,7 @@ Chỉ tạo các file này khi phase tương ứng bắt đầu; không tạo pl
 - scripts/admin-visual-news-media.test.mjs — P3 contextual/browser contract slice;
 - scripts/admin-news-write-contract.test.mts — P3 news persistence contract đã có;
 - scripts/admin-product-import.test.mts — P5 product import persistence contract;
-- scripts/admin-visual-pages-navigation.test.mts — P4;
+- scripts/admin-visual-pages-navigation.test.mjs — P4;
 - scripts/admin-visual-bulk.test.mts — P5;
 - browser/staging harness — P1 trở đi, đặt cạnh harness hiện có và ghi vào file
   map khi tên chính thức được chốt.
