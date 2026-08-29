@@ -13,6 +13,7 @@ import { AdminVariantPanel } from "@/components/admin/AdminVariantPanel";
 import { useAdminSession } from "@/components/admin/AdminShell";
 import { useAdminToast } from "@/components/admin/AdminToast";
 import { AdminClientError, fetchAdmin, formatAdminDate, getInitials, mutateAdmin, type AdminCategory, type AdminProduct } from "@/lib/admin-client";
+import { canManageCatalog } from "@/lib/admin-permissions";
 
 interface ProductResponse {
   categories?: AdminCategory[];
@@ -20,6 +21,25 @@ interface ProductResponse {
   total: number;
   pagination?: { currentPage: number; lastPage: number; pageSize: number; total: number };
 }
+
+interface ProductBatchSnapshotResponse {
+  products: Array<{ id: number; isActive: boolean; revision: number }>;
+}
+
+type ProductBatchItem = { id: number; expectedRevision: number };
+type ProductBatchSkipReason = "already_archived" | "not_found" | "stale";
+type ProductBatchResult = {
+  changedCount: number;
+  replayed?: boolean;
+  selectedCount: number;
+  skipped: Array<{ id: number; reason: ProductBatchSkipReason }>;
+};
+
+const productBatchSkipLabels: Record<ProductBatchSkipReason, string> = {
+  stale: "xung đột phiên",
+  already_archived: "đã ẩn trước đó",
+  not_found: "không còn tồn tại",
+};
 
 type ProductFormState = {
   categoryId: string;
@@ -75,6 +95,13 @@ export default function AdminProductsPage() {
   const [confirmArchive, setConfirmArchive] = useState<AdminProduct | null>(null);
   const [categoryPanelOpen, setCategoryPanelOpen] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [batchArchiving, setBatchArchiving] = useState(false);
+  const [confirmBatchArchive, setConfirmBatchArchive] = useState(false);
+  const [pendingBatch, setPendingBatch] = useState<{ requestId: string; items: ProductBatchItem[] } | null>(null);
+  const canManage = canManageCatalog(session.role);
+  const activeProducts = products.filter((product) => product.isActive);
+  const allVisibleSelected = canManage && activeProducts.length > 0 && activeProducts.every((product) => selectedIds.has(product.id));
 
   useEffect(() => {
     const controller = new AbortController();
@@ -91,6 +118,8 @@ export default function AdminProductsPage() {
         setCategories(result.categories ?? []);
         setTotal(result.total ?? 0);
         setLastPage(result.pagination?.lastPage ?? Math.max(1, Math.ceil((result.total ?? 0) / 20)));
+        setSelectedIds(new Set());
+        setPendingBatch(null);
       } catch (reason: unknown) {
         if (!(reason instanceof DOMException && reason.name === "AbortError")) {
           setError(reason instanceof AdminClientError ? reason : new AdminClientError("Không thể tải danh sách sản phẩm.", 0));
@@ -170,6 +199,7 @@ export default function AdminProductsPage() {
   }
 
   async function archiveProduct(product: AdminProduct) {
+    if (!canManage) return;
     setArchivingId(product.id);
     setSaveError(null);
     try {
@@ -182,6 +212,68 @@ export default function AdminProductsPage() {
       showToast("error", reason instanceof AdminClientError ? reason.message : "Không thể ẩn sản phẩm.");
     } finally {
       setArchivingId(null);
+    }
+  }
+
+  function toggleProduct(productId: number, checked: boolean) {
+    if (!canManage) return;
+    setPendingBatch(null);
+    setSelectedIds((current) => {
+      const next = new Set(current);
+      if (checked) next.add(productId); else next.delete(productId);
+      return next;
+    });
+  }
+
+  function toggleAllVisible(checked: boolean) {
+    if (!canManage) return;
+    setPendingBatch(null);
+    setSelectedIds(checked ? new Set(activeProducts.map((product) => product.id)) : new Set());
+  }
+
+  async function archiveSelectedProducts() {
+    if (!canManage || selectedIds.size === 0) return;
+    setBatchArchiving(true);
+    try {
+      let batch = pendingBatch;
+      if (!batch) {
+        const ids = [...selectedIds].sort((left, right) => left - right);
+        const snapshot = await fetchAdmin<ProductBatchSnapshotResponse>(`/api/admin/products/batch?ids=${ids.join(",")}`);
+        const revisions = new Map(snapshot.products.map((product) => [product.id, product.revision]));
+        batch = { requestId: crypto.randomUUID(), items: ids.map((id) => ({ id, expectedRevision: revisions.get(id) ?? 1 })) };
+        setPendingBatch(batch);
+      }
+      const result = await mutateAdmin<ProductBatchResult>("/api/admin/products/batch", {
+        body: { requestId: batch.requestId, items: batch.items },
+        method: "POST",
+      });
+      setConfirmBatchArchive(false);
+      setSelectedIds(new Set());
+      setPendingBatch(null);
+      setAttempt((value) => value + 1);
+      const skipped = result.skipped?.length ?? 0;
+      const skipCounts = new Map<string, number>();
+      for (const item of result.skipped ?? []) skipCounts.set(item.reason, (skipCounts.get(item.reason) ?? 0) + 1);
+      const skipSummary = (Object.keys(productBatchSkipLabels) as ProductBatchSkipReason[])
+        .map((reason) => {
+          const count = skipCounts.get(reason) ?? 0;
+          return count > 0 ? `${count} ${productBatchSkipLabels[reason]}` : null;
+        })
+        .filter((value): value is string => Boolean(value))
+        .join(", ");
+      showToast(
+        skipped > 0 ? "error" : "success",
+        `Đã ẩn ${result.changedCount} / ${result.selectedCount} sản phẩm.${result.replayed ? " Gửi lại an toàn theo cùng requestId." : ""}${skipSummary ? ` Chưa xử lý: ${skipSummary}. Hãy tải lại để xem trạng thái mới.` : ""}`,
+      );
+    } catch (reason: unknown) {
+      const canRetrySameBatch = !(reason instanceof AdminClientError) || reason.status === 0 || reason.status === 502 || reason.status === 504;
+      if (!canRetrySameBatch) setPendingBatch(null);
+      showToast(
+        "error",
+        `${reason instanceof AdminClientError ? reason.message : "Không thể ẩn các sản phẩm đã chọn."}${canRetrySameBatch ? " Có thể bấm lại để gửi lại an toàn cùng yêu cầu." : ""}`,
+      );
+    } finally {
+      setBatchArchiving(false);
     }
   }
 
@@ -198,7 +290,7 @@ export default function AdminProductsPage() {
         </div>
         <button className="admin-button admin-button-primary" data-testid="button-product-search" type="submit"><Search size={15} /> Tìm sản phẩm</button>
         {query ? <button className="admin-button admin-button-quiet" data-testid="button-product-clear-search" onClick={clearSearch} type="button">Xóa tìm kiếm</button> : null}
-        <button className="admin-button admin-button-primary" data-testid="button-product-create" onClick={openCreate} type="button">Thêm sản phẩm</button>
+        {canManage ? <button className="admin-button admin-button-primary" data-testid="button-product-create" onClick={openCreate} type="button">Thêm sản phẩm</button> : null}
         <button
           className="admin-button admin-button-quiet"
           data-testid="button-open-category-panel"
@@ -207,6 +299,7 @@ export default function AdminProductsPage() {
         >
           Quản lý danh mục
         </button>
+        {canManage && selectedIds.size > 0 ? <><span aria-live="polite" className="admin-item-meta" data-testid="product-selection-count">Đã chọn {selectedIds.size}</span><button className="admin-button admin-button-danger" data-testid="button-product-batch-archive" disabled={batchArchiving} onClick={() => setConfirmBatchArchive(true)} type="button">{batchArchiving ? "Đang ẩn…" : "Ẩn đã chọn"}</button></> : null}
       </form>
       {error ? <AdminErrorState error={error} onRetry={() => setAttempt((value) => value + 1)} /> : loading ? <AdminLoadingTable /> : (
         <section className="admin-panel admin-table-panel" aria-labelledby="product-table-heading">
@@ -215,10 +308,11 @@ export default function AdminProductsPage() {
             <>
               <div className="admin-table-scroll">
                 <table className="admin-table">
-                   <thead><tr><th scope="col">Sản phẩm</th><th scope="col">Danh mục / SKU</th><th scope="col">Quy cách</th><th scope="col">MOQ / Giá từ</th><th scope="col">Trạng thái</th><th scope="col">Lead time</th><th scope="col">Cập nhật</th><th scope="col">Thao tác</th></tr></thead>
+                   <thead><tr>{canManage ? <th scope="col"><label className="admin-check"><input aria-label="Chọn tất cả sản phẩm trong trang" checked={allVisibleSelected} onChange={(event) => toggleAllVisible(event.target.checked)} type="checkbox" /><span>Chọn</span></label></th> : null}<th scope="col">Sản phẩm</th><th scope="col">Danh mục / SKU</th><th scope="col">Quy cách</th><th scope="col">MOQ / Giá từ</th><th scope="col">Trạng thái</th><th scope="col">Lead time</th><th scope="col">Cập nhật</th>{canManage ? <th scope="col">Thao tác</th> : null}</tr></thead>
                   <tbody>
                     {products.map((product) => (
                       <tr data-testid={`row-product-${product.id}`} key={product.id}>
+                        {canManage ? <td><input aria-label={`Chọn sản phẩm ${product.name}`} checked={selectedIds.has(product.id)} disabled={!product.isActive || batchArchiving} onChange={(event) => toggleProduct(product.id, event.target.checked)} type="checkbox" /></td> : null}
                         <td>
                           <div className="admin-product-cell">
                             <span className="admin-thumb">
@@ -240,12 +334,12 @@ export default function AdminProductsPage() {
                         <td><AdminStatusBadge kind={product.isActive && product.status === "published" ? "green" : product.status === "draft" || product.status === "review" ? "amber" : "neutral"} value={product.isActive ? statusLabelsVN[product.status as ProductFormState["status"]] ?? product.status : "Tạm ẩn"} /></td>
                         <td className="admin-mono">{product.leadTimeDays ? `${product.leadTimeDays} ngày` : "Chưa có"}</td>
                          <td className="admin-mono">{formatAdminDate(product.updatedAt)}</td>
-                         <td>
+                         {canManage ? <td>
                            <div className="admin-table-actions">
                              <button className="admin-button admin-button-quiet" data-testid={`button-product-edit-${product.id}`} onClick={() => openEdit(product)} type="button">Sửa</button>
                              {product.isActive ? <button className="admin-button admin-button-danger" data-testid={`button-product-archive-${product.id}`} disabled={archivingId === product.id} onClick={() => setConfirmArchive(product)} type="button">{archivingId === product.id ? "Đang ẩn" : "Ẩn"}</button> : null}
                            </div>
-                         </td>
+                         </td> : null}
                       </tr>
                     ))}
                   </tbody>
@@ -266,6 +360,7 @@ export default function AdminProductsPage() {
           title="Ẩn sản phẩm?"
         />
       ) : null}
+      {confirmBatchArchive ? <AdminConfirmDialog message={`Ẩn ${selectedIds.size} sản phẩm đã chọn khỏi storefront? Dữ liệu vẫn được giữ lại.`} confirmLabel="Ẩn sản phẩm đã chọn" onConfirm={() => void archiveSelectedProducts()} onDismiss={() => setConfirmBatchArchive(false)} title="Ẩn sản phẩm đã chọn?" /> : null}
       {categoryPanelOpen ? (
         <AdminModal labelledBy="admin-category-panel-title" onClose={() => setCategoryPanelOpen(false)} title="Quản lý danh mục" width="wide">
           <h2 hidden id="admin-category-panel-title">Quản lý danh mục</h2>

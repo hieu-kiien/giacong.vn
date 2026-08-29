@@ -69,7 +69,8 @@ giới hạn phải được ghi đúng như vậy, không coi là xanh hoàn to
 
 - `master` đang chứa các lát đã review của P1/P2/P3/P4/P5: host-gated visual
   context, settings write contract, contextual brand/hero editor, contextual
-  news/page hand-off, AdminShell grouping và product bulk import UI/backend.
+  news/page hand-off, AdminShell grouping, product bulk import và product/service
+  bulk archive UI/backend.
 - Node v24.14.0, npm 11.9.0, .nvmrc yêu cầu Node 24.
 - package-lock.json tồn tại; dependency tree sau khi cài lại khớp các package
   quan trọng trong lockfile.
@@ -78,9 +79,9 @@ giới hạn phải được ghi đúng như vậy, không coi là xanh hoàn to
   còn migration phải apply. Các bảng admin/CMS chính gồm site_settings,
   site_pages, site_navigation_items, admin_members, news_posts và media_assets
   đã tồn tại.
-- Các suite focused sau khi merge hiện tại đã pass: test:admin 102/102,
+- Các suite focused sau khi merge hiện tại đã pass: test:admin 108/108,
   test:contact 103/103, test:catalog 5/5, test:catalog-purchase-ui 1/1,
-  test:service 3/3, test:commerce 32/32, test:listing 4/4 và test:detail
+  test:service 3/3, test:commerce 33/33, test:listing 4/4 và test:detail
   29/29; UI import 2/2 và harness timing 1/1.
 - Deep QA Playwright đã pass responsive route matrix, catalog search/sort/filter,
   detail mobile stacking, cart localStorage → request route và keyboard
@@ -96,11 +97,11 @@ giới hạn phải được ghi đúng như vậy, không coi là xanh hoàn to
 
 ### 2.2 Còn phải lưu ý
 
-- Lần chạy full `npm run check` trước đợt merge mới đã exit 0; sau các lát mới,
-  các suite focused và deep QA đã pass nhưng cần chạy lại lint/typecheck/build
-  trong một cửa sổ release không có dev server trước khi đánh dấu production
-  ready. Các wrapper PowerShell trên máy có thể giữ process sau khi Node đã in
-  hết kết quả, nên phải ghi nhận output và exit code thực tế riêng.
+- Lần chạy full `npm run check` trước lát product archive/motion đã exit 0; sau
+  mỗi lát mới vẫn phải chạy lại lint/typecheck/build trong cửa sổ release không
+  có dev server trước khi đánh dấu production ready. Các wrapper PowerShell trên
+  máy có thể giữ process sau khi Node đã in hết kết quả, nên phải ghi nhận output
+  và exit code thực tế riêng.
 - Commit `cf3856c` bổ sung regression cho race revision của service batch: lỗi
   guard có chủ đích được map thành `STALE_WRITE`, transaction không để lại
   marker/audit dở dang. Lát P6 kế tiếp bổ sung focus trap, restore focus và
@@ -353,16 +354,18 @@ back office.
 ### P5 — MVP-4: Trung tâm vận hành đầy đủ và xử lý hàng loạt
 
 **Checkpoint 2026-08-29:** AdminShell được nhóm lại theo ngôn ngữ dễ hiểu, có
-nhãn vai trò/link storefront; product bulk import và service bulk archive đã có
-backend + UI. Product import giữ giới hạn stream 64 KiB/tối đa 50 dòng,
+nhãn vai trò/link storefront; product bulk import, product bulk archive và
+service bulk archive đã có backend + UI. Product import giữ giới hạn stream 64
+KiB/tối đa 50 dòng,
 owner/catalog_manager, UUID idempotency, fingerprint ổn định trước lookup
 category và D1 batch atomic cho product/meta/audit. Service archive dùng route
 snapshot revision additive, tối đa 100 item, `expectedRevision`, per-item
 `stale/already_archived/not_found`, D1 batch, audit child/envelope và replay
-idempotency mà không thay đổi `AdminService` read model dùng chung. UI có preview
-lỗi, guard kết quả atomic, retry giữ request ID và thông báo dễ hiểu. P5 vẫn
-chưa hoàn tất: batch các domain còn lại, browser/admin staging evidence và full
-operational acceptance còn mở.
+idempotency mà không thay đổi `AdminService` read model dùng chung. Product
+archive cũng giữ `AdminProduct` read model bất biến; viewer không thấy control
+mutation. UI có preview lỗi, guard kết quả atomic, retry giữ request ID và thông
+báo kết quả một phần rõ ràng. P5 vẫn chưa hoàn tất: batch các domain còn lại,
+browser/admin staging evidence và full operational acceptance còn mở.
 
 **Mục tiêu:** admin có toàn quyền vận hành trong phạm vi Lean V1, không hy sinh
 tính rõ ràng cho người mới.
@@ -473,6 +476,7 @@ Chỉ tạo các file này khi phase tương ứng bắt đầu; không tạo pl
 - scripts/admin-visual-news-media.test.mjs — P3 contextual/browser contract slice;
 - scripts/admin-news-write-contract.test.mts — P3 news persistence contract đã có;
 - scripts/admin-product-import.test.mts — P5 product import persistence contract;
+- scripts/admin-product-batch.test.mts — P5 product archive batch contract và mock D1;
 - scripts/admin-service-batch.test.mts — P5 service archive batch contract và mock D1;
 - scripts/admin-visual-pages-navigation.test.mjs — P4;
 - scripts/admin-visual-bulk.test.mts — P5;

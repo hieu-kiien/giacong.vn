@@ -17,7 +17,7 @@ khi tồn tại trong checkout; file “dự kiến” phải được tạo tro
 **Checkpoint 2026-08-29:** P1 host-gated admin context, P2 settings write
 contract (per-setting + bulk publish), contextual editor MVP, P3 contextual
 news-detail hand-off, P4 managed-page hand-off, P5 product bulk import UI và
-service bulk archive contract đã có trong `master`. Local
+product/service bulk archive contract đã có trong `master`. Local
 Playwright deep QA đã pass storefront public ở mobile/tablet/desktop, catalog,
 detail, cart và keyboard; public staging cũng pass cùng ma trận. Public staging
 `/tin-tuc` không phát sinh admin session request hay contextual control. Tuy
@@ -27,7 +27,9 @@ frontend motion worktree còn mở; không coi local Next dev là bằng chứng
 Commit `cf3856c` đã bổ sung stale-race regression cho service batch. `AdminModal`
 hiện có focus trap, restore focus và confirm message liên kết qua
 `aria-describedby`; contract test đã pass, còn browser runtime evidence là gate
-QA riêng.
+QA riêng. Commit `f7dcc52` bổ sung pause cho carousel khi hover/focus hoặc
+reduced-motion. Repo chính không có GIF/video runtime; phần motion fidelity đang
+được giữ riêng trong worktree frontend dirty.
 
 **Checkpoint P3 2026-08-29:** contract backend news/media đã vào `master`: news
 có snapshot `draft_*` và `published_*`, publish/unpublish riêng, batch status tối
@@ -84,7 +86,7 @@ runtime acceptance còn mở.
 | Primary/footer navigation | src/lib/site-navigation.ts | navigation API + trusted link normalization | published items; footer renderer cần xác minh riêng | navigation.read/write/publish | scripts/site-pages.test.mts có contract liên quan |
 | News | src/lib/news-public.ts, src/lib/admin-news-input.ts, src/lib/admin-data.ts | news API + draft input + publish/batch contract | public chỉ đọc `published_*`; detail trả published id cho contextual hand-off; draft chỉnh riêng, publish explicit; contract P3 đã có trong master | news.read/write và content publish theo quyết định | scripts/admin-news.test.mts, scripts/admin-news-write-contract.test.mts, scripts/admin-visual-news-media.test.mjs |
 | Media | src/lib/media-data.ts, src/lib/site-media-data.ts, src/lib/media-input.ts | media API/R2 guard + bounded multipart + signature validation | reference phải còn hợp lệ; JPEG/PNG/WebP tối đa 8 MiB | media.read/write | scripts/media-contract.test.mts |
-| Product/category/variant | src/lib/admin-product-input.ts, src/lib/admin-category-input.ts, src/lib/admin-variant-input.ts và catalog adapters | admin API + D1 canonical rules; bulk import contract | product/service public read theo trạng thái; import luôn tạo draft/inactive | catalog.read/write/publish | scripts/admin-categories.test.mts, scripts/admin-product-import.test.mts, catalog/detail suites |
+| Product/category/variant | src/lib/admin-product-input.ts, src/lib/admin-category-input.ts, src/lib/admin-variant-input.ts, src/lib/admin-product-batch.ts và catalog adapters | admin API + D1 canonical rules; bulk import/archive contract | product/service public read theo trạng thái; import luôn tạo draft/inactive; archive là soft archive có revision | catalog.read/write/publish | scripts/admin-categories.test.mts, scripts/admin-product-import.test.mts, scripts/admin-product-batch.test.mts, catalog/detail suites |
 | Service | src/lib/admin-service-input.ts, src/lib/admin-service-batch.ts, service data adapters | service API + additive revision snapshot/batch contract + D1 | active/published service read | services.read/write | scripts/admin-service-input.test.mts, scripts/admin-service-batch.test.mts, scripts/service-contract.test.mts |
 | Leads | src/lib/admin-data.ts, lead API | status transition + Google Sheet queue contract | back office only | leads.read/write | contact/lead queue suites |
 | Admin members | src/lib/admin-members.ts, src/lib/admin-members-input.ts | owner-only API + D1 | internal control plane only | members.read/write | scripts/admin-members.test.mts |
@@ -101,7 +103,7 @@ runtime acceptance còn mở.
 | Navigation | AdminNavigationManager.tsx | primary menu manager | giữ full editor; contextual edit gọi vào đúng item |
 | Members | AdminMembersManager.tsx | owner quản lý admin roles | trang đặc biệt, không inline trên storefront |
 | Category/variant | AdminCategoryPanel.tsx, AdminVariantPanel.tsx | catalog sub-editors | dùng trong catalog/bulk flow, không nhồi hết vào homepage |
-| Product bulk import | AdminProductImportPanel.tsx, src/app/admin/san-pham/page.tsx | chọn CSV, preview lỗi, import atomic và retry cùng request ID | giữ ở catalog control plane; không biến thành inline editor |
+| Product bulk import/archive | AdminProductImportPanel.tsx, src/app/admin/san-pham/page.tsx, src/lib/admin-product-batch.ts | chọn CSV, preview lỗi, import atomic; chọn sản phẩm đang hiển thị, snapshot revision, xác nhận và soft-archive batch | giữ ở catalog control plane; viewer read-only; không biến thành inline editor |
 | Storefront admin context | AdminVisualMode.tsx, AdminNewsContextualAction.tsx, AdminPageContextualAction.tsx, AdminNewsContextualAction.module.css | host/session gate, context role và contextual news/page actions; trạng thái loading/blocked/unavailable/ready | chỉ hiện action trên exact admin hostname sau session ready; public không fetch admin session và không render control |
 | Contextual settings editor | AdminVisualEditor.tsx, AdminVisualEditor.module.css | toolbar nhỏ cho brand/hero, draft/preview/publish và role-aware feedback | MVP cho region đã map; preview hiện là draft card có nhãn rõ ràng; news/page hand-off dùng editor back office hiện có |
 | Admin CSS | src/styles/admin.css | styling control plane | giữ token/brand language, không tạo dashboard stack mới |
@@ -135,7 +137,7 @@ use case thứ ba chứng minh editor hiện tại không còn đủ đơn giả
 | Navigation | /api/admin/navigation, /api/admin/navigation/[id], /publish, /publish-all | P4 |
 | News | /api/admin/news, /api/admin/news/[id], /api/admin/news/[id]/publish, /api/admin/news/batch | P3; draft save, explicit publish/unpublish, batch status và contextual deep-link đã có; browser/admin staging read-back còn mở |
 | Media | /api/admin/media, /api/admin/media/[id], /api/admin/media/cleanup | P3/P5 |
-| Catalog | /api/admin/categories, /products, /products/[id], variants routes, /api/admin/products/import | P5; bulk import backend + UI đã có, tối đa 50 dòng, atomic/idempotent/audited và retry UI giữ request ID; browser/staging còn mở |
+| Catalog | /api/admin/categories, /products, /products/[id], /products/batch, variants routes, /api/admin/products/import | P5; bulk import tối đa 50 dòng và product archive tối đa 100 item, đều revision-aware/atomic/idempotent/audited; browser/staging còn mở |
 | Services | /api/admin/services, /api/admin/services/[id], /api/admin/services/batch | P5; batch archive có snapshot revision riêng, tối đa 100 item, stale skip, atomic audit/idempotency; browser/staging còn mở |
 | Leads | /api/admin/leads, /api/admin/leads/[id] | P5, special page |
 | Members | /api/admin/members, /api/admin/members/[id] | P5, special page |
@@ -244,6 +246,7 @@ khối lượng mà contextual UI làm khó hiểu.
 | scripts/admin-news.test.mts | news payload/public constraints |
 | scripts/admin-news-write-contract.test.mts | news migration, draft/public isolation, revision, idempotency, publish/batch audit |
 | scripts/admin-product-import.test.mts | product import parser, bounds, role guard, raw retry fingerprint và D1 atomic batch/audit |
+| scripts/admin-product-batch.test.mts | product archive parser, D1 atomic batch, per-item stale skip, audit/replay, race rollback và role-aware UI guard |
 | scripts/media-contract.test.mts | media references/deletion/credentials, bounded upload và magic bytes |
 | scripts/admin-members.test.mts | internal role/member guard |
 | scripts/admin-categories.test.mts | category admin contract |
