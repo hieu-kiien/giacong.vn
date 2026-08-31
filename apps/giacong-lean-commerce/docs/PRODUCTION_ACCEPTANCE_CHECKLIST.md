@@ -91,9 +91,12 @@ Lưu ý: demo staging KHÔNG được seed sang production. Khách tự thao tá
 - [x] Product/variant single-row create/update/soft-archive dùng exact envelope, optimistic revision, idempotent replay/conflict và atomic D1 coupling cho tier/meta/audit; focused test và SQLite migration verification pass.
 - [x] Deep staging QA sau catalog promotion pass mobile/tablet/desktop: no-overflow, catalog search/sort, cart localStorage và keyboard reachability.
 - [x] Preview `/admin/*` bị Access chặn đúng boundary; preview `workers.dev` không được tính là public smoke vì Access bảo vệ cả preview origin.
-- [x] Local current-source gate sau operations hardening: admin `157/157`, các suite còn lại giữ xanh, lint/typecheck/build exit code `0`; SQLite migrations `0013–0016` apply thành công.
+- [x] Local current-source gate sau operations hardening: admin `158/158`, các suite còn lại giữ xanh, lint/typecheck/build exit code `0`; SQLite migrations `0013–0016` apply thành công.
 - [x] Apply migrations `0013–0016`, upload và promote artifact chứa member/lead/media write contract lên staging: version `0d1e14c1-ec4d-47db-b0e2-4275f246f919` ở 100%, rollback point `8eb11c5e-f7bc-4a2f-a37f-2949a3d03541`; post-condition `d1 migrations list` không còn pending.
 - [x] Public staging smoke/deep QA sau promotion pass: `/`, `/san-pham`, `/tin-tuc`, `/gui-yeu-cau`, `/thue-gia-cong`; responsive mobile/tablet/desktop, no-overflow, search/sort, cart localStorage và keyboard reachability.
+- [x] Version staging hiện tại `a22e9ecb-e1f6-4966-b96b-e2883d138fb1` chứa fix mobile admin import overflow, đã promotion 100%; rollback point là `0d1e14c1-ec4d-47db-b0e2-4275f246f919`.
+- [x] Browser read-only với actor staging `public-demo` owner đã kiểm tra 10/10 màn hình admin, audit read-back `20/93` event, product media read-back và console không có error/warning.
+- [x] Browser mobile `390×844`: 10/10 route không có page-level horizontal overflow; menu admin mở đúng `aria-expanded=true`.
 - [ ] Staging runtime read-back cho member/lead/media audit, R2 compensation/reference guard và retry cùng `requestId`.
 - [ ] Admin session/audit read-back bằng Access identity thật trên hostname staging.
 - [ ] Browser admin desktop/mobile/keyboard/focus/reduced-motion với Access identity thật.

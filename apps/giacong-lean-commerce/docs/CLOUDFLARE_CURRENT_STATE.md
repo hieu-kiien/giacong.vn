@@ -279,7 +279,7 @@ Checkpoint sau commit `b28515d`:
   D1 và R2 không bị mutation.
 - D1 staging `giacong-vn-catalog-staging` đã apply migrations `0013–0016`;
   `d1 migrations list` báo không còn migration pending.
-- `npm run check` trên source commit pass: admin `157/157`, các suite còn lại,
+- `npm run check` trên source commit pass: admin `158/158`, các suite còn lại,
   lint, typecheck và build exit code `0`. Runtime public smoke/deep QA pass
   trên staging ở mobile/tablet/desktop, gồm no-overflow, catalog search/sort,
   cart localStorage và keyboard reachability.
@@ -291,3 +291,18 @@ Checkpoint sau commit `b28515d`:
 Production vẫn không bị mutation; các gate production trước đây (dữ liệu thật,
 restore/rollback drill, observability 24h và quyết định redirect
 `giacong.vn`) giữ nguyên.
+
+## Staging admin browser verification — 2026-08-31
+
+- Worker version `a22e9ecb-e1f6-4966-b96b-e2883d138fb1` đã được upload và
+  promotion 100%; `0d1e14c1-ec4d-47db-b0e2-4275f246f919` là rollback point.
+- Browser đã đọc được admin staging bằng actor `public-demo` (owner của chế độ
+  demo staging): đủ 10 route admin render đúng heading, không có alert và không
+  có console error/warning; audit đọc 20 dòng đầu trên 93 event, product editor
+  đọc lại media asset từ API.
+- Mobile `390×844` pass no-overflow cho 10/10 route; nút mở menu có
+  `aria-expanded=true` và sidebar hiện đúng. Fix CSS `d4383df` đã loại page-level
+  overflow do sample CSV, trong khi bảng dữ liệu vẫn cuộn trong container riêng.
+- Đây là bằng chứng runtime cho actor demo staging, không phải Access identity
+  thật. Role matrix, authenticated write/read-back member/lead/media,
+  focus/reduced-motion và production data/migration/restore gates vẫn mở.

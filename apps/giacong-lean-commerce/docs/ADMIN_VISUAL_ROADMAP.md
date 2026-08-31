@@ -79,7 +79,7 @@ giới hạn phải được ghi đúng như vậy, không coi là xanh hoàn to
   còn migration phải apply. Các bảng admin/CMS chính gồm site_settings,
   site_pages, site_navigation_items, admin_members, news_posts và media_assets
   đã tồn tại.
-- Các suite focused sau khi merge hiện tại đã pass: test:admin 157/157,
+- Các suite focused sau khi merge hiện tại đã pass: test:admin 158/158,
   test:contact 103/103, test:catalog 5/5, test:catalog-purchase-ui 1/1,
   test:service 3/3, test:commerce 33/33, test:listing 4/4 và test:detail
   29/29; UI import 2/2, category batch 4/4 và harness timing 1/1.
@@ -386,7 +386,7 @@ operational acceptance còn mở.
 **Working-tree slice 2026-08-31:** product/variant single-row writes đã có
 exact body, strict numeric validation, optimistic revision, request-id replay,
 atomic D1 coupling giữa row/meta/tier/audit và focused regression. Admin suite
-hiện đạt `157/157`; SQLite in-memory chạy đủ migration `0001–0016` qua create,
+hiện đạt `158/158`; SQLite in-memory chạy đủ migration `0001–0016` qua create,
 update, archive, tier rollback, member/lead/media write và R2 compensation.
 Members/leads/media đã có exact command, revision/CAS, idempotency và audit;
 staging migration/upload đã pass, còn runtime admin read-back và role/browser
@@ -472,6 +472,18 @@ responsive deep QA và local `npm run check` (`157/157` admin) đều pass. Prev
 workers.dev và admin hostname vẫn chịu Access khi không có identity hợp lệ; vì
 vậy runtime write/read-back member/lead/media, role matrix và browser admin
 desktop/mobile/keyboard/focus/reduced-motion vẫn chưa được đánh dấu đạt.
+
+**Runtime update 2026-08-31 (authenticated staging browser):** version staging
+`a22e9ecb-e1f6-4966-b96b-e2883d138fb1` đã được upload và promotion 100%; version
+`0d1e14c1-ec4d-47db-b0e2-4275f246f919` là rollback point. Bản này chứa fix
+`d4383df` cho dòng mẫu CSV không tạo page-level horizontal overflow. Với actor
+`public-demo` ở chế độ staging được cấp sẵn, browser read-only đã đi qua đủ 10
+màn hình admin; `/admin/audit` đọc 20 dòng đầu trong tổng 93 event, product editor
+đọc lại media asset và không có alert/console error/warning. Mobile 390×844 pass
+no-overflow cho 10/10 route, menu mobile mở đúng `aria-expanded=true`.
+`public-demo` là actor demo của staging, không thay thế bằng chứng Access identity
+thật hoặc role matrix owner/content_manager/catalog_manager/sales_manager/viewer;
+mọi write/read-back mutation và reduced-motion/focus evidence vẫn giữ là gate mở.
 
 **Công việc:**
 
