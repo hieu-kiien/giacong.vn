@@ -287,6 +287,12 @@ control. P3 chưa được đánh dấu hoàn tất cho tới khi có admin brow
 desktop/mobile/keyboard, staging read-back bằng phiên Access thật và media
 runtime acceptance.
 
+**Working-tree update 2026-08-31:** media product/site write path đã được nâng
+lên exact `requestId` + revision/CAS + idempotent audit với R2 compensation;
+focused `admin-media-write` pass. Đây là backend hardening bổ sung, chưa đóng
+P3 cho tới khi migration `0015`, deploy staging và runtime media acceptance được
+xác minh.
+
 **Mục tiêu:** quản trị nội dung thường xuyên mà không phải quay lại nhiều màn hình
 khó hiểu.
 
@@ -369,15 +375,20 @@ archive cũng giữ `AdminProduct` read model bất biến; category archive b�
 row và dùng snapshot revision, per-item stale/not-found/already-archived, D1
 atomic audit/idempotency. Viewer không thấy control mutation. UI có preview lỗi,
 guard kết quả atomic, retry giữ request ID và thông báo kết quả một phần rõ
-ràng. P5 vẫn chưa hoàn tất: batch các domain còn lại, browser/admin staging
-evidence và full operational acceptance còn mở.
+ràng. Member/lead/media write contract cũng đã được thêm ở working tree: exact
+command, revision/CAS, idempotent replay/conflict, audit chuyên biệt; member có
+owner/self-account safety, lead ghi `lead_events`, media ghép D1 audit với R2
+compensation/reference guard. P5 vẫn chưa hoàn tất: batch các domain còn lại,
+browser/admin staging evidence và full operational acceptance còn mở.
 
 **Working-tree slice 2026-08-31:** product/variant single-row writes đã có
 exact body, strict numeric validation, optimistic revision, request-id replay,
 atomic D1 coupling giữa row/meta/tier/audit và focused regression. Admin suite
-hiện đạt `136/136`; SQLite in-memory chạy đủ migration `0001–0012` qua create,
-update, archive và tier rollback. Lát này chỉ được đóng sau staging upload,
-runtime admin read-back và role/browser acceptance.
+hiện đạt `157/157`; SQLite in-memory chạy đủ migration `0001–0016` qua create,
+update, archive, tier rollback, member/lead/media write và R2 compensation.
+Members/leads/media đã có exact command, revision/CAS, idempotency và audit;
+lát này chỉ được đóng sau staging migration/upload, runtime admin read-back và
+role/browser acceptance.
 
 **Mục tiêu:** admin có toàn quyền vận hành trong phạm vi Lean V1, không hy sinh
 tính rõ ràng cho người mới.

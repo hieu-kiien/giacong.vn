@@ -105,7 +105,7 @@ export function AdminMembersManager() {
     setNotice(null);
     try {
       const result = await mutateAdmin<{ member: AdminMemberRecord }>("/api/admin/members", {
-        body: newMember,
+        body: { requestId: crypto.randomUUID(), ...newMember },
         method: "POST",
       });
       setMembers((current) => [...current, toEditableMember(result.member)]);
@@ -136,6 +136,7 @@ export function AdminMembersManager() {
           expectedRevision: member.revision,
           isActive: member.draftIsActive,
           role: member.draftRole,
+          requestId: crypto.randomUUID(),
         },
         method: "PATCH",
       });

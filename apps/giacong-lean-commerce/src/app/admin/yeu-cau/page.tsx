@@ -99,7 +99,7 @@ export default function AdminLeadsPage() {
     setMutationError(null);
     try {
       const result = await mutateAdmin<{ lead: AdminLead }>(`/api/admin/leads/${lead.id}`, {
-        body: { status: nextStatus },
+        body: { requestId: crypto.randomUUID(), revision: lead.revision, status: nextStatus },
         method: "PATCH",
       });
       setLeads((current) => current.map((item) => item.id === lead.id ? result.lead : item));

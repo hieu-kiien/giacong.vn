@@ -127,7 +127,7 @@ test("member and media JSON mutations reject unknown fields", async () => {
   const expectations = [
     ["../src/app/api/admin/members/route.ts", /hasOnlyKeys/],
     ["../src/app/api/admin/members/[id]/route.ts", /hasOnlyKeys/],
-    ["../src/app/api/admin/media/[id]/route.ts", /hasOnlyKeys\(body, \["altText"\]\)/],
+    ["../src/app/api/admin/media/[id]/route.ts", /hasOnlyKeys\(body, \["requestId", "revision", "altText"\]\)/],
   ] as const;
 
   for (const [routeFile, pattern] of expectations) {

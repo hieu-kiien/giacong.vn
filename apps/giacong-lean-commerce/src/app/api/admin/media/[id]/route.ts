@@ -3,8 +3,16 @@ import { adminFailure, adminSuccess } from "@/lib/admin-api.ts";
 import { adminErrorFrom } from "@/lib/admin-error-mapping.ts";
 import { requireAdmin } from "@/lib/admin-guard";
 import { canManageMedia } from "@/lib/admin-permissions.ts";
-import { hasOnlyKeys, readBoundedAdminJson } from "@/lib/admin-request";
-import { deleteMediaAsset, MediaReferenceError, updateMediaAssetAltText, type R2BucketLike } from "@/lib/media-data";
+import { hasOnlyKeys, isAdminRequestId, readBoundedAdminJson } from "@/lib/admin-request";
+import {
+  deleteMediaAsset,
+  MediaReferenceError,
+  MediaWriteConflictError,
+  MediaWriteIdempotencyConflictError,
+  MediaWriteValidationError,
+  updateMediaAssetAltText,
+  type R2BucketLike,
+} from "@/lib/media-data";
 
 export const dynamic = "force-dynamic";
 
@@ -20,23 +28,35 @@ export async function DELETE(request: Request, context: RouteContext): Promise<R
   }
   const id = (await context.params).id;
   if (!isUuid(id)) return adminFailure(crypto.randomUUID(), 404, "NOT_FOUND", "Không tìm thấy media.");
+  const parsedRequest = await readBoundedAdminJson(request);
+  if (!parsedRequest.ok) return adminFailure(parsedRequest.requestId, parsedRequest.status, parsedRequest.code, parsedRequest.message);
+  const body = parsedRequest.body;
+  if (!isRecord(body) || !hasOnlyKeys(body, ["requestId", "revision"])) {
+    return adminFailure(parsedRequest.requestId, 400, "INVALID_REQUEST", "Body xóa media phải chứa đúng requestId và revision.");
+  }
+  if (!isAdminRequestId(body.requestId) || typeof body.revision !== "number" || !Number.isSafeInteger(body.revision) || body.revision < 1) {
+    return adminFailure(parsedRequest.requestId, 422, "VALIDATION_ERROR", "requestId và revision không hợp lệ.");
+  }
   const bucket = getMediaBucket();
-  if (!bucket) return adminFailure(crypto.randomUUID(), 503, "INTERNAL_ERROR", "R2 media chưa sẵn sàng.");
+  if (!bucket) return adminFailure(parsedRequest.requestId, 503, "INTERNAL_ERROR", "R2 media chưa sẵn sàng.");
   try {
-    const media = await deleteMediaAsset(guard.database, bucket, id);
+    const media = await deleteMediaAsset(guard.database, bucket, id, body.revision, guard.actorSubject, body.requestId);
     return media
-      ? adminSuccess(crypto.randomUUID(), { media })
-      : adminFailure(crypto.randomUUID(), 404, "NOT_FOUND", "Không tìm thấy media.");
+      ? adminSuccess(parsedRequest.requestId, { media })
+      : adminFailure(parsedRequest.requestId, 404, "NOT_FOUND", "Không tìm thấy media.");
   } catch (error) {
     if (error instanceof MediaReferenceError) {
       return adminFailure(
-        crypto.randomUUID(),
+        parsedRequest.requestId,
         409,
         "MEDIA_IN_USE",
         `Ảnh này đang là ảnh chính của: ${error.message}. Hãy chọn ảnh chính khác trước khi xóa.`,
       );
     }
-    return adminErrorFrom(crypto.randomUUID(), error, "Không thể xóa media.");
+    if (error instanceof MediaWriteConflictError) return adminFailure(parsedRequest.requestId, 409, "STALE_WRITE", error.message);
+    if (error instanceof MediaWriteIdempotencyConflictError) return adminFailure(parsedRequest.requestId, 409, "IDEMPOTENCY_CONFLICT", error.message);
+    if (error instanceof MediaWriteValidationError) return adminFailure(parsedRequest.requestId, 422, "VALIDATION_ERROR", error.message);
+    return adminErrorFrom(parsedRequest.requestId, error, "Không thể xóa media.");
   }
 }
 
@@ -51,8 +71,11 @@ export async function PATCH(request: Request, context: RouteContext): Promise<Re
   const parsedRequest = await readBoundedAdminJson(request);
   if (!parsedRequest.ok) return adminFailure(parsedRequest.requestId, parsedRequest.status, parsedRequest.code, parsedRequest.message);
   const body = parsedRequest.body;
-  if (!isRecord(body) || !("altText" in body) || !hasOnlyKeys(body, ["altText"])) {
-    return adminFailure(parsedRequest.requestId, 400, "INVALID_REQUEST", "Body media phải chứa đúng trường altText.");
+  if (!isRecord(body) || !("altText" in body) || !hasOnlyKeys(body, ["requestId", "revision", "altText"])) {
+    return adminFailure(parsedRequest.requestId, 400, "INVALID_REQUEST", "Body media phải chứa đúng requestId, revision và altText.");
+  }
+  if (!isAdminRequestId(body.requestId) || typeof body.revision !== "number" || !Number.isSafeInteger(body.revision) || body.revision < 1) {
+    return adminFailure(parsedRequest.requestId, 422, "VALIDATION_ERROR", "requestId và revision không hợp lệ.");
   }
   const rawAltText = body.altText;
   if (rawAltText !== null && typeof rawAltText !== "string") {
@@ -63,14 +86,24 @@ export async function PATCH(request: Request, context: RouteContext): Promise<Re
       altText: "Tối đa 300 ký tự.",
     });
   }
-  const media = await updateMediaAssetAltText(
-    guard.database,
-    id,
-    typeof rawAltText === "string" ? rawAltText.trim() || null : null,
-  );
-  return media
-    ? adminSuccess(parsedRequest.requestId, { media })
-    : adminFailure(parsedRequest.requestId, 404, "NOT_FOUND", "Không tìm thấy media đang hoạt động.");
+  try {
+    const media = await updateMediaAssetAltText(
+      guard.database,
+      id,
+      typeof rawAltText === "string" ? rawAltText.trim() || null : null,
+      body.revision,
+      guard.actorSubject,
+      body.requestId,
+    );
+    return media
+      ? adminSuccess(parsedRequest.requestId, { media })
+      : adminFailure(parsedRequest.requestId, 404, "NOT_FOUND", "Không tìm thấy media đang hoạt động.");
+  } catch (error) {
+    if (error instanceof MediaWriteConflictError) return adminFailure(parsedRequest.requestId, 409, "STALE_WRITE", error.message);
+    if (error instanceof MediaWriteIdempotencyConflictError) return adminFailure(parsedRequest.requestId, 409, "IDEMPOTENCY_CONFLICT", error.message);
+    if (error instanceof MediaWriteValidationError) return adminFailure(parsedRequest.requestId, 422, "VALIDATION_ERROR", error.message);
+    return adminErrorFrom(parsedRequest.requestId, error, "Không thể cập nhật alt text.");
+  }
 }
 
 function isUuid(value: string): boolean {

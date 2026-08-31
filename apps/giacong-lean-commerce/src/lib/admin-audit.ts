@@ -116,6 +116,60 @@ const auditSources: readonly AuditSource[] = [
     `,
   },
   {
+    tableName: "admin_member_audit",
+    query: `
+      SELECT
+        'admin_member_audit' AS source,
+        CAST(id AS TEXT) AS source_id,
+        actor_subject,
+        action,
+        NULL AS operation,
+        'member' AS entity_type,
+        entity_key,
+        request_id,
+        previous_revision,
+        resulting_revision,
+        created_at
+      FROM admin_member_audit
+    `,
+  },
+  {
+    tableName: "admin_lead_audit",
+    query: `
+      SELECT
+        'admin_lead_audit' AS source,
+        CAST(id AS TEXT) AS source_id,
+        actor_subject,
+        action,
+        NULL AS operation,
+        'lead' AS entity_type,
+        entity_key,
+        request_id,
+        previous_revision,
+        resulting_revision,
+        created_at
+      FROM admin_lead_audit
+    `,
+  },
+  {
+    tableName: "admin_media_audit",
+    query: `
+      SELECT
+        'admin_media_audit' AS source,
+        CAST(id AS TEXT) AS source_id,
+        actor_subject,
+        action,
+        NULL AS operation,
+        'media' AS entity_type,
+        entity_key,
+        request_id,
+        previous_revision,
+        resulting_revision,
+        created_at
+      FROM admin_media_audit
+    `,
+  },
+  {
     tableName: "admin_news_audit",
     query: `
       SELECT

@@ -1,8 +1,13 @@
 import { adminFailure, adminSuccess } from "@/lib/admin-api.ts";
 import { adminErrorFrom } from "@/lib/admin-error-mapping.ts";
 import { requireAdmin } from "@/lib/admin-guard";
-import { createAdminMember, listAdminMembers, AdminMemberValidationError } from "@/lib/admin-members.ts";
-import { parseAdminMemberPayload } from "@/lib/admin-members-input.ts";
+import {
+  AdminMemberWriteIdempotencyConflictError,
+  AdminMemberWriteValidationError,
+  createAdminMemberAtomically,
+} from "@/lib/admin-member-write.ts";
+import { listAdminMembers } from "@/lib/admin-members.ts";
+import { parseAdminMemberCreateCommand } from "@/lib/admin-member-command.ts";
 import { canManageMembers } from "@/lib/admin-permissions.ts";
 import { hasOnlyKeys, readBoundedAdminJson } from "@/lib/admin-request";
 
@@ -29,22 +34,22 @@ export async function POST(request: Request): Promise<Response> {
   }
   const parsedRequest = await readBoundedAdminJson(request);
   if (!parsedRequest.ok) return adminFailure(parsedRequest.requestId, parsedRequest.status, parsedRequest.code, parsedRequest.message);
-  if (!isRecord(parsedRequest.body) || !hasOnlyKeys(parsedRequest.body, ["accessSubject", "displayName", "email", "isActive", "role"])) {
+  if (!isRecord(parsedRequest.body) || !hasOnlyKeys(parsedRequest.body, ["requestId", "accessSubject", "displayName", "email", "isActive", "role"])) {
     return adminFailure(parsedRequest.requestId, 400, "INVALID_REQUEST", "Body thành viên chứa trường không được hỗ trợ.");
   }
-  const parsed = parseAdminMemberPayload(parsedRequest.body);
-  if (!parsed.input) {
+  const parsed = parseAdminMemberCreateCommand(parsedRequest.body);
+  if (!parsed.command) {
     return adminFailure(parsedRequest.requestId, 422, "VALIDATION_ERROR", "Dữ liệu thành viên chưa hợp lệ.", parsed.fieldErrors);
   }
   try {
-    const member = await createAdminMember(guard.database, {
-      ...parsed.input,
-      actorSubject: guard.actorSubject,
-    });
+    const member = await createAdminMemberAtomically(guard.database, parsed.command.input, guard.actorSubject, parsed.command.requestId);
     return adminSuccess(parsedRequest.requestId, { member }, 201);
   } catch (error) {
-    if (error instanceof AdminMemberValidationError) {
+    if (error instanceof AdminMemberWriteValidationError) {
       return adminFailure(parsedRequest.requestId, 422, "VALIDATION_ERROR", error.message);
+    }
+    if (error instanceof AdminMemberWriteIdempotencyConflictError) {
+      return adminFailure(parsedRequest.requestId, 409, "IDEMPOTENCY_CONFLICT", error.message);
     }
     return adminErrorFrom(parsedRequest.requestId, error, "Không thể thêm thành viên.", {
       fieldErrors: { accessSubject: "accessSubject hoặc email đã tồn tại." },

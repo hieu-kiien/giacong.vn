@@ -11,6 +11,7 @@ interface MediaAsset {
   id: string;
   originalFilename: string;
   publicUrl: string;
+  revision: number;
   serviceId: number | null;
   status: string;
   variantId: number | null;
@@ -79,6 +80,7 @@ export function AdminMediaPanel({ productId, serviceId, title }: AdminMediaPanel
     setUploading(true);
     setError(null);
     const form = new FormData();
+    form.set("requestId", crypto.randomUUID());
     form.set("file", file);
     if (productId) form.set("productId", String(productId));
     if (serviceId) form.set("serviceId", String(serviceId));
@@ -106,7 +108,7 @@ export function AdminMediaPanel({ productId, serviceId, title }: AdminMediaPanel
     setError(null);
     try {
       const response = await mutateAdmin<{ media: MediaAsset }>(`/api/admin/media/${asset.id}`, {
-        body: { altText: altDrafts[asset.id] ?? "" },
+        body: { altText: altDrafts[asset.id] ?? "", requestId: crypto.randomUUID(), revision: asset.revision },
         method: "PATCH",
       });
       setMedia((current) => current.map((item) => item.id === asset.id ? response.media : item));
@@ -121,7 +123,10 @@ export function AdminMediaPanel({ productId, serviceId, title }: AdminMediaPanel
   async function remove(asset: MediaAsset) {
     setError(null);
     try {
-      await mutateAdmin(`/api/admin/media/${asset.id}`, { method: "DELETE" });
+      await mutateAdmin(`/api/admin/media/${asset.id}`, {
+        body: { requestId: crypto.randomUUID(), revision: asset.revision },
+        method: "DELETE",
+      });
       await loadMedia();
     } catch (reason: unknown) {
       setError(reason instanceof AdminClientError ? reason : new AdminClientError("Không thể xóa media.", 0));

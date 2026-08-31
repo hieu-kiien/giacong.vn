@@ -17,6 +17,12 @@ import {
   updateAdminSiteSetting,
 } from "@/lib/site-settings";
 import type { R2BucketLike } from "@/lib/media-data";
+import { isAdminRequestId } from "@/lib/admin-request";
+import {
+  SiteMediaConflictError,
+  SiteMediaIdempotencyConflictError,
+  SiteMediaStorageError,
+} from "@/lib/site-media-data";
 import {
   adminMediaMaxBytes,
   adminMediaMaxRequestBytes,
@@ -48,6 +54,11 @@ export async function POST(request: Request): Promise<Response> {
   }
   const form = boundedForm.form;
 
+  const requestIdValue = form.get("requestId");
+  const requestId = typeof requestIdValue === "string" && isAdminRequestId(requestIdValue)
+    ? requestIdValue.trim().toLowerCase()
+    : "";
+  if (!requestId) return adminFailure(crypto.randomUUID(), 422, "VALIDATION_ERROR", "Upload media website cần requestId là UUID hợp lệ.");
   const key = readString(form.get("key"));
   const expectedVersion = parsePositiveInt(form.get("expectedVersion"));
   const file = form.get("file");
@@ -78,28 +89,39 @@ export async function POST(request: Request): Promise<Response> {
       contentType: file.type,
       createdBy: guard.actorSubject,
       originalFilename: safeFilename(file.name),
+      requestId,
       settingKey: key,
     });
     const setting = await updateAdminSiteSetting(guard.database, {
       actorSubject: guard.actorSubject,
       expectedVersion,
       key,
+      requestId,
       value: media.publicUrl,
     });
     settingUpdated = true;
-    await replaceActiveSiteMedia(guard.database, key, media.id);
-    return adminSuccess(crypto.randomUUID(), { media, setting }, 201);
+    await replaceActiveSiteMedia(guard.database, key, media.id, guard.actorSubject, requestId);
+    return adminSuccess(requestId, { media, setting }, 201);
   } catch (error) {
-    if (media && !settingUpdated) await deleteSiteMediaAsset(guard.database, bucket, media.id).catch(() => undefined);
-    return settingFailure(error);
+    if (media && !settingUpdated) await deleteSiteMediaAsset(
+      guard.database,
+      bucket,
+      media.id,
+      media.revision,
+      guard.actorSubject,
+      crypto.randomUUID(),
+    ).catch(() => undefined);
+    return settingFailure(error, requestId);
   }
 }
 
-function settingFailure(error: unknown): Response {
-  if (error instanceof SiteSettingConflictError) return adminFailure(crypto.randomUUID(), 409, "STALE_WRITE", error.message);
-  if (error instanceof SiteSettingNotFoundError) return adminFailure(crypto.randomUUID(), 404, "NOT_FOUND", error.message);
-  if (error instanceof SiteSettingValidationError) return adminFailure(crypto.randomUUID(), 422, "VALIDATION_ERROR", error.message);
-  return adminErrorFrom(crypto.randomUUID(), error, "Không thể upload media website.");
+function settingFailure(error: unknown, requestId: string): Response {
+  if (error instanceof SiteSettingConflictError || error instanceof SiteMediaConflictError) return adminFailure(requestId, 409, "STALE_WRITE", error.message);
+  if (error instanceof SiteSettingNotFoundError) return adminFailure(requestId, 404, "NOT_FOUND", error.message);
+  if (error instanceof SiteSettingValidationError) return adminFailure(requestId, 422, "VALIDATION_ERROR", error.message);
+  if (error instanceof SiteMediaIdempotencyConflictError) return adminFailure(requestId, 409, "IDEMPOTENCY_CONFLICT", error.message);
+  if (error instanceof SiteMediaStorageError) return adminErrorFrom(requestId, error, "Không thể lưu media website.");
+  return adminErrorFrom(requestId, error, "Không thể upload media website.");
 }
 
 function getMediaBucket(): R2BucketLike | null {

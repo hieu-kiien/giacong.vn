@@ -48,6 +48,17 @@ Lát P6 đầu tiên đã thêm audit/history read-only owner-only ở `/admin/a
 `/api/admin/audit`, tổng hợp các audit table hiện có mà không trả metadata payload;
 browser/admin staging read-back vẫn là gate riêng.
 
+**Working-tree operations slice 2026-08-31:** members, leads và product/site media
+đã có exact write command, UUID `requestId`, optimistic revision/CAS,
+idempotent replay/conflict và audit chuyên biệt. Member write còn giữ guard
+owner cuối cùng/tự khóa tài khoản; lead write ghi `lead_events` và marker
+request chống stale batch; media write
+ghép D1 audit với R2 compensation/reference guard. Migrations `0013–0016` đã
+chạy thành công trên SQLite local; marker lead chống stale batch đã được kiểm
+chứng; admin suite hiện `157/157`, lint, typecheck
+và build exit code `0`. Slice này chưa được tính là staging evidence cho tới khi
+migration/deploy mới được promote; worktree frontend motion vẫn độc lập.
+
 **Checkpoint P3 2026-08-29:** contract backend news/media đã vào `master`: news
 có snapshot `draft_*` và `published_*`, publish/unpublish riêng, batch status tối
 đa 100 item, optimistic revision, request-id idempotency và audit D1; media
@@ -102,11 +113,11 @@ runtime acceptance còn mở.
 | Managed pages | src/lib/site-pages.ts, src/lib/page-builder.ts | page API + safe block parser | published blocks chỉ khi enabled/published | pages.read/write/publish | scripts/site-pages.test.mts |
 | Primary/footer navigation | src/lib/site-navigation.ts | navigation API + trusted link normalization | published items; footer renderer cần xác minh riêng | navigation.read/write/publish | scripts/site-pages.test.mts có contract liên quan |
 | News | src/lib/news-public.ts, src/lib/admin-news-input.ts, src/lib/admin-data.ts | news API + draft input + publish/batch contract | public chỉ đọc `published_*`; detail trả published id cho contextual hand-off; draft chỉnh riêng, publish explicit; contract P3 đã có trong master | news.read/write và content publish theo quyết định | scripts/admin-news.test.mts, scripts/admin-news-write-contract.test.mts, scripts/admin-visual-news-media.test.mjs |
-| Media | src/lib/media-data.ts, src/lib/site-media-data.ts, src/lib/media-input.ts | media API/R2 guard + bounded multipart + signature validation | reference phải còn hợp lệ; JPEG/PNG/WebP tối đa 8 MiB | media.read/write | scripts/media-contract.test.mts |
+| Media | src/lib/media-data.ts, src/lib/site-media-data.ts, src/lib/media-input.ts | media API/R2 guard + bounded multipart + signature validation; exact requestId/revision/CAS, replay/conflict và specialized audit | reference phải còn hợp lệ; JPEG/PNG/WebP tối đa 8 MiB; D1 audit đi cùng mutation và R2 có compensation | media.read/write | scripts/media-contract.test.mts, scripts/admin-media-write.test.mts |
 | Product/category/variant | src/lib/admin-product-input.ts, src/lib/admin-product-command.ts, src/lib/admin-variant-input.ts, src/lib/admin-variant-command.ts, src/lib/admin-catalog-write.ts, src/lib/admin-product-batch.ts, src/lib/admin-category-batch.ts và catalog adapters | admin API + exact command parser + D1 canonical rules; single-row/bulk import/archive contract | product/service public read theo trạng thái; import luôn tạo draft/inactive; single-row và bulk archive là soft archive có revision, audit và idempotency; category archive bảo toàn dữ liệu và tăng revision | catalog.read/write/publish | scripts/admin-catalog-write.test.mts, scripts/admin-categories.test.mts, scripts/admin-category-batch.test.mts, scripts/admin-product-import.test.mts, scripts/admin-product-batch.test.mts, catalog/detail suites |
 | Service | src/lib/admin-service-input.ts, src/lib/admin-service-batch.ts, service data adapters | service API + additive revision snapshot/batch contract + D1 | active/published service read | services.read/write | scripts/admin-service-input.test.mts, scripts/admin-service-batch.test.mts, scripts/service-contract.test.mts |
-| Leads | src/lib/admin-data.ts, lead API | status transition + Google Sheet queue contract | back office only | leads.read/write | contact/lead queue suites |
-| Admin members | src/lib/admin-members.ts, src/lib/admin-members-input.ts | owner-only API + D1 | internal control plane only | members.read/write | scripts/admin-members.test.mts |
+| Leads | src/lib/admin-data.ts, src/lib/admin-lead-command.ts, src/lib/admin-lead-write.ts, lead API | exact status command + revision/CAS, idempotent replay/conflict, `lead_events` và specialized audit; Google Sheet queue vẫn là adapter riêng | back office only | leads.read/write | contact/lead queue suites, scripts/admin-member-lead-write.test.mts |
+| Admin members | src/lib/admin-members.ts, src/lib/admin-members-input.ts, src/lib/admin-member-command.ts, src/lib/admin-member-write.ts | owner-only exact command + D1 atomic write, revision/CAS, idempotency/audit; bảo vệ owner cuối cùng và self-account | internal control plane only | members.read/write | scripts/admin-members.test.mts, scripts/admin-member-lead-write.test.mts |
 
 ## 4. Admin UI hiện tại và vai trò tương lai
 
@@ -154,11 +165,11 @@ use case thứ ba chứng minh editor hiện tại không còn đủ đơn giả
 | Pages | /api/admin/pages, /api/admin/pages/[pageKey], /api/admin/pages/[pageKey]/publish | P4; contextual hand-off đã nối tới page builder, API contract không đổi |
 | Navigation | /api/admin/navigation, /api/admin/navigation/[id], /publish, /publish-all | P4 |
 | News | /api/admin/news, /api/admin/news/[id], /api/admin/news/[id]/publish, /api/admin/news/batch | P3; draft save, explicit publish/unpublish, batch status và contextual deep-link đã có; browser/admin staging read-back còn mở |
-| Media | /api/admin/media, /api/admin/media/[id], /api/admin/media/cleanup | P3/P5 |
+| Media | /api/admin/media, /api/admin/media/[id], /api/admin/media/cleanup | P3/P5; upload/alt/delete đã exact requestId + revision/CAS + audit/R2 guard; cleanup vẫn là recovery path bounded riêng |
 | Catalog | /api/admin/categories, /api/admin/categories/[id], /api/admin/categories/batch, /products, /products/[id], /products/batch, /products/[id]/variants, /products/[id]/variants/[variantId], /api/admin/products/import | P5; bulk import tối đa 50 dòng, product/category archive tối đa 100 item; single-row product/variant create/update/archive và bulk contract đều revision-aware/atomic/idempotent/audited; category/product/variant action là soft archive, không hard-delete; lát single-row mới nhất chưa promote và browser/staging còn mở |
 | Services | /api/admin/services, /api/admin/services/[id], /api/admin/services/batch | P5; batch archive có snapshot revision riêng, tối đa 100 item, stale skip, atomic audit/idempotency; browser/staging còn mở |
-| Leads | /api/admin/leads, /api/admin/leads/[id] | P5, special page |
-| Members | /api/admin/members, /api/admin/members/[id] | P5, special page |
+| Leads | /api/admin/leads, /api/admin/leads/[id] | P5, special page; status mutation dùng exact requestId/revision/CAS/idempotency/audit |
+| Members | /api/admin/members, /api/admin/members/[id] | P5, special page; create/update dùng exact requestId/revision/CAS/idempotency/audit và owner safety |
 | Audit | /api/admin/audit | P6; owner-only, GET read-only, bounded filter/pagination, gom audit table tùy theo migration đã có |
 
 ### API rule for new visual actions
@@ -189,6 +200,10 @@ sự giải quyết orchestration mà client không nên làm.
 | migrations/0010_site_settings_write_contract.sql | settings request id, audit coupling và `last_request_id` | P2; phải apply local/staging trước runtime write |
 | migrations/0011_site_settings_bulk_publish.sql | bulk publish audit envelope và liên kết audit từng setting | P2; phải apply local/staging trước bulk write |
 | migrations/0012_news_draft_publish_contract.sql | news draft/published snapshots, news audit và bulk audit | P3; phải apply local/staging trước news write |
+| migrations/0013_admin_member_write_contract.sql | member request idempotency và specialized audit | P5; phải apply local/staging trước member write |
+| migrations/0014_admin_lead_write_contract.sql | lead revision và specialized audit | P5; phải apply local/staging trước lead status write |
+| migrations/0015_media_write_contract.sql | media/site-media revision, request idempotency và specialized audit | P3/P5; phải apply local/staging trước media write |
+| migrations/0016_admin_lead_request_marker.sql | lead request marker để audit/event stale-safe trong D1 batch | P5; phải apply local/staging trước lead status write |
 | wrangler.jsonc | Worker/env/routes/D1/R2 | staging trước, production gate |
 | custom-worker.ts, open-next.config.ts | Cloudflare/OpenNext runtime | không đổi chỉ để shortcut local |
 | .env.example, .nvmrc, package-lock.json | local reproducibility | không commit secret |
@@ -269,6 +284,8 @@ khối lượng mà contextual UI làm khó hiểu.
 | scripts/admin-audit.test.mts | audit query bounds, optional table merge, safe normalized entries và owner-only route/page contract |
 | scripts/media-contract.test.mts | media references/deletion/credentials, bounded upload và magic bytes |
 | scripts/admin-members.test.mts | internal role/member guard |
+| scripts/admin-member-lead-write.test.mts | member/lead exact command, CAS, idempotent replay/conflict, audit và owner-safety write contract |
+| scripts/admin-media-write.test.mts | media/site-media D1/R2 atomicity, replay/conflict, revision, audit và compensation |
 | scripts/admin-categories.test.mts | category admin contract |
 | scripts/admin-category-batch.test.mts | category snapshot/archive parser, D1 atomic soft-deactivate, stale/replay/idempotency và UI guard |
 | scripts/admin-service-input.test.mts | service input safety |

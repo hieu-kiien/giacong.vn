@@ -104,6 +104,7 @@ export type LeadStatus =
 
 export interface AdminLead {
   id: string;
+  revision: number;
   status: LeadStatus;
   fullName: string;
   companyName: string | null;

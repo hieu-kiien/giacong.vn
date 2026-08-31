@@ -108,6 +108,7 @@ export default function AdminContentPage() {
     setNotice(null);
     try {
       const form = new FormData();
+      form.set("requestId", crypto.randomUUID());
       form.set("key", setting.key);
       form.set("expectedVersion", String(setting.version));
       form.set("file", file);

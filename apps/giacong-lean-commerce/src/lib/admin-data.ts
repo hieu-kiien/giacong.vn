@@ -156,6 +156,7 @@ export interface AdminServiceInput {
 
 export interface AdminLead {
   id: string;
+  revision: number;
   status: LeadStatus;
   fullName: string;
   companyName: string | null;
@@ -930,7 +931,7 @@ export async function listAdminLeads(
   `).bind(...params).first<{ total: number }>();
   const rows = await database.prepare(`
     SELECT id, status, full_name, company_name, email, phone, country, message,
-      source, delivery_status, assigned_to, created_at, updated_at
+      source, delivery_status, assigned_to, revision, created_at, updated_at
     FROM leads
     ${where}
     ORDER BY created_at DESC
@@ -947,6 +948,7 @@ export async function listAdminLeads(
     source: string;
     delivery_status: AdminLead["deliveryStatus"];
     assigned_to: string | null;
+    revision: number;
     created_at: string;
     updated_at: string;
   }>();
@@ -963,6 +965,7 @@ export async function listAdminLeads(
       id: row.id,
       message: row.message,
       phone: row.phone,
+      revision: row.revision,
       source: row.source,
       status: row.status,
       updatedAt: row.updated_at,
@@ -981,31 +984,24 @@ export async function updateAdminLeadStatus(
   if (!existing) return null;
   if (existing.status === status) return existing;
 
-  await database.prepare(`
-    UPDATE leads
-    SET status = ?, updated_at = CURRENT_TIMESTAMP
-    WHERE id = ?
-  `).bind(status, leadId).run();
-  await database.prepare(`
-    INSERT INTO lead_events (id, lead_id, actor_subject, event_type, message)
-    VALUES (?, ?, ?, 'status_changed', ?)
-  `).bind(
-    crypto.randomUUID(),
+  // Kept as a compatibility wrapper for server-side callers; all mutations
+  // still go through the request-scoped CAS + audit contract.
+  const { updateAdminLeadStatusAtomically } = await import("./admin-lead-write.ts");
+  const updatedId = await updateAdminLeadStatusAtomically(
+    database,
     leadId,
+    status,
+    existing.revision,
     actorSubject,
-    JSON.stringify({ from: existing.status, to: status }),
-  ).run();
-  await writeAuditLog(database, actorSubject, "lead.status_updated", "lead", leadId, {
-    from: existing.status,
-    to: status,
-  });
-  return readAdminLead(database, leadId);
+    crypto.randomUUID(),
+  );
+  return updatedId ? readAdminLead(database, updatedId) : null;
 }
 
-async function readAdminLead(database: D1DatabaseLike, leadId: string): Promise<AdminLead | null> {
+export async function readAdminLead(database: D1DatabaseLike, leadId: string): Promise<AdminLead | null> {
   const row = await database.prepare(`
     SELECT id, status, full_name, company_name, email, phone, country, message,
-      source, delivery_status, assigned_to, created_at, updated_at
+      source, delivery_status, assigned_to, revision, created_at, updated_at
     FROM leads
     WHERE id = ?
     LIMIT 1
@@ -1042,6 +1038,7 @@ type AdminLeadRow = {
   source: string;
   delivery_status: AdminLead["deliveryStatus"];
   assigned_to: string | null;
+  revision: number;
   created_at: string;
   updated_at: string;
 };
@@ -1248,6 +1245,7 @@ function toAdminLead(row: AdminLeadRow): AdminLead {
     id: row.id,
     message: row.message,
     phone: row.phone,
+    revision: row.revision,
     source: row.source,
     status: row.status,
     updatedAt: row.updated_at,

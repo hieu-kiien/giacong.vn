@@ -91,6 +91,9 @@ Lưu ý: demo staging KHÔNG được seed sang production. Khách tự thao tá
 - [x] Product/variant single-row create/update/soft-archive dùng exact envelope, optimistic revision, idempotent replay/conflict và atomic D1 coupling cho tier/meta/audit; focused test và SQLite migration verification pass.
 - [x] Deep staging QA sau catalog promotion pass mobile/tablet/desktop: no-overflow, catalog search/sort, cart localStorage và keyboard reachability.
 - [x] Preview `/admin/*` bị Access chặn đúng boundary; preview `workers.dev` không được tính là public smoke vì Access bảo vệ cả preview origin.
+- [x] Local current-source gate sau operations hardening: admin `157/157`, các suite còn lại giữ xanh, lint/typecheck/build exit code `0`; SQLite migrations `0013–0016` apply thành công.
+- [ ] Apply migrations `0013–0016`, upload và promote artifact chứa member/lead/media write contract lên staging; chỉ đánh dấu sau khi có rollback point và post-condition.
+- [ ] Staging runtime read-back cho member/lead/media audit, R2 compensation/reference guard và retry cùng `requestId`.
 - [ ] Admin session/audit read-back bằng Access identity thật trên hostname staging.
 - [ ] Browser admin desktop/mobile/keyboard/focus/reduced-motion với Access identity thật.
 - [ ] Role × route/action read-back trên staging cho owner/content_manager/catalog_manager/sales_manager/viewer.

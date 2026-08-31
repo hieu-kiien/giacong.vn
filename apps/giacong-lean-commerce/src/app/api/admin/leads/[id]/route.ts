@@ -1,7 +1,14 @@
 import { adminFailure, adminSuccess } from "@/lib/admin-api.ts";
-import { updateAdminLeadStatus, type LeadStatus } from "@/lib/admin-data";
+import { readAdminLead } from "@/lib/admin-data";
 import { adminErrorFrom } from "@/lib/admin-error-mapping.ts";
 import { requireAdmin } from "@/lib/admin-guard";
+import {
+  AdminLeadWriteConflictError,
+  AdminLeadWriteIdempotencyConflictError,
+  AdminLeadWriteValidationError,
+  updateAdminLeadStatusAtomically,
+} from "@/lib/admin-lead-write.ts";
+import { parseAdminLeadStatusCommand } from "@/lib/admin-lead-command.ts";
 import { canManageLeads } from "@/lib/admin-permissions.ts";
 import { readBoundedAdminJson } from "@/lib/admin-request";
 
@@ -10,18 +17,6 @@ export const dynamic = "force-dynamic";
 interface LeadRouteContext {
   params: Promise<{ id: string }>;
 }
-
-const leadStatuses = new Set<LeadStatus>([
-  "new",
-  "qualified",
-  "contacted",
-  "quotation_sent",
-  "sampling",
-  "negotiation",
-  "won",
-  "lost",
-  "spam",
-]);
 
 export async function PATCH(request: Request, context: LeadRouteContext): Promise<Response> {
   const guard = await requireAdmin(request);
@@ -35,34 +30,32 @@ export async function PATCH(request: Request, context: LeadRouteContext): Promis
 
   const parsedRequest = await readBoundedAdminJson(request);
   if (!parsedRequest.ok) return adminFailure(parsedRequest.requestId, parsedRequest.status, parsedRequest.code, parsedRequest.message);
-  const payload = parsedRequest.body;
-  const status = isRecord(payload) && typeof payload.status === "string"
-    ? payload.status as LeadStatus
-    : null;
-  if (!status || !leadStatuses.has(status)) {
-    return adminFailure(
-      parsedRequest.requestId,
-      422,
-      "VALIDATION_ERROR",
-      "Trạng thái lead không hợp lệ.",
-      { status: "Chọn một trạng thái trong pipeline." },
-    );
+  const parsed = parseAdminLeadStatusCommand(parsedRequest.body);
+  if (!parsed.command) {
+    return adminFailure(parsedRequest.requestId, 422, "VALIDATION_ERROR", "Dữ liệu trạng thái lead chưa hợp lệ.", parsed.fieldErrors);
   }
 
   try {
-    const lead = await updateAdminLeadStatus(guard.database, id, status, guard.actorSubject);
+    const updatedLeadId = await updateAdminLeadStatusAtomically(
+      guard.database,
+      id,
+      parsed.command.status,
+      parsed.command.revision,
+      guard.actorSubject,
+      parsed.command.requestId,
+    );
+    const lead = updatedLeadId ? await readAdminLead(guard.database, updatedLeadId) : null;
     return lead
       ? adminSuccess(parsedRequest.requestId, { lead })
       : adminFailure(parsedRequest.requestId, 404, "NOT_FOUND", "Không tìm thấy lead.");
   } catch (error) {
+    if (error instanceof AdminLeadWriteConflictError) return adminFailure(parsedRequest.requestId, 409, "STALE_WRITE", error.message);
+    if (error instanceof AdminLeadWriteIdempotencyConflictError) return adminFailure(parsedRequest.requestId, 409, "IDEMPOTENCY_CONFLICT", error.message);
+    if (error instanceof AdminLeadWriteValidationError) return adminFailure(parsedRequest.requestId, 422, "VALIDATION_ERROR", error.message);
     return adminErrorFrom(parsedRequest.requestId, error, "Không thể cập nhật trạng thái lead.");
   }
 }
 
 function isLeadId(value: string): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }

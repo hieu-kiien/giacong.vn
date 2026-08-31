@@ -4,13 +4,20 @@ import { getAdminProduct, getAdminProductVariant, getAdminService } from "@/lib/
 import { adminErrorFrom } from "@/lib/admin-error-mapping.ts";
 import { requireAdmin } from "@/lib/admin-guard";
 import { canManage, canManageMedia } from "@/lib/admin-permissions.ts";
-import { createMediaAsset, listMediaAssets, type R2BucketLike } from "@/lib/media-data";
+import {
+  createMediaAsset,
+  listMediaAssets,
+  MediaWriteIdempotencyConflictError,
+  MediaWriteValidationError,
+  type R2BucketLike,
+} from "@/lib/media-data";
 import {
   adminMediaMaxBytes,
   adminMediaMaxRequestBytes,
   readBoundedAdminMultipart,
   validateAdminImageBytes,
 } from "@/lib/media-input";
+import { isAdminRequestId } from "@/lib/admin-request";
 
 export const dynamic = "force-dynamic";
 
@@ -47,12 +54,11 @@ export async function POST(request: Request): Promise<Response> {
   if (!canManageMedia(guard.member.role)) {
     return adminFailure(crypto.randomUUID(), 403, "FORBIDDEN", "Vai trò hiện tại không được upload media.");
   }
-  const requestId = crypto.randomUUID();
-
+  const parserRequestId = crypto.randomUUID();
   const boundedForm = await readBoundedAdminMultipart(request);
   if (!boundedForm.ok) {
     return adminFailure(
-      requestId,
+      parserRequestId,
       boundedForm.reason === "too_large" ? 413 : 422,
       boundedForm.reason === "too_large" ? "PAYLOAD_TOO_LARGE" : "VALIDATION_ERROR",
       boundedForm.reason === "too_large"
@@ -61,6 +67,11 @@ export async function POST(request: Request): Promise<Response> {
     );
   }
   const form = boundedForm.form;
+  const requestIdValue = form.get("requestId");
+  const requestId = typeof requestIdValue === "string" && isAdminRequestId(requestIdValue)
+    ? requestIdValue.trim().toLowerCase()
+    : "";
+  if (!requestId) return adminFailure(parserRequestId, 422, "VALIDATION_ERROR", "Upload media cần requestId là UUID hợp lệ.");
   const productId = parsePositiveInt(form.get("productId"));
   const serviceId = parsePositiveInt(form.get("serviceId"));
   const variantId = parsePositiveInt(form.get("variantId"));
@@ -110,11 +121,14 @@ export async function POST(request: Request): Promise<Response> {
       createdBy: guard.actorSubject,
       originalFilename: safeFilename(file.name),
       productId: productId ?? null,
+      requestId,
       serviceId: serviceId ?? null,
       variantId: variantId ?? null,
     });
     return adminSuccess(requestId, { media }, 201);
   } catch (error) {
+    if (error instanceof MediaWriteValidationError) return adminFailure(requestId, 422, "VALIDATION_ERROR", error.message);
+    if (error instanceof MediaWriteIdempotencyConflictError) return adminFailure(requestId, 409, "IDEMPOTENCY_CONFLICT", error.message);
     return adminErrorFrom(requestId, error, "Không thể lưu media.");
   }
 }
