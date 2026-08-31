@@ -40,6 +40,15 @@ test("Cloudflare bindings replace the former Bagisto proxy boundary", async () =
   assert.match(catalog, /GIACONG_VN_CATALOG/);
 });
 
+test("staging admin stays behind Cloudflare Access instead of public demo mode", async () => {
+  const wrangler = await readFile(new URL("wrangler.jsonc", root), "utf8");
+  const stagingVars = wrangler.match(/"staging":\s*\{[\s\S]*?"vars":\s*\{([\s\S]*?)\n\s*\},\s*"assets":/);
+
+  assert.ok(stagingVars, "expected a staging vars block");
+  assert.match(stagingVars[1], /"ADMIN_PUBLIC":\s*"false"/);
+  assert.doesNotMatch(stagingVars[1], /"ADMIN_PUBLIC_SUBJECT"/);
+});
+
 test("runs focused admin, contact, catalog, and service tests before lint in the standard check contract", async () => {
   const packageJson = JSON.parse(await readFile(new URL("package.json", root), "utf8"));
   assert.equal(

@@ -21,7 +21,7 @@ Trạng thái chốt hạ trước promotion `giacong-vn` production. Nguồn y�
 
 ## 2. Admin staging CRUD acceptance — ĐÃ ĐÓNG (2026-08-25)
 
-- [x] Login qua Access public-demo mode trên `admin-staging.kienhieu.id.vn`
+- [x] Đợt public-demo trước đây đã đọc được admin staging (bằng chứng lịch sử, không thay thế Access identity thật)
 - [x] CRUD category/product/variant/service qua API thật: tạo 201, PATCH thiếu revision → 409 STALE_WRITE, archive 200
 - [x] Media upload R2 + xóa an toàn: xóa asset đang là ảnh chính → 409 MEDIA_IN_USE; xóa sạch → object R2 404
 - [x] "Dùng làm ảnh chính" cho product và service (re-read + PATCH chỉ imageUrl)

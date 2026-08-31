@@ -9,7 +9,7 @@ Tài liệu dành cho người vận hành (khách + chủ dự án). Quyết đ
 | Storefront production | https://kienhieu.id.vn | Cloudflare Worker `giacong-vn` @100% |
 | Admin production | https://admin.kienhieu.id.vn/admin | Sau Cloudflare Access — fail-closed |
 | Storefront staging | https://staging.kienhieu.id.vn | Worker `giacong-vn-staging`, public demo |
-| Admin staging | https://admin-staging.kienhieu.id.vn/admin | Access public-demo |
+| Admin staging | https://admin-staging.kienhieu.id.vn/admin | Cloudflare Access thật; storefront staging mới public |
 | D1 production | `giacong-vn-catalog` | Catalog, leads, media metadata, CMS |
 | R2 production | `giacong-vn-product-media` | Ảnh product/variant/service qua `/media/*` |
 | Request intake | Google Sheet "Yêu cầu báo giá Giacong" + Apps Script | Xem mục 3 |
