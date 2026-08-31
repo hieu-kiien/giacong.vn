@@ -485,6 +485,13 @@ no-overflow cho 10/10 route, menu mobile mở đúng `aria-expanded=true`.
 thật hoặc role matrix owner/content_manager/catalog_manager/sales_manager/viewer;
 mọi write/read-back mutation và reduced-motion/focus evidence vẫn giữ là gate mở.
 
+**Runtime update 2026-08-31 (storefront motion follow-up):** version staging
+`ec0522c7-2840-4118-a7fb-0740c5d7c91e` đã được promotion 100%; version
+`a5534149-5af4-415b-8e2d-947a0a995016` là rollback point. Browser runtime xác
+minh slider dots hiển thị và thao tác `Nội dung 2` đổi slide thành công, không có
+console error/warning. Đây là acceptance cho lát motion/a11y storefront; không
+thay thế Access identity thật, role matrix hoặc production gates.
+
 **Công việc:**
 
 - audit/history/revision hiển thị đủ để biết ai đổi gì, lúc nào, từ bản nào;

@@ -97,6 +97,7 @@ Lưu ý: demo staging KHÔNG được seed sang production. Khách tự thao tá
 - [x] Version staging hiện tại `a22e9ecb-e1f6-4966-b96b-e2883d138fb1` chứa fix mobile admin import overflow, đã promotion 100%; rollback point là `0d1e14c1-ec4d-47db-b0e2-4275f246f919`.
 - [x] Browser read-only với actor staging `public-demo` owner đã kiểm tra 10/10 màn hình admin, audit read-back `20/93` event, product media read-back và console không có error/warning.
 - [x] Browser mobile `390×844`: 10/10 route không có page-level horizontal overflow; menu admin mở đúng `aria-expanded=true`.
+- [x] Follow-up storefront staging version `ec0522c7-2840-4118-a7fb-0740c5d7c91e` promotion 100%; rollback point `a5534149-5af4-415b-8e2d-947a0a995016`; slider dots visible và click `Nội dung 2` chuyển `sliderIndex=1`, console không có error/warning.
 - [ ] Staging runtime read-back cho member/lead/media audit, R2 compensation/reference guard và retry cùng `requestId`.
 - [ ] Admin session/audit read-back bằng Access identity thật trên hostname staging.
 - [ ] Browser admin desktop/mobile/keyboard/focus/reduced-motion với Access identity thật.

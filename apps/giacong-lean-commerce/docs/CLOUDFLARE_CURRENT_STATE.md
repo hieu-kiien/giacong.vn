@@ -292,10 +292,23 @@ Production vẫn không bị mutation; các gate production trước đây (dữ
 restore/rollback drill, observability 24h và quyết định redirect
 `giacong.vn`) giữ nguyên.
 
+## Staging storefront motion follow-up — 2026-08-31
+
+- Worker version `ec0522c7-2840-4118-a7fb-0740c5d7c91e` đã được upload và
+  promotion 100%; version `a5534149-5af4-415b-8e2d-947a0a995016` là rollback
+  point.
+- Browser runtime trên staging xác minh slider dots hiển thị thật (`display:
+  inline-block`, có bounding rect), click `Nội dung 2` chuyển được
+  `sliderIndex=1`, không có hidden row và không có console error/warning.
+- Đây là fix CSS nhỏ cho storefront; không thay đổi production Worker hoặc
+  production data. Các gate Access identity thật, role matrix, authenticated
+  write/read-back và production vẫn giữ nguyên trạng thái mở bên dưới.
+
 ## Staging admin browser verification — 2026-08-31
 
-- Worker version `a22e9ecb-e1f6-4966-b96b-e2883d138fb1` đã được upload và
-  promotion 100%; `0d1e14c1-ec4d-47db-b0e2-4275f246f919` là rollback point.
+- Worker version `a22e9ecb-e1f6-4966-b96b-e2883d138fb1` là phiên bản admin
+  browser verification trước follow-up storefront; `0d1e14c1-ec4d-47db-b0e2-4275f246f919`
+  là rollback point của phiên bản đó.
 - Browser đã đọc được admin staging bằng actor `public-demo` (owner của chế độ
   demo staging): đủ 10 route admin render đúng heading, không có alert và không
   có console error/warning; audit đọc 20 dòng đầu trên 93 event, product editor
