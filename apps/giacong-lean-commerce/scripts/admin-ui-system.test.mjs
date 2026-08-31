@@ -85,6 +85,7 @@ test("the shell groups routes in plain-language control-plane sections", async (
 test("blocked admin sessions offer a direct Cloudflare Access login handoff", async () => {
   const shell = await readSource("components", "admin", "AdminShell.tsx");
 
-  assert.match(shell, /cdn-cgi\/access\/login\?redirect_url=%2Fadmin/);
+  assert.match(shell, /data-testid="link-admin-access-login"[\s\S]*?href="\/admin"/);
+  assert.doesNotMatch(shell, /cdn-cgi\/access\/login/);
   assert.match(shell, /Đăng nhập Cloudflare Access/);
 });

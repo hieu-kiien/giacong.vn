@@ -230,7 +230,7 @@ function AdminAccessScreen({ status, error, onRetry }: { status: "blocked" | "un
             <a
               className="admin-button admin-button-primary"
               data-testid="link-admin-access-login"
-              href="/cdn-cgi/access/login?redirect_url=%2Fadmin"
+              href="/admin"
             >
               Đăng nhập Cloudflare Access
             </a>
