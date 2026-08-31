@@ -441,6 +441,16 @@ mới không có Access session nên admin host chỉ chứng minh được boun
 role matrix, focus/reduced-motion read-back và screenshot admin bằng identity
 thật vẫn mở.
 
+**Runtime update 2026-08-31 (catalog contract):** version staging
+`8eb11c5e-f7bc-4a2f-a37f-2949a3d03541` đã được upload và promotion 100%; version
+`c2d91d94-6737-447d-88b7-991f9808ba3f` là rollback point. Product/variant
+single-row create/update/soft-archive hiện dùng exact request envelope,
+revision guard, idempotent replay/conflict và atomic D1 batch cho tier/meta/audit;
+SQLite migration verification, full `npm run check` (`136/136` admin) và deep
+staging QA đều pass. Admin host không có Access identity vẫn redirect 302, nên
+role matrix, authenticated browser QA và admin write/read-back chưa được đánh
+đồng là đã đạt.
+
 **Công việc:**
 
 - audit/history/revision hiển thị đủ để biết ai đổi gì, lúc nào, từ bản nào;

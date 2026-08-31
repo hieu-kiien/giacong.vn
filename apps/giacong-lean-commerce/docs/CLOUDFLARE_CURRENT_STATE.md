@@ -242,3 +242,29 @@ Các gate còn mở: Access identity thật cho browser admin desktop/mobile/key
 role × route/action read-back, production taxonomy/SKU/media/CMS được duyệt,
 restore/rollback drill, observability 24h và quyết định redirect
 `giacong.vn`.
+
+## Staging admin release follow-up — 2026-08-31 (catalog contract)
+
+Checkpoint mới nhất sau commit `853e9f3`:
+
+- Worker staging version `8eb11c5e-f7bc-4a2f-a37f-2949a3d03541` đã được upload
+  và promotion có kiểm soát lên 100%; version `c2d91d94-6737-447d-88b7-991f9808ba3f`
+  là rollback point. Production Worker/data không bị mutation.
+- Staging D1 `giacong-vn-catalog-staging` báo không còn migration pending và
+  read-only schema check thấy `products`, `product_variants`,
+  `product_admin_meta`, `admin_audit_log`.
+- `npm run check` pass với admin `136/136`, các suite còn lại
+  `103/103`, `5/5`, `1/1`, `3/3`, `33/33`, `4/4`, `29/29`, cùng lint,
+  typecheck và build exit code `0`.
+- Runtime smoke pass cho captured/catalog/service/cart; deep QA staging pass
+  trên mobile/tablet/desktop, gồm no-overflow, search/sort, cart localStorage
+  và keyboard reachability. Catalog API và cart revalidation vẫn trả canonical
+  product/variant/price/subtotal.
+- Request chưa có Access identity tới admin staging nhận 302 về Cloudflare
+  Access. Chưa tự nhập credential/OTP; vì vậy role matrix, admin browser
+  responsive/focus/reduced-motion và write/read-back bằng identity thật vẫn là
+  release gate.
+
+Các gate production vẫn giữ nguyên: production migrations chưa apply, dữ liệu
+taxonomy/SKU/media/CMS chưa được duyệt, chưa có restore/rollback drill,
+observability 24h và quyết định redirect `giacong.vn`.

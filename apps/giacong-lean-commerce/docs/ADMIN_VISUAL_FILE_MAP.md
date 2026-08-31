@@ -20,16 +20,17 @@ news-detail hand-off, P4 managed-page hand-off, P5 product bulk import UI và
 product/service/category bulk archive contract đã có trong `master`. Toàn bộ
 admin JSON writes hiện đi qua bounded parser; các admin collection read chính có
 hard bound `LIMIT 100`. Staging đang phục vụ version
-`c2d91d94-6737-447d-88b7-991f9808ba3f` với rollback point
-`d9caf3ef-e212-45ee-bd26-f37450ed2928`; browser/admin identity evidence vẫn là
+`8eb11c5e-f7bc-4a2f-a37f-2949a3d03541` với rollback point
+`c2d91d94-6737-447d-88b7-991f9808ba3f`; browser/admin identity evidence vẫn là
 gate riêng.
 
-**Working-tree slice 2026-08-31 (chưa promote):** product/variant single-row
+**Catalog contract slice 2026-08-31:** product/variant single-row
 create/update/soft-archive đã chuyển sang exact command envelope với
 `requestId`, optimistic `revision`, idempotent replay, D1 batch coupling cho
 meta/tier/audit và strict numeric types. Focused catalog test, full admin
 regression `136/136`, SQLite chạy đủ migration `0001–0012`, lint và typecheck
-đã pass; staging deploy và runtime admin read-back của lát này vẫn còn mở.
+đã pass; lát này đã được promote lên staging và public runtime smoke/deep QA
+đều pass; runtime admin read-back bằng Access identity thật vẫn còn mở.
 Tuy nhiên `admin-staging.kienhieu.id.vn` vẫn trả Cloudflare Access login khi
 không có phiên hợp lệ, vì vậy admin read-back/browser evidence cho context thật
 và frontend motion worktree còn mở; không coi local Next dev là bằng chứng
