@@ -368,3 +368,14 @@ restore/rollback drill, observability 24h và quyết định redirect
   `main`/`footer`, không có admin control.
 - Đây mới đóng boundary lock; Access identity thật, role matrix và
   authenticated write/read-back vẫn chờ chủ dự án đăng nhập.
+
+## Staging admin login handoff follow-up — 2026-08-31
+
+- Commit `d6bfb43` thêm nút đăng nhập trực tiếp trên blocked admin screen, giữ
+  nút retry riêng cho trường hợp phiên vừa hết hạn.
+- Version `a772e2d3-06b6-4046-bf0f-36f6ed5b2329` đã upload và promote 100%;
+  rollback point là `11eb20a9-69c8-4dbd-884e-b65aa31d2d93`.
+- Browser snapshot không có identity đã xác nhận nút `Đăng nhập Cloudflare
+  Access` với href `/cdn-cgi/access/login?redirect_url=%2Fadmin`.
+- Access identity thật, role matrix và authenticated write/read-back vẫn chưa
+  chạy cho đến khi chủ dự án hoàn tất đăng nhập.

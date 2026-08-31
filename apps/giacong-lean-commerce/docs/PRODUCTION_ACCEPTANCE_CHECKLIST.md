@@ -108,6 +108,7 @@ Lưu ý: demo staging KHÔNG được seed sang production. Khách tự thao tá
 - [x] Production read-only audit: `d1 migrations list giacong-vn-catalog --remote` xác nhận pending `0009–0016`; không apply migration, không ghi D1/R2 và không deploy production trong đợt này.
 - [x] Production schema read-only audit: `sqlite_master`/`d1_migrations` xác nhận thiếu các bảng control-plane/audit cần cho migration `0009–0016`; query có `changed_db=false`, `rows_written=0`.
 - [x] Khóa staging admin bằng Cloudflare Access: commit `41f65eb`, version `11eb20a9-69c8-4dbd-884e-b65aa31d2d93` promote 100%; request không có identity bị chặn, storefront staging vẫn public và 5 route smoke pass.
+- [x] Blocked admin screen có nút `Đăng nhập Cloudflare Access`: commit `d6bfb43`, version `a772e2d3-06b6-4046-bf0f-36f6ed5b2329` promote 100%; browser snapshot xác nhận href login chuẩn.
 - [ ] Staging runtime read-back cho member/lead/media audit, R2 compensation/reference guard và retry cùng `requestId`.
 - [ ] Admin session/audit read-back bằng Access identity thật trên hostname staging.
 - [ ] Browser admin desktop/mobile/keyboard/focus/reduced-motion với Access identity thật.

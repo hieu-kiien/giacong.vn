@@ -510,6 +510,12 @@ khi 5 route storefront public vẫn pass HTTP 200 và không render admin contro
 Đây là boundary evidence; role matrix, authenticated write/read-back và
 production gate chỉ được đánh dấu sau khi đăng nhập Access thật.
 
+**Runtime update 2026-08-31 (login handoff):** version staging
+`a772e2d3-06b6-4046-bf0f-36f6ed5b2329` đã promotion 100%, rollback point
+`11eb20a9-69c8-4dbd-884e-b65aa31d2d93`; blocked screen có nút đăng nhập
+Cloudflare Access trực tiếp và nút retry riêng. Đây là cải thiện handoff cho
+người vận hành, chưa phải bằng chứng identity/role matrix thật.
+
 **Công việc:**
 
 - audit/history/revision hiển thị đủ để biết ai đổi gì, lúc nào, từ bản nào;
