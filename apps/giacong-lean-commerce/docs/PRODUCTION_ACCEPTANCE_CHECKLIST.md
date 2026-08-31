@@ -81,13 +81,15 @@ Lưu ý: demo staging KHÔNG được seed sang production. Khách tự thao tá
 
 ## 8. Staging admin follow-up — ĐÃ XÁC MINH KỸ THUẬT, CHƯA ĐÓNG PRODUCTION GATE (2026-08-31)
 
-- [x] Version staging `c2d91d94-6737-447d-88b7-991f9808ba3f` upload và promotion 100%, có rollback point `d9caf3ef-e212-45ee-bd26-f37450ed2928`.
+- [x] Version staging `8eb11c5e-f7bc-4a2f-a37f-2949a3d03541` upload và promotion 100%, có rollback point `c2d91d94-6737-447d-88b7-991f9808ba3f`.
 - [x] Active public staging route matrix sau promotion trả 200; browser console không có error/warning trong lượt kiểm tra.
 - [x] Product API và cart revalidation staging trả canonical data/money đúng; cart test quantity `25` có subtotal `1.950.000 ₫`.
-- [x] Local release gate trên đúng source pass: admin `128/128`, các suite còn lại `103/103`, `5/5`, `1/1`, `3/3`, `33/33`, `4/4`, `29/29`, lint/typecheck/build exit code `0`.
+- [x] Local release gate trên đúng source pass: admin `136/136`, các suite còn lại `103/103`, `5/5`, `1/1`, `3/3`, `33/33`, `4/4`, `29/29`, lint/typecheck/build exit code `0`.
 - [x] Toàn bộ admin JSON writes dùng bounded parser; admin collection reads chính có hard bound `LIMIT 100`; không còn `request.json()` trực tiếp trong `src/app/api/admin`.
 - [x] Regression cho giới hạn SQLite/D1 compound SELECT đã pass; migration staging không còn pending.
 - [x] Category bulk archive contract đã có test atomic/revision/idempotency và route đã nằm trong staging artifact; không có hard-delete category.
+- [x] Product/variant single-row create/update/soft-archive dùng exact envelope, optimistic revision, idempotent replay/conflict và atomic D1 coupling cho tier/meta/audit; focused test và SQLite migration verification pass.
+- [x] Deep staging QA sau catalog promotion pass mobile/tablet/desktop: no-overflow, catalog search/sort, cart localStorage và keyboard reachability.
 - [x] Preview `/admin/*` bị Access chặn đúng boundary; preview `workers.dev` không được tính là public smoke vì Access bảo vệ cả preview origin.
 - [ ] Admin session/audit read-back bằng Access identity thật trên hostname staging.
 - [ ] Browser admin desktop/mobile/keyboard/focus/reduced-motion với Access identity thật.
