@@ -9,7 +9,7 @@ Storefront B2B cho dịch vụ gia công và catalog sản phẩm. Khách có th
 - **Data:** Cloudflare D1; D1 là source of truth cho catalog, lead, audit log và CMS.
 - **Media:** Cloudflare R2, metadata và checksum lưu trong D1.
 - **Lead delivery:** Cloudflare Queues tới webhook/Google Apps Script sau khi D1 ghi thành công.
-- **Admin security:** Cloudflare Access ở production; staging public mode chỉ được bật trên host allowlist.
+- **Admin security:** Cloudflare Access ở production và staging; chỉ storefront staging là public.
 - **Hostname chính:** `kienhieu.id.vn`; Giacong.vn là thương hiệu.
 
 ## Chạy và kiểm tra
@@ -26,7 +26,7 @@ npm run qa:catalog
 npm run qa:services
 ```
 
-Local storefront chạy qua workflow `artifacts/web: web`. Local admin có thể bị Access guard chặn; dùng staging host để kiểm tra CMS public demo.
+Local storefront chạy qua workflow `artifacts/web: web`. Local admin có thể bị Access guard chặn; dùng staging admin host để kiểm tra CMS sau khi đăng nhập Cloudflare Access.
 
 ## D1 migrations
 

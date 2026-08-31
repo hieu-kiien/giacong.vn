@@ -53,7 +53,7 @@ $env:PORT = "3000"
 npm run dev
 ```
 
-Storefront local chạy tại `http://localhost:3000`. Admin local vẫn đi qua admission contract; nếu không có Cloudflare Access/public staging mode hợp lệ, màn hình sẽ fail closed. Dùng `admin-staging.kienhieu.id.vn` để kiểm thử admin staging theo policy đã cấp quyền.
+Storefront local chạy tại `http://localhost:3000`. Admin local vẫn đi qua admission contract và sẽ fail closed nếu không có Access hợp lệ. Dùng `admin-staging.kienhieu.id.vn` để kiểm thử admin staging sau khi đăng nhập theo policy đã cấp quyền.
 
 ## 4. Kiểm tra trước khi deploy
 

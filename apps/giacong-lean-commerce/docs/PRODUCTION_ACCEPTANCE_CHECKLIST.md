@@ -19,7 +19,7 @@ Trạng thái chốt hạ trước promotion `giacong-vn` production. Nguồn y�
 - [x] Catalog card hiển thị đủ mô tả + SKU + MOQ từ public feed/D1, có regression test (`catalog-listing.test.mts`)
 - [x] Loading skeleton khớp breakpoint grid thật (commit `d52442b`)
 
-## 2. Admin staging CRUD acceptance — ĐÃ ĐÓNG (2026-08-25)
+## 2. Admin staging CRUD acceptance — LỊCH SỬ DEMO, CẦN XÁC NHẬN LẠI BẰNG ACCESS THẬT
 
 - [x] Đợt public-demo trước đây đã đọc được admin staging (bằng chứng lịch sử, không thay thế Access identity thật)
 - [x] CRUD category/product/variant/service qua API thật: tạo 201, PATCH thiếu revision → 409 STALE_WRITE, archive 200
