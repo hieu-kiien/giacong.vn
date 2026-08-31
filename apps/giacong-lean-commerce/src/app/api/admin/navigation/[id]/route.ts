@@ -2,6 +2,7 @@ import { adminFailure, adminSuccess } from "@/lib/admin-api.ts";
 import { adminErrorFrom } from "@/lib/admin-error-mapping.ts";
 import { requireAdmin } from "@/lib/admin-guard";
 import { canManageNavigation } from "@/lib/admin-permissions.ts";
+import { readBoundedAdminJson } from "@/lib/admin-request";
 import {
   getAdminSiteNavigation,
   SiteNavigationConflictError,
@@ -35,7 +36,9 @@ export async function PATCH(request: Request, context: RouteContext): Promise<Re
   if (!canManageNavigation(guard.member.role)) {
     return adminFailure(crypto.randomUUID(), 403, "FORBIDDEN", "Vai trò hiện tại không được sửa điều hướng.");
   }
-  const body = await readJson(request);
+  const parsedRequest = await readBoundedAdminJson(request);
+  if (!parsedRequest.ok) return adminFailure(parsedRequest.requestId, parsedRequest.status, parsedRequest.code, parsedRequest.message);
+  const body = parsedRequest.body;
   if (
     !isRecord(body)
     || typeof body.expectedVersion !== "number"
@@ -46,7 +49,7 @@ export async function PATCH(request: Request, context: RouteContext): Promise<Re
     || !Number.isInteger(body.sortOrder)
     || typeof body.isActive !== "boolean"
   ) {
-    return adminFailure(crypto.randomUUID(), 422, "VALIDATION_ERROR", "Cần label, href, sortOrder, isActive và expectedVersion hợp lệ.");
+    return adminFailure(parsedRequest.requestId, 422, "VALIDATION_ERROR", "Cần label, href, sortOrder, isActive và expectedVersion hợp lệ.");
   }
   try {
     const item = await updateAdminSiteNavigation(guard.database, {
@@ -58,7 +61,7 @@ export async function PATCH(request: Request, context: RouteContext): Promise<Re
       label: body.label,
       sortOrder: body.sortOrder,
     });
-    return adminSuccess(crypto.randomUUID(), { item });
+    return adminSuccess(parsedRequest.requestId, { item });
   } catch (error) {
     return navigationFailure(error, "Không thể lưu mục điều hướng.");
   }
@@ -69,14 +72,6 @@ function navigationFailure(error: unknown, fallbackMessage: string): Response {
   if (error instanceof SiteNavigationNotFoundError) return adminFailure(crypto.randomUUID(), 404, "NOT_FOUND", error.message);
   if (error instanceof SiteNavigationValidationError) return adminFailure(crypto.randomUUID(), 422, "VALIDATION_ERROR", error.message);
   return adminErrorFrom(crypto.randomUUID(), error, fallbackMessage);
-}
-
-async function readJson(request: Request): Promise<unknown> {
-  try {
-    return await request.json();
-  } catch {
-    return {};
-  }
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

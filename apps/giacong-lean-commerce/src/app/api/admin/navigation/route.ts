@@ -2,6 +2,7 @@ import { adminFailure, adminSuccess } from "@/lib/admin-api.ts";
 import { adminErrorFrom } from "@/lib/admin-error-mapping.ts";
 import { requireAdmin } from "@/lib/admin-guard";
 import { canManageNavigation, canPublishNavigation } from "@/lib/admin-permissions.ts";
+import { readBoundedAdminJson } from "@/lib/admin-request";
 import {
   createAdminSiteNavigation,
   listAdminSiteNavigation,
@@ -32,9 +33,11 @@ export async function POST(request: Request): Promise<Response> {
   if (!canManageNavigation(guard.member.role)) {
     return adminFailure(crypto.randomUUID(), 403, "FORBIDDEN", "Vai trò hiện tại không được thêm mục điều hướng.");
   }
-  const body = await readJson(request);
+  const parsedRequest = await readBoundedAdminJson(request);
+  if (!parsedRequest.ok) return adminFailure(parsedRequest.requestId, parsedRequest.status, parsedRequest.code, parsedRequest.message);
+  const body = parsedRequest.body;
   if (!isRecord(body) || typeof body.menuKey !== "string" || typeof body.label !== "string" || typeof body.href !== "string") {
-    return adminFailure(crypto.randomUUID(), 422, "VALIDATION_ERROR", "Cần menuKey, label và href.");
+    return adminFailure(parsedRequest.requestId, 422, "VALIDATION_ERROR", "Cần menuKey, label và href.");
   }
   try {
     const item = await createAdminSiteNavigation(guard.database, {
@@ -46,20 +49,12 @@ export async function POST(request: Request): Promise<Response> {
       menuKey: body.menuKey,
       sortOrder: body.sortOrder,
     });
-    return adminSuccess(crypto.randomUUID(), { item }, 201);
+    return adminSuccess(parsedRequest.requestId, { item }, 201);
   } catch (error) {
     if (error instanceof SiteNavigationValidationError) {
-      return adminFailure(crypto.randomUUID(), 422, "VALIDATION_ERROR", error.message);
+      return adminFailure(parsedRequest.requestId, 422, "VALIDATION_ERROR", error.message);
     }
-    return adminErrorFrom(crypto.randomUUID(), error, "Không thể thêm mục điều hướng.");
-  }
-}
-
-async function readJson(request: Request): Promise<unknown> {
-  try {
-    return await request.json();
-  } catch {
-    return {};
+    return adminErrorFrom(parsedRequest.requestId, error, "Không thể thêm mục điều hướng.");
   }
 }
 

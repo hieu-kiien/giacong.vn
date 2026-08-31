@@ -2,6 +2,7 @@ import { adminFailure, adminSuccess } from "@/lib/admin-api.ts";
 import { adminErrorFrom } from "@/lib/admin-error-mapping.ts";
 import { requireAdmin } from "@/lib/admin-guard";
 import { canPublishPages } from "@/lib/admin-permissions.ts";
+import { readBoundedAdminJson } from "@/lib/admin-request";
 import {
   publishAdminSitePage,
   SitePageConflictError,
@@ -20,9 +21,11 @@ export async function POST(request: Request, context: RouteContext): Promise<Res
   if (!canPublishPages(guard.member.role)) {
     return adminFailure(crypto.randomUUID(), 403, "FORBIDDEN", "Vai trò hiện tại không được phát hành page.");
   }
-  const body = await readJson(request);
+  const parsedRequest = await readBoundedAdminJson(request);
+  if (!parsedRequest.ok) return adminFailure(parsedRequest.requestId, parsedRequest.status, parsedRequest.code, parsedRequest.message);
+  const body = parsedRequest.body;
   if (!isRecord(body) || typeof body.expectedVersion !== "number" || !Number.isInteger(body.expectedVersion)) {
-    return adminFailure(crypto.randomUUID(), 422, "VALIDATION_ERROR", "Cần expectedVersion hợp lệ.");
+    return adminFailure(parsedRequest.requestId, 422, "VALIDATION_ERROR", "Cần expectedVersion hợp lệ.");
   }
   try {
     const page = await publishAdminSitePage(guard.database, {
@@ -30,19 +33,11 @@ export async function POST(request: Request, context: RouteContext): Promise<Res
       expectedVersion: body.expectedVersion,
       pageKey: (await context.params).pageKey,
     });
-    return adminSuccess(crypto.randomUUID(), { page });
+    return adminSuccess(parsedRequest.requestId, { page });
   } catch (error) {
-    if (error instanceof SitePageConflictError) return adminFailure(crypto.randomUUID(), 409, "STALE_WRITE", error.message);
-    if (error instanceof SitePageNotFoundError) return adminFailure(crypto.randomUUID(), 404, "NOT_FOUND", error.message);
-    return adminErrorFrom(crypto.randomUUID(), error, "Không thể phát hành page.");
-  }
-}
-
-async function readJson(request: Request): Promise<unknown> {
-  try {
-    return await request.json();
-  } catch {
-    return {};
+    if (error instanceof SitePageConflictError) return adminFailure(parsedRequest.requestId, 409, "STALE_WRITE", error.message);
+    if (error instanceof SitePageNotFoundError) return adminFailure(parsedRequest.requestId, 404, "NOT_FOUND", error.message);
+    return adminErrorFrom(parsedRequest.requestId, error, "Không thể phát hành page.");
   }
 }
 

@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import test from "node:test";
 import {
   adminJsonBodyLimit,
@@ -54,4 +55,21 @@ test("admin request IDs are UUIDs and request bodies can be exact-key checked", 
   assert.equal(isAdminRequestId("not-a-request-id"), false);
   assert.equal(hasOnlyKeys({ requestId: "id", key: "brand_name" }, ["requestId", "key"]), true);
   assert.equal(hasOnlyKeys({ requestId: "id", unexpected: true }, ["requestId", "key"]), false);
+});
+
+test("page and navigation admin JSON writes use the bounded request parser", async () => {
+  const routeFiles = [
+    "../src/app/api/admin/navigation/route.ts",
+    "../src/app/api/admin/navigation/[id]/route.ts",
+    "../src/app/api/admin/navigation/[id]/publish/route.ts",
+    "../src/app/api/admin/pages/route.ts",
+    "../src/app/api/admin/pages/[pageKey]/route.ts",
+    "../src/app/api/admin/pages/[pageKey]/publish/route.ts",
+  ];
+
+  for (const routeFile of routeFiles) {
+    const source = await readFile(new URL(routeFile, import.meta.url), "utf8");
+    assert.match(source, /readBoundedAdminJson/, routeFile);
+    assert.doesNotMatch(source, /request\.json\(\)/, routeFile);
+  }
 });

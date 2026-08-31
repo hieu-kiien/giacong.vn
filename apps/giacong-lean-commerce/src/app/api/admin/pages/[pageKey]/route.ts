@@ -2,6 +2,7 @@ import { adminFailure, adminSuccess } from "@/lib/admin-api.ts";
 import { adminErrorFrom } from "@/lib/admin-error-mapping.ts";
 import { requireAdmin } from "@/lib/admin-guard";
 import { canManagePages } from "@/lib/admin-permissions.ts";
+import { readBoundedAdminJson } from "@/lib/admin-request";
 import {
   getAdminSitePage,
   SitePageConflictError,
@@ -35,7 +36,9 @@ export async function PATCH(request: Request, context: RouteContext): Promise<Re
   if (!canManagePages(guard.member.role)) {
     return adminFailure(crypto.randomUUID(), 403, "FORBIDDEN", "Vai trò hiện tại không được sửa page.");
   }
-  const body = await readJson(request);
+  const parsedRequest = await readBoundedAdminJson(request);
+  if (!parsedRequest.ok) return adminFailure(parsedRequest.requestId, parsedRequest.status, parsedRequest.code, parsedRequest.message);
+  const body = parsedRequest.body;
   if (
     !isRecord(body)
     || !Array.isArray(body.blocks)
@@ -45,7 +48,7 @@ export async function PATCH(request: Request, context: RouteContext): Promise<Re
     || typeof body.seoTitle !== "string"
     || typeof body.seoDescription !== "string"
   ) {
-    return adminFailure(crypto.randomUUID(), 422, "VALIDATION_ERROR", "Cần blocks, draftEnabled, expectedVersion và SEO hợp lệ.");
+    return adminFailure(parsedRequest.requestId, 422, "VALIDATION_ERROR", "Cần blocks, draftEnabled, expectedVersion và SEO hợp lệ.");
   }
   try {
     const page = await updateAdminSitePage(guard.database, {
@@ -57,7 +60,7 @@ export async function PATCH(request: Request, context: RouteContext): Promise<Re
       seoDescription: body.seoDescription,
       seoTitle: body.seoTitle,
     });
-    return adminSuccess(crypto.randomUUID(), { page });
+    return adminSuccess(parsedRequest.requestId, { page });
   } catch (error) {
     return pageFailure(error, "Không thể lưu page.");
   }
@@ -68,14 +71,6 @@ function pageFailure(error: unknown, fallbackMessage: string): Response {
   if (error instanceof SitePageNotFoundError) return adminFailure(crypto.randomUUID(), 404, "NOT_FOUND", error.message);
   if (error instanceof SitePageValidationError) return adminFailure(crypto.randomUUID(), 422, "VALIDATION_ERROR", error.message);
   return adminErrorFrom(crypto.randomUUID(), error, fallbackMessage);
-}
-
-async function readJson(request: Request): Promise<unknown> {
-  try {
-    return await request.json();
-  } catch {
-    return {};
-  }
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
