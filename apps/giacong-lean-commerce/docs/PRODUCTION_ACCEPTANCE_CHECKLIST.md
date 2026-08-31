@@ -110,6 +110,7 @@ Lưu ý: demo staging KHÔNG được seed sang production. Khách tự thao tá
 - [x] Khóa staging admin bằng Cloudflare Access: commit `41f65eb`, version `11eb20a9-69c8-4dbd-884e-b65aa31d2d93` promote 100%; request không có identity bị chặn, storefront staging vẫn public và 5 route smoke pass.
 - [x] Blocked admin screen có nút `Đăng nhập Cloudflare Access`: commit `d6bfb43`, version `a772e2d3-06b6-4046-bf0f-36f6ed5b2329` promote 100%; browser snapshot xác nhận href login chuẩn.
 - [x] Login handoff được sửa để reload `/admin` và dùng edge redirect chuẩn (không dùng endpoint 404): commit `4d090b4`, version `0d73b4ce-ef7f-4f52-a3b0-63ecb7e3e90d` promote 100%; probe không identity nhận 302 tới Access.
+- [x] Public staging deep QA revalidation 2026-09-01 trên đúng host `staging.kienhieu.id.vn`: 3 viewport × 4 route, catalog search/sort, mobile detail, cart localStorage/read-back và keyboard đều pass; commit `b45dede` loại race condition do chờ cứng 800 ms trong harness.
 - [ ] Staging runtime read-back cho member/lead/media audit, R2 compensation/reference guard và retry cùng `requestId`.
 - [ ] Admin session/audit read-back bằng Access identity thật trên hostname staging.
 - [ ] Browser admin desktop/mobile/keyboard/focus/reduced-motion với Access identity thật.

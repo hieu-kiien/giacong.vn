@@ -392,3 +392,18 @@ restore/rollback drill, observability 24h và quyết định redirect
   `jolly-brook-7bc8.cloudflareaccess.com`, còn storefront `/` nhận HTTP 200.
 - In-app browser hiện không hoàn tất được trang Access; không nhập credential
   hoặc OTP thay chủ dự án.
+
+## Public staging deep QA revalidation — 2026-09-01
+
+- Host public đúng của storefront staging là `staging.kienhieu.id.vn`; host
+  `admin-staging.kienhieu.id.vn` là boundary nội bộ riêng và được Access bảo vệ
+  toàn host. Không dùng admin host để suy ra public storefront.
+- Deep QA read-only trên public host đã pass: 3 viewport mobile/tablet/desktop ×
+  4 route, no-horizontal-overflow, catalog search/sort, mobile product detail,
+  cart localStorage, cart line read-back và keyboard reachability.
+- Lượt đầu lộ race condition trong harness vì chờ cứng 800 ms trước khi đọc dòng
+  cart; commit `b45dede` đổi sang chờ selector thực tế. Test contract đỏ → xanh,
+  sau đó `DEEP QA PASSED`. Không có D1/R2 mutation.
+- Access host không có identity vẫn nhận HTTP 302 tới team Access; browser tab
+  hiện vẫn ở màn hình yêu cầu đăng nhập. Role matrix và authenticated
+  write/read-back vì thế chưa thể đóng.
