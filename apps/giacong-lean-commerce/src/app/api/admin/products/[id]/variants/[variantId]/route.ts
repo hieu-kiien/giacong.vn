@@ -7,6 +7,7 @@ import {
 import { adminErrorFrom } from "@/lib/admin-error-mapping.ts";
 import { requireAdmin } from "@/lib/admin-guard";
 import { canManageCatalog } from "@/lib/admin-permissions.ts";
+import { readBoundedAdminJson } from "@/lib/admin-request";
 import { parseAdminVariantPayload, variantDefaults } from "@/lib/admin-variant-input";
 
 export const dynamic = "force-dynamic";
@@ -40,22 +41,24 @@ export async function PATCH(request: Request, context: RouteContext): Promise<Re
   if (!ids) return adminFailure(crypto.randomUUID(), 404, "NOT_FOUND", "Không tìm thấy variant.");
   const existing = await getAdminProductVariant(guard.database, ids.productId, ids.variantId);
   if (!existing) return adminFailure(crypto.randomUUID(), 404, "NOT_FOUND", "Không tìm thấy variant.");
-  const parsed = parseAdminVariantPayload(await readJson(request), variantDefaults(existing));
+  const parsedRequest = await readBoundedAdminJson(request);
+  if (!parsedRequest.ok) return adminFailure(parsedRequest.requestId, parsedRequest.status, parsedRequest.code, parsedRequest.message);
+  const parsed = parseAdminVariantPayload(parsedRequest.body, variantDefaults(existing));
   if (!parsed.input) {
-    return adminFailure(crypto.randomUUID(), 422, "VALIDATION_ERROR", "Dữ liệu variant chưa hợp lệ.", parsed.fieldErrors);
+    return adminFailure(parsedRequest.requestId, 422, "VALIDATION_ERROR", "Dữ liệu variant chưa hợp lệ.", parsed.fieldErrors);
   }
 
   try {
     const variant = await updateAdminProductVariant(guard.database, ids.productId, ids.variantId, parsed.input, guard.actorSubject);
     return variant
-      ? adminSuccess(crypto.randomUUID(), { variant })
-      : adminFailure(crypto.randomUUID(), 404, "NOT_FOUND", "Không tìm thấy variant.");
+      ? adminSuccess(parsedRequest.requestId, { variant })
+      : adminFailure(parsedRequest.requestId, 404, "NOT_FOUND", "Không tìm thấy variant.");
   } catch (error) {
     const stale = error instanceof Error && /đã thay đổi|stale/i.test(error.message);
     if (stale) {
-      return adminFailure(crypto.randomUUID(), 409, "STALE_WRITE", "Dữ liệu đã được người khác cập nhật. Hãy tải lại rồi thử lại.");
+      return adminFailure(parsedRequest.requestId, 409, "STALE_WRITE", "Dữ liệu đã được người khác cập nhật. Hãy tải lại rồi thử lại.");
     }
-    return adminErrorFrom(crypto.randomUUID(), error, "Không thể cập nhật variant.", { fieldErrors: { sku: "SKU đã tồn tại." } });
+    return adminErrorFrom(parsedRequest.requestId, error, "Không thể cập nhật variant.", { fieldErrors: { sku: "SKU đã tồn tại." } });
   }
 }
 
@@ -84,12 +87,4 @@ async function parseIds(context: RouteContext): Promise<{ productId: number; var
   return Number.isInteger(productId) && productId > 0 && Number.isInteger(variantId) && variantId > 0
     ? { productId, variantId }
     : null;
-}
-
-async function readJson(request: Request): Promise<unknown> {
-  try {
-    return await request.json();
-  } catch {
-    return {};
-  }
 }

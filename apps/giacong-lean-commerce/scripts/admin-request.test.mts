@@ -91,3 +91,18 @@ test("member, lead, service and media JSON writes use the bounded request parser
     assert.doesNotMatch(source, /request\.json\(\)/, routeFile);
   }
 });
+
+test("product and variant JSON writes use the bounded request parser", async () => {
+  const routeFiles = [
+    "../src/app/api/admin/products/route.ts",
+    "../src/app/api/admin/products/[id]/route.ts",
+    "../src/app/api/admin/products/[id]/variants/route.ts",
+    "../src/app/api/admin/products/[id]/variants/[variantId]/route.ts",
+  ];
+
+  for (const routeFile of routeFiles) {
+    const source = await readFile(new URL(routeFile, import.meta.url), "utf8");
+    assert.match(source, /readBoundedAdminJson/, routeFile);
+    assert.doesNotMatch(source, /request\.json\(\)/, routeFile);
+  }
+});

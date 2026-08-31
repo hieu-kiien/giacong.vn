@@ -8,6 +8,7 @@ import {
 } from "@/lib/admin-data";
 import { requireAdmin } from "@/lib/admin-guard";
 import { canManageCatalog } from "@/lib/admin-permissions.ts";
+import { readBoundedAdminJson } from "@/lib/admin-request";
 import { parseAdminProductPayload } from "@/lib/admin-product-input";
 
 export const dynamic = "force-dynamic";
@@ -51,14 +52,15 @@ export async function POST(request: Request): Promise<Response> {
     return adminFailure(crypto.randomUUID(), 403, "FORBIDDEN", "Vai trò hiện tại không được tạo sản phẩm.");
   }
 
-  const payload = await readJson(request);
-  const parsed = parseAdminProductPayload(payload);
+  const parsedRequest = await readBoundedAdminJson(request);
+  if (!parsedRequest.ok) return adminFailure(parsedRequest.requestId, parsedRequest.status, parsedRequest.code, parsedRequest.message);
+  const parsed = parseAdminProductPayload(parsedRequest.body);
   if (!parsed.input) {
-    return adminFailure(crypto.randomUUID(), 422, "VALIDATION_ERROR", "Dữ liệu sản phẩm chưa hợp lệ.", parsed.fieldErrors);
+    return adminFailure(parsedRequest.requestId, 422, "VALIDATION_ERROR", "Dữ liệu sản phẩm chưa hợp lệ.", parsed.fieldErrors);
   }
   if (parsed.input.status === "published") {
     return adminFailure(
-      crypto.randomUUID(),
+      parsedRequest.requestId,
       422,
       "VALIDATION_ERROR",
       "Sản phẩm mới cần được tạo ở draft trước khi thêm và kiểm tra variants.",
@@ -68,20 +70,12 @@ export async function POST(request: Request): Promise<Response> {
 
   try {
     const product = await createAdminProduct(guard.database, parsed.input, guard.actorSubject);
-    return adminSuccess(crypto.randomUUID(), { product }, 201);
+    return adminSuccess(parsedRequest.requestId, { product }, 201);
   } catch (error) {
-    return adminErrorFrom(crypto.randomUUID(), error, "Không thể tạo sản phẩm.", {
+    return adminErrorFrom(parsedRequest.requestId, error, "Không thể tạo sản phẩm.", {
       fieldErrors: { slug: "Slug hoặc SKU đã tồn tại." },
       message: "Slug hoặc SKU đã tồn tại.",
     });
-  }
-}
-
-async function readJson(request: Request): Promise<unknown> {
-  try {
-    return await request.json();
-  } catch {
-    return {};
   }
 }
 

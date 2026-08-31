@@ -8,6 +8,7 @@ import {
 import { adminErrorFrom } from "@/lib/admin-error-mapping.ts";
 import { requireAdmin } from "@/lib/admin-guard";
 import { canManageCatalog } from "@/lib/admin-permissions.ts";
+import { readBoundedAdminJson } from "@/lib/admin-request";
 import { parseAdminProductPayload, productDefaults } from "@/lib/admin-product-input";
 
 export const dynamic = "force-dynamic";
@@ -50,9 +51,11 @@ export async function PATCH(
   const existing = await getAdminProduct(guard.database, id);
   if (!existing) return adminFailure(crypto.randomUUID(), 404, "NOT_FOUND", "Không tìm thấy sản phẩm.");
 
-  const parsed = parseAdminProductPayload(await readJson(request), productDefaults(existing));
+  const parsedRequest = await readBoundedAdminJson(request);
+  if (!parsedRequest.ok) return adminFailure(parsedRequest.requestId, parsedRequest.status, parsedRequest.code, parsedRequest.message);
+  const parsed = parseAdminProductPayload(parsedRequest.body, productDefaults(existing));
   if (!parsed.input) {
-    return adminFailure(crypto.randomUUID(), 422, "VALIDATION_ERROR", "Dữ liệu sản phẩm chưa hợp lệ.", parsed.fieldErrors);
+    return adminFailure(parsedRequest.requestId, 422, "VALIDATION_ERROR", "Dữ liệu sản phẩm chưa hợp lệ.", parsed.fieldErrors);
   }
 
   try {
@@ -60,7 +63,7 @@ export async function PATCH(
       const variantValidation = await validateAdminProductVariants(guard.database, id);
       if (!variantValidation.valid) {
         return adminFailure(
-          crypto.randomUUID(),
+          parsedRequest.requestId,
           422,
           "VALIDATION_ERROR",
           "Không thể publish sản phẩm vì variants chưa hợp lệ.",
@@ -72,10 +75,10 @@ export async function PATCH(
     }
     const product = await updateAdminProduct(guard.database, id, parsed.input, guard.actorSubject);
     return product
-      ? adminSuccess(crypto.randomUUID(), { product })
-      : adminFailure(crypto.randomUUID(), 404, "NOT_FOUND", "Không tìm thấy sản phẩm.");
+      ? adminSuccess(parsedRequest.requestId, { product })
+      : adminFailure(parsedRequest.requestId, 404, "NOT_FOUND", "Không tìm thấy sản phẩm.");
   } catch (error) {
-    return adminErrorFrom(crypto.randomUUID(), error, "Không thể cập nhật sản phẩm.", { fieldErrors: { slug: "Slug hoặc SKU đã tồn tại." } });
+    return adminErrorFrom(parsedRequest.requestId, error, "Không thể cập nhật sản phẩm.", { fieldErrors: { slug: "Slug hoặc SKU đã tồn tại." } });
   }
 }
 
@@ -106,12 +109,4 @@ async function parseId(context: ProductRouteContext): Promise<number | null> {
   const { id } = await context.params;
   const parsed = Number(id);
   return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
-}
-
-async function readJson(request: Request): Promise<unknown> {
-  try {
-    return await request.json();
-  } catch {
-    return {};
-  }
 }
