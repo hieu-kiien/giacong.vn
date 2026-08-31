@@ -7,6 +7,7 @@ dist/
 
 # Runtime & Temp files
 .runtime/
+.wrangler/
 .codex/
 temp-clean-install-check/
 *.log
