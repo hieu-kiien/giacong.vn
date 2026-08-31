@@ -40,12 +40,29 @@ class FakeAuditStatement implements D1PreparedStatementLike {
     this.query = query;
   }
 
+  private assertD1CompoundSelectLimit(): void {
+    const unionCountsByDepth = new Map<number, number>();
+    let depth = 0;
+    for (let index = 0; index < this.query.length; index += 1) {
+      const character = this.query[index];
+      if (character === "(") depth += 1;
+      if (character === ")") depth -= 1;
+      if (this.query.slice(index, index + 9) === "UNION ALL") {
+        unionCountsByDepth.set(depth, (unionCountsByDepth.get(depth) ?? 0) + 1);
+      }
+    }
+    if ([...unionCountsByDepth.values()].some((unionCount) => unionCount + 1 > 5)) {
+      throw new Error("too many terms in compound SELECT");
+    }
+  }
+
   bind(...values: unknown[]): D1PreparedStatementLike {
     this.values = values;
     return this;
   }
 
   async first<T>(): Promise<T | null> {
+    this.assertD1CompoundSelectLimit();
     if (this.query.includes("sqlite_master")) {
       const tableName = String(this.values[0]);
       return (this.database.tables.has(tableName) ? { name: tableName } : null) as T | null;
@@ -55,6 +72,7 @@ class FakeAuditStatement implements D1PreparedStatementLike {
   }
 
   async all<T>(): Promise<{ results: T[] }> {
+    this.assertD1CompoundSelectLimit();
     if (!this.query.includes("FROM (")) return { results: [] };
     return {
       results: [
@@ -108,7 +126,7 @@ test("audit query parser is bounded and allowlisted", () => {
   assert.ok(ADMIN_AUDIT_ENTITY_TYPES.includes("product"));
 });
 
-test("audit reader merges available tables into a bounded safe view", async () => {
+test("audit reader merges all available tables without exceeding D1 compound SELECT limits", async () => {
   const result = await listAdminAudit(new FakeAuditDatabase(), {
     entityType: undefined,
     page: 1,

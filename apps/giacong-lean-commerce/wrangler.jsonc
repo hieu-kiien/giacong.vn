@@ -89,6 +89,7 @@
   "env": {
     "staging": {
       "name": "giacong-vn-staging",
+      "preview_urls": true,
       "routes": [
         {
           "pattern": "staging.kienhieu.id.vn/*",

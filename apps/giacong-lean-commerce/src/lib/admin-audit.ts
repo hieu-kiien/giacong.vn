@@ -57,6 +57,8 @@ export interface AdminAuditPage {
 export class AdminAuditValidationError extends Error {}
 export class AdminAuditStorageError extends Error {}
 
+const MAX_D1_COMPOUND_SELECT_TERMS = 5;
+
 interface AdminAuditDbRow {
   action: unknown;
   actor_subject: unknown;
@@ -215,7 +217,7 @@ export async function listAdminAudit(database: D1DatabaseLike, query: AdminAudit
 
   if (sources.length === 0) return emptyAuditPage(query);
 
-  const unionQuery = sources.map((source) => source.query).join("\nUNION ALL\n");
+  const unionQuery = buildAuditUnionQuery(sources.map((source) => source.query));
   const filter = buildFilter(query);
   const countQuery = "SELECT COUNT(*) AS count FROM (" + unionQuery + ") AS audit_entries" + filter.sql;
   const rowsQuery = [
@@ -245,6 +247,17 @@ export async function listAdminAudit(database: D1DatabaseLike, query: AdminAudit
     },
     total,
   };
+}
+
+function buildAuditUnionQuery(queries: readonly string[]): string {
+  if (queries.length <= MAX_D1_COMPOUND_SELECT_TERMS) return queries.join("\nUNION ALL\n");
+
+  const groups: string[] = [];
+  for (let index = 0; index < queries.length; index += MAX_D1_COMPOUND_SELECT_TERMS) {
+    const group = buildAuditUnionQuery(queries.slice(index, index + MAX_D1_COMPOUND_SELECT_TERMS));
+    groups.push(`SELECT * FROM (${group}) AS audit_group`);
+  }
+  return buildAuditUnionQuery(groups);
 }
 
 function assertAuditQuery(query: AdminAuditQuery): void {
