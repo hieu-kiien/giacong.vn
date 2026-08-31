@@ -58,8 +58,12 @@ test("category admin surface enforces read capability and deactivation-only remo
   ]);
 
   assert.match(listRoute, /canManage\(guard\.member\.role,\s*"catalog\.read"\)/);
+  assert.match(listRoute, /readBoundedAdminJson/);
+  assert.doesNotMatch(listRoute, /request\.json\(\)/);
   assert.match(detailRoute, /export async function GET/);
   assert.match(detailRoute, /canManage\(guard\.member\.role,\s*"catalog\.read"\)/);
+  assert.match(detailRoute, /readBoundedAdminJson/);
+  assert.doesNotMatch(detailRoute, /request\.json\(\)/);
   assert.doesNotMatch(detailRoute, /deleteAdminCategory|export async function DELETE/);
   assert.match(panel, /method: "PATCH"/);
   assert.doesNotMatch(panel, /method: "DELETE"/);

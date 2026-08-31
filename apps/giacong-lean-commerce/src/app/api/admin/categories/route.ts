@@ -3,6 +3,7 @@ import { adminErrorFrom } from "@/lib/admin-error-mapping.ts";
 import { requireAdmin } from "@/lib/admin-guard";
 import { canManage, canManageCatalog } from "@/lib/admin-permissions.ts";
 import { parseAdminCategoryPayload } from "@/lib/admin-category-input";
+import { readBoundedAdminJson } from "@/lib/admin-request.ts";
 import { createAdminCategory, listAdminCategoryDetails } from "@/lib/admin-data";
 
 export const dynamic = "force-dynamic";
@@ -29,23 +30,19 @@ export async function POST(request: Request): Promise<Response> {
     return adminFailure(crypto.randomUUID(), 403, "FORBIDDEN", "Vai trò hiện tại không được tạo danh mục.");
   }
 
-  let payload: unknown = {};
-  try {
-    payload = await request.json();
-  } catch {
-    return adminFailure(crypto.randomUUID(), 400, "INVALID_REQUEST", "Dữ liệu gửi lên không hợp lệ.");
-  }
+  const parsedRequest = await readBoundedAdminJson(request);
+  if (!parsedRequest.ok) return adminFailure(parsedRequest.requestId, parsedRequest.status, parsedRequest.code, parsedRequest.message);
 
-  const parsed = parseAdminCategoryPayload(payload);
+  const parsed = parseAdminCategoryPayload(parsedRequest.body);
   if (!parsed.input) {
-    return adminFailure(crypto.randomUUID(), 422, "VALIDATION_ERROR", "Dữ liệu danh mục chưa hợp lệ.", parsed.fieldErrors);
+    return adminFailure(parsedRequest.requestId, 422, "VALIDATION_ERROR", "Dữ liệu danh mục chưa hợp lệ.", parsed.fieldErrors);
   }
 
   try {
     const category = await createAdminCategory(guard.database, parsed.input, guard.actorSubject);
-    return adminSuccess(crypto.randomUUID(), { category }, 201);
+    return adminSuccess(parsedRequest.requestId, { category }, 201);
   } catch (error) {
-    return adminErrorFrom(crypto.randomUUID(), error, "Không thể tạo danh mục.", {
+    return adminErrorFrom(parsedRequest.requestId, error, "Không thể tạo danh mục.", {
       fieldErrors: { slug: "Slug danh mục đã tồn tại." },
       message: "Slug danh mục đã tồn tại.",
     });

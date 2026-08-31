@@ -7,6 +7,7 @@ import { adminErrorFrom } from "@/lib/admin-error-mapping.ts";
 import { requireAdmin } from "@/lib/admin-guard";
 import { canManage, canManageCatalog } from "@/lib/admin-permissions.ts";
 import { parseAdminCategoryPayload } from "@/lib/admin-category-input";
+import { readBoundedAdminJson } from "@/lib/admin-request.ts";
 
 export const dynamic = "force-dynamic";
 
@@ -53,24 +54,21 @@ export async function PATCH(
   const id = await parseId(context);
   if (id === null) return adminFailure(crypto.randomUUID(), 404, "NOT_FOUND", "Không tìm thấy danh mục.");
 
-  let payload: Record<string, unknown> = {};
-  try {
-    const body: unknown = await request.json();
-    payload = typeof body === "object" && body !== null && !Array.isArray(body)
-      ? body as Record<string, unknown>
-      : {};
-  } catch {
-    return adminFailure(crypto.randomUUID(), 400, "INVALID_REQUEST", "Dữ liệu gửi lên không hợp lệ.");
-  }
+  const parsedRequest = await readBoundedAdminJson(request);
+  if (!parsedRequest.ok) return adminFailure(parsedRequest.requestId, parsedRequest.status, parsedRequest.code, parsedRequest.message);
+  const payload: Record<string, unknown> = typeof parsedRequest.body === "object"
+    && parsedRequest.body !== null && !Array.isArray(parsedRequest.body)
+    ? parsedRequest.body as Record<string, unknown>
+    : {};
 
   const expectedRevision = Number(payload.revision);
   if (!Number.isInteger(expectedRevision) || expectedRevision < 1) {
-    return adminFailure(crypto.randomUUID(), 409, "STALE_WRITE", "Thiếu phiên bản dữ liệu (revision). Hãy tải lại danh mục rồi lưu lại.");
+    return adminFailure(parsedRequest.requestId, 409, "STALE_WRITE", "Thiếu phiên bản dữ liệu (revision). Hãy tải lại danh mục rồi lưu lại.");
   }
 
   const parsed = parseAdminCategoryPayload(payload);
   if (!parsed.input) {
-    return adminFailure(crypto.randomUUID(), 422, "VALIDATION_ERROR", "Dữ liệu danh mục chưa hợp lệ.", parsed.fieldErrors);
+    return adminFailure(parsedRequest.requestId, 422, "VALIDATION_ERROR", "Dữ liệu danh mục chưa hợp lệ.", parsed.fieldErrors);
   }
 
   try {
