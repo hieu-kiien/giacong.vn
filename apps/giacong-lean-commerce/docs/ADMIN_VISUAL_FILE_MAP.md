@@ -20,8 +20,8 @@ news-detail hand-off, P4 managed-page hand-off, P5 product bulk import UI và
 product/service/category bulk archive contract đã có trong `master`. Toàn bộ
 admin JSON writes hiện đi qua bounded parser; các admin collection read chính có
 hard bound `LIMIT 100`. Staging đang phục vụ version
-`8eb11c5e-f7bc-4a2f-a37f-2949a3d03541` với rollback point
-`c2d91d94-6737-447d-88b7-991f9808ba3f`; browser/admin identity evidence vẫn là
+`0d1e14c1-ec4d-47db-b0e2-4275f246f919` với rollback point
+`8eb11c5e-f7bc-4a2f-a37f-2949a3d03541`; browser/admin identity evidence vẫn là
 gate riêng.
 
 **Catalog contract slice 2026-08-31:** product/variant single-row
@@ -55,9 +55,12 @@ owner cuối cùng/tự khóa tài khoản; lead write ghi `lead_events` và mar
 request chống stale batch; media write
 ghép D1 audit với R2 compensation/reference guard. Migrations `0013–0016` đã
 chạy thành công trên SQLite local; marker lead chống stale batch đã được kiểm
-chứng; admin suite hiện `157/157`, lint, typecheck
-và build exit code `0`. Slice này chưa được tính là staging evidence cho tới khi
-migration/deploy mới được promote; worktree frontend motion vẫn độc lập.
+chứng; admin suite hiện `157/157`, lint, typecheck và build exit code `0`.
+Migrations đã apply trên local và staging; version
+`0d1e14c1-ec4d-47db-b0e2-4275f246f919` đã được promote 100%, public smoke/deep
+QA sau promotion pass. Runtime write/read-back member/lead/media bằng Access
+identity thật và browser admin vẫn là gate riêng; worktree frontend motion vẫn
+độc lập.
 
 **Checkpoint P3 2026-08-29:** contract backend news/media đã vào `master`: news
 có snapshot `draft_*` và `published_*`, publish/unpublish riêng, batch status tối

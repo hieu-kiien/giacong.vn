@@ -268,3 +268,26 @@ Checkpoint mới nhất sau commit `853e9f3`:
 Các gate production vẫn giữ nguyên: production migrations chưa apply, dữ liệu
 taxonomy/SKU/media/CMS chưa được duyệt, chưa có restore/rollback drill,
 observability 24h và quyết định redirect `giacong.vn`.
+
+## Staging admin release follow-up — 2026-08-31 (member/lead/media contract)
+
+Checkpoint sau commit `b28515d`:
+
+- Worker staging version `0d1e14c1-ec4d-47db-b0e2-4275f246f919` đã được upload
+  và promotion có kiểm soát lên 100%; version
+  `8eb11c5e-f7bc-4a2f-a37f-2949a3d03541` là rollback point. Production Worker,
+  D1 và R2 không bị mutation.
+- D1 staging `giacong-vn-catalog-staging` đã apply migrations `0013–0016`;
+  `d1 migrations list` báo không còn migration pending.
+- `npm run check` trên source commit pass: admin `157/157`, các suite còn lại,
+  lint, typecheck và build exit code `0`. Runtime public smoke/deep QA pass
+  trên staging ở mobile/tablet/desktop, gồm no-overflow, catalog search/sort,
+  cart localStorage và keyboard reachability.
+- Preview workers.dev và admin hostname không có Access identity vẫn bị chặn
+  đúng boundary. Runtime write/read-back member/lead/media, role matrix,
+  browser admin authenticated và reduced-motion/focus screenshot evidence vẫn
+  là gate mở.
+
+Production vẫn không bị mutation; các gate production trước đây (dữ liệu thật,
+restore/rollback drill, observability 24h và quyết định redirect
+`giacong.vn`) giữ nguyên.

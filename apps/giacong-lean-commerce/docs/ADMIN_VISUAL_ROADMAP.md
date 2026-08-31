@@ -462,6 +462,15 @@ staging QA đều pass. Admin host không có Access identity vẫn redirect 302
 role matrix, authenticated browser QA và admin write/read-back chưa được đánh
 đồng là đã đạt.
 
+**Runtime update 2026-08-31 (member/lead/media contract):** version staging
+`0d1e14c1-ec4d-47db-b0e2-4275f246f919` đã được upload và promotion 100%; version
+`8eb11c5e-f7bc-4a2f-a37f-2949a3d03541` là rollback point. Migrations
+`0013–0016` đã apply trên D1 staging và không còn pending; public route smoke,
+responsive deep QA và local `npm run check` (`157/157` admin) đều pass. Preview
+workers.dev và admin hostname vẫn chịu Access khi không có identity hợp lệ; vì
+vậy runtime write/read-back member/lead/media, role matrix và browser admin
+desktop/mobile/keyboard/focus/reduced-motion vẫn chưa được đánh dấu đạt.
+
 **Công việc:**
 
 - audit/history/revision hiển thị đủ để biết ai đổi gì, lúc nào, từ bản nào;
