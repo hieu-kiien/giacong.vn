@@ -225,9 +225,20 @@ function AdminAccessScreen({ status, error, onRetry }: { status: "blocked" | "un
         <div className="admin-access-detail">
           {error?.code ? `${error.code} · ` : ""}{error?.message ?? "Không nhận được phản hồi từ API session."}
         </div>
-        <button className="admin-button admin-button-primary" data-testid="button-retry-admin-session" onClick={onRetry} type="button">
-          Thử kiểm tra lại
-        </button>
+        <div className="admin-editor-actions">
+          {isBlocked ? (
+            <a
+              className="admin-button admin-button-primary"
+              data-testid="link-admin-access-login"
+              href="/cdn-cgi/access/login?redirect_url=%2Fadmin"
+            >
+              Đăng nhập Cloudflare Access
+            </a>
+          ) : null}
+          <button className="admin-button admin-button-quiet" data-testid="button-retry-admin-session" onClick={onRetry} type="button">
+            Thử kiểm tra lại
+          </button>
+        </div>
       </section>
     </div>
   );

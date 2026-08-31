@@ -81,3 +81,10 @@ test("the shell groups routes in plain-language control-plane sections", async (
   assert.match(shell, /aria-current=\{pathname === href \|\| pathname\.startsWith\(\`\$\{href\}\/\`\)/);
   assert.match(shell, /Lịch sử thay đổi/);
 });
+
+test("blocked admin sessions offer a direct Cloudflare Access login handoff", async () => {
+  const shell = await readSource("components", "admin", "AdminShell.tsx");
+
+  assert.match(shell, /cdn-cgi\/access\/login\?redirect_url=%2Fadmin/);
+  assert.match(shell, /Đăng nhập Cloudflare Access/);
+});
