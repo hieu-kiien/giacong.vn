@@ -319,6 +319,16 @@ restore/rollback drill, observability 24h và quyết định redirect
   error/warning.
 - Đây là acceptance cho renderer footer và không thực hiện production mutation.
 
+## Production gate read-only audit — 2026-08-31
+
+- `npx wrangler d1 migrations list giacong-vn-catalog --remote` báo còn pending
+  các migration `0009_admin_control_plane.sql` đến
+  `0016_admin_lead_request_marker.sql`.
+- Vì vậy production control plane chưa đủ schema cho các capability admin mới.
+  Đợt audit này không apply migration, không ghi D1/R2 và không deploy Worker
+  production; cần backup/rollback window và production data acceptance trước khi
+  thực hiện.
+
 ## Staging admin browser verification — 2026-08-31
 
 - Worker version `a22e9ecb-e1f6-4966-b96b-e2883d138fb1` là phiên bản admin

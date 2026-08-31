@@ -59,10 +59,10 @@ Lưu ý: demo staging KHÔNG được seed sang production. Khách tự thao tá
 
 > Phạm vi lịch sử của các mục `[x]` trên chỉ gồm migrations `0004/0007/0008`
 > và đợt seed đã được ghi nhận. Read-only audit ngày 2026-08-31 cho thấy
-> production vẫn còn `0009–0012` chưa apply; không tự thay đổi production khi
+> production vẫn còn `0009–0016` chưa apply; không tự thay đổi production khi
 > các gate dữ liệu thật, Access role matrix và restore/rollback drill còn mở.
 
-- [ ] Apply và verify production migrations `0009–0012` sau khi có production
+- [ ] Apply và verify production migrations `0009–0016` sau khi có production
   acceptance/backup/rollback window được phê duyệt.
 
 ## 6. Promotion production — ĐÃ ĐÓNG (2026-08-25)
@@ -100,6 +100,7 @@ Lưu ý: demo staging KHÔNG được seed sang production. Khách tự thao tá
 - [x] Follow-up storefront staging version `ec0522c7-2840-4118-a7fb-0740c5d7c91e` promotion 100%; rollback point `a5534149-5af4-415b-8e2d-947a0a995016`; slider dots visible và click `Nội dung 2` chuyển `sliderIndex=1`, console không có error/warning.
 - [x] Follow-up footer settings staging version `cd4a973e-6fde-4538-b66b-04d3fadbb02d` promotion 100%; rollback point `ec0522c7-2840-4118-a7fb-0740c5d7c91e`; footer description/address/copyright đọc đúng từ DOM, không có script và console không có error/warning.
 - [x] Public staging smoke sau footer follow-up: `/`, `/san-pham/`, `/tin-tuc/`, `/gui-yeu-cau/`, `/thue-gia-cong/` đều có `main`/`footer`, public không có admin control và console không có error/warning.
+- [x] Production read-only audit: `d1 migrations list giacong-vn-catalog --remote` xác nhận pending `0009–0016`; không apply migration, không ghi D1/R2 và không deploy production trong đợt này.
 - [ ] Staging runtime read-back cho member/lead/media audit, R2 compensation/reference guard và retry cùng `requestId`.
 - [ ] Admin session/audit read-back bằng Access identity thật trên hostname staging.
 - [ ] Browser admin desktop/mobile/keyboard/focus/reduced-motion với Access identity thật.
