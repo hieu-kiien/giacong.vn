@@ -3,6 +3,7 @@ import { updateAdminLeadStatus, type LeadStatus } from "@/lib/admin-data";
 import { adminErrorFrom } from "@/lib/admin-error-mapping.ts";
 import { requireAdmin } from "@/lib/admin-guard";
 import { canManageLeads } from "@/lib/admin-permissions.ts";
+import { readBoundedAdminJson } from "@/lib/admin-request";
 
 export const dynamic = "force-dynamic";
 
@@ -32,13 +33,15 @@ export async function PATCH(request: Request, context: LeadRouteContext): Promis
   const { id } = await context.params;
   if (!isLeadId(id)) return adminFailure(crypto.randomUUID(), 404, "NOT_FOUND", "Không tìm thấy lead.");
 
-  const payload = await readJson(request);
+  const parsedRequest = await readBoundedAdminJson(request);
+  if (!parsedRequest.ok) return adminFailure(parsedRequest.requestId, parsedRequest.status, parsedRequest.code, parsedRequest.message);
+  const payload = parsedRequest.body;
   const status = isRecord(payload) && typeof payload.status === "string"
     ? payload.status as LeadStatus
     : null;
   if (!status || !leadStatuses.has(status)) {
     return adminFailure(
-      crypto.randomUUID(),
+      parsedRequest.requestId,
       422,
       "VALIDATION_ERROR",
       "Trạng thái lead không hợp lệ.",
@@ -49,7 +52,7 @@ export async function PATCH(request: Request, context: LeadRouteContext): Promis
   try {
     const lead = await updateAdminLeadStatus(guard.database, id, status, guard.actorSubject);
     return lead
-      ? adminSuccess(crypto.randomUUID(), { lead })
+      ? adminSuccess(parsedRequest.requestId, { lead })
       : adminFailure(crypto.randomUUID(), 404, "NOT_FOUND", "Không tìm thấy lead.");
   } catch (error) {
     return adminErrorFrom(crypto.randomUUID(), error, "Không thể cập nhật trạng thái lead.");
@@ -58,14 +61,6 @@ export async function PATCH(request: Request, context: LeadRouteContext): Promis
 
 function isLeadId(value: string): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
-}
-
-async function readJson(request: Request): Promise<unknown> {
-  try {
-    return await request.json();
-  } catch {
-    return {};
-  }
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

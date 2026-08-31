@@ -3,6 +3,7 @@ import { createAdminService, listAdminServices } from "@/lib/admin-data";
 import { adminErrorFrom } from "@/lib/admin-error-mapping.ts";
 import { requireAdmin } from "@/lib/admin-guard";
 import { canManageServices } from "@/lib/admin-permissions.ts";
+import { readBoundedAdminJson } from "@/lib/admin-request";
 import { parseAdminServicePayload } from "@/lib/admin-service-input";
 
 export const dynamic = "force-dynamic";
@@ -42,13 +43,15 @@ export async function POST(request: Request): Promise<Response> {
     return adminFailure(crypto.randomUUID(), 403, "FORBIDDEN", "Vai trò hiện tại không được tạo dịch vụ.");
   }
 
-  const parsed = parseAdminServicePayload(await readJson(request));
+  const parsedRequest = await readBoundedAdminJson(request);
+  if (!parsedRequest.ok) return adminFailure(parsedRequest.requestId, parsedRequest.status, parsedRequest.code, parsedRequest.message);
+  const parsed = parseAdminServicePayload(parsedRequest.body);
   if (!parsed.input) {
-    return adminFailure(crypto.randomUUID(), 422, "VALIDATION_ERROR", "Dữ liệu dịch vụ chưa hợp lệ.", parsed.fieldErrors);
+    return adminFailure(parsedRequest.requestId, 422, "VALIDATION_ERROR", "Dữ liệu dịch vụ chưa hợp lệ.", parsed.fieldErrors);
   }
   if (parsed.input.status === "published") {
     return adminFailure(
-      crypto.randomUUID(),
+      parsedRequest.requestId,
       422,
       "VALIDATION_ERROR",
       "Dịch vụ mới cần được tạo ở draft trước khi phát hành.",
@@ -58,7 +61,7 @@ export async function POST(request: Request): Promise<Response> {
 
   try {
     const service = await createAdminService(guard.database, parsed.input, guard.actorSubject);
-    return adminSuccess(crypto.randomUUID(), { service }, 201);
+    return adminSuccess(parsedRequest.requestId, { service }, 201);
   } catch (error) {
     return adminErrorFrom(crypto.randomUUID(), error, "Không thể tạo dịch vụ.", { fieldErrors: { slug: "Slug đã tồn tại." } });
   }
@@ -67,12 +70,4 @@ export async function POST(request: Request): Promise<Response> {
 function parsePositiveInt(value: string | null, fallback: number): number {
   const parsed = Number(value);
   return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
-}
-
-async function readJson(request: Request): Promise<unknown> {
-  try {
-    return await request.json();
-  } catch {
-    return {};
-  }
 }

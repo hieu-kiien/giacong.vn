@@ -8,6 +8,7 @@ import {
 import { adminErrorFrom } from "@/lib/admin-error-mapping.ts";
 import { requireAdmin } from "@/lib/admin-guard";
 import { canManageServices } from "@/lib/admin-permissions.ts";
+import { readBoundedAdminJson } from "@/lib/admin-request";
 import { parseAdminServicePayload } from "@/lib/admin-service-input";
 
 export const dynamic = "force-dynamic";
@@ -50,16 +51,18 @@ export async function PATCH(
   const existing = await getAdminService(guard.database, id);
   if (!existing) return adminFailure(crypto.randomUUID(), 404, "NOT_FOUND", "Không tìm thấy dịch vụ.");
 
-  const parsed = parseAdminServicePayload(await readJson(request), serviceDefaults(existing));
+  const parsedRequest = await readBoundedAdminJson(request);
+  if (!parsedRequest.ok) return adminFailure(parsedRequest.requestId, parsedRequest.status, parsedRequest.code, parsedRequest.message);
+  const parsed = parseAdminServicePayload(parsedRequest.body, serviceDefaults(existing));
   if (!parsed.input) {
-    return adminFailure(crypto.randomUUID(), 422, "VALIDATION_ERROR", "Dữ liệu dịch vụ chưa hợp lệ.", parsed.fieldErrors);
+    return adminFailure(parsedRequest.requestId, 422, "VALIDATION_ERROR", "Dữ liệu dịch vụ chưa hợp lệ.", parsed.fieldErrors);
   }
 
   try {
     const service = await updateAdminService(guard.database, id, parsed.input, guard.actorSubject);
     return service
-      ? adminSuccess(crypto.randomUUID(), { service })
-      : adminFailure(crypto.randomUUID(), 404, "NOT_FOUND", "Không tìm thấy dịch vụ.");
+      ? adminSuccess(parsedRequest.requestId, { service })
+      : adminFailure(parsedRequest.requestId, 404, "NOT_FOUND", "Không tìm thấy dịch vụ.");
   } catch (error) {
     return adminErrorFrom(crypto.randomUUID(), error, "Không thể cập nhật dịch vụ.", { fieldErrors: { slug: "Slug đã tồn tại." } });
   }
@@ -116,12 +119,4 @@ async function parseId(context: ServiceRouteContext): Promise<number | null> {
   const { id } = await context.params;
   const parsed = Number(id);
   return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
-}
-
-async function readJson(request: Request): Promise<unknown> {
-  try {
-    return await request.json();
-  } catch {
-    return {};
-  }
 }

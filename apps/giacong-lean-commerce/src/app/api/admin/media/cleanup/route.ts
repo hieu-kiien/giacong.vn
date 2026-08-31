@@ -3,6 +3,7 @@ import { adminFailure, adminSuccess } from "@/lib/admin-api.ts";
 import { adminErrorFrom } from "@/lib/admin-error-mapping.ts";
 import { requireAdmin } from "@/lib/admin-guard";
 import { canManageMedia } from "@/lib/admin-permissions.ts";
+import { readBoundedAdminJson } from "@/lib/admin-request";
 import { cleanupOrphanedMediaAssets, type R2BucketLike } from "@/lib/media-data";
 
 export const dynamic = "force-dynamic";
@@ -15,19 +16,22 @@ export async function POST(request: Request): Promise<Response> {
   }
   const bucket = getMediaBucket();
   if (!bucket) return adminFailure(crypto.randomUUID(), 503, "INTERNAL_ERROR", "R2 media chưa sẵn sàng.");
+  const parsedRequest = await readBoundedAdminJson(request);
+  if (!parsedRequest.ok) return adminFailure(parsedRequest.requestId, parsedRequest.status, parsedRequest.code, parsedRequest.message);
   let limit = 100;
-  try {
-    const body = await request.json() as { limit?: unknown };
-    if (typeof body.limit === "number" && Number.isFinite(body.limit)) limit = body.limit;
-  } catch {
-    // Empty body is valid and uses the safe default.
+  if (isRecord(parsedRequest.body) && typeof parsedRequest.body.limit === "number" && Number.isFinite(parsedRequest.body.limit)) {
+    limit = parsedRequest.body.limit;
   }
   try {
     const result = await cleanupOrphanedMediaAssets(guard.database, bucket, limit);
-    return adminSuccess(crypto.randomUUID(), result);
+    return adminSuccess(parsedRequest.requestId, result);
   } catch (error) {
     return adminErrorFrom(crypto.randomUUID(), error, "Không thể cleanup media.");
   }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function getMediaBucket(): R2BucketLike | null {

@@ -3,6 +3,7 @@ import { adminFailure, adminSuccess } from "@/lib/admin-api.ts";
 import { adminErrorFrom } from "@/lib/admin-error-mapping.ts";
 import { requireAdmin } from "@/lib/admin-guard";
 import { canManageMedia } from "@/lib/admin-permissions.ts";
+import { readBoundedAdminJson } from "@/lib/admin-request";
 import { deleteMediaAsset, MediaReferenceError, updateMediaAssetAltText, type R2BucketLike } from "@/lib/media-data";
 
 export const dynamic = "force-dynamic";
@@ -47,18 +48,15 @@ export async function PATCH(request: Request, context: RouteContext): Promise<Re
   }
   const id = (await context.params).id;
   if (!isUuid(id)) return adminFailure(crypto.randomUUID(), 404, "NOT_FOUND", "Không tìm thấy media.");
-  let body: unknown;
-  try {
-    body = await request.json();
-  } catch {
-    return adminFailure(crypto.randomUUID(), 422, "VALIDATION_ERROR", "Dữ liệu media không hợp lệ.");
-  }
+  const parsedRequest = await readBoundedAdminJson(request);
+  if (!parsedRequest.ok) return adminFailure(parsedRequest.requestId, parsedRequest.status, parsedRequest.code, parsedRequest.message);
+  const body = parsedRequest.body;
   if (!body || typeof body !== "object" || Array.isArray(body) || !("altText" in body)) {
-    return adminFailure(crypto.randomUUID(), 422, "VALIDATION_ERROR", "Cần altText.");
+    return adminFailure(parsedRequest.requestId, 422, "VALIDATION_ERROR", "Cần altText.");
   }
   const rawAltText = (body as { altText?: unknown }).altText;
   if (rawAltText !== null && typeof rawAltText !== "string") {
-    return adminFailure(crypto.randomUUID(), 422, "VALIDATION_ERROR", "altText phải là chuỗi hoặc null.");
+    return adminFailure(parsedRequest.requestId, 422, "VALIDATION_ERROR", "altText phải là chuỗi hoặc null.");
   }
   const media = await updateMediaAssetAltText(
     guard.database,
@@ -66,8 +64,8 @@ export async function PATCH(request: Request, context: RouteContext): Promise<Re
     typeof rawAltText === "string" ? rawAltText.trim().slice(0, 300) || null : null,
   );
   return media
-    ? adminSuccess(crypto.randomUUID(), { media })
-    : adminFailure(crypto.randomUUID(), 404, "NOT_FOUND", "Không tìm thấy media đang hoạt động.");
+    ? adminSuccess(parsedRequest.requestId, { media })
+    : adminFailure(parsedRequest.requestId, 404, "NOT_FOUND", "Không tìm thấy media đang hoạt động.");
 }
 
 function isUuid(value: string): boolean {
