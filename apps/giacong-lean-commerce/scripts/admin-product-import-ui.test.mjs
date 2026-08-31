@@ -40,3 +40,9 @@ test("product page integrates bulk import without changing the API surface", asy
   assert.match(page, /onImported/);
   await access(componentPath);
 });
+
+test("product import sample cannot create page-level horizontal overflow", async () => {
+  const styles = await readFile(new URL("../src/styles/admin.css", import.meta.url), "utf8");
+
+  assert.match(styles, /\.admin-import-sample\s*\{[\s\S]*display:\s*block;[\s\S]*max-width:\s*100%;[\s\S]*overflow-wrap:\s*anywhere;[\s\S]*white-space:\s*pre-wrap;/);
+});

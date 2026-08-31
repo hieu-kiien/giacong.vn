@@ -398,6 +398,14 @@
   .admin-content-preview-note { color: #a8bba9; font-size: 11px; line-height: 1.45; margin: 13px 1px 0; }
   .admin-content-skeleton { height: 500px; }
 
+  .admin-import-sample {
+    display: block;
+    max-width: 100%;
+    overflow-x: auto;
+    overflow-wrap: anywhere;
+    white-space: pre-wrap;
+  }
+
   .admin-state {
     align-items: flex-start;
     background: var(--admin-surface);
