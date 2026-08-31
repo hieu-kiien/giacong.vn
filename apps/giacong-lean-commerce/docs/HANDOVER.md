@@ -1,6 +1,6 @@
 # Bàn giao vận hành — giacong.vn trên kienhieu.id.vn
 
-Tài liệu dành cho người vận hành (khách + chủ dự án). Quyết định kiến trúc xem [CLOUDFLARE_DEPLOYMENT.md](./CLOUDFLARE_DEPLOYMENT.md); checklist nghiệm thu xem [PRODUCTION_ACCEPTANCE_CHECKLIST.md](./PRODUCTION_ACCEPTANCE_CHECKLIST.md). Cập nhật 2026-08-26.
+Tài liệu dành cho người vận hành (khách + chủ dự án). Quyết định kiến trúc xem [CLOUDFLARE_DEPLOYMENT.md](./CLOUDFLARE_DEPLOYMENT.md); checklist nghiệm thu xem [PRODUCTION_ACCEPTANCE_CHECKLIST.md](./PRODUCTION_ACCEPTANCE_CHECKLIST.md). Cập nhật 2026-08-31.
 
 ## 1. Bản đồ hệ thống
 
@@ -20,7 +20,7 @@ Tài liệu dành cho người vận hành (khách + chủ dự án). Quyết đ
 1. Đăng nhập `admin.kienhieu.id.vn/admin` — Cloudflare Access sẽ xác thực email Google được phép.
 2. Vai trò nội bộ: `owner` (toàn quyền), `content_manager` (nội dung/dịch vụ/media/news), `catalog_manager` (sản phẩm/biến thể/giá), `sales_manager` (leads), `viewer` (chỉ xem). Phân quyền kiểm tra **server-side** — ẩn button bên UI chỉ là tiện ích.
 3. Sản phẩm: tạo draft → điền SKU/MOQ/bước số lượng/ngưỡng liên hệ/giá tier → publish. Ràng buộc bất biến (MOQ > 0, tier đúng bậc từ MOQ theo bước, ngưỡng liên hệ nằm trên số lượng hợp lệ) được server kiểm tra — vi phạm sẽ bị từ chối.
-4. Ảnh: upload qua panel media (≤ 10MB, jpg/png/webp/avif) → "Dùng làm ảnh chính". Xóa ảnh đang là ảnh chính sẽ bị chặn 409 — chọn ảnh chính khác trước.
+4. Ảnh: upload qua panel media (≤ 8 MiB, JPEG/PNG/WebP) → "Dùng làm ảnh chính". Xóa ảnh đang là ảnh chính sẽ bị chặn 409 — chọn ảnh chính khác trước.
 5. CMS (logo/hero/hotline): tab Nội dung → lưu draft → Publish riêng biệt; có chống ghi đè (stale-write).
 6. Thiết kế page: `/admin/thiet-ke` cho phép chỉnh các section schema an toàn, xem preview draft rồi Publish; không nhập HTML/CSS/JavaScript tùy ý.
 7. Điều hướng: `/admin/dieu-huong` chỉnh nhãn, href, thứ tự, ẩn/hiện primary menu desktop/mobile; chỉ bản Publish mới ra storefront.

@@ -190,3 +190,42 @@ Bằng chứng đã xác minh trong đợt staging QA + production promotion:
 - Media chính dịch vụ: cột `services.image_url` (migration 0008), admin "Dùng làm ảnh chính", xóa media có guard 409 `MEDIA_IN_USE` khi đang tham chiếu.
 - Admin UI: typography 6 bước cỡ, focus-visible đầy đủ, skeleton listing khớp grid thật.
 - Việc còn mở: khách tự nhập dữ liệu thật qua `admin.kienhieu.id.vn`; chủ dự án chuyển DNS `giacong.vn` tại Tenten; giám sát 24h đầu.
+
+## Staging admin release follow-up — 2026-08-30
+
+Đây là evidence mới hơn các version được ghi ở các mục lịch sử phía trên:
+
+- Worker staging version `91f79c65-a116-4865-b906-6467929c0f9b` đã được upload và promotion có kiểm soát lên 100% traffic; version `487b9b47-74b8-43c8-a0aa-9f6b708eb0a8` là rollback point.
+- Preview version mới trả HTTP 200 cho homepage, catalog listing/detail, request form và service detail; preview `/admin/*` bị chặn với thông báo cần Cloudflare Access.
+- Phiên admin staging trên `admin-staging.kienhieu.id.vn` trả `/api/admin/session` HTTP 200 và `/api/admin/audit?page=1&pageSize=20` HTTP 200; trang audit hiển thị `93 sự kiện`.
+- Đã sửa lỗi runtime thật trong audit reader: truy vấn `UNION ALL` phẳng sáu nhánh vượt giới hạn compound SELECT của SQLite/D1. Reader hiện nhóm các nhánh con tối đa năm term, vẫn giữ filter/count/order/pagination ở SQL; regression test và staging read-back đều pass.
+- Public smoke sau promotion: năm route storefront chính HTTP 200; product API trả product `bot-gao-lut-xay-min`, `variantCount=4`, starting price `78.000`; cart revalidation quantity `25` trả `isSubmittable=true`, unit price `78.000`, subtotal `1.950.000`.
+- `d1 migrations list` trên staging báo không còn migration phải apply. Production không bị mutation trong follow-up này.
+
+Các evidence trên đóng lát audit/runtime của staging, nhưng không đóng P5/P6: role matrix bằng Access thật, browser admin desktop/mobile/keyboard/focus, dữ liệu production được duyệt, restore/rollback drill, observability 24h và quyết định redirect domain cũ vẫn còn mở.
+
+## Staging admin release follow-up — 2026-08-31
+
+Đây là evidence mới nhất sau khi tích hợp category bulk archive và
+accessibility hardening:
+
+- Version staging `d9caf3ef-e212-45ee-bd26-f37450ed2928` đã được promotion có
+  kiểm soát lên 100% traffic; version `91f79c65-a116-4865-b906-6467929c0f9b`
+  được giữ làm rollback point. Production Worker/data không bị mutation.
+- Public staging route matrix `/`, `/san-pham/`,
+  `/san-pham/bot-gao-lut-xay-min`, `/gui-yeu-cau/`, `/thue-gia-cong/` đều trả
+  HTTP 200; console browser không ghi error/warning trong lượt kiểm tra.
+- Catalog API trả HTTP 200, 4 variants, SKU `B2B-DEMO-BGL-05` và giá khởi
+  điểm `78.000 ₫`; cart revalidation trả HTTP 200, quantity `25`, unit price
+  `78.000 ₫`, subtotal `1.950.000 ₫`.
+- Category admin đã có snapshot route GET và archive batch POST: tối đa 100
+  item, snapshot revision, stale/not-found/already-archived theo từng item,
+  D1 atomicity, audit và idempotency; hard-delete category đã bị loại bỏ.
+- Browser mới không có Access identity nên `admin-staging.kienhieu.id.vn`
+  redirect đúng về Cloudflare Access login. Vì vậy bản promotion này chưa được
+  ghi nhận là đã pass admin role matrix/focus/reduced-motion read-back.
+
+Các gate còn mở: Access identity thật cho browser admin desktop/mobile/keyboard,
+role × route/action read-back, production taxonomy/SKU/media/CMS được duyệt,
+restore/rollback drill, observability 24h và quyết định redirect
+`giacong.vn`.

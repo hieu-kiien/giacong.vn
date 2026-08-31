@@ -79,10 +79,10 @@ giới hạn phải được ghi đúng như vậy, không coi là xanh hoàn to
   còn migration phải apply. Các bảng admin/CMS chính gồm site_settings,
   site_pages, site_navigation_items, admin_members, news_posts và media_assets
   đã tồn tại.
-- Các suite focused sau khi merge hiện tại đã pass: test:admin 108/108,
+- Các suite focused sau khi merge hiện tại đã pass: test:admin 124/124,
   test:contact 103/103, test:catalog 5/5, test:catalog-purchase-ui 1/1,
   test:service 3/3, test:commerce 33/33, test:listing 4/4 và test:detail
-  29/29; UI import 2/2 và harness timing 1/1.
+  29/29; UI import 2/2, category batch 4/4 và harness timing 1/1.
 - Deep QA Playwright đã pass responsive route matrix, catalog search/sort/filter,
   detail mobile stacking, cart localStorage → request route và keyboard
   reachability ở local fixture và public staging (2026-08-29). Đây là evidence
@@ -97,8 +97,9 @@ giới hạn phải được ghi đúng như vậy, không coi là xanh hoàn to
 
 ### 2.2 Còn phải lưu ý
 
-- Lần chạy full `npm run check` trước lát product archive/motion đã exit 0; sau
-  mỗi lát mới vẫn phải chạy lại lint/typecheck/build trong cửa sổ release không
+- Lần chạy full `npm run check` sau lát category archive đã in xanh toàn bộ
+  test/lint/typecheck/build; wrapper PowerShell cần ghi nhận exit marker riêng.
+  Sau mỗi lát mới vẫn phải chạy lại lint/typecheck/build trong cửa sổ release không
   có dev server trước khi đánh dấu production ready. Các wrapper PowerShell trên
   máy có thể giữ process sau khi Node đã in hết kết quả, nên phải ghi nhận output
   và exit code thực tế riêng.
@@ -353,19 +354,21 @@ back office.
 
 ### P5 — MVP-4: Trung tâm vận hành đầy đủ và xử lý hàng loạt
 
-**Checkpoint 2026-08-29:** AdminShell được nhóm lại theo ngôn ngữ dễ hiểu, có
+**Checkpoint 2026-08-31:** AdminShell được nhóm lại theo ngôn ngữ dễ hiểu, có
 nhãn vai trò/link storefront; product bulk import, product bulk archive và
-service bulk archive đã có backend + UI. Product import giữ giới hạn stream 64
+service/category bulk archive đã có backend + UI. Product import giữ giới hạn stream 64
 KiB/tối đa 50 dòng,
 owner/catalog_manager, UUID idempotency, fingerprint ổn định trước lookup
 category và D1 batch atomic cho product/meta/audit. Service archive dùng route
 snapshot revision additive, tối đa 100 item, `expectedRevision`, per-item
 `stale/already_archived/not_found`, D1 batch, audit child/envelope và replay
 idempotency mà không thay đổi `AdminService` read model dùng chung. Product
-archive cũng giữ `AdminProduct` read model bất biến; viewer không thấy control
-mutation. UI có preview lỗi, guard kết quả atomic, retry giữ request ID và thông
-báo kết quả một phần rõ ràng. P5 vẫn chưa hoàn tất: batch các domain còn lại,
-browser/admin staging evidence và full operational acceptance còn mở.
+archive cũng giữ `AdminProduct` read model bất biến; category archive bảo toàn
+row và dùng snapshot revision, per-item stale/not-found/already-archived, D1
+atomic audit/idempotency. Viewer không thấy control mutation. UI có preview lỗi,
+guard kết quả atomic, retry giữ request ID và thông báo kết quả một phần rõ
+ràng. P5 vẫn chưa hoàn tất: batch các domain còn lại, browser/admin staging
+evidence và full operational acceptance còn mở.
 
 **Mục tiêu:** admin có toàn quyền vận hành trong phạm vi Lean V1, không hy sinh
 tính rõ ràng cho người mới.
@@ -405,11 +408,26 @@ người mới tìm được việc cần làm trong vài bước; batch không 
 **Mục tiêu:** biến MVP thành hệ thống có thể vận hành lâu dài, không mở rộng sang
 những domain Lean V1 chưa phê duyệt.
 
-**Checkpoint 2026-08-29:** đã có lát audit/history read-only owner-only tại
+**Checkpoint 2026-08-31:** đã có lát audit/history read-only owner-only tại
 `/admin/audit` và `/api/admin/audit`, tổng hợp an toàn các audit table đã
 được migrate, có bounded search/pagination và không trả metadata payload. P6
 chưa đóng vì browser/admin staging, consistency audit, runbook và production
 acceptance còn mở.
+
+**Runtime update 2026-08-30:** staging version
+`91f79c65-a116-4865-b906-6467929c0f9b` đã được promotion 100%; admin audit
+hostname trả HTTP 200 và hiển thị 93 sự kiện. Lát này đã xử lý giới hạn
+compound SELECT của D1 bằng nested union và có regression test. Đây chỉ là
+evidence đóng cho audit/runtime slice, không thay thế browser role matrix,
+production data, restore/rollback và các gate P6 còn mở.
+
+**Runtime update 2026-08-31:** version staging
+`d9caf3ef-e212-45ee-bd26-f37450ed2928` đã được promotion 100%; version
+`91f79c65-a116-4865-b906-6467929c0f9b` là rollback point. Public route/API/cart
+smoke sau promotion pass; bản này chứa category bulk archive và accessibility
+hardening cho contextual editor. Tab browser mới không có Access session nên
+admin host chỉ chứng minh được boundary redirect; role matrix, focus/reduced
+motion read-back và screenshot admin bằng identity thật vẫn mở.
 
 **Công việc:**
 

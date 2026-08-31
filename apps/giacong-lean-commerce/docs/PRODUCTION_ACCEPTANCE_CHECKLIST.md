@@ -2,6 +2,10 @@
 
 Trạng thái chốt hạ trước promotion `giacong-vn` production. Nguồn yêu cầu gốc: [CLOUDFLARE_NATIVE_V1_PLAN.md](CLOUDFLARE_NATIVE_V1_PLAN.md) mục 7–8. Cập nhật 2026-08-26 sau production promotion.
 
+> Lưu ý trạng thái: các checkbox dưới đây giữ evidence lịch sử của đợt nghiệm thu
+> trước. Chúng không tự đóng các acceptance mới trong `ADMIN_VISUAL_ROADMAP.md`.
+> Follow-up staging mới nhất được ghi ở mục 8 bên dưới.
+
 ## 1. Staging runtime acceptance — ĐÃ ĐÓNG
 
 - [x] `npm run check` xanh toàn phần (tests + lint + typecheck + build)
@@ -66,3 +70,17 @@ Lưu ý: demo staging KHÔNG được seed sang production. Khách tự thao tá
 - [x] Xóa ảnh QA cũ track trong git (`.qa-*.png`), `out2.txt`, `temp-clean-install-check/`
 - [x] `.gitignore` bổ sung: `.agents/`, `.playwright-cli/`, `skills-lock.json` (tooling cục bộ)
 - [x] Lead QA-STAGING trong D1 production: giữ nguyên làm vết kiểm toán, khách có thể xóa qua admin
+
+## 8. Staging admin follow-up — ĐÃ XÁC MINH KỸ THUẬT, CHƯA ĐÓNG PRODUCTION GATE (2026-08-31)
+
+- [x] Version staging `d9caf3ef-e212-45ee-bd26-f37450ed2928` upload và promotion 100%, có rollback point `91f79c65-a116-4865-b906-6467929c0f9b`.
+- [x] Preview public route matrix trả 200; preview `/admin/*` bị chặn đúng boundary.
+- [x] Admin session và `/api/admin/audit` trên hostname staging trả 200; audit hiển thị 93 sự kiện.
+- [x] Regression cho giới hạn SQLite/D1 compound SELECT đã pass; migration staging không còn pending.
+- [x] Product API và cart revalidation staging trả canonical data/money đúng sau promotion mới; cart test quantity `25` có subtotal `1.950.000 ₫`.
+- [x] Category bulk archive contract đã có test atomic/revision/idempotency và route đã nằm trong staging artifact; không có hard-delete category.
+- [x] Public route matrix sau promotion mới trả 200; browser console không có error/warning trong lượt kiểm tra.
+- [ ] Browser admin desktop/mobile/keyboard/focus/reduced-motion với Access identity thật.
+- [ ] Role × route/action read-back trên staging cho owner/content_manager/catalog_manager/sales_manager/viewer.
+- [ ] Production data/content thật được chủ dự án duyệt và nhập chủ ý.
+- [ ] Restore/rollback drill, observability 24h và quyết định redirect `giacong.vn` được xác nhận.
