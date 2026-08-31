@@ -101,6 +101,7 @@ Lưu ý: demo staging KHÔNG được seed sang production. Khách tự thao tá
 - [x] Follow-up footer settings staging version `cd4a973e-6fde-4538-b66b-04d3fadbb02d` promotion 100%; rollback point `ec0522c7-2840-4118-a7fb-0740c5d7c91e`; footer description/address/copyright đọc đúng từ DOM, không có script và console không có error/warning.
 - [x] Public staging smoke sau footer follow-up: `/`, `/san-pham/`, `/tin-tuc/`, `/gui-yeu-cau/`, `/thue-gia-cong/` đều có `main`/`footer`, public không có admin control và console không có error/warning.
 - [x] Production read-only audit: `d1 migrations list giacong-vn-catalog --remote` xác nhận pending `0009–0016`; không apply migration, không ghi D1/R2 và không deploy production trong đợt này.
+- [x] Production schema read-only audit: `sqlite_master`/`d1_migrations` xác nhận thiếu các bảng control-plane/audit cần cho migration `0009–0016`; query có `changed_db=false`, `rows_written=0`.
 - [ ] Staging runtime read-back cho member/lead/media audit, R2 compensation/reference guard và retry cùng `requestId`.
 - [ ] Admin session/audit read-back bằng Access identity thật trên hostname staging.
 - [ ] Browser admin desktop/mobile/keyboard/focus/reduced-motion với Access identity thật.

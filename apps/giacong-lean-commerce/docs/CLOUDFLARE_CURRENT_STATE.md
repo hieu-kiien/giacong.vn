@@ -324,6 +324,11 @@ restore/rollback drill, observability 24h và quyết định redirect
 - `npx wrangler d1 migrations list giacong-vn-catalog --remote` báo còn pending
   các migration `0009_admin_control_plane.sql` đến
   `0016_admin_lead_request_marker.sql`.
+- Read-only `sqlite_master`/`d1_migrations` audit cho thấy production mới áp
+  tới các migration catalog/lead/media nền và `0004_admin_foundation`,
+  `0007_news_posts`, `0008_service_images`; các bảng `site_pages`,
+  `site_navigation_items` và các audit table chuyên biệt chưa có đầy đủ.
+  Query trả `changed_db=false`, `rows_written=0`.
 - Vì vậy production control plane chưa đủ schema cho các capability admin mới.
   Đợt audit này không apply migration, không ghi D1/R2 và không deploy Worker
   production; cần backup/rollback window và production data acceptance trước khi
