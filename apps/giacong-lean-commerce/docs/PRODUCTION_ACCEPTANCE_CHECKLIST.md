@@ -99,6 +99,7 @@ Lưu ý: demo staging KHÔNG được seed sang production. Khách tự thao tá
 - [x] Browser mobile `390×844`: 10/10 route không có page-level horizontal overflow; menu admin mở đúng `aria-expanded=true`.
 - [x] Follow-up storefront staging version `ec0522c7-2840-4118-a7fb-0740c5d7c91e` promotion 100%; rollback point `a5534149-5af4-415b-8e2d-947a0a995016`; slider dots visible và click `Nội dung 2` chuyển `sliderIndex=1`, console không có error/warning.
 - [x] Follow-up footer settings staging version `cd4a973e-6fde-4538-b66b-04d3fadbb02d` promotion 100%; rollback point `ec0522c7-2840-4118-a7fb-0740c5d7c91e`; footer description/address/copyright đọc đúng từ DOM, không có script và console không có error/warning.
+- [x] Public staging smoke sau footer follow-up: `/`, `/san-pham/`, `/tin-tuc/`, `/gui-yeu-cau/`, `/thue-gia-cong/` đều có `main`/`footer`, public không có admin control và console không có error/warning.
 - [ ] Staging runtime read-back cho member/lead/media audit, R2 compensation/reference guard và retry cùng `requestId`.
 - [ ] Admin session/audit read-back bằng Access identity thật trên hostname staging.
 - [ ] Browser admin desktop/mobile/keyboard/focus/reduced-motion với Access identity thật.

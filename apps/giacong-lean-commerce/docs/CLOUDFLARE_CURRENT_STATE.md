@@ -313,6 +313,10 @@ restore/rollback drill, observability 24h và quyết định redirect
   mô tả footer, địa chỉ `108 Trần Hưng Đạo - Hoàn Kiếm - Hà Nội` và copyright
   đều đọc được từ DOM; footer không chứa `<script>` và console không có
   error/warning.
+- Public staging smoke sau bản này pass các route `/`, `/san-pham/`, `/tin-tuc/`,
+  `/gui-yeu-cau/`, `/thue-gia-cong/`: đều có `main` và `footer`, không có admin
+  control trên public host, không có footer script và không có console
+  error/warning.
 - Đây là acceptance cho renderer footer và không thực hiện production mutation.
 
 ## Staging admin browser verification — 2026-08-31

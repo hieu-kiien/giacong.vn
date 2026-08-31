@@ -499,6 +499,10 @@ description/address/copyright đã được browser đọc lại từ DOM sau de
 được escape an toàn và console không có error/warning. Gate Access thật, role
 matrix và production vẫn chưa bị đánh dấu đạt.
 
+Public staging smoke sau cùng pass năm route chính (`/`, `/san-pham/`, `/tin-tuc/`,
+`/gui-yeu-cau/`, `/thue-gia-cong/`); public host không render admin control và
+không có console error/warning.
+
 **Công việc:**
 
 - audit/history/revision hiển thị đủ để biết ai đổi gì, lúc nào, từ bản nào;
