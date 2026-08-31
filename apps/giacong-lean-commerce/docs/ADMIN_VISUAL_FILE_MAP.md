@@ -17,13 +17,17 @@ khi tồn tại trong checkout; file “dự kiến” phải được tạo tro
 **Checkpoint 2026-08-31:** P1 host-gated admin context, P2 settings write
 contract (per-setting + bulk publish), contextual editor MVP, P3 contextual
 news-detail hand-off, P4 managed-page hand-off, P5 product bulk import UI và
-product/service/category bulk archive contract đã có trong `master`. Local
-Playwright deep QA đã pass storefront public ở mobile/tablet/desktop, catalog,
-detail, cart và keyboard; public staging cũng pass cùng ma trận. Public staging
-`/tin-tuc` không phát sinh admin session request hay contextual control. Tuy
-nhiên `admin-staging.kienhieu.id.vn` vẫn trả Cloudflare Access login khi không có
-phiên hợp lệ, vì vậy admin read-back/browser evidence cho context thật và
-frontend motion worktree còn mở; không coi local Next dev là bằng chứng Access.
+product/service/category bulk archive contract đã có trong `master`. Toàn bộ
+admin JSON writes hiện đi qua bounded parser; các admin collection read chính có
+hard bound `LIMIT 100`. `npm run check` trên source hiện tại pass 128/128 admin
+tests cùng các suite storefront, lint, typecheck và production build. Local
+Playwright deep QA và public staging smoke đều pass ở catalog, detail, cart và
+keyboard. Staging version `c2d91d94-6737-447d-88b7-991f9808ba3f` đang phục vụ
+100% traffic, rollback point là `d9caf3ef-e212-45ee-bd26-f37450ed2928`.
+Tuy nhiên `admin-staging.kienhieu.id.vn` vẫn trả Cloudflare Access login khi
+không có phiên hợp lệ, vì vậy admin read-back/browser evidence cho context thật
+và frontend motion worktree còn mở; không coi local Next dev là bằng chứng
+Access.
 Commit `cf3856c` đã bổ sung stale-race regression cho service batch. Category
 archive hiện dùng `GET /api/admin/categories/batch` để lấy snapshot revision và
 `POST /api/admin/categories/batch` cho soft-deactivate atomic tối đa 100 item;
@@ -265,7 +269,7 @@ khối lượng mà contextual UI làm khó hiểu.
 | scripts/admin-product-import-ui.test.mjs | bulk import picker, preview, atomic result guard và retry request ID |
 | scripts/admin-service-batch.test.mts | service batch parser, D1 atomic archive mock, per-item skip, audit/replay và UI guard |
 | scripts/site-settings-write-contract.test.mts | settings idempotency, stale writes, publish isolation và UI request IDs |
-| scripts/admin-request.test.mts | bounded JSON body, content type, UUID request ID và exact-key checks |
+| scripts/admin-request.test.mts | bounded JSON body cho toàn bộ admin JSON writes, content type, UUID request ID, exact-key checks và hard bound collection reads |
 | scripts/site-settings-bulk-contract.test.mts | bulk publish batch, per-setting audit, stale skip, replay và route/migration contract |
 | scripts/storefront-visual-contract.test.mjs | public visual/source boundaries |
 | scripts/captured-route-runtime.test.mjs | captured asset/runtime path |

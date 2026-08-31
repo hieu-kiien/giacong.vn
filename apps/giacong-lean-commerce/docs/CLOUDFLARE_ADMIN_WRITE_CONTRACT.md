@@ -196,6 +196,10 @@ Routes:
 - `POST /api/admin/categories`
 - `GET /api/admin/categories/[id]`
 - `PATCH /api/admin/categories/[id]`
+- `GET /api/admin/categories/batch?ids=<comma-separated-ids>` — manager-only
+  revision snapshot trước batch action;
+- `POST /api/admin/categories/batch` — manager-only soft-deactivate tối đa 100
+  category trong một batch, per-item skip và replay idempotency.
 
 Deletion is out of Lean V1; deactivation is the safe removal path.
 
@@ -208,7 +212,7 @@ Create exact fields:
 - `sortOrder`: integer, 0..1,000,000;
 - `isActive`: boolean.
 
-Update contains the same fields plus required `version`. Slug conflict returns `409 UNIQUE_CONFLICT`.
+Update contains the same fields plus required `revision`. Slug conflict returns `409 UNIQUE_CONFLICT`.
 
 ## 8. Product contract
 
@@ -241,6 +245,11 @@ Validation:
 - managed media references use canonical `/media/products/...` form.
 
 Product detail response includes variants and tier prices so the editor starts from one canonical snapshot.
+
+Lưu ý trạng thái: route product legacy hiện đã có bounded JSON và field-level
+limits nhưng chưa nhận revision token riêng trong body; product import/batch có
+contract atomic/idempotent chặt hơn. Không dùng ghi chú này làm bằng chứng rằng
+mọi product legacy mutation đã đạt P6 production gate.
 
 ### Product bulk import P5 contract
 
@@ -337,9 +346,11 @@ Within a variant:
 
 Routes:
 
-- `POST /api/admin/media/products`
-- `GET /api/admin/media/products`
-- `DELETE /api/admin/media/products/[key]`
+- `POST /api/admin/media`
+- `GET /api/admin/media`
+- `PATCH /api/admin/media/[id]`
+- `DELETE /api/admin/media/[id]`
+- `POST /api/admin/media/cleanup`
 
 Upload rules:
 
@@ -411,8 +422,17 @@ Admin collections must be explicitly bounded. Initial default page size is 50 an
 Body limits:
 
 - normal JSON mutation: 64 KiB;
-- long product/service content mutation: 128 KiB;
+- long product/service content mutation: 128 KiB when the route explicitly opts
+  into the long limit. Các route product/service hiện tại dùng bounded parser mặc
+  định 64 KiB cùng field-level bounds; việc mở budget 128 KiB là follow-up riêng,
+  cần test và impact review trên shared helper.
 - media: 8 MiB file plus bounded multipart overhead.
+
+As of 2026-08-31, the admin JSON write routes use the shared bounded parser
+(`readBoundedAdminJson`) and the primary admin collection read models enforce an
+explicit `LIMIT 100`. This is verified by `scripts/admin-request.test.mts` and
+the full `npm run check` gate; it does not replace authenticated browser role
+read-back.
 
 Reject oversized bodies with `413 PAYLOAD_TOO_LARGE` before normal parsing/work.
 

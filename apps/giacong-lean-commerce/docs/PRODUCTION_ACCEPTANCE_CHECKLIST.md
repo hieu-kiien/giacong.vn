@@ -1,6 +1,6 @@
 # Production acceptance checklist
 
-Trạng thái chốt hạ trước promotion `giacong-vn` production. Nguồn yêu cầu gốc: [CLOUDFLARE_NATIVE_V1_PLAN.md](CLOUDFLARE_NATIVE_V1_PLAN.md) mục 7–8. Cập nhật 2026-08-26 sau production promotion.
+Trạng thái chốt hạ trước promotion `giacong-vn` production. Nguồn yêu cầu gốc: [CLOUDFLARE_NATIVE_V1_PLAN.md](CLOUDFLARE_NATIVE_V1_PLAN.md) mục 7–8. Cập nhật 2026-08-31 sau staging hardening.
 
 > Lưu ý trạng thái: các checkbox dưới đây giữ evidence lịch sử của đợt nghiệm thu
 > trước. Chúng không tự đóng các acceptance mới trong `ADMIN_VISUAL_ROADMAP.md`.
@@ -81,13 +81,15 @@ Lưu ý: demo staging KHÔNG được seed sang production. Khách tự thao tá
 
 ## 8. Staging admin follow-up — ĐÃ XÁC MINH KỸ THUẬT, CHƯA ĐÓNG PRODUCTION GATE (2026-08-31)
 
-- [x] Version staging `d9caf3ef-e212-45ee-bd26-f37450ed2928` upload và promotion 100%, có rollback point `91f79c65-a116-4865-b906-6467929c0f9b`.
-- [x] Preview public route matrix trả 200; preview `/admin/*` bị chặn đúng boundary.
-- [x] Admin session và `/api/admin/audit` trên hostname staging trả 200; audit hiển thị 93 sự kiện.
+- [x] Version staging `c2d91d94-6737-447d-88b7-991f9808ba3f` upload và promotion 100%, có rollback point `d9caf3ef-e212-45ee-bd26-f37450ed2928`.
+- [x] Active public staging route matrix sau promotion trả 200; browser console không có error/warning trong lượt kiểm tra.
+- [x] Product API và cart revalidation staging trả canonical data/money đúng; cart test quantity `25` có subtotal `1.950.000 ₫`.
+- [x] Local release gate trên đúng source pass: admin `128/128`, các suite còn lại `103/103`, `5/5`, `1/1`, `3/3`, `33/33`, `4/4`, `29/29`, lint/typecheck/build exit code `0`.
+- [x] Toàn bộ admin JSON writes dùng bounded parser; admin collection reads chính có hard bound `LIMIT 100`; không còn `request.json()` trực tiếp trong `src/app/api/admin`.
 - [x] Regression cho giới hạn SQLite/D1 compound SELECT đã pass; migration staging không còn pending.
-- [x] Product API và cart revalidation staging trả canonical data/money đúng sau promotion mới; cart test quantity `25` có subtotal `1.950.000 ₫`.
 - [x] Category bulk archive contract đã có test atomic/revision/idempotency và route đã nằm trong staging artifact; không có hard-delete category.
-- [x] Public route matrix sau promotion mới trả 200; browser console không có error/warning trong lượt kiểm tra.
+- [x] Preview `/admin/*` bị Access chặn đúng boundary; preview `workers.dev` không được tính là public smoke vì Access bảo vệ cả preview origin.
+- [ ] Admin session/audit read-back bằng Access identity thật trên hostname staging.
 - [ ] Browser admin desktop/mobile/keyboard/focus/reduced-motion với Access identity thật.
 - [ ] Role × route/action read-back trên staging cho owner/content_manager/catalog_manager/sales_manager/viewer.
 - [ ] Production data/content thật được chủ dự án duyệt và nhập chủ ý.

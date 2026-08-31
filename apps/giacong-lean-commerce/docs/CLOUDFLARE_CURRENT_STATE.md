@@ -206,11 +206,11 @@ Các evidence trên đóng lát audit/runtime của staging, nhưng không đón
 
 ## Staging admin release follow-up — 2026-08-31
 
-Đây là evidence mới nhất sau khi tích hợp category bulk archive và
-accessibility hardening:
+Đây là evidence mới nhất sau khi tích hợp category bulk archive, accessibility
+hardening và bounded admin request/collection contracts:
 
-- Version staging `d9caf3ef-e212-45ee-bd26-f37450ed2928` đã được promotion có
-  kiểm soát lên 100% traffic; version `91f79c65-a116-4865-b906-6467929c0f9b`
+- Version staging `c2d91d94-6737-447d-88b7-991f9808ba3f` đã được promotion có
+  kiểm soát lên 100% traffic; version `d9caf3ef-e212-45ee-bd26-f37450ed2928`
   được giữ làm rollback point. Production Worker/data không bị mutation.
 - Public staging route matrix `/`, `/san-pham/`,
   `/san-pham/bot-gao-lut-xay-min`, `/gui-yeu-cau/`, `/thue-gia-cong/` đều trả
@@ -218,12 +218,18 @@ accessibility hardening:
 - Catalog API trả HTTP 200, 4 variants, SKU `B2B-DEMO-BGL-05` và giá khởi
   điểm `78.000 ₫`; cart revalidation trả HTTP 200, quantity `25`, unit price
   `78.000 ₫`, subtotal `1.950.000 ₫`.
+- `npm run check` trên source staging hiện tại pass với admin `128/128`, các
+  suite còn lại `103/103`, `5/5`, `1/1`, `3/3`, `33/33`, `4/4`, `29/29`, cùng
+  lint, typecheck và build exit code `0`.
+- `request.json()` trực tiếp không còn trong `src/app/api/admin`; các JSON write
+  route dùng bounded parser và collection read model chính có hard `LIMIT 100`.
 - Category admin đã có snapshot route GET và archive batch POST: tối đa 100
   item, snapshot revision, stale/not-found/already-archived theo từng item,
   D1 atomicity, audit và idempotency; hard-delete category đã bị loại bỏ.
-- Browser mới không có Access identity nên `admin-staging.kienhieu.id.vn`
-  redirect đúng về Cloudflare Access login. Vì vậy bản promotion này chưa được
-  ghi nhận là đã pass admin role matrix/focus/reduced-motion read-back.
+- Preview `workers.dev` bị Cloudflare Access redirect, nên chỉ active public
+  staging được dùng làm public runtime evidence. Browser/CLI mới không có Access
+  identity nên `admin-staging.kienhieu.id.vn` redirect đúng về Cloudflare Access
+  login; chưa ghi nhận pass admin role matrix/focus/reduced-motion read-back.
 - Production read-only audit cùng ngày: Worker `giacong-vn` vẫn ở version
   `1d8a2b41-6154-46d5-935b-8cb7fbc35688` @100%; D1 production còn migrations
   `0009_admin_control_plane.sql`, `0010_site_settings_write_contract.sql`,

@@ -1,7 +1,7 @@
 # Lộ trình Giacong Visual Admin
 
 **Trạng thái:** kế hoạch thực thi chính
-**Cập nhật:** 2026-08-29
+**Cập nhật:** 2026-08-31
 **Phạm vi:** apps/giacong-lean-commerce
 **Bản đồ đi kèm:** ADMIN_VISUAL_FILE_MAP.md
 
@@ -62,7 +62,7 @@ Thứ tự ưu tiên khi có mâu thuẫn:
 
 ## 2. Baseline đã kiểm tra
 
-Đây là trạng thái sau các lát implementation và QA ngày 2026-08-28. Các mục có
+Đây là trạng thái sau các lát implementation và QA ngày 2026-08-31. Các mục có
 giới hạn phải được ghi đúng như vậy, không coi là xanh hoàn toàn.
 
 ### 2.1 Đã xác minh
@@ -79,7 +79,7 @@ giới hạn phải được ghi đúng như vậy, không coi là xanh hoàn to
   còn migration phải apply. Các bảng admin/CMS chính gồm site_settings,
   site_pages, site_navigation_items, admin_members, news_posts và media_assets
   đã tồn tại.
-- Các suite focused sau khi merge hiện tại đã pass: test:admin 124/124,
+- Các suite focused sau khi merge hiện tại đã pass: test:admin 128/128,
   test:contact 103/103, test:catalog 5/5, test:catalog-purchase-ui 1/1,
   test:service 3/3, test:commerce 33/33, test:listing 4/4 và test:detail
   29/29; UI import 2/2, category batch 4/4 và harness timing 1/1.
@@ -97,12 +97,14 @@ giới hạn phải được ghi đúng như vậy, không coi là xanh hoàn to
 
 ### 2.2 Còn phải lưu ý
 
-- Lần chạy full `npm run check` sau lát category archive đã in xanh toàn bộ
-  test/lint/typecheck/build; wrapper PowerShell cần ghi nhận exit marker riêng.
-  Sau mỗi lát mới vẫn phải chạy lại lint/typecheck/build trong cửa sổ release không
-  có dev server trước khi đánh dấu production ready. Các wrapper PowerShell trên
-  máy có thể giữ process sau khi Node đã in hết kết quả, nên phải ghi nhận output
-  và exit code thực tế riêng.
+- Lần chạy full `npm run check` trên source hiện tại đã in xanh toàn bộ
+  test/lint/typecheck/build với exit code `0`; marker được ghi nhận riêng vì
+  wrapper PowerShell trên máy có thể giữ process sau khi Node đã in hết kết quả.
+  Sau mỗi lát mới vẫn phải chạy lại gate trong cửa sổ release không có dev server
+  trước khi đánh dấu production ready.
+- Lát hardening mới đã đưa toàn bộ admin JSON writes qua
+  `readBoundedAdminJson` và thêm `LIMIT 100` cho các collection read model chính;
+  đây là contract/security evidence, không thay thế role matrix và browser QA.
 - Commit `cf3856c` bổ sung regression cho race revision của service batch: lỗi
   guard có chủ đích được map thành `STALE_WRITE`, transaction không để lại
   marker/audit dở dang. Lát P6 kế tiếp bổ sung focus trap, restore focus và
@@ -422,12 +424,15 @@ evidence đóng cho audit/runtime slice, không thay thế browser role matrix,
 production data, restore/rollback và các gate P6 còn mở.
 
 **Runtime update 2026-08-31:** version staging
-`d9caf3ef-e212-45ee-bd26-f37450ed2928` đã được promotion 100%; version
-`91f79c65-a116-4865-b906-6467929c0f9b` là rollback point. Public route/API/cart
-smoke sau promotion pass; bản này chứa category bulk archive và accessibility
-hardening cho contextual editor. Tab browser mới không có Access session nên
-admin host chỉ chứng minh được boundary redirect; role matrix, focus/reduced
-motion read-back và screenshot admin bằng identity thật vẫn mở.
+`c2d91d94-6737-447d-88b7-991f9808ba3f` đã được upload và promotion 100%; version
+`d9caf3ef-e212-45ee-bd26-f37450ed2928` là rollback point. Public route/API/cart
+smoke sau promotion pass; bản này chứa bounded JSON admin writes và hard bound
+collection reads trên nền category bulk archive/accessibility hardening trước
+đó. Preview `workers.dev` vẫn bị Access bảo vệ nên không ghi nhận preview đó là
+public route pass; active public staging đã được kiểm tra thực tế. Tab browser
+mới không có Access session nên admin host chỉ chứng minh được boundary redirect;
+role matrix, focus/reduced-motion read-back và screenshot admin bằng identity
+thật vẫn mở.
 
 **Công việc:**
 
