@@ -1,11 +1,11 @@
 import { adminFailure, adminSuccess } from "@/lib/admin-api.ts";
 import {
-  deleteAdminCategory,
+  getAdminCategory,
   updateAdminCategory,
 } from "@/lib/admin-data";
 import { adminErrorFrom } from "@/lib/admin-error-mapping.ts";
 import { requireAdmin } from "@/lib/admin-guard";
-import { canManageCatalog } from "@/lib/admin-permissions.ts";
+import { canManage, canManageCatalog } from "@/lib/admin-permissions.ts";
 import { parseAdminCategoryPayload } from "@/lib/admin-category-input";
 
 export const dynamic = "force-dynamic";
@@ -17,6 +17,28 @@ interface CategoryRouteContext {
 async function parseId(context: CategoryRouteContext): Promise<number | null> {
   const raw = Number((await context.params).id);
   return Number.isInteger(raw) && raw > 0 ? raw : null;
+}
+
+export async function GET(
+  request: Request,
+  context: CategoryRouteContext,
+): Promise<Response> {
+  const guard = await requireAdmin(request);
+  if (guard instanceof Response) return guard;
+  if (!canManage(guard.member.role, "catalog.read")) {
+    return adminFailure(crypto.randomUUID(), 403, "FORBIDDEN", "Vai trò hiện tại không được xem danh mục.");
+  }
+  const id = await parseId(context);
+  if (id === null) return adminFailure(crypto.randomUUID(), 404, "NOT_FOUND", "Không tìm thấy danh mục.");
+
+  try {
+    const category = await getAdminCategory(guard.database, id);
+    return category
+      ? adminSuccess(crypto.randomUUID(), { category })
+      : adminFailure(crypto.randomUUID(), 404, "NOT_FOUND", "Không tìm thấy danh mục.");
+  } catch (error) {
+    return adminErrorFrom(crypto.randomUUID(), error, "Không thể tải danh mục.");
+  }
 }
 
 export async function PATCH(
@@ -64,30 +86,5 @@ export async function PATCH(
       fieldErrors: { slug: "Slug danh mục đã tồn tại." },
       message: "Slug danh mục đã tồn tại.",
     });
-  }
-}
-
-export async function DELETE(
-  request: Request,
-  context: CategoryRouteContext,
-): Promise<Response> {
-  const guard = await requireAdmin(request);
-  if (guard instanceof Response) return guard;
-  if (!canManageCatalog(guard.member.role)) {
-    return adminFailure(crypto.randomUUID(), 403, "FORBIDDEN", "Vai trò hiện tại không được xóa danh mục.");
-  }
-  const id = await parseId(context);
-  if (id === null) return adminFailure(crypto.randomUUID(), 404, "NOT_FOUND", "Không tìm thấy danh mục.");
-
-  try {
-    const deleted = await deleteAdminCategory(guard.database, id, guard.actorSubject);
-    return deleted
-      ? adminSuccess(crypto.randomUUID(), { deleted: true })
-      : adminFailure(crypto.randomUUID(), 404, "NOT_FOUND", "Không tìm thấy danh mục.");
-  } catch (error) {
-    if (error instanceof Error && /CATEGORY_IN_USE/i.test(error.message)) {
-      return adminFailure(crypto.randomUUID(), 409, "CATEGORY_IN_USE", error.message.replace(/^CATEGORY_IN_USE:\s*/, ""));
-    }
-    return adminErrorFrom(crypto.randomUUID(), error, "Không thể xóa danh mục.");
   }
 }

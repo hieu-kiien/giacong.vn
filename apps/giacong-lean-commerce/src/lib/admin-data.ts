@@ -1375,27 +1375,6 @@ export async function updateAdminCategory(
   return getAdminCategory(database, id);
 }
 
-export async function deleteAdminCategory(
-  database: D1DatabaseLike,
-  id: number,
-  actorSubject: string,
-): Promise<boolean> {
-  const existing = await getAdminCategory(database, id);
-  if (!existing) return false;
-
-  const reference = await database.prepare("SELECT COUNT(*) AS n FROM products WHERE category_id = ?")
-    .bind(id)
-    .first<{ n: number }>();
-  const inUse = reference?.n ?? 0;
-  if (inUse > 0) {
-    throw new AdminDataError(`CATEGORY_IN_USE: Còn ${inUse} sản phẩm đang thuộc danh mục này. Chuyển chúng sang danh mục khác trước khi xóa.`);
-  }
-
-  await database.prepare("DELETE FROM categories WHERE id = ?").bind(id).run();
-  await writeAuditLog(database, actorSubject, "category.deleted", "category", String(id), { slug: existing.slug });
-  return true;
-}
-
 // ---------------------------------------------------------------------------
 // News posts CRUD (draft/published contract locked 2026-08-28; storefront
 // reads only the published snapshot).

@@ -3,7 +3,7 @@
 // Category CRUD against the locked /api/admin/categories contract. The products
 // form consumes the same list, so any change here bumps the product query too.
 
-import { Pencil, Plus, Trash2 } from "lucide-react";
+import { EyeOff, Pencil, Plus } from "lucide-react";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { AdminConfirmDialog } from "@/components/admin/AdminDialog";
 import { AdminMediaPickerModal } from "@/components/admin/AdminMediaPickerModal";
@@ -55,7 +55,7 @@ export function AdminCategoryPanel({ onChanged }: { onChanged: () => void }) {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [pendingDelete, setPendingDelete] = useState<AdminCategoryDetail | null>(null);
+  const [pendingArchive, setPendingArchive] = useState<AdminCategoryDetail | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
 
   const reload = useCallback(async () => {
@@ -118,17 +118,28 @@ export function AdminCategoryPanel({ onChanged }: { onChanged: () => void }) {
     }
   }
 
-  async function confirmDelete() {
-    if (!pendingDelete) return;
+  async function confirmArchive() {
+    if (!pendingArchive) return;
     try {
-      await mutateAdmin(`/api/admin/categories/${pendingDelete.id}`, { method: "DELETE" });
-      showToast("success", `Đã xóa danh mục “${pendingDelete.name}”.`);
-      setPendingDelete(null);
+      await mutateAdmin<{ category: AdminCategoryDetail }>(`/api/admin/categories/${pendingArchive.id}`, {
+        body: {
+          description: pendingArchive.description,
+          imageUrl: pendingArchive.imageUrl,
+          isActive: false,
+          name: pendingArchive.name,
+          revision: pendingArchive.revision,
+          slug: pendingArchive.slug,
+          sortOrder: pendingArchive.sortOrder,
+        },
+        method: "PATCH",
+      });
+      showToast("success", `Đã ẩn danh mục “${pendingArchive.name}” khỏi storefront.`);
+      setPendingArchive(null);
       await reload();
       onChanged();
     } catch (reason: unknown) {
-      setPendingDelete(null);
-      showToast("error", reason instanceof AdminClientError ? reason.message : "Không thể xóa danh mục.");
+      setPendingArchive(null);
+      showToast("error", reason instanceof AdminClientError ? reason.message : "Không thể ẩn danh mục.");
     }
   }
 
@@ -207,14 +218,14 @@ export function AdminCategoryPanel({ onChanged }: { onChanged: () => void }) {
                         >
                           <Pencil size={13} /> Sửa
                         </button>
-                        <button
-                          aria-label={`Xóa danh mục ${category.name}`}
+                        {category.isActive ? <button
+                          aria-label={`Ẩn danh mục ${category.name}`}
                           className="admin-button admin-button-danger"
-                          onClick={() => setPendingDelete(category)}
+                          onClick={() => setPendingArchive(category)}
                           type="button"
                         >
-                          <Trash2 size={13} /> Xóa
-                        </button>
+                          <EyeOff size={13} /> Ẩn danh mục
+                        </button> : null}
                       </div>
                     </td>
                   ) : null}
@@ -306,13 +317,13 @@ export function AdminCategoryPanel({ onChanged }: { onChanged: () => void }) {
         </form>
       ) : null}
 
-      {pendingDelete ? (
+      {pendingArchive ? (
         <AdminConfirmDialog
-          confirmLabel="Xóa danh mục"
-          message={`Xóa vĩnh viễn danh mục “${pendingDelete.name}”? Không thể hoàn tác. Danh mục đang có sản phẩm sẽ bị chặn xóa để tránh mất liên kết.`}
-          onConfirm={() => void confirmDelete()}
-          onDismiss={() => setPendingDelete(null)}
-          title="Xóa danh mục?"
+          confirmLabel="Ẩn danh mục"
+          message={`Ẩn danh mục “${pendingArchive.name}” khỏi storefront? Sản phẩm và dữ liệu lịch sử vẫn được giữ nguyên; bạn có thể bật lại trong form chỉnh sửa.`}
+          onConfirm={() => void confirmArchive()}
+          onDismiss={() => setPendingArchive(null)}
+          title="Ẩn danh mục?"
         />
       ) : null}
           {pickerOpen ? (

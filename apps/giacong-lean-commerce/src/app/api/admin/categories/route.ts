@@ -1,7 +1,7 @@
 import { adminFailure, adminSuccess } from "@/lib/admin-api.ts";
 import { adminErrorFrom } from "@/lib/admin-error-mapping.ts";
 import { requireAdmin } from "@/lib/admin-guard";
-import { canManageCatalog } from "@/lib/admin-permissions.ts";
+import { canManage, canManageCatalog } from "@/lib/admin-permissions.ts";
 import { parseAdminCategoryPayload } from "@/lib/admin-category-input";
 import { createAdminCategory, listAdminCategoryDetails } from "@/lib/admin-data";
 
@@ -10,6 +10,9 @@ export const dynamic = "force-dynamic";
 export async function GET(request: Request): Promise<Response> {
   const guard = await requireAdmin(request);
   if (guard instanceof Response) return guard;
+  if (!canManage(guard.member.role, "catalog.read")) {
+    return adminFailure(crypto.randomUUID(), 403, "FORBIDDEN", "Vai trò hiện tại không được xem danh mục.");
+  }
 
   try {
     const categories = await listAdminCategoryDetails(guard.database);

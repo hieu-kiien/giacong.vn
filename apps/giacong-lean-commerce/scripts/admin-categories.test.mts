@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 import { parseAdminCategoryPayload } from "../src/lib/admin-category-input.ts";
@@ -47,4 +48,22 @@ test("rejects unknown payloads and negative sort orders", () => {
   const negative = parseAdminCategoryPayload({ ...valid, sortOrder: "-2" });
   assert.equal(negative.input, null);
   assert.ok(negative.fieldErrors?.sortOrder);
+});
+
+test("category admin surface enforces read capability and deactivation-only removal", async () => {
+  const [listRoute, detailRoute, panel] = await Promise.all([
+    readFile(new URL("../src/app/api/admin/categories/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../src/app/api/admin/categories/[id]/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../src/components/admin/AdminCategoryPanel.tsx", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(listRoute, /canManage\(guard\.member\.role,\s*"catalog\.read"\)/);
+  assert.match(detailRoute, /export async function GET/);
+  assert.match(detailRoute, /canManage\(guard\.member\.role,\s*"catalog\.read"\)/);
+  assert.doesNotMatch(detailRoute, /deleteAdminCategory|export async function DELETE/);
+  assert.match(panel, /method: "PATCH"/);
+  assert.doesNotMatch(panel, /method: "DELETE"/);
+  assert.match(panel, /Ẩn danh mục/);
+  assert.match(panel, /revision:\s*category\.revision/);
+  assert.doesNotMatch(panel, /Xóa vĩnh viễn|pendingDelete|deleteAdminCategory/);
 });
