@@ -53,9 +53,9 @@ export async function PATCH(request: Request, context: LeadRouteContext): Promis
     const lead = await updateAdminLeadStatus(guard.database, id, status, guard.actorSubject);
     return lead
       ? adminSuccess(parsedRequest.requestId, { lead })
-      : adminFailure(crypto.randomUUID(), 404, "NOT_FOUND", "Không tìm thấy lead.");
+      : adminFailure(parsedRequest.requestId, 404, "NOT_FOUND", "Không tìm thấy lead.");
   } catch (error) {
-    return adminErrorFrom(crypto.randomUUID(), error, "Không thể cập nhật trạng thái lead.");
+    return adminErrorFrom(parsedRequest.requestId, error, "Không thể cập nhật trạng thái lead.");
   }
 }
 

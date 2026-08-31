@@ -36,7 +36,7 @@ test("maps every other failure to the safe fallback without surfacing internals"
 
   const mapped = mapAdminWriteError(internal, "Không thể tải danh sách sản phẩm.");
   assert.equal(mapped.code, "INTERNAL_ERROR");
-  assert.equal(mapped.status, 503);
+  assert.equal(mapped.status, 500);
   assert.equal(mapped.message, "Không thể tải danh sách sản phẩm.");
   assert.equal(mapped.fieldErrors, undefined);
   assert.doesNotMatch(JSON.stringify(mapped), /lead_rows|f6aabba5/, "internal detail must never reach the client body");

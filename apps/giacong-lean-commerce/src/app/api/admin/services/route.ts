@@ -2,7 +2,7 @@ import { adminFailure, adminSuccess } from "@/lib/admin-api.ts";
 import { createAdminService, listAdminServices } from "@/lib/admin-data";
 import { adminErrorFrom } from "@/lib/admin-error-mapping.ts";
 import { requireAdmin } from "@/lib/admin-guard";
-import { canManageServices } from "@/lib/admin-permissions.ts";
+import { canManage, canManageServices } from "@/lib/admin-permissions.ts";
 import { readBoundedAdminJson } from "@/lib/admin-request";
 import { parseAdminServicePayload } from "@/lib/admin-service-input";
 
@@ -11,6 +11,9 @@ export const dynamic = "force-dynamic";
 export async function GET(request: Request): Promise<Response> {
   const guard = await requireAdmin(request);
   if (guard instanceof Response) return guard;
+  if (!canManage(guard.member.role, "services.read")) {
+    return adminFailure(crypto.randomUUID(), 403, "FORBIDDEN", "Vai trò hiện tại không được xem dịch vụ.");
+  }
 
   const url = new URL(request.url);
   const page = parsePositiveInt(url.searchParams.get("page"), 1);
@@ -63,7 +66,7 @@ export async function POST(request: Request): Promise<Response> {
     const service = await createAdminService(guard.database, parsed.input, guard.actorSubject);
     return adminSuccess(parsedRequest.requestId, { service }, 201);
   } catch (error) {
-    return adminErrorFrom(crypto.randomUUID(), error, "Không thể tạo dịch vụ.", { fieldErrors: { slug: "Slug đã tồn tại." } });
+    return adminErrorFrom(parsedRequest.requestId, error, "Không thể tạo dịch vụ.", { fieldErrors: { slug: "Slug đã tồn tại." } });
   }
 }
 

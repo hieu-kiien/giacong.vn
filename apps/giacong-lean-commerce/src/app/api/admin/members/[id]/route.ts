@@ -10,7 +10,7 @@ import {
 } from "@/lib/admin-members.ts";
 import { parseAdminMemberPayload } from "@/lib/admin-members-input.ts";
 import { canManageMembers } from "@/lib/admin-permissions.ts";
-import { readBoundedAdminJson } from "@/lib/admin-request";
+import { hasOnlyKeys, readBoundedAdminJson } from "@/lib/admin-request";
 
 export const dynamic = "force-dynamic";
 
@@ -43,9 +43,15 @@ export async function PATCH(request: Request, context: RouteContext): Promise<Re
   const parsedRequest = await readBoundedAdminJson(request);
   if (!parsedRequest.ok) return adminFailure(parsedRequest.requestId, parsedRequest.status, parsedRequest.code, parsedRequest.message);
   const body = parsedRequest.body;
+  if (!isRecord(body) || !hasOnlyKeys(body, ["accessSubject", "displayName", "email", "expectedRevision", "isActive", "role"])) {
+    return adminFailure(parsedRequest.requestId, 400, "INVALID_REQUEST", "Body thành viên chứa trường không được hỗ trợ.");
+  }
   const parsed = parseAdminMemberPayload(body);
-  if (!parsed.input || !isRecord(body) || typeof body.expectedRevision !== "number" || !Number.isInteger(body.expectedRevision)) {
-    return adminFailure(parsedRequest.requestId, 422, "VALIDATION_ERROR", "Cần thông tin thành viên và expectedRevision hợp lệ.", parsed.fieldErrors);
+  if (!parsed.input) {
+    return adminFailure(parsedRequest.requestId, 422, "VALIDATION_ERROR", "Dữ liệu thành viên chưa hợp lệ.", parsed.fieldErrors);
+  }
+  if (typeof body.expectedRevision !== "number" || !Number.isSafeInteger(body.expectedRevision) || body.expectedRevision < 1) {
+    return adminFailure(parsedRequest.requestId, 400, "INVALID_REQUEST", "Cần expectedRevision là số nguyên dương.");
   }
   try {
     const member = await updateAdminMember(guard.database, {
@@ -56,15 +62,15 @@ export async function PATCH(request: Request, context: RouteContext): Promise<Re
     });
     return adminSuccess(parsedRequest.requestId, { member });
   } catch (error) {
-    return memberFailure(error, "Không thể cập nhật thành viên.");
+    return memberFailure(error, "Không thể cập nhật thành viên.", parsedRequest.requestId);
   }
 }
 
-function memberFailure(error: unknown, fallbackMessage: string): Response {
-  if (error instanceof AdminMemberConflictError) return adminFailure(crypto.randomUUID(), 409, "STALE_WRITE", error.message);
-  if (error instanceof AdminMemberNotFoundError) return adminFailure(crypto.randomUUID(), 404, "NOT_FOUND", error.message);
-  if (error instanceof AdminMemberValidationError) return adminFailure(crypto.randomUUID(), 422, "VALIDATION_ERROR", error.message);
-  return adminErrorFrom(crypto.randomUUID(), error, fallbackMessage);
+function memberFailure(error: unknown, fallbackMessage: string, requestId = crypto.randomUUID()): Response {
+  if (error instanceof AdminMemberConflictError) return adminFailure(requestId, 409, "STALE_WRITE", error.message);
+  if (error instanceof AdminMemberNotFoundError) return adminFailure(requestId, 404, "NOT_FOUND", error.message);
+  if (error instanceof AdminMemberValidationError) return adminFailure(requestId, 422, "VALIDATION_ERROR", error.message);
+  return adminErrorFrom(requestId, error, fallbackMessage);
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

@@ -19,11 +19,17 @@ contract (per-setting + bulk publish), contextual editor MVP, P3 contextual
 news-detail hand-off, P4 managed-page hand-off, P5 product bulk import UI và
 product/service/category bulk archive contract đã có trong `master`. Toàn bộ
 admin JSON writes hiện đi qua bounded parser; các admin collection read chính có
-hard bound `LIMIT 100`. `npm run check` trên source hiện tại pass 128/128 admin
-tests cùng các suite storefront, lint, typecheck và production build. Local
-Playwright deep QA và public staging smoke đều pass ở catalog, detail, cart và
-keyboard. Staging version `c2d91d94-6737-447d-88b7-991f9808ba3f` đang phục vụ
-100% traffic, rollback point là `d9caf3ef-e212-45ee-bd26-f37450ed2928`.
+hard bound `LIMIT 100`. Staging đang phục vụ version
+`c2d91d94-6737-447d-88b7-991f9808ba3f` với rollback point
+`d9caf3ef-e212-45ee-bd26-f37450ed2928`; browser/admin identity evidence vẫn là
+gate riêng.
+
+**Working-tree slice 2026-08-31 (chưa promote):** product/variant single-row
+create/update/soft-archive đã chuyển sang exact command envelope với
+`requestId`, optimistic `revision`, idempotent replay, D1 batch coupling cho
+meta/tier/audit và strict numeric types. Focused catalog test, full admin
+regression `136/136`, SQLite chạy đủ migration `0001–0012`, lint và typecheck
+đã pass; staging deploy và runtime admin read-back của lát này vẫn còn mở.
 Tuy nhiên `admin-staging.kienhieu.id.vn` vẫn trả Cloudflare Access login khi
 không có phiên hợp lệ, vì vậy admin read-back/browser evidence cho context thật
 và frontend motion worktree còn mở; không coi local Next dev là bằng chứng
@@ -96,7 +102,7 @@ runtime acceptance còn mở.
 | Primary/footer navigation | src/lib/site-navigation.ts | navigation API + trusted link normalization | published items; footer renderer cần xác minh riêng | navigation.read/write/publish | scripts/site-pages.test.mts có contract liên quan |
 | News | src/lib/news-public.ts, src/lib/admin-news-input.ts, src/lib/admin-data.ts | news API + draft input + publish/batch contract | public chỉ đọc `published_*`; detail trả published id cho contextual hand-off; draft chỉnh riêng, publish explicit; contract P3 đã có trong master | news.read/write và content publish theo quyết định | scripts/admin-news.test.mts, scripts/admin-news-write-contract.test.mts, scripts/admin-visual-news-media.test.mjs |
 | Media | src/lib/media-data.ts, src/lib/site-media-data.ts, src/lib/media-input.ts | media API/R2 guard + bounded multipart + signature validation | reference phải còn hợp lệ; JPEG/PNG/WebP tối đa 8 MiB | media.read/write | scripts/media-contract.test.mts |
-| Product/category/variant | src/lib/admin-product-input.ts, src/lib/admin-category-input.ts, src/lib/admin-variant-input.ts, src/lib/admin-product-batch.ts, src/lib/admin-category-batch.ts và catalog adapters | admin API + D1 canonical rules; bulk import/archive contract | product/service public read theo trạng thái; import luôn tạo draft/inactive; archive là soft archive có revision; category archive bảo toàn dữ liệu và tăng revision | catalog.read/write/publish | scripts/admin-categories.test.mts, scripts/admin-category-batch.test.mts, scripts/admin-product-import.test.mts, scripts/admin-product-batch.test.mts, catalog/detail suites |
+| Product/category/variant | src/lib/admin-product-input.ts, src/lib/admin-product-command.ts, src/lib/admin-variant-input.ts, src/lib/admin-variant-command.ts, src/lib/admin-catalog-write.ts, src/lib/admin-product-batch.ts, src/lib/admin-category-batch.ts và catalog adapters | admin API + exact command parser + D1 canonical rules; single-row/bulk import/archive contract | product/service public read theo trạng thái; import luôn tạo draft/inactive; single-row và bulk archive là soft archive có revision, audit và idempotency; category archive bảo toàn dữ liệu và tăng revision | catalog.read/write/publish | scripts/admin-catalog-write.test.mts, scripts/admin-categories.test.mts, scripts/admin-category-batch.test.mts, scripts/admin-product-import.test.mts, scripts/admin-product-batch.test.mts, catalog/detail suites |
 | Service | src/lib/admin-service-input.ts, src/lib/admin-service-batch.ts, service data adapters | service API + additive revision snapshot/batch contract + D1 | active/published service read | services.read/write | scripts/admin-service-input.test.mts, scripts/admin-service-batch.test.mts, scripts/service-contract.test.mts |
 | Leads | src/lib/admin-data.ts, lead API | status transition + Google Sheet queue contract | back office only | leads.read/write | contact/lead queue suites |
 | Admin members | src/lib/admin-members.ts, src/lib/admin-members-input.ts | owner-only API + D1 | internal control plane only | members.read/write | scripts/admin-members.test.mts |
@@ -148,7 +154,7 @@ use case thứ ba chứng minh editor hiện tại không còn đủ đơn giả
 | Navigation | /api/admin/navigation, /api/admin/navigation/[id], /publish, /publish-all | P4 |
 | News | /api/admin/news, /api/admin/news/[id], /api/admin/news/[id]/publish, /api/admin/news/batch | P3; draft save, explicit publish/unpublish, batch status và contextual deep-link đã có; browser/admin staging read-back còn mở |
 | Media | /api/admin/media, /api/admin/media/[id], /api/admin/media/cleanup | P3/P5 |
-| Catalog | /api/admin/categories, /api/admin/categories/[id], /api/admin/categories/batch, /products, /products/[id], /products/batch, /products/[id]/variants, /products/[id]/variants/[variantId], /api/admin/products/import | P5; bulk import tối đa 50 dòng, product/category archive tối đa 100 item, đều revision-aware/atomic/idempotent/audited; category action là soft-deactivate, không hard-delete; browser/staging còn mở |
+| Catalog | /api/admin/categories, /api/admin/categories/[id], /api/admin/categories/batch, /products, /products/[id], /products/batch, /products/[id]/variants, /products/[id]/variants/[variantId], /api/admin/products/import | P5; bulk import tối đa 50 dòng, product/category archive tối đa 100 item; single-row product/variant create/update/archive và bulk contract đều revision-aware/atomic/idempotent/audited; category/product/variant action là soft archive, không hard-delete; lát single-row mới nhất chưa promote và browser/staging còn mở |
 | Services | /api/admin/services, /api/admin/services/[id], /api/admin/services/batch | P5; batch archive có snapshot revision riêng, tối đa 100 item, stale skip, atomic audit/idempotency; browser/staging còn mở |
 | Leads | /api/admin/leads, /api/admin/leads/[id] | P5, special page |
 | Members | /api/admin/members, /api/admin/members/[id] | P5, special page |

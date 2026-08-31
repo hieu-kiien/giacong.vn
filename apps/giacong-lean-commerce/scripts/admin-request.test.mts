@@ -92,6 +92,63 @@ test("member, lead, service and media JSON writes use the bounded request parser
   }
 });
 
+test("operational collection reads enforce their declared read capabilities", async () => {
+  const expectations = [
+    ["../src/app/api/admin/services/route.ts", /canManage\(guard\.member\.role, "services\.read"\)/],
+    ["../src/app/api/admin/services/[id]/route.ts", /canManage\(guard\.member\.role, "services\.read"\)/],
+    ["../src/app/api/admin/leads/route.ts", /canManage\(guard\.member\.role, "leads\.read"\)/],
+    ["../src/app/api/admin/media/route.ts", /canManage\(guard\.member\.role, "media\.read"\)/],
+  ] as const;
+
+  for (const [routeFile, capability] of expectations) {
+    const source = await readFile(new URL(routeFile, import.meta.url), "utf8");
+    assert.match(source, capability, routeFile);
+  }
+});
+
+test("operational mutation errors keep the bounded parser request ID", async () => {
+  const expectations = [
+    ["../src/app/api/admin/services/route.ts", /adminErrorFrom\(parsedRequest\.requestId/],
+    ["../src/app/api/admin/services/[id]/route.ts", /adminErrorFrom\(parsedRequest\.requestId/],
+    ["../src/app/api/admin/members/[id]/route.ts", /memberFailure\(error, "Không thể cập nhật thành viên\.", parsedRequest\.requestId\)/],
+    ["../src/app/api/admin/leads/[id]/route.ts", /adminFailure\(parsedRequest\.requestId, 404/],
+    ["../src/app/api/admin/leads/[id]/route.ts", /adminErrorFrom\(parsedRequest\.requestId/],
+    ["../src/app/api/admin/media/route.ts", /adminErrorFrom\(requestId/],
+    ["../src/app/api/admin/media/cleanup/route.ts", /adminErrorFrom\(parsedRequest\.requestId/],
+  ] as const;
+
+  for (const [routeFile, pattern] of expectations) {
+    const source = await readFile(new URL(routeFile, import.meta.url), "utf8");
+    assert.match(source, pattern, routeFile);
+  }
+});
+
+test("member and media JSON mutations reject unknown fields", async () => {
+  const expectations = [
+    ["../src/app/api/admin/members/route.ts", /hasOnlyKeys/],
+    ["../src/app/api/admin/members/[id]/route.ts", /hasOnlyKeys/],
+    ["../src/app/api/admin/media/[id]/route.ts", /hasOnlyKeys\(body, \["altText"\]\)/],
+  ] as const;
+
+  for (const [routeFile, pattern] of expectations) {
+    const source = await readFile(new URL(routeFile, import.meta.url), "utf8");
+    assert.match(source, pattern, routeFile);
+  }
+});
+
+test("operational malformed bodies use INVALID_REQUEST and preserve field bounds", async () => {
+  const [memberDetail, mediaDetail] = await Promise.all([
+    readFile(new URL("../src/app/api/admin/members/[id]/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../src/app/api/admin/media/[id]/route.ts", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(memberDetail, /body\.expectedRevision < 1/);
+  assert.match(memberDetail, /adminFailure\(parsedRequest\.requestId, 400, "INVALID_REQUEST"/);
+  assert.match(mediaDetail, /adminFailure\(parsedRequest\.requestId, 400, "INVALID_REQUEST"/);
+  assert.match(mediaDetail, /rawAltText\.trim\(\)\.length > 300/);
+  assert.doesNotMatch(mediaDetail, /slice\(0, 300\)/);
+});
+
 test("product and variant JSON writes use the bounded request parser", async () => {
   const routeFiles = [
     "../src/app/api/admin/products/route.ts",

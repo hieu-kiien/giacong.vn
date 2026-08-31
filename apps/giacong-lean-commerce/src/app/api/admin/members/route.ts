@@ -4,7 +4,7 @@ import { requireAdmin } from "@/lib/admin-guard";
 import { createAdminMember, listAdminMembers, AdminMemberValidationError } from "@/lib/admin-members.ts";
 import { parseAdminMemberPayload } from "@/lib/admin-members-input.ts";
 import { canManageMembers } from "@/lib/admin-permissions.ts";
-import { readBoundedAdminJson } from "@/lib/admin-request";
+import { hasOnlyKeys, readBoundedAdminJson } from "@/lib/admin-request";
 
 export const dynamic = "force-dynamic";
 
@@ -29,6 +29,9 @@ export async function POST(request: Request): Promise<Response> {
   }
   const parsedRequest = await readBoundedAdminJson(request);
   if (!parsedRequest.ok) return adminFailure(parsedRequest.requestId, parsedRequest.status, parsedRequest.code, parsedRequest.message);
+  if (!isRecord(parsedRequest.body) || !hasOnlyKeys(parsedRequest.body, ["accessSubject", "displayName", "email", "isActive", "role"])) {
+    return adminFailure(parsedRequest.requestId, 400, "INVALID_REQUEST", "Body thành viên chứa trường không được hỗ trợ.");
+  }
   const parsed = parseAdminMemberPayload(parsedRequest.body);
   if (!parsed.input) {
     return adminFailure(parsedRequest.requestId, 422, "VALIDATION_ERROR", "Dữ liệu thành viên chưa hợp lệ.", parsed.fieldErrors);
@@ -48,4 +51,8 @@ export async function POST(request: Request): Promise<Response> {
       message: "accessSubject hoặc email đã tồn tại.",
     });
   }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }

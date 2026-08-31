@@ -58,6 +58,7 @@ export interface AdminProduct {
   isActive: boolean;
   status: AdminPublishStatus;
   leadTimeDays: number | null;
+  revision: number;
   updatedAt: string | null;
 }
 
@@ -325,7 +326,7 @@ export async function listAdminProducts(
   const rows = await database.prepare(`
     SELECT
       p.id, p.name, p.slug, p.sku, p.category_id, c.name AS category_name,
-      p.short_description, p.description, p.image_url, p.is_active,
+      p.short_description, p.description, p.image_url, p.is_active, p.revision,
       (SELECT COUNT(*) FROM product_variants v WHERE v.product_id = p.id) AS variant_count,
       (SELECT MIN(v.moq) FROM product_variants v WHERE v.product_id = p.id) AS minimum_order_quantity,
       (SELECT MIN(tp.price) FROM variant_tier_prices tp
@@ -349,6 +350,7 @@ export async function listAdminProducts(
     description: string;
     image_url: string | null;
     is_active: number;
+    revision: number;
     minimum_order_quantity: number | null;
     starting_price: number | null;
     variant_count: number | null;
@@ -368,6 +370,7 @@ export async function listAdminProducts(
       leadTimeDays: row.lead_time_days ?? null,
       minimumOrderQuantity: row.minimum_order_quantity,
       name: row.name,
+      revision: row.revision,
       shortDescription: row.short_description,
       sku: row.sku,
       slug: row.slug,
@@ -388,7 +391,7 @@ export async function getAdminProduct(
   const row = await database.prepare(`
     SELECT
       p.id, p.name, p.slug, p.sku, p.category_id, c.name AS category_name,
-      p.short_description, p.description, p.image_url, p.is_active
+      p.short_description, p.description, p.image_url, p.is_active, p.revision
       ${hasMeta ? ", m.status, m.lead_time_days, m.updated_at AS meta_updated_at" : ""}
     FROM products p
     LEFT JOIN categories c ON c.id = p.category_id
@@ -1021,6 +1024,7 @@ type ProductRow = {
   description: string;
   image_url: string | null;
   is_active: number;
+  revision: number;
   status?: AdminPublishStatus;
   lead_time_days?: number | null;
   meta_updated_at?: string | null;
@@ -1159,6 +1163,7 @@ function toAdminProduct(row: ProductRow): AdminProduct {
     isActive: row.is_active === 1,
     leadTimeDays: row.lead_time_days ?? null,
     name: row.name,
+    revision: row.revision,
     shortDescription: row.short_description,
     sku: row.sku,
     slug: row.slug,

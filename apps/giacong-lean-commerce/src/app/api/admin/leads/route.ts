@@ -2,6 +2,7 @@ import { adminFailure, adminSuccess } from "@/lib/admin-api.ts";
 import { listAdminLeads, type LeadStatus } from "@/lib/admin-data";
 import { adminErrorFrom } from "@/lib/admin-error-mapping.ts";
 import { requireAdmin } from "@/lib/admin-guard";
+import { canManage } from "@/lib/admin-permissions.ts";
 
 export const dynamic = "force-dynamic";
 
@@ -20,6 +21,9 @@ const leadStatuses = new Set<LeadStatus>([
 export async function GET(request: Request): Promise<Response> {
   const guard = await requireAdmin(request);
   if (guard instanceof Response) return guard;
+  if (!canManage(guard.member.role, "leads.read")) {
+    return adminFailure(crypto.randomUUID(), 403, "FORBIDDEN", "Vai trò hiện tại không được xem lead.");
+  }
 
   const url = new URL(request.url);
   const page = parsePositiveInt(url.searchParams.get("page"), 1);

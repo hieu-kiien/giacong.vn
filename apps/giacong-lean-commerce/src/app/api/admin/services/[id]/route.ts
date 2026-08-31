@@ -7,7 +7,7 @@ import {
 } from "@/lib/admin-data";
 import { adminErrorFrom } from "@/lib/admin-error-mapping.ts";
 import { requireAdmin } from "@/lib/admin-guard";
-import { canManageServices } from "@/lib/admin-permissions.ts";
+import { canManage, canManageServices } from "@/lib/admin-permissions.ts";
 import { readBoundedAdminJson } from "@/lib/admin-request";
 import { parseAdminServicePayload } from "@/lib/admin-service-input";
 
@@ -23,6 +23,9 @@ export async function GET(
 ): Promise<Response> {
   const guard = await requireAdmin(request);
   if (guard instanceof Response) return guard;
+  if (!canManage(guard.member.role, "services.read")) {
+    return adminFailure(crypto.randomUUID(), 403, "FORBIDDEN", "Vai trò hiện tại không được xem dịch vụ.");
+  }
   const id = await parseId(context);
   if (id === null) return adminFailure(crypto.randomUUID(), 404, "NOT_FOUND", "Không tìm thấy dịch vụ.");
 
@@ -64,7 +67,7 @@ export async function PATCH(
       ? adminSuccess(parsedRequest.requestId, { service })
       : adminFailure(parsedRequest.requestId, 404, "NOT_FOUND", "Không tìm thấy dịch vụ.");
   } catch (error) {
-    return adminErrorFrom(crypto.randomUUID(), error, "Không thể cập nhật dịch vụ.", { fieldErrors: { slug: "Slug đã tồn tại." } });
+    return adminErrorFrom(parsedRequest.requestId, error, "Không thể cập nhật dịch vụ.", { fieldErrors: { slug: "Slug đã tồn tại." } });
   }
 }
 

@@ -49,6 +49,7 @@ type ProductFormState = {
   isActive: boolean;
   leadTimeDays: string;
   name: string;
+  revision?: number;
   shortDescription: string;
   sku: string;
   slug: string;
@@ -158,6 +159,7 @@ export default function AdminProductsPage() {
       isActive: product.isActive,
       leadTimeDays: product.leadTimeDays === null ? "" : String(product.leadTimeDays),
       name: product.name,
+      revision: product.revision,
       shortDescription: product.shortDescription,
       sku: product.sku,
       slug: product.slug,
@@ -171,6 +173,7 @@ export default function AdminProductsPage() {
     setSaving(true);
     setSaveError(null);
     const payload = {
+      ...(editor.id ? { revision: editor.revision } : {}),
       categoryId: editor.categoryId || null,
       description: editor.description,
       imageUrl: editor.imageUrl || null,
@@ -181,6 +184,7 @@ export default function AdminProductsPage() {
       sku: editor.sku,
       slug: editor.slug,
       status: editor.status,
+      requestId: crypto.randomUUID(),
     };
     try {
       await mutateAdmin<{ product: AdminProduct }>(
@@ -203,7 +207,10 @@ export default function AdminProductsPage() {
     setArchivingId(product.id);
     setSaveError(null);
     try {
-      await mutateAdmin<{ product: AdminProduct }>(`/api/admin/products/${product.id}`, { method: "DELETE" });
+      await mutateAdmin<{ product: AdminProduct }>(`/api/admin/products/${product.id}`, {
+        body: { requestId: crypto.randomUUID(), revision: product.revision },
+        method: "DELETE",
+      });
       if (editor?.id === product.id) setEditor(null);
       setAttempt((value) => value + 1);
       showToast("success", `Đã ẩn sản phẩm “${product.name}”.`);

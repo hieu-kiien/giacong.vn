@@ -372,6 +372,13 @@ guard kết quả atomic, retry giữ request ID và thông báo kết quả m�
 ràng. P5 vẫn chưa hoàn tất: batch các domain còn lại, browser/admin staging
 evidence và full operational acceptance còn mở.
 
+**Working-tree slice 2026-08-31:** product/variant single-row writes đã có
+exact body, strict numeric validation, optimistic revision, request-id replay,
+atomic D1 coupling giữa row/meta/tier/audit và focused regression. Admin suite
+hiện đạt `136/136`; SQLite in-memory chạy đủ migration `0001–0012` qua create,
+update, archive và tier rollback. Lát này chỉ được đóng sau staging upload,
+runtime admin read-back và role/browser acceptance.
+
 **Mục tiêu:** admin có toàn quyền vận hành trong phạm vi Lean V1, không hy sinh
 tính rõ ràng cho người mới.
 

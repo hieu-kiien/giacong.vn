@@ -14,10 +14,10 @@ export async function POST(request: Request): Promise<Response> {
   if (!canManageMedia(guard.member.role)) {
     return adminFailure(crypto.randomUUID(), 403, "FORBIDDEN", "Vai trò hiện tại không được cleanup media.");
   }
-  const bucket = getMediaBucket();
-  if (!bucket) return adminFailure(crypto.randomUUID(), 503, "INTERNAL_ERROR", "R2 media chưa sẵn sàng.");
   const parsedRequest = await readBoundedAdminJson(request);
   if (!parsedRequest.ok) return adminFailure(parsedRequest.requestId, parsedRequest.status, parsedRequest.code, parsedRequest.message);
+  const bucket = getMediaBucket();
+  if (!bucket) return adminFailure(parsedRequest.requestId, 503, "INTERNAL_ERROR", "R2 media chưa sẵn sàng.");
   let limit = 100;
   if (isRecord(parsedRequest.body) && typeof parsedRequest.body.limit === "number" && Number.isFinite(parsedRequest.body.limit)) {
     limit = parsedRequest.body.limit;
@@ -26,7 +26,7 @@ export async function POST(request: Request): Promise<Response> {
     const result = await cleanupOrphanedMediaAssets(guard.database, bucket, limit);
     return adminSuccess(parsedRequest.requestId, result);
   } catch (error) {
-    return adminErrorFrom(crypto.randomUUID(), error, "Không thể cleanup media.");
+    return adminErrorFrom(parsedRequest.requestId, error, "Không thể cleanup media.");
   }
 }
 

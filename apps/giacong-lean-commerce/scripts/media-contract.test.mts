@@ -23,6 +23,8 @@ test("media API supports product, service, alt-text updates, and bounded cleanup
   assert.match(route, /readBoundedAdminMultipart/);
   assert.match(route, /validateAdminImageBytes/);
   assert.match(route, /8 MiB/);
+  assert.match(route, /rawAltText\.trim\(\)\.length > 300/);
+  assert.doesNotMatch(route, /slice\(0, 300\)/);
   assert.doesNotMatch(route, /image\/avif/);
   assert.match(detailRoute, /export async function PATCH/);
   assert.match(detailRoute, /updateMediaAssetAltText/);

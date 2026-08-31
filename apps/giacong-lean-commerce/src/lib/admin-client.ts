@@ -37,6 +37,7 @@ export interface AdminProduct {
   status: string;
   leadTimeDays: number | null;
   minimumOrderQuantity: number | null;
+  revision: number;
   startingPrice: number | null;
   variantCount: number | null;
   updatedAt: string | null;

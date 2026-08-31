@@ -18,7 +18,7 @@ export function parseAdminVariantPayload(
   const quantityStep = positiveInteger(merged.quantityStep, "Bước số lượng", fieldErrors, "quantityStep");
   const contactFromQuantity = positiveInteger(merged.contactFromQuantity, "Ngưỡng liên hệ", fieldErrors, "contactFromQuantity");
   const attributeId = positiveInteger(merged.attributeId, "Attribute ID", fieldErrors, "attributeId");
-  const optionId = positiveInteger(merged.optionId, "Option ID", fieldErrors, "optionId");
+  const optionId = nonNegativeInteger(merged.optionId, "Option ID", fieldErrors, "optionId");
   const sortOrder = nonNegativeInteger(merged.sortOrder, "Thứ tự", fieldErrors, "sortOrder");
   const isAvailable = merged.isAvailable !== false;
   const tierPrices = parseTiers(merged.tierPrices, moq, quantityStep, contactFromQuantity, fieldErrors);

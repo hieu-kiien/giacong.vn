@@ -1,15 +1,23 @@
 import { adminFailure, adminSuccess } from "@/lib/admin-api.ts";
 import {
-  archiveAdminProduct,
+  AdminCatalogWriteConflictError,
+  AdminCatalogWriteIdempotencyConflictError,
+  AdminCatalogWriteValidationError,
+  archiveAdminProductAtomically,
+  updateAdminProductAtomically,
+} from "@/lib/admin-catalog-write.ts";
+import {
   getAdminProduct,
-  updateAdminProduct,
   validateAdminProductVariants,
 } from "@/lib/admin-data";
 import { adminErrorFrom } from "@/lib/admin-error-mapping.ts";
 import { requireAdmin } from "@/lib/admin-guard";
 import { canManageCatalog } from "@/lib/admin-permissions.ts";
 import { readBoundedAdminJson } from "@/lib/admin-request";
-import { parseAdminProductPayload, productDefaults } from "@/lib/admin-product-input";
+import {
+  parseAdminProductArchiveCommand,
+  parseAdminProductUpdateCommand,
+} from "@/lib/admin-product-command";
 
 export const dynamic = "force-dynamic";
 
@@ -53,17 +61,18 @@ export async function PATCH(
 
   const parsedRequest = await readBoundedAdminJson(request);
   if (!parsedRequest.ok) return adminFailure(parsedRequest.requestId, parsedRequest.status, parsedRequest.code, parsedRequest.message);
-  const parsed = parseAdminProductPayload(parsedRequest.body, productDefaults(existing));
-  if (!parsed.input) {
-    return adminFailure(parsedRequest.requestId, 422, "VALIDATION_ERROR", "Dữ liệu sản phẩm chưa hợp lệ.", parsed.fieldErrors);
+  const parsed = parseAdminProductUpdateCommand(parsedRequest.body);
+  const requestId = parsed.command?.requestId ?? parsedRequest.requestId;
+  if (!parsed.command) {
+    return adminFailure(requestId, 422, "VALIDATION_ERROR", "Dữ liệu sản phẩm chưa hợp lệ.", parsed.fieldErrors);
   }
 
   try {
-    if (parsed.input.status === "published") {
+    if (parsed.command.input.status === "published") {
       const variantValidation = await validateAdminProductVariants(guard.database, id);
       if (!variantValidation.valid) {
         return adminFailure(
-          parsedRequest.requestId,
+          requestId,
           422,
           "VALIDATION_ERROR",
           "Không thể publish sản phẩm vì variants chưa hợp lệ.",
@@ -73,12 +82,19 @@ export async function PATCH(
         );
       }
     }
-    const product = await updateAdminProduct(guard.database, id, parsed.input, guard.actorSubject);
+    const product = await updateAdminProductAtomically(
+      guard.database,
+      id,
+      parsed.command.input,
+      parsed.command.revision,
+      guard.actorSubject,
+      requestId,
+    );
     return product
-      ? adminSuccess(parsedRequest.requestId, { product })
-      : adminFailure(parsedRequest.requestId, 404, "NOT_FOUND", "Không tìm thấy sản phẩm.");
+      ? adminSuccess(requestId, { product })
+      : adminFailure(requestId, 404, "NOT_FOUND", "Không tìm thấy sản phẩm.");
   } catch (error) {
-    return adminErrorFrom(parsedRequest.requestId, error, "Không thể cập nhật sản phẩm.", { fieldErrors: { slug: "Slug hoặc SKU đã tồn tại." } });
+    return mapCatalogWriteError(requestId, error, "Không thể cập nhật sản phẩm.", { fieldErrors: { slug: "Slug hoặc SKU đã tồn tại." } });
   }
 }
 
@@ -95,13 +111,27 @@ export async function DELETE(
   const id = await parseId(context);
   if (id === null) return adminFailure(crypto.randomUUID(), 404, "NOT_FOUND", "Không tìm thấy sản phẩm.");
 
+  const parsedRequest = await readBoundedAdminJson(request);
+  if (!parsedRequest.ok) return adminFailure(parsedRequest.requestId, parsedRequest.status, parsedRequest.code, parsedRequest.message);
+  const parsed = parseAdminProductArchiveCommand(parsedRequest.body);
+  const requestId = parsed.command?.requestId ?? parsedRequest.requestId;
+  if (!parsed.command) {
+    return adminFailure(requestId, 422, "VALIDATION_ERROR", "Dữ liệu ẩn sản phẩm chưa hợp lệ.", parsed.fieldErrors);
+  }
+
   try {
-    const product = await archiveAdminProduct(guard.database, id, guard.actorSubject);
+    const product = await archiveAdminProductAtomically(
+      guard.database,
+      id,
+      parsed.command.revision,
+      guard.actorSubject,
+      requestId,
+    );
     return product
-      ? adminSuccess(crypto.randomUUID(), { product })
-      : adminFailure(crypto.randomUUID(), 404, "NOT_FOUND", "Không tìm thấy sản phẩm.");
+      ? adminSuccess(requestId, { product })
+      : adminFailure(requestId, 404, "NOT_FOUND", "Không tìm thấy sản phẩm.");
   } catch (error) {
-    return adminErrorFrom(crypto.randomUUID(), error, "Không thể ẩn sản phẩm.");
+    return mapCatalogWriteError(requestId, error, "Không thể ẩn sản phẩm.", {});
   }
 }
 
@@ -109,4 +139,22 @@ async function parseId(context: ProductRouteContext): Promise<number | null> {
   const { id } = await context.params;
   const parsed = Number(id);
   return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+}
+
+function mapCatalogWriteError(
+  requestId: string,
+  error: unknown,
+  fallbackMessage: string,
+  conflict: { fieldErrors?: Record<string, string>; message?: string },
+): Response {
+  if (error instanceof AdminCatalogWriteConflictError) {
+    return adminFailure(requestId, 409, "STALE_WRITE", error.message);
+  }
+  if (error instanceof AdminCatalogWriteIdempotencyConflictError) {
+    return adminFailure(requestId, 409, "IDEMPOTENCY_CONFLICT", error.message);
+  }
+  if (error instanceof AdminCatalogWriteValidationError) {
+    return adminFailure(requestId, 422, "VALIDATION_ERROR", error.message);
+  }
+  return adminErrorFrom(requestId, error, fallbackMessage, conflict);
 }

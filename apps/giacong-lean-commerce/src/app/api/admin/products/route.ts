@@ -1,15 +1,19 @@
 import { adminFailure, adminSuccess } from "@/lib/admin-api.ts";
+import {
+  AdminCatalogWriteConflictError,
+  AdminCatalogWriteIdempotencyConflictError,
+  AdminCatalogWriteValidationError,
+  createAdminProductAtomically,
+} from "@/lib/admin-catalog-write.ts";
 import { adminErrorFrom } from "@/lib/admin-error-mapping.ts";
 import {
-  createAdminProduct,
   listAdminCategories,
   listAdminProducts,
-  type AdminProductInput,
 } from "@/lib/admin-data";
 import { requireAdmin } from "@/lib/admin-guard";
 import { canManageCatalog } from "@/lib/admin-permissions.ts";
 import { readBoundedAdminJson } from "@/lib/admin-request";
-import { parseAdminProductPayload } from "@/lib/admin-product-input";
+import { parseAdminProductCreateCommand } from "@/lib/admin-product-command";
 
 export const dynamic = "force-dynamic";
 
@@ -54,13 +58,14 @@ export async function POST(request: Request): Promise<Response> {
 
   const parsedRequest = await readBoundedAdminJson(request);
   if (!parsedRequest.ok) return adminFailure(parsedRequest.requestId, parsedRequest.status, parsedRequest.code, parsedRequest.message);
-  const parsed = parseAdminProductPayload(parsedRequest.body);
-  if (!parsed.input) {
-    return adminFailure(parsedRequest.requestId, 422, "VALIDATION_ERROR", "Dữ liệu sản phẩm chưa hợp lệ.", parsed.fieldErrors);
+  const parsed = parseAdminProductCreateCommand(parsedRequest.body);
+  const requestId = parsed.command?.requestId ?? parsedRequest.requestId;
+  if (!parsed.command) {
+    return adminFailure(requestId, 422, "VALIDATION_ERROR", "Dữ liệu sản phẩm chưa hợp lệ.", parsed.fieldErrors);
   }
-  if (parsed.input.status === "published") {
+  if (parsed.command.input.status === "published") {
     return adminFailure(
-      parsedRequest.requestId,
+      requestId,
       422,
       "VALIDATION_ERROR",
       "Sản phẩm mới cần được tạo ở draft trước khi thêm và kiểm tra variants.",
@@ -69,10 +74,10 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   try {
-    const product = await createAdminProduct(guard.database, parsed.input, guard.actorSubject);
-    return adminSuccess(parsedRequest.requestId, { product }, 201);
+    const product = await createAdminProductAtomically(guard.database, parsed.command.input, guard.actorSubject, requestId);
+    return adminSuccess(requestId, { product }, 201);
   } catch (error) {
-    return adminErrorFrom(parsedRequest.requestId, error, "Không thể tạo sản phẩm.", {
+    return mapCatalogWriteError(requestId, error, "Không thể tạo sản phẩm.", {
       fieldErrors: { slug: "Slug hoặc SKU đã tồn tại." },
       message: "Slug hoặc SKU đã tồn tại.",
     });
@@ -82,4 +87,22 @@ export async function POST(request: Request): Promise<Response> {
 function parsePositiveInt(value: string | null, fallback: number): number {
   const parsed = Number(value);
   return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+function mapCatalogWriteError(
+  requestId: string,
+  error: unknown,
+  fallbackMessage: string,
+  conflict: { fieldErrors?: Record<string, string>; message?: string },
+): Response {
+  if (error instanceof AdminCatalogWriteConflictError) {
+    return adminFailure(requestId, 409, "STALE_WRITE", error.message);
+  }
+  if (error instanceof AdminCatalogWriteIdempotencyConflictError) {
+    return adminFailure(requestId, 409, "IDEMPOTENCY_CONFLICT", error.message);
+  }
+  if (error instanceof AdminCatalogWriteValidationError) {
+    return adminFailure(requestId, 422, "VALIDATION_ERROR", error.message);
+  }
+  return adminErrorFrom(requestId, error, fallbackMessage, conflict);
 }

@@ -3,7 +3,7 @@ import { adminFailure, adminSuccess } from "@/lib/admin-api.ts";
 import { getAdminProduct, getAdminProductVariant, getAdminService } from "@/lib/admin-data";
 import { adminErrorFrom } from "@/lib/admin-error-mapping.ts";
 import { requireAdmin } from "@/lib/admin-guard";
-import { canManageMedia } from "@/lib/admin-permissions.ts";
+import { canManage, canManageMedia } from "@/lib/admin-permissions.ts";
 import { createMediaAsset, listMediaAssets, type R2BucketLike } from "@/lib/media-data";
 import {
   adminMediaMaxBytes,
@@ -17,6 +17,9 @@ export const dynamic = "force-dynamic";
 export async function GET(request: Request): Promise<Response> {
   const guard = await requireAdmin(request);
   if (guard instanceof Response) return guard;
+  if (!canManage(guard.member.role, "media.read")) {
+    return adminFailure(crypto.randomUUID(), 403, "FORBIDDEN", "Vai trò hiện tại không được xem media.");
+  }
   const url = new URL(request.url);
   const productId = parsePositiveInt(url.searchParams.get("productId"));
   const serviceId = parsePositiveInt(url.searchParams.get("serviceId"));
@@ -44,11 +47,12 @@ export async function POST(request: Request): Promise<Response> {
   if (!canManageMedia(guard.member.role)) {
     return adminFailure(crypto.randomUUID(), 403, "FORBIDDEN", "Vai trò hiện tại không được upload media.");
   }
+  const requestId = crypto.randomUUID();
 
   const boundedForm = await readBoundedAdminMultipart(request);
   if (!boundedForm.ok) {
     return adminFailure(
-      crypto.randomUUID(),
+      requestId,
       boundedForm.reason === "too_large" ? 413 : 422,
       boundedForm.reason === "too_large" ? "PAYLOAD_TOO_LARGE" : "VALIDATION_ERROR",
       boundedForm.reason === "too_large"
@@ -61,12 +65,18 @@ export async function POST(request: Request): Promise<Response> {
   const serviceId = parsePositiveInt(form.get("serviceId"));
   const variantId = parsePositiveInt(form.get("variantId"));
   const file = form.get("file");
+  const rawAltText = form.get("altText");
   if ((!productId && !serviceId) || (productId && serviceId) || (variantId && !productId) || !(file instanceof File)) {
-    return adminFailure(crypto.randomUUID(), 422, "VALIDATION_ERROR", "Cần productId hoặc serviceId và file ảnh.");
+    return adminFailure(requestId, 422, "VALIDATION_ERROR", "Cần productId hoặc serviceId và file ảnh.");
+  }
+  if (typeof rawAltText === "string" && rawAltText.trim().length > 300) {
+    return adminFailure(requestId, 422, "VALIDATION_ERROR", "altText không được vượt quá 300 ký tự.", {
+      altText: "Tối đa 300 ký tự.",
+    });
   }
   if (file.size <= 0 || file.size > adminMediaMaxBytes) {
     return adminFailure(
-      crypto.randomUUID(),
+      requestId,
       422,
       "VALIDATION_ERROR",
       "Ảnh phải là JPEG, PNG hoặc WebP và không vượt quá 8 MiB.",
@@ -75,25 +85,25 @@ export async function POST(request: Request): Promise<Response> {
 
   if (productId) {
     const product = await getAdminProduct(guard.database, productId);
-    if (!product) return adminFailure(crypto.randomUUID(), 404, "NOT_FOUND", "Không tìm thấy sản phẩm.");
+    if (!product) return adminFailure(requestId, 404, "NOT_FOUND", "Không tìm thấy sản phẩm.");
   } else {
     const service = await getAdminService(guard.database, serviceId!);
-    if (!service) return adminFailure(crypto.randomUUID(), 404, "NOT_FOUND", "Không tìm thấy dịch vụ.");
+    if (!service) return adminFailure(requestId, 404, "NOT_FOUND", "Không tìm thấy dịch vụ.");
   }
   if (variantId && productId) {
     const variant = await getAdminProductVariant(guard.database, productId, variantId);
-    if (!variant) return adminFailure(crypto.randomUUID(), 422, "VALIDATION_ERROR", "Variant không thuộc sản phẩm này.");
+    if (!variant) return adminFailure(requestId, 422, "VALIDATION_ERROR", "Variant không thuộc sản phẩm này.");
   }
   const bucket = getMediaBucket();
-  if (!bucket) return adminFailure(crypto.randomUUID(), 503, "INTERNAL_ERROR", "R2 media chưa sẵn sàng.");
+  if (!bucket) return adminFailure(requestId, 503, "INTERNAL_ERROR", "R2 media chưa sẵn sàng.");
 
   const bytes = await file.arrayBuffer();
   const imageError = validateAdminImageBytes(file.type, bytes);
-  if (imageError) return adminFailure(crypto.randomUUID(), 422, "VALIDATION_ERROR", imageError);
+  if (imageError) return adminFailure(requestId, 422, "VALIDATION_ERROR", imageError);
   const checksumSha256 = await digestSha256(bytes);
   try {
     const media = await createMediaAsset(guard.database, bucket, {
-      altText: readAltText(form.get("altText")),
+      altText: readAltText(rawAltText),
       bytes,
       checksumSha256,
       contentType: file.type,
@@ -103,9 +113,9 @@ export async function POST(request: Request): Promise<Response> {
       serviceId: serviceId ?? null,
       variantId: variantId ?? null,
     });
-    return adminSuccess(crypto.randomUUID(), { media }, 201);
+    return adminSuccess(requestId, { media }, 201);
   } catch (error) {
-    return adminErrorFrom(crypto.randomUUID(), error, "Không thể lưu media.");
+    return adminErrorFrom(requestId, error, "Không thể lưu media.");
   }
 }
 
@@ -116,7 +126,7 @@ function parsePositiveInt(value: FormDataEntryValue | string | null): number | n
 
 function readAltText(value: FormDataEntryValue | null): string | null {
   if (typeof value !== "string") return null;
-  const result = value.trim().slice(0, 300);
+  const result = value.trim();
   return result || null;
 }
 

@@ -103,6 +103,7 @@ export function AdminVariantPanel({ productId }: { productId: number }) {
         minQuantity: Number(tier.minQuantity),
         price: Number(tier.price),
       })),
+      requestId: crypto.randomUUID(),
     };
     try {
       await mutateAdmin(
@@ -123,7 +124,10 @@ export function AdminVariantPanel({ productId }: { productId: number }) {
   async function archiveVariant(variant: AdminProductVariant) {
     setError(null);
     try {
-      await mutateAdmin(`/api/admin/products/${productId}/variants/${variant.id}`, { method: "DELETE" });
+      await mutateAdmin(`/api/admin/products/${productId}/variants/${variant.id}`, {
+        body: { requestId: crypto.randomUUID(), revision: variant.revision },
+        method: "DELETE",
+      });
       await loadVariants();
       if (editingId === variant.id) resetDraft();
     } catch (reason: unknown) {

@@ -222,8 +222,24 @@ Routes:
 - `POST /api/admin/products`
 - `GET /api/admin/products/[id]`
 - `PATCH /api/admin/products/[id]`
+- `DELETE /api/admin/products/[id]` — soft archive
 
-Deletion is out of Lean V1; use `isActive=false`.
+Deletion is soft archive only; variants, prices and lead references remain intact.
+
+Exact mutation bodies:
+
+- `POST`: `{ requestId, categoryId, description, imageUrl, isActive,
+  leadTimeDays, name, shortDescription, sku, slug, status }`;
+- `PATCH`: `{ requestId, revision, categoryId, description, imageUrl, isActive,
+  leadTimeDays, name, shortDescription, sku, slug, status }`;
+- `DELETE`: `{ requestId, revision }`.
+
+All keys are required and unknown keys are rejected. Numeric fields must arrive as
+JSON numbers, not numeric strings. Create starts at revision `1`; update/archive
+match the supplied revision and increment it exactly once. Every product write,
+the optional `product_admin_meta` projection, and its `admin_audit_log` row are
+coupled in one D1 batch. Reusing a request ID with the same canonical payload is
+safe; another payload or operation returns `409 IDEMPOTENCY_CONFLICT`.
 
 Canonical fields:
 
@@ -235,7 +251,7 @@ Canonical fields:
 - `imageUrl`: string or null, max 500 chars;
 - `categoryId`: positive integer or null;
 - `isActive`: boolean;
-- update only: `version`.
+- update/delete only: `requestId` and positive `revision`.
 
 Validation:
 
@@ -244,12 +260,9 @@ Validation:
 - non-null category reference exists;
 - managed media references use canonical `/media/products/...` form.
 
-Product detail response includes variants and tier prices so the editor starts from one canonical snapshot.
-
-Lưu ý trạng thái: route product legacy hiện đã có bounded JSON và field-level
-limits nhưng chưa nhận revision token riêng trong body; product import/batch có
-contract atomic/idempotent chặt hơn. Không dùng ghi chú này làm bằng chứng rằng
-mọi product legacy mutation đã đạt P6 production gate.
+Product detail response includes variants and tier prices so the editor starts
+from one canonical snapshot. Publishing still requires the existing variant
+validation gate.
 
 ### Product bulk import P5 contract
 
@@ -278,9 +291,23 @@ staging evidence remain release gates.
 
 Routes:
 
+- `GET /api/admin/products/[productId]/variants`
 - `POST /api/admin/products/[productId]/variants`
 - `PATCH /api/admin/products/[productId]/variants/[variantId]`
 - `DELETE /api/admin/products/[productId]/variants/[variantId]`
+
+Exact mutation bodies:
+
+- `POST`: `{ requestId, attributeCode, attributeId, attributeLabel,
+  contactFromQuantity, imageUrl, isAvailable, moq, name, optionId,
+  optionLabel, quantityStep, sku, sortOrder, tierPrices, unit }`;
+- `PATCH`: the same fields plus positive `revision`;
+- `DELETE`: `{ requestId, revision }`.
+
+The envelope and each tier object are exact; unknown keys and numeric-string
+coercion are rejected. Variant create/update/archive, tier replacement and the
+variant `admin_audit_log` row are one D1 batch. The parent variant revision is
+the concurrency token and increments exactly once for update/archive.
 
 Fields:
 
@@ -298,7 +325,7 @@ Fields:
 - `attributeLabel`: string, 1..120 chars;
 - `optionId`: non-negative integer;
 - `imageUrl`: string or null, max 500 chars;
-- update/delete only: `version`.
+- update/delete only: `requestId` and positive `revision`.
 
 Canonical business invariants, matching the active storefront/cart read path:
 
@@ -320,7 +347,7 @@ Preferred write shape:
 
 Lean V1 should prefer complete atomic replacement rather than exposing a UI that performs transient row-by-row pricing changes.
 
-Input includes parent variant `version` and the complete tier set. Every tier has:
+Input includes parent variant `revision` and the complete tier set. Every tier has:
 
 - `minQuantity`: positive integer;
 - `price`: positive integer VND.

@@ -4,7 +4,7 @@ export interface MappedAdminWriteError {
   code: AdminApiErrorCode;
   fieldErrors?: Record<string, string>;
   message: string;
-  status: 409 | 503;
+  status: 409 | 500;
 }
 
 export interface AdminConflictShape {
@@ -40,7 +40,7 @@ export function mapAdminWriteError(
       status: 409,
     };
   }
-  return { code: "INTERNAL_ERROR", message: fallbackMessage, status: 503 };
+  return { code: "INTERNAL_ERROR", message: fallbackMessage, status: 500 };
 }
 
 /** Logs server-side, then answers with the mapped envelope; raw errors never reach the body. */
