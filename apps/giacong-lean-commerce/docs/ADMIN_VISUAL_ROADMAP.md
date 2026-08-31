@@ -503,6 +503,13 @@ Public staging smoke sau cùng pass năm route chính (`/`, `/san-pham/`, `/tin-
 `/gui-yeu-cau/`, `/thue-gia-cong/`); public host không render admin control và
 không có console error/warning.
 
+**Runtime update 2026-08-31 (Access lock):** commit `41f65eb` và version
+`11eb20a9-69c8-4dbd-884e-b65aa31d2d93` đã tắt public-demo trên staging admin;
+browser không có identity hiện nhận đúng trang yêu cầu Cloudflare Access, trong
+khi 5 route storefront public vẫn pass HTTP 200 và không render admin control.
+Đây là boundary evidence; role matrix, authenticated write/read-back và
+production gate chỉ được đánh dấu sau khi đăng nhập Access thật.
+
 **Công việc:**
 
 - audit/history/revision hiển thị đủ để biết ai đổi gì, lúc nào, từ bản nào;

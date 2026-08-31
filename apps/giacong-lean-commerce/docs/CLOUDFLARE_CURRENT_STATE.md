@@ -353,3 +353,18 @@ restore/rollback drill, observability 24h và quyết định redirect
 - Đây là bằng chứng runtime cho actor demo staging, không phải Access identity
   thật. Role matrix, authenticated write/read-back member/lead/media,
   focus/reduced-motion và production data/migration/restore gates vẫn mở.
+
+## Staging admin Access lock follow-up — 2026-08-31
+
+- Commit `41f65eb` đã đổi staging admin từ public-demo sang Access-protected:
+  `ADMIN_PUBLIC="false"`, bỏ `ADMIN_PUBLIC_SUBJECT`; storefront staging vẫn
+  public.
+- Version `11eb20a9-69c8-4dbd-884e-b65aa31d2d93` đã upload và promote 100%;
+  rollback point là `cd4a973e-6fde-4538-b66b-04d3fadbb02d`.
+- Browser runtime trên `admin-staging.kienhieu.id.vn/admin` hiện trả màn hình
+  cần Cloudflare Access và không còn actor public-demo khi chưa có identity.
+- Public smoke bằng fetch sau rollout pass `/`, `/san-pham/`, `/tin-tuc/`,
+  `/gui-yeu-cau/`, `/thue-gia-cong/`: tất cả HTTP 200 sau redirect, có
+  `main`/`footer`, không có admin control.
+- Đây mới đóng boundary lock; Access identity thật, role matrix và
+  authenticated write/read-back vẫn chờ chủ dự án đăng nhập.
