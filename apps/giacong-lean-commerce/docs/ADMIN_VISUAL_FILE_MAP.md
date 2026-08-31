@@ -148,7 +148,7 @@ use case thứ ba chứng minh editor hiện tại không còn đủ đơn giả
 | Navigation | /api/admin/navigation, /api/admin/navigation/[id], /publish, /publish-all | P4 |
 | News | /api/admin/news, /api/admin/news/[id], /api/admin/news/[id]/publish, /api/admin/news/batch | P3; draft save, explicit publish/unpublish, batch status và contextual deep-link đã có; browser/admin staging read-back còn mở |
 | Media | /api/admin/media, /api/admin/media/[id], /api/admin/media/cleanup | P3/P5 |
-| Catalog | /api/admin/categories, /api/admin/categories/[id], /api/admin/categories/batch, /products, /products/[id], /products/batch, variants routes, /api/admin/products/import | P5; bulk import tối đa 50 dòng, product/category archive tối đa 100 item, đều revision-aware/atomic/idempotent/audited; category action là soft-deactivate, không hard-delete; browser/staging còn mở |
+| Catalog | /api/admin/categories, /api/admin/categories/[id], /api/admin/categories/batch, /products, /products/[id], /products/batch, /products/[id]/variants, /products/[id]/variants/[variantId], /api/admin/products/import | P5; bulk import tối đa 50 dòng, product/category archive tối đa 100 item, đều revision-aware/atomic/idempotent/audited; category action là soft-deactivate, không hard-delete; browser/staging còn mở |
 | Services | /api/admin/services, /api/admin/services/[id], /api/admin/services/batch | P5; batch archive có snapshot revision riêng, tối đa 100 item, stale skip, atomic audit/idempotency; browser/staging còn mở |
 | Leads | /api/admin/leads, /api/admin/leads/[id] | P5, special page |
 | Members | /api/admin/members, /api/admin/members/[id] | P5, special page |

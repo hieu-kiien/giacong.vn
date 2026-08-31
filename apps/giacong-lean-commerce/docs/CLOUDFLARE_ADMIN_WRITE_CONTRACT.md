@@ -279,8 +279,8 @@ staging evidence remain release gates.
 Routes:
 
 - `POST /api/admin/products/[productId]/variants`
-- `PATCH /api/admin/variants/[id]`
-- `DELETE /api/admin/variants/[id]`
+- `PATCH /api/admin/products/[productId]/variants/[variantId]`
+- `DELETE /api/admin/products/[productId]/variants/[variantId]`
 
 Fields:
 
@@ -313,9 +313,10 @@ A write that makes existing tiers unreachable under a changed MOQ/step is reject
 
 ## 10. Tier-price contract
 
-Preferred write route:
+Preferred write shape:
 
-- `PUT /api/admin/variants/[variantId]/tier-prices`
+- `tierPrices` trong `POST/PATCH /api/admin/products/[productId]/variants...`;
+  hiện chưa có route `PUT` standalone riêng.
 
 Lean V1 should prefer complete atomic replacement rather than exposing a UI that performs transient row-by-row pricing changes.
 
@@ -341,6 +342,9 @@ Within a variant:
 - duplicate boundaries are rejected;
 - replacement and parent revision increment are atomic;
 - resulting state must be readable by the existing storefront/cart code.
+
+Nếu cần mở route tier-price standalone trong tương lai, phải tạo contract và
+impact/test riêng; không suy diễn route chưa tồn tại từ tài liệu cũ.
 
 ## 11. Product media contract
 
