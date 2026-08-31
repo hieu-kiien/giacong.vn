@@ -18,6 +18,9 @@ export function applySiteSettingsToMarkup(markup: string, settings: PublishedSit
   result = result.replace(/0947142999/g, phone);
   if (settings.contact_zalo_url) result = result.replace(/https:\/\/zalo\.me\/[^"' ]+/gi, zalo);
   if (settings.contact_messenger_url) result = result.replace(/https:\/\/m\.me\/[^"' ]+/gi, messenger);
+  result = replaceFooterDescription(result, settings.footer_description);
+  result = replaceFooterAddress(result, settings.contact_address);
+  result = replaceFooterCopyright(result, settings.footer_copyright);
 
   result = replaceFirstElementText(result, /<h1\b[^>]*class=(["'])[^"']*\bentry-title\b[^"']*\1[^>]*>[\s\S]*?<\/h1>/i, settings.hero_title);
   result = replaceFirstElementText(result, /<h3\b[^>]*class=(["'])[^"']*\bentry-title\b[^"']*\1[^>]*>[\s\S]*?<\/h3>/i, settings.hero_eyebrow);
@@ -73,6 +76,30 @@ function replaceLogo(markup: string, logoUrl: string): string {
       safe
     }"`)
     .replace(/\ssrcset=(["'])https:\/\/giacong\.vn\/[^"']*\1/gi, ` srcset="${safe}"`);
+}
+
+function replaceFooterDescription(markup: string, value: string): string {
+  if (!value) return markup;
+  const pattern = /(<footer\b[\s\S]*?<[^>]*class=["'][^"']*\bfooter-section\b[^"']*["'][\s\S]*?<[^>]*class=["'][^"']*\bicon-box-text\b[^"']*["'][\s\S]*?<p\b[^>]*>)[\s\S]*?(<\/p>)/i;
+  return markup.replace(pattern, (_match, opening: string, closing: string) => `${opening}${escapeTextWithBreaks(value)}${closing}`);
+}
+
+function replaceFooterAddress(markup: string, value: string): string {
+  if (!value) return markup;
+  const address = value.replace(/^\s*VP\s*Hà\s*Nội\s*:\s*/i, "").trim();
+  if (!address) return markup;
+  const pattern = /(<footer\b[\s\S]*?<ul\b[^>]*class=["'][^"']*\btext-info\b[^"']*["'][\s\S]*?<li\b[^>]*>[\s\S]*?<strong>VP\s*Hà\s*Nội:\s*<\/strong>)[\s\S]*?(<\/li>)/i;
+  return markup.replace(pattern, (_match, opening: string, closing: string) => `${opening} ${escapeHtml(address)}${closing}`);
+}
+
+function replaceFooterCopyright(markup: string, value: string): string {
+  if (!value) return markup;
+  const pattern = /(<div\b[^>]*class=["'][^"']*\bcopyright-footer\b[^"']*["'][^>]*>)[\s\S]*?(<\/div>)/i;
+  return markup.replace(pattern, (_match, opening: string, closing: string) => `${opening}${escapeHtml(value)}${closing}`);
+}
+
+function escapeTextWithBreaks(value: string): string {
+  return escapeHtml(value).replace(/\r?\n/g, "<br />");
 }
 
 function escapeHtml(value: string): string {

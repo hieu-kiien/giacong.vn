@@ -10,6 +10,8 @@ const heroMarkup = `<img
   sizes="(max-width: 600px) 300px, 1024px"
   alt="Gia công thực phẩm">`;
 
+const footerMarkup = `<footer id="footer"><section class="section footer-section"><div class="icon-box-text last-reset"><p>Nội dung footer cũ.</p></div><ul class="text-info"><li><i class="fas fa-map-marker-alt"></i><strong>VP Hà Nội:</strong> 109 Trần Hưng Đạo - Hoàn Kiếm - Hà Nội</li></ul></section><div class="copyright-footer">Copyright cũ</div></footer>`;
+
 const settings = (heroImageUrl) => ({
   about_title: "Giới thiệu",
   brand_name: "Giacong.vn",
@@ -17,6 +19,9 @@ const settings = (heroImageUrl) => ({
   contact_phone: "0947142999",
   contact_zalo_url: "",
   contact_messenger_url: "",
+  contact_address: "VP Hà Nội: 108 Trần Hưng Đạo - Hoàn Kiếm - Hà Nội",
+  footer_description: "Mô tả footer mặc định.",
+  footer_copyright: "Copyright mặc định",
   hero_eyebrow: "Eyebrow",
   hero_image_url: heroImageUrl,
   hero_title: "Tiêu đề",
@@ -38,4 +43,18 @@ test("keeps the original hero markup untouched when no custom image is set", () 
   const result = applySiteSettingsToMarkup(heroMarkup, settings(""));
 
   assert.match(result, /srcset="https:\/\/giacong\.vn/);
+});
+
+test("applies published footer description, address and copyright without allowing markup injection", () => {
+  const result = applySiteSettingsToMarkup(footerMarkup, {
+    ...settings(""),
+    contact_address: "VP Hà Nội: 108 Trần Hưng Đạo & <script>",
+    footer_copyright: "Copyright <2026> & partners",
+    footer_description: "Mô tả mới\nDòng thứ hai",
+  });
+
+  assert.match(result, /Mô tả mới<br \/>Dòng thứ hai/);
+  assert.match(result, /<strong>VP Hà Nội:<\/strong> 108 Trần Hưng Đạo &amp; &lt;script&gt;/);
+  assert.match(result, /Copyright &lt;2026&gt; &amp; partners/);
+  assert.doesNotMatch(result, /<script>/);
 });
