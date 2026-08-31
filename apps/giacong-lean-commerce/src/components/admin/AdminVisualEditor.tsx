@@ -35,6 +35,8 @@ const regionDefinitions: Record<VisualRegion, { description: string; keys: strin
   },
 };
 
+const editableRoles = new Set(["owner", "content_manager"]);
+
 export function AdminVisualEditor({ session }: { session: AdminSession }) {
   const [open, setOpen] = useState(false);
   const [region, setRegion] = useState<VisualRegion>("brand");
@@ -48,8 +50,9 @@ export function AdminVisualEditor({ session }: { session: AdminSession }) {
   const [notice, setNotice] = useState<string | null>(null);
   const [preview, setPreview] = useState(false);
   const [localChanges, setLocalChanges] = useState<Set<string>>(new Set());
-  const triggerRef = useRef<HTMLButtonElement>(null);
+  const drawerRef = useRef<HTMLElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
+  const restoreFocusRef = useRef<HTMLElement | null>(null);
 
   const definition = regionDefinitions[region];
   const visibleSettings = useMemo(
@@ -62,7 +65,7 @@ export function AdminVisualEditor({ session }: { session: AdminSession }) {
   const hasDraft = visibleSettings.some((setting) => setting.dirty);
 
   useEffect(() => {
-    if (!open || loaded) return;
+    if (!editableRoles.has(session.role) || !open || loaded) return;
     const controller = new AbortController();
     setLoading(true);
     setError(null);
@@ -81,24 +84,52 @@ export function AdminVisualEditor({ session }: { session: AdminSession }) {
         if (!controller.signal.aborted) setLoading(false);
       });
     return () => controller.abort();
-  }, [loaded, open]);
+  }, [loaded, open, session.role]);
 
   useEffect(() => {
-    if (!open) return;
+    if (!editableRoles.has(session.role) || !open) return;
     closeRef.current?.focus();
     function onKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") setOpen(false);
+      if (event.key === "Escape") {
+        event.preventDefault();
+        closeEditor();
+        return;
+      }
+      if (event.key !== "Tab") return;
+      const drawer = drawerRef.current;
+      if (!drawer) return;
+      const focusable = Array.from(drawer.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), a[href], input:not([disabled]), textarea:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])',
+      ));
+      if (focusable.length === 0) {
+        event.preventDefault();
+        drawer.focus();
+        return;
+      }
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && (document.activeElement === first || !drawer.contains(document.activeElement))) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && (document.activeElement === last || !drawer.contains(document.activeElement))) {
+        event.preventDefault();
+        first.focus();
+      }
     }
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
-  }, [open]);
+  }, [open, session.role]);
 
   function closeEditor() {
     setOpen(false);
-    window.setTimeout(() => triggerRef.current?.focus(), 0);
+    window.setTimeout(() => {
+      if (restoreFocusRef.current?.isConnected) restoreFocusRef.current?.focus();
+      restoreFocusRef.current = null;
+    }, 0);
   }
 
   function openRegion(nextRegion: VisualRegion) {
+    if (!open && document.activeElement instanceof HTMLElement) restoreFocusRef.current = document.activeElement;
     setRegion(nextRegion);
     setPreview(false);
     setNotice(null);
@@ -176,11 +207,13 @@ export function AdminVisualEditor({ session }: { session: AdminSession }) {
     }
   }
 
+  if (!editableRoles.has(session.role)) return null;
+
   return (
     <>
-      <div className={styles.regionToolbar} aria-label="Vùng storefront có thể chỉnh sửa" data-admin-role={session.role}>
+      <div aria-label="Vùng storefront có thể chỉnh sửa" className={styles.regionToolbar} data-admin-role={session.role}>
         <span className={styles.regionLabel}>Đang chỉnh sửa storefront</span>
-        <button ref={triggerRef} className={styles.regionButton} onClick={() => openRegion("brand")} type="button">
+        <button className={styles.regionButton} onClick={() => openRegion("brand")} type="button">
           <Edit3 aria-hidden="true" size={15} /> Nhận diện
         </button>
         <button className={styles.regionButton} onClick={() => openRegion("home")} type="button">
@@ -189,31 +222,44 @@ export function AdminVisualEditor({ session }: { session: AdminSession }) {
       </div>
       {open ? (
         <div className={styles.overlay} onMouseDown={(event) => { if (event.target === event.currentTarget) closeEditor(); }}>
-          <aside aria-label={`Chỉnh sửa ${definition.label}`} aria-modal="true" className={styles.drawer} role="dialog">
+          <aside aria-describedby="admin-visual-editor-description" aria-labelledby="admin-visual-editor-title" aria-modal="true" className={styles.drawer} ref={drawerRef} role="dialog" tabIndex={-1}>
             <div className={styles.header}>
               <div>
                 <span className={styles.kicker}>EDITOR TRỰC TIẾP</span>
-                <h2>{definition.label}</h2>
-                <p>{definition.description}</p>
+                <h2 id="admin-visual-editor-title">{definition.label}</h2>
+                <p id="admin-visual-editor-description">{definition.description}</p>
               </div>
               <button ref={closeRef} aria-label="Đóng editor" className={styles.iconButton} onClick={closeEditor} type="button"><X aria-hidden="true" size={18} /></button>
             </div>
-            <div className={styles.tabs} role="tablist" aria-label="Chọn vùng chỉnh sửa">
+            <div aria-label="Chọn vùng chỉnh sửa" aria-orientation="horizontal" className={styles.tabs} role="tablist">
               {(Object.keys(regionDefinitions) as VisualRegion[]).map((item) => (
-                <button aria-selected={region === item} className={region === item ? styles.tabActive : styles.tab} key={item} onClick={() => openRegion(item)} role="tab" type="button">{regionDefinitions[item].label}</button>
+                <button aria-controls={`admin-visual-editor-panel-${item}`} aria-selected={region === item} className={region === item ? styles.tabActive : styles.tab} id={`admin-visual-editor-tab-${item}`} key={item} onClick={() => openRegion(item)} onKeyDown={(event) => {
+                  if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+                  event.preventDefault();
+                  const regions = Object.keys(regionDefinitions) as VisualRegion[];
+                  const currentIndex = regions.indexOf(item);
+                  const nextIndex = event.key === "ArrowRight"
+                    ? (currentIndex + 1) % regions.length
+                    : (currentIndex - 1 + regions.length) % regions.length;
+                  const nextRegion = regions[nextIndex];
+                  openRegion(nextRegion);
+                  window.setTimeout(() => document.getElementById(`admin-visual-editor-tab-${nextRegion}`)?.focus(), 0);
+                }} role="tab" tabIndex={region === item ? 0 : -1} type="button">{regionDefinitions[item].label}</button>
               ))}
             </div>
-            {loading ? <div className={styles.loading} role="status"><LoaderCircle className={styles.spinner} size={18} /> Đang tải bản nháp…</div> : null}
-            {error ? <div className={styles.error} role="alert">{error}<button onClick={() => { setLoaded(false); setError(null); }} type="button">Tải lại</button></div> : null}
-            {!loading && !error && !canEdit && loaded ? <div className={styles.readOnly} role="status">Bạn đang ở chế độ chỉ xem. <Link href="/admin">Mở trung tâm quản trị</Link> để kiểm tra quyền chỉnh sửa.</div> : null}
-            {!loading && !error && loaded ? (
-              preview ? <DraftPreview settings={visibleSettings} /> : (
-                <div className={styles.fields}>
-                  {visibleSettings.map((setting) => <SettingField key={setting.key} setting={setting} canEdit={canEdit} onChange={updateDraft} />)}
-                </div>
-              )
-            ) : null}
-            {notice ? <div className={styles.notice} role="status">{notice}</div> : null}
+            <div aria-labelledby={`admin-visual-editor-tab-${region}`} className={styles.panel} id={`admin-visual-editor-panel-${region}`} role="tabpanel" tabIndex={0}>
+              {loading ? <div aria-busy="true" aria-label="Đang tải bản nháp" className={styles.loading} role="status"><LoaderCircle className={styles.spinner} size={18} /> Đang tải bản nháp…</div> : null}
+              {error ? <div className={styles.error} role="alert">{error}<button onClick={() => { setLoaded(false); setError(null); }} type="button">Tải lại</button></div> : null}
+              {!loading && !error && !canEdit && loaded ? <div className={styles.readOnly} role="status">Bạn đang ở chế độ chỉ xem. <Link href="/admin">Mở trung tâm quản trị</Link> để kiểm tra quyền chỉnh sửa.</div> : null}
+              {!loading && !error && loaded ? (
+                preview ? <DraftPreview settings={visibleSettings} /> : (
+                  <div className={styles.fields}>
+                    {visibleSettings.map((setting) => <SettingField key={setting.key} setting={setting} canEdit={canEdit} onChange={updateDraft} />)}
+                  </div>
+                )
+              ) : null}
+              {notice ? <div className={styles.notice} role="status">{notice}</div> : null}
+            </div>
             <div className={styles.footer}>
               <button className={styles.secondaryButton} onClick={() => setPreview((value) => !value)} type="button"><Eye size={15} /> {preview ? "Quay lại chỉnh sửa" : "Xem trước draft"}</button>
               {canEdit ? <>

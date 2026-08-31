@@ -81,6 +81,53 @@ test("contextual editor uses the canonical site-settings draft and publish contr
   assert.doesNotMatch(source, /api\/admin\/visual/);
 });
 
+test("contextual editor hides edit affordances for read-only roles", async () => {
+  const source = await readSource("../src/components/admin/AdminVisualEditor.tsx");
+
+  assert.match(source, /const editableRoles = new Set\(\["owner",\s*"content_manager"\]\)/);
+  assert.match(source, /if \(!editableRoles\.has\(session\.role\)\) return null/);
+  assert.match(source, /if \(!canEdit \|\| changed\.length === 0\) return;/);
+  assert.match(source, /if \(!canEdit \|\| hasLocalChanges \|\| !hasDraft\) return;/);
+});
+
+test("contextual editor traps focus and restores the opener on every close path", async () => {
+  const source = await readSource("../src/components/admin/AdminVisualEditor.tsx");
+
+  assert.match(source, /const restoreFocusRef = useRef<HTMLElement \| null>\(null\)/);
+  assert.match(source, /event\.key === "Escape"[\s\S]*?closeEditor\(\)/);
+  assert.match(source, /event\.key !== "Tab"/);
+  assert.match(source, /event\.preventDefault\(\)/);
+  assert.match(source, /restoreFocusRef\.current\?\.focus\(\)/);
+});
+
+test("contextual editor exposes explicit dialog and tab relationships", async () => {
+  const source = await readSource("../src/components/admin/AdminVisualEditor.tsx");
+
+  assert.match(source, /aria-labelledby="admin-visual-editor-title"/);
+  assert.match(source, /aria-describedby="admin-visual-editor-description"/);
+  assert.match(source, /<h2 id="admin-visual-editor-title">/);
+  assert.match(source, /<p id="admin-visual-editor-description">/);
+  assert.match(source, /role="tablist"/);
+  assert.match(source, /role="tab"/);
+  assert.match(source, /aria-controls=\{`admin-visual-editor-panel-\$\{item\}`\}/);
+  assert.match(source, /role="tabpanel"/);
+  assert.match(source, /aria-labelledby=\{`admin-visual-editor-tab-\$\{region\}`\}/);
+  assert.match(source, /tabIndex=\{region === item \? 0 : -1\}/);
+});
+
+test("contextual editor marks loading content and disables motion when requested", async () => {
+  const [source, styles] = await Promise.all([
+    readSource("../src/components/admin/AdminVisualEditor.tsx"),
+    readSource("../src/components/admin/AdminVisualEditor.module.css"),
+  ]);
+
+  assert.match(source, /aria-busy="true"/);
+  assert.match(source, /aria-label="Đang tải bản nháp"/);
+  assert.match(styles, /transition:/);
+  assert.match(styles, /@media \(prefers-reduced-motion: reduce\)[\s\S]*transition: none/);
+  assert.match(styles, /@media \(prefers-reduced-motion: reduce\)[\s\S]*animation-duration/);
+});
+
 test("admin visual mode mounts contextual controls only after a ready admin session", async () => {
   const source = await readSource("../src/components/admin/AdminVisualMode.tsx");
 
