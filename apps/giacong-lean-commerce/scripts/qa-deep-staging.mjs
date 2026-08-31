@@ -98,7 +98,7 @@ try {
       check("add-to-cart writes the locked localStorage contract", Boolean(stored && stored.includes("parentSlug")), stored ?? "empty");
 
       await mpage.goto(`${baseUrl}/gui-yeu-cau`, { waitUntil: "domcontentloaded", timeout: 45_000 });
-      await mpage.waitForTimeout(800);
+      await waitForRenderedSelector(mpage, "text=Bột gạo lứt");
       const cartVisible = await mpage.locator("text=Bột gạo lứt").first().isVisible().catch(() => false);
       check("request route shows the added line", cartVisible);
     } else {

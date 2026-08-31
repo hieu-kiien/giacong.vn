@@ -10,5 +10,6 @@ test("deep staging QA waits for streamed detail content before asserting control
   assert.match(source, /await waitForRenderedSelector\(mpage, '\[class\*="commercial"\]'\);/);
   assert.match(source, /await waitForRenderedSelector\(mpage, 'button\[class\*="secondaryAction"\]'\);/);
   assert.match(source, /const panel = mpage\.locator\('\[class\*="commercial"\]'\)\.first\(\);/);
+  assert.match(source, /await waitForRenderedSelector\(mpage, "text=Bột gạo lứt"\);/);
   assert.match(source, /await waitForRenderedSelector\(kpage, 'input\[type=search\]'\);/);
 });
