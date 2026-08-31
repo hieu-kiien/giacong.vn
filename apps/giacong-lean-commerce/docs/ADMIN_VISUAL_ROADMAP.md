@@ -516,6 +516,12 @@ production gate chỉ được đánh dấu sau khi đăng nhập Access thật.
 Cloudflare Access trực tiếp và nút retry riêng. Đây là cải thiện handoff cho
 người vận hành, chưa phải bằng chứng identity/role matrix thật.
 
+**Runtime correction 2026-08-31:** commit `4d090b4`, version staging
+`0d73b4ce-ef7f-4f52-a3b0-63ecb7e3e90d` đã sửa href login về `/admin` để dùng
+Cloudflare edge redirect thật; probe không identity nhận 302 tới team Access,
+storefront public vẫn HTTP 200. Endpoint `/cdn-cgi/access/login` không được dùng
+vì application trả 404.
+
 **Công việc:**
 
 - audit/history/revision hiển thị đủ để biết ai đổi gì, lúc nào, từ bản nào;

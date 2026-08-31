@@ -379,3 +379,16 @@ restore/rollback drill, observability 24h và quyết định redirect
   Access` với href `/cdn-cgi/access/login?redirect_url=%2Fadmin`.
 - Access identity thật, role matrix và authenticated write/read-back vẫn chưa
   chạy cho đến khi chủ dự án hoàn tất đăng nhập.
+
+## Staging admin login handoff correction — 2026-08-31
+
+- Probe độc lập xác nhận `/cdn-cgi/access/login` không phải endpoint hợp lệ của
+  application này (404); nút login đã được sửa ở commit `4d090b4` để reload
+  `/admin`, cho Cloudflare edge phát sinh redirect chuẩn.
+- Version `0d73b4ce-ef7f-4f52-a3b0-63ecb7e3e90d` đã promote 100%; rollback point
+  là `a772e2d3-06b6-4046-bf0f-36f6ed5b2329`.
+- Browser snapshot hiển thị nút `Đăng nhập Cloudflare Access` với href `/admin`;
+  fetch không có identity nhận HTTP 302 tới team Access
+  `jolly-brook-7bc8.cloudflareaccess.com`, còn storefront `/` nhận HTTP 200.
+- In-app browser hiện không hoàn tất được trang Access; không nhập credential
+  hoặc OTP thay chủ dự án.
