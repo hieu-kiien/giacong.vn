@@ -34,6 +34,24 @@ interface CategoryFormState {
   sortOrder: string;
 }
 
+interface CategoryBatchSnapshot {
+  id: number;
+  isActive: boolean;
+  revision: number;
+}
+
+interface CategoryBatchResult {
+  changedCount: number;
+  replayed: boolean;
+  selectedCount: number;
+  skipped: Array<{ id: number; reason: string }>;
+}
+
+interface PendingCategoryBatch {
+  items: Array<{ expectedRevision: number; id: number }>;
+  requestId: string;
+}
+
 const emptyForm: CategoryFormState = {
   description: "",
   imageUrl: "",
@@ -56,7 +74,14 @@ export function AdminCategoryPanel({ onChanged }: { onChanged: () => void }) {
   const [formError, setFormError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [pendingArchive, setPendingArchive] = useState<AdminCategoryDetail | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [batchArchiving, setBatchArchiving] = useState(false);
+  const [confirmBatchArchive, setConfirmBatchArchive] = useState(false);
+  const [pendingBatch, setPendingBatch] = useState<PendingCategoryBatch | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
+
+  const activeCategories = categories.filter((category) => category.isActive);
+  const allVisibleSelected = canManage && activeCategories.length > 0 && activeCategories.every((category) => selectedIds.has(category.id));
 
   const reload = useCallback(async () => {
     setLoading(true);
@@ -135,6 +160,11 @@ export function AdminCategoryPanel({ onChanged }: { onChanged: () => void }) {
       });
       showToast("success", `Đã ẩn danh mục “${pendingArchive.name}” khỏi storefront.`);
       setPendingArchive(null);
+      setSelectedIds((current) => {
+        const next = new Set(current);
+        next.delete(pendingArchive.id);
+        return next;
+      });
       await reload();
       onChanged();
     } catch (reason: unknown) {
@@ -143,11 +173,77 @@ export function AdminCategoryPanel({ onChanged }: { onChanged: () => void }) {
     }
   }
 
+  async function prepareBatchArchive() {
+    if (!canManage || selectedIds.size === 0 || batchArchiving) return;
+    const ids = [...selectedIds].sort((left, right) => left - right);
+    try {
+      const result = await fetchAdmin<{ categories: CategoryBatchSnapshot[] }>(`/api/admin/categories/batch?ids=${ids.join(",")}`);
+      const revisions = new Map((result.categories ?? []).map((category) => [category.id, category.revision]));
+      setPendingBatch({
+        items: ids.map((id) => ({ expectedRevision: revisions.get(id) ?? 1, id })),
+        requestId: crypto.randomUUID(),
+      });
+      setConfirmBatchArchive(true);
+    } catch (reason: unknown) {
+      showToast("error", reason instanceof AdminClientError ? reason.message : "Không thể chuẩn bị thao tác ẩn danh mục.");
+    }
+  }
+
+  async function archiveSelectedCategories() {
+    if (!pendingBatch) return;
+    setBatchArchiving(true);
+    try {
+      const result = await mutateAdmin<CategoryBatchResult>("/api/admin/categories/batch", {
+        body: pendingBatch,
+        method: "POST",
+      });
+      const skipped = result.skipped?.length ?? 0;
+      showToast(
+        skipped > 0 ? "error" : "success",
+        `Đã ẩn ${result.changedCount} / ${result.selectedCount} danh mục.${skipped > 0 ? ` ${skipped} mục chưa xử lý, hãy tải lại để xem lý do.` : ""}`,
+      );
+      setSelectedIds(new Set());
+      setPendingBatch(null);
+      setConfirmBatchArchive(false);
+      await reload();
+      onChanged();
+    } catch (reason: unknown) {
+      showToast("error", reason instanceof AdminClientError ? reason.message : "Không thể ẩn hàng loạt danh mục.");
+    } finally {
+      setBatchArchiving(false);
+    }
+  }
+
+  function toggleSelected(id: number) {
+    setSelectedIds((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleAllVisible() {
+    setSelectedIds((current) => {
+      const next = new Set(current);
+      if (allVisibleSelected) {
+        for (const category of activeCategories) next.delete(category.id);
+      } else {
+        for (const category of activeCategories) next.add(category.id);
+      }
+      return next;
+    });
+  }
+
   return (
-    <div aria-busy={loading}>
+    <div aria-busy={loading || batchArchiving}>
       <div className="admin-modal-footer" style={{ justifyContent: "space-between", margin: "0 0 14px" }}>
         <span className="admin-panel-caption">{categories.length} danh mục · sắp theo thứ tự hiển thị</span>
-        {canManage ? (
+        {canManage ? <div className="admin-content-toolbar-actions">
+          {selectedIds.size > 0 ? <>
+            <span aria-live="polite" className="admin-item-meta" data-testid="category-selection-count">Đã chọn {selectedIds.size}</span>
+            <button className="admin-button admin-button-danger" data-testid="button-category-batch-archive" disabled={batchArchiving} onClick={() => void prepareBatchArchive()} type="button">{batchArchiving ? "Đang ẩn…" : "Ẩn danh mục đã chọn"}</button>
+          </> : null}
           <button
             className="admin-button admin-button-primary"
             data-testid="button-category-create"
@@ -160,7 +256,7 @@ export function AdminCategoryPanel({ onChanged }: { onChanged: () => void }) {
           >
             <Plus size={14} /> Thêm danh mục
           </button>
-        ) : null}
+        </div> : null}
       </div>
 
       {loadError ? <p className="admin-editor-error" role="alert">{loadError}</p> : null}
@@ -170,6 +266,7 @@ export function AdminCategoryPanel({ onChanged }: { onChanged: () => void }) {
           <table className="admin-table" data-testid="table-admin-categories">
             <thead>
               <tr>
+                {canManage ? <th scope="col"><input aria-label="Chọn tất cả danh mục trong trang" checked={allVisibleSelected} disabled={batchArchiving} onChange={toggleAllVisible} type="checkbox" /></th> : null}
                 <th scope="col">Ảnh</th>
                 <th scope="col">Danh mục</th>
                 <th scope="col">Thứ tự</th>
@@ -180,6 +277,7 @@ export function AdminCategoryPanel({ onChanged }: { onChanged: () => void }) {
             <tbody>
               {categories.map((category) => (
                 <tr data-testid={`row-category-${category.id}`} key={category.id}>
+                  {canManage ? <td><input aria-label={`Chọn danh mục ${category.name}`} checked={selectedIds.has(category.id)} disabled={!category.isActive || batchArchiving} onChange={() => toggleSelected(category.id)} type="checkbox" /></td> : null}
                   <td>
                     <span className="admin-thumb">
                       {category.imageUrl
@@ -219,6 +317,7 @@ export function AdminCategoryPanel({ onChanged }: { onChanged: () => void }) {
                           <Pencil size={13} /> Sửa
                         </button>
                         {category.isActive ? <button
+                          data-testid={`button-category-archive-${category.id}`}
                           aria-label={`Ẩn danh mục ${category.name}`}
                           className="admin-button admin-button-danger"
                           onClick={() => setPendingArchive(category)}
@@ -232,7 +331,7 @@ export function AdminCategoryPanel({ onChanged }: { onChanged: () => void }) {
                 </tr>
               ))}
               {categories.length === 0 ? (
-                <tr><td colSpan={canManage ? 5 : 4}>Chưa có danh mục nào.</td></tr>
+                <tr><td colSpan={canManage ? 6 : 4}>Chưa có danh mục nào.</td></tr>
               ) : null}
             </tbody>
           </table>
@@ -324,6 +423,15 @@ export function AdminCategoryPanel({ onChanged }: { onChanged: () => void }) {
           onConfirm={() => void confirmArchive()}
           onDismiss={() => setPendingArchive(null)}
           title="Ẩn danh mục?"
+        />
+      ) : null}
+      {confirmBatchArchive && pendingBatch ? (
+        <AdminConfirmDialog
+          confirmLabel="Ẩn danh mục đã chọn"
+          message={`Ẩn ${pendingBatch.items.length} danh mục đã chọn khỏi storefront? Dữ liệu sản phẩm và lịch sử vẫn được giữ nguyên.`}
+          onConfirm={() => void archiveSelectedCategories()}
+          onDismiss={() => { setConfirmBatchArchive(false); setPendingBatch(null); }}
+          title="Ẩn danh mục đã chọn?"
         />
       ) : null}
           {pickerOpen ? (
