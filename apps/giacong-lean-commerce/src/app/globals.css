@@ -684,6 +684,54 @@
     }
   }
 
+/* Runtime reveal layer for app-owned storefront surfaces. The client primes
+ * the initial frame after hydration, then enables the transition so SSR never
+ * ships a blank page and reduced-motion users see the content immediately. */
+@media (prefers-reduced-motion: no-preference) {
+  .page-reveal-ready [data-page-reveal] {
+    opacity: 0;
+    transform: translate3d(0, 26px, 0);
+    transition: none;
+  }
+
+  .page-reveal-ready.page-reveal-motion [data-page-reveal] {
+    transition:
+      opacity .65s cubic-bezier(.22, 1, .36, 1),
+      transform .75s cubic-bezier(.22, 1, .36, 1);
+    transition-delay: var(--page-reveal-delay, 0ms);
+  }
+
+  .page-reveal-ready.page-reveal-motion [data-page-reveal]:not([data-page-revealed="true"]) {
+    will-change: opacity, transform;
+  }
+
+  .page-reveal-ready [data-page-reveal="from-left"] {
+    transform: translate3d(-38px, 0, 0);
+  }
+
+  .page-reveal-ready [data-page-reveal="from-right"] {
+    transform: translate3d(38px, 0, 0);
+  }
+
+  .page-reveal-ready [data-page-reveal="scale"] {
+    transform: translate3d(0, 26px, 0) scale(.94);
+  }
+
+  .page-reveal-ready [data-page-reveal][data-page-revealed="true"],
+  .page-reveal-ready [data-page-reveal]:focus-within {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-page-reveal] {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+}
+
 @layer components {
   .managed-page {
     background: #f8faf5;
@@ -905,6 +953,59 @@
  */
 @layer captured {
 
+.slider.clone-slider-ready {
+  overflow: hidden;
+  touch-action: pan-y;
+}
+
+.slider.clone-slider-ready > .row {
+  backface-visibility: hidden;
+  will-change: transform;
+}
+
+.slider.clone-slider-ready > .clone-slider-dots {
+  bottom: 15px;
+  display: block;
+  left: 20%;
+  line-height: 1;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  position: absolute;
+  right: 20%;
+  text-align: center;
+  z-index: 5;
+}
+
+.clone-slider-dots li {
+  display: inline-block;
+  list-style: none;
+  margin: 0;
+}
+
+.clone-slider-dots button.dot {
+  appearance: none;
+  background: #111;
+  border: 0;
+  border-radius: 50%;
+  cursor: pointer;
+  display: inline-block;
+  height: 10px;
+  margin: 0 5px;
+  min-height: 0;
+  opacity: .2;
+  padding: 0;
+  transition: opacity .3s;
+  width: 10px;
+}
+
+.clone-slider-dots button.dot:hover,
+.clone-slider-dots button.dot:focus-visible,
+.clone-slider-dots button.dot.is-selected {
+  background: #5aa400;
+  opacity: 1;
+}
+
 #main-menu.clone-menu-open {
   background: #5aa400;
   bottom: 0;
@@ -1023,6 +1124,19 @@ body.clone-menu-active {
 .wpcf7-form[data-status="submitting"] [type="submit"] {
   cursor: wait;
   opacity: 0.72;
+}
+
+/* The captured palette uses #5aa400 for both text and controls. Keep the same
+ * green family while using the project ramp where the surface is white. */
+#main #content .subtitle > span,
+#main #content [style*="color: #5aa400"] {
+  color: #327600 !important;
+}
+
+#main #content .wpcf7-form .wpcf7-submit,
+#main .giacong-news-search button {
+  background-color: #327600 !important;
+  border-color: #327600 !important;
 }
 
 @media (min-width: 850px) {

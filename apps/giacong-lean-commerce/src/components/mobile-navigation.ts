@@ -67,10 +67,12 @@ function createMobileMenuIcon(paths: readonly string[]) {
 
 function setAccordionExpanded(item: HTMLElement, expanded: boolean) {
   item.classList.toggle("clone-submenu-open", expanded);
-  item.querySelector<HTMLButtonElement>(":scope > button.toggle")?.setAttribute(
-    "aria-expanded",
-    String(expanded),
-  );
+  const toggle = item.querySelector<HTMLButtonElement>(":scope > button.toggle");
+  toggle?.setAttribute("aria-expanded", String(expanded));
+  toggle?.setAttribute("aria-label", expanded ? "Đóng menu con" : "Mở menu con");
+  item
+    .querySelector<HTMLElement>(":scope > .sub-menu")
+    ?.setAttribute("aria-hidden", String(!expanded));
 }
 
 export function createMobileProductItem(
@@ -137,6 +139,7 @@ export function addMobileAccordionToggles(menu: HTMLElement | null) {
       if (item.querySelector(":scope > button.toggle")) return;
       const submenu = item.querySelector<HTMLElement>(":scope > .sub-menu");
       if (submenu && !submenu.id) submenu.id = `clone-mobile-submenu-${index + 1}`;
+      submenu?.setAttribute("aria-hidden", "true");
       const button = document.createElement("button");
       button.type = "button";
       button.className = "toggle clone-toggle";

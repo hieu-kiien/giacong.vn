@@ -70,6 +70,10 @@ async function submitContactForm(event: Event) {
   const form = event.currentTarget as HTMLFormElement;
   event.preventDefault();
   if (form.dataset.status === "submitting") return;
+  if (!form.checkValidity()) {
+    setContactFormStatus(form, "invalid", "Vui lòng kiểm tra thông tin đã nhập.");
+    return;
+  }
 
   const submit = form.querySelector<HTMLInputElement | HTMLButtonElement>(
     '[type="submit"]',

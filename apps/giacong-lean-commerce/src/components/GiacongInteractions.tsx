@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 
 import { connectContactForms } from "@/components/contact-form";
+import { connectCapturedMotion } from "@/components/captured-motion";
 import {
   addMobileAccordionToggles,
   createMobileProductItem,
@@ -48,17 +49,10 @@ export function GiacongInteractions({
       "</svg>",
     ].join("");
     document.body.append(menuClose);
-    const slider = document.querySelector<HTMLElement>(".slider");
-    const slides = slider ? Array.from(slider.querySelectorAll<HTMLElement>(":scope > .row")) : [];
     const headerWrapper = document.querySelector<HTMLElement>(".header-wrapper");
     const taxonomy = document.querySelector<HTMLElement>(".taxonomy-description");
     let taxonomyShow: HTMLDivElement | undefined;
     let taxonomyLess: HTMLDivElement | undefined;
-    let current = 0;
-    const motionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
-    let reducedMotion = motionQuery.matches;
-    let hovered = false;
-    let focused = false;
 
     const generatedMobileProductItem = createMobileProductItem(
       menu,
@@ -67,6 +61,7 @@ export function GiacongInteractions({
     const restoreMobileMenuIcons = replaceMobileMenuIcons(menu);
     const generatedToggles = addMobileAccordionToggles(menu);
     const disconnectContactForms = connectContactForms();
+    const disconnectCapturedMotion = connectCapturedMotion();
     const mobileSearchInput = menu?.querySelector<HTMLInputElement>(
       "input[type='search']",
     );
@@ -139,51 +134,32 @@ export function GiacongInteractions({
         return;
       }
       if (event.key !== "Tab" || !menu?.classList.contains("clone-menu-open")) return;
-      const focusable = Array.from(
-        menu.querySelectorAll<HTMLElement>(
-          'a[href], button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])',
+      const focusable = [
+        menuClose,
+        ...Array.from(
+          menu.querySelectorAll<HTMLElement>(
+            'a[href], button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])',
+          ),
         ),
-      ).filter((element) => element.getClientRects().length > 0);
+      ].filter(
+        (element) =>
+          element.getClientRects().length > 0 &&
+          window.getComputedStyle(element).display !== "none" &&
+          window.getComputedStyle(element).visibility !== "hidden",
+      );
       const first = focusable[0];
       const last = focusable.at(-1);
       if (!first || !last) return;
-      if (event.shiftKey && (document.activeElement === first || !menu.contains(document.activeElement))) {
+      if (event.shiftKey && document.activeElement === first) {
         event.preventDefault();
-        menuClose.focus();
-      } else if (!event.shiftKey && document.activeElement === menuClose) {
-        event.preventDefault();
-        first.focus();
+        last.focus();
       } else if (!event.shiftKey && document.activeElement === last) {
         event.preventDefault();
-        menuClose.focus();
+        first.focus();
+      } else if (!menu.contains(document.activeElement) && document.activeElement !== menuClose) {
+        event.preventDefault();
+        first.focus();
       }
-    };
-    const showSlide = (index: number) => {
-      if (slides.length < 2) return;
-      current = (index + slides.length) % slides.length;
-      slides.forEach((slide, slideIndex) => {
-        slide.hidden = slideIndex !== current;
-      });
-    };
-    const handleMotionPreference = (event: MediaQueryListEvent) => {
-      reducedMotion = event.matches;
-    };
-    const handleSliderEnter = () => {
-      hovered = true;
-    };
-    const handleSliderLeave = () => {
-      hovered = false;
-    };
-    const handleSliderFocusIn = () => {
-      focused = true;
-    };
-    const handleSliderFocusOut = (event: FocusEvent) => {
-      const nextTarget = event.relatedTarget;
-      if (!(nextTarget instanceof Node) || !slider?.contains(nextTarget)) focused = false;
-    };
-    const advanceSlide = () => {
-      if (reducedMotion || hovered || focused) return;
-      showSlide(current + 1);
     };
     const handleSubmenu = (event: Event) => {
       handleMobileAccordion(event, menu);
@@ -198,14 +174,7 @@ export function GiacongInteractions({
     document.addEventListener("click", handleSubmenu);
     document.addEventListener("keydown", handleMenuKeydown);
     window.addEventListener("scroll", updateStickyHeader, { passive: true });
-    motionQuery.addEventListener("change", handleMotionPreference);
-    slider?.addEventListener("mouseenter", handleSliderEnter);
-    slider?.addEventListener("mouseleave", handleSliderLeave);
-    slider?.addEventListener("focusin", handleSliderFocusIn);
-    slider?.addEventListener("focusout", handleSliderFocusOut);
-    showSlide(0);
     updateStickyHeader();
-    const timer = slides.length >= 2 ? window.setInterval(advanceSlide, 6000) : undefined;
 
     return () => {
       trigger?.removeEventListener("click", toggleMenu);
@@ -215,13 +184,8 @@ export function GiacongInteractions({
       document.removeEventListener("click", handleSubmenu);
       document.removeEventListener("keydown", handleMenuKeydown);
       window.removeEventListener("scroll", updateStickyHeader);
-      motionQuery.removeEventListener("change", handleMotionPreference);
-      slider?.removeEventListener("mouseenter", handleSliderEnter);
-      slider?.removeEventListener("mouseleave", handleSliderLeave);
-      slider?.removeEventListener("focusin", handleSliderFocusIn);
-      slider?.removeEventListener("focusout", handleSliderFocusOut);
       disconnectContactForms();
-      if (timer !== undefined) window.clearInterval(timer);
+      disconnectCapturedMotion();
       generatedToggles.forEach((button) => button.remove());
       restoreMobileMenuIcons();
       generatedMobileProductItem?.remove();

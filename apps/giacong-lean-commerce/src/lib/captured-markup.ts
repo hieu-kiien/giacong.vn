@@ -33,6 +33,7 @@ export function layerCapturedStyles(pageStyles: string): string {
 
 export function normalizeCapturedMarkup(markup: string) {
   const normalized = markup
+    .replace(/\sdata-animated=(["'])[^"']*\1/gi, "")
     .replace(/Sản Phẩm(?=<i class="icon-angle-down"><\/i>)/g, "Mua hàng")
     .replace(/Dịch vụ(?=<i class="icon-angle-down"><\/i>)/g, "Thuê gia công")
     .replace(/Dịch Vụ Gia Công(?=<\/a>)/g, "Thuê gia công")
@@ -45,9 +46,65 @@ export function normalizeCapturedMarkup(markup: string) {
     },
     );
 
-  return normalizeHomeMenuItems(
-    replaceShoppingMenu(replaceServiceMenus(normalized)),
+  return addCapturedImageLoadingHints(
+    normalizeCapturedFooterHeadings(
+      normalizeCapturedFrames(
+        normalizeCapturedContactHeadings(
+          normalizeCapturedMainLandmark(
+            normalizeHomeMenuItems(
+              replaceShoppingMenu(replaceServiceMenus(normalized)),
+            ),
+          ),
+        ),
+      ),
+    ),
   );
+}
+
+function normalizeCapturedMainLandmark(markup: string): string {
+  return markup.replace(/<div\b([^>]*)>/gi, (tag, attributes: string) => {
+    if (!/\bid\s*=\s*(["'])content\1/i.test(attributes)) return tag;
+    return `<div${attributes.replace(/\srole\s*=\s*(["'])main\1/i, "")}>`;
+  });
+}
+
+function normalizeCapturedContactHeadings(markup: string): string {
+  return markup.replace(
+    /<h3\b([^>]*)>([\s\S]*?)<\/h3>/gi,
+    (tag, attributes: string, content: string) =>
+      /^\s*Thông tin công ty\s*$/i.test(readLinkLabel(content))
+        ? `<h2${attributes}>${content}</h2>`
+        : tag,
+  );
+}
+
+function normalizeCapturedFrames(markup: string): string {
+  return markup.replace(/<iframe\b([^>]*)>/gi, (tag, attributes: string) => {
+    if (/\btitle\s*=/i.test(attributes)) return tag;
+    const title = /(?:google\.[^/]+\/maps\/embed|maps\.google\.)/i.test(attributes)
+      ? "Bản đồ vị trí Giacong.vn"
+      : "Nội dung nhúng Giacong.vn";
+    return `<iframe${attributes} title="${title}">`;
+  });
+}
+
+function normalizeCapturedFooterHeadings(markup: string): string {
+  return markup.replace(/<footer\b[^>]*>[\s\S]*?<\/footer>/gi, (footer) =>
+    footer.replace(/<h3\b/gi, "<h2").replace(/<\/h3>/gi, "</h2>"),
+  );
+}
+
+function addCapturedImageLoadingHints(markup: string): string {
+  return markup.replace(/<img\b[^>]*>/gi, (tag) => {
+    if (
+      /\bloading\s*=|\bfetchpriority\s*=\s*(["'])high\1|\b(?:header_logo|header-logo|header-logo-dark|ux-menu-icon|ux-sidebar-menu-icon)\b/i.test(
+        tag,
+      )
+    ) {
+      return tag;
+    }
+    return tag.replace(/\/?>$/, (closing) => ` loading="lazy"${closing}`);
+  });
 }
 
 function normalizeHomeMenuItems(markup: string): string {
