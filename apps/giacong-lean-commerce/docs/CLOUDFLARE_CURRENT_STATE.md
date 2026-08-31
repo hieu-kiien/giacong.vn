@@ -224,6 +224,13 @@ accessibility hardening:
 - Browser mới không có Access identity nên `admin-staging.kienhieu.id.vn`
   redirect đúng về Cloudflare Access login. Vì vậy bản promotion này chưa được
   ghi nhận là đã pass admin role matrix/focus/reduced-motion read-back.
+- Production read-only audit cùng ngày: Worker `giacong-vn` vẫn ở version
+  `1d8a2b41-6154-46d5-935b-8cb7fbc35688` @100%; D1 production còn migrations
+  `0009_admin_control_plane.sql`, `0010_site_settings_write_contract.sql`,
+  `0011_site_settings_bulk_publish.sql` và
+  `0012_news_draft_publish_contract.sql` chưa apply. Không tự apply các
+  migration này trong follow-up vì production data/content, Access role matrix
+  và rollback/restore drill chưa được chốt.
 
 Các gate còn mở: Access identity thật cho browser admin desktop/mobile/keyboard,
 role × route/action read-back, production taxonomy/SKU/media/CMS được duyệt,

@@ -57,6 +57,14 @@ Lưu ý: demo staging KHÔNG được seed sang production. Khách tự thao tá
 - [x] R2 bucket production trạng thái đã biết trước khi upload media
 - [x] Sửa 3 lệch dữ liệu seed phát hiện bởi strict read path: contact threshold SME-02/NMC-10, thiếu cột variant_count, option_id = 0
 
+> Phạm vi lịch sử của các mục `[x]` trên chỉ gồm migrations `0004/0007/0008`
+> và đợt seed đã được ghi nhận. Read-only audit ngày 2026-08-31 cho thấy
+> production vẫn còn `0009–0012` chưa apply; không tự thay đổi production khi
+> các gate dữ liệu thật, Access role matrix và restore/rollback drill còn mở.
+
+- [ ] Apply và verify production migrations `0009–0012` sau khi có production
+  acceptance/backup/rollback window được phê duyệt.
+
 ## 6. Promotion production — ĐÃ ĐÓNG (2026-08-25)
 
 - [x] Upload version chưa nhận traffic → smoke → promote có kiểm soát (`wrangler versions deploy <id>`)
