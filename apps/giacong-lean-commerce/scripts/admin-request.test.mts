@@ -108,8 +108,8 @@ test("operational collection reads enforce their declared read capabilities", as
 
 test("operational mutation errors keep the bounded parser request ID", async () => {
   const expectations = [
-    ["../src/app/api/admin/services/route.ts", /adminErrorFrom\(parsedRequest\.requestId/],
-    ["../src/app/api/admin/services/[id]/route.ts", /adminErrorFrom\(parsedRequest\.requestId/],
+    ["../src/app/api/admin/services/route.ts", /mapServiceWriteError\(requestId/],
+    ["../src/app/api/admin/services/[id]/route.ts", /mapServiceWriteError\(requestId/],
     ["../src/app/api/admin/members/[id]/route.ts", /memberFailure\(error, "Không thể cập nhật thành viên\.", parsedRequest\.requestId\)/],
     ["../src/app/api/admin/leads/[id]/route.ts", /adminFailure\(parsedRequest\.requestId, 404/],
     ["../src/app/api/admin/leads/[id]/route.ts", /adminErrorFrom\(parsedRequest\.requestId/],

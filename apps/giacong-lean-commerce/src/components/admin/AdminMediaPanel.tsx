@@ -143,12 +143,14 @@ export function AdminMediaPanel({ productId, serviceId, title }: AdminMediaPanel
           isActive: boolean;
           leadTimeDays: number | null;
           name: string;
+          revision: number;
           shortDescription: string;
           sku: string;
           slug: string;
           status: string;
         };
       }>(`/api/admin/products/${productId}`);
+      const requestId = crypto.randomUUID();
       await mutateAdmin(`/api/admin/products/${productId}`, {
         body: {
           categoryId: product.categoryId,
@@ -157,6 +159,8 @@ export function AdminMediaPanel({ productId, serviceId, title }: AdminMediaPanel
           isActive: product.isActive,
           leadTimeDays: product.leadTimeDays,
           name: product.name,
+          requestId,
+          revision: product.revision,
           shortDescription: product.shortDescription,
           sku: product.sku,
           slug: product.slug,
@@ -186,11 +190,13 @@ export function AdminMediaPanel({ productId, serviceId, title }: AdminMediaPanel
           leadTimeDays: number | null;
           moqSummary: string | null;
           name: string;
+          revision: number;
           slug: string;
           status: string;
           summary: string;
         };
       }>(`/api/admin/services/${serviceId}`);
+      const requestId = crypto.randomUUID();
       await mutateAdmin(`/api/admin/services/${serviceId}`, {
         body: {
           description: service.description,
@@ -199,6 +205,8 @@ export function AdminMediaPanel({ productId, serviceId, title }: AdminMediaPanel
           leadTimeDays: service.leadTimeDays,
           moqSummary: service.moqSummary,
           name: service.name,
+          requestId,
+          revision: service.revision,
           slug: service.slug,
           status: service.status,
           summary: service.summary,

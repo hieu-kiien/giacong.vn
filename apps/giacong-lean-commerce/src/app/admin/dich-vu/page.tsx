@@ -10,8 +10,12 @@ import { useAdminToast } from "@/components/admin/AdminToast";
 import { AdminClientError, fetchAdmin, formatAdminDate, mutateAdmin, type AdminService } from "@/lib/admin-client";
 import { canManageServices } from "@/lib/admin-permissions";
 
+interface AdminServiceWithRevision extends AdminService {
+  revision: number;
+}
+
 interface ServiceResponse {
-  services: AdminService[];
+  services: AdminServiceWithRevision[];
   total: number;
   pagination?: { currentPage: number; lastPage: number; pageSize: number; total: number };
 }
@@ -37,6 +41,7 @@ type ServiceFormState = {
   slug: string;
   status: "archived" | "draft" | "published" | "review";
   summary: string;
+  revision: number;
 };
 
 const emptyServiceForm: ServiceFormState = {
@@ -49,15 +54,16 @@ const emptyServiceForm: ServiceFormState = {
   slug: "",
   status: "draft",
   summary: "",
+  revision: 0,
 };
 
 export default function AdminServicesPage() {
   const session = useAdminSession();
   const { showToast } = useAdminToast();
   const canManage = canManageServices(session.role);
-  const [confirmArchive, setConfirmArchive] = useState<AdminService | null>(null);
-  const [confirmBatchArchive, setConfirmBatchArchive] = useState<AdminService[]>([]);
-  const [services, setServices] = useState<AdminService[]>([]);
+  const [confirmArchive, setConfirmArchive] = useState<AdminServiceWithRevision | null>(null);
+  const [confirmBatchArchive, setConfirmBatchArchive] = useState<AdminServiceWithRevision[]>([]);
+  const [services, setServices] = useState<AdminServiceWithRevision[]>([]);
   const [inputQuery, setInputQuery] = useState("");
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(1);
@@ -111,7 +117,7 @@ export default function AdminServicesPage() {
         if (!current?.id) return current;
         void (async () => {
           try {
-            const { service } = await fetchAdmin<{ service: AdminService }>(`/api/admin/services/${current.id}`);
+            const { service } = await fetchAdmin<{ service: AdminServiceWithRevision }>(`/api/admin/services/${current.id}`);
             setEditor((latest) => latest?.id === service.id ? { ...latest, imageUrl: service.imageUrl ?? "" } : latest);
           } catch {
             // The editor keeps its previous image value; the table reload above still reflects D1.
@@ -141,7 +147,7 @@ export default function AdminServicesPage() {
     setEditor({ ...emptyServiceForm });
   }
 
-  function openEdit(service: AdminService) {
+  function openEdit(service: AdminServiceWithRevision) {
     setSaveError(null);
     setEditor({
       description: service.description,
@@ -154,6 +160,7 @@ export default function AdminServicesPage() {
       slug: service.slug,
       status: service.status as ServiceFormState["status"],
       summary: service.summary,
+      revision: service.revision,
     });
   }
 
@@ -162,7 +169,7 @@ export default function AdminServicesPage() {
     if (!editor) return;
     setSaving(true);
     setSaveError(null);
-    const payload = {
+    const fields = {
       description: editor.description,
       imageUrl: editor.imageUrl.trim() || null,
       isActive: editor.isActive,
@@ -173,8 +180,11 @@ export default function AdminServicesPage() {
       status: editor.status,
       summary: editor.summary,
     };
+    const payload = editor.id === undefined
+      ? { ...fields, requestId: crypto.randomUUID() }
+      : { ...fields, requestId: crypto.randomUUID(), revision: editor.revision };
     try {
-      await mutateAdmin<{ service: AdminService }>(
+      await mutateAdmin<{ service: AdminServiceWithRevision }>(
         editor.id ? `/api/admin/services/${editor.id}` : "/api/admin/services",
         { body: payload, method: editor.id ? "PATCH" : "POST" },
       );
@@ -188,11 +198,14 @@ export default function AdminServicesPage() {
     }
   }
 
-  async function archiveService(service: AdminService) {
+  async function archiveService(service: AdminServiceWithRevision) {
     setArchivingId(service.id);
     setSaveError(null);
     try {
-      await mutateAdmin<{ service: AdminService }>(`/api/admin/services/${service.id}`, { method: "DELETE" });
+      await mutateAdmin<{ service: AdminServiceWithRevision }>(`/api/admin/services/${service.id}`, {
+        body: { requestId: crypto.randomUUID(), revision: service.revision },
+        method: "DELETE",
+      });
       if (editor?.id === service.id) setEditor(null);
       setAttempt((value) => value + 1);
       showToast("success", `Đã ẩn dịch vụ “${service.name}”.`);
