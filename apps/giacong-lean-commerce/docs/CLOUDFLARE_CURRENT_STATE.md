@@ -182,7 +182,11 @@ Application/runtime migration, deep QA và staging-admin edge/route audit đã �
 Bằng chứng đã xác minh trong đợt staging QA + production promotion:
 
 - Production Worker `giacong-vn` chạy version mới nhất @100% (`wrangler versions deploy` có kiểm soát, rollback point `88df8e93`).
-- Production D1 đã áp dụng migrations 0004/0007/0008; backup export tại `.runtime/production-d1-backup-20260825.sql`.
+- Production D1 đã áp dụng migrations 0004/0007/0008; đợt 2026-08-25 có
+  ghi nhận backup export trước seed. Artifact
+  `.runtime/production-d1-backup-20260825.sql` không còn trong workspace hiện
+  tại, nên phải re-export và kiểm tra restore trước migration production tiếp
+  theo; không coi bằng chứng lịch sử này là backup đang sẵn sàng.
 - Ba lệch dữ liệu seed đã sửa có guard: contact threshold `B2B-SEED-SME-02` 260→264, `B2B-SEED-NMC-10` 140→141; bổ sung cột `variant_count`/`available_variant_count`; `option_id` 0→id cho 34 variants.
 - Rate limit POST `/api/gui-yeu-cau/xac-thuc` hoạt động trên staging thật: 429 + Retry-After 60 tại ngưỡng 30 req/phút/IP (biên ±1 do eventual consistency của simple ratelimit).
 - Google Sheet intake live: Web App Apps Script (consumer Google account) nhận lead từ `/api/contact` → queue → `doPost` → Sheet, `delivery_status: delivered` với reference `YC-*`. Idempotency theo `request_id`, chống công thức, protection giữ L:N editable.

@@ -13,7 +13,7 @@ Tài liệu dành cho người vận hành (khách + chủ dự án). Quyết đ
 | D1 production | `giacong-vn-catalog` | Catalog, leads, media metadata, CMS |
 | R2 production | `giacong-vn-product-media` | Ảnh product/variant/service qua `/media/*` |
 | Request intake | Google Sheet "Yêu cầu báo giá Giacong" + Apps Script | Xem mục 3 |
-| Backup D1 | `.runtime/production-d1-backup-20260825.sql` | Snapshot trước promotion 2026-08-25 |
+| Backup D1 | Chưa có artifact trong workspace hiện tại | Đợt 2026-08-25 có ghi nhận snapshot; phải re-export + checksum + thử restore trước migration production tiếp theo |
 
 ## 2. Vận hành admin
 
@@ -47,7 +47,7 @@ npm run cf:upload:production
 npx wrangler versions deploy <VERSION_ID> --name giacong-vn
 ```
 
-Rollback: `npx wrangler versions deploy <VERSION_CŨ> --name giacong-vn` (mỗi lần promote đều ghi rõ rollback point trong checklist). Rollback D1: dùng backup `.sql` — chỉ khi có chủ ý, kèm audit trước/sau.
+Rollback: `npx wrangler versions deploy <VERSION_CŨ> --name giacong-vn` (mỗi lần promote đều ghi rõ rollback point trong checklist). Rollback D1: chỉ dùng backup `.sql` đã re-export, checksum và thử restore — chỉ khi có chủ ý, kèm audit trước/sau.
 
 ## 5. Giám sát
 

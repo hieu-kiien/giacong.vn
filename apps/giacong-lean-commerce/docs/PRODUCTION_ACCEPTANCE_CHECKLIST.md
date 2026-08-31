@@ -49,10 +49,10 @@ Trạng thái chốt hạ trước promotion `giacong-vn` production. Nguồn y�
 
 Lưu ý: demo staging KHÔNG được seed sang production. Khách tự thao tác trên `admin.kienhieu.id.vn` qua Cloudflare Access.
 
-## 5. Production D1/R2 mutation + rollback plan — ĐÃ ĐÓNG (2026-08-25)
+## 5. Production D1/R2 mutation + rollback plan — LỊCH SỬ ĐÃ THỰC HIỆN, GATE HIỆN TẠI CÒN MỞ
 
 - [x] Apply migrations production: 0004_admin_foundation, 0007_news_posts, 0008_service_images — ✅ audit trước/sau, dữ liệu nguyên vẹn
-- [x] Export backup D1 production trước khi seed: `.runtime/production-d1-backup-20260825.sql`
+- [x] Đợt 2026-08-25 đã ghi nhận export backup D1 production trước khi seed
 - [x] Rollback point Worker xác định trước mỗi lần promote (version `88df8e93` → `07b57eb7` → hiện tại)
 - [x] R2 bucket production trạng thái đã biết trước khi upload media
 - [x] Sửa 3 lệch dữ liệu seed phát hiện bởi strict read path: contact threshold SME-02/NMC-10, thiếu cột variant_count, option_id = 0
@@ -61,6 +61,11 @@ Lưu ý: demo staging KHÔNG được seed sang production. Khách tự thao tá
 > và đợt seed đã được ghi nhận. Read-only audit ngày 2026-08-31 cho thấy
 > production vẫn còn `0009–0016` chưa apply; không tự thay đổi production khi
 > các gate dữ liệu thật, Access role matrix và restore/rollback drill còn mở.
+
+> Revalidation 2026-08-31: artifact `.runtime/production-d1-backup-20260825.sql`
+> không có trong workspace hiện tại. Mục export ở trên chỉ là bằng chứng lịch sử;
+> phải re-export, lưu checksum và thử restore cục bộ ngay trước khi apply
+> `0009–0016`. Không coi production đã có backup restore-ready cho đến lúc đó.
 
 - [ ] Apply và verify production migrations `0009–0016` sau khi có production
   acceptance/backup/rollback window được phê duyệt.
