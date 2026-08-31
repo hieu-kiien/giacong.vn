@@ -304,6 +304,17 @@ restore/rollback drill, observability 24h và quyết định redirect
   production data. Các gate Access identity thật, role matrix, authenticated
   write/read-back và production vẫn giữ nguyên trạng thái mở bên dưới.
 
+## Staging footer settings follow-up — 2026-08-31
+
+- Worker version `cd4a973e-6fde-4538-b66b-04d3fadbb02d` đã được upload và
+  promotion 100%; version `ec0522c7-2840-4118-a7fb-0740c5d7c91e` là rollback
+  point.
+- Browser runtime xác minh published settings được áp dụng vào captured footer:
+  mô tả footer, địa chỉ `108 Trần Hưng Đạo - Hoàn Kiếm - Hà Nội` và copyright
+  đều đọc được từ DOM; footer không chứa `<script>` và console không có
+  error/warning.
+- Đây là acceptance cho renderer footer và không thực hiện production mutation.
+
 ## Staging admin browser verification — 2026-08-31
 
 - Worker version `a22e9ecb-e1f6-4966-b96b-e2883d138fb1` là phiên bản admin

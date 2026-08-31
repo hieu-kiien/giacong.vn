@@ -492,6 +492,13 @@ minh slider dots hiển thị và thao tác `Nội dung 2` đổi slide thành c
 console error/warning. Đây là acceptance cho lát motion/a11y storefront; không
 thay thế Access identity thật, role matrix hoặc production gates.
 
+**Runtime update 2026-08-31 (footer settings):** version staging
+`cd4a973e-6fde-4538-b66b-04d3fadbb02d` đã được promotion 100%; version
+`ec0522c7-2840-4118-a7fb-0740c5d7c91e` là rollback point. Published footer
+description/address/copyright đã được browser đọc lại từ DOM sau deploy; dữ liệu
+được escape an toàn và console không có error/warning. Gate Access thật, role
+matrix và production vẫn chưa bị đánh dấu đạt.
+
 **Công việc:**
 
 - audit/history/revision hiển thị đủ để biết ai đổi gì, lúc nào, từ bản nào;
