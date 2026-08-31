@@ -106,3 +106,19 @@ test("product and variant JSON writes use the bounded request parser", async () 
     assert.doesNotMatch(source, /request\.json\(\)/, routeFile);
   }
 });
+
+test("admin collection read models enforce an explicit hard bound", async () => {
+  const sources = [
+    "../src/lib/admin-data.ts",
+    "../src/lib/admin-members.ts",
+    "../src/lib/site-pages.ts",
+    "../src/lib/site-navigation.ts",
+    "../src/lib/site-settings.ts",
+    "../src/lib/media-data.ts",
+  ];
+
+  for (const sourceFile of sources) {
+    const source = await readFile(new URL(sourceFile, import.meta.url), "utf8");
+    assert.match(source, /LIMIT 100/, sourceFile);
+  }
+});

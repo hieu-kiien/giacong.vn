@@ -80,6 +80,7 @@ export async function listAdminSiteNavigation(database: D1DatabaseLike): Promise
       version, updated_by, updated_at, published_by, published_at
     FROM site_navigation_items
     ORDER BY menu_key ASC, draft_sort_order ASC, id ASC
+    LIMIT 100
   `).all<SiteNavigationRow>();
   return rows.results.map(toAdminNavigationItem);
 }

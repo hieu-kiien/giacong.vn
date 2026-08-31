@@ -41,6 +41,7 @@ export async function listAdminMembers(database: D1DatabaseLike): Promise<AdminM
       revision, created_at, updated_at
     FROM admin_members
     ORDER BY is_active DESC, display_name COLLATE NOCASE ASC, id ASC
+    LIMIT 100
   `).all<AdminMemberRow>();
   return rows.results.map(toAdminMember);
 }

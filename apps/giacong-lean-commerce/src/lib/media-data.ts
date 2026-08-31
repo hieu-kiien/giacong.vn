@@ -85,6 +85,7 @@ export async function listMediaAssets(
     FROM media_assets
     ${where}
     ORDER BY created_at DESC
+    LIMIT 100
   `).bind(...params).all<MediaRow>();
   return rows.results.map(toMediaAsset);
 }

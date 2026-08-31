@@ -69,6 +69,7 @@ export async function listAdminSitePages(database: D1DatabaseLike): Promise<Admi
       version, updated_by, updated_at, published_by, published_at
     FROM site_pages
     ORDER BY title COLLATE NOCASE ASC, page_key ASC
+    LIMIT 100
   `).all<SitePageRow>();
   return rows.results.map(toAdminSitePage);
 }

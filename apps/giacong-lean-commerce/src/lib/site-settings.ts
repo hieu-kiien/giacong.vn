@@ -93,6 +93,7 @@ export async function listAdminSiteSettings(database: D1DatabaseLike): Promise<A
     ORDER BY CASE group_name
       WHEN 'brand' THEN 1 WHEN 'seo' THEN 2 WHEN 'home' THEN 3
       WHEN 'contact' THEN 4 ELSE 5 END, setting_key
+    LIMIT 100
   `).all<SiteSettingRow>();
 
   return rows.results.map(toAdminSiteSetting);

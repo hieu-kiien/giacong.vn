@@ -244,6 +244,7 @@ export async function listAdminCategories(database: D1DatabaseLike): Promise<Adm
     FROM categories
     WHERE is_active = 1
     ORDER BY sort_order ASC, name COLLATE NOCASE ASC, id ASC
+    LIMIT 100
   `).all<AdminCategory>();
   return rows.results;
 }
@@ -498,6 +499,7 @@ export async function listAdminProductVariants(
     FROM product_variants
     WHERE product_id = ?
     ORDER BY sort_order ASC, id ASC
+    LIMIT 100
   `).bind(productId).all<VariantRow>();
   if (rows.results.length === 0) return [];
 
@@ -1326,6 +1328,7 @@ export async function listAdminCategoryDetails(database: D1DatabaseLike): Promis
     SELECT id, name, slug, description, image_url, sort_order, is_active, revision
     FROM categories
     ORDER BY sort_order ASC, name COLLATE NOCASE ASC, id ASC
+    LIMIT 100
   `).all<CategoryDetailRow>();
   return result.results.map(toCategoryDetail);
 }
