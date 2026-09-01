@@ -75,12 +75,11 @@ jobs:
             exit 1
           fi
 
-      - name: Upsert the approved owner atomically
+      - name: Upsert the approved owner idempotently
         shell: bash
         run: |
           set -euo pipefail
           npx -y "wrangler@$WRANGLER_VERSION" d1 execute "$DATABASE_NAME" --remote --json --command="
-            BEGIN;
             INSERT INTO admin_members (id, access_subject, email, display_name, role, is_active)
             SELECT '$OWNER_ID', '$OWNER_EMAIL', '$OWNER_EMAIL', '$OWNER_DISPLAY_NAME', 'owner', 1
             WHERE NOT EXISTS (
@@ -97,7 +96,6 @@ jobs:
                 updated_at = CURRENT_TIMESTAMP
             WHERE lower(email) = lower('$OWNER_EMAIL')
                OR access_subject = '$OWNER_EMAIL';
-            COMMIT;
           " | jq .
 
       - name: Verify exactly one active owner match
