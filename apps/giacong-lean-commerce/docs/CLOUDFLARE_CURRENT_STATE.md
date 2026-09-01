@@ -522,3 +522,22 @@ restore/rollback drill, observability 24h và quyết định redirect
 - Đây chỉ là sửa hiển thị fallback; chưa chứng minh Access policy đã cho phép
   identity hoặc owner bootstrap. Chủ dự án cần tải lại trang Chrome rồi chọn
   nút đăng nhập nếu phiên vẫn chưa được chấp nhận.
+
+## Staging admin Access action and Vietnamese font fix — 2026-09-01
+
+- Commit `4d02df9` đổi handoff đăng nhập thành button thật gọi full document
+  reload. Điều này tránh `next/link` điều hướng client-side tại chính `/admin`,
+  để request quay lại Cloudflare edge và có cơ hội phát sinh Access redirect;
+  không nới JWT validation, policy hay quyền admin.
+- Admin dùng asset font nội bộ `SFProDisplay-Regular.woff2` và
+  `SFProDisplay-Bold.woff2` dưới tên `Admin Sans`; tiêu đề fallback không còn
+  phụ thuộc `Geist`/`Georgia` thiếu glyph tiếng Việt.
+- Full local gate đạt exit code `0`: tất cả test admin/contact/catalog/service/
+  commerce/listing/detail, lint, typecheck và build đều pass. Playwright headless
+  ở desktop/mobile xác nhận button actionability, full reload tạo document
+  request thứ hai, font `Admin Sans` loaded và không có page error.
+- Staging version `474656c9-e5b5-49c7-b509-26464e71b3b6` deploy thành công;
+  public host trả HTTP `200`, hai font trả HTTP `200` với MIME `font/woff2`,
+  admin host không có identity vẫn trả HTTP `302` về Access.
+- Access identity thật, role matrix và owner bootstrap vẫn là gate riêng; không
+  seed tài khoản hay thay policy thay cho chủ dự án.
