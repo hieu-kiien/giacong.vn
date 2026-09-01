@@ -1,7 +1,7 @@
 # Bản đồ file Giacong Visual Admin
 
 **Trạng thái:** bản đồ ownership và source-of-truth
-**Cập nhật:** 2026-08-31
+**Cập nhật:** 2026-09-01
 **Roadmap:** ADMIN_VISUAL_ROADMAP.md
 
 Mục tiêu của file này là trả lời nhanh bốn câu hỏi trước khi sửa code:
@@ -14,15 +14,26 @@ Mục tiêu của file này là trả lời nhanh bốn câu hỏi trước khi 
 Không thêm file mới vào map chỉ vì đã nghĩ ra tên. File chỉ được đánh dấu “đã có”
 khi tồn tại trong checkout; file “dự kiến” phải được tạo trong phase tương ứng.
 
-**Checkpoint 2026-08-31:** P1 host-gated admin context, P2 settings write
+**Checkpoint 2026-09-01:** P1 host-gated admin context, P2 settings write
 contract (per-setting + bulk publish), contextual editor MVP, P3 contextual
 news-detail hand-off, P4 managed-page hand-off, P5 product bulk import UI và
-product/service/category bulk archive contract đã có trong `master`. Toàn bộ
-admin JSON writes hiện đi qua bounded parser; các admin collection read chính có
-hard bound `LIMIT 100`. Staging đang phục vụ version
-`0d1e14c1-ec4d-47db-b0e2-4275f246f919` với rollback point
-`8eb11c5e-f7bc-4a2f-a37f-2949a3d03541`; browser/admin identity evidence vẫn là
+product/service/category bulk archive contract đã có trong `master`. Bản
+storefront motion/menu đã được review và tích hợp từ worktree riêng; fallback
+gallery đã chấp nhận asset WebP. `qa:ux` là runner tracked để lặp lại audit
+staging. Staging đang phục vụ version
+`43e186bc-8dff-4812-b9e1-68e10336a4f1`; public UX audit năm route pass, axe
+không có violation, nhưng browser/admin identity evidence và role matrix vẫn là
 gate riêng.
+
+Full gate gần nhất đã in xanh các suite: admin `160/160`, contact `104/104`,
+catalog `5/5`, catalog purchase UI `1/1`, service `3/3`, commerce `63/63`,
+listing `4/4`, detail `29/29`, kèm lint, type generation và production build.
+Wrapper PowerShell giữ process sau khi đã in xong output nên phải dừng thủ công;
+không dùng điều đó để thay thế cửa sổ release có exit code sạch.
+
+Repo chính không có GIF/video runtime bắt buộc: motion hiện dùng CSS/HTML và
+asset WebP phù hợp. Worktree motion riêng vẫn được giữ nguyên, không reset hoặc
+xóa các artifact người dùng đang làm.
 
 **Catalog contract slice 2026-08-31:** product/variant single-row
 create/update/soft-archive đã chuyển sang exact command envelope với
@@ -33,8 +44,9 @@ regression `136/136`, SQLite chạy đủ migration `0001–0012`, lint và type
 đều pass; runtime admin read-back bằng Access identity thật vẫn còn mở.
 Tuy nhiên `admin-staging.kienhieu.id.vn` vẫn trả Cloudflare Access login khi
 không có phiên hợp lệ, vì vậy admin read-back/browser evidence cho context thật
-và frontend motion worktree còn mở; không coi local Next dev là bằng chứng
-Access.
+và frontend motion lúc đó còn ở worktree riêng; bản motion đã được review và
+tích hợp vào `master` ở checkpoint 2026-09-01. Không coi local Next dev là bằng
+chứng Access.
 Commit `cf3856c` đã bổ sung stale-race regression cho service batch. Category
 archive hiện dùng `GET /api/admin/categories/batch` để lấy snapshot revision và
 `POST /api/admin/categories/batch` cho soft-deactivate atomic tối đa 100 item;
@@ -42,8 +54,8 @@ không còn hard-delete category. `AdminModal`
 hiện có focus trap, restore focus và confirm message liên kết qua
 `aria-describedby`; contract test đã pass, còn browser runtime evidence là gate
 QA riêng. Commit `f7dcc52` bổ sung pause cho carousel khi hover/focus hoặc
-reduced-motion. Repo chính không có GIF/video runtime; phần motion fidelity đang
-được giữ riêng trong worktree frontend dirty.
+reduced-motion. Repo chính không có GIF/video runtime; bản motion dùng CSS/HTML
+và asset WebP, đã được review rồi tích hợp vào `master` ở checkpoint hiện tại.
 Lát P6 đầu tiên đã thêm audit/history read-only owner-only ở `/admin/audit` và
 `/api/admin/audit`, tổng hợp các audit table hiện có mà không trả metadata payload;
 browser/admin staging read-back vẫn là gate riêng.
@@ -55,12 +67,13 @@ owner cuối cùng/tự khóa tài khoản; lead write ghi `lead_events` và mar
 request chống stale batch; media write
 ghép D1 audit với R2 compensation/reference guard. Migrations `0013–0016` đã
 chạy thành công trên SQLite local; marker lead chống stale batch đã được kiểm
-chứng; admin suite hiện `157/157`, lint, typecheck và build exit code `0`.
+chứng; lát này sau đó đã được hợp nhất với motion và full gate hiện là
+`160/160` admin, cùng các suite được ghi ở checkpoint hiện tại.
 Migrations đã apply trên local và staging; version
 `0d1e14c1-ec4d-47db-b0e2-4275f246f919` đã được promote 100%, public smoke/deep
 QA sau promotion pass. Runtime write/read-back member/lead/media bằng Access
-identity thật và browser admin vẫn là gate riêng; worktree frontend motion vẫn
-độc lập.
+identity thật và browser admin vẫn là gate riêng; worktree frontend motion đã
+được giữ nguyên và bản đã review đã tích hợp vào `master`.
 
 **Checkpoint P3 2026-08-29:** contract backend news/media đã vào `master`: news
 có snapshot `draft_*` và `published_*`, publish/unpublish riêng, batch status tối
@@ -169,7 +182,7 @@ use case thứ ba chứng minh editor hiện tại không còn đủ đơn giả
 | Navigation | /api/admin/navigation, /api/admin/navigation/[id], /publish, /publish-all | P4 |
 | News | /api/admin/news, /api/admin/news/[id], /api/admin/news/[id]/publish, /api/admin/news/batch | P3; draft save, explicit publish/unpublish, batch status và contextual deep-link đã có; browser/admin staging read-back còn mở |
 | Media | /api/admin/media, /api/admin/media/[id], /api/admin/media/cleanup | P3/P5; upload/alt/delete đã exact requestId + revision/CAS + audit/R2 guard; cleanup vẫn là recovery path bounded riêng |
-| Catalog | /api/admin/categories, /api/admin/categories/[id], /api/admin/categories/batch, /products, /products/[id], /products/batch, /products/[id]/variants, /products/[id]/variants/[variantId], /api/admin/products/import | P5; bulk import tối đa 50 dòng, product/category archive tối đa 100 item; single-row product/variant create/update/archive và bulk contract đều revision-aware/atomic/idempotent/audited; category/product/variant action là soft archive, không hard-delete; lát single-row mới nhất chưa promote và browser/staging còn mở |
+| Catalog | /api/admin/categories, /api/admin/categories/[id], /api/admin/categories/batch, /products, /products/[id], /products/batch, /products/[id]/variants, /products/[id]/variants/[variantId], /api/admin/products/import | P5; bulk import tối đa 50 dòng, product/category archive tối đa 100 item; single-row product/variant create/update/archive và bulk contract đều revision-aware/atomic/idempotent/audited; category/product/variant action là soft archive, không hard-delete; contract đã có trong master và staging, còn browser/admin Access read-back |
 | Services | /api/admin/services, /api/admin/services/[id], /api/admin/services/batch | P5; batch archive có snapshot revision riêng, tối đa 100 item, stale skip, atomic audit/idempotency; browser/staging còn mở |
 | Leads | /api/admin/leads, /api/admin/leads/[id] | P5, special page; status mutation dùng exact requestId/revision/CAS/idempotency/audit |
 | Members | /api/admin/members, /api/admin/members/[id] | P5, special page; create/update dùng exact requestId/revision/CAS/idempotency/audit và owner safety |

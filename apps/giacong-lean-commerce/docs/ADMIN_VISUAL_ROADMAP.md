@@ -1,7 +1,7 @@
 # Lộ trình Giacong Visual Admin
 
 **Trạng thái:** kế hoạch thực thi chính
-**Cập nhật:** 2026-08-31
+**Cập nhật:** 2026-09-01
 **Phạm vi:** apps/giacong-lean-commerce
 **Bản đồ đi kèm:** ADMIN_VISUAL_FILE_MAP.md
 
@@ -9,6 +9,21 @@ Tài liệu này là nguồn bám theo cho việc biến admin hiện tại thà
 **storefront-first hybrid admin**: chỉnh sửa theo ngữ cảnh ở nơi nội dung được
 hiển thị, nhưng vẫn giữ trung tâm vận hành đầy đủ cho nghiệp vụ phức tạp và xử
 lý hàng loạt.
+
+**Checkpoint hiện tại — 2026-09-01:** Bản motion/menu storefront đã được
+review và tích hợp vào `master` (cùng runner `qa:ux`, WebP gallery fixtures và
+regression cho hero settings). Staging đang chạy version
+`43e186bc-8dff-4812-b9e1-68e10336a4f1`; audit UX trực tiếp trên 5 route public
+đã pass HTTP 200, thao tác chính, mobile/desktop, no-overflow, axe `5/5` không
+violation và không có console error. Chỉ còn một warning từ Google Maps iframe,
+không phải app code. Full gate gần nhất in xanh admin `160/160`, contact
+`104/104`, catalog `5/5`, purchase UI `1/1`, service `3/3`, commerce `63/63`,
+listing `4/4`, detail `29/29`, lint, type generation và build.
+
+Phần chưa thể tự đóng là external gate: Cloudflare Access chưa có phiên identity
+hợp lệ để chạy admin role matrix, write/read-back và browser QA thật; staging
+`admin_members` hiện chưa có active owner. Production data/content approval,
+backup/restore/rollback và production promotion vẫn chưa được thực hiện.
 
 ## 1. Quyết định sản phẩm
 
@@ -62,7 +77,8 @@ Thứ tự ưu tiên khi có mâu thuẫn:
 
 ## 2. Baseline đã kiểm tra
 
-Đây là trạng thái sau các lát implementation và QA ngày 2026-08-31. Các mục có
+Đây là trạng thái nền sau các lát implementation và QA ngày 2026-08-31; checkpoint
+2026-09-01 ở đầu tài liệu là bằng chứng mới nhất. Các mục có
 giới hạn phải được ghi đúng như vậy, không coi là xanh hoàn toàn.
 
 ### 2.1 Đã xác minh
@@ -79,10 +95,10 @@ giới hạn phải được ghi đúng như vậy, không coi là xanh hoàn to
   còn migration phải apply. Các bảng admin/CMS chính gồm site_settings,
   site_pages, site_navigation_items, admin_members, news_posts và media_assets
   đã tồn tại.
-- Các suite focused sau khi merge hiện tại đã pass: test:admin 158/158,
-  test:contact 103/103, test:catalog 5/5, test:catalog-purchase-ui 1/1,
-  test:service 3/3, test:commerce 33/33, test:listing 4/4 và test:detail
-  29/29; UI import 2/2, category batch 4/4 và harness timing 1/1.
+- Các suite focused sau khi merge hiện tại đã pass: test:admin 160/160,
+  test:contact 104/104, test:catalog 5/5, test:catalog-purchase-ui 1/1,
+  test:service 3/3, test:commerce 63/63, test:listing 4/4 và test:detail
+  29/29; các test UI/batch/timing liên quan cũng pass.
 - Deep QA Playwright đã pass responsive route matrix, catalog search/sort/filter,
   detail mobile stacking, cart localStorage → request route và keyboard
   reachability ở local fixture và public staging (2026-08-29). Đây là evidence
@@ -521,6 +537,17 @@ người vận hành, chưa phải bằng chứng identity/role matrix thật.
 Cloudflare edge redirect thật; probe không identity nhận 302 tới team Access,
 storefront public vẫn HTTP 200. Endpoint `/cdn-cgi/access/login` không được dùng
 vì application trả 404.
+
+**Runtime update 2026-09-01 (storefront motion + UX audit):** commit
+`6c0de5e` đã tích hợp bản motion/menu đã review vào `master`; các commit
+`974afe0`, `25b0756`, `6ca71e1` bổ sung runner audit, fixture WebP và evidence
+docs. Version staging `43e186bc-8dff-4812-b9e1-68e10336a4f1` đã deploy thành
+công. `scripts/ux-audit-pilot.mjs` kiểm tra `/`, `/san-pham`, `/tin-tuc`,
+`/gui-yeu-cau`, `/thue-gia-cong` ở mobile/desktop: HTTP 200, hành động chính,
+no-overflow, axe `5/5` không violation, 0 console error, 0 response 4xx/5xx.
+Google Maps iframe còn một warning `postMessage` cross-origin từ bên thứ ba;
+không có lỗi ứng dụng. Đây là gate public storefront đã đạt, không thay thế
+Access identity thật, role matrix, write/read-back hay production acceptance.
 
 **Công việc:**
 
