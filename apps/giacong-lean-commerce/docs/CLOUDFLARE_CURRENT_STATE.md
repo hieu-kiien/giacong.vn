@@ -10,7 +10,7 @@ Hồ sơ này ghi bằng chứng runtime đã xác minh trong quá trình chuy�
   bulk 100 mục. `0017_navigation_bulk_publish_contract.sql` đã được kiểm tra
   trên D1 local tạm sau `scripts/local-catalog-baseline.sql`; toàn bộ
   `0001–0017` apply thành công và lần list cuối báo không còn migration pending.
-  Chưa apply migration mới này lên staging hoặc production.
+  Migration mới đã apply/verify trên D1 staging; production chưa bị thay đổi.
 
 - Commit `8c509c5` đã harden dependency baseline: Next.js `16.3.4`,
   `@opennextjs/cloudflare` `1.20.5`, Wrangler `4.125.0`; loại `shadcn` CLI
@@ -20,7 +20,8 @@ Hồ sơ này ghi bằng chứng runtime đã xác minh trong quá trình chuy�
   --audit-level=high` và `npm audit --audit-level=high` đều trả `0
   vulnerabilities`.
 - Staging Worker `giacong-vn-staging` đã build/deploy version
-  `ecda5cee-8791-4290-8505-56acbd5f4d5f`; bindings và routes staging vẫn đúng,
+  `902b3a6e-732f-4de6-a9fc-429b6478d833` ở 100% traffic; version
+  `a1f71e85-113e-4559-9377-ebedc22b92e7` được giữ làm rollback point; bindings và routes staging vẫn đúng,
   `ADMIN_PUBLIC=false`.
 - Live `qa:ux` sau deploy tại `https://staging.kienhieu.id.vn` pass 5/5 route,
   toàn bộ action, 0 console error, 0 HTTP 4xx/5xx, 0 overflow, axe `5/5` với
@@ -626,6 +627,7 @@ runtime trước khi đóng gate hiệu năng/ổn định.
 - Audit history đã merge được child navigation events và bulk envelopes qua
   `/api/admin/audit`; không đưa payload nội dung vào response.
 - Bằng chứng local: migration baseline + `0001–0017` pass, full admin `173/173`,
-  typecheck, lint, build và `git diff --check` pass. Staging đang vẫn chạy
-  version owner hardening cũ `a1f71e85-113e-4559-9377-ebedc22b92e7`; migration,
-  upload/promotion và browser navigation write/read-back là bước kế tiếp.
+  typecheck, lint, build và `git diff --check` pass. Staging đã apply migration,
+  upload/promote version mới; browser đã xác nhận owner/dashboard/navigation/
+  audit read-only không có console error/warning. Browser navigation write/read-
+  back, role matrix nhiều identity và production gate vẫn là bước kế tiếp.

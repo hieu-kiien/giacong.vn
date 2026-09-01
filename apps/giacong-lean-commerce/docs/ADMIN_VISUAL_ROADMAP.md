@@ -12,7 +12,8 @@ lý hàng loạt.
 
 **Checkpoint hiện tại — 2026-09-01:** Bản motion/menu storefront đã được
 review và tích hợp vào `master`; staging đang phục vụ version
-`a1f71e85-113e-4559-9377-ebedc22b92e7` sau dependency, copy và Access hardening.
+`902b3a6e-732f-4de6-a9fc-429b6478d833` sau navigation contract, dependency,
+copy và Access hardening; `a1f71e85-113e-4559-9377-ebedc22b92e7` là rollback point.
 Owner staging đã được bootstrap có kiểm soát: `qtu1053@gmail.com` là admin cấp
 cao nhất (`owner`), có toàn bộ capability và nhìn thấy nút tạo thành viên/admin;
 UI khóa tự hạ quyền, tự đổi Access identity hoặc tự vô hiệu hóa. Session đã
@@ -23,7 +24,7 @@ Lát navigation contract ở commit `566489d` đã thêm request UUID bắt bu�
 optimistic revision và idempotent replay cho save/publish từng mục; bulk publish
 được D1 batch atomic, giới hạn cứng 100 mục, trả kết quả từng item và ghi audit
 chuyên biệt. Migration `0017_navigation_bulk_publish_contract.sql` đã chạy đủ
-trên D1 local tạm; chưa apply staging/production.
+trên D1 local tạm và đã apply/verify trên D1 staging; production chưa thay đổi.
 
 Full gate gần nhất đạt: focused session/UI `17/17`, full admin `173/173`,
 contact `104/104`, catalog `5/5`, purchase UI `1/1`, service `3/3`, commerce
@@ -370,8 +371,8 @@ bulk publish đã có migration `0017`, exact request envelope, revision/CAS,
 idempotent replay/conflict, D1 batch coupling giữa item và audit, giới hạn 100
 mục với guard mục thứ 101, và kết quả `stale` theo từng id. Audit history đã
 nhận cả event từng mục lẫn bulk envelope; test admin hiện `173/173`. Đây là
-evidence local/code contract; staging migration và browser write/read-back vẫn
-chưa được đánh dấu đạt.
+evidence local/code contract; staging migration đã apply và browser read-only đã
+được xác minh, còn browser write/read-back vẫn chưa được đánh dấu đạt.
 
 **Mục tiêu:** chuyển các vùng layout cần thay đổi thường xuyên sang cấu trúc an
 toàn có thể chỉnh sửa.
