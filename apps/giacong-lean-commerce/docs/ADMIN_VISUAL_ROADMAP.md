@@ -12,10 +12,11 @@ lý hàng loạt.
 
 **Checkpoint hiện tại — 2026-09-02:** Bản motion/menu storefront đã được
 review và tích hợp vào `master`; staging đang phục vụ version
-`278030a5-c21b-423f-b443-7f2ad4834b76` sau owner/RBAC hardening, navigation
-contract, dependency, copy và Access hardening; commit `f4707b4` bổ sung trạng
-thái tải quyền; version
-`eb921d4e-2250-460c-913a-071499e52c59` là rollback point gần nhất.
+`379d20d7-44d2-40ee-a603-2890ba7515fb` sau owner/RBAC hardening, navigation
+contract, dependency, copy, Access hardening và bulk-retry UX; commit `f4707b4`
+bổ sung trạng thái tải quyền, commit `d63c7ec` giữ request id/payload cho retry
+thao tác hàng loạt; version `278030a5-c21b-423f-b443-7f2ad4834b76` là rollback
+point gần nhất.
 Owner staging đã được bootstrap có kiểm soát: `qtu1053@gmail.com` là admin cấp
 cao nhất (`owner`), có toàn bộ capability và nhìn thấy nút tạo thành viên/admin;
 UI khóa tự hạ quyền, tự đổi Access identity hoặc tự vô hiệu hóa. Session đã
@@ -36,7 +37,10 @@ listing `4/4`, detail `29/29`, lint, typecheck và build đều exit `0`; audit
 dependency báo `0 vulnerabilities`. Public smoke 5 route sau deploy đạt HTTP
 `200`, 0 console error, 0 HTTP 4xx/5xx, không overflow và axe không có serious/
 critical violation. Chỉ còn 1 warning `postMessage` từ Google Maps iframe bên
-thứ ba.
+thứ ba. Live UX audit đúng public host `https://staging.kienhieu.id.vn` đạt
+5/5 route, mọi action pass, axe 5/5 không có serious/critical; các host
+`admin-staging` và version preview vẫn cần Access nên không dùng làm public UX
+evidence.
 
 Rollback drill staging 2026-09-01 đã đạt: traffic được chuyển tạm thời 100%
 sang `a1f71e85-113e-4559-9377-ebedc22b92e7`, public smoke pass, rồi khôi phục
@@ -58,10 +62,20 @@ quyền/vô hiệu hóa chính mình và không cho role khác chạm control pl
 trị`) và hiển thị lỗi ngay dưới trường.
 
 Browser staging đã xác nhận owner thấy quyền điều hướng, nút tạo mục, publish
-hàng loạt và trang audit owner-only; preview public 5 route đạt HTTP `200`.
+hàng loạt và trang audit owner-only; public UX audit đúng host
+`https://staging.kienhieu.id.vn` đạt 5/5 route và mọi action pass.
 Trong lúc quyền đang tải, UI hiện `Đang kiểm tra quyền…` thay vì kết luận sai
 `Chỉ xem`; sau khi tải xong owner vẫn hiện đúng quyền chỉnh sửa và các nút thao
 tác tương ứng.
+
+**Runtime update 2026-09-02 (bulk retry boundary):** commit `d63c7ec` đã
+đóng hành vi retry không chắc chắn cho News batch, Services batch và CMS
+`publish-all`: khóa nhấn đúp ở UI, giữ request ID cùng fingerprint item/revision
+qua lỗi mạng/5xx để server idempotency replay an toàn, và chỉ bỏ request marker
+khi thành công hoặc lỗi 4xx. Focused contract đạt `18/18`; full gate đã in pass
+cho toàn bộ test, lint, typecheck và build. Version staging
+`379d20d7-44d2-40ee-a603-2890ba7515fb` đã promote 100%; rollback về version
+`278030a5-c21b-423f-b443-7f2ad4834b76` nếu cần.
 
 ## 1. Quyết định sản phẩm
 

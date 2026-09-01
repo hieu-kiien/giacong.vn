@@ -21,8 +21,8 @@ Hồ sơ này ghi bằng chứng runtime đã xác minh trong quá trình chuy�
   --audit-level=high` và `npm audit --audit-level=high` đều trả `0
   vulnerabilities`.
 - Staging Worker `giacong-vn-staging` đã build/deploy version
-  `278030a5-c21b-423f-b443-7f2ad4834b76` ở 100% traffic; version
-  `510c9f0c-2795-4caf-9f87-53ea07db6def` được giữ làm rollback point; bindings
+  `379d20d7-44d2-40ee-a603-2890ba7515fb` ở 100% traffic; version
+  `278030a5-c21b-423f-b443-7f2ad4834b76` được giữ làm rollback point; bindings
   và routes staging vẫn đúng, `ADMIN_PUBLIC=false`.
 - Live `qa:ux` sau deploy tại `https://staging.kienhieu.id.vn` pass 5/5 route,
   toàn bộ action, 0 console error, 0 HTTP 4xx/5xx, 0 overflow, axe `5/5` với
@@ -673,7 +673,7 @@ runtime trước khi đóng gate hiệu năng/ổn định.
   với 93 sự kiện. Commit `f4707b4` thêm trạng thái `Đang kiểm tra quyền…` trong
   thời gian chờ session; lượt reload Chrome đã quan sát được trạng thái này và
   sau đó owner trở về đúng quyền chỉnh sửa.
-- Version staging `278030a5-c21b-423f-b443-7f2ad4834b76` đã upload và promote
+- Version staging `379d20d7-44d2-40ee-a603-2890ba7515fb` đã upload và promote
   100%; preview/public smoke `/`, `/san-pham`, `/gui-yeu-cau`, `/thue-gia-cong`,
   `/tin-tuc` đều HTTP `200`. `qa:ux` pass 5/5 route, toàn bộ action, 0 console
   error, 0 HTTP 4xx/5xx, 0 overflow và axe không có serious/critical violation;
@@ -682,3 +682,19 @@ runtime trước khi đóng gate hiệu năng/ổn định.
   `179/179`, các suite khác, lint, typecheck và build đều exit `0`. Production
   Worker/D1/R2 không bị thay đổi; role matrix nhiều identity, write/read-back
   bằng identity thật, backup/restore và production promotion vẫn mở.
+
+## Admin bulk retry boundary — 2026-09-02
+
+- Commit `d63c7ec` đã harden ba bulk action còn lại ở UI: News publish/unpublish,
+  Services archive và CMS publish-all. UI chặn nhấn đúp; khi lỗi mạng/5xx,
+  lần retry giữ cùng request ID và đúng fingerprint item/revision; lỗi 4xx hoặc
+  success mới xóa marker để thao tác kế tiếp có request mới.
+- Focused contract `18/18`; full gate đã in pass cho toàn bộ admin `179/179`,
+  các suite contact/catalog/service/commerce/listing/detail, lint, typecheck và
+  build. Wrapper Windows cần dừng thủ công sau khi output hoàn tất nên không xem
+  mã dừng của wrapper là bằng chứng riêng.
+- Version staging `379d20d7-44d2-40ee-a603-2890ba7515fb` đã upload và promote
+  100%; rollback point `278030a5-c21b-423f-b443-7f2ad4834b76`. Public UX audit
+  đúng host `https://staging.kienhieu.id.vn` pass 5/5 route, action pass, 0
+  console error, 0 HTTP 4xx/5xx, 0 overflow, axe 5/5 không có serious/critical;
+  warning duy nhất là iframe Google Maps bên thứ ba.

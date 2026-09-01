@@ -142,8 +142,9 @@ Lưu ý: demo staging KHÔNG được seed sang production. Khách tự thao tá
 - [x] Owner navigation/audit read-only acceptance: `/admin/dieu-huong` hiển
   thị quyền chỉnh sửa, tạo mục và publish hàng loạt sau khi session tải xong;
   `/admin/audit` hiển thị trang owner-only với 93 sự kiện.
-- [x] Version staging `278030a5-c21b-423f-b443-7f2ad4834b76` đã upload và
-  promote 100%; preview/public smoke 5 route đạt HTTP `200`.
+- [x] Version staging `379d20d7-44d2-40ee-a603-2890ba7515fb` đã upload và
+  promote 100%; rollback point là `278030a5-c21b-423f-b443-7f2ad4834b76`;
+  public smoke 5 route đạt HTTP `200`.
 - [x] `qa:ux` sau deploy pass 5/5 route, action pass, 0 console error, 0 HTTP
   4xx/5xx, 0 overflow, axe không có serious/critical violation; warning còn lại
   là `postMessage` từ Google Maps iframe bên thứ ba.
@@ -152,6 +153,10 @@ Lưu ý: demo staging KHÔNG được seed sang production. Khách tự thao tá
 - [x] UI đang tải quyền được hiển thị `Đang kiểm tra quyền…`, không kết luận
   nhầm owner là `Chỉ xem`; sau khi tải xong Chrome xác nhận lại `Có quyền chỉnh
   sửa`, `Thêm mục` và `Phát hành tất cả`.
+- [x] Commit `d63c7ec` giữ request ID và payload item/revision qua retry network/5xx
+  cho News/Services/CMS bulk actions, khóa nhấn đúp và reset marker an toàn ở
+  success/4xx; focused contract `18/18`. Public UX audit đúng host staging pass
+  5/5 route, 0 console error, 0 HTTP 4xx/5xx, axe 5/5 không có serious/critical.
 - [ ] Role × route/action read-back với nhiều Access identity thật.
 - [ ] Write/read-back từng domain và audit consistency trên staging.
 - [ ] Production data/content approval, backup/restore drill, observability

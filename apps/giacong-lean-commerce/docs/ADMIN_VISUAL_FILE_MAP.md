@@ -20,9 +20,10 @@ news-detail hand-off, P4 managed-page hand-off, P5 product bulk import UI và
 product/service/category bulk archive contract đã có trong `master`. Bản
 storefront motion/menu đã được review và tích hợp từ worktree riêng; fallback
 gallery đã chấp nhận asset WebP. `qa:ux` là runner tracked để lặp lại audit
-staging. Staging đang phục vụ version
-`278030a5-c21b-423f-b443-7f2ad4834b76`; rollback point gần nhất là
-`510c9f0c-2795-4caf-9f87-53ea07db6def`; owner thật `qtu1053@gmail.com` đã được
+staging. Public staging `https://staging.kienhieu.id.vn` vừa pass UX audit 5/5
+route. Staging đang phục vụ version
+`379d20d7-44d2-40ee-a603-2890ba7515fb`; rollback point gần nhất là
+`278030a5-c21b-423f-b443-7f2ad4834b76`; owner thật `qtu1053@gmail.com` đã được
 bootstrap vào D1 staging với role `owner` cấp cao nhất. `/admin/thanh-vien` đã
 được browser xác nhận hiển thị tài khoản hiện tại, khóa self-demotion/self-
 deactivation và mở được luồng `Thêm tài khoản quản trị`.
@@ -75,6 +76,13 @@ commit `f4707b4` thêm trạng thái `Đang kiểm tra quyền…` để không 
 role và active state; server vẫn bảo vệ owner khỏi tự hạ quyền/vô hiệu hóa.
 Chrome staging đã quan sát được cả trạng thái đang tải và quyền owner sau khi
 session hoàn tất.
+
+Commit `d63c7ec` bổ sung retry-safe cho News/Services/CMS bulk actions: khóa
+double-click, giữ request ID và payload item/revision khi gặp network/5xx,
+chỉ reset marker ở success hoặc 4xx. Contract focused `18/18`, full gate đã
+in pass cho toàn bộ test/lint/typecheck/build; version staging mới là
+`379d20d7-44d2-40ee-a603-2890ba7515fb`, rollback về
+`278030a5-c21b-423f-b443-7f2ad4834b76`.
 
 Repo chính không có GIF/video runtime bắt buộc: motion hiện dùng CSS/HTML và
 asset WebP phù hợp. Worktree motion riêng vẫn được giữ nguyên, không reset hoặc
