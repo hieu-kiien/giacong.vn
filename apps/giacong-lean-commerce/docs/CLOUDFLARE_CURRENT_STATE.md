@@ -504,3 +504,21 @@ restore/rollback drill, observability 24h và quyết định redirect
   query `d1_migrations`) gặp Cloudflare API internal error `7500` ở query và
   authentication error `10000` ở database info, nên chưa dùng kết quả đó để
   suy diễn migration state và không phát hành lệnh ghi.
+
+## Staging admin Access fallback visual fix — 2026-09-01
+
+- Commit `af23063` đặt loading screen và màn hình phiên bị chặn vào chung
+  `.admin-app`, để các token màu admin không bị mất khi chưa có phiên hợp lệ.
+  Contract test mới tái hiện đúng lỗi nút đăng nhập chữ trắng trên nền trắng.
+- Full local gate sau thay đổi đạt exit code `0`: admin `163/163`, các suite
+  còn lại `104/104`, `5/5`, `1/1`, `3/3`, `63/63`, `4/4`, `29/29`, cùng lint,
+  typecheck và build.
+- Staging version `675fbf36-e9ef-46d7-a377-9b75d5803c78` deploy thành công;
+  `ADMIN_PUBLIC=false`, Access boundary và các binding staging giữ nguyên.
+- Playwright headless cô lập với response `403` giả lập xác nhận DOM có đúng
+  nút `Đăng nhập Cloudflare Access`, nền xanh đậm, chữ sáng và không có page
+  error. Ảnh kiểm tra nằm ngoài repo tại
+  `C:\Users\hieuk\Desktop\admin-access-fix-2026-09-01.png`.
+- Đây chỉ là sửa hiển thị fallback; chưa chứng minh Access policy đã cho phép
+  identity hoặc owner bootstrap. Chủ dự án cần tải lại trang Chrome rồi chọn
+  nút đăng nhập nếu phiên vẫn chưa được chấp nhận.
