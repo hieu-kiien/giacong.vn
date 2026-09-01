@@ -50,6 +50,9 @@ test("navigation bulk publish has a request-scoped audit contract", async () => 
   assert.match(manager, /publishAllRequestId/);
   assert.match(manager, /body: \{ requestId \}/);
   assert.match(manager, /createRequestId/);
+  assert.match(manager, /permissionsReady/);
+  assert.match(manager, /Đang kiểm tra quyền/);
+  assert.match(manager, /permissionsReady && canEdit/);
   assert.match(manager, /async function createItem[\s\S]*?body: \{[\s\S]*?requestId/);
   assert.match(manager, /result\.skipped\.map/);
   assert.match(detailRoute, /hasOnlyKeys\(body, \["requestId", "expectedVersion", "label", "href", "sortOrder", "isActive"\]\)/);

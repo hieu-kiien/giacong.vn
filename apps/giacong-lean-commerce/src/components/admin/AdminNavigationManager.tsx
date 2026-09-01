@@ -51,6 +51,7 @@ export function AdminNavigationManager() {
   const [items, setItems] = useState<AdminNavigationItem[]>([]);
   const [canEdit, setCanEdit] = useState(false);
   const [canPublish, setCanPublish] = useState(false);
+  const [permissionsReady, setPermissionsReady] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<AdminClientError | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -70,11 +71,15 @@ export function AdminNavigationManager() {
     void (async () => {
       setLoading(true);
       setError(null);
+      setCanEdit(false);
+      setCanPublish(false);
+      setPermissionsReady(false);
       try {
         const result = await fetchAdmin<NavigationResponse>("/api/admin/navigation", controller.signal);
         setItems(result.items ?? []);
         setCanEdit(result.canEdit);
         setCanPublish(result.canPublish);
+        setPermissionsReady(true);
       } catch (reason: unknown) {
         if (!(reason instanceof DOMException && reason.name === "AbortError")) {
           setError(reason instanceof AdminClientError ? reason : new AdminClientError("Không thể tải điều hướng website.", 0));
@@ -252,13 +257,13 @@ export function AdminNavigationManager() {
           <p>Menu captured cũ được nhận diện bằng ID; mục mới được thêm bằng schema an toàn, không chèn HTML tùy ý.</p>
         </div>
         <div className="admin-content-toolbar-actions">
-          <AdminStatusBadge kind={canEdit ? "green" : "neutral"} value={canEdit ? "Có quyền chỉnh sửa" : "Chỉ xem"} />
+          <AdminStatusBadge kind={permissionsReady && canEdit ? "green" : "neutral"} value={!permissionsReady ? (error ? "Chưa xác định quyền" : "Đang kiểm tra quyền…") : canEdit ? "Có quyền chỉnh sửa" : "Chỉ xem"} />
           <button className="admin-button admin-button-quiet" onClick={() => setAttempt((value) => value + 1)} type="button"><RefreshCw size={14} /> Tải lại</button>
-          {canEdit ? <button className="admin-button admin-button-quiet" onClick={() => setShowCreate((value) => !value)} type="button"><Plus size={14} /> Thêm mục</button> : null}
-          {canPublish ? <button className="admin-button admin-button-primary" disabled={publishingAll || dirtyCount === 0} onClick={() => void publishAll()} type="button"><Send size={14} /> {publishingAll ? "Đang phát hành..." : "Phát hành tất cả"}</button> : null}
+          {permissionsReady && canEdit ? <button className="admin-button admin-button-quiet" onClick={() => setShowCreate((value) => !value)} type="button"><Plus size={14} /> Thêm mục</button> : null}
+          {permissionsReady && canPublish ? <button className="admin-button admin-button-primary" disabled={publishingAll || dirtyCount === 0} onClick={() => void publishAll()} type="button"><Send size={14} /> {publishingAll ? "Đang phát hành..." : "Phát hành tất cả"}</button> : null}
         </div>
       </div>
-      {showCreate ? (
+      {showCreate && permissionsReady && canEdit ? (
         <section className="admin-panel admin-navigation-create" aria-labelledby="navigation-create-title">
           <div className="admin-panel-heading"><div><h2 className="admin-panel-title" id="navigation-create-title">Thêm mục primary</h2><p className="admin-panel-caption">Dùng đường dẫn nội bộ như <code>/gioi-thieu/</code> hoặc URL https:// an toàn.</p></div></div>
           <div className="admin-editor-grid">
@@ -280,8 +285,8 @@ export function AdminNavigationManager() {
       {loading ? <div className="admin-skeleton admin-content-skeleton" aria-label="Đang tải điều hướng" /> : (
         <div className="admin-navigation-groups">
           <NavigationGroup
-            canEdit={canEdit}
-            canPublish={canPublish}
+            canEdit={permissionsReady && canEdit}
+            canPublish={permissionsReady && canPublish}
             items={primaryItems}
             onChange={updateDraft}
             onPublish={(item) => void publishItem(item)}
@@ -290,7 +295,7 @@ export function AdminNavigationManager() {
             savingId={savingId}
             title="Primary menu"
           />
-          {footerItems.length > 0 ? <NavigationGroup canEdit={canEdit} canPublish={canPublish} items={footerItems} onChange={updateDraft} onPublish={(item) => void publishItem(item)} onSave={(item) => void saveItem(item)} publishingId={publishingId} savingId={savingId} title="Footer menu" /> : null}
+          {footerItems.length > 0 ? <NavigationGroup canEdit={permissionsReady && canEdit} canPublish={permissionsReady && canPublish} items={footerItems} onChange={updateDraft} onPublish={(item) => void publishItem(item)} onSave={(item) => void saveItem(item)} publishingId={publishingId} savingId={savingId} title="Footer menu" /> : null}
         </div>
       )}
     </div>
