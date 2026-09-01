@@ -112,6 +112,7 @@ Lưu ý: demo staging KHÔNG được seed sang production. Khách tự thao tá
 - [x] Login handoff được sửa để reload `/admin` và dùng edge redirect chuẩn (không dùng endpoint 404): commit `4d090b4`, version `0d73b4ce-ef7f-4f52-a3b0-63ecb7e3e90d` promote 100%; probe không identity nhận 302 tới Access.
 - [x] Public staging deep QA revalidation 2026-09-01 trên đúng host `staging.kienhieu.id.vn`: 3 viewport × 4 route, catalog search/sort, mobile detail, cart localStorage/read-back và keyboard đều pass; commit `b45dede` loại race condition do chờ cứng 800 ms trong harness.
 - [x] Staging admin login UX fallback commit `3c15f0f` đã deploy ở version `8bf8de20-ed58-4637-aac7-ec9b81aeef37`; khi API session bị Access redirect, browser vẫn có nút mở Access và reload tới form đăng nhập; public smoke `/` và `/san-pham` pass.
+- [x] Staging Access/owner bootstrap audit read-only 2026-09-01: Access attempt trả `unauthorized`; D1 staging có `0` `admin_members`/`active_owners`, query ghi nhận `changed_db=false`, `rows_written=0`. Chưa tự cấp policy hoặc seed owner.
 - [ ] Staging runtime read-back cho member/lead/media audit, R2 compensation/reference guard và retry cùng `requestId`.
 - [ ] Admin session/audit read-back bằng Access identity thật trên hostname staging.
 - [ ] Browser admin desktop/mobile/keyboard/focus/reduced-motion với Access identity thật.

@@ -420,3 +420,16 @@ restore/rollback drill, observability 24h và quyết định redirect
   HTTP 302 tới Access. Không có production mutation.
 - Access identity thật, role matrix và authenticated write/read-back vẫn chờ
   chủ dự án tự đăng nhập.
+
+## Staging Access policy and owner bootstrap audit — 2026-09-01
+
+- Lần xác thực gần nhất trên browser quay về `__cf_access_message=unauthorized`;
+  vì vậy policy Allow của ứng dụng Access staging chưa chứng minh đã cho phép
+  identity vận hành.
+- Read-only query trên D1 `giacong-vn-catalog-staging` trả
+  `total_members=0`, `active_owners=0`, `active_members=0`; không có owner để
+  chạy `/admin/thanh-vien` hoặc role matrix. Query có `changes=0`,
+  `rows_written=0`, `changed_db=false`.
+- Không tự động seed email hay nâng quyền: sau khi policy cho phép identity,
+  owner đầu tiên phải được chủ dự án xác nhận và tạo chủ ý qua quy trình admin
+  hoặc bootstrap đã duyệt; không dùng public-demo làm bằng chứng Access thật.
