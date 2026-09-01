@@ -641,3 +641,7 @@ runtime trước khi đóng gate hiệu năng/ổn định.
   `a1f71e85-113e-4559-9377-ebedc22b92e7`, smoke public đạt, rồi khôi phục 100%
   về `902b3a6e-732f-4de6-a9fc-429b6478d833`. Production Worker/D1/R2 không bị
   mutation; backup/restore production và production promotion vẫn chưa đóng.
+- Production D1 read-only migration check vẫn báo các migration `0009–0017`
+  đang chờ apply. Lượt kiểm tra không apply migration và không ghi dữ liệu;
+  production control plane chỉ được mở sau backup, phê duyệt dữ liệu và cửa sổ
+  rollback riêng.
