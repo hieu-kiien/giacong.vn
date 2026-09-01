@@ -26,8 +26,8 @@ Hồ sơ này ghi bằng chứng runtime đã xác minh trong quá trình chuy�
   `ADMIN_PUBLIC=false`.
 - Live `qa:ux` sau deploy tại `https://staging.kienhieu.id.vn` pass 5/5 route,
   toàn bộ action, 0 console error, 0 HTTP 4xx/5xx, 0 overflow, axe `5/5` với
-  0 serious/critical violation. 36 warning còn lại đến từ `postMessage`/
-  script/iframe bên thứ ba; không có application console error.
+  0 serious/critical violation. Lượt mới nhất có 1 warning `postMessage` từ
+  Google Maps bên thứ ba; không có application console error.
 - Evidence Playwright mới nhất được lưu ngoài repo tại
   `C:\Users\hieuk\Desktop\staging-ux-audit-2026-09-01-admin-copy`; audit dependency
   trước đó ở `C:\Users\hieuk\Desktop\staging-ux-audit-2026-09-01-deps`. Cloudflare Access
