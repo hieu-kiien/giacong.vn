@@ -90,6 +90,14 @@ test("blocked admin sessions offer a direct Cloudflare Access login handoff", as
   assert.match(shell, /Đăng nhập Cloudflare Access/);
 });
 
+test("blocked admin sessions explain the next step without console jargon", async () => {
+  const shell = await readSource("components", "admin", "AdminShell.tsx");
+
+  assert.doesNotMatch(shell, /mở console/i);
+  assert.match(shell, /hoàn tất xác minh/);
+  assert.match(shell, /quay lại trang này/);
+});
+
 test("network-failed admin sessions keep the Access handoff visible", async () => {
   const shell = await readSource("components", "admin", "AdminShell.tsx");
 

@@ -220,9 +220,9 @@ function AdminAccessScreen({ status, error, onRetry }: { status: "blocked" | "un
         <h1 id="admin-access-title">{isBlocked ? "Khu vực này cần Cloudflare Access" : "Admin chưa sẵn sàng"}</h1>
         <p>
           {isBlocked
-            ? "Hãy mở console trên hostname admin đã được bảo vệ bằng Cloudflare Access. Host preview hoặc storefront không có phiên truy cập nội bộ."
+            ? "Hãy chọn nút “Đăng nhập Cloudflare Access” bên dưới, hoàn tất xác minh, rồi quay lại trang này. Host preview hoặc storefront không có phiên truy cập nội bộ."
             : error?.code === "NETWORK_ERROR"
-              ? "Nếu bạn chưa đăng nhập, hãy mở Cloudflare Access. Nếu đã đăng nhập, hãy thử kiểm tra lại phiên."
+              ? "Nếu bạn chưa đăng nhập, hãy chọn nút “Đăng nhập Cloudflare Access”. Nếu đã đăng nhập, hãy thử kiểm tra lại phiên."
               : "Không thể kết nối tới phiên admin lúc này. Kiểm tra hostname, binding runtime và thử lại."}
         </p>
         <div className="admin-access-detail">
