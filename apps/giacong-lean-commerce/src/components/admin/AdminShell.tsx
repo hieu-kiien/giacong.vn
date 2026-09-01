@@ -196,12 +196,14 @@ export function AdminShell({ children }: AdminShellProps) {
 
 function AdminLoadingScreen() {
   return (
-    <div className="admin-access-page" aria-live="polite" data-testid="status-admin-session-loading">
-      <div className="admin-access-card">
-        <span className="admin-skeleton" style={{ display: "block", height: 34, marginBottom: 32, width: 180 }} />
-        <span className="admin-skeleton" style={{ display: "block", height: 30, marginBottom: 14, width: "66%" }} />
-        <span className="admin-skeleton" style={{ display: "block", height: 16, marginBottom: 8, width: "92%" }} />
-        <span className="admin-skeleton" style={{ display: "block", height: 16, width: "78%" }} />
+    <div className="admin-app">
+      <div className="admin-access-page" aria-live="polite" data-testid="status-admin-session-loading">
+        <div className="admin-access-card">
+          <span className="admin-skeleton" style={{ display: "block", height: 34, marginBottom: 32, width: 180 }} />
+          <span className="admin-skeleton" style={{ display: "block", height: 30, marginBottom: 14, width: "66%" }} />
+          <span className="admin-skeleton" style={{ display: "block", height: 16, marginBottom: 8, width: "92%" }} />
+          <span className="admin-skeleton" style={{ display: "block", height: 16, width: "78%" }} />
+        </div>
       </div>
     </div>
   );
@@ -211,38 +213,40 @@ function AdminAccessScreen({ status, error, onRetry }: { status: "blocked" | "un
   const isBlocked = status === "blocked";
   const showLoginLink = isBlocked || error?.code === "NETWORK_ERROR";
   return (
-    <div className="admin-access-page">
-      <section className="admin-access-card" aria-labelledby="admin-access-title">
-        <Link className="admin-brand" href="/admin">
-          <span className="admin-brand-mark" aria-hidden="true">g.</span>
-          <span className="admin-brand-copy"><strong>Giacong.vn</strong><span>Khu vực vận hành</span></span>
-        </Link>
-        <h1 id="admin-access-title">{isBlocked ? "Khu vực này cần Cloudflare Access" : "Admin chưa sẵn sàng"}</h1>
-        <p>
-          {isBlocked
-            ? "Hãy chọn nút “Đăng nhập Cloudflare Access” bên dưới, hoàn tất xác minh, rồi quay lại trang này. Host preview hoặc storefront không có phiên truy cập nội bộ."
-            : error?.code === "NETWORK_ERROR"
-              ? "Nếu bạn chưa đăng nhập, hãy chọn nút “Đăng nhập Cloudflare Access”. Nếu đã đăng nhập, hãy thử kiểm tra lại phiên."
-              : "Không thể kết nối tới phiên admin lúc này. Kiểm tra hostname, binding runtime và thử lại."}
-        </p>
-        <div className="admin-access-detail">
-          {error?.code ? `${error.code} · ` : ""}{error?.message ?? "Không nhận được phản hồi từ API session."}
-        </div>
-        <div className="admin-editor-actions">
-          {showLoginLink ? (
-            <Link
-              className="admin-button admin-button-primary"
-              data-testid="link-admin-access-login"
-              href="/admin"
-            >
-              Đăng nhập Cloudflare Access
-            </Link>
-          ) : null}
-          <button className="admin-button admin-button-quiet" data-testid="button-retry-admin-session" onClick={onRetry} type="button">
-            Thử kiểm tra lại
-          </button>
-        </div>
-      </section>
+    <div className="admin-app">
+      <div className="admin-access-page">
+        <section className="admin-access-card" aria-labelledby="admin-access-title">
+          <Link className="admin-brand" href="/admin">
+            <span className="admin-brand-mark" aria-hidden="true">g.</span>
+            <span className="admin-brand-copy"><strong>Giacong.vn</strong><span>Khu vực vận hành</span></span>
+          </Link>
+          <h1 id="admin-access-title">{isBlocked ? "Khu vực này cần Cloudflare Access" : "Admin chưa sẵn sàng"}</h1>
+          <p>
+            {isBlocked
+              ? "Hãy chọn nút “Đăng nhập Cloudflare Access” bên dưới, hoàn tất xác minh, rồi quay lại trang này. Host preview hoặc storefront không có phiên truy cập nội bộ."
+              : error?.code === "NETWORK_ERROR"
+                ? "Nếu bạn chưa đăng nhập, hãy chọn nút “Đăng nhập Cloudflare Access”. Nếu đã đăng nhập, hãy thử kiểm tra lại phiên."
+                : "Không thể kết nối tới phiên admin lúc này. Kiểm tra hostname, binding runtime và thử lại."}
+          </p>
+          <div className="admin-access-detail">
+            {error?.code ? `${error.code} · ` : ""}{error?.message ?? "Không nhận được phản hồi từ API session."}
+          </div>
+          <div className="admin-editor-actions">
+            {showLoginLink ? (
+              <Link
+                className="admin-button admin-button-primary"
+                data-testid="link-admin-access-login"
+                href="/admin"
+              >
+                Đăng nhập Cloudflare Access
+              </Link>
+            ) : null}
+            <button className="admin-button admin-button-quiet" data-testid="button-retry-admin-session" onClick={onRetry} type="button">
+              Thử kiểm tra lại
+            </button>
+          </div>
+        </section>
+      </div>
     </div>
   );
 }

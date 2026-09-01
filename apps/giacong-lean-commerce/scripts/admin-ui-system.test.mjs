@@ -90,6 +90,13 @@ test("blocked admin sessions offer a direct Cloudflare Access login handoff", as
   assert.match(shell, /Đăng nhập Cloudflare Access/);
 });
 
+test("admin loading and Access states inherit the admin design tokens", async () => {
+  const shell = await readSource("components", "admin", "AdminShell.tsx");
+
+  assert.match(shell, /function AdminLoadingScreen\(\) \{[\s\S]*?return \(\s*<div className="admin-app">\s*<div className="admin-access-page"/);
+  assert.match(shell, /function AdminAccessScreen[\s\S]*?return \(\s*<div className="admin-app">\s*<div className="admin-access-page"/);
+});
+
 test("blocked admin sessions explain the next step without console jargon", async () => {
   const shell = await readSource("components", "admin", "AdminShell.tsx");
 
