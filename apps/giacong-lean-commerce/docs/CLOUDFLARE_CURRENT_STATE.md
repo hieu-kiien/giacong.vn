@@ -4,6 +4,14 @@ Hồ sơ này ghi bằng chứng runtime đã xác minh trong quá trình chuy�
 
 ## Cập nhật runtime 2026-09-01
 
+- Local contract slice commit `566489d` đã hoàn tất cho navigation: request UUID
+  bắt buộc ở single save/publish và bulk publish, optimistic revision/CAS,
+  idempotent replay/conflict, D1 batch atomic với audit chuyên biệt và giới hạn
+  bulk 100 mục. `0017_navigation_bulk_publish_contract.sql` đã được kiểm tra
+  trên D1 local tạm sau `scripts/local-catalog-baseline.sql`; toàn bộ
+  `0001–0017` apply thành công và lần list cuối báo không còn migration pending.
+  Chưa apply migration mới này lên staging hoặc production.
+
 - Commit `8c509c5` đã harden dependency baseline: Next.js `16.3.4`,
   `@opennextjs/cloudflare` `1.20.5`, Wrangler `4.125.0`; loại `shadcn` CLI
   khỏi runtime dependency graph và giữ Tailwind extension cần thiết trong
@@ -604,4 +612,20 @@ restore/rollback drill, observability 24h và quyết định redirect
 - Lỗi giới hạn tài nguyên từng thấy khi chuyển nhanh qua nhiều route admin
   chưa được coi là đã giải quyết vĩnh viễn; lượt kiểm tra có kiểm soát riêng
   tại `/admin/tin-tuc` đã tải bình thường. Cần tiếp tục quan sát bằng trace
-  runtime trước khi đóng gate hiệu năng/ổn định.
+runtime trước khi đóng gate hiệu năng/ổn định.
+
+## Navigation contract verification — 2026-09-01
+
+- Commit `566489d` đã đưa navigation single save/publish và bulk publish về cùng
+  chuẩn write contract: exact body, UUID request id, optimistic revision,
+  idempotent replay/conflict, D1 batch coupling và audit chuyên biệt.
+- Bulk publish không còn âm thầm bỏ qua mục thứ 101: query đọc `LIMIT 101`,
+  vượt 100 thì từ chối trước mutation; kết quả trả `selectedCount`,
+  `changedCount`, danh sách đã publish và `skipped[{id, reason}]`. UI hiển thị
+  rõ partial result thay vì báo thành công giả.
+- Audit history đã merge được child navigation events và bulk envelopes qua
+  `/api/admin/audit`; không đưa payload nội dung vào response.
+- Bằng chứng local: migration baseline + `0001–0017` pass, full admin `173/173`,
+  typecheck, lint, build và `git diff --check` pass. Staging đang vẫn chạy
+  version owner hardening cũ `a1f71e85-113e-4559-9377-ebedc22b92e7`; migration,
+  upload/promotion và browser navigation write/read-back là bước kế tiếp.

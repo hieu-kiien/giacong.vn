@@ -19,7 +19,13 @@ UI khóa tự hạ quyền, tự đổi Access identity hoặc tự vô hiệu h
 được harden để nhận diện current account bằng D1 `memberId`, không phụ thuộc
 duy nhất vào Access `sub`.
 
-Full gate gần nhất đạt: focused session/UI `17/17`, full admin `165/165`,
+Lát navigation contract ở commit `566489d` đã thêm request UUID bắt buộc,
+optimistic revision và idempotent replay cho save/publish từng mục; bulk publish
+được D1 batch atomic, giới hạn cứng 100 mục, trả kết quả từng item và ghi audit
+chuyên biệt. Migration `0017_navigation_bulk_publish_contract.sql` đã chạy đủ
+trên D1 local tạm; chưa apply staging/production.
+
+Full gate gần nhất đạt: focused session/UI `17/17`, full admin `173/173`,
 contact `104/104`, catalog `5/5`, purchase UI `1/1`, service `3/3`, commerce
 `63/63`, listing `4/4`, detail `29/29`, lint, typecheck và build đều exit `0`;
 audit dependency báo `0 vulnerabilities`. Public smoke 5 route sau deploy đạt
@@ -97,11 +103,11 @@ giới hạn phải được ghi đúng như vậy, không coi là xanh hoàn to
 - package-lock.json tồn tại; dependency tree sau khi cài lại khớp các package
   quan trọng trong lockfile.
 - Wrangler local dùng version trong package (`4.125.0`) qua npx.
-- Local D1 đã bootstrap và áp đủ 16 migration; d1 migrations list báo không
+- Local D1 đã bootstrap và áp đủ 17 migration; d1 migrations list báo không
   còn migration phải apply. Các bảng admin/CMS chính gồm site_settings,
   site_pages, site_navigation_items, admin_members, news_posts và media_assets
   đã tồn tại.
-- Các suite focused sau khi merge hiện tại đã pass: test:admin 162/162,
+- Các suite focused sau khi merge hiện tại đã pass: test:admin 173/173,
   test:contact 104/104, test:catalog 5/5, test:catalog-purchase-ui 1/1,
   test:service 3/3, test:commerce 63/63, test:listing 4/4 và test:detail
   29/29; các test UI/batch/timing liên quan cũng pass.
@@ -358,6 +364,14 @@ với role owner/content_manager. Nút mở `/admin/thiet-ke?page=<pageKey>`; bu
 không truyền `pageKey`, public không tự fetch session. Contract P4 mới đạt cho
 managed-page hand-off; footer renderer, browser route matrix và staging Access
 read-back vẫn mở.
+
+**Navigation contract update 2026-09-01:** navigation read/write/publish và
+bulk publish đã có migration `0017`, exact request envelope, revision/CAS,
+idempotent replay/conflict, D1 batch coupling giữa item và audit, giới hạn 100
+mục với guard mục thứ 101, và kết quả `stale` theo từng id. Audit history đã
+nhận cả event từng mục lẫn bulk envelope; test admin hiện `173/173`. Đây là
+evidence local/code contract; staging migration và browser write/read-back vẫn
+chưa được đánh dấu đạt.
 
 **Mục tiêu:** chuyển các vùng layout cần thay đổi thường xuyên sang cấu trúc an
 toàn có thể chỉnh sửa.
@@ -668,6 +682,7 @@ Chỉ tạo các file này khi phase tương ứng bắt đầu; không tạo pl
 - scripts/admin-service-batch.test.mts — P5 service archive batch contract và mock D1;
 - scripts/admin-visual-pages-navigation.test.mjs — P4;
 - scripts/admin-visual-bulk.test.mts — P5;
+- scripts/site-navigation-bulk-contract.test.mts — P4/P5 navigation single/bulk contract;
 - browser/staging harness — P1 trở đi, đặt cạnh harness hiện có và ghi vào file
   map khi tên chính thức được chốt.
 
