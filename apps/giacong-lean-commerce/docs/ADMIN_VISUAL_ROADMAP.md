@@ -100,7 +100,7 @@ giới hạn phải được ghi đúng như vậy, không coi là xanh hoàn to
   còn migration phải apply. Các bảng admin/CMS chính gồm site_settings,
   site_pages, site_navigation_items, admin_members, news_posts và media_assets
   đã tồn tại.
-- Các suite focused sau khi merge hiện tại đã pass: test:admin 160/160,
+- Các suite focused sau khi merge hiện tại đã pass: test:admin 162/162,
   test:contact 104/104, test:catalog 5/5, test:catalog-purchase-ui 1/1,
   test:service 3/3, test:commerce 63/63, test:listing 4/4 và test:detail
   29/29; các test UI/batch/timing liên quan cũng pass.

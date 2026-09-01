@@ -86,7 +86,7 @@ request chống stale batch; media write
 ghép D1 audit với R2 compensation/reference guard. Migrations `0013–0016` đã
 chạy thành công trên SQLite local; marker lead chống stale batch đã được kiểm
 chứng; lát này sau đó đã được hợp nhất với motion và full gate hiện là
-`160/160` admin, cùng các suite được ghi ở checkpoint hiện tại.
+`162/162` admin, cùng các suite được ghi ở checkpoint hiện tại.
 Migrations đã apply trên local và staging; version
 `0d1e14c1-ec4d-47db-b0e2-4275f246f919` đã được promote 100%, public smoke/deep
 QA sau promotion pass. Runtime write/read-back member/lead/media bằng Access
