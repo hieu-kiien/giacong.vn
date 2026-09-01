@@ -631,3 +631,9 @@ runtime trước khi đóng gate hiệu năng/ổn định.
   upload/promote version mới; browser đã xác nhận owner/dashboard/navigation/
   audit read-only không có console error/warning. Browser navigation write/read-
   back, role matrix nhiều identity và production gate vẫn là bước kế tiếp.
+- Remote D1 read-only verify sau migration trả đúng ba bảng navigation/audit,
+  cột `site_navigation_items.last_request_id` và `changes=0`; không có dữ liệu
+  staging nào bị thay đổi trong lượt kiểm tra schema.
+- `qa:ux` sau version mới pass 5/5 route, 0 console error, 0 HTTP 4xx/5xx,
+  không overflow và không có axe serious/critical; 36 warning là từ script/
+  iframe bên thứ ba và không chặn gate hiện tại.
