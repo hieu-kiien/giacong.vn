@@ -1,10 +1,11 @@
 # Production acceptance checklist
 
-Trạng thái chốt hạ trước promotion `giacong-vn` production. Nguồn yêu cầu gốc: [CLOUDFLARE_NATIVE_V1_PLAN.md](CLOUDFLARE_NATIVE_V1_PLAN.md) mục 7–8. Cập nhật 2026-09-01 sau dependency hardening và staging revalidation.
+Trạng thái chốt hạ trước promotion `giacong-vn` production. Nguồn yêu cầu gốc: [CLOUDFLARE_NATIVE_V1_PLAN.md](CLOUDFLARE_NATIVE_V1_PLAN.md) mục 7–8. Cập nhật 2026-09-02 sau owner/RBAC hardening và staging revalidation.
 
 > Lưu ý trạng thái: các checkbox dưới đây giữ evidence lịch sử của đợt nghiệm thu
 > trước. Chúng không tự đóng các acceptance mới trong `ADMIN_VISUAL_ROADMAP.md`.
-> Follow-up staging mới nhất được ghi ở mục 8 bên dưới.
+> Follow-up staging mới nhất được ghi ở mục 9 bên dưới; các mốc cũ trong mục 8
+> không được dùng để suy ra trạng thái runtime hiện tại.
 
 ## 1. Staging runtime acceptance — ĐÃ ĐÓNG
 
@@ -84,7 +85,7 @@ Lưu ý: demo staging KHÔNG được seed sang production. Khách tự thao tá
 - [x] `.gitignore` bổ sung: `.agents/`, `.playwright-cli/`, `skills-lock.json` (tooling cục bộ)
 - [x] Lead QA-STAGING trong D1 production: giữ nguyên làm vết kiểm toán, khách có thể xóa qua admin
 
-## 8. Staging admin follow-up — ĐÃ XÁC MINH KỸ THUẬT, CHƯA ĐÓNG PRODUCTION GATE (2026-08-31)
+## 8. Staging admin follow-up — BẰNG CHỨNG LỊCH SỬ QUA 2026-08-31
 
 - [x] Version staging `8eb11c5e-f7bc-4a2f-a37f-2949a3d03541` upload và promotion 100%, có rollback point `c2d91d94-6737-447d-88b7-991f9808ba3f`.
 - [x] Active public staging route matrix sau promotion trả 200; browser console không có error/warning trong lượt kiểm tra.
@@ -127,3 +128,31 @@ Lưu ý: demo staging KHÔNG được seed sang production. Khách tự thao tá
 - [ ] Role × route/action read-back trên staging cho owner/content_manager/catalog_manager/sales_manager/viewer.
 - [ ] Production data/content thật được chủ dự án duyệt và nhập chủ ý.
 - [ ] Restore/rollback drill, observability 24h và quyết định redirect `giacong.vn` được xác nhận.
+
+## 9. Staging owner/RBAC revalidation — ĐÃ XÁC MINH KỸ THUẬT, CHƯA ĐÓNG PRODUCTION GATE (2026-09-02)
+
+- [x] Commit `d14d4e4` đã chốt `qtu1053@gmail.com` là `owner` cấp cao nhất trên
+  staging; owner có toàn bộ capability, được tạo tài khoản admin, cấp/sửa
+  role và active state. Server-side guard vẫn là nguồn quyết định; owner không
+  thể tự hạ quyền/vô hiệu hóa, role khác không thể sửa control plane.
+- [x] Browser Chrome với Access identity thật: `/admin/thanh-vien` hiển thị
+  đúng tài khoản hiện tại, nhãn `Chủ sở hữu (toàn quyền)`, năm role options và
+  nút `Thêm tài khoản quản trị`; form tạo mở thành công. Không ghi thêm member
+  trong lượt này vì chưa có chủ ý về identity/role cụ thể.
+- [x] Owner navigation/audit read-only acceptance: `/admin/dieu-huong` hiển
+  thị quyền chỉnh sửa, tạo mục và publish hàng loạt sau khi session tải xong;
+  `/admin/audit` hiển thị trang owner-only với 93 sự kiện.
+- [x] Version staging `278030a5-c21b-423f-b443-7f2ad4834b76` đã upload và
+  promote 100%; preview/public smoke 5 route đạt HTTP `200`.
+- [x] `qa:ux` sau deploy pass 5/5 route, action pass, 0 console error, 0 HTTP
+  4xx/5xx, 0 overflow, axe không có serious/critical violation; warning còn lại
+  là `postMessage` từ Google Maps iframe bên thứ ba.
+- [x] Local release gate đạt focused admin UI `12/12`, full admin `179/179`,
+  các suite khác, lint, typecheck và build đều exit `0`.
+- [x] UI đang tải quyền được hiển thị `Đang kiểm tra quyền…`, không kết luận
+  nhầm owner là `Chỉ xem`; sau khi tải xong Chrome xác nhận lại `Có quyền chỉnh
+  sửa`, `Thêm mục` và `Phát hành tất cả`.
+- [ ] Role × route/action read-back với nhiều Access identity thật.
+- [ ] Write/read-back từng domain và audit consistency trên staging.
+- [ ] Production data/content approval, backup/restore drill, observability
+  24h và quyết định promotion production.

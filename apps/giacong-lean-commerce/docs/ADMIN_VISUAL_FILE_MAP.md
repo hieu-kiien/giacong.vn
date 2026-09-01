@@ -1,7 +1,7 @@
 # Bản đồ file Giacong Visual Admin
 
 **Trạng thái:** bản đồ ownership và source-of-truth
-**Cập nhật:** 2026-09-01
+**Cập nhật:** 2026-09-02
 **Roadmap:** ADMIN_VISUAL_ROADMAP.md
 
 Mục tiêu của file này là trả lời nhanh bốn câu hỏi trước khi sửa code:
@@ -14,20 +14,20 @@ Mục tiêu của file này là trả lời nhanh bốn câu hỏi trước khi 
 Không thêm file mới vào map chỉ vì đã nghĩ ra tên. File chỉ được đánh dấu “đã có”
 khi tồn tại trong checkout; file “dự kiến” phải được tạo trong phase tương ứng.
 
-**Checkpoint 2026-09-01:** P1 host-gated admin context, P2 settings write
+**Checkpoint 2026-09-02:** P1 host-gated admin context, P2 settings write
 contract (per-setting + bulk publish), contextual editor MVP, P3 contextual
 news-detail hand-off, P4 managed-page hand-off, P5 product bulk import UI và
 product/service/category bulk archive contract đã có trong `master`. Bản
 storefront motion/menu đã được review và tích hợp từ worktree riêng; fallback
 gallery đã chấp nhận asset WebP. `qa:ux` là runner tracked để lặp lại audit
 staging. Staging đang phục vụ version
-`eb921d4e-2250-460c-913a-071499e52c59`; rollback point là
-`902b3a6e-732f-4de6-a9fc-429b6478d833`; owner thật `qtu1053@gmail.com` đã được
+`278030a5-c21b-423f-b443-7f2ad4834b76`; rollback point gần nhất là
+`510c9f0c-2795-4caf-9f87-53ea07db6def`; owner thật `qtu1053@gmail.com` đã được
 bootstrap vào D1 staging với role `owner` cấp cao nhất. `/admin/thanh-vien` đã
 được browser xác nhận hiển thị tài khoản hiện tại, khóa self-demotion/self-
-deactivation và mở được luồng `Thêm thành viên`.
+deactivation và mở được luồng `Thêm tài khoản quản trị`.
 
-Full gate gần nhất: focused session/UI `17/17`, admin `175/175`, contact
+Full gate gần nhất: focused admin UI `12/12`, admin `179/179`, contact
 `104/104`, catalog `5/5`, catalog purchase UI `1/1`, service `3/3`, commerce
 `63/63`, listing `4/4`, detail `29/29`, kèm lint, typecheck và build. Public UX
 audit năm route pass; browser identity role matrix đầy đủ, write/read-back từng
@@ -68,6 +68,13 @@ footer shell. Commit `60ac85e` bổ sung `memberId` vào admin session để UI 
 diện current account đúng cả khi Access `sub` khác D1 `access_subject`; không
 thay đổi quyền server hay schema. Public `qa:ux` sau deploy pass 5/5 route;
 role matrix nhiều identity và admin write/read-back vẫn là gate riêng.
+
+Commit `d14d4e4` chốt wording và field-error UX cho control plane thành viên;
+commit `f4707b4` thêm trạng thái `Đang kiểm tra quyền…` để không hiển thị nhầm
+`Chỉ xem` trong thời gian session đang tải. Owner có thể tạo admin, cấp/sửa
+role và active state; server vẫn bảo vệ owner khỏi tự hạ quyền/vô hiệu hóa.
+Chrome staging đã quan sát được cả trạng thái đang tải và quyền owner sau khi
+session hoàn tất.
 
 Repo chính không có GIF/video runtime bắt buộc: motion hiện dùng CSS/HTML và
 asset WebP phù hợp. Worktree motion riêng vẫn được giữ nguyên, không reset hoặc

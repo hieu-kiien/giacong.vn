@@ -1,4 +1,4 @@
-# Cloudflare current state — 2026-09-01
+# Cloudflare current state — 2026-09-02
 
 Hồ sơ này ghi bằng chứng runtime đã xác minh trong quá trình chuyển Lean V1 sang Cloudflare-native.
 
@@ -21,9 +21,9 @@ Hồ sơ này ghi bằng chứng runtime đã xác minh trong quá trình chuy�
   --audit-level=high` và `npm audit --audit-level=high` đều trả `0
   vulnerabilities`.
 - Staging Worker `giacong-vn-staging` đã build/deploy version
-  `eb921d4e-2250-460c-913a-071499e52c59` ở 100% traffic; version
-  `902b3a6e-732f-4de6-a9fc-429b6478d833` được giữ làm rollback point; bindings và routes staging vẫn đúng,
-  `ADMIN_PUBLIC=false`.
+  `278030a5-c21b-423f-b443-7f2ad4834b76` ở 100% traffic; version
+  `510c9f0c-2795-4caf-9f87-53ea07db6def` được giữ làm rollback point; bindings
+  và routes staging vẫn đúng, `ADMIN_PUBLIC=false`.
 - Live `qa:ux` sau deploy tại `https://staging.kienhieu.id.vn` pass 5/5 route,
   toàn bộ action, 0 console error, 0 HTTP 4xx/5xx, 0 overflow, axe `5/5` với
   0 serious/critical violation. Lượt mới nhất có 1 warning `postMessage` từ
@@ -655,3 +655,30 @@ runtime trước khi đóng gate hiệu năng/ổn định.
   đang chờ apply. Lượt kiểm tra không apply migration và không ghi dữ liệu;
   production control plane chỉ được mở sau backup, phê duyệt dữ liệu và cửa sổ
   rollback riêng.
+
+## Admin owner/RBAC boundary và staging revalidation — 2026-09-02
+
+- Commit `d14d4e4` đã chốt mô hình control plane: `qtu1053@gmail.com` là tài
+  khoản `owner` cấp cao nhất trên staging, có toàn bộ capability và được phép
+  tạo tài khoản admin, cấp/sửa năm vai trò (`owner`, `content_manager`,
+  `catalog_manager`, `sales_manager`, `viewer`) và bật/tắt quyền truy cập.
+  Các API member vẫn kiểm tra server-side; owner không thể tự hạ quyền hoặc tự
+  vô hiệu hóa, role khác không thể sửa control plane.
+- `/admin/thanh-vien` trên Chrome đã hiển thị đúng `qtu1053@gmail.com · tài
+  khoản hiện tại`, `Chủ sở hữu (toàn quyền)`, năm lựa chọn vai trò và nút
+  `Thêm tài khoản quản trị`; form tạo tài khoản mở được. Không submit member
+  mới trong lượt xác minh để tránh ghi dữ liệu quyền hạn ngoài chủ ý.
+- `/admin/dieu-huong` sau khi session quyền tải xong hiển thị `Có quyền chỉnh
+  sửa`, `Thêm mục`, `Phát hành tất cả`; `/admin/audit` hiển thị trang owner-only
+  với 93 sự kiện. Commit `f4707b4` thêm trạng thái `Đang kiểm tra quyền…` trong
+  thời gian chờ session; lượt reload Chrome đã quan sát được trạng thái này và
+  sau đó owner trở về đúng quyền chỉnh sửa.
+- Version staging `278030a5-c21b-423f-b443-7f2ad4834b76` đã upload và promote
+  100%; preview/public smoke `/`, `/san-pham`, `/gui-yeu-cau`, `/thue-gia-cong`,
+  `/tin-tuc` đều HTTP `200`. `qa:ux` pass 5/5 route, toàn bộ action, 0 console
+  error, 0 HTTP 4xx/5xx, 0 overflow và axe không có serious/critical violation;
+  còn 1 warning `postMessage` từ Google Maps iframe bên thứ ba.
+- Local release gate sau hardening đạt focused admin UI `12/12`, full admin
+  `179/179`, các suite khác, lint, typecheck và build đều exit `0`. Production
+  Worker/D1/R2 không bị thay đổi; role matrix nhiều identity, write/read-back
+  bằng identity thật, backup/restore và production promotion vẫn mở.

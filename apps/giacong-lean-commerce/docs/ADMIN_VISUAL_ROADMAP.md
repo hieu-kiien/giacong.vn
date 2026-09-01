@@ -1,7 +1,7 @@
 # Lộ trình Giacong Visual Admin
 
 **Trạng thái:** kế hoạch thực thi chính
-**Cập nhật:** 2026-09-01
+**Cập nhật:** 2026-09-02
 **Phạm vi:** apps/giacong-lean-commerce
 **Bản đồ đi kèm:** ADMIN_VISUAL_FILE_MAP.md
 
@@ -10,11 +10,12 @@ Tài liệu này là nguồn bám theo cho việc biến admin hiện tại thà
 hiển thị, nhưng vẫn giữ trung tâm vận hành đầy đủ cho nghiệp vụ phức tạp và xử
 lý hàng loạt.
 
-**Checkpoint hiện tại — 2026-09-01:** Bản motion/menu storefront đã được
+**Checkpoint hiện tại — 2026-09-02:** Bản motion/menu storefront đã được
 review và tích hợp vào `master`; staging đang phục vụ version
-`eb921d4e-2250-460c-913a-071499e52c59` sau navigation create contract,
-dependency, copy và Access hardening; `902b3a6e-732f-4de6-a9fc-429b6478d833` là
-rollback point.
+`278030a5-c21b-423f-b443-7f2ad4834b76` sau owner/RBAC hardening, navigation
+contract, dependency, copy và Access hardening; commit `f4707b4` bổ sung trạng
+thái tải quyền; version
+`eb921d4e-2250-460c-913a-071499e52c59` là rollback point gần nhất.
 Owner staging đã được bootstrap có kiểm soát: `qtu1053@gmail.com` là admin cấp
 cao nhất (`owner`), có toàn bộ capability và nhìn thấy nút tạo thành viên/admin;
 UI khóa tự hạ quyền, tự đổi Access identity hoặc tự vô hiệu hóa. Session đã
@@ -29,12 +30,13 @@ cứng 100 mục, trả kết quả từng item và ghi audit chuyên biệt. C�
 `0018_navigation_create_contract.sql` đã chạy đủ trên D1 local tạm và đã
 apply/verify trên D1 staging; production chưa thay đổi.
 
-Full gate gần nhất đạt: focused session/UI `17/17`, full admin `175/175`,
-contact `104/104`, catalog `5/5`, purchase UI `1/1`, service `3/3`, commerce
-`63/63`, listing `4/4`, detail `29/29`, lint, typecheck và build đều exit `0`;
-audit dependency báo `0 vulnerabilities`. Public smoke 5 route sau deploy đạt
-HTTP `200`, không có console error/warning ứng dụng. Chỉ còn warning
-`postMessage` từ Google Maps iframe bên thứ ba.
+Full gate gần nhất đạt: focused admin UI `12/12`, full admin `179/179`, contact
+`104/104`, catalog `5/5`, purchase UI `1/1`, service `3/3`, commerce `63/63`,
+listing `4/4`, detail `29/29`, lint, typecheck và build đều exit `0`; audit
+dependency báo `0 vulnerabilities`. Public smoke 5 route sau deploy đạt HTTP
+`200`, 0 console error, 0 HTTP 4xx/5xx, không overflow và axe không có serious/
+critical violation. Chỉ còn 1 warning `postMessage` từ Google Maps iframe bên
+thứ ba.
 
 Rollback drill staging 2026-09-01 đã đạt: traffic được chuyển tạm thời 100%
 sang `a1f71e85-113e-4559-9377-ebedc22b92e7`, public smoke pass, rồi khôi phục
@@ -46,6 +48,20 @@ Các gate chưa đóng: role matrix với nhiều identity thật, write/read-ba
 domain, browser admin đầy đủ desktop/mobile/keyboard/focus/reduced-motion,
 production data/content approval, backup/restore production, observability và
 production promotion. Production chưa bị thay đổi.
+
+**Runtime update 2026-09-01 (owner/RBAC boundary):** commit `d14d4e4` đã làm
+rõ mô hình tài khoản quản trị: `qtu1053@gmail.com` là `owner` cấp cao nhất;
+owner có thể thêm tài khoản admin, cấp một trong năm vai trò, đổi active state
+và xem audit. Server vẫn kiểm tra capability ở từng API; không cho owner tự hạ
+quyền/vô hiệu hóa chính mình và không cho role khác chạm control plane. Form đã
+đổi sang ngôn ngữ dễ hiểu (`Tài khoản quản trị & quyền`, `Thêm tài khoản quản
+trị`) và hiển thị lỗi ngay dưới trường.
+
+Browser staging đã xác nhận owner thấy quyền điều hướng, nút tạo mục, publish
+hàng loạt và trang audit owner-only; preview public 5 route đạt HTTP `200`.
+Trong lúc quyền đang tải, UI hiện `Đang kiểm tra quyền…` thay vì kết luận sai
+`Chỉ xem`; sau khi tải xong owner vẫn hiện đúng quyền chỉnh sửa và các nút thao
+tác tương ứng.
 
 ## 1. Quyết định sản phẩm
 

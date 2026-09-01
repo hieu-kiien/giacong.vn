@@ -1,6 +1,6 @@
 # Bàn giao vận hành — giacong.vn trên kienhieu.id.vn
 
-Tài liệu dành cho người vận hành (khách + chủ dự án). Quyết định kiến trúc xem [CLOUDFLARE_DEPLOYMENT.md](./CLOUDFLARE_DEPLOYMENT.md); checklist nghiệm thu xem [PRODUCTION_ACCEPTANCE_CHECKLIST.md](./PRODUCTION_ACCEPTANCE_CHECKLIST.md). Cập nhật 2026-09-01.
+Tài liệu dành cho người vận hành (khách + chủ dự án). Quyết định kiến trúc xem [CLOUDFLARE_DEPLOYMENT.md](./CLOUDFLARE_DEPLOYMENT.md); checklist nghiệm thu xem [PRODUCTION_ACCEPTANCE_CHECKLIST.md](./PRODUCTION_ACCEPTANCE_CHECKLIST.md). Cập nhật 2026-09-02.
 
 ## 1. Bản đồ hệ thống
 
@@ -8,7 +8,7 @@ Tài liệu dành cho người vận hành (khách + chủ dự án). Quyết đ
 | --- | --- | --- |
 | Storefront production | https://kienhieu.id.vn | Cloudflare Worker `giacong-vn` @100% |
 | Admin production | https://admin.kienhieu.id.vn/admin | Sau Cloudflare Access — fail-closed |
-| Storefront staging | https://staging.kienhieu.id.vn | Worker `giacong-vn-staging`, public demo; version `ecda5cee-8791-4290-8505-56acbd5f4d5f` |
+| Storefront staging | https://staging.kienhieu.id.vn | Worker `giacong-vn-staging`, public demo; version `278030a5-c21b-423f-b443-7f2ad4834b76` |
 | Admin staging | https://admin-staging.kienhieu.id.vn/admin | Cloudflare Access thật; storefront staging mới public; không có identity thì fail-closed |
 | D1 production | `giacong-vn-catalog` | Catalog, leads, media metadata, CMS |
 | R2 production | `giacong-vn-product-media` | Ảnh product/variant/service qua `/media/*` |
@@ -24,7 +24,7 @@ Tài liệu dành cho người vận hành (khách + chủ dự án). Quyết đ
 5. CMS (logo/hero/hotline): tab Nội dung → lưu draft → Publish riêng biệt; có chống ghi đè (stale-write).
 6. Thiết kế page: `/admin/thiet-ke` cho phép chỉnh các section schema an toàn, xem preview draft rồi Publish; không nhập HTML/CSS/JavaScript tùy ý.
 7. Điều hướng: `/admin/dieu-huong` chỉnh nhãn, href, thứ tự, ẩn/hiện primary menu desktop/mobile; chỉ bản Publish mới ra storefront.
-8. Thành viên & quyền: `/admin/thanh-vien` chỉ owner được thêm/sửa role và active state. `accessSubject` phải khớp identity Cloudflare Access; không dùng shared administrator account.
+8. Thành viên & quyền: `qtu1053@gmail.com` là owner cấp cao nhất trên staging; tại `/admin/thanh-vien`, owner được thêm tài khoản admin, cấp/sửa role và active state. `accessSubject` phải khớp identity Cloudflare Access; không dùng shared administrator account. Owner không thể tự hạ quyền hoặc tự vô hiệu hóa.
 9. Mọi thay đổi ghi quan trọng đều vào `audit_logs` trong D1.
 
 ## 3. Vận hành Google Sheet (request intake)
@@ -64,9 +64,10 @@ npx wrangler queues info giacong-vn-leads-dlq      # hàng đợi lead thất b�
 
 - Lỗi 502/504 lặp lại trên `/api/contact` (kiểm tra Web App còn "Bất kỳ ai" và Sheet còn quota).
 - Cần thêm trường mới trên form/Sheet (thay đổi contract — phải cập nhật cả Worker lẫn Apps Script + test).
-- Thêm admin viên: apply migration `0009_admin_control_plane.sql`, cấu hình Cloudflare Access policy, sau đó dùng `/admin/thanh-vien` để tạo bản ghi `admin_members`. Không ghi trực tiếp production khi chưa có backup/acceptance.
+- Thêm admin viên trên staging: cấu hình email/identity trong chính sách Cloudflare Access, sau đó owner `qtu1053@gmail.com` dùng `/admin/thanh-vien` để tạo bản ghi `admin_members` và cấp đúng một trong năm role. Không ghi trực tiếp production khi chưa có backup/acceptance.
 
-Trạng thái bàn giao hiện tại: code/test/staging storefront đã được xác minh;
-admin identity thật, owner bootstrap, role matrix, production data approval,
-migrations `0009–0016` và restore/rollback drill vẫn cần chủ dự án phê duyệt và
-thực hiện chủ ý. Không dùng dữ liệu demo staging làm dữ liệu production.
+Trạng thái bàn giao hiện tại: code/test, staging storefront, Access identity
+thật và owner bootstrap staging đã được xác minh; role matrix nhiều identity,
+write/read-back đầy đủ, production data approval, migrations `0009–0018` và
+restore/rollback drill vẫn cần chủ dự án phê duyệt và thực hiện chủ ý. Không
+dùng dữ liệu demo staging làm dữ liệu production.
