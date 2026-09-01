@@ -32,6 +32,7 @@ const entityOptions = [
   ["news_post", "Tin tức"],
   ["site_setting", "Thiết lập website"],
   ["page", "Trang"],
+  ["site_navigation", "Điều hướng"],
   ["category", "Danh mục"],
   ["media", "Media"],
   ["lead", "Yêu cầu"],

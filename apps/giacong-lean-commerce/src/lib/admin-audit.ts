@@ -17,6 +17,7 @@ export const ADMIN_AUDIT_ENTITY_TYPES = [
   "service",
   "setting",
   "site_setting",
+  "site_navigation",
   "tier_prices",
   "variant",
 ] as const;
@@ -57,7 +58,10 @@ export interface AdminAuditPage {
 export class AdminAuditValidationError extends Error {}
 export class AdminAuditStorageError extends Error {}
 
-const MAX_D1_COMPOUND_SELECT_TERMS = 5;
+// Keep the compound tree shallow enough that every nested SELECT has headroom
+// for the outer paging/count wrappers. D1's limit is five terms, and the audit
+// registry grows over time.
+const MAX_D1_COMPOUND_SELECT_TERMS = 2;
 
 interface AdminAuditDbRow {
   action: unknown;
@@ -239,6 +243,42 @@ const auditSources: readonly AuditSource[] = [
         NULL AS resulting_revision,
         created_at
       FROM admin_site_setting_bulk_audit
+    `,
+  },
+  {
+    tableName: "admin_navigation_audit",
+    query: `
+      SELECT
+        'admin_navigation_audit' AS source,
+        CAST(id AS TEXT) AS source_id,
+        actor_subject,
+        action,
+        operation,
+        entity_type,
+        entity_key,
+        request_id,
+        previous_revision,
+        resulting_revision,
+        created_at
+      FROM admin_navigation_audit
+    `,
+  },
+  {
+    tableName: "admin_navigation_bulk_audit",
+    query: `
+      SELECT
+        'admin_navigation_bulk_audit' AS source,
+        CAST(id AS TEXT) AS source_id,
+        actor_subject,
+        action,
+        operation,
+        'site_navigation' AS entity_type,
+        'bulk:' || operation AS entity_key,
+        request_id,
+        NULL AS previous_revision,
+        NULL AS resulting_revision,
+        created_at
+      FROM admin_navigation_bulk_audit
     `,
   },
 ];

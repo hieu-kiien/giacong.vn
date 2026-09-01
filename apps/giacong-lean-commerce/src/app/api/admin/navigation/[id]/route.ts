@@ -2,7 +2,7 @@ import { adminFailure, adminSuccess } from "@/lib/admin-api.ts";
 import { adminErrorFrom } from "@/lib/admin-error-mapping.ts";
 import { requireAdmin } from "@/lib/admin-guard";
 import { canManageNavigation } from "@/lib/admin-permissions.ts";
-import { readBoundedAdminJson } from "@/lib/admin-request";
+import { hasOnlyKeys, isAdminRequestId, readBoundedAdminJson } from "@/lib/admin-request";
 import {
   getAdminSiteNavigation,
   SiteNavigationConflictError,
@@ -39,17 +39,23 @@ export async function PATCH(request: Request, context: RouteContext): Promise<Re
   const parsedRequest = await readBoundedAdminJson(request);
   if (!parsedRequest.ok) return adminFailure(parsedRequest.requestId, parsedRequest.status, parsedRequest.code, parsedRequest.message);
   const body = parsedRequest.body;
+  const requestId = isRecord(body) && isAdminRequestId(body.requestId)
+    ? body.requestId.trim().toLowerCase()
+    : parsedRequest.requestId;
   if (
     !isRecord(body)
+    || !isAdminRequestId(body.requestId)
+    || !hasOnlyKeys(body, ["requestId", "expectedVersion", "label", "href", "sortOrder", "isActive"])
     || typeof body.expectedVersion !== "number"
-    || !Number.isInteger(body.expectedVersion)
+    || !Number.isSafeInteger(body.expectedVersion)
+    || body.expectedVersion < 1
     || typeof body.label !== "string"
     || typeof body.href !== "string"
     || typeof body.sortOrder !== "number"
     || !Number.isInteger(body.sortOrder)
     || typeof body.isActive !== "boolean"
   ) {
-    return adminFailure(parsedRequest.requestId, 422, "VALIDATION_ERROR", "Cần label, href, sortOrder, isActive và expectedVersion hợp lệ.");
+    return adminFailure(requestId, 422, "VALIDATION_ERROR", "Cần label, href, sortOrder, isActive và expectedVersion hợp lệ.");
   }
   try {
     const item = await updateAdminSiteNavigation(guard.database, {
@@ -59,19 +65,20 @@ export async function PATCH(request: Request, context: RouteContext): Promise<Re
       id: (await context.params).id,
       isActive: body.isActive,
       label: body.label,
+      requestId,
       sortOrder: body.sortOrder,
     });
-    return adminSuccess(parsedRequest.requestId, { item });
+    return adminSuccess(requestId, { item });
   } catch (error) {
-    return navigationFailure(error, "Không thể lưu mục điều hướng.");
+    return navigationFailure(error, "Không thể lưu mục điều hướng.", requestId);
   }
 }
 
-function navigationFailure(error: unknown, fallbackMessage: string): Response {
-  if (error instanceof SiteNavigationConflictError) return adminFailure(crypto.randomUUID(), 409, "STALE_WRITE", error.message);
-  if (error instanceof SiteNavigationNotFoundError) return adminFailure(crypto.randomUUID(), 404, "NOT_FOUND", error.message);
-  if (error instanceof SiteNavigationValidationError) return adminFailure(crypto.randomUUID(), 422, "VALIDATION_ERROR", error.message);
-  return adminErrorFrom(crypto.randomUUID(), error, fallbackMessage);
+function navigationFailure(error: unknown, fallbackMessage: string, requestId = crypto.randomUUID()): Response {
+  if (error instanceof SiteNavigationConflictError) return adminFailure(requestId, 409, "STALE_WRITE", error.message);
+  if (error instanceof SiteNavigationNotFoundError) return adminFailure(requestId, 404, "NOT_FOUND", error.message);
+  if (error instanceof SiteNavigationValidationError) return adminFailure(requestId, 422, "VALIDATION_ERROR", error.message);
+  return adminErrorFrom(requestId, error, fallbackMessage);
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

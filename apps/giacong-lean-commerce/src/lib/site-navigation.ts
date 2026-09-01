@@ -1,6 +1,6 @@
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 
-import type { D1DatabaseLike } from "./admin-data";
+import type { D1DatabaseLike, D1PreparedStatementLike } from "./admin-data";
 
 export type NavigationMenuKey = "primary" | "footer";
 
@@ -32,6 +32,22 @@ export interface AdminNavigationItem {
   publishedBy: string | null;
   publishedAt: string | null;
   dirty: boolean;
+}
+
+export const MAX_NAVIGATION_BULK_ITEMS = 100;
+
+export type AdminNavigationBulkSkipReason = "stale";
+
+export interface AdminNavigationBulkSkip {
+  id: string;
+  reason: AdminNavigationBulkSkipReason;
+}
+
+export interface AdminNavigationBulkResult {
+  changedCount: number;
+  published: AdminNavigationItem[];
+  selectedCount: number;
+  skipped: AdminNavigationBulkSkip[];
 }
 
 export class SiteNavigationValidationError extends Error {
@@ -158,6 +174,7 @@ export async function updateAdminSiteNavigation(
     id: string;
     isActive: unknown;
     label: unknown;
+    requestId: string;
     sortOrder: unknown;
   },
 ): Promise<AdminNavigationItem> {
@@ -169,16 +186,32 @@ export async function updateAdminSiteNavigation(
   if (!Number.isInteger(input.expectedVersion) || input.expectedVersion < 1) {
     throw new SiteNavigationValidationError("expectedVersion không hợp lệ.");
   }
+  const requestId = normalizeNavigationRequestId(input.requestId);
+  const payloadSha256 = await fingerprintNavigationMutation({
+    expectedVersion: input.expectedVersion,
+    href,
+    id,
+    isActive,
+    label,
+    operation: "draft",
+    sortOrder,
+  });
+  const existingMutation = await findNavigationMutation(database, requestId);
+  if (existingMutation) {
+    assertMatchingNavigationMutation(existingMutation, "draft", payloadSha256);
+    return readNavigationMutationResult(database, existingMutation);
+  }
   const current = await getAdminSiteNavigation(database, id);
   if (!current) throw new SiteNavigationNotFoundError("Không tìm thấy mục điều hướng.");
   if (current.version !== input.expectedVersion) {
     throw new SiteNavigationConflictError("Mục điều hướng đã thay đổi ở phiên khác. Hãy tải lại trước khi lưu.");
   }
 
-  const result = await database.prepare(`
+  const update = database.prepare(`
     UPDATE site_navigation_items
     SET draft_label = ?, draft_href = ?, draft_sort_order = ?, draft_is_active = ?,
-      version = version + 1, updated_by = ?, updated_at = CURRENT_TIMESTAMP
+      version = version + 1, updated_by = ?, updated_at = CURRENT_TIMESTAMP,
+      last_request_id = ?
     WHERE id = ? AND version = ?
   `).bind(
     label,
@@ -186,13 +219,29 @@ export async function updateAdminSiteNavigation(
     sortOrder,
     isActive ? 1 : 0,
     input.actorSubject,
+    requestId,
     id,
     input.expectedVersion,
-  ).run();
-  if (!hasChanged(result)) throw new SiteNavigationConflictError("Mục điều hướng đã thay đổi ở phiên khác. Hãy tải lại trước khi lưu.");
-  await writeNavigationAudit(database, input.actorSubject, "site_navigation.updated", id, {
-    expectedVersion: input.expectedVersion,
+  );
+  const audit = buildNavigationAuditStatement(database, {
+    actorSubject: input.actorSubject,
+    entityId: id,
+    expectedRevision: input.expectedVersion,
+    operation: "draft",
+    payloadSha256,
+    requestId,
   });
+  try {
+    const changed = await applyAtomicNavigationMutation(database, update, audit);
+    if (!changed) throw new SiteNavigationConflictError("Mục điều hướng đã thay đổi ở phiên khác. Hãy tải lại trước khi lưu.");
+  } catch (error) {
+    const racedMutation = await findNavigationMutation(database, requestId);
+    if (racedMutation) {
+      assertMatchingNavigationMutation(racedMutation, "draft", payloadSha256);
+      return readNavigationMutationResult(database, racedMutation);
+    }
+    throw error;
+  }
   const updated = await getAdminSiteNavigation(database, id);
   if (!updated) throw new SiteNavigationNotFoundError("Không thể đọc mục điều hướng vừa cập nhật.");
   return updated;
@@ -200,28 +249,58 @@ export async function updateAdminSiteNavigation(
 
 export async function publishAdminSiteNavigation(
   database: D1DatabaseLike,
-  input: { actorSubject: string; expectedVersion: number; id: string },
+  input: { actorSubject: string; expectedVersion: number; id: string; requestId: string },
 ): Promise<AdminNavigationItem> {
   const id = normalizeNavigationId(input.id);
+  if (!Number.isInteger(input.expectedVersion) || input.expectedVersion < 1) {
+    throw new SiteNavigationValidationError("expectedVersion không hợp lệ.");
+  }
+  const requestId = normalizeNavigationRequestId(input.requestId);
+  const payloadSha256 = await fingerprintNavigationMutation({
+    expectedVersion: input.expectedVersion,
+    id,
+    operation: "publish",
+  });
+  const existingMutation = await findNavigationMutation(database, requestId);
+  if (existingMutation) {
+    assertMatchingNavigationMutation(existingMutation, "publish", payloadSha256);
+    return readNavigationMutationResult(database, existingMutation);
+  }
   const current = await getAdminSiteNavigation(database, id);
   if (!current) throw new SiteNavigationNotFoundError("Không tìm thấy mục điều hướng.");
   if (current.version !== input.expectedVersion) {
     throw new SiteNavigationConflictError("Mục điều hướng đã thay đổi ở phiên khác. Hãy tải lại trước khi phát hành.");
   }
 
-  const result = await database.prepare(`
+  const update = database.prepare(`
     UPDATE site_navigation_items
     SET published_label = draft_label, published_href = draft_href,
       published_sort_order = draft_sort_order, published_is_active = draft_is_active,
       version = version + 1,
       published_by = ?, published_at = CURRENT_TIMESTAMP,
-      updated_by = ?, updated_at = CURRENT_TIMESTAMP
+      updated_by = ?, updated_at = CURRENT_TIMESTAMP,
+      last_request_id = ?
     WHERE id = ? AND version = ?
-  `).bind(input.actorSubject, input.actorSubject, id, input.expectedVersion).run();
-  if (!hasChanged(result)) throw new SiteNavigationConflictError("Mục điều hướng đã thay đổi ở phiên khác. Hãy tải lại trước khi phát hành.");
-  await writeNavigationAudit(database, input.actorSubject, "site_navigation.published", id, {
-    previousPublishedHref: current.publishedHref,
+  `).bind(input.actorSubject, input.actorSubject, requestId, id, input.expectedVersion);
+  const audit = buildNavigationAuditStatement(database, {
+    actorSubject: input.actorSubject,
+    entityId: id,
+    expectedRevision: input.expectedVersion,
+    operation: "publish",
+    payloadSha256,
+    requestId,
   });
+  try {
+    const changed = await applyAtomicNavigationMutation(database, update, audit);
+    if (!changed) throw new SiteNavigationConflictError("Mục điều hướng đã thay đổi ở phiên khác. Hãy tải lại trước khi phát hành.");
+  } catch (error) {
+    const racedMutation = await findNavigationMutation(database, requestId);
+    if (racedMutation) {
+      assertMatchingNavigationMutation(racedMutation, "publish", payloadSha256);
+      return readNavigationMutationResult(database, racedMutation);
+    }
+    throw error;
+  }
   const published = await getAdminSiteNavigation(database, id);
   if (!published) throw new SiteNavigationNotFoundError("Không thể đọc mục điều hướng vừa phát hành.");
   return published;
@@ -229,8 +308,16 @@ export async function publishAdminSiteNavigation(
 
 export async function publishAllAdminSiteNavigation(
   database: D1DatabaseLike,
-  input: { actorSubject: string },
-): Promise<{ published: AdminNavigationItem[]; skipped: number }> {
+  input: { actorSubject: string; requestId?: string },
+): Promise<AdminNavigationBulkResult> {
+  const requestId = normalizeNavigationRequestId(input.requestId);
+  const payloadSha256 = await fingerprintNavigationBulkPublish();
+  const existingMutation = await findNavigationBulkMutation(database, requestId);
+  if (existingMutation) {
+    assertMatchingNavigationBulkMutation(existingMutation, payloadSha256);
+    return readBulkNavigationResult(database, requestId, existingMutation);
+  }
+
   const rows = await database.prepare(`
     SELECT id, menu_key, captured_menu_id,
       draft_label, draft_href, draft_sort_order, draft_is_active,
@@ -242,28 +329,323 @@ export async function publishAllAdminSiteNavigation(
       OR draft_sort_order <> published_sort_order
       OR draft_is_active <> published_is_active
     ORDER BY menu_key ASC, draft_sort_order ASC, id ASC
+    LIMIT 101
   `).all<SiteNavigationRow>();
-  const published: AdminNavigationItem[] = [];
-  let skipped = 0;
-  for (const row of rows.results) {
-    const result = await database.prepare(`
-      UPDATE site_navigation_items
-      SET published_label = draft_label, published_href = draft_href,
-        published_sort_order = draft_sort_order, published_is_active = draft_is_active,
-        version = version + 1,
-        published_by = ?, published_at = CURRENT_TIMESTAMP,
-        updated_by = ?, updated_at = CURRENT_TIMESTAMP
-      WHERE id = ? AND version = ?
-    `).bind(input.actorSubject, input.actorSubject, row.id, row.version).run();
-    if (!hasChanged(result)) {
-      skipped++;
-      continue;
-    }
-    await writeNavigationAudit(database, input.actorSubject, "site_navigation.published", row.id, { bulkPublish: true });
-    const updated = await getAdminSiteNavigation(database, row.id);
-    if (updated) published.push(updated);
+  if (rows.results.length > MAX_NAVIGATION_BULK_ITEMS) {
+    throw new SiteNavigationBatchLimitError("Mỗi lần chỉ được phát hành tối đa 100 mục điều hướng.");
   }
-  return { published, skipped };
+  const selectedIdsJson = JSON.stringify(rows.results.map((row) => row.id));
+
+  const statements: D1PreparedStatementLike[] = [database.prepare(`
+    INSERT INTO admin_navigation_bulk_audit (
+      request_id, actor_subject, action, operation, payload_sha256,
+      selected_count, published_count, selected_ids_json
+    ) VALUES (?, ?, 'update', 'publish_all', ?, ?, 0, ?)
+  `).bind(requestId, input.actorSubject, payloadSha256, rows.results.length, selectedIdsJson)];
+
+  for (const row of rows.results) {
+    const itemRequestId = crypto.randomUUID();
+    const itemPayloadSha256 = await fingerprintNavigationMutation({
+      expectedVersion: row.version,
+      id: row.id,
+      operation: "publish",
+    });
+    statements.push(database.prepare(`
+      UPDATE site_navigation_items
+        SET published_label = draft_label, published_href = draft_href,
+          published_sort_order = draft_sort_order, published_is_active = draft_is_active,
+          version = version + 1,
+          published_by = ?, published_at = CURRENT_TIMESTAMP,
+          updated_by = ?, updated_at = CURRENT_TIMESTAMP,
+          last_request_id = ?
+      WHERE id = ? AND version = ?
+    `).bind(input.actorSubject, input.actorSubject, itemRequestId, row.id, row.version));
+    statements.push(database.prepare(`
+      INSERT INTO admin_navigation_audit (
+        request_id, actor_subject, action, operation, entity_type, entity_key,
+        previous_revision, resulting_revision, payload_sha256, bulk_request_id
+      )
+      SELECT ?, ?, 'update', 'publish', 'site_navigation', id,
+        ?, version, ?, ?
+      FROM site_navigation_items
+      WHERE id = ? AND version = ? AND last_request_id = ?
+    `).bind(
+      itemRequestId,
+      input.actorSubject,
+      row.version,
+      itemPayloadSha256,
+      requestId,
+      row.id,
+      row.version + 1,
+      itemRequestId,
+    ));
+  }
+
+  statements.push(database.prepare(`
+    UPDATE admin_navigation_bulk_audit
+    SET published_count = (
+      SELECT COUNT(*) FROM admin_navigation_audit WHERE bulk_request_id = ?
+    )
+    WHERE request_id = ?
+  `).bind(requestId, requestId));
+
+  const databaseWithBatch = database as D1DatabaseWithBatch;
+  if (typeof databaseWithBatch.batch !== "function") {
+    throw new SiteNavigationStorageError("D1 atomic batch chưa sẵn sàng cho bulk publish điều hướng.");
+  }
+  try {
+    const results = await databaseWithBatch.batch(statements);
+    if (results.length !== statements.length) {
+      throw new SiteNavigationStorageError("D1 bulk batch điều hướng trả về kết quả không hợp lệ.");
+    }
+    if (!hasChanged(results[0]) || !hasChanged(results.at(-1))) {
+      throw new SiteNavigationStorageError("Bulk publish điều hướng chưa ghi được audit envelope.");
+    }
+    for (let index = 1; index < results.length - 1; index += 2) {
+      const updateChanged = hasChanged(results[index]);
+      const itemAuditChanged = hasChanged(results[index + 1]);
+      if (updateChanged !== itemAuditChanged) {
+        throw new SiteNavigationStorageError("Bulk publish điều hướng có mục thiếu audit đồng bộ.");
+      }
+    }
+  } catch (error) {
+    const racedMutation = await findNavigationBulkMutation(database, requestId);
+    if (racedMutation) {
+      assertMatchingNavigationBulkMutation(racedMutation, payloadSha256);
+      return readBulkNavigationResult(database, requestId, racedMutation);
+    }
+    throw error;
+  }
+
+  const mutation = await findNavigationBulkMutation(database, requestId);
+  if (!mutation) throw new SiteNavigationStorageError("Không đọc được audit bulk publish điều hướng vừa ghi.");
+  return readBulkNavigationResult(database, requestId, mutation);
+}
+
+export class SiteNavigationStorageError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "SiteNavigationStorageError";
+  }
+}
+
+export class SiteNavigationBatchLimitError extends SiteNavigationValidationError {
+  constructor(message: string) {
+    super(message);
+    this.name = "SiteNavigationBatchLimitError";
+  }
+}
+
+interface D1DatabaseWithBatch extends D1DatabaseLike {
+  batch(statements: D1PreparedStatementLike[]): Promise<unknown[]>;
+}
+
+type NavigationMutationOperation = "draft" | "publish";
+
+interface NavigationMutationRow {
+  entity_key: string;
+  operation: NavigationMutationOperation;
+  payload_sha256: string;
+}
+
+interface NavigationAuditStatementInput {
+  actorSubject: string;
+  entityId: string;
+  expectedRevision: number;
+  operation: NavigationMutationOperation;
+  payloadSha256: string;
+  requestId: string;
+}
+
+function buildNavigationAuditStatement(
+  database: D1DatabaseLike,
+  input: NavigationAuditStatementInput,
+): D1PreparedStatementLike {
+  return database.prepare(`
+    INSERT INTO admin_navigation_audit (
+      request_id, actor_subject, action, operation, entity_type, entity_key,
+      previous_revision, resulting_revision, payload_sha256, bulk_request_id
+    )
+    SELECT ?, ?, 'update', ?, 'site_navigation', id,
+      ?, version, ?, NULL
+    FROM site_navigation_items
+    WHERE id = ? AND version = ? AND last_request_id = ?
+  `).bind(
+    input.requestId,
+    input.actorSubject,
+    input.operation,
+    input.expectedRevision,
+    input.payloadSha256,
+    input.entityId,
+    input.expectedRevision + 1,
+    input.requestId,
+  );
+}
+
+async function applyAtomicNavigationMutation(
+  database: D1DatabaseLike,
+  update: D1PreparedStatementLike,
+  audit: D1PreparedStatementLike,
+): Promise<boolean> {
+  const databaseWithBatch = database as D1DatabaseWithBatch;
+  if (typeof databaseWithBatch.batch !== "function") {
+    throw new SiteNavigationStorageError("D1 atomic batch chưa sẵn sàng cho thay đổi điều hướng.");
+  }
+  const results = await databaseWithBatch.batch([update, audit]);
+  if (results.length !== 2) throw new SiteNavigationStorageError("D1 navigation mutation trả về kết quả không hợp lệ.");
+  const updateChanged = hasChanged(results[0]);
+  const auditChanged = hasChanged(results[1]);
+  if (updateChanged !== auditChanged) throw new SiteNavigationStorageError("Thay đổi điều hướng chưa ghép được với audit.");
+  return updateChanged;
+}
+
+async function findNavigationMutation(
+  database: D1DatabaseLike,
+  requestId: string,
+): Promise<NavigationMutationRow | null> {
+  return database.prepare(`
+    SELECT entity_key, operation, payload_sha256
+    FROM admin_navigation_audit
+    WHERE request_id = ? AND bulk_request_id IS NULL
+    LIMIT 1
+  `).bind(requestId).first<NavigationMutationRow>();
+}
+
+function assertMatchingNavigationMutation(
+  mutation: NavigationMutationRow,
+  operation: NavigationMutationOperation,
+  payloadSha256: string,
+): void {
+  if (mutation.operation !== operation || mutation.payload_sha256 !== payloadSha256) {
+    throw new SiteNavigationIdempotencyConflictError("requestId đã được dùng cho một payload điều hướng khác.");
+  }
+}
+
+async function readNavigationMutationResult(
+  database: D1DatabaseLike,
+  mutation: NavigationMutationRow,
+): Promise<AdminNavigationItem> {
+  const item = await getAdminSiteNavigation(database, mutation.entity_key);
+  if (!item) throw new SiteNavigationStorageError("Không đọc được mục điều hướng sau khi replay.");
+  return item;
+}
+
+interface NavigationBulkMutationRow {
+  operation: "publish_all";
+  payload_sha256: string;
+  published_count: number;
+  selected_count: number;
+  selected_ids_json: string;
+}
+
+interface NavigationBulkAuditItemRow {
+  navigation_id: string;
+}
+
+async function findNavigationBulkMutation(
+  database: D1DatabaseLike,
+  requestId: string,
+): Promise<NavigationBulkMutationRow | null> {
+  return database.prepare(`
+    SELECT operation, payload_sha256, selected_count, published_count, selected_ids_json
+    FROM admin_navigation_bulk_audit
+    WHERE request_id = ?
+    LIMIT 1
+  `).bind(requestId).first<NavigationBulkMutationRow>();
+}
+
+function assertMatchingNavigationBulkMutation(
+  mutation: NavigationBulkMutationRow,
+  payloadSha256: string,
+): void {
+  if (mutation.operation !== "publish_all" || mutation.payload_sha256 !== payloadSha256) {
+    throw new SiteNavigationIdempotencyConflictError("requestId đã được dùng cho một payload điều hướng khác.");
+  }
+}
+
+async function readBulkNavigationResult(
+  database: D1DatabaseLike,
+  requestId: string,
+  mutation: NavigationBulkMutationRow,
+): Promise<AdminNavigationBulkResult> {
+  const auditRows = await database.prepare(`
+    SELECT entity_key AS navigation_id
+    FROM admin_navigation_audit
+    WHERE bulk_request_id = ?
+    ORDER BY id ASC
+  `).bind(requestId).all<NavigationBulkAuditItemRow>();
+  if (auditRows.results.length !== mutation.published_count) {
+    throw new SiteNavigationStorageError("Bulk audit điều hướng không khớp số mục đã phát hành.");
+  }
+
+  const selectedIds = parseNavigationBulkSelectedIds(mutation.selected_ids_json, mutation.selected_count);
+  const navigationItems = await listAdminSiteNavigation(database);
+  const navigationById = new Map(navigationItems.map((item) => [item.id, item]));
+  const published = auditRows.results.map((row) => navigationById.get(row.navigation_id) ?? null);
+  if (published.some((item): item is null => item === null)) {
+    throw new SiteNavigationStorageError("Không đọc được mục điều hướng vừa phát hành trong bulk.");
+  }
+  const publishedIds = new Set(auditRows.results.map((row) => row.navigation_id));
+  const skipped = selectedIds
+    .filter((id) => !publishedIds.has(id))
+    .map((id) => ({ id, reason: "stale" as const }));
+  if (published.length + skipped.length !== mutation.selected_count) {
+    throw new SiteNavigationStorageError("Kết quả bulk publish điều hướng không khớp danh sách đã chọn.");
+  }
+  return {
+    changedCount: published.length,
+    published: published.filter((item): item is AdminNavigationItem => item !== null),
+    selectedCount: mutation.selected_count,
+    skipped,
+  };
+}
+
+async function fingerprintNavigationBulkPublish(): Promise<string> {
+  return fingerprintNavigationPayload({ operation: "publish_all" });
+}
+
+async function fingerprintNavigationMutation(input: Record<string, unknown>): Promise<string> {
+  return fingerprintNavigationPayload(input);
+}
+
+async function fingerprintNavigationPayload(payload: Record<string, unknown>): Promise<string> {
+  const bytes = new TextEncoder().encode(JSON.stringify(payload));
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+function parseNavigationBulkSelectedIds(value: string, expectedCount: number): string[] {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(value);
+  } catch {
+    throw new SiteNavigationStorageError("Danh sách mục điều hướng trong audit không hợp lệ.");
+  }
+  if (
+    !Array.isArray(parsed)
+    || parsed.length !== expectedCount
+    || parsed.length > MAX_NAVIGATION_BULK_ITEMS
+    || parsed.some((id) => typeof id !== "string" || id.length < 1 || id.length > 100)
+    || new Set(parsed).size !== parsed.length
+  ) {
+    throw new SiteNavigationStorageError("Danh sách mục điều hướng trong audit không hợp lệ.");
+  }
+  return parsed as string[];
+}
+
+function normalizeNavigationRequestId(value: string | undefined): string {
+  const requestId = value?.trim().toLowerCase() ?? "";
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(requestId)) {
+    throw new SiteNavigationValidationError("requestId phải là UUID hợp lệ.");
+  }
+  return requestId;
+}
+
+export class SiteNavigationIdempotencyConflictError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "SiteNavigationIdempotencyConflictError";
+  }
 }
 
 export async function getPublishedSiteNavigation(): Promise<PublishedNavigationItem[]> {

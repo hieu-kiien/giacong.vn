@@ -1,7 +1,7 @@
 "use client";
 
 import { Eye, Plus, RefreshCw, Save, Send, ShieldCheck } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { AdminField } from "@/components/admin/AdminField";
 import { AdminErrorState, AdminPageHeading, AdminStatusBadge } from "@/components/admin/AdminPrimitives";
@@ -32,6 +32,13 @@ interface NavigationResponse {
   items: AdminNavigationItem[];
 }
 
+interface NavigationBulkResult {
+  changedCount: number;
+  published: AdminNavigationItem[];
+  selectedCount: number;
+  skipped: Array<{ id: string; reason: "stale" }>;
+}
+
 interface NewNavigationForm {
   href: string;
   label: string;
@@ -51,8 +58,10 @@ export function AdminNavigationManager() {
   const [savingId, setSavingId] = useState<string | null>(null);
   const [publishingId, setPublishingId] = useState<string | null>(null);
   const [publishingAll, setPublishingAll] = useState(false);
+  const [publishAllRequestId, setPublishAllRequestId] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
   const [newItem, setNewItem] = useState<NewNavigationForm>({ href: "/", label: "", sortOrder: "" });
+  const mutationRequestIds = useRef(new Map<string, string>());
 
   useEffect(() => {
     const controller = new AbortController();
@@ -88,11 +97,25 @@ export function AdminNavigationManager() {
     setItems((current) => current.map((item) => item.id === next.id ? next : item));
   }
 
+  function getMutationRequestId(operation: "draft" | "publish", id: string): string {
+    const key = `${operation}:${id}`;
+    const existing = mutationRequestIds.current.get(key);
+    if (existing) return existing;
+    const requestId = crypto.randomUUID();
+    mutationRequestIds.current.set(key, requestId);
+    return requestId;
+  }
+
+  function clearMutationRequestId(operation: "draft" | "publish", id: string) {
+    mutationRequestIds.current.delete(`${operation}:${id}`);
+  }
+
   async function saveItem(item: AdminNavigationItem) {
     if (!canEdit) return;
     setSavingId(item.id);
     setError(null);
     setNotice(null);
+    const requestId = getMutationRequestId("draft", item.id);
     try {
       const result = await mutateAdmin<{ item: AdminNavigationItem }>(`/api/admin/navigation/${encodeURIComponent(item.id)}`, {
         body: {
@@ -100,15 +123,20 @@ export function AdminNavigationManager() {
           href: item.draftHref,
           isActive: item.draftIsActive,
           label: item.draftLabel,
+          requestId,
           sortOrder: item.draftSortOrder,
         },
         method: "PATCH",
       });
       replaceItem(result.item);
+      clearMutationRequestId("draft", item.id);
       setNotice(`Đã lưu bản nháp “${item.draftLabel}”.`);
       showToast("success", "Bản nháp điều hướng đã được lưu.");
     } catch (reason: unknown) {
       const clientError = reason instanceof AdminClientError ? reason : new AdminClientError("Không thể lưu điều hướng.", 0);
+      if (clientError.code === "STALE_WRITE" || clientError.code === "VALIDATION_ERROR" || clientError.code === "IDEMPOTENCY_CONFLICT") {
+        clearMutationRequestId("draft", item.id);
+      }
       setError(clientError);
       showToast("error", clientError.message);
     } finally {
@@ -121,16 +149,21 @@ export function AdminNavigationManager() {
     setPublishingId(item.id);
     setError(null);
     setNotice(null);
+    const requestId = getMutationRequestId("publish", item.id);
     try {
       const result = await mutateAdmin<{ item: AdminNavigationItem }>(`/api/admin/navigation/${encodeURIComponent(item.id)}/publish`, {
-        body: { expectedVersion: item.version },
+        body: { expectedVersion: item.version, requestId },
         method: "POST",
       });
       replaceItem(result.item);
+      clearMutationRequestId("publish", item.id);
       setNotice(`Đã phát hành “${item.publishedLabel}” ra storefront.`);
       showToast("success", "Mục điều hướng đã được phát hành.");
     } catch (reason: unknown) {
       const clientError = reason instanceof AdminClientError ? reason : new AdminClientError("Không thể phát hành điều hướng.", 0);
+      if (clientError.code === "STALE_WRITE" || clientError.code === "VALIDATION_ERROR" || clientError.code === "IDEMPOTENCY_CONFLICT") {
+        clearMutationRequestId("publish", item.id);
+      }
       setError(clientError);
       showToast("error", clientError.message);
     } finally {
@@ -143,14 +176,22 @@ export function AdminNavigationManager() {
     setPublishingAll(true);
     setError(null);
     setNotice(null);
+    const requestId = publishAllRequestId ?? crypto.randomUUID();
+    setPublishAllRequestId(requestId);
     try {
-      const result = await mutateAdmin<{ count: number; published: AdminNavigationItem[]; skipped: number }>(
+      const result = await mutateAdmin<NavigationBulkResult>(
         "/api/admin/navigation/publish-all",
-        { body: {}, method: "POST" },
+        { body: { requestId }, method: "POST" },
       );
       result.published.forEach(replaceItem);
-      setNotice(`Đã phát hành ${result.count} mục điều hướng.${result.skipped ? ` Bỏ qua ${result.skipped} mục do xung đột.` : ""}`);
-      showToast("success", "Điều hướng đã được phát hành.");
+      const skippedSummary = result.skipped.map((item) => `${item.id} (${item.reason})`).join(", ");
+      setNotice(result.skipped.length > 0
+        ? `Đã phát hành ${result.changedCount} / ${result.selectedCount} mục điều hướng. Chưa xử lý: ${skippedSummary}. Hãy tải lại trước khi thử lại.`
+        : result.changedCount === 0
+          ? "Không có thay đổi điều hướng cần phát hành."
+          : `Đã phát hành ${result.changedCount} mục điều hướng.`);
+      showToast(result.skipped.length > 0 ? "info" : "success", result.skipped.length > 0 ? "Điều hướng đã được phát hành một phần." : "Điều hướng đã được phát hành.");
+      setPublishAllRequestId(null);
     } catch (reason: unknown) {
       const clientError = reason instanceof AdminClientError ? reason : new AdminClientError("Không thể phát hành điều hướng.", 0);
       setError(clientError);

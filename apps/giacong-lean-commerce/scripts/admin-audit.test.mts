@@ -23,6 +23,8 @@ class FakeAuditDatabase implements D1DatabaseLike {
     "admin_news_bulk_audit",
     "admin_site_setting_audit",
     "admin_site_setting_bulk_audit",
+    "admin_navigation_audit",
+    "admin_navigation_bulk_audit",
   ]);
 
   prepare(query: string): D1PreparedStatementLike {
@@ -67,7 +69,7 @@ class FakeAuditStatement implements D1PreparedStatementLike {
       const tableName = String(this.values[0]);
       return (this.database.tables.has(tableName) ? { name: tableName } : null) as T | null;
     }
-    if (this.query.includes("COUNT(*)")) return { count: 2 } as T;
+    if (this.query.includes("COUNT(*)")) return { count: this.query.includes("admin_navigation_audit") || this.query.includes("admin_navigation_bulk_audit") ? 4 : 2 } as T;
     return null;
   }
 
@@ -76,6 +78,21 @@ class FakeAuditStatement implements D1PreparedStatementLike {
     if (!this.query.includes("FROM (")) return { results: [] };
     return {
       results: [
+        ...(this.query.includes("admin_navigation_audit") ? [
+          {
+            action: "update",
+            actor_subject: "owner@example.com",
+            created_at: "2026-08-29T15:00:00.000Z",
+            entity_key: "home",
+            entity_type: "site_navigation",
+            operation: "publish",
+            previous_revision: 1,
+            request_id: "33333333-3333-4333-8333-333333333333",
+            resulting_revision: 2,
+            source: "admin_navigation_audit",
+            source_id: "11",
+          },
+        ] : []),
         {
           action: "update",
           actor_subject: "owner@example.com",
@@ -102,6 +119,21 @@ class FakeAuditStatement implements D1PreparedStatementLike {
           source: "admin_audit_log",
           source_id: "9",
         },
+        ...(this.query.includes("admin_navigation_bulk_audit") ? [
+          {
+            action: "update",
+            actor_subject: "owner@example.com",
+            created_at: "2026-08-29T12:00:00.000Z",
+            entity_key: "bulk:publish_all",
+            entity_type: "site_navigation",
+            operation: "publish_all",
+            previous_revision: null,
+            request_id: "44444444-4444-4444-8444-444444444444",
+            resulting_revision: null,
+            source: "admin_navigation_bulk_audit",
+            source_id: "12",
+          },
+        ] : []),
       ] as T[],
     };
   }
@@ -124,6 +156,7 @@ test("audit query parser is bounded and allowlisted", () => {
   assert.equal(parseAdminAuditQuery(new URLSearchParams("entityType=unknown")), null);
   assert.equal(parseAdminAuditQuery(new URLSearchParams(`query=${"x".repeat(101)}`)), null);
   assert.ok(ADMIN_AUDIT_ENTITY_TYPES.includes("product"));
+  assert.ok(ADMIN_AUDIT_ENTITY_TYPES.includes("site_navigation"));
 });
 
 test("audit reader merges all available tables without exceeding D1 compound SELECT limits", async () => {
@@ -134,9 +167,21 @@ test("audit reader merges all available tables without exceeding D1 compound SEL
     search: "",
   });
 
-  assert.equal(result.total, 2);
-  assert.deepEqual(result.pagination, { currentPage: 1, lastPage: 1, pageSize: 20, total: 2 });
+  assert.equal(result.total, 4);
+  assert.deepEqual(result.pagination, { currentPage: 1, lastPage: 1, pageSize: 20, total: 4 });
   assert.deepEqual(result.entries, [
+    {
+      action: "update",
+      actorSubject: "owner@example.com",
+      createdAt: "2026-08-29T15:00:00.000Z",
+      entityKey: "home",
+      entityType: "site_navigation",
+      operation: "publish",
+      previousRevision: 1,
+      requestId: "33333333-3333-4333-8333-333333333333",
+      resultingRevision: 2,
+      source: "admin_navigation_audit",
+    },
     {
       action: "update",
       actorSubject: "owner@example.com",
@@ -161,6 +206,18 @@ test("audit reader merges all available tables without exceeding D1 compound SEL
       resultingRevision: null,
       source: "admin_audit_log",
     },
+    {
+      action: "update",
+      actorSubject: "owner@example.com",
+      createdAt: "2026-08-29T12:00:00.000Z",
+      entityKey: "bulk:publish_all",
+      entityType: "site_navigation",
+      operation: "publish_all",
+      previousRevision: null,
+      requestId: "44444444-4444-4444-8444-444444444444",
+      resultingRevision: null,
+      source: "admin_navigation_bulk_audit",
+    },
   ] satisfies AdminAuditEntry[]);
   assert.equal("metadataJson" in result.entries[0], false);
 });
@@ -169,7 +226,7 @@ test("audit reader skips an absent specialized table without failing", async () 
   const database = new FakeAuditDatabase();
   database.tables.delete("admin_news_audit");
   const result = await listAdminAudit(database, { page: 1, pageSize: 20, search: "" });
-  assert.equal(result.entries.length, 2);
+  assert.equal(result.entries.length, 4);
 });
 
 test("audit API is owner-only, read-only and bounded", async () => {
@@ -181,6 +238,7 @@ test("audit API is owner-only, read-only and bounded", async () => {
   assert.match(route, /adminSuccess/);
   assert.doesNotMatch(route, /export async function POST/);
   assert.match(page, /Lịch sử thay đổi/);
+  assert.match(page, /site_navigation/);
   assert.match(page, /\/api\/admin\/audit/);
   assert.match(page, /aria-live="polite"/);
 });
