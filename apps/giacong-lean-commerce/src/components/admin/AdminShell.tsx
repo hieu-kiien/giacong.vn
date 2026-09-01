@@ -233,13 +233,14 @@ function AdminAccessScreen({ status, error, onRetry }: { status: "blocked" | "un
           </div>
           <div className="admin-editor-actions">
             {showLoginLink ? (
-              <Link
+              <button
                 className="admin-button admin-button-primary"
-                data-testid="link-admin-access-login"
-                href="/admin"
+                data-testid="button-admin-access-login"
+                onClick={() => window.location.reload()}
+                type="button"
               >
                 Đăng nhập Cloudflare Access
-              </Link>
+              </button>
             ) : null}
             <button className="admin-button admin-button-quiet" data-testid="button-retry-admin-session" onClick={onRetry} type="button">
               Thử kiểm tra lại

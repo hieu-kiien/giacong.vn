@@ -85,9 +85,19 @@ test("the shell groups routes in plain-language control-plane sections", async (
 test("blocked admin sessions offer a direct Cloudflare Access login handoff", async () => {
   const shell = await readSource("components", "admin", "AdminShell.tsx");
 
-  assert.match(shell, /data-testid="link-admin-access-login"[\s\S]*?href="\/admin"/);
-  assert.doesNotMatch(shell, /cdn-cgi\/access\/login/);
+  assert.match(shell, /<button[\s\S]*?data-testid="button-admin-access-login"[\s\S]*?onClick=\{\(\) => window\.location\.reload\(\)\}/);
+  assert.doesNotMatch(shell, /data-testid="link-admin-access-login"/);
   assert.match(shell, /Đăng nhập Cloudflare Access/);
+});
+
+test("admin fallback screens use the bundled Vietnamese-safe font", async () => {
+  const css = await readSource("styles", "admin.css");
+
+  assert.match(css, /font-family: "Admin Sans";/);
+  assert.match(css, /url\("\/styles\/fonts\/SFProDisplay-Regular\.woff2"\)/);
+  assert.match(css, /url\("\/styles\/fonts\/SFProDisplay-Bold\.woff2"\)/);
+  assert.match(css, /\.admin-app \{[\s\S]*?font-family: "Admin Sans", system-ui, sans-serif;/);
+  assert.match(css, /\.admin-access-card h1 \{ font-family: "Admin Sans", system-ui, sans-serif;/);
 });
 
 test("admin loading and Access states inherit the admin design tokens", async () => {

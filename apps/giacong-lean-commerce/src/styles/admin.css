@@ -1,3 +1,19 @@
+@font-face {
+  font-display: swap;
+  font-family: "Admin Sans";
+  font-style: normal;
+  font-weight: 400;
+  src: url("/styles/fonts/SFProDisplay-Regular.woff2") format("woff2");
+}
+
+@font-face {
+  font-display: swap;
+  font-family: "Admin Sans";
+  font-style: normal;
+  font-weight: 700;
+  src: url("/styles/fonts/SFProDisplay-Bold.woff2") format("woff2");
+}
+
 @layer components {
   .admin-app {
     --admin-ink: #1e2a27;
@@ -17,7 +33,7 @@
     --admin-blue-wash: #edf5f7;
     background: var(--admin-paper);
     color: var(--admin-ink);
-    font-family: "Geist", "Avenir Next", "Segoe UI", sans-serif;
+    font-family: "Admin Sans", system-ui, sans-serif;
     min-height: 100dvh;
   }
 
@@ -172,7 +188,7 @@
     margin-bottom: 9px;
     text-transform: uppercase;
   }
-  .admin-page-title { font-family: Georgia, "Times New Roman", serif; font-size: clamp(28px, 3vw, 39px); font-weight: 500; letter-spacing: -.035em; line-height: 1.08; margin: 0; }
+  .admin-page-title { font-family: "Admin Sans", system-ui, sans-serif; font-size: clamp(28px, 3vw, 39px); font-weight: 500; letter-spacing: -.035em; line-height: 1.08; margin: 0; }
   .admin-page-subtitle { color: var(--admin-ink-soft); font-size: 13px; line-height: 1.55; margin: 9px 0 0; max-width: 620px; }
   .admin-stamp { color: var(--admin-ink-muted); font-family: "Geist Mono", ui-monospace, monospace; font-size: 11px; letter-spacing: .04em; white-space: nowrap; }
 
@@ -429,7 +445,7 @@
   .admin-access-card { background: var(--admin-surface); border: 1px solid var(--admin-border); border-radius: 12px; box-shadow: 0 14px 50px rgb(32 50 37 / 8%); max-width: 560px; padding: 35px; width: 100%; }
   .admin-access-card .admin-brand { color: var(--admin-ink); margin: 0 0 31px; }
   .admin-access-card .admin-brand-mark { background: #dcebc6; }
-  .admin-access-card h1 { font-family: Georgia, serif; font-size: 34px; font-weight: 500; letter-spacing: -.03em; margin: 0 0 10px; }
+  .admin-access-card h1 { font-family: "Admin Sans", system-ui, sans-serif; font-size: 34px; font-weight: 500; letter-spacing: -.03em; margin: 0 0 10px; }
   .admin-access-card p { color: var(--admin-ink-soft); font-size: 13px; line-height: 1.6; margin: 0 0 22px; }
   .admin-access-detail { background: #f0f4ed; border-left: 3px solid #88a663; color: #536250; font-family: "Geist Mono", ui-monospace, monospace; font-size: 11px; line-height: 1.6; margin-bottom: 22px; padding: 12px 14px; }
 
