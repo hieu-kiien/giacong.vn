@@ -453,7 +453,6 @@ test("the request-cart, webhook and Sheet contracts are untouched by the foundat
 test("the runtime dependency baseline stays explicit and no forbidden route appears", async () => {
   const manifest = JSON.parse(await readSource("package.json")) as {
     dependencies: Record<string, string>;
-    devDependencies: Record<string, string>;
   };
 
   assert.deepEqual(
@@ -468,7 +467,6 @@ test("the runtime dependency baseline stays explicit and no forbidden route appe
       "react",
       "react-dom",
       "server-only",
-      "shadcn",
       "tailwind-merge",
       "tw-animate-css",
     ],
