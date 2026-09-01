@@ -12,19 +12,21 @@ lý hàng loạt.
 
 **Checkpoint hiện tại — 2026-09-01:** Bản motion/menu storefront đã được
 review và tích hợp vào `master`; staging đang phục vụ version
-`902b3a6e-732f-4de6-a9fc-429b6478d833` sau navigation contract, dependency,
-copy và Access hardening; `a1f71e85-113e-4559-9377-ebedc22b92e7` là rollback point.
+`eb921d4e-2250-460c-913a-071499e52c59` sau navigation create contract,
+dependency, copy và Access hardening; `902b3a6e-732f-4de6-a9fc-429b6478d833` là
+rollback point.
 Owner staging đã được bootstrap có kiểm soát: `qtu1053@gmail.com` là admin cấp
 cao nhất (`owner`), có toàn bộ capability và nhìn thấy nút tạo thành viên/admin;
 UI khóa tự hạ quyền, tự đổi Access identity hoặc tự vô hiệu hóa. Session đã
 được harden để nhận diện current account bằng D1 `memberId`, không phụ thuộc
 duy nhất vào Access `sub`.
 
-Lát navigation contract ở commit `566489d` đã thêm request UUID bắt buộc,
-optimistic revision và idempotent replay cho create/save/publish từng mục; bulk
-publish được D1 batch atomic, giới hạn cứng 100 mục, trả kết quả từng item và
-ghi audit chuyên biệt. Các migration `0017_navigation_bulk_publish_contract.sql`
-và `0018_navigation_create_contract.sql` đã chạy đủ trên D1 local tạm và đã
+Lát navigation contract ở commit `566489d` và create contract ở commit
+`d654f2e` đã thêm request UUID bắt buộc, optimistic revision và idempotent replay
+cho create/save/publish từng mục; bulk publish được D1 batch atomic, giới hạn
+cứng 100 mục, trả kết quả từng item và ghi audit chuyên biệt. Các migration
+`0017_navigation_bulk_publish_contract.sql` và
+`0018_navigation_create_contract.sql` đã chạy đủ trên D1 local tạm và đã
 apply/verify trên D1 staging; production chưa thay đổi.
 
 Full gate gần nhất đạt: focused session/UI `17/17`, full admin `175/175`,
@@ -36,7 +38,9 @@ HTTP `200`, không có console error/warning ứng dụng. Chỉ còn warning
 
 Rollback drill staging 2026-09-01 đã đạt: traffic được chuyển tạm thời 100%
 sang `a1f71e85-113e-4559-9377-ebedc22b92e7`, public smoke pass, rồi khôi phục
-100% về `902b3a6e-732f-4de6-a9fc-429b6478d833`; production không bị thay đổi.
+100% về `902b3a6e-732f-4de6-a9fc-429b6478d833`; sau đó promotion contract create
+đưa version `eb921d4e-2250-460c-913a-071499e52c59` lên 100%. Production không bị
+thay đổi.
 
 Các gate chưa đóng: role matrix với nhiều identity thật, write/read-back từng
 domain, browser admin đầy đủ desktop/mobile/keyboard/focus/reduced-motion,

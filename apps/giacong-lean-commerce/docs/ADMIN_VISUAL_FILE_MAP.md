@@ -21,8 +21,8 @@ product/service/category bulk archive contract đã có trong `master`. Bản
 storefront motion/menu đã được review và tích hợp từ worktree riêng; fallback
 gallery đã chấp nhận asset WebP. `qa:ux` là runner tracked để lặp lại audit
 staging. Staging đang phục vụ version
-`902b3a6e-732f-4de6-a9fc-429b6478d833`; rollback point là
-`a1f71e85-113e-4559-9377-ebedc22b92e7`; owner thật `qtu1053@gmail.com` đã được
+`eb921d4e-2250-460c-913a-071499e52c59`; rollback point là
+`902b3a6e-732f-4de6-a9fc-429b6478d833`; owner thật `qtu1053@gmail.com` đã được
 bootstrap vào D1 staging với role `owner` cấp cao nhất. `/admin/thanh-vien` đã
 được browser xác nhận hiển thị tài khoản hiện tại, khóa self-demotion/self-
 deactivation và mở được luồng `Thêm thành viên`.
@@ -37,16 +37,20 @@ không dùng điều đó để thay thế cửa sổ release có exit code sạ
 
 Rollback drill staging 2026-09-01 đã pass: chuyển 100% traffic về
 `a1f71e85-113e-4559-9377-ebedc22b92e7`, smoke public pass, sau đó khôi phục
-100% về `902b3a6e-732f-4de6-a9fc-429b6478d833`. Đây chỉ là bằng chứng rollback
-runtime staging; backup/restore production và production gate vẫn mở.
+100% về `902b3a6e-732f-4de6-a9fc-429b6478d833`; sau đó version
+`eb921d4e-2250-460c-913a-071499e52c59` được promotion cho contract create. Đây
+chỉ là bằng chứng rollback runtime staging; backup/restore production và
+production gate vẫn mở.
 
-Commit `566489d` bổ sung contract navigation: create/single save/publish và bulk
-publish dùng request UUID, revision guard, idempotent replay/conflict; mutation
-được ghép D1 batch atomic với audit chuyên biệt, bulk giới hạn 100 mục và trả
-kết quả stale theo id. Các migration `0017_navigation_bulk_publish_contract.sql`
+Commit `566489d` bổ sung contract navigation single/bulk; commit `d654f2e` bổ sung
+create contract. Cả create/single save/publish và bulk publish dùng request UUID,
+revision guard, idempotent replay/conflict; mutation được ghép D1 batch atomic với
+audit chuyên biệt, bulk giới hạn 100 mục và trả kết quả stale theo id. Các migration
+`0017_navigation_bulk_publish_contract.sql`
 và `0018_navigation_create_contract.sql` đã được verify qua baseline + toàn bộ
 migration trên D1 local tạm và đã apply/verify trên D1 staging; production chưa
-apply các migration này.
+apply các migration này. Browser đã đọc lại form create nhưng chưa submit để
+không tạo dữ liệu staging ngoài yêu cầu.
 
 Commit `8c509c5` đã nâng Next.js `16.3.4`, OpenNext Cloudflare `1.20.5`,
 Wrangler `4.125.0`, loại `shadcn` CLI khỏi runtime dependency graph và giữ

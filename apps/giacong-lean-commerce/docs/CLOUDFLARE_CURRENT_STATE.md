@@ -4,8 +4,8 @@ Hồ sơ này ghi bằng chứng runtime đã xác minh trong quá trình chuy�
 
 ## Cập nhật runtime 2026-09-01
 
-- Local contract slice commit `566489d` đã hoàn tất cho navigation: request UUID
-  bắt buộc ở create/single save/publish và bulk publish, optimistic revision/CAS,
+- Local navigation contract commit `566489d` và create contract commit `d654f2e`
+  đã hoàn tất: request UUID bắt buộc ở create/single save/publish và bulk publish, optimistic revision/CAS,
   idempotent replay/conflict, D1 batch atomic với audit chuyên biệt và giới hạn
   bulk 100 mục. `0017_navigation_bulk_publish_contract.sql` và
   `0018_navigation_create_contract.sql` đã được kiểm tra trên D1 local tạm sau
@@ -21,8 +21,8 @@ Hồ sơ này ghi bằng chứng runtime đã xác minh trong quá trình chuy�
   --audit-level=high` và `npm audit --audit-level=high` đều trả `0
   vulnerabilities`.
 - Staging Worker `giacong-vn-staging` đã build/deploy version
-  `902b3a6e-732f-4de6-a9fc-429b6478d833` ở 100% traffic; version
-  `a1f71e85-113e-4559-9377-ebedc22b92e7` được giữ làm rollback point; bindings và routes staging vẫn đúng,
+  `eb921d4e-2250-460c-913a-071499e52c59` ở 100% traffic; version
+  `902b3a6e-732f-4de6-a9fc-429b6478d833` được giữ làm rollback point; bindings và routes staging vẫn đúng,
   `ADMIN_PUBLIC=false`.
 - Live `qa:ux` sau deploy tại `https://staging.kienhieu.id.vn` pass 5/5 route,
   toàn bộ action, 0 console error, 0 HTTP 4xx/5xx, 0 overflow, axe `5/5` với
@@ -44,6 +44,15 @@ Hồ sơ này ghi bằng chứng runtime đã xác minh trong quá trình chuy�
   `162/162`; full local gate, staging build/deploy và public browser audit sau
   deploy đều pass. Đây vẫn chưa thay thế Access identity thật cho browser QA
   bên trong admin.
+
+- Commit `d654f2e` đã hoàn tất navigation create contract: build/upload và
+  promotion staging version `eb921d4e-2250-460c-913a-071499e52c59` lên 100%,
+  rollback point là `902b3a6e-732f-4de6-a9fc-429b6478d833`. D1 staging đã apply
+  `0018_navigation_create_contract.sql`; migration list không còn pending,
+  schema có `admin_navigation_create_audit` và `site_navigation_items.last_request_id`,
+  số audit create trước browser write là `0`. Chrome Access thật đã đọc lại owner,
+  form create navigation và audit read-only sau promotion; chưa submit mutation
+  navigation để tránh tạo dữ liệu staging không được yêu cầu.
 
 ## Hạ tầng đã xác minh
 
