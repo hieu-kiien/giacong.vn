@@ -577,3 +577,30 @@ restore/rollback drill, observability 24h và quyết định redirect
   gate còn lại của admin (role matrix đầy đủ, write/read-back từng capability,
   reduced-motion/focus và production data/migration) vẫn phải hoàn tất trước
   khi mở production.
+
+## Admin owner identity hardening và staging revalidation — 2026-09-01
+
+- Commit `60ac85e` sửa điểm nhận diện tài khoản hiện tại: Cloudflare Access
+  có thể gửi `sub` khác với `admin_members.access_subject`, trong khi email đã
+  được D1 dùng để resolve đúng owner. API `/api/admin/session` giờ trả thêm
+  `memberId`; UI ưu tiên `memberId` và vẫn giữ subject fallback tương thích.
+- Sau khi deploy, `/admin/thanh-vien` hiển thị đúng
+  `qtu1053@gmail.com · tài khoản hiện tại`, vai trò `Chủ sở hữu`, quyền
+  `Owner · có quyền`; combobox role và checkbox active của chính tài khoản
+  bị khóa. Nút `Thêm thành viên` vẫn hiện để owner tạo admin/nhân sự với các
+  role được phép. Không tạo tài khoản thứ hai trong lượt kiểm tra này.
+- Gate code mới đạt: focused session/UI tests `17/17`; full admin suite
+  `165/165`; lint, typecheck và build đều exit `0`; `git diff --check` không
+  có whitespace error. GitNexus detect-changes không phát hiện execution
+  flow bị ảnh hưởng ngoài phạm vi dự kiến.
+- Staging version `a1f71e85-113e-4559-9377-ebedc22b92e7` đã được promote
+  `100%`; các route public `/`, `/san-pham/`, `/tin-tuc/`, `/gui-yeu-cau`
+  đều trả HTTP `200`. Kiểm tra Chrome đã đăng nhập xác nhận dashboard đọc
+  được D1 thật và không có console error/warning.
+- Production chưa bị deploy hoặc thay đổi. Việc tạo admin thứ hai ngoài
+  thực tế cần xác định trước email/Access identity, tên hiển thị và role;
+  đây là acceptance gate có chủ đích để không ghi nhầm dữ liệu quyền hạn.
+- Lỗi giới hạn tài nguyên từng thấy khi chuyển nhanh qua nhiều route admin
+  chưa được coi là đã giải quyết vĩnh viễn; lượt kiểm tra có kiểm soát riêng
+  tại `/admin/tin-tuc` đã tải bình thường. Cần tiếp tục quan sát bằng trace
+  runtime trước khi đóng gate hiệu năng/ổn định.
