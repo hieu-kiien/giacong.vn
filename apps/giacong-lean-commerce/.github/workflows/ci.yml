@@ -11,7 +11,7 @@ on:
 jobs:
   quality:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
 
     steps:
       - name: Checkout
@@ -26,11 +26,8 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Lint
-        run: npm run lint
+      - name: Dependency audit
+        run: npm audit --audit-level=high
 
-      - name: Type check
-        run: npm run typecheck
-
-      - name: Build
-        run: npm run build
+      - name: Full application gate
+        run: npm run check
