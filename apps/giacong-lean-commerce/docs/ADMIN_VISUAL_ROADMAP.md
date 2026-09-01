@@ -11,24 +11,25 @@ hiển thị, nhưng vẫn giữ trung tâm vận hành đầy đủ cho nghiệ
 lý hàng loạt.
 
 **Checkpoint hiện tại — 2026-09-01:** Bản motion/menu storefront đã được
-review và tích hợp vào `master` (cùng runner `qa:ux`, WebP gallery fixtures và
-regression cho hero settings). Sau khi harden dependency và chuẩn hóa copy admin,
-staging đang phục vụ version `ecda5cee-8791-4290-8505-56acbd5f4d5f`; commit
-`bbcbfba` vừa làm các trạng thái dùng chung dễ hiểu cho người không chuyên;
-`next` `16.3.4`,
-`@opennextjs/cloudflare` `1.20.5`, Wrangler `4.125.0`, full `npm audit` và
-production-only audit đều `0 vulnerabilities`. Audit UX trực tiếp sau deploy
-trên 5 route public đã pass HTTP 200, thao tác chính, mobile/desktop,
-no-overflow, axe `5/5` không serious/critical và không có console error. Chỉ
-còn một warning từ Google Maps iframe, không phải app code. Full gate in xanh
-admin `162/162`, contact `104/104`, catalog `5/5`, purchase UI `1/1`, service
-`3/3`, commerce `63/63`, listing `4/4`, detail `29/29`, lint, type generation
-và build.
+review và tích hợp vào `master`; staging đang phục vụ version
+`a1f71e85-113e-4559-9377-ebedc22b92e7` sau dependency, copy và Access hardening.
+Owner staging đã được bootstrap có kiểm soát: `qtu1053@gmail.com` là admin cấp
+cao nhất (`owner`), có toàn bộ capability và nhìn thấy nút tạo thành viên/admin;
+UI khóa tự hạ quyền, tự đổi Access identity hoặc tự vô hiệu hóa. Session đã
+được harden để nhận diện current account bằng D1 `memberId`, không phụ thuộc
+duy nhất vào Access `sub`.
 
-Phần chưa thể tự đóng là external gate: Cloudflare Access chưa có phiên identity
-hợp lệ để chạy admin role matrix, write/read-back và browser QA thật; staging
-`admin_members` hiện chưa có active owner. Production data/content approval,
-backup/restore/rollback và production promotion vẫn chưa được thực hiện.
+Full gate gần nhất đạt: focused session/UI `17/17`, full admin `165/165`,
+contact `104/104`, catalog `5/5`, purchase UI `1/1`, service `3/3`, commerce
+`63/63`, listing `4/4`, detail `29/29`, lint, typecheck và build đều exit `0`;
+audit dependency báo `0 vulnerabilities`. Public smoke 5 route sau deploy đạt
+HTTP `200`, không có console error/warning ứng dụng. Chỉ còn warning
+`postMessage` từ Google Maps iframe bên thứ ba.
+
+Các gate chưa đóng: role matrix với nhiều identity thật, write/read-back từng
+domain, browser admin đầy đủ desktop/mobile/keyboard/focus/reduced-motion,
+production data/content approval, backup/restore/rollback, observability và
+production promotion. Production chưa bị thay đổi.
 
 ## 1. Quyết định sản phẩm
 

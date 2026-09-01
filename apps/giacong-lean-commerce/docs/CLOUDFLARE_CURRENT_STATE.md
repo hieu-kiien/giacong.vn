@@ -21,12 +21,13 @@ Hồ sơ này ghi bằng chứng runtime đã xác minh trong quá trình chuy�
 - Evidence Playwright mới nhất được lưu ngoài repo tại
   `C:\Users\hieuk\Desktop\staging-ux-audit-2026-09-01-admin-copy`; audit dependency
   trước đó ở `C:\Users\hieuk\Desktop\staging-ux-audit-2026-09-01-deps`. Cloudflare Access
-  identity thật, admin role matrix, write/read-back và production gate vẫn
-  chưa được tự động đóng.
+  identity thật cho owner đã được xác nhận trên Chrome staging; role matrix với
+  nhiều identity, write/read-back đầy đủ và production gate vẫn chưa đóng.
 - Commit `650d10f` đã sửa nội dung hướng dẫn trên màn hình Access-blocked để
   người ít chuyên môn biết chọn nút đăng nhập, hoàn tất xác minh và quay lại;
-  regression test và full local gate đã pass. Bản deploy mới vẫn chưa chứng
-  minh được browser admin bằng identity thật vì request chưa có Access session.
+  regression test và full local gate đã pass. Commit `60ac85e` tiếp tục trả
+  `memberId` trong session để UI nhận diện đúng owner hiện tại khi Access `sub`
+  khác D1 `access_subject`; Chrome staging đã xác nhận bằng identity thật.
 - Commit `bbcbfba` tiếp tục đổi các trạng thái dùng chung của admin sang ngôn ngữ
   đời thường: lỗi dữ liệu, độ sẵn sàng, ghi chú dữ liệu và footer không còn lộ
   D1/API/schema/migration cho người vận hành. Regression `admin-ui-system` đạt

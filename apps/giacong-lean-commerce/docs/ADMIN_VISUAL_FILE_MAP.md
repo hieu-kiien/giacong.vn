@@ -21,15 +21,16 @@ product/service/category bulk archive contract đã có trong `master`. Bản
 storefront motion/menu đã được review và tích hợp từ worktree riêng; fallback
 gallery đã chấp nhận asset WebP. `qa:ux` là runner tracked để lặp lại audit
 staging. Staging đang phục vụ version
-`ecda5cee-8791-4290-8505-56acbd5f4d5f` sau dependency hardening và các lát UX
-Access/plain-language
-handoff; public UX
-audit năm route pass, axe không có serious/critical violation, nhưng
-browser/admin identity evidence và role matrix vẫn là gate riêng.
+`a1f71e85-113e-4559-9377-ebedc22b92e7`; owner thật `qtu1053@gmail.com` đã được
+bootstrap vào D1 staging với role `owner` cấp cao nhất. `/admin/thanh-vien` đã
+được browser xác nhận hiển thị tài khoản hiện tại, khóa self-demotion/self-
+deactivation và mở được luồng `Thêm thành viên`.
 
-Full gate gần nhất đã in xanh các suite: admin `162/162`, contact `104/104`,
-catalog `5/5`, catalog purchase UI `1/1`, service `3/3`, commerce `63/63`,
-listing `4/4`, detail `29/29`, kèm lint, type generation và production build.
+Full gate gần nhất: focused session/UI `17/17`, admin `165/165`, contact
+`104/104`, catalog `5/5`, catalog purchase UI `1/1`, service `3/3`, commerce
+`63/63`, listing `4/4`, detail `29/29`, kèm lint, typecheck và build. Public UX
+audit năm route pass; browser identity role matrix đầy đủ, write/read-back từng
+domain và production gate vẫn chưa đóng.
 Wrapper PowerShell giữ process sau khi đã in xong output nên phải dừng thủ công;
 không dùng điều đó để thay thế cửa sổ release có exit code sạch.
 
@@ -45,9 +46,10 @@ ngôn ngữ đời thường cho người ít chuyên môn, có regression test 
 
 Commit `bbcbfba` áp dụng cùng nguyên tắc plain-language cho các trạng thái dùng
 chung của admin: lỗi dữ liệu, độ sẵn sàng, ghi chú không có dữ liệu mẫu và
-footer shell. Test `admin-ui-system` đạt `162/162`; không thay đổi API, quyền,
-schema hoặc dữ liệu. Public `qa:ux` sau deploy pass 5/5 route; admin browser
-read-back vẫn chờ Access identity thật.
+footer shell. Commit `60ac85e` bổ sung `memberId` vào admin session để UI nhận
+diện current account đúng cả khi Access `sub` khác D1 `access_subject`; không
+thay đổi quyền server hay schema. Public `qa:ux` sau deploy pass 5/5 route;
+role matrix nhiều identity và admin write/read-back vẫn là gate riêng.
 
 Repo chính không có GIF/video runtime bắt buộc: motion hiện dùng CSS/HTML và
 asset WebP phù hợp. Worktree motion riêng vẫn được giữ nguyên, không reset hoặc
