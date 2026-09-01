@@ -541,3 +541,19 @@ restore/rollback drill, observability 24h và quyết định redirect
   admin host không có identity vẫn trả HTTP `302` về Access.
 - Access identity thật, role matrix và owner bootstrap vẫn là gate riêng; không
   seed tài khoản hay thay policy thay cho chủ dự án.
+
+## Staging Access audience correction — 2026-09-01
+
+- Audit read-only bằng workflow `cloudflare-admin-access-audit.yml`, run
+  `33483017841`, đọc đúng ứng dụng `Giacong staging Admin` và xác nhận team
+  domain `https://jolly-brook-7bc8.cloudflareaccess.com`.
+- Audience thực tế của ứng dụng là
+  `a5738e3cb28340605b9aa2fc16c272032619233086e3d281b19e4a8ef9303ccf`, khác
+  với giá trị cũ trong block staging. Sai audience giải thích chính xác lỗi
+  `FORBIDDEN · Phiên quản trị không hợp lệ` sau khi Access đã cho request qua.
+- Chỉ thay `POLICY_AUD` của environment staging; không thay policy, JWT
+  validation, production vars, D1/R2 hay dữ liệu tài khoản.
+- Staging version `100e84c3-78f1-4a54-aa69-2b21f6d31386` deploy thành công;
+  public staging vẫn trả `200`, admin không có identity vẫn trả `302` về
+  Cloudflare Access. Cần re-test bằng phiên Chrome đã đăng nhập để đóng gate
+  Access identity; owner bootstrap và role/read-write acceptance vẫn còn mở.
