@@ -1,0 +1,132 @@
+name: Bootstrap staging admin owner once
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm_owner_email:
+        description: "Type the exact approved staging owner email to continue"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cloudflare-admin-owner-bootstrap-staging
+  cancel-in-progress: false
+
+env:
+  DATABASE_NAME: giacong-vn-catalog-staging
+  OWNER_EMAIL: qtu1053@gmail.com
+  OWNER_DISPLAY_NAME: Qtu1053
+  OWNER_ID: owner-qtu1053
+  WRANGLER_VERSION: "4.115.0"
+
+jobs:
+  bootstrap:
+    name: Bootstrap the approved staging owner
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: staging
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+    steps:
+      - name: Require the exact owner confirmation
+        shell: bash
+        env:
+          CONFIRM_OWNER_EMAIL: ${{ inputs.confirm_owner_email }}
+        run: |
+          set -euo pipefail
+          test "$CONFIRM_OWNER_EMAIL" = "$OWNER_EMAIL"
+
+      - name: Preflight the staging member table
+        shell: bash
+        run: |
+          set -euo pipefail
+          state="$(npx -y "wrangler@$WRANGLER_VERSION" d1 execute "$DATABASE_NAME" --remote --json --command="
+            SELECT COUNT(*) AS table_count
+            FROM sqlite_master
+            WHERE type = 'table' AND name = 'admin_members';
+            SELECT
+              (SELECT COUNT(*)
+               FROM admin_members
+               WHERE lower(email) = lower('$OWNER_EMAIL')
+                  OR access_subject = '$OWNER_EMAIL') AS identity_rows,
+              (SELECT COUNT(*)
+               FROM admin_members
+               WHERE id = '$OWNER_ID') AS id_rows,
+              (SELECT COUNT(*)
+               FROM admin_members
+               WHERE id <> '$OWNER_ID'
+                 AND (lower(email) = lower('$OWNER_EMAIL')
+                      OR access_subject = '$OWNER_EMAIL')) AS conflicting_identity_rows;
+          ")"
+          echo "$state" | jq .
+          test "$(echo "$state" | jq -r '.[0].results[0].table_count')" = "1"
+          identity_rows="$(echo "$state" | jq -r '.[1].results[0].identity_rows')"
+          id_rows="$(echo "$state" | jq -r '.[1].results[0].id_rows')"
+          conflicting_identity_rows="$(echo "$state" | jq -r '.[1].results[0].conflicting_identity_rows')"
+          test "$identity_rows" -le 1
+          test "$conflicting_identity_rows" = "0"
+          if [[ "$id_rows" = "1" && "$identity_rows" != "1" ]]; then
+            echo "The reserved owner id belongs to a different identity." >&2
+            exit 1
+          fi
+
+      - name: Upsert the approved owner atomically
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx -y "wrangler@$WRANGLER_VERSION" d1 execute "$DATABASE_NAME" --remote --json --command="
+            BEGIN;
+            INSERT INTO admin_members (id, access_subject, email, display_name, role, is_active)
+            SELECT '$OWNER_ID', '$OWNER_EMAIL', '$OWNER_EMAIL', '$OWNER_DISPLAY_NAME', 'owner', 1
+            WHERE NOT EXISTS (
+              SELECT 1
+              FROM admin_members
+              WHERE lower(email) = lower('$OWNER_EMAIL')
+                 OR access_subject = '$OWNER_EMAIL'
+            );
+            UPDATE admin_members
+            SET email = '$OWNER_EMAIL',
+                display_name = '$OWNER_DISPLAY_NAME',
+                role = 'owner',
+                is_active = 1,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE lower(email) = lower('$OWNER_EMAIL')
+               OR access_subject = '$OWNER_EMAIL';
+            COMMIT;
+          " | jq .
+
+      - name: Verify exactly one active owner match
+        shell: bash
+        run: |
+          set -euo pipefail
+          state="$(npx -y "wrangler@$WRANGLER_VERSION" d1 execute "$DATABASE_NAME" --remote --json --command="
+            SELECT
+              COUNT(*) AS matching_rows,
+              SUM(CASE WHEN role = 'owner' AND is_active = 1 THEN 1 ELSE 0 END) AS active_owner_matches
+            FROM admin_members
+            WHERE lower(email) = lower('$OWNER_EMAIL')
+               OR access_subject = '$OWNER_EMAIL';
+          ")"
+          echo "$state" | jq .
+          echo "$state" | jq -e '
+            (.[0].results[0].matching_rows == 1)
+            and (.[0].results[0].active_owner_matches == 1)
+          ' >/dev/null
+
+      - name: Publish bootstrap summary
+        shell: bash
+        run: |
+          {
+            echo "## Staging admin owner bootstrap"
+            echo
+            echo "Target: \`$DATABASE_NAME\` only. Production was not targeted."
+            echo
+            echo "Exactly one approved active owner match was verified."
+            echo "The owner may now manage admin members through the protected admin surface."
+          } >> "$GITHUB_STEP_SUMMARY"
+
