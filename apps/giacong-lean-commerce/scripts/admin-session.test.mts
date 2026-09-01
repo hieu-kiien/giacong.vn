@@ -16,6 +16,21 @@ test("returns an authenticated session carrying the operator role", async () => 
   });
 });
 
+test("returns the resolved member id so the UI can protect the current account", async () => {
+  const response = await handleAdminSession(new Request("https://admin.example.test/api/admin/session"), {
+    admit: async () => ({ actor: { subject: "access-subject" }, ok: true }),
+    requestId: () => "request-member-id",
+    resolveRole: async () => ({ memberId: "owner-1", role: "owner" }),
+  });
+  assert.equal(response.status, 200);
+  assert.deepEqual((await response.json()).data, {
+    authenticated: true,
+    memberId: "owner-1",
+    role: "owner",
+    subject: "access-subject",
+  });
+});
+
 test("public demo actors are owners without a D1 role lookup", async () => {
   let resolveRoleCalled = false;
   const response = await handleAdminSession(new Request("https://admin.example.test/api/admin/session"), {

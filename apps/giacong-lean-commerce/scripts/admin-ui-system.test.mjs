@@ -61,6 +61,8 @@ test("the admin control plane exposes page, navigation and member management sur
   assert.match(navigation, /Phát hành tất cả/);
   assert.match(members, /\/api\/admin\/members/);
   assert.match(members, /Granular RBAC/);
+  assert.match(members, /currentMemberId=\{session\.memberId\}/);
+  assert.match(members, /member\.id === currentMemberId/);
 });
 
 test("the shell groups routes in plain-language control-plane sections", async () => {

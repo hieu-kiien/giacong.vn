@@ -91,7 +91,7 @@ export function AdminMembersManager() {
       }
     })();
     return () => controller.abort();
-  }, [attempt, session.subject]);
+  }, [attempt, session.memberId, session.subject]);
 
   function updateDraft(id: string, patch: Partial<EditableMember>) {
     setMembers((current) => current.map((member) => member.id === id ? { ...member, ...patch } : member));
@@ -197,15 +197,15 @@ export function AdminMembersManager() {
       {loading ? <div className="admin-skeleton admin-content-skeleton" aria-label="Đang tải thành viên" /> : (
         <section className="admin-panel" aria-labelledby="member-list-title">
           <div className="admin-panel-heading"><div><h2 className="admin-panel-title" id="member-list-title">Danh sách thành viên</h2><p className="admin-panel-caption">{members.length} tài khoản · thay đổi quyền có optimistic revision và audit log</p></div><UserRound size={17} /></div>
-          {members.length === 0 ? <div className="admin-table-empty"><strong>Chưa có thành viên</strong><p>Chạy migration control plane hoặc thêm owner đầu tiên trong D1.</p></div> : <div className="admin-member-list">{members.map((member) => <MemberEditor canEdit={canEdit} currentSubject={session.subject} key={member.id} member={member} onChange={updateDraft} onSave={(next) => void saveMember(next)} saving={savingId === member.id} />)}</div>}
+          {members.length === 0 ? <div className="admin-table-empty"><strong>Chưa có thành viên</strong><p>Chạy migration control plane hoặc thêm owner đầu tiên trong D1.</p></div> : <div className="admin-member-list">{members.map((member) => <MemberEditor canEdit={canEdit} currentMemberId={session.memberId} currentSubject={session.subject} key={member.id} member={member} onChange={updateDraft} onSave={(next) => void saveMember(next)} saving={savingId === member.id} />)}</div>}
         </section>
       )}
     </div>
   );
 }
 
-function MemberEditor({ canEdit, currentSubject, member, onChange, onSave, saving }: { canEdit: boolean; currentSubject: string; member: EditableMember; onChange: (id: string, patch: Partial<EditableMember>) => void; onSave: (member: EditableMember) => void; saving: boolean }) {
-  const isCurrent = member.accessSubject === currentSubject;
+function MemberEditor({ canEdit, currentMemberId, currentSubject, member, onChange, onSave, saving }: { canEdit: boolean; currentMemberId?: string; currentSubject: string; member: EditableMember; onChange: (id: string, patch: Partial<EditableMember>) => void; onSave: (member: EditableMember) => void; saving: boolean }) {
+  const isCurrent = member.id === currentMemberId || member.accessSubject === currentSubject;
   const dirty = member.draftDisplayName !== member.displayName
     || member.draftEmail !== (member.email ?? "")
     || member.draftRole !== member.role

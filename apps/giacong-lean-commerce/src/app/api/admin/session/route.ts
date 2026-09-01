@@ -10,7 +10,7 @@ export async function GET(request: Request): Promise<Response> {
     requestId: () => crypto.randomUUID(),
     resolveRole: async (subject, email) => {
       const member = await findAdminMember(getAdminDatabase(), subject, email ?? undefined);
-      return member?.role ?? "viewer";
+      return member ? { memberId: member.id, role: member.role } : "viewer";
     },
   });
 }

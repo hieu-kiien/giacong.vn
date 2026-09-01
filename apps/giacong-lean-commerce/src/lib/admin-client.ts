@@ -1,5 +1,6 @@
 export interface AdminSession {
   authenticated: boolean;
+  memberId?: string;
   subject: string;
   role: string;
 }
