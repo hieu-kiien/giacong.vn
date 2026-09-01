@@ -10,7 +10,7 @@ import {
 } from "@/lib/admin-data";
 import { adminErrorFrom } from "@/lib/admin-error-mapping.ts";
 import { requireAdmin } from "@/lib/admin-guard";
-import { canManageCatalog } from "@/lib/admin-permissions.ts";
+import { canManage, canManageCatalog } from "@/lib/admin-permissions.ts";
 import { readBoundedAdminJson } from "@/lib/admin-request";
 import { parseAdminProductVariantCreateCommand } from "@/lib/admin-variant-command";
 
@@ -23,6 +23,9 @@ interface RouteContext {
 export async function GET(request: Request, context: RouteContext): Promise<Response> {
   const guard = await requireAdmin(request);
   if (guard instanceof Response) return guard;
+  if (!canManage(guard.member.role, "catalog.read")) {
+    return adminFailure(crypto.randomUUID(), 403, "FORBIDDEN", "Vai trò hiện tại không được xem sản phẩm.");
+  }
   const productId = parsePositiveInt((await context.params).id);
   if (!productId) return adminFailure(crypto.randomUUID(), 404, "NOT_FOUND", "Không tìm thấy sản phẩm.");
 

@@ -195,32 +195,52 @@ export async function findAdminMember(
   accessSubject: string,
   email?: string,
 ): Promise<AdminMember | null> {
-  const normalizedEmail = email?.trim().toLowerCase() ?? "";
-  const query = normalizedEmail
-    ? `
-      SELECT id, access_subject, email, display_name, role
-      FROM admin_members
-      WHERE is_active = 1
-        AND (access_subject = ? OR lower(email) = lower(?))
-      LIMIT 1
-    `
-    : `
+  const normalizedSubject = accessSubject.trim();
+  if (!normalizedSubject) return null;
+
+  const exactRow = await database.prepare(`
     SELECT id, access_subject, email, display_name, role
     FROM admin_members
-    WHERE access_subject = ? AND is_active = 1
+    WHERE is_active = 1
+      AND access_subject = ?
     LIMIT 1
-  `;
-  const row = await database.prepare(query).bind(
-    ...(normalizedEmail ? [accessSubject, normalizedEmail] : [accessSubject]),
-  ).first<{
+  `).bind(normalizedSubject).first<{
     id: string;
     access_subject: string;
     email: string | null;
     display_name: string;
     role: AdminRole;
   }>();
+  if (exactRow) return toAdminMember(exactRow);
 
-  if (!row) return null;
+  const normalizedEmail = email?.trim().toLowerCase() ?? "";
+  if (!normalizedEmail) return null;
+
+  const emailRows = await database.prepare(`
+    SELECT id, access_subject, email, display_name, role
+    FROM admin_members
+    WHERE is_active = 1
+      AND lower(email) = lower(?)
+    ORDER BY id ASC
+    LIMIT 2
+  `).bind(normalizedEmail).all<{
+    id: string;
+    access_subject: string;
+    email: string | null;
+    display_name: string;
+    role: AdminRole;
+  }>();
+  if (emailRows.results.length !== 1) return null;
+  return toAdminMember(emailRows.results[0]);
+}
+
+function toAdminMember(row: {
+  id: string;
+  access_subject: string;
+  email: string | null;
+  display_name: string;
+  role: AdminRole;
+}): AdminMember {
   return {
     accessSubject: row.access_subject,
     displayName: row.display_name,

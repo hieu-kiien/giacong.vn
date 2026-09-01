@@ -11,7 +11,7 @@ import {
   listAdminProducts,
 } from "@/lib/admin-data";
 import { requireAdmin } from "@/lib/admin-guard";
-import { canManageCatalog } from "@/lib/admin-permissions.ts";
+import { canManage, canManageCatalog } from "@/lib/admin-permissions.ts";
 import { readBoundedAdminJson } from "@/lib/admin-request";
 import { parseAdminProductCreateCommand } from "@/lib/admin-product-command";
 
@@ -20,6 +20,9 @@ export const dynamic = "force-dynamic";
 export async function GET(request: Request): Promise<Response> {
   const guard = await requireAdmin(request);
   if (guard instanceof Response) return guard;
+  if (!canManage(guard.member.role, "catalog.read")) {
+    return adminFailure(crypto.randomUUID(), 403, "FORBIDDEN", "Vai trò hiện tại không được xem sản phẩm.");
+  }
 
   const url = new URL(request.url);
   const page = parsePositiveInt(url.searchParams.get("page"), 1);

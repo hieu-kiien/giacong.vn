@@ -1,7 +1,7 @@
 import { adminFailure, adminSuccess } from "@/lib/admin-api.ts";
 import { adminErrorFrom } from "@/lib/admin-error-mapping.ts";
 import { requireAdmin } from "@/lib/admin-guard";
-import { canManageNews } from "@/lib/admin-permissions.ts";
+import { canManage, canManageNews } from "@/lib/admin-permissions.ts";
 import { hasOnlyKeys, isAdminRequestId, readBoundedAdminJson } from "@/lib/admin-request";
 import { parseAdminNewsPayload } from "@/lib/admin-news-input";
 import { createAdminNewsPost, listAdminNewsPosts } from "@/lib/admin-data";
@@ -11,6 +11,9 @@ export const dynamic = "force-dynamic";
 export async function GET(request: Request): Promise<Response> {
   const guard = await requireAdmin(request);
   if (guard instanceof Response) return guard;
+  if (!canManage(guard.member.role, "news.read")) {
+    return adminFailure(crypto.randomUUID(), 403, "FORBIDDEN", "Vai trò hiện tại không được xem bài viết.");
+  }
 
   const url = new URL(request.url);
   const page = Number(url.searchParams.get("page")) || 1;

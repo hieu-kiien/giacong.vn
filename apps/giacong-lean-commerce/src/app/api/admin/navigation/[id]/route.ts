@@ -1,7 +1,7 @@
 import { adminFailure, adminSuccess } from "@/lib/admin-api.ts";
 import { adminErrorFrom } from "@/lib/admin-error-mapping.ts";
 import { requireAdmin } from "@/lib/admin-guard";
-import { canManageNavigation } from "@/lib/admin-permissions.ts";
+import { canManage, canManageNavigation } from "@/lib/admin-permissions.ts";
 import { hasOnlyKeys, isAdminRequestId, readBoundedAdminJson } from "@/lib/admin-request";
 import {
   getAdminSiteNavigation,
@@ -20,6 +20,9 @@ interface RouteContext {
 export async function GET(request: Request, context: RouteContext): Promise<Response> {
   const guard = await requireAdmin(request);
   if (guard instanceof Response) return guard;
+  if (!canManage(guard.member.role, "navigation.read")) {
+    return adminFailure(crypto.randomUUID(), 403, "FORBIDDEN", "Vai trò hiện tại không được xem điều hướng.");
+  }
   try {
     const item = await getAdminSiteNavigation(guard.database, (await context.params).id);
     return item

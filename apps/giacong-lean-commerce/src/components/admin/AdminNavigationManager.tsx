@@ -59,9 +59,11 @@ export function AdminNavigationManager() {
   const [publishingId, setPublishingId] = useState<string | null>(null);
   const [publishingAll, setPublishingAll] = useState(false);
   const [publishAllRequestId, setPublishAllRequestId] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
   const [newItem, setNewItem] = useState<NewNavigationForm>({ href: "/", label: "", sortOrder: "" });
   const mutationRequestIds = useRef(new Map<string, string>());
+  const createRequestId = useRef<string | null>(null);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -202,8 +204,12 @@ export function AdminNavigationManager() {
   }
 
   async function createItem() {
-    if (!canEdit) return;
+    if (!canEdit || creating) return;
+    setCreating(true);
     setError(null);
+    setNotice(null);
+    const requestId = createRequestId.current ?? crypto.randomUUID();
+    createRequestId.current = requestId;
     try {
       const result = await mutateAdmin<{ item: AdminNavigationItem }>("/api/admin/navigation", {
         body: {
@@ -211,6 +217,7 @@ export function AdminNavigationManager() {
           isActive: true,
           label: newItem.label,
           menuKey: "primary",
+          requestId,
           sortOrder: newItem.sortOrder === "" ? Math.max(0, ...primaryItems.map((item) => item.draftSortOrder)) + 10 : Number(newItem.sortOrder),
         },
         method: "POST",
@@ -218,12 +225,16 @@ export function AdminNavigationManager() {
       setItems((current) => [...current, result.item]);
       setNewItem({ href: "/", label: "", sortOrder: "" });
       setShowCreate(false);
+      createRequestId.current = null;
       setNotice("Đã thêm mục điều hướng. Hãy lưu và publish khi sẵn sàng.");
       showToast("success", "Đã thêm mục điều hướng mới.");
     } catch (reason: unknown) {
       const clientError = reason instanceof AdminClientError ? reason : new AdminClientError("Không thể thêm mục điều hướng.", 0);
+      if (clientError.status >= 400 && clientError.status < 500) createRequestId.current = null;
       setError(clientError);
       showToast("error", clientError.message);
+    } finally {
+      setCreating(false);
     }
   }
 
@@ -252,16 +263,16 @@ export function AdminNavigationManager() {
           <div className="admin-panel-heading"><div><h2 className="admin-panel-title" id="navigation-create-title">Thêm mục primary</h2><p className="admin-panel-caption">Dùng đường dẫn nội bộ như <code>/gioi-thieu/</code> hoặc URL https:// an toàn.</p></div></div>
           <div className="admin-editor-grid">
             <AdminField id="navigation-new-label" label="Nhãn">
-              <input className="admin-input" disabled={!canEdit} id="navigation-new-label" onChange={(event) => setNewItem((current) => ({ ...current, label: event.target.value }))} value={newItem.label} />
+              <input className="admin-input" disabled={!canEdit} id="navigation-new-label" onChange={(event) => { createRequestId.current = null; setNewItem((current) => ({ ...current, label: event.target.value })); }} value={newItem.label} />
             </AdminField>
             <AdminField id="navigation-new-href" label="Đường dẫn">
-              <input className="admin-input" disabled={!canEdit} id="navigation-new-href" onChange={(event) => setNewItem((current) => ({ ...current, href: event.target.value }))} value={newItem.href} />
+              <input className="admin-input" disabled={!canEdit} id="navigation-new-href" onChange={(event) => { createRequestId.current = null; setNewItem((current) => ({ ...current, href: event.target.value })); }} value={newItem.href} />
             </AdminField>
             <AdminField id="navigation-new-order" hint="Để trống để đặt sau mục hiện có." label="Thứ tự" optional>
-              <input className="admin-input" disabled={!canEdit} id="navigation-new-order" min="0" onChange={(event) => setNewItem((current) => ({ ...current, sortOrder: event.target.value }))} type="number" value={newItem.sortOrder} />
+              <input className="admin-input" disabled={!canEdit} id="navigation-new-order" min="0" onChange={(event) => { createRequestId.current = null; setNewItem((current) => ({ ...current, sortOrder: event.target.value })); }} type="number" value={newItem.sortOrder} />
             </AdminField>
           </div>
-          <div className="admin-editor-actions"><button className="admin-button admin-button-primary" disabled={!canEdit || !newItem.label || !newItem.href} onClick={() => void createItem()} type="button"><Plus size={14} /> Thêm mục</button></div>
+          <div className="admin-editor-actions"><button className="admin-button admin-button-primary" disabled={!canEdit || creating || !newItem.label || !newItem.href} onClick={() => void createItem()} type="button"><Plus size={14} /> {creating ? "Đang thêm..." : "Thêm mục"}</button></div>
         </section>
       ) : null}
       {notice ? <div className="admin-content-notice" role="status">{notice}</div> : null}

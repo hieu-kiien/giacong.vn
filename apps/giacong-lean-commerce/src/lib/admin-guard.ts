@@ -1,6 +1,6 @@
 import "server-only";
 
-import { adminFailure, type AdminApiErrorCode } from "./admin-api.ts";
+import { adminFailure } from "./admin-api.ts";
 import { admitRuntimeAdminRequest } from "./admin-access-runtime";
 import {
   findAdminMember,
@@ -48,8 +48,12 @@ export async function requireAdmin(
       database,
       member,
     };
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Không thể truy cập dữ liệu admin.";
-    return adminFailure(requestId, 503, "INTERNAL_ERROR" as AdminApiErrorCode, message);
+  } catch {
+    return adminFailure(
+      requestId,
+      503,
+      "INTERNAL_ERROR",
+      "Không thể xác minh quyền admin lúc này.",
+    );
   }
 }

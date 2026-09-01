@@ -1,6 +1,6 @@
 import { adminFailure, adminSuccess } from "@/lib/admin-api.ts";
 import { hasOnlyKeys, isAdminRequestId, readBoundedAdminJson } from "@/lib/admin-request";
-import { canManageSiteContent } from "@/lib/admin-permissions";
+import { canManage, canManageSiteContent } from "@/lib/admin-permissions";
 import {
   listAdminSiteSettings,
   SiteSettingConflictError,
@@ -17,6 +17,9 @@ export const dynamic = "force-dynamic";
 export async function GET(request: Request): Promise<Response> {
   const guard = await requireAdmin(request);
   if (guard instanceof Response) return guard;
+  if (!canManage(guard.member.role, "content.read")) {
+    return adminFailure(crypto.randomUUID(), 403, "FORBIDDEN", "Vai trò hiện tại không được xem nội dung website.");
+  }
   try {
     const settings = await listAdminSiteSettings(guard.database);
     return adminSuccess(crypto.randomUUID(), { settings, canEdit: canManageSiteContent(guard.member.role), role: guard.member.role });

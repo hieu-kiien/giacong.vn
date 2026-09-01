@@ -1,7 +1,7 @@
 import { adminFailure, adminSuccess } from "@/lib/admin-api.ts";
 import { adminErrorFrom } from "@/lib/admin-error-mapping.ts";
 import { requireAdmin } from "@/lib/admin-guard";
-import { canManageNavigation, canPublishNavigation } from "@/lib/admin-permissions.ts";
+import { canManage, canManageNavigation, canPublishNavigation } from "@/lib/admin-permissions.ts";
 import { hasOnlyKeys, isAdminRequestId, readBoundedAdminJson } from "@/lib/admin-request";
 import {
   createAdminSiteNavigation,
@@ -15,6 +15,9 @@ export const dynamic = "force-dynamic";
 export async function GET(request: Request): Promise<Response> {
   const guard = await requireAdmin(request);
   if (guard instanceof Response) return guard;
+  if (!canManage(guard.member.role, "navigation.read")) {
+    return adminFailure(crypto.randomUUID(), 403, "FORBIDDEN", "Vai trò hiện tại không được xem điều hướng.");
+  }
   try {
     const items = await listAdminSiteNavigation(guard.database);
     return adminSuccess(crypto.randomUUID(), {

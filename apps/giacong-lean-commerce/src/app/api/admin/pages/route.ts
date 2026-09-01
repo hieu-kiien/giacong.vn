@@ -1,7 +1,7 @@
 import { adminFailure, adminSuccess } from "@/lib/admin-api.ts";
 import { adminErrorFrom } from "@/lib/admin-error-mapping.ts";
 import { requireAdmin } from "@/lib/admin-guard";
-import { canManagePages, canPublishPages } from "@/lib/admin-permissions.ts";
+import { canManage, canManagePages, canPublishPages } from "@/lib/admin-permissions.ts";
 import { readBoundedAdminJson } from "@/lib/admin-request";
 import { createAdminSitePage, listAdminSitePages, SitePageValidationError } from "@/lib/site-pages.ts";
 
@@ -10,6 +10,9 @@ export const dynamic = "force-dynamic";
 export async function GET(request: Request): Promise<Response> {
   const guard = await requireAdmin(request);
   if (guard instanceof Response) return guard;
+  if (!canManage(guard.member.role, "pages.read")) {
+    return adminFailure(crypto.randomUUID(), 403, "FORBIDDEN", "Vai trò hiện tại không được xem page.");
+  }
   try {
     const pages = await listAdminSitePages(guard.database);
     return adminSuccess(crypto.randomUUID(), {

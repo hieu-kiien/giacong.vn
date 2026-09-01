@@ -4,8 +4,8 @@ import type { AdminAdmissionResult } from "./admin-access.ts";
 export interface AdminSessionDependencies {
   admit(request: Request): Promise<AdminAdmissionResult>;
   requestId(): string;
-  /** Resolves the operator role and optional D1 member id; defaults to "viewer". */
-  resolveRole?(subject: string, email: string | null): Promise<string | AdminSessionRoleResolution>;
+  /** Resolves an active D1 member; an absent member must remain blocked. */
+  resolveRole?(subject: string, email: string | null): Promise<AdminSessionRoleResolution | null>;
 }
 
 export interface AdminSessionRoleResolution {
@@ -29,22 +29,38 @@ export async function handleAdminSession(
   }
 
   // The client gates write controls on this role, so it must always be present.
-  // Public demo actors are owners by contract; Access actors resolve via D1.
+  // Public demo actors are owners by contract; Access actors must resolve to an active D1 member.
   let role = "viewer";
   let memberId: string | undefined;
   if (admission.actor.publicAdmin) {
     role = "owner";
-  } else if (dependencies.resolveRole) {
+  } else if (!dependencies.resolveRole) {
+    return adminFailure(
+      requestId,
+      503,
+      "INTERNAL_ERROR",
+      "Không thể xác minh quyền admin lúc này.",
+    );
+  } else {
     try {
       const resolved = await dependencies.resolveRole(admission.actor.subject, admission.actor.email ?? null);
-      if (typeof resolved === "string") {
-        role = resolved;
-      } else {
-        role = resolved.role;
-        memberId = resolved.memberId;
+      if (!resolved) {
+        return adminFailure(
+          requestId,
+          403,
+          "FORBIDDEN",
+          "Tài khoản chưa được cấp quyền trong admin.",
+        );
       }
+      role = resolved.role;
+      memberId = resolved.memberId;
     } catch {
-      role = "viewer";
+      return adminFailure(
+        requestId,
+        503,
+        "INTERNAL_ERROR",
+        "Không thể xác minh quyền admin lúc này.",
+      );
     }
   }
 

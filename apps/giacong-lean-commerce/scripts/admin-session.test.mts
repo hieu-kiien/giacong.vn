@@ -6,11 +6,11 @@ test("returns an authenticated session carrying the operator role", async () => 
   const response = await handleAdminSession(new Request("https://admin.example.test/api/admin/session"), {
     admit: async () => ({ actor: { subject: "demo-actor" }, ok: true }),
     requestId: () => "request-1",
-    resolveRole: async () => "owner",
+    resolveRole: async () => ({ memberId: "owner-1", role: "owner" }),
   });
   assert.equal(response.status, 200);
   assert.deepEqual(await response.json(), {
-    data: { authenticated: true, role: "owner", subject: "demo-actor" },
+    data: { authenticated: true, memberId: "owner-1", role: "owner", subject: "demo-actor" },
     ok: true,
     requestId: "request-1",
   });
@@ -41,7 +41,7 @@ test("public demo actors are owners without a D1 role lookup", async () => {
     requestId: () => "request-2",
     resolveRole: async () => {
       resolveRoleCalled = true;
-      return "viewer";
+      return null;
     },
   });
   assert.equal(response.status, 200);
@@ -50,16 +50,36 @@ test("public demo actors are owners without a D1 role lookup", async () => {
   assert.equal(resolveRoleCalled, false);
 });
 
-test("a failed role lookup degrades to viewer instead of blocking the session", async () => {
+test("an unknown Access identity is blocked instead of being presented as viewer", async () => {
   const response = await handleAdminSession(new Request("https://admin.example.test/api/admin/session"), {
     admit: async () => ({ actor: { subject: "unknown-actor" }, ok: true }),
     requestId: () => "request-3",
+    resolveRole: async () => null,
+  });
+  assert.equal(response.status, 403);
+  assert.deepEqual(await response.json(), {
+    code: "FORBIDDEN",
+    message: "Tài khoản chưa được cấp quyền trong admin.",
+    ok: false,
+    requestId: "request-3",
+  });
+});
+
+test("a failed role lookup returns a safe unavailable response", async () => {
+  const response = await handleAdminSession(new Request("https://admin.example.test/api/admin/session"), {
+    admit: async () => ({ actor: { subject: "unknown-actor" }, ok: true }),
+    requestId: () => "request-3b",
     resolveRole: async () => {
       throw new Error("d1 unavailable");
     },
   });
-  assert.equal(response.status, 200);
-  assert.equal((await response.json()).data.role, "viewer");
+  assert.equal(response.status, 503);
+  assert.deepEqual(await response.json(), {
+    code: "INTERNAL_ERROR",
+    message: "Không thể xác minh quyền admin lúc này.",
+    ok: false,
+    requestId: "request-3b",
+  });
 });
 
 test("preserves admission failures in the standard admin envelope", async () => {

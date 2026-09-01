@@ -1,7 +1,7 @@
 import { adminFailure, adminSuccess } from "@/lib/admin-api.ts";
 import { adminErrorFrom } from "@/lib/admin-error-mapping.ts";
 import { requireAdmin } from "@/lib/admin-guard";
-import { canManagePages } from "@/lib/admin-permissions.ts";
+import { canManage, canManagePages } from "@/lib/admin-permissions.ts";
 import { readBoundedAdminJson } from "@/lib/admin-request";
 import {
   getAdminSitePage,
@@ -20,6 +20,9 @@ interface RouteContext {
 export async function GET(request: Request, context: RouteContext): Promise<Response> {
   const guard = await requireAdmin(request);
   if (guard instanceof Response) return guard;
+  if (!canManage(guard.member.role, "pages.read")) {
+    return adminFailure(crypto.randomUUID(), 403, "FORBIDDEN", "Vai trò hiện tại không được xem page.");
+  }
   try {
     const page = await getAdminSitePage(guard.database, (await context.params).pageKey);
     return page
