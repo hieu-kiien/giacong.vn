@@ -1,4 +1,4 @@
-# Cloudflare current state — 2026-08-14
+# Cloudflare current state — 2026-09-01
 
 Hồ sơ này ghi bằng chứng runtime đã xác minh trong quá trình chuyển Lean V1 sang Cloudflare-native.
 

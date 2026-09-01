@@ -44,11 +44,11 @@ interface NewMemberForm {
 }
 
 const roleOptions: Array<{ value: AdminRole; label: string; description: string }> = [
-  { value: "owner", label: "Owner", description: "Toàn quyền, bao gồm thành viên và quyền." },
-  { value: "content_manager", label: "Content manager", description: "Nội dung, page, menu, media, tin tức, dịch vụ." },
-  { value: "catalog_manager", label: "Catalog manager", description: "Sản phẩm, danh mục, biến thể và media catalog." },
-  { value: "sales_manager", label: "Sales manager", description: "Yêu cầu báo giá và luồng lead." },
-  { value: "viewer", label: "Viewer", description: "Chỉ xem dữ liệu được cấp quyền đọc." },
+  { value: "owner", label: "Chủ sở hữu (toàn quyền)", description: "Toàn quyền, bao gồm thành viên và quyền." },
+  { value: "content_manager", label: "Quản lý nội dung", description: "Nội dung, page, menu, media, tin tức, dịch vụ." },
+  { value: "catalog_manager", label: "Quản lý catalog", description: "Sản phẩm, danh mục, biến thể và media catalog." },
+  { value: "sales_manager", label: "Quản lý yêu cầu", description: "Yêu cầu báo giá và luồng lead." },
+  { value: "viewer", label: "Người xem", description: "Chỉ xem dữ liệu được cấp quyền đọc." },
 ];
 
 const emptyMember: NewMemberForm = {
