@@ -29,6 +29,7 @@
     "qa:catalog": "node scripts/verify-catalog-storefront.mjs",
     "qa:services": "node scripts/verify-service-ia.mjs",
     "qa:cart": "node --no-warnings --experimental-strip-types scripts/verify-request-cart.mjs",
+    "qa:ux": "node scripts/ux-audit-pilot.mjs",
     "check": "npm run test:admin && npm run test:contact && npm run test:catalog && npm run test:catalog-purchase-ui && npm run test:service && npm run test:commerce && npm run test:listing && npm run test:detail && npm run lint && npm run typecheck && npm run build",
     "check:fe": "npm run test:commerce && npm run test:listing && npm run test:detail && npm run test:catalog-purchase-ui && npm run lint && npm run typecheck",
     "check:be": "npm run test:admin && npm run test:contact && npm run test:catalog && npm run test:service && npm run lint && npm run typecheck",
