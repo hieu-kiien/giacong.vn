@@ -21,7 +21,8 @@ product/service/category bulk archive contract đã có trong `master`. Bản
 storefront motion/menu đã được review và tích hợp từ worktree riêng; fallback
 gallery đã chấp nhận asset WebP. `qa:ux` là runner tracked để lặp lại audit
 staging. Staging đang phục vụ version
-`cc144df5-0cd6-4dfa-992a-35ceafbc9778` sau dependency hardening; public UX
+`be634bc2-569c-41de-8995-db66767fb0e0` sau dependency hardening và UX Access
+handoff; public UX
 audit năm route pass, axe không có serious/critical violation, nhưng
 browser/admin identity evidence và role matrix vẫn là gate riêng.
 
@@ -35,7 +36,11 @@ Commit `8c509c5` đã nâng Next.js `16.3.4`, OpenNext Cloudflare `1.20.5`,
 Wrangler `4.125.0`, loại `shadcn` CLI khỏi runtime dependency graph và giữ
 Tailwind extension cần thiết trong source. `npm audit --omit=dev` và full
 `npm audit` đều báo `0 vulnerabilities`; staging build/deploy và live `qa:ux`
-đã chạy lại thành công trên version `cc144df5-0cd6-4dfa-992a-35ceafbc9778`.
+đã chạy lại thành công trên version `be634bc2-569c-41de-8995-db66767fb0e0`.
+
+Commit `650d10f` đã thay hướng dẫn kỹ thuật trên màn hình Access-blocked bằng
+ngôn ngữ đời thường cho người ít chuyên môn, có regression test trong
+`admin-ui-system.test.mjs`; không thay đổi admission boundary hay quyền server.
 
 Repo chính không có GIF/video runtime bắt buộc: motion hiện dùng CSS/HTML và
 asset WebP phù hợp. Worktree motion riêng vẫn được giữ nguyên, không reset hoặc

@@ -13,7 +13,7 @@ lý hàng loạt.
 **Checkpoint hiện tại — 2026-09-01:** Bản motion/menu storefront đã được
 review và tích hợp vào `master` (cùng runner `qa:ux`, WebP gallery fixtures và
 regression cho hero settings). Sau khi harden dependency, staging đang phục vụ
-version `cc144df5-0cd6-4dfa-992a-35ceafbc9778`; `next` `16.3.4`,
+version `be634bc2-569c-41de-8995-db66767fb0e0`; `next` `16.3.4`,
 `@opennextjs/cloudflare` `1.20.5`, Wrangler `4.125.0`, full `npm audit` và
 production-only audit đều `0 vulnerabilities`. Audit UX trực tiếp sau deploy
 trên 5 route public đã pass HTTP 200, thao tác chính, mobile/desktop,
@@ -570,6 +570,15 @@ Wrapper Windows giữ process sau khi in kết quả deploy/audit nên phải d�
 công; không dùng wrapper đó làm bằng chứng exit code thay cho output build và
 audit đã ghi nhận. Access identity thật, role matrix, write/read-back và
 production acceptance vẫn là gate mở.
+
+**Runtime update 2026-09-01 (admin Access handoff UX):** commit `650d10f` đã
+đổi màn hình bị chặn từ hướng dẫn kỹ thuật “mở console” sang hướng dẫn rõ ràng:
+chọn nút đăng nhập Cloudflare Access, hoàn tất xác minh và quay lại trang admin;
+đồng thời thêm regression test, full gate đạt admin `161/161`. Version staging
+`be634bc2-569c-41de-8995-db66767fb0e0` đã build/deploy thành công; public
+`qa:ux` sau deploy vẫn pass 5/5 route, 0 console error, 0 HTTP 4xx/5xx,
+0 overflow và axe 5/5 không serious/critical. Access identity thật và browser
+admin vẫn cần được kiểm tra sau khi người vận hành đăng nhập.
 
 **Công việc:**
 

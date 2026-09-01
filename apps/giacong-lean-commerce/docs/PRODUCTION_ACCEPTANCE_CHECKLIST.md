@@ -117,6 +117,8 @@ Lưu ý: demo staging KHÔNG được seed sang production. Khách tự thao tá
 - [x] Staging storefront motion/UX runtime revalidation 2026-09-01 sau version `43e186bc-8dff-4812-b9e1-68e10336a4f1`: 5 route public, toàn bộ action pass, 0 console error, 0 HTTP 4xx/5xx, 0 overflow, axe 5/5 không có serious/critical; còn 1 warning Google Maps iframe bên thứ ba.
 - [x] Dependency hardening 2026-09-01: commit `8c509c5` nâng Next.js `16.3.4`, OpenNext `1.20.5`, Wrangler `4.125.0`, loại `shadcn` CLI khỏi runtime graph; `npm audit` và `npm audit --omit=dev` đều `0 vulnerabilities`; `npm run check` pass.
 - [x] Staging revalidation sau dependency hardening: version `cc144df5-0cd6-4dfa-992a-35ceafbc9778` build/deploy thành công; live `qa:ux` 5/5 route pass, 0 console error, 0 HTTP 4xx/5xx, 0 overflow, axe `5/5` không serious/critical; còn 1 warning Google Maps iframe bên thứ ba.
+- [x] Admin Access handoff UX 2026-09-01: commit `650d10f` bỏ hướng dẫn “mở console”, thay bằng hướng dẫn chọn đăng nhập, xác minh và quay lại; regression test và full gate admin `161/161` pass; staging version `be634bc2-569c-41de-8995-db66767fb0e0` deploy thành công.
+- [x] Public staging revalidation sau admin UX: `qa:ux` 5/5 route pass, 0 console error, 0 HTTP 4xx/5xx, 0 overflow, axe `5/5` không serious/critical; còn 1 warning Google Maps iframe bên thứ ba. Đây không thay thế admin Access identity.
 - [ ] Admin session/audit read-back bằng Access identity thật trên hostname staging.
 - [ ] Browser admin desktop/mobile/keyboard/focus/reduced-motion với Access identity thật.
 - [ ] Role × route/action read-back trên staging cho owner/content_manager/catalog_manager/sales_manager/viewer.

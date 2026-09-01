@@ -12,16 +12,21 @@ Hồ sơ này ghi bằng chứng runtime đã xác minh trong quá trình chuy�
   --audit-level=high` và `npm audit --audit-level=high` đều trả `0
   vulnerabilities`.
 - Staging Worker `giacong-vn-staging` đã build/deploy version
-  `cc144df5-0cd6-4dfa-992a-35ceafbc9778`; bindings và routes staging vẫn đúng,
+  `be634bc2-569c-41de-8995-db66767fb0e0`; bindings và routes staging vẫn đúng,
   `ADMIN_PUBLIC=false`.
 - Live `qa:ux` sau deploy tại `https://staging.kienhieu.id.vn` pass 5/5 route,
   toàn bộ action, 0 console error, 0 HTTP 4xx/5xx, 0 overflow, axe `5/5` với
   0 serious/critical violation. Còn 1 warning `postMessage` từ Google Maps
   iframe bên thứ ba trên trang liên hệ.
-- Evidence Playwright được lưu ngoài repo tại
-  `C:\Users\hieuk\Desktop\staging-ux-audit-2026-09-01-deps`. Cloudflare Access
+- Evidence Playwright mới nhất được lưu ngoài repo tại
+  `C:\Users\hieuk\Desktop\staging-ux-audit-2026-09-01-admin-copy`; audit dependency
+  trước đó ở `C:\Users\hieuk\Desktop\staging-ux-audit-2026-09-01-deps`. Cloudflare Access
   identity thật, admin role matrix, write/read-back và production gate vẫn
   chưa được tự động đóng.
+- Commit `650d10f` đã sửa nội dung hướng dẫn trên màn hình Access-blocked để
+  người ít chuyên môn biết chọn nút đăng nhập, hoàn tất xác minh và quay lại;
+  regression test và full local gate đã pass. Bản deploy mới vẫn chưa chứng
+  minh được browser admin bằng identity thật vì request chưa có Access session.
 
 ## Hạ tầng đã xác minh
 
