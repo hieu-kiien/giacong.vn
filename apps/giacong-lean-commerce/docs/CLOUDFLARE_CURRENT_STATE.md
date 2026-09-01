@@ -501,5 +501,6 @@ restore/rollback drill, observability 24h và quyết định redirect
   page/API đã khai báo; tất cả đều trả HTTP `302`, không đọc được Worker payload
   trực tiếp và không có mutation. Production edge probe cùng ngày trả public
   `200`, admin `302`. Hai lần gọi D1 read-only production (`migrations list` và
-  query `d1_migrations`) cùng trả Cloudflare API internal error `7500`, nên
-  chưa dùng kết quả đó để suy diễn migration state và không phát hành lệnh ghi.
+  query `d1_migrations`) gặp Cloudflare API internal error `7500` ở query và
+  authentication error `10000` ở database info, nên chưa dùng kết quả đó để
+  suy diễn migration state và không phát hành lệnh ghi.
