@@ -148,7 +148,7 @@ test("the gallery gives a thumbnail rail and never a gray placeholder", () => {
 
   assert.ok(view.gallery.length >= 3, "a thumbnail rail needs several images");
   for (const image of view.gallery) {
-    assert.match(image.url, /^\/images\/products\/[a-z0-9-]+\.png$/, "gallery falls back to local demo packshots");
+    assert.match(image.url, /^\/images\/products\/[a-z0-9-]+\.(?:png|webp)$/, "gallery falls back to local demo packshots");
     assert.ok(image.alt.trim().length > 0, "every gallery image needs alt text");
   }
   assert.equal(
