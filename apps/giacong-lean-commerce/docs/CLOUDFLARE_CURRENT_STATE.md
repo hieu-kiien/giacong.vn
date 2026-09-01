@@ -557,3 +557,23 @@ restore/rollback drill, observability 24h và quyết định redirect
   public staging vẫn trả `200`, admin không có identity vẫn trả `302` về
   Cloudflare Access. Cần re-test bằng phiên Chrome đã đăng nhập để đóng gate
   Access identity; owner bootstrap và role/read-write acceptance vẫn còn mở.
+
+## Staging admin owner bootstrap và browser acceptance — 2026-09-01
+
+- Workflow dispatch `33488908920` đã hoàn tất thành công trên GitHub Actions.
+  Workflow chỉ nhắm tới D1 staging `giacong-vn-catalog-staging`, khóa cứng
+  owner được phê duyệt là `qtu1053@gmail.com` và không nhắm production.
+- Preflight xác minh bảng `admin_members` tồn tại, chưa có identity trùng,
+  không có row xung đột với id owner dành riêng. Upsert idempotent ghi đúng một
+  row; post-condition xác minh `matching_rows = 1` và
+  `active_owner_matches = 1`.
+- Chrome đã đăng nhập được tải lại tại `/admin`: header hiển thị `Vai trò:
+  Chủ sở hữu`, dashboard đọc được dữ liệu D1 thật, không còn lỗi thiếu quyền.
+  Console không có error hoặc warning trong lượt kiểm tra.
+- `/admin/thanh-vien` render đúng với một tài khoản owner; nút `Thêm thành
+  viên` hoạt động và mở form tạo thành viên. Chưa submit tài khoản thứ hai
+  trong lượt acceptance này.
+- Đây là bằng chứng Access identity thật + owner bootstrap trên staging. Các
+  gate còn lại của admin (role matrix đầy đủ, write/read-back từng capability,
+  reduced-motion/focus và production data/migration) vẫn phải hoàn tất trước
+  khi mở production.
