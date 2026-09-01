@@ -30,7 +30,7 @@ test("news schema has separate draft and published snapshots with request-scoped
 });
 
 test("news writes use bounded JSON, explicit publish boundary and revision-aware delete", async () => {
-  const [collectionRoute, detailRoute, publishRoute, batchRoute, input, data, publicData] = await Promise.all([
+  const [collectionRoute, detailRoute, publishRoute, batchRoute, input, data, publicData, page] = await Promise.all([
     read("src/app/api/admin/news/route.ts"),
     read("src/app/api/admin/news/[id]/route.ts"),
     read("src/app/api/admin/news/[id]/publish/route.ts"),
@@ -38,6 +38,7 @@ test("news writes use bounded JSON, explicit publish boundary and revision-aware
     read("src/lib/admin-news-input.ts"),
     read("src/lib/admin-data.ts"),
     read("src/lib/news-public.ts"),
+    read("src/app/admin/tin-tuc/page.tsx"),
   ]);
   assert.match(collectionRoute, /readBoundedAdminJson/);
   assert.match(collectionRoute, /isAdminRequestId/);
@@ -60,6 +61,10 @@ test("news writes use bounded JSON, explicit publish boundary and revision-aware
   assert.match(data, /bulk_request_id/);
   assert.match(publicData, /published_slug/);
   assert.doesNotMatch(publicData, /WHERE slug = \? AND is_published = 1/);
+  assert.match(page, /newsBatchRequest/);
+  assert.match(page, /batchAction/);
+  assert.match(page, /requestId: pendingBatch\?\.requestId/);
+  assert.match(page, /status >= 400 && clientError\.status < 500/);
 });
 
 interface FakeNewsRow {

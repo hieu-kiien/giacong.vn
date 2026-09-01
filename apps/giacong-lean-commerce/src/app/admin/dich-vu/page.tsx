@@ -1,7 +1,7 @@
 "use client";
 
 import { Search } from "lucide-react";
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { AdminMediaPanel } from "@/components/admin/AdminMediaPanel";
 import { AdminEmptyState, AdminErrorState, AdminLoadingTable, AdminPageHeading, AdminPagination, AdminStatusBadge } from "@/components/admin/AdminPrimitives";
 import { useAdminSession } from "@/components/admin/AdminShell";
@@ -28,6 +28,12 @@ interface ServiceBatchResponse {
   changedCount: number;
   selectedCount: number;
   skipped: Array<{ id: number; reason: string }>;
+}
+
+interface PendingServiceBatch {
+  items: Array<{ expectedRevision: number; id: number }>;
+  key: string;
+  requestId: string;
 }
 
 type ServiceFormState = {
@@ -78,6 +84,8 @@ export default function AdminServicesPage() {
   const [archivingId, setArchivingId] = useState<number | null>(null);
   const [batchArchiving, setBatchArchiving] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const serviceBatchRequest = useRef<PendingServiceBatch | null>(null);
+  const serviceBatchInFlight = useRef(false);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -218,20 +226,29 @@ export default function AdminServicesPage() {
 
   async function archiveSelectedServices() {
     const selectedServices = confirmBatchArchive.filter((service) => service.isActive);
-    if (selectedServices.length === 0) return;
+    if (selectedServices.length === 0 || serviceBatchInFlight.current) return;
+    serviceBatchInFlight.current = true;
     setBatchArchiving(true);
     setSaveError(null);
+    const batchKey = selectedServices.map((service) => service.id).sort((a, b) => a - b).join(",");
+    const pendingBatch = serviceBatchRequest.current?.key === batchKey ? serviceBatchRequest.current : null;
     try {
-      const ids = selectedServices.map((service) => service.id).join(",");
-      const snapshotResult = await fetchAdmin<ServiceBatchSnapshotResponse>(`/api/admin/services/batch?ids=${encodeURIComponent(ids)}`);
-      const snapshots = new Map(snapshotResult.services.map((service) => [service.id, service]));
+      let items = pendingBatch?.items;
+      if (!items) {
+        const ids = selectedServices.map((service) => service.id).join(",");
+        const snapshotResult = await fetchAdmin<ServiceBatchSnapshotResponse>(`/api/admin/services/batch?ids=${encodeURIComponent(ids)}`);
+        const snapshots = new Map(snapshotResult.services.map((service) => [service.id, service]));
+        items = selectedServices.map((service) => ({
+          expectedRevision: snapshots.get(service.id)?.revision ?? 1,
+          id: service.id,
+        }));
+      }
+      const requestId = pendingBatch?.requestId ?? crypto.randomUUID();
+      serviceBatchRequest.current = { items, key: batchKey, requestId };
       const result = await mutateAdmin<ServiceBatchResponse>("/api/admin/services/batch", {
         body: {
-          items: selectedServices.map((service) => ({
-            expectedRevision: snapshots.get(service.id)?.revision ?? 1,
-            id: service.id,
-          })),
-          requestId: crypto.randomUUID(),
+          items,
+          requestId: pendingBatch?.requestId ?? requestId,
         },
         method: "POST",
       });
@@ -240,11 +257,19 @@ export default function AdminServicesPage() {
         skipped > 0 ? "error" : "success",
         `Đã ẩn ${result.changedCount} / ${result.selectedCount} dịch vụ.${skipped > 0 ? ` ${skipped} dịch vụ chưa xử lý, hãy tải lại để kiểm tra.` : ""}`,
       );
+      if (serviceBatchRequest.current?.key === batchKey) serviceBatchRequest.current = null;
       setSelectedIds(new Set());
       setAttempt((value) => value + 1);
     } catch (reason: unknown) {
-      showToast("error", reason instanceof AdminClientError ? reason.message : "Không thể ẩn hàng loạt dịch vụ.");
+      const clientError = reason instanceof AdminClientError
+        ? reason
+        : new AdminClientError("Không thể ẩn hàng loạt dịch vụ.", 0);
+      if (clientError.status >= 400 && clientError.status < 500 && serviceBatchRequest.current?.key === batchKey) {
+        serviceBatchRequest.current = null;
+      }
+      showToast("error", clientError.message);
     } finally {
+      serviceBatchInFlight.current = false;
       setBatchArchiving(false);
       setConfirmBatchArchive([]);
     }
@@ -288,7 +313,7 @@ export default function AdminServicesPage() {
         {canManage && selectedIds.size > 0 ? (
           <>
             <span aria-live="polite" className="admin-item-meta" data-testid="service-selection-count">Đã chọn {selectedIds.size}</span>
-            <button className="admin-button admin-button-danger" data-testid="button-service-batch-archive" disabled={batchArchiving} onClick={() => setConfirmBatchArchive(services.filter((service) => selectedIds.has(service.id) && service.isActive))} type="button">Ẩn đã chọn</button>
+            <button className="admin-button admin-button-danger" data-testid="button-service-batch-archive" disabled={batchArchiving} onClick={() => setConfirmBatchArchive(services.filter((service) => selectedIds.has(service.id) && service.isActive))} type="button">{batchArchiving ? "Đang ẩn..." : "Ẩn đã chọn"}</button>
           </>
         ) : null}
         {canManage ? <button className="admin-button admin-button-primary" data-testid="button-service-create" onClick={openCreate} type="button">Thêm dịch vụ</button> : null}
@@ -300,7 +325,7 @@ export default function AdminServicesPage() {
             <>
               <div className="admin-table-scroll">
                 <table className="admin-table">
-                  <thead><tr>{canManage ? <th scope="col"><input aria-label="Chọn tất cả dịch vụ trong trang" checked={services.some((service) => service.isActive) && services.filter((service) => service.isActive).every((service) => selectedIds.has(service.id))} onChange={toggleAllVisible} type="checkbox" /></th> : null}<th scope="col">Dịch vụ</th><th scope="col">Tóm tắt</th><th scope="col">Trạng thái</th><th scope="col">MOQ</th><th scope="col">Lead time</th><th scope="col">Cập nhật</th>{canManage ? <th scope="col">Thao tác</th> : null}</tr></thead>
+                  <thead><tr>{canManage ? <th scope="col"><input aria-label="Chọn tất cả dịch vụ trong trang" checked={services.some((service) => service.isActive) && services.filter((service) => service.isActive).every((service) => selectedIds.has(service.id))} disabled={batchArchiving} onChange={toggleAllVisible} type="checkbox" /></th> : null}<th scope="col">Dịch vụ</th><th scope="col">Tóm tắt</th><th scope="col">Trạng thái</th><th scope="col">MOQ</th><th scope="col">Lead time</th><th scope="col">Cập nhật</th>{canManage ? <th scope="col">Thao tác</th> : null}</tr></thead>
                   <tbody>
                     {services.map((service) => (
                       <tr data-testid={`row-service-${service.id}`} key={service.id}>

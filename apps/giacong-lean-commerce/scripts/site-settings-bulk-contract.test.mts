@@ -218,6 +218,9 @@ test("bulk settings write contract has a tracked migration and exact request bod
   assert.match(route, /readBoundedAdminJson/);
   assert.match(route, /hasOnlyKeys\(body, \["requestId"\]\)/);
   assert.match(page, /body: \{ requestId \}/);
+  assert.match(page, /publishAllRequestId/);
+  assert.match(page, /if \(publishingAll\) return/);
+  assert.match(page, /status >= 400 && clientError\.status < 500/);
 });
 
 test("bulk result keeps the existing AdminSiteSetting response shape", async () => {

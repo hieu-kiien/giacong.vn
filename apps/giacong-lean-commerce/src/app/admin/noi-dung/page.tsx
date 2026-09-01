@@ -1,7 +1,7 @@
 "use client";
 
 import { Eye, Image as ImageIcon, Palette, RefreshCw, Save, Send, SendHorizonal, ShieldCheck, Upload } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AdminErrorState, AdminPageHeading, AdminStatusBadge } from "@/components/admin/AdminPrimitives";
 import { useAdminSession } from "@/components/admin/AdminShell";
 import {
@@ -42,6 +42,7 @@ export default function AdminContentPage() {
   const [notice, setNotice] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
   const [publishingAll, setPublishingAll] = useState(false);
+  const publishAllRequestId = useRef<{ key: string; requestId: string } | null>(null);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -154,10 +155,20 @@ export default function AdminContentPage() {
   }
 
   async function publishAll() {
+    if (publishingAll) return;
+    const dirtyKey = settings
+      .filter((setting) => setting.dirty)
+      .map((setting) => `${setting.key}:${setting.version}`)
+      .sort()
+      .join("|");
+    if (!dirtyKey) return;
+
+    const pendingPublish = publishAllRequestId.current?.key === dirtyKey ? publishAllRequestId.current : null;
+    const requestId = pendingPublish?.requestId ?? crypto.randomUUID();
+    publishAllRequestId.current = { key: dirtyKey, requestId };
     setPublishingAll(true);
     setNotice(null);
     try {
-      const requestId = crypto.randomUUID();
       const result = await mutateAdmin<{ published: AdminSiteSetting[]; skipped: number; count: number }>(
         "/api/admin/site-settings/publish-all",
         { method: "POST", body: { requestId } },
@@ -171,8 +182,15 @@ export default function AdminContentPage() {
       } else {
         setNotice(`Đã phát hành ${result.count} thay đổi ra storefront.${result.skipped > 0 ? ` (${result.skipped} bị bỏ qua do xung đột)` : ""}`);
       }
+      if (publishAllRequestId.current?.key === dirtyKey) publishAllRequestId.current = null;
     } catch (reason: unknown) {
-      setError(reason instanceof AdminClientError ? reason : new AdminClientError("Không thể phát hành tất cả thay đổi.", 0));
+      const clientError = reason instanceof AdminClientError
+        ? reason
+        : new AdminClientError("Không thể phát hành tất cả thay đổi.", 0);
+      if (clientError.status >= 400 && clientError.status < 500 && publishAllRequestId.current?.key === dirtyKey) {
+        publishAllRequestId.current = null;
+      }
+      setError(clientError);
     } finally {
       setPublishingAll(false);
     }

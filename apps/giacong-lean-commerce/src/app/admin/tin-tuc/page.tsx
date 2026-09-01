@@ -1,7 +1,7 @@
 "use client";
 
 import { Eye, EyeOff, Newspaper, Pencil, Plus, Trash2 } from "lucide-react";
-import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { useSearchParams } from "next/navigation";
 import { AdminConfirmDialog } from "@/components/admin/AdminDialog";
 import { AdminField } from "@/components/admin/AdminField";
@@ -32,6 +32,12 @@ interface NewsBatchResponse {
   changedCount: number;
   selectedCount: number;
   skipped: Array<{ id: number; reason: string }>;
+}
+
+interface PendingNewsBatch {
+  items: Array<{ expectedRevision: number; id: number }>;
+  key: string;
+  requestId: string;
 }
 
 interface NewsFormState {
@@ -72,6 +78,9 @@ export default function AdminNewsPage() {
   const [pendingDelete, setPendingDelete] = useState<AdminNewsListItem | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [batchAction, setBatchAction] = useState<"publish" | "unpublish" | null>(null);
+  const newsBatchRequest = useRef<PendingNewsBatch | null>(null);
+  const newsBatchInFlight = useRef(false);
 
   const openEditById = useCallback(async (id: number) => {
     setFieldErrors({});
@@ -196,13 +205,21 @@ export default function AdminNewsPage() {
 
   async function runBatch(publish: boolean) {
     const selectedPosts = posts.filter((post) => selectedIds.has(post.id));
-    if (selectedPosts.length === 0) return;
+    if (selectedPosts.length === 0 || newsBatchInFlight.current) return;
+
+    const batchKey = `${publish ? "publish" : "unpublish"}:${selectedPosts.map((post) => post.id).sort((a, b) => a - b).join(",")}`;
+    const pendingBatch = newsBatchRequest.current?.key === batchKey ? newsBatchRequest.current : null;
+    const items = pendingBatch?.items ?? selectedPosts.map((post) => ({ expectedRevision: post.revision, id: post.id }));
+    const requestId = pendingBatch?.requestId ?? crypto.randomUUID();
+    newsBatchRequest.current = { items, key: batchKey, requestId };
+    newsBatchInFlight.current = true;
+    setBatchAction(publish ? "publish" : "unpublish");
     try {
       const result = await mutateAdmin<NewsBatchResponse>("/api/admin/news/batch", {
         body: {
-          items: selectedPosts.map((post) => ({ expectedRevision: post.revision, id: post.id })),
+          items,
           publish,
-          requestId: crypto.randomUUID(),
+          requestId: pendingBatch?.requestId ?? requestId,
         },
         method: "POST",
       });
@@ -211,10 +228,20 @@ export default function AdminNewsPage() {
         skipped > 0 ? "error" : "success",
         `${publish ? "Đã phát hành" : "Đã ẩn"} ${result.changedCount} / ${result.selectedCount} bài viết.${skipped > 0 ? ` ${skipped} bài chưa xử lý, hãy tải lại để xem lý do.` : ""}`,
       );
+      if (newsBatchRequest.current?.key === batchKey) newsBatchRequest.current = null;
       setSelectedIds(new Set());
       setAttempt((value) => value + 1);
     } catch (reason: unknown) {
-      showToast("error", reason instanceof AdminClientError ? reason.message : "Không thể xử lý hàng loạt bài viết.");
+      const clientError = reason instanceof AdminClientError
+        ? reason
+        : new AdminClientError("Không thể xử lý hàng loạt bài viết.", 0);
+      if (clientError.status >= 400 && clientError.status < 500 && newsBatchRequest.current?.key === batchKey) {
+        newsBatchRequest.current = null;
+      }
+      showToast("error", clientError.message);
+    } finally {
+      newsBatchInFlight.current = false;
+      setBatchAction(null);
     }
   }
 
@@ -323,8 +350,8 @@ export default function AdminNewsPage() {
               {canManage && selectedIds.size > 0 ? (
                 <>
                   <span className="admin-item-meta" data-testid="news-selection-count">Đã chọn {selectedIds.size}</span>
-                  <button className="admin-button admin-button-quiet" data-testid="button-news-batch-publish" onClick={() => void runBatch(true)} type="button"><Eye size={13} /> Phát hành đã chọn</button>
-                  <button className="admin-button admin-button-quiet" data-testid="button-news-batch-unpublish" onClick={() => void runBatch(false)} type="button"><EyeOff size={13} /> Ẩn đã chọn</button>
+                  <button className="admin-button admin-button-quiet" data-testid="button-news-batch-publish" disabled={batchAction !== null} onClick={() => void runBatch(true)} type="button"><Eye size={13} /> {batchAction === "publish" ? "Đang phát hành..." : "Phát hành đã chọn"}</button>
+                  <button className="admin-button admin-button-quiet" data-testid="button-news-batch-unpublish" disabled={batchAction !== null} onClick={() => void runBatch(false)} type="button"><EyeOff size={13} /> {batchAction === "unpublish" ? "Đang ẩn..." : "Ẩn đã chọn"}</button>
                 </>
               ) : null}
               {canManage ? (
@@ -350,11 +377,11 @@ export default function AdminNewsPage() {
                 <>
                   <div className="admin-table-scroll">
                     <table className="admin-table">
-                      <thead><tr>{canManage ? <th scope="col"><input aria-label="Chọn tất cả bài viết trong trang" checked={posts.length > 0 && posts.every((post) => selectedIds.has(post.id))} onChange={toggleAllVisible} type="checkbox" /></th> : null}<th scope="col">Bài viết</th><th scope="col">Trạng thái</th><th scope="col">Xuất bản</th><th scope="col">Cập nhật</th>{canManage ? <th scope="col">Thao tác</th> : null}</tr></thead>
+                      <thead><tr>{canManage ? <th scope="col"><input aria-label="Chọn tất cả bài viết trong trang" checked={posts.length > 0 && posts.every((post) => selectedIds.has(post.id))} disabled={batchAction !== null} onChange={toggleAllVisible} type="checkbox" /></th> : null}<th scope="col">Bài viết</th><th scope="col">Trạng thái</th><th scope="col">Xuất bản</th><th scope="col">Cập nhật</th>{canManage ? <th scope="col">Thao tác</th> : null}</tr></thead>
                       <tbody>
                         {posts.map((post) => (
                           <tr data-testid={`row-news-${post.id}`} key={post.id}>
-                            {canManage ? <td><input aria-label={`Chọn bài ${post.title}`} checked={selectedIds.has(post.id)} onChange={() => toggleSelected(post.id)} type="checkbox" /></td> : null}
+                            {canManage ? <td><input aria-label={`Chọn bài ${post.title}`} checked={selectedIds.has(post.id)} disabled={batchAction !== null} onChange={() => toggleSelected(post.id)} type="checkbox" /></td> : null}
                             <td>
                               <div className="admin-item-name">{post.title}</div>
                               <div className="admin-item-meta">{post.slug}</div>

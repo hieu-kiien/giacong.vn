@@ -288,6 +288,8 @@ test("services UI gives managers a visible-page selection and safe batch confirm
   assert.match(source, /button-service-batch-archive/);
   assert.match(source, /\/api\/admin\/services\/batch/);
   assert.match(source, /requestId/);
+  assert.match(source, /serviceBatchRequest/);
+  assert.match(source, /status >= 400 && clientError\.status < 500/);
   assert.match(source, /AdminConfirmDialog/);
   assert.match(source, /Chọn tất cả dịch vụ trong trang/);
   assert.doesNotMatch(source, /Promise\.all\([\s\S]*DELETE/);
