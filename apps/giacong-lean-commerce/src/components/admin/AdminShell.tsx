@@ -209,6 +209,7 @@ function AdminLoadingScreen() {
 
 function AdminAccessScreen({ status, error, onRetry }: { status: "blocked" | "unavailable"; error: AdminClientError | null; onRetry: () => void }) {
   const isBlocked = status === "blocked";
+  const showLoginLink = isBlocked || error?.code === "NETWORK_ERROR";
   return (
     <div className="admin-access-page">
       <section className="admin-access-card" aria-labelledby="admin-access-title">
@@ -220,13 +221,15 @@ function AdminAccessScreen({ status, error, onRetry }: { status: "blocked" | "un
         <p>
           {isBlocked
             ? "Hãy mở console trên hostname admin đã được bảo vệ bằng Cloudflare Access. Host preview hoặc storefront không có phiên truy cập nội bộ."
-            : "Không thể kết nối tới phiên admin lúc này. Kiểm tra hostname, binding runtime và thử lại."}
+            : error?.code === "NETWORK_ERROR"
+              ? "Nếu bạn chưa đăng nhập, hãy mở Cloudflare Access. Nếu đã đăng nhập, hãy thử kiểm tra lại phiên."
+              : "Không thể kết nối tới phiên admin lúc này. Kiểm tra hostname, binding runtime và thử lại."}
         </p>
         <div className="admin-access-detail">
           {error?.code ? `${error.code} · ` : ""}{error?.message ?? "Không nhận được phản hồi từ API session."}
         </div>
         <div className="admin-editor-actions">
-          {isBlocked ? (
+          {showLoginLink ? (
             <Link
               className="admin-button admin-button-primary"
               data-testid="link-admin-access-login"

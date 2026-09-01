@@ -89,3 +89,10 @@ test("blocked admin sessions offer a direct Cloudflare Access login handoff", as
   assert.doesNotMatch(shell, /cdn-cgi\/access\/login/);
   assert.match(shell, /Đăng nhập Cloudflare Access/);
 });
+
+test("network-failed admin sessions keep the Access handoff visible", async () => {
+  const shell = await readSource("components", "admin", "AdminShell.tsx");
+
+  assert.match(shell, /const showLoginLink = isBlocked \|\| error\?\.code === "NETWORK_ERROR"/);
+  assert.match(shell, /showLoginLink \? \(/);
+});
