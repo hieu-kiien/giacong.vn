@@ -2,6 +2,27 @@
 
 Hồ sơ này ghi bằng chứng runtime đã xác minh trong quá trình chuyển Lean V1 sang Cloudflare-native.
 
+## Cập nhật runtime 2026-09-01
+
+- Commit `8c509c5` đã harden dependency baseline: Next.js `16.3.4`,
+  `@opennextjs/cloudflare` `1.20.5`, Wrangler `4.125.0`; loại `shadcn` CLI
+  khỏi runtime dependency graph và giữ Tailwind extension cần thiết trong
+  source.
+- `npm run check` pass toàn bộ test/lint/typecheck/build. `npm audit --omit=dev
+  --audit-level=high` và `npm audit --audit-level=high` đều trả `0
+  vulnerabilities`.
+- Staging Worker `giacong-vn-staging` đã build/deploy version
+  `cc144df5-0cd6-4dfa-992a-35ceafbc9778`; bindings và routes staging vẫn đúng,
+  `ADMIN_PUBLIC=false`.
+- Live `qa:ux` sau deploy tại `https://staging.kienhieu.id.vn` pass 5/5 route,
+  toàn bộ action, 0 console error, 0 HTTP 4xx/5xx, 0 overflow, axe `5/5` với
+  0 serious/critical violation. Còn 1 warning `postMessage` từ Google Maps
+  iframe bên thứ ba trên trang liên hệ.
+- Evidence Playwright được lưu ngoài repo tại
+  `C:\Users\hieuk\Desktop\staging-ux-audit-2026-09-01-deps`. Cloudflare Access
+  identity thật, admin role matrix, write/read-back và production gate vẫn
+  chưa được tự động đóng.
+
 ## Hạ tầng đã xác minh
 
 - Production domain: `kienhieu.id.vn`.

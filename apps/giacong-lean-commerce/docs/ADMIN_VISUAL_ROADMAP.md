@@ -12,13 +12,16 @@ lý hàng loạt.
 
 **Checkpoint hiện tại — 2026-09-01:** Bản motion/menu storefront đã được
 review và tích hợp vào `master` (cùng runner `qa:ux`, WebP gallery fixtures và
-regression cho hero settings). Staging đang chạy version
-`43e186bc-8dff-4812-b9e1-68e10336a4f1`; audit UX trực tiếp trên 5 route public
-đã pass HTTP 200, thao tác chính, mobile/desktop, no-overflow, axe `5/5` không
-violation và không có console error. Chỉ còn một warning từ Google Maps iframe,
-không phải app code. Full gate gần nhất in xanh admin `160/160`, contact
-`104/104`, catalog `5/5`, purchase UI `1/1`, service `3/3`, commerce `63/63`,
-listing `4/4`, detail `29/29`, lint, type generation và build.
+regression cho hero settings). Sau khi harden dependency, staging đang phục vụ
+version `cc144df5-0cd6-4dfa-992a-35ceafbc9778`; `next` `16.3.4`,
+`@opennextjs/cloudflare` `1.20.5`, Wrangler `4.125.0`, full `npm audit` và
+production-only audit đều `0 vulnerabilities`. Audit UX trực tiếp sau deploy
+trên 5 route public đã pass HTTP 200, thao tác chính, mobile/desktop,
+no-overflow, axe `5/5` không serious/critical và không có console error. Chỉ
+còn một warning từ Google Maps iframe, không phải app code. Full gate in xanh
+admin `160/160`, contact `104/104`, catalog `5/5`, purchase UI `1/1`, service
+`3/3`, commerce `63/63`, listing `4/4`, detail `29/29`, lint, type generation
+và build.
 
 Phần chưa thể tự đóng là external gate: Cloudflare Access chưa có phiên identity
 hợp lệ để chạy admin role matrix, write/read-back và browser QA thật; staging
@@ -90,7 +93,7 @@ giới hạn phải được ghi đúng như vậy, không coi là xanh hoàn to
 - Node v24.14.0, npm 11.9.0, .nvmrc yêu cầu Node 24.
 - package-lock.json tồn tại; dependency tree sau khi cài lại khớp các package
   quan trọng trong lockfile.
-- Wrangler local dùng version trong package (4.115.0) qua npx.
+- Wrangler local dùng version trong package (`4.125.0`) qua npx.
 - Local D1 đã bootstrap và áp đủ 16 migration; d1 migrations list báo không
   còn migration phải apply. Các bảng admin/CMS chính gồm site_settings,
   site_pages, site_navigation_items, admin_members, news_posts và media_assets
@@ -110,6 +113,11 @@ giới hạn phải được ghi đúng như vậy, không coi là xanh hoàn to
   khớp tên package `@workspace/web`; không có thay đổi version dependency.
 - Không có .env, .env.local, node_modules, .next, .wrangler hay file .runtime
   nào được Git track.
+- Runtime dependency baseline đã được harden ở commit `8c509c5`: nâng Next.js,
+  OpenNext và Wrangler theo compatibility hiện tại, loại `shadcn` CLI khỏi
+  runtime dependency graph, giữ các Tailwind extension cần thiết trong source;
+  `npm audit --omit=dev --audit-level=high` và `npm audit --audit-level=high`
+  đều pass với `0 vulnerabilities`.
 
 ### 2.2 Còn phải lưu ý
 
@@ -548,6 +556,20 @@ no-overflow, axe `5/5` không violation, 0 console error, 0 response 4xx/5xx.
 Google Maps iframe còn một warning `postMessage` cross-origin từ bên thứ ba;
 không có lỗi ứng dụng. Đây là gate public storefront đã đạt, không thay thế
 Access identity thật, role matrix, write/read-back hay production acceptance.
+
+**Runtime update 2026-09-01 (dependency hardening):** commit `8c509c5` đã
+nâng Next.js lên `16.3.4`, OpenNext Cloudflare lên `1.20.5`, Wrangler lên
+`4.125.0` và loại `shadcn` CLI khỏi runtime dependency graph; CSS extension
+cần thiết được giữ local trong source. `npm run check` pass toàn bộ test/lint/
+typecheck/build; `npm audit` và audit production-only đều `0 vulnerabilities`.
+Staging version `cc144df5-0cd6-4dfa-992a-35ceafbc9778` build/deploy thành công;
+live `qa:ux` sau deploy pass 5/5 route, toàn bộ action, 0 console error, 0 HTTP
+4xx/5xx, 0 overflow và axe 5/5 không serious/critical. Evidence đầy đủ nằm
+ngoài repo tại `C:\Users\hieuk\Desktop\staging-ux-audit-2026-09-01-deps`.
+Wrapper Windows giữ process sau khi in kết quả deploy/audit nên phải dừng thủ
+công; không dùng wrapper đó làm bằng chứng exit code thay cho output build và
+audit đã ghi nhận. Access identity thật, role matrix, write/read-back và
+production acceptance vẫn là gate mở.
 
 **Công việc:**
 

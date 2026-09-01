@@ -21,15 +21,21 @@ product/service/category bulk archive contract đã có trong `master`. Bản
 storefront motion/menu đã được review và tích hợp từ worktree riêng; fallback
 gallery đã chấp nhận asset WebP. `qa:ux` là runner tracked để lặp lại audit
 staging. Staging đang phục vụ version
-`43e186bc-8dff-4812-b9e1-68e10336a4f1`; public UX audit năm route pass, axe
-không có violation, nhưng browser/admin identity evidence và role matrix vẫn là
-gate riêng.
+`cc144df5-0cd6-4dfa-992a-35ceafbc9778` sau dependency hardening; public UX
+audit năm route pass, axe không có serious/critical violation, nhưng
+browser/admin identity evidence và role matrix vẫn là gate riêng.
 
 Full gate gần nhất đã in xanh các suite: admin `160/160`, contact `104/104`,
 catalog `5/5`, catalog purchase UI `1/1`, service `3/3`, commerce `63/63`,
 listing `4/4`, detail `29/29`, kèm lint, type generation và production build.
 Wrapper PowerShell giữ process sau khi đã in xong output nên phải dừng thủ công;
 không dùng điều đó để thay thế cửa sổ release có exit code sạch.
+
+Commit `8c509c5` đã nâng Next.js `16.3.4`, OpenNext Cloudflare `1.20.5`,
+Wrangler `4.125.0`, loại `shadcn` CLI khỏi runtime dependency graph và giữ
+Tailwind extension cần thiết trong source. `npm audit --omit=dev` và full
+`npm audit` đều báo `0 vulnerabilities`; staging build/deploy và live `qa:ux`
+đã chạy lại thành công trên version `cc144df5-0cd6-4dfa-992a-35ceafbc9778`.
 
 Repo chính không có GIF/video runtime bắt buộc: motion hiện dùng CSS/HTML và
 asset WebP phù hợp. Worktree motion riêng vẫn được giữ nguyên, không reset hoặc
