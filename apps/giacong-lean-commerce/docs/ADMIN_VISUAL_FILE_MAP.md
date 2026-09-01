@@ -21,12 +21,13 @@ product/service/category bulk archive contract đã có trong `master`. Bản
 storefront motion/menu đã được review và tích hợp từ worktree riêng; fallback
 gallery đã chấp nhận asset WebP. `qa:ux` là runner tracked để lặp lại audit
 staging. Staging đang phục vụ version
-`be634bc2-569c-41de-8995-db66767fb0e0` sau dependency hardening và UX Access
+`ecda5cee-8791-4290-8505-56acbd5f4d5f` sau dependency hardening và các lát UX
+Access/plain-language
 handoff; public UX
 audit năm route pass, axe không có serious/critical violation, nhưng
 browser/admin identity evidence và role matrix vẫn là gate riêng.
 
-Full gate gần nhất đã in xanh các suite: admin `160/160`, contact `104/104`,
+Full gate gần nhất đã in xanh các suite: admin `162/162`, contact `104/104`,
 catalog `5/5`, catalog purchase UI `1/1`, service `3/3`, commerce `63/63`,
 listing `4/4`, detail `29/29`, kèm lint, type generation và production build.
 Wrapper PowerShell giữ process sau khi đã in xong output nên phải dừng thủ công;
@@ -36,11 +37,17 @@ Commit `8c509c5` đã nâng Next.js `16.3.4`, OpenNext Cloudflare `1.20.5`,
 Wrangler `4.125.0`, loại `shadcn` CLI khỏi runtime dependency graph và giữ
 Tailwind extension cần thiết trong source. `npm audit --omit=dev` và full
 `npm audit` đều báo `0 vulnerabilities`; staging build/deploy và live `qa:ux`
-đã chạy lại thành công trên version `be634bc2-569c-41de-8995-db66767fb0e0`.
+đã chạy lại thành công trên version `ecda5cee-8791-4290-8505-56acbd5f4d5f`.
 
 Commit `650d10f` đã thay hướng dẫn kỹ thuật trên màn hình Access-blocked bằng
 ngôn ngữ đời thường cho người ít chuyên môn, có regression test trong
 `admin-ui-system.test.mjs`; không thay đổi admission boundary hay quyền server.
+
+Commit `bbcbfba` áp dụng cùng nguyên tắc plain-language cho các trạng thái dùng
+chung của admin: lỗi dữ liệu, độ sẵn sàng, ghi chú không có dữ liệu mẫu và
+footer shell. Test `admin-ui-system` đạt `162/162`; không thay đổi API, quyền,
+schema hoặc dữ liệu. Public `qa:ux` sau deploy pass 5/5 route; admin browser
+read-back vẫn chờ Access identity thật.
 
 Repo chính không có GIF/video runtime bắt buộc: motion hiện dùng CSS/HTML và
 asset WebP phù hợp. Worktree motion riêng vẫn được giữ nguyên, không reset hoặc

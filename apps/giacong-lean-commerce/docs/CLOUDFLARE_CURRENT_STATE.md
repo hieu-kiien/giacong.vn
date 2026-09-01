@@ -12,7 +12,7 @@ Hồ sơ này ghi bằng chứng runtime đã xác minh trong quá trình chuy�
   --audit-level=high` và `npm audit --audit-level=high` đều trả `0
   vulnerabilities`.
 - Staging Worker `giacong-vn-staging` đã build/deploy version
-  `be634bc2-569c-41de-8995-db66767fb0e0`; bindings và routes staging vẫn đúng,
+  `ecda5cee-8791-4290-8505-56acbd5f4d5f`; bindings và routes staging vẫn đúng,
   `ADMIN_PUBLIC=false`.
 - Live `qa:ux` sau deploy tại `https://staging.kienhieu.id.vn` pass 5/5 route,
   toàn bộ action, 0 console error, 0 HTTP 4xx/5xx, 0 overflow, axe `5/5` với
@@ -27,6 +27,12 @@ Hồ sơ này ghi bằng chứng runtime đã xác minh trong quá trình chuy�
   người ít chuyên môn biết chọn nút đăng nhập, hoàn tất xác minh và quay lại;
   regression test và full local gate đã pass. Bản deploy mới vẫn chưa chứng
   minh được browser admin bằng identity thật vì request chưa có Access session.
+- Commit `bbcbfba` tiếp tục đổi các trạng thái dùng chung của admin sang ngôn ngữ
+  đời thường: lỗi dữ liệu, độ sẵn sàng, ghi chú dữ liệu và footer không còn lộ
+  D1/API/schema/migration cho người vận hành. Regression `admin-ui-system` đạt
+  `162/162`; full local gate, staging build/deploy và public browser audit sau
+  deploy đều pass. Đây vẫn chưa thay thế Access identity thật cho browser QA
+  bên trong admin.
 
 ## Hạ tầng đã xác minh
 
@@ -475,3 +481,19 @@ restore/rollback drill, observability 24h và quyết định redirect
   phát sinh từ app code và không có mutation D1/R2.
 - Ảnh WebP demo được upload trong cùng deployment; test commerce/detail và
   build/type generation đã pass trước promotion.
+
+## Staging admin plain-language states — 2026-09-01
+
+- Commit `bbcbfba` đã thay các câu hiển thị hạ tầng trong `AdminErrorState`,
+  `DataReadiness`, `AdminUnavailableNote` và footer của `AdminShell` bằng câu
+  hướng dẫn dễ hiểu; logic phát hiện lỗi, API, quyền và dữ liệu không đổi.
+- Admin regression đạt `162/162`; full local gate đã hoàn tất test/lint/typecheck/
+  build output không có lỗi. Wrapper Windows giữ process sau khi in kết quả nên
+  không dùng exit code của wrapper treo làm bằng chứng riêng.
+- Staging version `ecda5cee-8791-4290-8505-56acbd5f4d5f` build/deploy thành công;
+  public `qa:ux` pass 5/5 route, mọi action, 0 console error, 0 HTTP 4xx/5xx,
+  0 overflow, axe `5/5` không serious/critical. Evidence mới nhất nằm ngoài
+  repo tại `C:\Users\hieuk\Desktop\staging-ux-audit-2026-09-01-admin-copy`.
+- Probe admin không có Access identity trả HTTP `302` về lớp Access, đúng
+  fail-closed; browser admin bằng identity thật, role matrix và authenticated
+  read/write-back vẫn là gate mở.

@@ -12,14 +12,16 @@ lý hàng loạt.
 
 **Checkpoint hiện tại — 2026-09-01:** Bản motion/menu storefront đã được
 review và tích hợp vào `master` (cùng runner `qa:ux`, WebP gallery fixtures và
-regression cho hero settings). Sau khi harden dependency, staging đang phục vụ
-version `be634bc2-569c-41de-8995-db66767fb0e0`; `next` `16.3.4`,
+regression cho hero settings). Sau khi harden dependency và chuẩn hóa copy admin,
+staging đang phục vụ version `ecda5cee-8791-4290-8505-56acbd5f4d5f`; commit
+`bbcbfba` vừa làm các trạng thái dùng chung dễ hiểu cho người không chuyên;
+`next` `16.3.4`,
 `@opennextjs/cloudflare` `1.20.5`, Wrangler `4.125.0`, full `npm audit` và
 production-only audit đều `0 vulnerabilities`. Audit UX trực tiếp sau deploy
 trên 5 route public đã pass HTTP 200, thao tác chính, mobile/desktop,
 no-overflow, axe `5/5` không serious/critical và không có console error. Chỉ
 còn một warning từ Google Maps iframe, không phải app code. Full gate in xanh
-admin `160/160`, contact `104/104`, catalog `5/5`, purchase UI `1/1`, service
+admin `162/162`, contact `104/104`, catalog `5/5`, purchase UI `1/1`, service
 `3/3`, commerce `63/63`, listing `4/4`, detail `29/29`, lint, type generation
 và build.
 
@@ -579,6 +581,15 @@ chọn nút đăng nhập Cloudflare Access, hoàn tất xác minh và quay lạ
 `qa:ux` sau deploy vẫn pass 5/5 route, 0 console error, 0 HTTP 4xx/5xx,
 0 overflow và axe 5/5 không serious/critical. Access identity thật và browser
 admin vẫn cần được kiểm tra sau khi người vận hành đăng nhập.
+
+**Admin copy follow-up 2026-09-01:** commit `bbcbfba` đã làm phẳng ngôn ngữ
+hiển thị của các trạng thái dùng chung (`AdminErrorState`, `DataReadiness`,
+`AdminUnavailableNote`, footer shell), giữ nguyên logic kỹ thuật phía dưới.
+Test `admin-ui-system` đạt `162/162`; version staging mới là
+`ecda5cee-8791-4290-8505-56acbd5f4d5f`; evidence public mới nhất ở
+`C:\Users\hieuk\Desktop\staging-ux-audit-2026-09-01-admin-copy`. Vì Access
+identity thật chưa có trong runner, browser QA bên trong admin và role matrix
+vẫn chưa được đánh dấu hoàn tất.
 
 **Công việc:**
 

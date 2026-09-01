@@ -119,6 +119,8 @@ Lưu ý: demo staging KHÔNG được seed sang production. Khách tự thao tá
 - [x] Staging revalidation sau dependency hardening: version `cc144df5-0cd6-4dfa-992a-35ceafbc9778` build/deploy thành công; live `qa:ux` 5/5 route pass, 0 console error, 0 HTTP 4xx/5xx, 0 overflow, axe `5/5` không serious/critical; còn 1 warning Google Maps iframe bên thứ ba.
 - [x] Admin Access handoff UX 2026-09-01: commit `650d10f` bỏ hướng dẫn “mở console”, thay bằng hướng dẫn chọn đăng nhập, xác minh và quay lại; regression test và full gate admin `161/161` pass; staging version `be634bc2-569c-41de-8995-db66767fb0e0` deploy thành công.
 - [x] Public staging revalidation sau admin UX: `qa:ux` 5/5 route pass, 0 console error, 0 HTTP 4xx/5xx, 0 overflow, axe `5/5` không serious/critical; còn 1 warning Google Maps iframe bên thứ ba. Đây không thay thế admin Access identity.
+- [x] Admin plain-language states 2026-09-01: commit `bbcbfba` đổi các trạng thái lỗi/sẵn sàng/footer dùng chung sang câu chữ cho người không chuyên; `admin-ui-system` đạt `162/162`, logic API/quyền/schema không đổi; staging version `ecda5cee-8791-4290-8505-56acbd5f4d5f` build/deploy thành công.
+- [x] Public staging revalidation sau admin plain-language states: `qa:ux` 5/5 route pass, 0 console error, 0 HTTP 4xx/5xx, 0 overflow, axe `5/5` không serious/critical; evidence `C:\Users\hieuk\Desktop\staging-ux-audit-2026-09-01-admin-copy`; còn 1 warning Google Maps iframe bên thứ ba.
 - [ ] Admin session/audit read-back bằng Access identity thật trên hostname staging.
 - [ ] Browser admin desktop/mobile/keyboard/focus/reduced-motion với Access identity thật.
 - [ ] Role × route/action read-back trên staging cho owner/content_manager/catalog_manager/sales_manager/viewer.
