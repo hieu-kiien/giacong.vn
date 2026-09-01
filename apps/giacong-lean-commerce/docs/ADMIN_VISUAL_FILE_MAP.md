@@ -27,13 +27,18 @@ bootstrap vào D1 staging với role `owner` cấp cao nhất. `/admin/thanh-vie
 được browser xác nhận hiển thị tài khoản hiện tại, khóa self-demotion/self-
 deactivation và mở được luồng `Thêm thành viên`.
 
-Full gate gần nhất: focused session/UI `17/17`, admin `165/165`, contact
+Full gate gần nhất: focused session/UI `17/17`, admin `173/173`, contact
 `104/104`, catalog `5/5`, catalog purchase UI `1/1`, service `3/3`, commerce
 `63/63`, listing `4/4`, detail `29/29`, kèm lint, typecheck và build. Public UX
 audit năm route pass; browser identity role matrix đầy đủ, write/read-back từng
 domain và production gate vẫn chưa đóng.
 Wrapper PowerShell giữ process sau khi đã in xong output nên phải dừng thủ công;
 không dùng điều đó để thay thế cửa sổ release có exit code sạch.
+
+Rollback drill staging 2026-09-01 đã pass: chuyển 100% traffic về
+`a1f71e85-113e-4559-9377-ebedc22b92e7`, smoke public pass, sau đó khôi phục
+100% về `902b3a6e-732f-4de6-a9fc-429b6478d833`. Đây chỉ là bằng chứng rollback
+runtime staging; backup/restore production và production gate vẫn mở.
 
 Commit `566489d` bổ sung contract navigation: single save/publish và bulk publish
 dùng request UUID, revision guard, idempotent replay/conflict; bulk dùng D1 batch

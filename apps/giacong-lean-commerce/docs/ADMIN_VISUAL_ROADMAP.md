@@ -33,9 +33,13 @@ audit dependency báo `0 vulnerabilities`. Public smoke 5 route sau deploy đạ
 HTTP `200`, không có console error/warning ứng dụng. Chỉ còn warning
 `postMessage` từ Google Maps iframe bên thứ ba.
 
+Rollback drill staging 2026-09-01 đã đạt: traffic được chuyển tạm thời 100%
+sang `a1f71e85-113e-4559-9377-ebedc22b92e7`, public smoke pass, rồi khôi phục
+100% về `902b3a6e-732f-4de6-a9fc-429b6478d833`; production không bị thay đổi.
+
 Các gate chưa đóng: role matrix với nhiều identity thật, write/read-back từng
 domain, browser admin đầy đủ desktop/mobile/keyboard/focus/reduced-motion,
-production data/content approval, backup/restore/rollback, observability và
+production data/content approval, backup/restore production, observability và
 production promotion. Production chưa bị thay đổi.
 
 ## 1. Quyết định sản phẩm

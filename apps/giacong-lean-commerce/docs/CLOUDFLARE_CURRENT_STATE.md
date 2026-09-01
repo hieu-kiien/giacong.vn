@@ -25,8 +25,8 @@ Hồ sơ này ghi bằng chứng runtime đã xác minh trong quá trình chuy�
   `ADMIN_PUBLIC=false`.
 - Live `qa:ux` sau deploy tại `https://staging.kienhieu.id.vn` pass 5/5 route,
   toàn bộ action, 0 console error, 0 HTTP 4xx/5xx, 0 overflow, axe `5/5` với
-  0 serious/critical violation. Còn 1 warning `postMessage` từ Google Maps
-  iframe bên thứ ba trên trang liên hệ.
+  0 serious/critical violation. 36 warning còn lại đến từ `postMessage`/
+  script/iframe bên thứ ba; không có application console error.
 - Evidence Playwright mới nhất được lưu ngoài repo tại
   `C:\Users\hieuk\Desktop\staging-ux-audit-2026-09-01-admin-copy`; audit dependency
   trước đó ở `C:\Users\hieuk\Desktop\staging-ux-audit-2026-09-01-deps`. Cloudflare Access
@@ -637,3 +637,7 @@ runtime trước khi đóng gate hiệu năng/ổn định.
 - `qa:ux` sau version mới pass 5/5 route, 0 console error, 0 HTTP 4xx/5xx,
   không overflow và không có axe serious/critical; 36 warning là từ script/
   iframe bên thứ ba và không chặn gate hiện tại.
+- Rollback drill staging sau promotion đã pass: tạm chuyển 100% traffic về
+  `a1f71e85-113e-4559-9377-ebedc22b92e7`, smoke public đạt, rồi khôi phục 100%
+  về `902b3a6e-732f-4de6-a9fc-429b6478d833`. Production Worker/D1/R2 không bị
+  mutation; backup/restore production và production promotion vẫn chưa đóng.
