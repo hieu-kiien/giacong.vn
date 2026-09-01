@@ -104,3 +104,21 @@ test("network-failed admin sessions keep the Access handoff visible", async () =
   assert.match(shell, /const showLoginLink = isBlocked \|\| error\?\.code === "NETWORK_ERROR"/);
   assert.match(shell, /showLoginLink \? \(/);
 });
+
+test("shared admin states explain readiness without infrastructure jargon", async () => {
+  const primitives = await readSource("components", "admin", "AdminPrimitives.tsx");
+  const shell = await readSource("components", "admin", "AdminShell.tsx");
+
+  assert.match(primitives, /isMigration \? "Dữ liệu chưa sẵn sàng" :/);
+  assert.match(primitives, /Hệ thống chưa hoàn tất phần chuẩn bị dữ liệu/);
+  assert.match(primitives, /Danh sách thành viên/);
+  assert.match(primitives, /Lịch sử thay đổi/);
+  assert.match(primitives, /Dữ liệu được đọc trực tiếp từ hệ thống/);
+  assert.match(primitives, /Một số phần dữ liệu chưa được chuẩn bị/);
+  assert.doesNotMatch(primitives, /Dữ liệu chưa sẵn sàng trong D1/);
+  assert.doesNotMatch(primitives, /schema hoặc binding D1/);
+  assert.doesNotMatch(primitives, /chưa được migrate/);
+  assert.doesNotMatch(primitives, /Dữ liệu được đọc trực tiếp từ API admin/);
+  assert.match(shell, /Dữ liệu hiển thị trực tiếp từ hệ thống/);
+  assert.doesNotMatch(shell, /Dữ liệu hiển thị trực tiếp từ D1/);
+});

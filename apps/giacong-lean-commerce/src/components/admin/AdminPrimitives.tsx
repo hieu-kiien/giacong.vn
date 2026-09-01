@@ -20,8 +20,8 @@ export function AdminErrorState({ error, onRetry }: { error: AdminClientError; o
     <section className="admin-state" data-testid="status-admin-error">
       <div className="admin-state-icon is-error"><AlertTriangle aria-hidden="true" size={19} /></div>
       <div>
-        <h2>{isMigration ? "Dữ liệu chưa sẵn sàng trong D1" : "Không thể tải dữ liệu"}</h2>
-        <p>{isMigration ? "API đã kết nối nhưng schema hoặc binding D1 chưa hoàn tất. Không hiển thị dữ liệu thay thế để tránh nhầm lẫn." : error.message}</p>
+        <h2>{isMigration ? "Dữ liệu chưa sẵn sàng" : "Không thể tải dữ liệu"}</h2>
+        <p>{isMigration ? "Hệ thống chưa hoàn tất phần chuẩn bị dữ liệu. Hãy thử tải lại; nếu vẫn chưa được, liên hệ người quản trị." : error.message}</p>
         <button className="admin-button admin-button-quiet" data-testid="button-retry-data" onClick={onRetry} type="button"><RefreshCw size={14} /> Thử tải lại</button>
       </div>
     </section>
@@ -48,11 +48,11 @@ export function AdminMetric({ label, value, foot, testId }: { label: string; val
 
 export function DataReadiness({ data }: { data: Record<string, boolean> }) {
   const labels: Record<string, string> = {
-    adminMembersTable: "Bảng thành viên admin",
-    auditLogsTable: "Bảng audit logs",
-    leadsTable: "Bảng lead / yêu cầu",
-    productMetaTable: "Metadata sản phẩm",
-    serviceMetaTable: "Metadata dịch vụ",
+    adminMembersTable: "Danh sách thành viên",
+    auditLogsTable: "Lịch sử thay đổi",
+    leadsTable: "Yêu cầu báo giá",
+    productMetaTable: "Thông tin bổ sung sản phẩm",
+    serviceMetaTable: "Thông tin bổ sung dịch vụ",
   };
   const entries = Object.entries(data);
   const readyCount = entries.filter(([, ready]) => ready).length;
@@ -62,7 +62,7 @@ export function DataReadiness({ data }: { data: Record<string, boolean> }) {
       <div className="admin-readiness-list">
         {entries.map(([key, ready]) => <div className="admin-readiness-row" key={key}><span className="admin-readiness-name">{labels[key] ?? key}</span><span className={`admin-ready-state ${ready ? "is-ready" : "is-pending"}`}>{ready ? "Sẵn sàng" : "Chưa có"}</span></div>)}
       </div>
-      {readyCount < entries.length ? <div className="admin-readiness-note">Một số bảng tùy chọn chưa được migrate. Các màn hình vẫn giữ dữ liệu thật và sẽ không tự tạo bản ghi thay thế.</div> : null}
+      {readyCount < entries.length ? <div className="admin-readiness-note">Một số phần dữ liệu chưa được chuẩn bị. Bạn vẫn có thể xem các phần đã sẵn sàng; hãy liên hệ người quản trị nếu cần hỗ trợ.</div> : null}
     </section>
   );
 }
@@ -82,5 +82,5 @@ export function AdminPagination({ page, lastPage, total, pageSize, onPage }: { p
 }
 
 export function AdminUnavailableNote() {
-  return <div className="admin-readiness-note"><CheckCircle2 size={13} style={{ verticalAlign: "middle" }} /> Dữ liệu được đọc trực tiếp từ API admin, không có bản ghi mẫu trong giao diện.</div>;
+  return <div className="admin-readiness-note"><CheckCircle2 size={13} style={{ verticalAlign: "middle" }} /> Dữ liệu được đọc trực tiếp từ hệ thống, không có bản ghi mẫu trong giao diện.</div>;
 }

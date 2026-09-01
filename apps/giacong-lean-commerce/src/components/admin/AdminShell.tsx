@@ -157,7 +157,7 @@ export function AdminShell({ children }: AdminShellProps) {
             </nav>
             <div className="admin-sidebar-footer">
               <strong>Không gian nội bộ</strong>
-              Dữ liệu hiển thị trực tiếp từ D1. Các thay đổi nội dung được quản lý qua quy trình phát hành.
+              Dữ liệu hiển thị trực tiếp từ hệ thống. Các thay đổi nội dung được quản lý qua quy trình phát hành.
             </div>
           </aside>
           <main className="admin-main">
