@@ -407,3 +407,16 @@ restore/rollback drill, observability 24h và quyết định redirect
 - Access host không có identity vẫn nhận HTTP 302 tới team Access; browser tab
   hiện vẫn ở màn hình yêu cầu đăng nhập. Role matrix và authenticated
   write/read-back vì thế chưa thể đóng.
+
+## Staging admin login UX fallback — 2026-09-01
+
+- Commit `3c15f0f` giữ nút đăng nhập Cloudflare Access ngay cả khi browser
+  chuyển hướng Access làm `fetch('/api/admin/session')` rơi vào `NETWORK_ERROR`;
+  retry vẫn được giữ riêng cho lỗi runtime thật.
+- Version staging `8bf8de20-ed58-4637-aac7-ec9b81aeef37` đã build và deploy;
+  browser reload hiện tới form `Log in to Giacong staging Admin` của Access.
+- Public smoke sau deploy: `staging.kienhieu.id.vn/` và `/san-pham` đều HTTP
+  200; request không identity tới `admin-staging.kienhieu.id.vn/admin` nhận
+  HTTP 302 tới Access. Không có production mutation.
+- Access identity thật, role matrix và authenticated write/read-back vẫn chờ
+  chủ dự án tự đăng nhập.
