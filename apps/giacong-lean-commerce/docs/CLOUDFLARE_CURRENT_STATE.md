@@ -5,12 +5,13 @@ Hồ sơ này ghi bằng chứng runtime đã xác minh trong quá trình chuy�
 ## Cập nhật runtime 2026-09-01
 
 - Local contract slice commit `566489d` đã hoàn tất cho navigation: request UUID
-  bắt buộc ở single save/publish và bulk publish, optimistic revision/CAS,
+  bắt buộc ở create/single save/publish và bulk publish, optimistic revision/CAS,
   idempotent replay/conflict, D1 batch atomic với audit chuyên biệt và giới hạn
-  bulk 100 mục. `0017_navigation_bulk_publish_contract.sql` đã được kiểm tra
-  trên D1 local tạm sau `scripts/local-catalog-baseline.sql`; toàn bộ
-  `0001–0017` apply thành công và lần list cuối báo không còn migration pending.
-  Migration mới đã apply/verify trên D1 staging; production chưa bị thay đổi.
+  bulk 100 mục. `0017_navigation_bulk_publish_contract.sql` và
+  `0018_navigation_create_contract.sql` đã được kiểm tra trên D1 local tạm sau
+  `scripts/local-catalog-baseline.sql`; toàn bộ `0001–0018` apply thành công và
+  lần list cuối báo không còn migration pending. Migration mới đã apply/verify
+  trên D1 staging; production chưa bị thay đổi.
 
 - Commit `8c509c5` đã harden dependency baseline: Next.js `16.3.4`,
   `@opennextjs/cloudflare` `1.20.5`, Wrangler `4.125.0`; loại `shadcn` CLI
@@ -626,7 +627,7 @@ runtime trước khi đóng gate hiệu năng/ổn định.
   rõ partial result thay vì báo thành công giả.
 - Audit history đã merge được child navigation events và bulk envelopes qua
   `/api/admin/audit`; không đưa payload nội dung vào response.
-- Bằng chứng local: migration baseline + `0001–0017` pass, full admin `173/173`,
+- Bằng chứng local: migration baseline + `0001–0018` pass, full admin `175/175`,
   typecheck, lint, build và `git diff --check` pass. Staging đã apply migration,
   upload/promote version mới; browser đã xác nhận owner/dashboard/navigation/
   audit read-only không có console error/warning. Browser navigation write/read-
@@ -641,7 +642,7 @@ runtime trước khi đóng gate hiệu năng/ổn định.
   `a1f71e85-113e-4559-9377-ebedc22b92e7`, smoke public đạt, rồi khôi phục 100%
   về `902b3a6e-732f-4de6-a9fc-429b6478d833`. Production Worker/D1/R2 không bị
   mutation; backup/restore production và production promotion vẫn chưa đóng.
-- Production D1 read-only migration check vẫn báo các migration `0009–0017`
+- Production D1 read-only migration check vẫn báo các migration `0009–0018`
   đang chờ apply. Lượt kiểm tra không apply migration và không ghi dữ liệu;
   production control plane chỉ được mở sau backup, phê duyệt dữ liệu và cửa sổ
   rollback riêng.

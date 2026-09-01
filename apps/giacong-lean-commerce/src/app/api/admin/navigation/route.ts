@@ -2,10 +2,11 @@ import { adminFailure, adminSuccess } from "@/lib/admin-api.ts";
 import { adminErrorFrom } from "@/lib/admin-error-mapping.ts";
 import { requireAdmin } from "@/lib/admin-guard";
 import { canManageNavigation, canPublishNavigation } from "@/lib/admin-permissions.ts";
-import { readBoundedAdminJson } from "@/lib/admin-request";
+import { hasOnlyKeys, isAdminRequestId, readBoundedAdminJson } from "@/lib/admin-request";
 import {
   createAdminSiteNavigation,
   listAdminSiteNavigation,
+  SiteNavigationIdempotencyConflictError,
   SiteNavigationValidationError,
 } from "@/lib/site-navigation.ts";
 
@@ -36,8 +37,21 @@ export async function POST(request: Request): Promise<Response> {
   const parsedRequest = await readBoundedAdminJson(request);
   if (!parsedRequest.ok) return adminFailure(parsedRequest.requestId, parsedRequest.status, parsedRequest.code, parsedRequest.message);
   const body = parsedRequest.body;
-  if (!isRecord(body) || typeof body.menuKey !== "string" || typeof body.label !== "string" || typeof body.href !== "string") {
-    return adminFailure(parsedRequest.requestId, 422, "VALIDATION_ERROR", "Cần menuKey, label và href.");
+  const requestId = isRecord(body) && isAdminRequestId(body.requestId)
+    ? body.requestId.trim().toLowerCase()
+    : parsedRequest.requestId;
+  if (
+    !isRecord(body)
+    || !isAdminRequestId(body.requestId)
+    || !hasOnlyKeys(body, ["requestId", "menuKey", "label", "href", "capturedMenuId", "sortOrder", "isActive"])
+    || typeof body.menuKey !== "string"
+    || typeof body.label !== "string"
+    || typeof body.href !== "string"
+    || (body.capturedMenuId !== undefined && body.capturedMenuId !== null && typeof body.capturedMenuId !== "string")
+    || (body.sortOrder !== undefined && typeof body.sortOrder !== "number")
+    || (body.isActive !== undefined && typeof body.isActive !== "boolean")
+  ) {
+    return adminFailure(requestId, 422, "VALIDATION_ERROR", "Cần requestId, menuKey, label và href hợp lệ.");
   }
   try {
     const item = await createAdminSiteNavigation(guard.database, {
@@ -47,14 +61,18 @@ export async function POST(request: Request): Promise<Response> {
       isActive: body.isActive,
       label: body.label,
       menuKey: body.menuKey,
+      requestId,
       sortOrder: body.sortOrder,
     });
-    return adminSuccess(parsedRequest.requestId, { item }, 201);
+    return adminSuccess(requestId, { item }, 201);
   } catch (error) {
-    if (error instanceof SiteNavigationValidationError) {
-      return adminFailure(parsedRequest.requestId, 422, "VALIDATION_ERROR", error.message);
+    if (error instanceof SiteNavigationIdempotencyConflictError) {
+      return adminFailure(requestId, 409, "IDEMPOTENCY_CONFLICT", error.message);
     }
-    return adminErrorFrom(parsedRequest.requestId, error, "Không thể thêm mục điều hướng.");
+    if (error instanceof SiteNavigationValidationError) {
+      return adminFailure(requestId, 422, "VALIDATION_ERROR", error.message);
+    }
+    return adminErrorFrom(requestId, error, "Không thể thêm mục điều hướng.");
   }
 }
 

@@ -264,6 +264,24 @@ const auditSources: readonly AuditSource[] = [
     `,
   },
   {
+    tableName: "admin_navigation_create_audit",
+    query: `
+      SELECT
+        'admin_navigation_create_audit' AS source,
+        CAST(id AS TEXT) AS source_id,
+        actor_subject,
+        action,
+        operation,
+        entity_type,
+        entity_key,
+        request_id,
+        previous_revision,
+        resulting_revision,
+        created_at
+      FROM admin_navigation_create_audit
+    `,
+  },
+  {
     tableName: "admin_navigation_bulk_audit",
     query: `
       SELECT
@@ -414,7 +432,7 @@ function nullableText(value: unknown): string | null {
 
 function nullableRevision(value: unknown): number | null {
   if (value === null || value === undefined) return null;
-  if (typeof value !== "number" || !Number.isSafeInteger(value) || value < 1) {
+  if (typeof value !== "number" || !Number.isSafeInteger(value) || value < 0) {
     throw new AdminAuditStorageError("Audit revision không hợp lệ.");
   }
   return value;

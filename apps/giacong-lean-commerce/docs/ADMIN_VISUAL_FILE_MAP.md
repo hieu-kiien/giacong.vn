@@ -27,7 +27,7 @@ bootstrap vào D1 staging với role `owner` cấp cao nhất. `/admin/thanh-vie
 được browser xác nhận hiển thị tài khoản hiện tại, khóa self-demotion/self-
 deactivation và mở được luồng `Thêm thành viên`.
 
-Full gate gần nhất: focused session/UI `17/17`, admin `173/173`, contact
+Full gate gần nhất: focused session/UI `17/17`, admin `175/175`, contact
 `104/104`, catalog `5/5`, catalog purchase UI `1/1`, service `3/3`, commerce
 `63/63`, listing `4/4`, detail `29/29`, kèm lint, typecheck và build. Public UX
 audit năm route pass; browser identity role matrix đầy đủ, write/read-back từng
@@ -40,12 +40,13 @@ Rollback drill staging 2026-09-01 đã pass: chuyển 100% traffic về
 100% về `902b3a6e-732f-4de6-a9fc-429b6478d833`. Đây chỉ là bằng chứng rollback
 runtime staging; backup/restore production và production gate vẫn mở.
 
-Commit `566489d` bổ sung contract navigation: single save/publish và bulk publish
-dùng request UUID, revision guard, idempotent replay/conflict; bulk dùng D1 batch
-atomic, giới hạn 100 mục, kết quả stale theo id và audit chuyên biệt. Migration
-`0017_navigation_bulk_publish_contract.sql` đã được verify qua baseline + toàn
-bộ migration trên D1 local tạm và đã apply/verify trên D1 staging; production
-chưa apply migration này.
+Commit `566489d` bổ sung contract navigation: create/single save/publish và bulk
+publish dùng request UUID, revision guard, idempotent replay/conflict; mutation
+được ghép D1 batch atomic với audit chuyên biệt, bulk giới hạn 100 mục và trả
+kết quả stale theo id. Các migration `0017_navigation_bulk_publish_contract.sql`
+và `0018_navigation_create_contract.sql` đã được verify qua baseline + toàn bộ
+migration trên D1 local tạm và đã apply/verify trên D1 staging; production chưa
+apply các migration này.
 
 Commit `8c509c5` đã nâng Next.js `16.3.4`, OpenNext Cloudflare `1.20.5`,
 Wrangler `4.125.0`, loại `shadcn` CLI khỏi runtime dependency graph và giữ
@@ -212,7 +213,7 @@ use case thứ ba chứng minh editor hiện tại không còn đủ đơn giả
 | Dashboard | /api/admin/dashboard | P5 |
 | Settings | /api/admin/site-settings, /api/admin/site-settings/publish, /api/admin/site-settings/publish-all, /api/admin/site-settings/media | P2; per-setting và bulk publish có requestId, stale, idempotency và audit batch; contextual editor đã tích hợp, staging/admin read-back còn mở |
 | Pages | /api/admin/pages, /api/admin/pages/[pageKey], /api/admin/pages/[pageKey]/publish | P4; contextual hand-off đã nối tới page builder, API contract không đổi |
-| Navigation | /api/admin/navigation, /api/admin/navigation/[id], /publish, /publish-all | P4; single save/publish có exact requestId + revision/CAS + idempotent audit; bulk tối đa 100, D1 atomic, stale theo item và replay; migration `0017` đã có trong master và staging, browser write/read-back còn mở |
+| Navigation | /api/admin/navigation, /api/admin/navigation/[id], /publish, /publish-all | P4; create/save/publish có exact requestId + revision/CAS + idempotent audit; bulk tối đa 100, D1 atomic, stale theo item và replay; migrations `0017–0018` đã có trong master và staging, browser write/read-back còn mở |
 | News | /api/admin/news, /api/admin/news/[id], /api/admin/news/[id]/publish, /api/admin/news/batch | P3; draft save, explicit publish/unpublish, batch status và contextual deep-link đã có; browser/admin staging read-back còn mở |
 | Media | /api/admin/media, /api/admin/media/[id], /api/admin/media/cleanup | P3/P5; upload/alt/delete đã exact requestId + revision/CAS + audit/R2 guard; cleanup vẫn là recovery path bounded riêng |
 | Catalog | /api/admin/categories, /api/admin/categories/[id], /api/admin/categories/batch, /products, /products/[id], /products/batch, /products/[id]/variants, /products/[id]/variants/[variantId], /api/admin/products/import | P5; bulk import tối đa 50 dòng, product/category archive tối đa 100 item; single-row product/variant create/update/archive và bulk contract đều revision-aware/atomic/idempotent/audited; category/product/variant action là soft archive, không hard-delete; contract đã có trong master và staging, còn browser/admin Access read-back |
@@ -253,7 +254,7 @@ sự giải quyết orchestration mà client không nên làm.
 | migrations/0014_admin_lead_write_contract.sql | lead revision và specialized audit | P5; phải apply local/staging trước lead status write |
 | migrations/0015_media_write_contract.sql | media/site-media revision, request idempotency và specialized audit | P3/P5; phải apply local/staging trước media write |
 | migrations/0016_admin_lead_request_marker.sql | lead request marker để audit/event stale-safe trong D1 batch | P5; phải apply local/staging trước lead status write |
-| migrations/0017_navigation_bulk_publish_contract.sql | navigation last-request marker, single-item audit và bulk publish envelope | P4/P5; đã verify local và staging, production gate riêng |
+| migrations/0017_navigation_bulk_publish_contract.sql, migrations/0018_navigation_create_contract.sql | navigation last-request marker, single-item audit, bulk publish envelope và create audit | P4/P5; đã verify local và staging, production gate riêng |
 | wrangler.jsonc | Worker/env/routes/D1/R2 | staging trước, production gate |
 | custom-worker.ts, open-next.config.ts | Cloudflare/OpenNext runtime | không đổi chỉ để shortcut local |
 | .env.example, .nvmrc, package-lock.json | local reproducibility | không commit secret |

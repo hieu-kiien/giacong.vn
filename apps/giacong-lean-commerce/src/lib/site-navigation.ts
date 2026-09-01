@@ -127,6 +127,7 @@ export async function createAdminSiteNavigation(
     isActive?: unknown;
     label: unknown;
     menuKey: unknown;
+    requestId: string;
     sortOrder?: unknown;
   },
 ): Promise<AdminNavigationItem> {
@@ -136,15 +137,30 @@ export async function createAdminSiteNavigation(
   const capturedMenuId = normalizeCapturedMenuId(input.capturedMenuId);
   const sortOrder = normalizeSortOrder(input.sortOrder);
   const isActive = normalizeBoolean(input.isActive, true);
+  const requestId = normalizeNavigationRequestId(input.requestId);
+  const payloadSha256 = await fingerprintNavigationMutation({
+    capturedMenuId,
+    href,
+    isActive,
+    label,
+    menuKey,
+    operation: "create",
+    sortOrder,
+  });
+  const existingMutation = await findNavigationCreateMutation(database, requestId);
+  if (existingMutation) {
+    assertMatchingNavigationCreateMutation(existingMutation, payloadSha256);
+    return readNavigationCreateMutationResult(database, existingMutation);
+  }
   const id = crypto.randomUUID();
 
-  await database.prepare(`
+  const insert = database.prepare(`
     INSERT INTO site_navigation_items (
       id, menu_key, captured_menu_id,
       draft_label, draft_href, draft_sort_order, draft_is_active,
       published_label, published_href, published_sort_order, published_is_active,
-      updated_by
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      updated_by, last_request_id
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).bind(
     id,
     menuKey,
@@ -158,11 +174,29 @@ export async function createAdminSiteNavigation(
     sortOrder,
     isActive ? 1 : 0,
     input.actorSubject,
-  ).run();
-  await writeNavigationAudit(database, input.actorSubject, "site_navigation.created", id, { menuKey });
-  const item = await getAdminSiteNavigation(database, id);
-  if (!item) throw new SiteNavigationNotFoundError("Không thể đọc mục điều hướng vừa tạo.");
-  return item;
+    requestId,
+  );
+  const audit = database.prepare(`
+    INSERT INTO admin_navigation_create_audit (
+      request_id, actor_subject, action, operation, entity_type, entity_key,
+      previous_revision, resulting_revision, payload_sha256
+    ) VALUES (?, ?, 'create', 'create', 'site_navigation', ?, 0, 1, ?)
+  `).bind(requestId, input.actorSubject, id, payloadSha256);
+  try {
+    const changed = await applyAtomicNavigationMutation(database, insert, audit);
+    if (!changed) throw new SiteNavigationStorageError("Không ghi được mục điều hướng mới.");
+  } catch (error) {
+    const racedMutation = await findNavigationCreateMutation(database, requestId);
+    if (racedMutation) {
+      assertMatchingNavigationCreateMutation(racedMutation, payloadSha256);
+      return readNavigationCreateMutationResult(database, racedMutation);
+    }
+    throw error;
+  }
+  const mutation = await findNavigationCreateMutation(database, requestId);
+  if (!mutation) throw new SiteNavigationStorageError("Không đọc được audit mục điều hướng vừa tạo.");
+  assertMatchingNavigationCreateMutation(mutation, payloadSha256);
+  return readNavigationCreateMutationResult(database, mutation);
 }
 
 export async function updateAdminSiteNavigation(
@@ -448,6 +482,12 @@ interface NavigationMutationRow {
   payload_sha256: string;
 }
 
+interface NavigationCreateMutationRow {
+  entity_key: string;
+  operation: "create";
+  payload_sha256: string;
+}
+
 interface NavigationAuditStatementInput {
   actorSubject: string;
   entityId: string;
@@ -511,6 +551,18 @@ async function findNavigationMutation(
   `).bind(requestId).first<NavigationMutationRow>();
 }
 
+async function findNavigationCreateMutation(
+  database: D1DatabaseLike,
+  requestId: string,
+): Promise<NavigationCreateMutationRow | null> {
+  return database.prepare(`
+    SELECT entity_key, operation, payload_sha256
+    FROM admin_navigation_create_audit
+    WHERE request_id = ?
+    LIMIT 1
+  `).bind(requestId).first<NavigationCreateMutationRow>();
+}
+
 function assertMatchingNavigationMutation(
   mutation: NavigationMutationRow,
   operation: NavigationMutationOperation,
@@ -524,6 +576,24 @@ function assertMatchingNavigationMutation(
 async function readNavigationMutationResult(
   database: D1DatabaseLike,
   mutation: NavigationMutationRow,
+): Promise<AdminNavigationItem> {
+  const item = await getAdminSiteNavigation(database, mutation.entity_key);
+  if (!item) throw new SiteNavigationStorageError("Không đọc được mục điều hướng sau khi replay.");
+  return item;
+}
+
+function assertMatchingNavigationCreateMutation(
+  mutation: NavigationCreateMutationRow,
+  payloadSha256: string,
+): void {
+  if (mutation.operation !== "create" || mutation.payload_sha256 !== payloadSha256) {
+    throw new SiteNavigationIdempotencyConflictError("requestId đã được dùng cho một payload điều hướng khác.");
+  }
+}
+
+async function readNavigationCreateMutationResult(
+  database: D1DatabaseLike,
+  mutation: NavigationCreateMutationRow,
 ): Promise<AdminNavigationItem> {
   const item = await getAdminSiteNavigation(database, mutation.entity_key);
   if (!item) throw new SiteNavigationStorageError("Không đọc được mục điều hướng sau khi replay.");

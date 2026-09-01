@@ -25,6 +25,7 @@ class FakeAuditDatabase implements D1DatabaseLike {
     "admin_site_setting_bulk_audit",
     "admin_navigation_audit",
     "admin_navigation_bulk_audit",
+    "admin_navigation_create_audit",
   ]);
 
   prepare(query: string): D1PreparedStatementLike {
@@ -69,7 +70,7 @@ class FakeAuditStatement implements D1PreparedStatementLike {
       const tableName = String(this.values[0]);
       return (this.database.tables.has(tableName) ? { name: tableName } : null) as T | null;
     }
-    if (this.query.includes("COUNT(*)")) return { count: this.query.includes("admin_navigation_audit") || this.query.includes("admin_navigation_bulk_audit") ? 4 : 2 } as T;
+    if (this.query.includes("COUNT(*)")) return { count: this.query.includes("admin_navigation_create_audit") ? 5 : this.query.includes("admin_navigation_audit") || this.query.includes("admin_navigation_bulk_audit") ? 4 : 2 } as T;
     return null;
   }
 
@@ -78,6 +79,21 @@ class FakeAuditStatement implements D1PreparedStatementLike {
     if (!this.query.includes("FROM (")) return { results: [] };
     return {
       results: [
+        ...(this.query.includes("admin_navigation_create_audit") ? [
+          {
+            action: "create",
+            actor_subject: "owner@example.com",
+            created_at: "2026-08-29T16:00:00.000Z",
+            entity_key: "custom-contact",
+            entity_type: "site_navigation",
+            operation: "create",
+            previous_revision: 0,
+            request_id: "55555555-5555-4555-8555-555555555555",
+            resulting_revision: 1,
+            source: "admin_navigation_create_audit",
+            source_id: "13",
+          },
+        ] : []),
         ...(this.query.includes("admin_navigation_audit") ? [
           {
             action: "update",
@@ -167,9 +183,21 @@ test("audit reader merges all available tables without exceeding D1 compound SEL
     search: "",
   });
 
-  assert.equal(result.total, 4);
-  assert.deepEqual(result.pagination, { currentPage: 1, lastPage: 1, pageSize: 20, total: 4 });
+  assert.equal(result.total, 5);
+  assert.deepEqual(result.pagination, { currentPage: 1, lastPage: 1, pageSize: 20, total: 5 });
   assert.deepEqual(result.entries, [
+    {
+      action: "create",
+      actorSubject: "owner@example.com",
+      createdAt: "2026-08-29T16:00:00.000Z",
+      entityKey: "custom-contact",
+      entityType: "site_navigation",
+      operation: "create",
+      previousRevision: 0,
+      requestId: "55555555-5555-4555-8555-555555555555",
+      resultingRevision: 1,
+      source: "admin_navigation_create_audit",
+    },
     {
       action: "update",
       actorSubject: "owner@example.com",
@@ -226,7 +254,7 @@ test("audit reader skips an absent specialized table without failing", async () 
   const database = new FakeAuditDatabase();
   database.tables.delete("admin_news_audit");
   const result = await listAdminAudit(database, { page: 1, pageSize: 20, search: "" });
-  assert.equal(result.entries.length, 4);
+  assert.equal(result.entries.length, 5);
 });
 
 test("audit API is owner-only, read-only and bounded", async () => {

@@ -21,12 +21,13 @@ UI khóa tự hạ quyền, tự đổi Access identity hoặc tự vô hiệu h
 duy nhất vào Access `sub`.
 
 Lát navigation contract ở commit `566489d` đã thêm request UUID bắt buộc,
-optimistic revision và idempotent replay cho save/publish từng mục; bulk publish
-được D1 batch atomic, giới hạn cứng 100 mục, trả kết quả từng item và ghi audit
-chuyên biệt. Migration `0017_navigation_bulk_publish_contract.sql` đã chạy đủ
-trên D1 local tạm và đã apply/verify trên D1 staging; production chưa thay đổi.
+optimistic revision và idempotent replay cho create/save/publish từng mục; bulk
+publish được D1 batch atomic, giới hạn cứng 100 mục, trả kết quả từng item và
+ghi audit chuyên biệt. Các migration `0017_navigation_bulk_publish_contract.sql`
+và `0018_navigation_create_contract.sql` đã chạy đủ trên D1 local tạm và đã
+apply/verify trên D1 staging; production chưa thay đổi.
 
-Full gate gần nhất đạt: focused session/UI `17/17`, full admin `173/173`,
+Full gate gần nhất đạt: focused session/UI `17/17`, full admin `175/175`,
 contact `104/104`, catalog `5/5`, purchase UI `1/1`, service `3/3`, commerce
 `63/63`, listing `4/4`, detail `29/29`, lint, typecheck và build đều exit `0`;
 audit dependency báo `0 vulnerabilities`. Public smoke 5 route sau deploy đạt
@@ -370,13 +371,14 @@ không truyền `pageKey`, public không tự fetch session. Contract P4 mới �
 managed-page hand-off; footer renderer, browser route matrix và staging Access
 read-back vẫn mở.
 
-**Navigation contract update 2026-09-01:** navigation read/write/publish và
-bulk publish đã có migration `0017`, exact request envelope, revision/CAS,
+**Navigation contract update 2026-09-01:** navigation create/read/write/publish
+và bulk publish đã có migration `0017–0018`, exact request envelope, revision/CAS,
 idempotent replay/conflict, D1 batch coupling giữa item và audit, giới hạn 100
 mục với guard mục thứ 101, và kết quả `stale` theo từng id. Audit history đã
-nhận cả event từng mục lẫn bulk envelope; test admin hiện `173/173`. Đây là
-evidence local/code contract; staging migration đã apply và browser read-only đã
-được xác minh, còn browser write/read-back vẫn chưa được đánh dấu đạt.
+nhận event create, event từng mục và bulk envelope; test admin hiện `175/175`.
+Đây là evidence local/code contract; staging migration đã apply và browser
+read-only đã được xác minh, còn browser write/read-back vẫn chưa được đánh dấu
+đạt.
 
 **Mục tiêu:** chuyển các vùng layout cần thay đổi thường xuyên sang cấu trúc an
 toàn có thể chỉnh sửa.

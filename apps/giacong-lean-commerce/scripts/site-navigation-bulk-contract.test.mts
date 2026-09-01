@@ -7,6 +7,7 @@ import {
   SiteNavigationBatchLimitError,
   SiteNavigationConflictError,
   SiteNavigationIdempotencyConflictError,
+  createAdminSiteNavigation,
   publishAdminSiteNavigation,
   publishAllAdminSiteNavigation,
   updateAdminSiteNavigation,
@@ -14,10 +15,12 @@ import {
 import type { D1DatabaseLike, D1PreparedStatementLike } from "../src/lib/admin-data.ts";
 
 test("navigation bulk publish has a request-scoped audit contract", async () => {
-  const [migration, source, route, manager, detailRoute, publishRoute] = await Promise.all([
+  const [migration, createMigration, source, bulkRoute, createRoute, manager, detailRoute, publishRoute] = await Promise.all([
     readFile(new URL("../migrations/0017_navigation_bulk_publish_contract.sql", import.meta.url), "utf8"),
+    readFile(new URL("../migrations/0018_navigation_create_contract.sql", import.meta.url), "utf8"),
     readFile(new URL("../src/lib/site-navigation.ts", import.meta.url), "utf8"),
     readFile(new URL("../src/app/api/admin/navigation/publish-all/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../src/app/api/admin/navigation/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../src/components/admin/AdminNavigationManager.tsx", import.meta.url), "utf8"),
     readFile(new URL("../src/app/api/admin/navigation/[id]/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../src/app/api/admin/navigation/[id]/publish/route.ts", import.meta.url), "utf8"),
@@ -25,6 +28,8 @@ test("navigation bulk publish has a request-scoped audit contract", async () => 
 
   assert.match(migration, /CREATE TABLE IF NOT EXISTS admin_navigation_bulk_audit/);
   assert.match(migration, /CREATE TABLE IF NOT EXISTS admin_navigation_audit/);
+  assert.match(createMigration, /CREATE TABLE IF NOT EXISTS admin_navigation_create_audit/);
+  assert.match(createMigration, /action TEXT NOT NULL CHECK \(action = 'create'\)/);
   assert.match(migration, /selected_ids_json/);
   assert.match(migration, /ALTER TABLE site_navigation_items\s+ADD COLUMN last_request_id/);
   assert.match(source, /admin_navigation_bulk_audit/);
@@ -32,11 +37,16 @@ test("navigation bulk publish has a request-scoped audit contract", async () => 
   assert.match(source, /databaseWithBatch\.batch/);
   assert.match(source, /LIMIT 101/);
   assert.match(source, /SiteNavigationBatchLimitError/);
-  assert.match(route, /readBoundedAdminJson/);
-  assert.match(route, /hasOnlyKeys\(body, \["requestId"\]\)/);
-  assert.match(route, /SiteNavigationValidationError/);
-  assert.match(route, /publishAllAdminSiteNavigation[\s\S]*requestId/);
-  assert.match(route, /adminSuccess\(requestId, result\)/);
+  assert.match(source, /findNavigationCreateMutation/);
+  assert.match(source, /admin_navigation_create_audit/);
+  assert.match(bulkRoute, /readBoundedAdminJson/);
+  assert.match(createRoute, /hasOnlyKeys\(body, \["requestId", "menuKey", "label", "href", "capturedMenuId", "sortOrder", "isActive"\]\)/);
+  assert.match(createRoute, /isAdminRequestId\(body\.requestId\)/);
+  assert.match(createRoute, /SiteNavigationIdempotencyConflictError/);
+  assert.match(bulkRoute, /hasOnlyKeys\(body, \["requestId"\]\)/);
+  assert.match(bulkRoute, /SiteNavigationValidationError/);
+  assert.match(bulkRoute, /publishAllAdminSiteNavigation[\s\S]*requestId/);
+  assert.match(bulkRoute, /adminSuccess\(requestId, result\)/);
   assert.match(manager, /publishAllRequestId/);
   assert.match(manager, /body: \{ requestId \}/);
   assert.match(manager, /result\.skipped\.map/);
@@ -45,6 +55,58 @@ test("navigation bulk publish has a request-scoped audit contract", async () => 
   assert.match(publishRoute, /hasOnlyKeys\(body, \["requestId", "expectedVersion"\]\)/);
   assert.match(publishRoute, /requestId/);
   assert.match(source, /applyAtomicNavigationMutation/);
+});
+
+test("navigation create is atomic, request-scoped and replayable", async () => {
+  const database = new FakeNavigationDatabase([]);
+  const input = {
+    actorSubject: "qtu1053@gmail.com",
+    capturedMenuId: "menu-custom",
+    href: "/custom/",
+    isActive: true,
+    label: "Mục mới",
+    menuKey: "primary",
+    requestId: "99999999-9999-4999-8999-999999999999",
+    sortOrder: 70,
+  } as Parameters<typeof createAdminSiteNavigation>[1];
+
+  const created = await createAdminSiteNavigation(database, input);
+  assert.equal(created.version, 1);
+  assert.equal(created.dirty, false);
+  assert.equal(database.rows.length, 1);
+  assert.equal(database.createAudits.size, 1);
+  assert.equal(database.batchCalls, 1);
+
+  const replay = await createAdminSiteNavigation(database, input);
+  assert.deepEqual(replay, created);
+  assert.equal(database.rows.length, 1);
+  assert.equal(database.createAudits.size, 1);
+  assert.equal(database.batchCalls, 1);
+
+  await assert.rejects(
+    () => createAdminSiteNavigation(database, { ...input, label: "Mục khác" }),
+    SiteNavigationIdempotencyConflictError,
+  );
+  assert.equal(database.rows.length, 1);
+  assert.equal(database.batchCalls, 1);
+});
+
+test("navigation create rolls back the item when specialized audit fails", async () => {
+  const database = new FakeNavigationDatabase([]);
+  database.failOnQuery = "INSERT INTO admin_navigation_create_audit";
+
+  await assert.rejects(
+    () => createAdminSiteNavigation(database, {
+      actorSubject: "qtu1053@gmail.com",
+      href: "/rollback/",
+      label: "Rollback",
+      menuKey: "primary",
+      requestId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+    } as Parameters<typeof createAdminSiteNavigation>[1]),
+  );
+  assert.equal(database.rows.length, 0);
+  assert.equal(database.createAudits.size, 0);
+  assert.equal(database.batchCalls, 1);
 });
 
 test("navigation bulk publish is atomic, bounded by the query and replayable", async () => {
@@ -283,9 +345,16 @@ interface SingleAudit {
   payload_sha256: string;
 }
 
+interface CreateAudit {
+  entity_key: string;
+  operation: "create";
+  payload_sha256: string;
+}
+
 class FakeNavigationDatabase implements D1DatabaseLike {
   readonly rows: NavigationRow[];
   readonly audits = new Map<string, BulkAudit>();
+  readonly createAudits = new Map<string, CreateAudit>();
   readonly singleAudits = new Map<string, SingleAudit>();
   readonly items: BulkAuditItem[] = [];
   batchCalls = 0;
@@ -303,7 +372,7 @@ class FakeNavigationDatabase implements D1DatabaseLike {
 
   async batch(statements: D1PreparedStatementLike[]): Promise<unknown[]> {
     this.batchCalls++;
-    const snapshot = structuredClone({ audits: [...this.audits.entries()], items: this.items, navigationAuditCount: this.navigationAuditCount, rows: this.rows, singleAudits: [...this.singleAudits.entries()] });
+    const snapshot = structuredClone({ audits: [...this.audits.entries()], createAudits: [...this.createAudits.entries()], items: this.items, navigationAuditCount: this.navigationAuditCount, rows: this.rows, singleAudits: [...this.singleAudits.entries()] });
     try {
       const results: unknown[] = [];
       for (const statement of statements) {
@@ -313,6 +382,8 @@ class FakeNavigationDatabase implements D1DatabaseLike {
     } catch (error) {
       this.audits.clear();
       snapshot.audits.forEach(([key, value]) => this.audits.set(key, value));
+      this.createAudits.clear();
+      snapshot.createAudits.forEach(([key, value]) => this.createAudits.set(key, value));
       this.singleAudits.clear();
       snapshot.singleAudits.forEach(([key, value]) => this.singleAudits.set(key, value));
       this.items.splice(0, this.items.length, ...snapshot.items);
@@ -371,6 +442,9 @@ class FakeNavigationStatement implements D1PreparedStatementLike {
     if (this.query.includes("FROM admin_navigation_bulk_audit")) {
       return (this.database.audits.get(String(this.values[0])) ?? null) as T | null;
     }
+    if (this.query.includes("FROM admin_navigation_create_audit")) {
+      return (this.database.createAudits.get(String(this.values[0])) ?? null) as T | null;
+    }
     if (this.query.includes("FROM admin_navigation_audit")) {
       return (this.database.singleAudits.get(String(this.values[0])) ?? null) as T | null;
     }
@@ -387,6 +461,38 @@ class FakeNavigationStatement implements D1PreparedStatementLike {
   async execute(): Promise<unknown> {
     if (this.database.failOnQuery && this.query.includes(this.database.failOnQuery)) {
       throw new Error("forced fake D1 failure");
+    }
+    if (this.query.includes("INSERT INTO site_navigation_items")) {
+      const [id, menuKey, capturedMenuId, draftLabel, draftHref, draftSortOrder, draftIsActive, publishedLabel, publishedHref, publishedSortOrder, publishedIsActive, updatedBy, lastRequestId] = this.values;
+      this.database.rows.push({
+        id: String(id),
+        menu_key: String(menuKey) as "primary" | "footer",
+        captured_menu_id: (capturedMenuId as string | null) ?? null,
+        draft_label: String(draftLabel),
+        draft_href: String(draftHref),
+        draft_sort_order: Number(draftSortOrder),
+        draft_is_active: Number(draftIsActive),
+        published_label: String(publishedLabel),
+        published_href: String(publishedHref),
+        published_sort_order: Number(publishedSortOrder),
+        published_is_active: Number(publishedIsActive),
+        version: 1,
+        updated_by: String(updatedBy),
+        updated_at: "2026-09-01T00:00:00.000Z",
+        published_by: null,
+        published_at: null,
+        last_request_id: String(lastRequestId),
+      });
+      return { meta: { changes: 1 } };
+    }
+    if (this.query.includes("INSERT INTO admin_navigation_create_audit")) {
+      const [requestId, actorSubject, entityKey, payloadSha256] = this.values;
+      this.database.createAudits.set(String(requestId), {
+        entity_key: String(entityKey),
+        operation: "create",
+        payload_sha256: String(payloadSha256),
+      });
+      return { meta: { changes: 1 } };
     }
     if (this.query.includes("INSERT INTO admin_navigation_audit")) {
       if (this.query.includes("SELECT ?, ?, 'update', ?, 'site_navigation'")) {
