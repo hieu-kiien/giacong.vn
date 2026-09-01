@@ -1,8 +1,8 @@
 export const DEMO_PRODUCT_IMAGES = [
-  "/images/products/demo-powder-pouches.png",
-  "/images/products/demo-dried-fruit-pouches.png",
-  "/images/products/demo-sauce-bottles.png",
-  "/images/products/demo-fruit-drinks.png",
+  "/images/products/demo-powder-pouches.webp",
+  "/images/products/demo-dried-fruit-pouches.webp",
+  "/images/products/demo-sauce-bottles.webp",
+  "/images/products/demo-fruit-drinks.webp",
 ] as const;
 
 /**

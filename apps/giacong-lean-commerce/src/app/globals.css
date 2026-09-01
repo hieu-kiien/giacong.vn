@@ -208,119 +208,41 @@
   }
 }
 
-/* Source-aligned visual enhancements sit outside the captured layer so they
- * can intentionally win over the legacy page stylesheet on these four routes. */
-  @keyframes giacong-gallery-in {
-    from { opacity: 0; transform: translateY(18px) scale(.97); }
-    to { opacity: 1; transform: translateY(0) scale(1); }
-  }
+/* Keep the captured gallery geometry; reveal, parallax and section motion come
+ * from the same data attributes and timing as the source stylesheet. */
+.giacong-home-gallery {
+  aspect-ratio: 682 / 404;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-rows: repeat(2, minmax(0, 1fr));
+  margin: 0;
+  position: relative;
+  width: 100%;
+}
 
-  @keyframes giacong-background-drift {
-    from { transform: scale(1) translate3d(0, 0, 0); }
-    to { transform: scale(1.035) translate3d(1.2%, -1%, 0); }
-  }
+.giacong-home-gallery__item {
+  background: rgb(255 255 255 / 12%);
+  border-radius: 34px;
+  display: block;
+  margin: 0;
+  min-height: 0;
+  overflow: hidden;
+  position: relative;
+}
 
-  @keyframes giacong-content-rise {
-    from { opacity: 0; transform: translateY(18px); }
-    to { opacity: 1; transform: translateY(0); }
-  }
+.section01 .giacong-home-gallery img {
+  display: block;
+  height: 100% !important;
+  object-fit: cover;
+  width: 100% !important;
+}
 
-  @keyframes giacong-page-orbit {
-    from { transform: translate3d(0, 0, 0) rotate(0deg); }
-    to { transform: translate3d(18px, -12px, 0) rotate(7deg); }
-  }
-
-  .giacong-home-gallery {
-    aspect-ratio: 682 / 404;
-    display: grid;
-    gap: 10px;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    grid-template-rows: repeat(2, minmax(0, 1fr));
-    margin: 0;
-    position: relative;
-    width: 100%;
-  }
-
-  .giacong-home-gallery__item {
-    animation: giacong-gallery-in .72s cubic-bezier(.22, 1, .36, 1) both;
-    background: rgb(255 255 255 / 12%);
-    border-radius: 34px;
-    display: block;
-    margin: 0;
-    min-height: 0;
-    overflow: hidden;
-    position: relative;
-  }
-
-  .giacong-home-gallery__item:nth-child(2) { animation-delay: 90ms; }
-  .giacong-home-gallery__item:nth-child(3) { animation-delay: 180ms; }
-  .giacong-home-gallery__item:nth-child(4) { animation-delay: 270ms; }
-
-  .section01 .giacong-home-gallery__item::after {
-    background: linear-gradient(135deg, rgb(255 255 255 / 16%), transparent 42%);
-    content: "";
-    inset: 0;
-    pointer-events: none;
-    position: absolute;
-  }
-
-  .section01 .giacong-home-gallery img {
-    display: block;
-    height: 100% !important;
-    object-fit: cover;
-    transition: transform .55s cubic-bezier(.22, 1, .36, 1), filter .35s ease;
-    width: 100% !important;
-  }
-
-  .section01 .giacong-home-gallery__item:hover img {
-    filter: saturate(1.08);
-    transform: scale(1.045);
-  }
-
-  body.home .section01 .section-bg,
-  .section-duong-dan .section-bg,
-  .section-lien-he .section-bg {
-    animation: giacong-background-drift 18s ease-in-out infinite alternate;
-    transform-origin: center;
-  }
-
-  body.home .section01 .col:first-child {
-    animation: giacong-content-rise .75s cubic-bezier(.22, 1, .36, 1) both;
-  }
-
-  body.home .section01 .col:last-child {
-    animation: giacong-content-rise .8s .12s cubic-bezier(.22, 1, .36, 1) both;
-  }
-
-  .section-duong-dan,
-  .section-lien-he {
-    isolation: isolate;
-    overflow: hidden;
-  }
-
-  .section-duong-dan .section-content,
-  .section-lien-he .section-content,
-  .section-gioi-thieu2 .section-content,
-  .section0 .section-content,
-  .lien-he-2-section .section-content,
-  .ketnoi-section .section-content {
-    animation: giacong-content-rise .8s cubic-bezier(.22, 1, .36, 1) both;
-  }
-
-  .section-duong-dan::after,
-  .section-lien-he::after {
-    animation: giacong-page-orbit 16s ease-in-out infinite alternate;
-    border: 1px solid rgb(255 255 255 / 22%);
-    border-radius: 999px;
-    content: "";
-    height: 210px;
-    pointer-events: none;
-    position: absolute;
-    right: -64px;
-    top: -68px;
-    width: 210px;
-    z-index: -1;
-  }
+.section-duong-dan,
+.section-lien-he {
+  isolation: isolate;
+  overflow: hidden;
+}
 
   .archive #header {
     position: relative;
@@ -428,13 +350,11 @@
   }
 
   .giacong-page-hero__orb--one {
-    animation: giacong-page-orbit 10s ease-in-out infinite alternate;
     left: 14%;
     top: 37%;
   }
 
   .giacong-page-hero__orb--two {
-    animation: giacong-page-orbit 12s 1s ease-in-out infinite alternate-reverse;
     height: 11px;
     right: 17%;
     top: 25%;
@@ -673,20 +593,25 @@
     .giacong-news-cards { grid-template-columns: 1fr; }
   }
 
-  @media (prefers-reduced-motion: reduce) {
-    *,
-    *::before,
-    *::after {
-      animation-duration: .001ms !important;
-      animation-iteration-count: 1 !important;
-      scroll-behavior: auto !important;
-      transition-duration: .001ms !important;
-    }
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto !important;
   }
 
 /* Runtime reveal layer for app-owned storefront surfaces. The client primes
  * the initial frame after hydration, then enables the transition so SSR never
  * ships a blank page and reduced-motion users see the content immediately. */
+  [data-animate],
+  [data-animate]::before,
+  [data-animate]::after,
+  .clone-slider-ready > .row {
+    animation-duration: .001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .001ms !important;
+  }
+}
+
+/* Runtime-only reveal layer for the app-owned storefront surfaces. */
 @media (prefers-reduced-motion: no-preference) {
   .page-reveal-ready [data-page-reveal] {
     opacity: 0;
@@ -1019,9 +944,16 @@
   overflow-y: auto;
   position: fixed;
   top: 0;
+  transform: translate3d(0, 0, 0);
+  animation: clone-menu-slide-in .2s ease-out both;
   visibility: visible;
   width: 260px;
   z-index: 9999;
+}
+
+@keyframes clone-menu-slide-in {
+  from { transform: translate3d(-270px, 0, 0); }
+  to { transform: translate3d(0, 0, 0); }
 }
 
 #main-menu.clone-menu-open .sidebar-menu {
@@ -1060,20 +992,27 @@
 }
 
 .clone-menu-backdrop {
-  background: rgb(0 0 0 / 60%);
+  background: #0b0b0b;
   border: 0;
-  display: none;
   inset: 0;
   margin: 0;
   min-height: 100dvh;
+  opacity: 0;
   padding: 0;
+  pointer-events: none;
   position: fixed;
-  width: 100%;
+  transition: opacity .3s, visibility 0s linear .3s;
+  visibility: hidden;
+  width: 100vw;
+  max-width: none;
   z-index: 9998;
 }
 
 .clone-menu-backdrop.clone-menu-backdrop-open {
-  display: block;
+  opacity: .6;
+  pointer-events: auto;
+  transition: opacity .3s;
+  visibility: visible;
 }
 
 .clone-menu-close {
@@ -1083,23 +1022,29 @@
   box-shadow: none;
   color: #fff;
   cursor: pointer;
-  display: none;
+  display: block;
   height: 40px;
   line-height: 40px;
   margin: 0;
   min-height: 0;
   mix-blend-mode: difference;
-  opacity: 0.6;
+  opacity: 0;
   padding: 6px;
+  pointer-events: none;
   position: fixed;
   right: 0;
   top: 0;
+  transition: opacity .3s, visibility 0s linear .3s;
+  visibility: hidden;
   width: 40px;
   z-index: 10000;
 }
 
 body.clone-menu-active .clone-menu-close {
-  display: block;
+  opacity: .6;
+  pointer-events: auto;
+  transition: opacity .3s;
+  visibility: visible;
 }
 
 .clone-menu-close:hover,
@@ -1109,6 +1054,11 @@ body.clone-menu-active .clone-menu-close {
 
 body.clone-menu-active {
   overflow: hidden;
+}
+
+#header .header-wrapper.stuck {
+  animation: stuckFadeIn .6s;
+  box-shadow: 1px 1px 10px rgba(0,0,0,.15);
 }
 
 .wpcf7-form[data-status="sent"] .wpcf7-response-output {
@@ -1139,7 +1089,54 @@ body.clone-menu-active {
   border-color: #327600 !important;
 }
 
+#main #content .wpcf7-form .wpcf7-submit:hover,
+#main #content .wpcf7-form .wpcf7-submit:focus-visible {
+  background-color: #285f00 !important;
+  border-color: #285f00 !important;
+}
+
+#main #content .giacong-news-search button,
+#main .giacong-news-search button,
+#main #content .primary.nut-xem-them1 {
+  background: #327600 !important;
+}
+
+#main #content .giacong-news-search button:hover,
+#main .giacong-news-search button:hover,
+#main #content .giacong-news-search button:focus-visible,
+#main .giacong-news-search button:focus-visible,
+#main #content .primary.nut-xem-them1:hover,
+#main #content .primary.nut-xem-them1:focus-visible {
+  background: #285f00 !important;
+}
 @media (min-width: 850px) {
+  /*
+   * Keep the mega-menu hitbox at its open position while the pointer crosses
+   * the small gap below the trigger. The delayed fade gives the pointer time
+   * to reach the panel; the bridge keeps the parent in :hover when the path is
+   * slow enough to pass through that gap.
+   */
+  #header li.menu-item-design-container-width.has-dropdown > .nav-dropdown {
+    left: 50% !important;
+    max-height: 80vh !important;
+    max-width: none !important;
+    position: fixed !important;
+    top: 70px !important;
+    transition: opacity .25s ease .35s, visibility 0s linear .6s !important;
+    transform: translateX(-50%) !important;
+    width: min(1240px, calc(100% - 30px)) !important;
+  }
+
+  #header li.menu-item-design-container-width.has-dropdown::after {
+    content: "";
+    height: 14px;
+    left: 0;
+    pointer-events: auto;
+    position: absolute;
+    right: 0;
+    top: 100%;
+  }
+
   #header li.has-dropdown:hover > .nav-dropdown,
   #header li.has-dropdown:focus-within > .nav-dropdown {
     left: -15px !important;
@@ -1147,24 +1144,51 @@ body.clone-menu-active {
     opacity: 1 !important;
     visibility: visible !important;
   }
+
+  #header:has(li.has-dropdown:hover) li.menu-item-design-container-width.has-dropdown:not(:hover) > .nav-dropdown,
+  #header:has(li.has-dropdown:focus-within) li.menu-item-design-container-width.has-dropdown:not(:focus-within) > .nav-dropdown {
+    opacity: 0 !important;
+    transition: opacity .25s, visibility .25s !important;
+    visibility: hidden !important;
+  }
+
+  #header li.menu-item-design-container-width.has-dropdown:hover > .nav-dropdown,
+    #header li.menu-item-design-container-width.has-dropdown:focus-within > .nav-dropdown {
+      left: 50% !important;
+      max-width: none !important;
+      position: fixed !important;
+      top: 70px !important;
+      transition: opacity .25s, visibility .25s !important;
+      transform: translateX(-50%) !important;
+      width: min(1240px, calc(100% - 30px)) !important;
+    }
+
 }
 
 #main-menu .nav-sidebar > li.menu-item-has-children > .sub-menu {
-  display: none !important;
+  display: block !important;
   left: auto !important;
   margin: 0;
-  max-height: none;
-  opacity: 1;
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
   padding: 0;
+  pointer-events: none;
   position: static !important;
   top: auto !important;
-  transform: none !important;
-  visibility: visible;
+  transform: translate3d(-10px, 0, 0) !important;
+  transition: max-height .3s ease, opacity .3s, transform .3s, visibility 0s linear .3s;
+  visibility: hidden;
   width: 100%;
 }
 
 #main-menu .nav-sidebar > li.clone-submenu-open > .sub-menu {
-  display: block !important;
+  max-height: 390px;
+  opacity: 1;
+  pointer-events: auto;
+  transform: translate3d(0, 0, 0) !important;
+  transition: max-height .3s ease, opacity .3s, transform .3s;
+  visibility: visible;
 }
 
 #main-menu .nav-sidebar > li > .sub-menu > li {
@@ -1178,8 +1202,8 @@ body.clone-menu-active {
   display: flex;
   font-size: 14px;
   line-height: 20px;
-  min-height: 44px;
-  padding: 10px 20px 10px 45px;
+  min-height: 38px;
+  padding: 9px 20px 9px 45px;
   text-transform: none;
   width: 100%;
 }
@@ -1203,11 +1227,33 @@ body.clone-menu-active {
 }
 
 #main-menu li.clone-submenu-open > .clone-toggle {
-  transform: none;
+  transform: rotate(-180deg);
+  transition: transform .3s;
 }
 
 #main-menu li.clone-submenu-open > .clone-toggle i {
-  transform: rotate(-180deg);
+  transform: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #main-menu.clone-menu-open,
+  .clone-menu-backdrop,
+  .clone-menu-close,
+  #main-menu .nav-sidebar > li > .sub-menu,
+  #main-menu .clone-toggle {
+    animation: none !important;
+    transition: none !important;
+  }
+
+  #main-menu.clone-menu-open {
+    transform: translate3d(0, 0, 0) !important;
+  }
+
+  #header li.menu-item-design-container-width.has-dropdown > .nav-dropdown .clone-product-menu,
+  #header li.menu-item-design-container-width.has-dropdown > .nav-dropdown .clone-service-menu {
+    opacity: 1;
+    transform: none;
+  }
 }
 
 }

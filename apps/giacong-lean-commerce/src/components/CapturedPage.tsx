@@ -37,7 +37,7 @@ export function CapturedPage({
 export function CapturedFloatingContact({ settings = siteSettingDefaults }: { settings?: PublishedSiteSettings }) {
   const phone = settings.contact_phone.replace(/[^\d+]/g, "");
   return (
-    <div className="echbay-sms-messenger style-for-position-br max-[549px]:!hidden" aria-label="Liên hệ nhanh">
+    <div className="echbay-sms-messenger style-for-position-br max-[549px]:!hidden" aria-label="Liên hệ nhanh" role="region">
         <CapturedRequestCartButton />
         <div className="phonering-alo-alo">
           <a href={`tel:${phone}`} rel="nofollow" aria-label={`Gọi ${settings.contact_phone}`}>.</a>

@@ -83,24 +83,44 @@ export function createMobileProductItem(
     ":scope > .sidebar-menu > .nav-sidebar",
   );
   const serviceItem = navigation?.querySelector<HTMLElement>("#menu-item-5466");
-  if (!navigation || !serviceItem || !desktopProductItem) return undefined;
+  const desktopLink = desktopProductItem?.querySelector<HTMLAnchorElement>(
+    ":scope > a",
+  );
+  const desktopDropdown = desktopProductItem?.querySelector<HTMLElement>(
+    ":scope > .nav-dropdown",
+  );
+  if (!navigation || !serviceItem || !desktopLink || !desktopDropdown) return undefined;
 
   const productItem = document.createElement("li");
-  productItem.className = "menu-item has-icon-left clone-mobile-products";
+  productItem.className = "menu-item menu-item-has-children has-icon-left clone-mobile-products";
 
-  const productLink = document.createElement("a");
-  productLink.href = "/san-pham/";
-  const sourceIcon = desktopProductItem.querySelector<HTMLImageElement>(
-    ":scope > a > .ux-menu-icon",
+  const productLink = desktopLink.cloneNode(true) as HTMLAnchorElement;
+  productLink.className = "nav-top-link";
+  productLink.removeAttribute("aria-expanded");
+  productLink.removeAttribute("aria-haspopup");
+  productLink.querySelector<HTMLElement>(":scope > i.icon-angle-down")?.remove();
+  const sourceIcon = productLink.querySelector<HTMLImageElement>(
+    ":scope > .ux-menu-icon",
   );
   if (sourceIcon) {
-    const icon = sourceIcon.cloneNode(true) as HTMLImageElement;
-    icon.className = "ux-sidebar-menu-icon";
-    productLink.append(icon);
+    sourceIcon.className = "ux-sidebar-menu-icon";
   }
-  productLink.append(document.createTextNode("Mua hàng"));
 
-  productItem.append(productLink);
+  const submenu = document.createElement("ul");
+  submenu.className = "sub-menu nav-sidebar-ul children clone-mobile-product-children";
+  desktopDropdown
+    .querySelectorAll<HTMLAnchorElement>(":scope > .row a")
+    .forEach((desktopChoice) => {
+      const submenuItem = document.createElement("li");
+      submenuItem.className = "menu-item menu-item-type-custom menu-item-object-custom";
+      const choice = desktopChoice.cloneNode(true) as HTMLAnchorElement;
+      choice.className = "clone-mobile-product-link";
+      submenuItem.append(choice);
+      submenu.append(submenuItem);
+    });
+  if (submenu.childElementCount === 0) return undefined;
+
+  productItem.append(productLink, submenu);
   navigation.insertBefore(productItem, serviceItem);
   return productItem;
 }

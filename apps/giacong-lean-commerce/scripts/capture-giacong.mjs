@@ -1,5 +1,6 @@
 import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import { relative, resolve, sep } from "node:path";
+import { pathToFileURL } from "node:url";
 
 const mirrorRoot = resolve(
   process.argv[2] ?? "C:/Users/hieuk/Desktop/cào giacong.vn/mirror",
@@ -42,12 +43,17 @@ const routeAliases = new Map([
 ]);
 let knownRoutes = new Set();
 
+const isMainModule =
+  process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href;
+
+if (isMainModule) {
 await Promise.all([
   mkdir(pagesRoot, { recursive: true }),
   mkdir(`${publicStylesRoot}/icons`, { recursive: true }),
   mkdir(`${publicStylesRoot}/fonts`, { recursive: true }),
   mkdir(`${publicStylesRoot}/fonts/fixed-toc`, { recursive: true }),
 ]);
+}
 
 async function writeOutput(file, contents) {
   for (let attempt = 1; attempt <= 8; attempt += 1) {
@@ -163,7 +169,9 @@ function transformPage(pageSource, route) {
     .replace(/<noscript\b[^>]*>[\s\S]*?<\/noscript>/gi, "")
     .replace(/\son[a-z]+=(["']).*?\1/gi, "")
     .replace(/<img\b[^>]*>/gi, hydrateImage)
-    .replace(/data-animate=(["'])(.*?)\1/gi, 'data-animate="$2" data-animated="true"')
+    // Keep the reveal state client-owned. Baking data-animated=true here
+    // removes the initial frame that the IntersectionObserver needs.
+    .replace(/data-animate=(["'])(.*?)\1/gi, 'data-animate="$2"')
     .replace(/class=(["'])([^"']*\bsection-bg\b[^"']*)\1/gi, (_, quote, classes) => (
       `class=${quote}${classes.includes("bg-loaded") ? classes : `${classes} bg-loaded`}${quote}`
     ))
@@ -192,6 +200,9 @@ function transformPage(pageSource, route) {
   };
 }
 
+export { transformPage };
+
+if (isMainModule) {
 const directoryEntries = await readdir(mirrorRoot, { recursive: true, withFileTypes: true });
 const htmlFiles = directoryEntries
   .filter((entry) => entry.isFile() && entry.name === "index.html")
@@ -259,3 +270,4 @@ await Promise.all(fixedTocFontFiles.map(async (name) => {
 }));
 
 console.log(`Captured ${Object.keys(manifest).length} routes from ${mirrorRoot}`);
+}

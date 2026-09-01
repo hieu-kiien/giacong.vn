@@ -7,6 +7,7 @@ export function connectCapturedMotion(root: ParentNode = document): MotionCleanu
     connectCapturedReveals(root),
     connectPageReveals(root),
     connectCapturedSliders(root),
+    connectCapturedParallax(root),
   ];
 
   return () => cleanups.forEach((cleanup) => cleanup());
@@ -89,7 +90,9 @@ function connectPageReveals(root: ParentNode): MotionCleanup {
   const documentElement = document.documentElement;
   documentElement.classList.add("page-reveal-ready");
   elements.forEach((element) => element.removeAttribute("data-page-revealed"));
-  elements.forEach((element) => element.getBoundingClientRect());
+  elements.forEach((element) => {
+    element.getBoundingClientRect();
+  });
 
   const reveal = (element: HTMLElement) => {
     window.requestAnimationFrame(() => {
@@ -345,6 +348,65 @@ function createSliderDots(slider: HTMLElement, count: number): HTMLOListElement 
   return dots;
 }
 
+function connectCapturedParallax(root: ParentNode): MotionCleanup {
+  const targets = Array.from(root.querySelectorAll<HTMLElement>("[data-parallax]"));
+  if (targets.length === 0) return noop;
+
+  if (prefersReducedMotion()) return noop;
+
+  const activeTargets = new Set<HTMLElement>();
+  let frame: number | undefined;
+  const render = () => {
+    frame = undefined;
+    activeTargets.forEach((target) => {
+      const factor = Number(target.dataset.parallax ?? 0);
+      const rect = target.getBoundingClientRect();
+      const progress = (window.innerHeight - rect.top) / (window.innerHeight + rect.height);
+      const offset = (progress - 0.5) * factor * 10;
+      target.style.transform = "translate3d(0, " + offset + "px, 0)";
+    });
+  };
+  const schedule = () => {
+    if (frame !== undefined) return;
+    frame = window.requestAnimationFrame(render);
+  };
+  const onResize = () => schedule();
+  const activate = (target: HTMLElement) => {
+    activeTargets.add(target);
+    target.classList.add("parallax-active");
+    schedule();
+  };
+  const observer =
+    typeof IntersectionObserver === "undefined"
+      ? undefined
+      : new IntersectionObserver(
+          (entries) => {
+            entries.forEach((entry) => {
+              if (!entry.isIntersecting) return;
+              const target = entry.target as HTMLElement;
+              activate(target);
+              observer?.unobserve(target);
+            });
+          },
+          { rootMargin: "0px 0px 25% 0px", threshold: 0 },
+        );
+
+  window.addEventListener("scroll", schedule, { passive: true });
+  window.addEventListener("resize", onResize);
+  if (observer) targets.forEach((target) => observer.observe(target));
+  else targets.forEach(activate);
+
+  return () => {
+    observer?.disconnect();
+    window.removeEventListener("scroll", schedule);
+    window.removeEventListener("resize", onResize);
+    if (frame !== undefined) window.cancelAnimationFrame(frame);
+    targets.forEach((target) => {
+      target.classList.remove("parallax-active");
+      target.style.removeProperty("transform");
+    });
+  };
+}
 function restoreAttribute(element: HTMLElement, name: string, value: string | null): void {
   if (value === null) element.removeAttribute(name);
   else element.setAttribute(name, value);

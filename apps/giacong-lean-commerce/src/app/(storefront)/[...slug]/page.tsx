@@ -6,6 +6,8 @@ import { CapturedPage } from "@/components/CapturedPage";
 import { CapturedStorefrontShell } from "@/components/site/CapturedStorefrontShell";
 import { getStorefrontNavigationForPath } from "@/components/site/storefront-navigation";
 import { PageBlocks } from "@/components/site/PageBlocks";
+import aboutPage from "@/data/pages/gioi-thieu-ve-gia-cong.json";
+import contactPage from "@/data/pages/lien-he.json";
 import { getPublishedSitePage } from "@/lib/site-pages";
 import { getPublishedSiteSettings } from "@/lib/site-settings";
 import type { CapturedPageData } from "@/types/captured-page";
@@ -24,6 +26,10 @@ interface CapturedAssetsEnv {
 
 const capturedAssetBaseUrl = "https://assets.local/captured-pages";
 const capturedAssetFilePattern = /^[A-Za-z0-9_-]+\.json$/;
+const localCapturedPages: Readonly<Record<string, CapturedPageData>> = {
+  "/gioi-thieu-ve-gia-cong/": aboutPage as CapturedPageData,
+  "/lien-he/": contactPage as CapturedPageData,
+};
 
 async function readCapturedAsset<T>(file: string): Promise<T> {
   if (!capturedAssetFilePattern.test(file)) {
@@ -49,10 +55,17 @@ const readCapturedManifest = cache(async (): Promise<Record<string, string>> => 
 ));
 
 const readCapturedPath = cache(async (path: string): Promise<CapturedPageData> => {
-  const manifest = await readCapturedManifest();
-  const file = manifest[path];
-  if (!file) notFound();
-  return readCapturedAsset<CapturedPageData>(file);
+  const localPage = localCapturedPages[path];
+  try {
+    const manifest = await readCapturedManifest();
+    const file = manifest[path];
+    if (!file) notFound();
+    return await readCapturedAsset<CapturedPageData>(file);
+  } catch (error) {
+    if (!localPage) throw error;
+    console.warn(`Captured page asset unavailable for ${path}; using the local captured fixture.`, error);
+    return localPage;
+  }
 });
 
 export async function generateMetadata({ params }: CapturedRouteProps): Promise<Metadata> {

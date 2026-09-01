@@ -3,6 +3,17 @@ const localCtaRoutes: Record<string, string> = {
   "Về chúng tôi": "/gioi-thieu-ve-gia-cong/",
 };
 
+// Decision: D1 site_navigation_items owns top-level parent labels and hrefs.
+// Child choices are source-owned capture data; the mobile product accordion
+// clones the desktop menu after published navigation has been applied. Legacy
+// child hrefs that cannot be mapped to a public page fall back to their parent
+// route so no hash, home-root or malformed URL is emitted publicly.
+const legacyMegaMenuHrefFallbacks: Readonly<Record<string, "parent">> = {
+  "#": "parent",
+  "/": "parent",
+  "/Hoa quả sấy": "parent",
+};
+
 function readLinkLabel(content: string) {
   return content
     .replace(/<[^>]+>/g, " ")
@@ -33,6 +44,9 @@ export function layerCapturedStyles(pageStyles: string): string {
 
 export function normalizeCapturedMarkup(markup: string) {
   const normalized = markup
+    // Captured HTML must start unrevealed so the client observer has a real
+    // initial frame to animate from. Older generated page JSON baked this
+    // attribute in, so strip it here as a backwards-compatible safeguard.
     .replace(/\sdata-animated=(["'])[^"']*\1/gi, "")
     .replace(/Sản Phẩm(?=<i class="icon-angle-down"><\/i>)/g, "Mua hàng")
     .replace(/Dịch vụ(?=<i class="icon-angle-down"><\/i>)/g, "Thuê gia công")
@@ -50,9 +64,11 @@ export function normalizeCapturedMarkup(markup: string) {
     normalizeCapturedFooterHeadings(
       normalizeCapturedFrames(
         normalizeCapturedContactHeadings(
-          normalizeCapturedMainLandmark(
-            normalizeHomeMenuItems(
-              replaceShoppingMenu(replaceServiceMenus(normalized)),
+            normalizeCapturedMainLandmark(
+              normalizeHomeMenuItems(
+              replaceCapturedMenus(
+                normalizeCapturedMenuRoutes(normalizeCapturedInternalLinks(normalized)),
+              ),
             ),
           ),
         ),
@@ -90,7 +106,9 @@ function normalizeCapturedFrames(markup: string): string {
 
 function normalizeCapturedFooterHeadings(markup: string): string {
   return markup.replace(/<footer\b[^>]*>[\s\S]*?<\/footer>/gi, (footer) =>
-    footer.replace(/<h3\b/gi, "<h2").replace(/<\/h3>/gi, "</h2>"),
+    footer
+      .replace(/<h3\b/gi, "<h2")
+      .replace(/<\/h3>/gi, "</h2>"),
   );
 }
 
@@ -107,6 +125,298 @@ function addCapturedImageLoadingHints(markup: string): string {
   });
 }
 
+function normalizeCapturedInternalLinks(markup: string): string {
+  return markup.replace(
+    /(\bhref\s*=\s*["'])https?:\/\/(?:www\.)?giacong\.vn(?=\/|["'])/gi,
+    "$1",
+  );
+}
+
+function normalizeCapturedMenuRoutes(markup: string): string {
+  return markup
+    .replace(
+      /(<li\b[^>]*\bid=["']menu-item-1742["'][^>]*>[\s\S]*?<a\b[^>]*\bhref=)["']#["']/i,
+      "$1\"/san-pham/\"",
+    )
+    .replace(
+      /(<li\b[^>]*\bid=["']menu-item-5166["'][^>]*>[\s\S]*?<a\b[^>]*\bhref=)["']#["']/i,
+      "$1\"/thue-gia-cong/\"",
+    );
+}
+
+function replaceCapturedMenus(markup: string): string {
+  let result = replaceDesktopDropdown(
+    markup,
+    "menu-item-1742",
+    productMegaMenu(),
+  );
+  result = replaceDesktopDropdown(
+    result,
+    "menu-item-5166",
+    serviceMegaMenu(),
+  );
+  return replaceListItemById(result, "menu-item-5466", mobileServiceMenu());
+}
+
+function replaceDesktopDropdown(
+  markup: string,
+  id: string,
+  replacement: string,
+): string {
+  const opening = new RegExp(`<li\\b[^>]*\\bid=(["'])${id}\\1[^>]*>`, "i").exec(markup);
+  if (!opening || opening.index === undefined) return markup;
+  const end = matchingListItemEnd(markup, opening.index);
+  if (end < 0) return markup;
+  const item = markup.slice(opening.index, end);
+  const dropdown = /<div\b[^>]*\bclass=(["'])[^"']*\bsub-menu\b[^"']*\bnav-dropdown\b[^"']*\1[^>]*>/i.exec(item);
+  if (!dropdown || dropdown.index === undefined) return markup;
+  const dropdownEnd = matchingElementEnd(item, dropdown.index, "div");
+  if (dropdownEnd < 0) return markup;
+  const normalizedItem = `${item.slice(0, dropdown.index)}${replacement}${item.slice(dropdownEnd)}`;
+  return `${markup.slice(0, opening.index)}${normalizedItem}${markup.slice(end)}`;
+}
+
+interface MegaMenuLink {
+  href: string;
+  label: string;
+}
+
+interface MegaMenuGroup {
+  href: string;
+  label: string;
+  links?: readonly MegaMenuLink[];
+}
+
+type MegaMenuColumn = readonly MegaMenuGroup[];
+
+const productMegaMenuColumns: readonly MegaMenuColumn[] = [
+  [
+    { href: "/gia-cong-sot-cham/", label: "Gia công sốt chấm" },
+    { href: "/gia-cong-do-uong/", label: "Gia công đồ uống" },
+    { href: "/gia-cong-bot-pha-che/", label: "Gia công bột pha chế" },
+    { href: "/gia-cong-do-uong/", label: "Gia công đồ uống" },
+    { href: "/gia-cong-duoc-lieu/", label: "Gia công dược liệu" },
+    { href: "/gia-cong-thuc-pham/", label: "Gia công thực phẩm" },
+    { href: "/gia-cong-my-pham/", label: "Gia công mỹ phẩm" },
+    { href: "/gia-cong-tra/", label: "Gia công trà" },
+    { href: "/gia-cong-ca-phe/", label: "Gia công cà phê" },
+    { href: "/gia-cong-dong-goi/", label: "Gia công đóng gói" },
+    { href: "/gia-cong-bot/", label: "Gia công bột" },
+    { href: "/gia-cong-ruou/", label: "Gia công rượu" },
+  ],
+  [
+    {
+      href: "/gia-cong-sua/",
+      label: "Gia công sữa",
+      links: [
+        { href: "/gia-cong-sua-bot/", label: "Gia công sữa bột" },
+        { href: "/", label: "Gia công sữa tươi" },
+      ],
+    },
+    {
+      href: "/dich-vu-say/",
+      label: "Dịch vụ sấy",
+      links: [
+        { href: "/say-thang-hoa/", label: "Sấy thăng hoa" },
+        { href: "/say-lanh/", label: "Dịch vụ sấy lạnh" },
+        { href: "/say-chan-khong/", label: "Dịch vụ sấy chân không" },
+      ],
+    },
+    {
+      href: "/nuoc-trai-cay/",
+      label: "Nước trái cây",
+      links: [
+        { href: "#", label: "Nước ép chanh leo" },
+        { href: "/Hoa quả sấy", label: "Nước ép dưa hấu" },
+        { href: "#", label: "Nước ép dứa" },
+      ],
+    },
+  ],
+  [
+    {
+      href: "/thuc-pham-say/",
+      label: "Thực phẩm sấy",
+      links: [
+        { href: "/", label: "Bột phô mai tách muối" },
+        { href: "/", label: "Sữa chua vị việt quất" },
+        { href: "/", label: "Sữa chua vị chuối" },
+        { href: "/", label: "Sữa chua vị dâu tây" },
+        { href: "/", label: "Sữa chua vị đào" },
+        { href: "/", label: "Sữa chua vị nguyên bản" },
+        { href: "/", label: "Sữa chua vị truyền thống" },
+      ],
+    },
+  ],
+  [
+    {
+      href: "/bot-gia-vi/",
+      label: "Bột gia vị",
+      links: [
+        { href: "/", label: "Bột gừng" },
+        { href: "/", label: "Bột hành" },
+        { href: "/", label: "Bột Hành Baro" },
+        { href: "/", label: "Bột hành tây" },
+        { href: "/", label: "Bột nghệ" },
+        { href: "/", label: "Bột ớt" },
+        { href: "/", label: "Bột sả" },
+      ],
+    },
+  ],
+];
+
+const serviceMegaMenuColumns: readonly MegaMenuColumn[] = [
+  [
+    {
+      href: "/dich-vu-say/",
+      label: "Dịch vụ sấy",
+      links: [
+        { href: "/say-thang-hoa/", label: "Sấy thăng hoa" },
+        { href: "/say-nong/", label: "Sấy nóng" },
+        { href: "/say-lanh/", label: "Sấy lạnh" },
+        { href: "/say-chan-khong/", label: "Sấy chân không" },
+        { href: "/say-hong-ngoai/", label: "Sấy hồng ngoại" },
+      ],
+    },
+  ],
+  [
+    {
+      href: "/gia-cong-do-uong/",
+      label: "Gia công đồ uống",
+      links: [
+        { href: "/gia-cong-sua-hat/", label: "Gia công sữa hạt" },
+        { href: "/gia-cong-sua-thuc-vat/", label: "Gia công sữa thực vật" },
+        { href: "/gia-cong-nuoc-ep-trai-cay/", label: "Gia công nước ép trái cây" },
+        { href: "/gia-cong-nuoc-giai-khat-co-ga/", label: "Gia công nước giải khát" },
+        { href: "/gia-cong-tra-dong-chai/", label: "Gia công trà đóng chai" },
+        { href: "/gia-cong-nuoc-uong-dong-chai/", label: "Gia công nước lọc" },
+        { href: "/gia-cong-ca-phe-qua-tang/", label: "Gia công cà phê quà tặng" },
+        { href: "/gia-cong-ca-phe-hoa-tan/", label: "Gia công cà phê hòa tan" },
+        { href: "/gia-cong-tra-tui-loc/", label: "Gia công trà túi lọc" },
+        { href: "/rang-gia-cong-ca-phe/", label: "Gia công rang cà phê" },
+      ],
+    },
+    {
+      href: "/dich-vu-dong-goi/",
+      label: "Dịch vụ đóng gói",
+      links: [
+        { href: "#", label: "Mit sấy" },
+        { href: "/Hoa quả sấy", label: "Hồng sấy" },
+        { href: "#", label: "Khoai lang sấy" },
+      ],
+    },
+    {
+      href: "/dich-vu-thiet-ke/",
+      label: "Dịch vụ thiết kế",
+      links: [
+        { href: "#", label: "Nước ép chanh leo" },
+        { href: "#", label: "Nước ép dưa hấu" },
+        { href: "#", label: "Nước ép dứa" },
+      ],
+    },
+  ],
+  [
+    {
+      href: "/dich-vu-phap-ly/",
+      label: "Dịch vụ pháp lý",
+      links: [
+        { href: "/", label: "Bột phô mai tách muối" },
+        { href: "/", label: "Sữa chua vị việt quất" },
+        { href: "/", label: "Sữa chua vị chuối" },
+        { href: "/", label: "Sữa chua vị dâu tây" },
+        { href: "/", label: "Sữa chua vị đào" },
+        { href: "/", label: "Sữa chua vị nguyên bản" },
+        { href: "/", label: "Sữa chua vị truyền thống" },
+      ],
+    },
+  ],
+  [
+    {
+      href: "/dich-vu-marketing/",
+      label: "Dịch vụ marketing",
+      links: [
+        { href: "/", label: "Bột gừng" },
+        { href: "/", label: "Bột hành" },
+        { href: "/", label: "Bột Hành Baro" },
+        { href: "/", label: "Bột hành tây" },
+        { href: "/", label: "Bột nghệ" },
+        { href: "/", label: "Bột ớt" },
+        { href: "/", label: "Bột sả" },
+      ],
+    },
+  ],
+];
+
+const mobileServiceMenuLinks: readonly MegaMenuLink[] = [
+  { href: "/gia-cong-sua/", label: "Dịch Vụ Gia Công Sữa" },
+  { href: "/dich-vu-say/", label: "Dịch Vụ Sấy" },
+  { href: "/bot-gia-vi/", label: "Gia Công Bột Gia Vị" },
+  { href: "/gia-cong-ca-phe/", label: "Gia Công Cà Phê" },
+  { href: "/gia-cong-duoc-lieu/", label: "Gia Công Dược Liệu" },
+  { href: "/gia-cong-do-uong/", label: "Gia Công Đồ Uống" },
+  { href: "/gia-cong-my-pham/", label: "Gia Công Mỹ Phẩm" },
+  { href: "/gia-cong-thuc-pham/", label: "Gia Công Thực Phẩm" },
+  { href: "/gia-cong-tra/", label: "Gia Công Trà" },
+  { href: "/thuc-pham-chuc-nang/", label: "Thực Phẩm Chức Năng" },
+];
+
+function productMegaMenu(): string {
+  return renderMegaMenu(productMegaMenuColumns, "clone-product-menu");
+}
+
+function serviceMegaMenu(): string {
+  return renderMegaMenu(serviceMegaMenuColumns, "clone-service-menu");
+}
+
+function mobileServiceMenu(): string {
+  const links = mobileServiceMenuLinks.map((link) => (
+    `<li class="menu-item menu-item-type-taxonomy menu-item-object-category"><a href="${escapeAttribute(resolveMegaMenuHref(link.href, "/thue-gia-cong/"))}">${escapeHtml(link.label)}</a></li>`
+  )).join("\n");
+  return `<li class="menu-item menu-item-type-custom menu-item-object-custom menu-item-has-children menu-item-5466 has-icon-left" id="menu-item-5466"><a href="/thue-gia-cong/">Thuê gia công</a><ul class="sub-menu nav-sidebar-ul children">${links}</ul></li>`;
+}
+
+function renderMegaMenu(columns: readonly MegaMenuColumn[], menuClass: string): string {
+  const markup = columns.map((column) => (
+    `<div class="col medium-3 small-6 large-3"><div class="col-inner">${column.map(renderMegaMenuGroup).join("\n")}</div></div>`
+  )).join("\n");
+
+  return `<div class="sub-menu nav-dropdown"><div class="row row-small menu-san-pham ${menuClass}">${markup}</div></div>`;
+}
+
+function renderMegaMenuGroup(group: MegaMenuGroup): string {
+  const links = group.links?.map((link) => (
+    `<div class="ux-menu-link flex menu-item"><a class="ux-menu-link__link flex" href="${escapeAttribute(resolveMegaMenuHref(link.href, group.href))}"><i class="ux-menu-link__icon text-center icon-angle-right"></i><span class="ux-menu-link__text">${escapeHtml(link.label)}</span></a></div>`
+  )).join("\n");
+  const linkMenu = links === undefined
+    ? ""
+    : `<div class="ux-menu stack stack-col justify-start ux-menu--divider-solid">${links}</div>`;
+
+  return `<h4><a href="${escapeAttribute(group.href)}">${escapeHtml(group.label)}</a></h4>${linkMenu}`;
+}
+
+function resolveMegaMenuHref(href: string, parentHref: string): string {
+  return legacyMegaMenuHrefFallbacks[href] === "parent" ? parentHref : href;
+}
+
+function replaceListItemById(markup: string, id: string, replacement: string): string {
+  const opening = new RegExp(`<li\\b[^>]*\\bid=(["'])${id}\\1[^>]*>`, "i").exec(markup);
+  if (!opening || opening.index === undefined) return markup;
+  const end = matchingListItemEnd(markup, opening.index);
+  if (end < 0) return markup;
+  return `${markup.slice(0, opening.index)}${replacement}${markup.slice(end)}`;
+}
+
+function matchingElementEnd(markup: string, start: number, tagName: string): number {
+  const tags = new RegExp(`<\\/?${tagName}\\b[^>]*>`, "gi");
+  tags.lastIndex = start;
+  let depth = 0;
+  let tag: RegExpExecArray | null;
+  while ((tag = tags.exec(markup))) {
+    if (tag[0].startsWith("</")) depth -= 1;
+    else if (!/\/\s*>$/.test(tag[0])) depth += 1;
+    if (depth === 0) return tags.lastIndex;
+  }
+  return -1;
+}
 function normalizeHomeMenuItems(markup: string): string {
   return normalizeHomeMenuItem(
     normalizeHomeMenuItem(markup, "menu-item-4618"),
@@ -129,51 +439,6 @@ function normalizeHomeMenuItem(markup: string, id: string): string {
   return `${markup.slice(0, opening.index)}${normalizedItem}${markup.slice(end)}`;
 }
 
-function replaceServiceMenus(markup: string): string {
-  return replaceListItemById(
-    replaceListItemById(markup, "menu-item-5166", desktopServiceMenu()),
-    "menu-item-5466",
-    mobileServiceMenu(),
-  );
-}
-
-function desktopServiceMenu(): string {
-  return `<li class="menu-item menu-item-design-default" id="menu-item-5166"><a class="nav-top-link" href="/thue-gia-cong/">Thuê gia công</a></li>`;
-}
-
-function mobileServiceMenu(): string {
-  return `<li class="menu-item has-icon-left clone-mobile-services" id="menu-item-5466"><a href="/thue-gia-cong/">Thuê gia công</a></li>`;
-}
-
-function replaceListItemById(markup: string, id: string, replacement: string): string {
-  const opening = new RegExp(`<li\\b[^>]*\\bid=(["'])${id}\\1[^>]*>`, "i").exec(markup);
-  if (!opening || opening.index === undefined) return markup;
-  const end = matchingListItemEnd(markup, opening.index);
-  if (end < 0) return markup;
-  return `${markup.slice(0, opening.index)}${replacement}${markup.slice(end)}`;
-}
-
-function replaceShoppingMenu(markup: string): string {
-  const shoppingAnchor = /<a\b[^>]*href=(['"])\/san-pham\/\1[^>]*>([\s\S]*?)Mua hàng<i class="icon-angle-down"><\/i><\/a>/i;
-  const match = shoppingAnchor.exec(markup);
-  if (!match || match.index === undefined) return markup;
-
-  const itemStart = markup.lastIndexOf("<li", match.index);
-  const itemEnd = itemStart < 0 ? -1 : matchingListItemEnd(markup, itemStart);
-  if (itemEnd < 0) return markup;
-
-  const itemOpenEnd = markup.indexOf(">", itemStart) + 1;
-  const anchor = match[0]
-    .replace(/\saria-current=(['"])[\s\S]*?\1/i, "")
-    .replace(/\saria-expanded=(['"])[\s\S]*?\1/i, "")
-    .replace(/\saria-haspopup=(['"])[\s\S]*?\1/i, "")
-    .replace('<i class="icon-angle-down"></i>', "");
-  const directItem = `${markup.slice(itemStart, itemOpenEnd)
-    .replace(/\s(?:menu-item-has-block|has-dropdown)\b/g, "")}${anchor}</li>`;
-
-  return `${markup.slice(0, itemStart)}${directItem}${markup.slice(itemEnd)}`;
-}
-
 function matchingListItemEnd(markup: string, start: number): number {
   const tags = /<\/?li\b[^>]*>/gi;
   tags.lastIndex = start;
@@ -184,4 +449,18 @@ function matchingListItemEnd(markup: string, start: number): number {
     if (depth === 0) return tags.lastIndex;
   }
   return -1;
+}
+
+function escapeHtml(value: string): string {
+  return value.replace(/[&<>"']/g, (character) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;",
+  })[character] ?? character);
+}
+
+function escapeAttribute(value: string): string {
+  return escapeHtml(value);
 }

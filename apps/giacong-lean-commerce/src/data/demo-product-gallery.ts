@@ -18,10 +18,10 @@
 export const IS_DEMO_GALLERY_DATA = true;
 
 const DEMO_PACKSHOTS = [
-  "/images/products/demo-powder-pouches.png",
-  "/images/products/demo-dried-fruit-pouches.png",
-  "/images/products/demo-sauce-bottles.png",
-  "/images/products/demo-fruit-drinks.png",
+  "/images/products/demo-powder-pouches.webp",
+  "/images/products/demo-dried-fruit-pouches.webp",
+  "/images/products/demo-sauce-bottles.webp",
+  "/images/products/demo-fruit-drinks.webp",
 ] as const;
 
 /**
@@ -29,10 +29,10 @@ const DEMO_PACKSHOTS = [
  * An unknown category falls back to the first packshot.
  */
 const LEAD_PACKSHOT_BY_CATEGORY: Record<string, string> = {
-  "bao-bi-dong-goi": "/images/products/demo-dried-fruit-pouches.png",
-  "bot-nguyen-lieu-kho": "/images/products/demo-powder-pouches.png",
-  "sot-gia-vi-long": "/images/products/demo-sauce-bottles.png",
-  "tra-thao-moc-say": "/images/products/demo-fruit-drinks.png",
+  "bao-bi-dong-goi": "/images/products/demo-dried-fruit-pouches.webp",
+  "bot-nguyen-lieu-kho": "/images/products/demo-powder-pouches.webp",
+  "sot-gia-vi-long": "/images/products/demo-sauce-bottles.webp",
+  "tra-thao-moc-say": "/images/products/demo-fruit-drinks.webp",
 };
 
 /** How many images the rail shows, including any real catalog image. */

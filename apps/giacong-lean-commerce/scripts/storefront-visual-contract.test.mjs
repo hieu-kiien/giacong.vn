@@ -5,6 +5,8 @@ import test from "node:test";
 const read = (path) => readFile(new URL(path, import.meta.url), "utf8");
 const homePage = await read("../src/components/site/CapturedHomePage.tsx");
 const newsPage = await read("../src/app/(storefront)/tin-tuc/page.tsx");
+const capturedRoute = await read("../src/app/(storefront)/[...slug]/page.tsx");
+const newsData = await read("../src/lib/news-public.ts");
 const globals = await read("../src/app/globals.css");
 const interactions = await read("../src/components/GiacongInteractions.tsx");
 const capturedMotion = await read("../src/components/captured-motion.ts");
@@ -30,10 +32,21 @@ test("news route highlights its captured source menu item without changing share
   assert.match(globals, /\.archive #header #menu-item-1541 > a/);
 });
 
+test("captured mobile navigation has local fallbacks for primary pages", () => {
+  assert.match(capturedRoute, /gioi-thieu-ve-gia-cong\.json/);
+  assert.match(capturedRoute, /lien-he\.json/);
+  assert.match(capturedRoute, /localCapturedPages/);
+});
+
+test("public news pages fail closed to usable empty states when D1 is unavailable", () => {
+  assert.match(newsData, /Published news listing unavailable[\s\S]*return \[\]/);
+  assert.match(newsData, /Published news post unavailable[\s\S]*return null/);
+});
+
 test("captured content routes opt into restrained motion with reduced-motion fallback", () => {
-  assert.match(globals, /@keyframes giacong-/);
-  assert.match(globals, /\.section01 \.section-bg/);
-  assert.match(globals, /\.section-duong-dan \.section-bg/);
+  assert.match(globals, /\.clone-slider-ready/);
+  assert.match(globals, /\.clone-menu-backdrop[\s\S]*transition: opacity/);
+  assert.doesNotMatch(globals, /giacong-page-orbit|giacong-background-drift|giacong-content-rise/);
   assert.match(globals, /prefers-reduced-motion:\s*reduce/);
 });
 

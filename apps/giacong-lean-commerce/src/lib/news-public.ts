@@ -49,22 +49,27 @@ function getNewsDatabase(): PublicNewsEnv["GIACONG_VN_CATALOG"] | null {
 export async function getPublishedNews(limit = 30): Promise<PublicNewsListItem[]> {
   const db = getNewsDatabase();
   if (!db) return [];
-  const rows = await db.prepare(`
-    SELECT published_slug AS slug, published_title AS title,
-      published_excerpt AS excerpt, published_cover_image_url AS cover_image_url,
-      published_at, '' AS content
-    FROM news_posts
-    WHERE is_published = 1 AND published_slug IS NOT NULL
-    ORDER BY published_at DESC, id DESC
-    LIMIT ?
-  `).bind(limit).all<PublicNewsRow & { cover_image_url: string | null }>();
-  return rows.results.map((row) => ({
-    coverImageUrl: row.cover_image_url ?? null,
-    excerpt: row.excerpt,
-    publishedAt: row.published_at ?? null,
-    slug: row.slug,
-    title: row.title,
-  }));
+  try {
+    const rows = await db.prepare(`
+      SELECT published_slug AS slug, published_title AS title,
+        published_excerpt AS excerpt, published_cover_image_url AS cover_image_url,
+        published_at, '' AS content
+      FROM news_posts
+      WHERE is_published = 1 AND published_slug IS NOT NULL
+      ORDER BY published_at DESC, id DESC
+      LIMIT ?
+    `).bind(limit).all<PublicNewsRow & { cover_image_url: string | null }>();
+    return rows.results.map((row) => ({
+      coverImageUrl: row.cover_image_url ?? null,
+      excerpt: row.excerpt,
+      publishedAt: row.published_at ?? null,
+      slug: row.slug,
+      title: row.title,
+    }));
+  } catch (error) {
+    console.warn("Published news listing unavailable; using an empty public listing.", error);
+    return [];
+  }
 }
 
 /** Storefront detail: 404 for drafts and unknown slugs alike — never leaks editorial state. */
@@ -73,22 +78,27 @@ export async function getPublishedNewsPost(slug: string): Promise<PublicNewsPost
   if (!clean) return null;
   const db = getNewsDatabase();
   if (!db) return null;
-  const row = await db.prepare(`
-    SELECT id, published_slug AS slug, published_title AS title,
-      published_excerpt AS excerpt, published_content AS content,
-      published_cover_image_url AS cover_image_url, published_at
-    FROM news_posts
-    WHERE published_slug = ? AND is_published = 1
-    LIMIT 1
-  `).bind(clean).first<PublicNewsRow>();
-  if (!row) return null;
-  return {
-    content: row.content,
-    coverImageUrl: row.cover_image_url ?? null,
-    excerpt: row.excerpt,
-    id: row.id,
-    publishedAt: row.published_at ?? null,
-    slug: row.slug,
-    title: row.title,
-  };
+  try {
+    const row = await db.prepare(`
+      SELECT id, published_slug AS slug, published_title AS title,
+        published_excerpt AS excerpt, published_content AS content,
+        published_cover_image_url AS cover_image_url, published_at
+      FROM news_posts
+      WHERE published_slug = ? AND is_published = 1
+      LIMIT 1
+    `).bind(clean).first<PublicNewsRow>();
+    if (!row) return null;
+    return {
+      content: row.content,
+      coverImageUrl: row.cover_image_url ?? null,
+      excerpt: row.excerpt,
+      id: row.id,
+      publishedAt: row.published_at ?? null,
+      slug: row.slug,
+      title: row.title,
+    };
+  } catch (error) {
+    console.warn("Published news post unavailable; treating it as not found.", error);
+    return null;
+  }
 }
