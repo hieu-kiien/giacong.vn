@@ -114,6 +114,7 @@ Lưu ý: demo staging KHÔNG được seed sang production. Khách tự thao tá
 - [x] Staging admin login UX fallback commit `3c15f0f` đã deploy ở version `8bf8de20-ed58-4637-aac7-ec9b81aeef37`; khi API session bị Access redirect, browser vẫn có nút mở Access và reload tới form đăng nhập; public smoke `/` và `/san-pham` pass.
 - [x] Staging Access/owner bootstrap audit read-only 2026-09-01: Access attempt trả `unauthorized`; D1 staging có `0` `admin_members`/`active_owners`, query ghi nhận `changed_db=false`, `rows_written=0`. Chưa tự cấp policy hoặc seed owner.
 - [ ] Staging runtime read-back cho member/lead/media audit, R2 compensation/reference guard và retry cùng `requestId`.
+- [x] Staging storefront motion/UX runtime revalidation 2026-09-01 sau version `43e186bc-8dff-4812-b9e1-68e10336a4f1`: 5 route public, toàn bộ action pass, 0 console error, 0 HTTP 4xx/5xx, 0 overflow, axe 5/5 không có serious/critical; còn 1 warning Google Maps iframe bên thứ ba.
 - [ ] Admin session/audit read-back bằng Access identity thật trên hostname staging.
 - [ ] Browser admin desktop/mobile/keyboard/focus/reduced-motion với Access identity thật.
 - [ ] Role × route/action read-back trên staging cho owner/content_manager/catalog_manager/sales_manager/viewer.

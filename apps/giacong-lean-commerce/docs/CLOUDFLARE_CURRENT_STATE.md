@@ -433,3 +433,19 @@ restore/rollback drill, observability 24h và quyết định redirect
 - Không tự động seed email hay nâng quyền: sau khi policy cho phép identity,
   owner đầu tiên phải được chủ dự án xác nhận và tạo chủ ý qua quy trình admin
   hoặc bootstrap đã duyệt; không dùng public-demo làm bằng chứng Access thật.
+
+## Staging storefront motion and UX runtime revalidation — 2026-09-01
+
+- Commit 6c0de5e (motion/menu/asset integration) đã deploy thành version
+  43e186bc-8dff-4812-b9e1-68e10336a4f1; bindings vẫn trỏ đúng staging D1,
+  R2, queue và Access hostname.
+- Runner tái lập `npm run qa:ux` đã kiểm tra 5 route public ở mobile/desktop:
+  catalog search/detail, news search, contact invalid-form, mobile menu +
+  product accordion, desktop mega-menu pointer handoff và scroll reveal.
+  Tất cả action pass; HTTP 200; không có 4xx/5xx; không horizontal overflow;
+  axe chạy đủ 5/5 với 0 serious/critical violation.
+- Hard gate runtime ghi nhận 0 console error. Có 1 warning từ Google Maps
+  iframe bên thứ ba trên trang liên hệ (`postMessage` target-origin), không
+  phát sinh từ app code và không có mutation D1/R2.
+- Ảnh WebP demo được upload trong cùng deployment; test commerce/detail và
+  build/type generation đã pass trước promotion.
