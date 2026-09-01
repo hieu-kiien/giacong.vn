@@ -24,17 +24,30 @@ export function applySiteSettingsToMarkup(markup: string, settings: PublishedSit
 
   result = replaceFirstElementText(result, /<h1\b[^>]*class=(["'])[^"']*\bentry-title\b[^"']*\1[^>]*>[\s\S]*?<\/h1>/i, settings.hero_title);
   result = replaceFirstElementText(result, /<h3\b[^>]*class=(["'])[^"']*\bentry-title\b[^"']*\1[^>]*>[\s\S]*?<\/h3>/i, settings.hero_eyebrow);
+  result = replaceFirstElementText(result, /<h2\b[^>]*class=(["'])[^"']*\bentry-title\b[^"']*\1[^>]*>[\s\S]*?<\/h2>/i, settings.about_title);
   // The captured eyebrow is an h3 under an h1; promote it so the document
   // outline never skips a level (h1 → h3). First entry-title h3 only.
-  result = result.replace(
-    /<h3\b([^>]*class=(["'])[^"']*\bentry-title\b[^"']*\2[^>]*)>([\s\S]*?)<\/h3>/i,
-    "<h2$1>$3</h2>",
-  );
-  result = replaceFirstElementText(result, /<h2\b[^>]*class=(["'])[^"']*\bentry-title\b[^"']*\1[^>]*>[\s\S]*?<\/h2>/i, settings.about_title);
+  result = promoteHeroEyebrowAfterHeroTitle(result);
   result = replaceHeroImage(result, settings.hero_image_url);
   result = replaceLogo(result, settings.logo_url);
 
   return result;
+}
+
+function promoteHeroEyebrowAfterHeroTitle(markup: string): string {
+  const hero = /<h1\b[^>]*class=(["'])[^"']*\bentry-title\b[^"']*\1[^>]*>[\s\S]*?<\/h1>/i.exec(markup);
+  const eyebrow = /<h3\b[^>]*class=(["'])[^"']*\bentry-title\b[^"']*\1[^>]*>[\s\S]*?<\/h3>/i.exec(markup);
+  if (!hero || !eyebrow || hero.index === undefined || eyebrow.index === undefined || eyebrow.index < hero.index) {
+    return markup;
+  }
+
+  const original = eyebrow[0];
+  const openingEnd = original.indexOf(">");
+  const closingStart = original.lastIndexOf("</");
+  if (openingEnd < 0 || closingStart <= openingEnd) return markup;
+  const promoted = "<h2" + original.slice(3, openingEnd) + ">" +
+    original.slice(openingEnd + 1, closingStart) + "</h2>";
+  return markup.slice(0, eyebrow.index) + promoted + markup.slice(eyebrow.index + original.length);
 }
 
 export function siteBrandStyles(settings: PublishedSiteSettings): string {

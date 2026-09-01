@@ -58,3 +58,21 @@ test("applies published footer description, address and copyright without allowi
   assert.match(result, /Copyright &lt;2026&gt; &amp; partners/);
   assert.doesNotMatch(result, /<script>/);
 });
+
+test("keeps the hero heading hierarchy without misapplying the about title", () => {
+  const heroThenEyebrow = '<h1 class="entry-title">Old hero</h1><h3 class="entry-title">Old eyebrow</h3><h2 class="entry-title">Old about</h2>';
+  const heroThenEyebrowResult = applySiteSettingsToMarkup(heroThenEyebrow, settings(""));
+
+  assert.match(heroThenEyebrowResult, /<h1 class="entry-title">Tiêu đề<\/h1>/);
+  assert.match(heroThenEyebrowResult, /<h2 class="entry-title">Eyebrow<\/h2>/);
+  assert.match(heroThenEyebrowResult, /<h2 class="entry-title">Giới thiệu<\/h2>/);
+  assert.doesNotMatch(heroThenEyebrowResult, /<h3 class="entry-title">/);
+
+  const sourceOrder = '<h3 class="entry-title">Old eyebrow</h3><h1 class="entry-title">Old hero</h1><h2 class="entry-title">Old about</h2>';
+  const sourceOrderResult = applySiteSettingsToMarkup(sourceOrder, settings(""));
+
+  assert.match(sourceOrderResult, /<h3 class="entry-title">Eyebrow<\/h3>/);
+  assert.match(sourceOrderResult, /<h1 class="entry-title">Tiêu đề<\/h1>/);
+  assert.match(sourceOrderResult, /<h2 class="entry-title">Giới thiệu<\/h2>/);
+  assert.doesNotMatch(sourceOrderResult, /<h2 class="entry-title">Eyebrow<\/h2>/);
+});
