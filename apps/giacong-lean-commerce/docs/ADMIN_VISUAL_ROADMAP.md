@@ -403,6 +403,11 @@ worker version `0d1e14c1-ec4d-47db-b0e2-4275f246f919` đã promote 100% và publ
 smoke/deep QA pass. P3 vẫn mở ở runtime write/read-back bằng Access identity,
 admin browser và media object/reference evidence.
 
+**Runtime evidence 2026-09-02:** owner staging đã sửa và khôi phục alt text
+trên asset QA đang được product tham chiếu; thử xóa qua UI bị server chặn đúng
+`MEDIA_IN_USE`, asset không mất. Đây là bằng chứng reference guard và alt
+write/read-back, chưa thay thế fresh upload R2 hoặc full-domain media acceptance.
+
 **Mục tiêu:** quản trị nội dung thường xuyên mà không phải quay lại nhiều màn hình
 khó hiểu.
 
@@ -449,6 +454,13 @@ nhận event create, event từng mục và bulk envelope; test admin hiện `17
 Đây là evidence local/code contract; staging migration đã apply và browser
 read-only đã được xác minh, còn browser write/read-back vẫn chưa được đánh dấu
 đạt.
+
+**Runtime evidence 2026-09-02:** owner staging đã đổi `Home → Home [QA]`, lưu
+draft, phát hành single-item, hard reload public để đọc lại nhãn QA, rồi khôi
+phục và phát hành lại `Home`. D1 cuối cùng sạch (`dirty = 0`, version `7`) và
+audit có đủ cặp draft/publish với request ID. Fix homepage fallback đang ở
+staging version `26884d0b-0092-43cd-bad2-df077de605eb`; publish-all, page/footer
+và role matrix vẫn mở.
 
 **Mục tiêu:** chuyển các vùng layout cần thay đổi thường xuyên sang cấu trúc an
 toàn có thể chỉnh sửa.
@@ -509,6 +521,11 @@ update, archive, tier rollback, member/lead/media write và R2 compensation.
 Members/leads/media đã có exact command, revision/CAS, idempotency và audit;
 staging migration/upload đã pass, còn runtime admin read-back và role/browser
 acceptance là điều kiện đóng lát này.
+
+**Runtime evidence 2026-09-02:** owner staging đã sửa summary của service QA,
+đọc lại đúng trong bảng rồi khôi phục giá trị ban đầu. Cùng lượt đó, media
+reference guard đã được xác minh trên sản phẩm QA. Đây chỉ là single-record
+evidence; batch các domain, fresh upload và write/read-back đầy đủ vẫn mở.
 
 **Mục tiêu:** admin có toàn quyền vận hành trong phạm vi Lean V1, không hy sinh
 tính rõ ràng cho người mới.
