@@ -22,6 +22,7 @@ test("home hero uses four independent local image elements", () => {
 });
 
 test("homepage applies the published navigation to the captured fallback", () => {
+  assert.match(homePage, /applyHomepageSiteSettingsToMarkup/);
   assert.match(homePage, /applyNavigationToMarkup/);
   assert.match(homePage, /getPublishedSiteNavigation/);
   assert.match(homePage, /await getPublishedSiteNavigation\(\)/);

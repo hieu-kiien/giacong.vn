@@ -37,6 +37,20 @@ export function applySiteSettingsToMarkup(markup: string, settings: PublishedSit
   return result;
 }
 
+/**
+ * Applies the homepage-only fields to the captured homepage. Keeping these
+ * selectors here, behind an explicit homepage adapter, prevents a generic
+ * captured route from treating its first paragraph or section heading as the
+ * homepage content.
+ */
+export function applyHomepageSiteSettingsToMarkup(markup: string, settings: PublishedSiteSettings): string {
+  let result = applySiteSettingsToMarkup(markup, settings);
+  result = replaceHomepageSectionElementText(result, "section01", "p", settings.hero_description, escapeTextWithBreaks);
+  result = replaceHomepageSectionElementText(result, "section02", "h2", settings.about_title, escapeHtml);
+  result = replaceHomepageSectionElementText(result, "section02", "p", settings.about_description, escapeTextWithBreaks);
+  return result;
+}
+
 function replaceBrandTagline(markup: string, value: string): string {
   const tagline = typeof value === "string" ? value.trim() : "";
   if (!tagline) return markup;
@@ -47,6 +61,31 @@ function replaceBrandTagline(markup: string, value: string): string {
     (_match, opening: string, _quote: string, closing: string) =>
       `${opening}<span class="giacong-brand-tagline" data-site-setting="brand_tagline">${escapeHtml(tagline)}</span>${closing}`,
   );
+}
+
+function replaceHomepageSectionElementText(
+  markup: string,
+  sectionClass: string,
+  element: "h2" | "p",
+  value: string,
+  format: (value: string) => string,
+): string {
+  const nextValue = typeof value === "string" ? value.trim() : "";
+  if (!nextValue) return markup;
+
+  const sectionPattern = new RegExp(
+    `(<section\\b(?=[^>]*\\bclass\\s*=\\s*["'][^"']*\\b${escapeRegExp(sectionClass)}\\b[^"']*["'])[^>]*>)([\\s\\S]*?)(</section>)`,
+    "i",
+  );
+  return markup.replace(sectionPattern, (_match, opening: string, content: string, closing: string) => {
+    const elementPattern = new RegExp(`(<${element}\\b[^>]*>)[\\s\\S]*?(</${element}>)`, "i");
+    const updatedContent = content.replace(
+      elementPattern,
+      (_elementMatch, elementOpening: string, elementClosing: string) =>
+        `${elementOpening}${format(nextValue)}${elementClosing}`,
+    );
+    return `${opening}${updatedContent}${closing}`;
+  });
 }
 
 function replaceHeroCta(markup: string, className: string, label: string, href: string): string {
