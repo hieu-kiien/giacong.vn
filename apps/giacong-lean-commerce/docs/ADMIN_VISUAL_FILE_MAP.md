@@ -93,6 +93,12 @@ vào `scripts/admin-dashboard.test.mts`. Version staging
 round-trip status có kiểm soát và audit read-back; đây chưa phải bằng chứng
 đóng write/read-back cho mọi domain.
 
+Chrome owner sau đó đã đi qua đủ 10 route admin canonical trên hostname staging;
+`node scripts/qa-deep-staging.mjs` cũng pass mobile/tablet/desktop cho public
+route, catalog, product detail/cart và keyboard. Đây là evidence navigation và
+public deep-QA bổ sung, không thay thế role matrix nhiều identity hoặc
+write/read-back từng domain.
+
 Repo chính không có GIF/video runtime bắt buộc: motion hiện dùng CSS/HTML và
 asset WebP phù hợp. Worktree motion riêng vẫn được giữ nguyên, không reset hoặc
 xóa các artifact người dùng đang làm.

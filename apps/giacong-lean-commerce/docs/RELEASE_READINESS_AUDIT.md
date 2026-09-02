@@ -29,6 +29,11 @@ Bản staging hiện **đủ điều kiện để tiếp tục nghiệm thu kỹ
   mới khi chưa có chủ ý cụ thể.
 - Dashboard staging sau commit `8652130` đọc đúng `12` tổng sản phẩm, `10`
   active và `0` draft; test hồi quy dashboard nằm trong admin gate.
+- Owner Chrome đã đi qua đủ 10 route admin canonical trên hostname staging;
+  deep QA staging pass mobile/tablet/desktop cho public route, catalog
+  search/filter/sort, product detail/cart và keyboard reachability. Đây là
+  bằng chứng điều hướng và public deep-QA, không phải role matrix hay
+  write/read-back đầy đủ.
 - Export mới hiện có là `.runtime/production-d1-backup-20260902-pre-release.sql`,
   SHA-256 `583BE2FBFFC2C6D8F0C77E7D97C3786E838EDBFD228E024AD7A8F078A147ABFD`;
   local restore-drill đạt `integrity_check=ok` (19 bảng, 13 migration, 9

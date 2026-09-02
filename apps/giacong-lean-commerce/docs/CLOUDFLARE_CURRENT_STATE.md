@@ -754,3 +754,16 @@ runtime trước khi đóng gate hiệu năng/ổn định.
 - Public `https://staging.kienhieu.id.vn/` vẫn HTTP `200` và không có admin
   control; request chưa xác thực tới admin staging vẫn HTTP `302` về Access;
   staging D1 báo không còn migration pending. Production không bị thay đổi.
+
+## Owner route matrix và public deep QA — 2026-09-02
+
+- Chrome với Access identity `qtu1053@gmail.com` đã điều hướng qua đủ 10 route
+  admin canonical trên `admin-staging.kienhieu.id.vn`; các URL giữ đúng route
+  và trang trả title `Khu vực vận hành | Giacong.vn`. Đây chỉ là owner
+  navigation/read-only evidence.
+- `node scripts/qa-deep-staging.mjs` chạy trên staging hiện hành pass toàn bộ
+  mobile/tablet/desktop route checks, HTTP 200/no-overflow, catalog controls,
+  product detail mobile stacking, cart localStorage, request route và keyboard
+  reachability. Không submit lead và không mutate D1/R2.
+- Chưa suy diễn từ evidence này rằng các role khác đã pass, mọi domain đã
+  write/read-back, hay production đã sẵn sàng.

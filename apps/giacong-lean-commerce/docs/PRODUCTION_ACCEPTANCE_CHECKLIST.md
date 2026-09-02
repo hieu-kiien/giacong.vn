@@ -197,6 +197,8 @@ Lưu ý: demo staging KHÔNG được seed sang production. Khách tự thao tá
 - [x] Staging release `d1d270a8-52d5-4a8b-a988-daa21e8fdfa3` đã promote 100%
   sau commit `8652130`; owner dashboard đọc đúng draft metric (`0`) và lead QA
   đã có status write/read-back cùng audit revision `1 → 2`, `2 → 3`.
+- [x] Owner Chrome đã đi qua đủ 10 route admin canonical; `qa-deep-staging.mjs`
+  pass public mobile/tablet/desktop, catalog/detail/cart và keyboard checks.
 - [ ] Role × route/action với nhiều Access identity, write/read-back từng domain,
   production data approval, backup/restore, observability 24h và production
   promotion vẫn chưa đạt.

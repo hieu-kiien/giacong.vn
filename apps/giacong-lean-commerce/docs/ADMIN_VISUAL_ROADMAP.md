@@ -688,6 +688,23 @@ vẫn chưa được đánh dấu hoàn tất.
 staging acceptance xanh; production data/content đã được duyệt; chỉ khi đó mới
 xem xét production promotion. Không đánh dấu đạt chỉ vì build thành công.
 
+## Runtime update 2026-09-02 (owner route matrix + deep staging QA)
+
+- Chrome với Access identity owner `qtu1053@gmail.com` đã đi qua đủ 10 route
+  admin canonical (`/admin`, nội dung, thiết kế, sản phẩm, dịch vụ, tin tức,
+  điều hướng, yêu cầu, thành viên, audit); URL giữ đúng hostname staging và
+  title `Khu vực vận hành | Giacong.vn`. Đây là bằng chứng route navigation/read-
+  only của owner, chưa phải role matrix nhiều identity hay write/read-back từng
+  domain.
+- `node scripts/qa-deep-staging.mjs` trên staging hiện hành pass ở mobile,
+  tablet và desktop: 12 lượt route HTTP 200/no-overflow, catalog search/category/
+  sort/filter, product detail mobile stacking, cart localStorage contract,
+  request route và keyboard reachability. Script chỉ ghi localStorage trong
+  trình duyệt, không submit lead hay mutate D1/R2.
+- Evidence mới đóng thêm public deep-QA và owner route-navigation slice; admin
+  mobile/focus/reduced-motion, nhiều identity, write/read-back đầy đủ và
+  production gate vẫn mở.
+
 ## 5. Ma trận test và lệnh kiểm tra
 
 ### 5.1 Lệnh local chuẩn
