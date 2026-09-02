@@ -60,6 +60,10 @@
 .preview h3 { font-family: Georgia, serif; font-size: 30px; font-weight: 500; line-height: 1.05; margin: 20px 0 0; }
 .preview p { margin: 0; }
 .preview button { background: #bde875; border: 0; border-radius: 6px; color: #234f0d; font-weight: 750; justify-self: start; padding: 9px 12px; }
+.previewActions { display: flex; flex-wrap: wrap; gap: 8px; }
+.previewSecondaryButton { background: transparent !important; border: 1px solid #bde875 !important; color: #f4fff0 !important; }
+.previewAbout { border-top: 1px solid rgb(196 221 187 / 35%); display: grid; gap: 8px; margin-top: 8px; padding-top: 16px; }
+.previewAbout h4 { font-family: Georgia, serif; font-size: 20px; font-weight: 500; line-height: 1.15; margin: 0; }
 .footer { border-top: 1px solid #e1eadc; display: flex; flex-wrap: wrap; gap: 8px; margin-top: 22px; padding-top: 16px; }
 .secondaryButton, .primaryButton { border: 1px solid #b9cfb2; font-size: 12px; text-decoration: none; }
 .secondaryButton { background: #fff; color: #38553c; }

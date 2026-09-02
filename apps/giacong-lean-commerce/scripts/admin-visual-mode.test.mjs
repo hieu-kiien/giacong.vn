@@ -81,6 +81,30 @@ test("contextual editor uses the canonical site-settings draft and publish contr
   assert.doesNotMatch(source, /api\/admin\/visual/);
 });
 
+test("contextual homepage editor exposes the complete supported content region", async () => {
+  const source = await readSource("../src/components/admin/AdminVisualEditor.tsx");
+
+  for (const key of [
+    "hero_eyebrow",
+    "hero_title",
+    "hero_description",
+    "hero_primary_cta_label",
+    "hero_primary_cta_url",
+    "hero_secondary_cta_label",
+    "hero_secondary_cta_url",
+    "hero_image_url",
+    "about_title",
+    "about_description",
+  ]) {
+    assert.match(source, new RegExp(`\\\"${key}\\\"`), `homepage region should expose ${key}`);
+  }
+  assert.match(source, /value\("about_title"\)/);
+  assert.match(source, /value\("about_description"\)/);
+  assert.match(source, /value\("hero_secondary_cta_label"\)/);
+  assert.match(source, /preview \? <DraftPreview settings=\{settings\} \/>/);
+  assert.match(source, /styles\.previewAbout/);
+});
+
 test("contextual editor hides edit affordances for read-only roles", async () => {
   const source = await readSource("../src/components/admin/AdminVisualEditor.tsx");
 

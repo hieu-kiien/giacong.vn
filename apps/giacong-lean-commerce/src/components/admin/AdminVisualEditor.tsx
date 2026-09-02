@@ -29,9 +29,20 @@ const regionDefinitions: Record<VisualRegion, { description: string; keys: strin
     label: "Nhận diện thương hiệu",
   },
   home: {
-    description: "Nội dung chính người xem gặp đầu tiên ở trang chủ.",
-    keys: ["hero_eyebrow", "hero_title", "hero_description", "hero_primary_cta_label"],
-    label: "Hero trang chủ",
+    description: "Hero, lời giới thiệu và các nút hành động trên trang chủ.",
+    keys: [
+      "hero_eyebrow",
+      "hero_title",
+      "hero_description",
+      "hero_primary_cta_label",
+      "hero_primary_cta_url",
+      "hero_secondary_cta_label",
+      "hero_secondary_cta_url",
+      "hero_image_url",
+      "about_title",
+      "about_description",
+    ],
+    label: "Nội dung trang chủ",
   },
 };
 
@@ -217,7 +228,7 @@ export function AdminVisualEditor({ session }: { session: AdminSession }) {
           <Edit3 aria-hidden="true" size={15} /> Nhận diện
         </button>
         <button className={styles.regionButton} onClick={() => openRegion("home")} type="button">
-          <Edit3 aria-hidden="true" size={15} /> Hero trang chủ
+          <Edit3 aria-hidden="true" size={15} /> Nội dung trang chủ
         </button>
       </div>
       {open ? (
@@ -252,7 +263,7 @@ export function AdminVisualEditor({ session }: { session: AdminSession }) {
               {error ? <div className={styles.error} role="alert">{error}<button onClick={() => { setLoaded(false); setError(null); }} type="button">Tải lại</button></div> : null}
               {!loading && !error && !canEdit && loaded ? <div className={styles.readOnly} role="status">Bạn đang ở chế độ chỉ xem. <Link href="/admin">Mở trung tâm quản trị</Link> để kiểm tra quyền chỉnh sửa.</div> : null}
               {!loading && !error && loaded ? (
-                preview ? <DraftPreview settings={visibleSettings} /> : (
+                preview ? <DraftPreview settings={settings} /> : (
                   <div className={styles.fields}>
                     {visibleSettings.map((setting) => <SettingField key={setting.key} setting={setting} canEdit={canEdit} onChange={updateDraft} />)}
                   </div>
@@ -289,13 +300,22 @@ function SettingField({ setting, canEdit, onChange }: { canEdit: boolean; onChan
 function DraftPreview({ settings }: { settings: AdminSiteSetting[] }) {
   const value = (key: string) => settings.find((setting) => setting.key === key)?.draftValue ?? "";
   return (
-    <div className={styles.preview} aria-label="Preview bản nháp">
-      <span className={styles.kicker}>DRAFT PREVIEW</span>
+    <div className={styles.preview} aria-label="Xem trước nội dung trang chủ bản nháp">
+      <span className={styles.kicker}>DRAFT PREVIEW · TRANG CHỦ</span>
       <strong>{value("brand_name") || "Giacong.vn"}</strong>
       <small>{value("brand_tagline") || value("hero_eyebrow") || "Giải pháp gia công toàn diện"}</small>
       <h3>{value("hero_title") || "Giải pháp gia công toàn diện chuyên nghiệp"}</h3>
       <p>{value("hero_description") || "Nội dung hero bản nháp sẽ hiển thị ở đây."}</p>
-      <button type="button">{value("hero_primary_cta_label") || "Xem thêm"}</button>
+      <small>{value("hero_image_url") ? "Ảnh hero: URL tùy chỉnh" : "Ảnh hero: ảnh mặc định"}</small>
+      <div className={styles.previewActions}>
+        <button type="button">{value("hero_primary_cta_label") || "Xem thêm"}</button>
+        <button className={styles.previewSecondaryButton} type="button">{value("hero_secondary_cta_label") || "Liên hệ ngay"}</button>
+      </div>
+      <div className={styles.previewAbout}>
+        <span className={styles.kicker}>PHẦN GIỚI THIỆU</span>
+        <h4>{value("about_title") || "Đồng hành cùng doanh nghiệp trong thời đại mới"}</h4>
+        <p>{value("about_description") || "Mô tả phần giới thiệu bản nháp sẽ hiển thị ở đây."}</p>
+      </div>
     </div>
   );
 }
