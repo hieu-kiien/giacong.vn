@@ -2,6 +2,22 @@
 
 Hồ sơ này ghi bằng chứng runtime đã xác minh trong quá trình chuyển Lean V1 sang Cloudflare-native.
 
+## Homepage content renderer — 2026-09-02
+
+- Commit `732eba5` bổ sung adapter homepage riêng cho `hero_description`,
+  `about_title` và `about_description`. Adapter chỉ nhắm section captured
+  `section01/section02`, escape HTML và giữ nguyên các route captured khác.
+- Local full gate sau thay đổi pass: admin `190/190`, contact `104/104`, catalog
+  `5/5`, purchase UI `1/1`, service `3/3`, commerce `67/67`, listing `4/4`,
+  detail `29/29`, lint, typecheck và build.
+- Chrome public staging đọc lại DOM thật sau deploy: hero eyebrow/title/mô tả,
+  CTA và phần giới thiệu đều khớp bản published; navigation và gallery vẫn
+  hiện đúng. Không tạo draft, không ghi D1/R2 trong phép kiểm tra này.
+- Worker staging `giacong-vn-staging` hiện phục vụ version
+  `81b2e573-dea9-4e6a-b7ce-9cddb9b5fc70` ở 100%; rollback point là
+  `0d4d66f9-2b6e-42d1-a8e2-58bda74f98f0`. Audit owner vẫn `139` sự kiện;
+  production Worker/D1/R2 và DNS không bị thay đổi.
+
 ## Published hero CTA renderer round-trip — 2026-09-02
 
 - Commit `173239e` nối bốn setting `hero_primary/secondary_cta_label/url` vào

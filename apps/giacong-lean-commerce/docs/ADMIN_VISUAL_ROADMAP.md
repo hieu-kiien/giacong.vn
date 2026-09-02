@@ -12,10 +12,10 @@ lý hàng loạt.
 
 **Checkpoint hiện tại — 2026-09-02:** Bản motion/menu storefront đã được
 review và tích hợp vào `master`; staging đang phục vụ version
-`0d4d66f9-2b6e-42d1-a8e2-58bda74f98f0` sau owner/RBAC hardening, navigation
+`81b2e573-dea9-4e6a-b7ce-9cddb9b5fc70` sau owner/RBAC hardening, navigation
 contract, dependency, copy, Access hardening và bulk-retry UX; commit `f4707b4`
 bổ sung trạng thái tải quyền, commit `d63c7ec` giữ request id/payload cho retry
-thao tác hàng loạt; version `c860a002-afcc-4c41-a329-b0390799d9bc` là rollback
+thao tác hàng loạt; version `0d4d66f9-2b6e-42d1-a8e2-58bda74f98f0` là rollback
 point gần nhất.
 Owner staging đã được bootstrap có kiểm soát: `qtu1053@gmail.com` là admin cấp
 cao nhất (`owner`), có toàn bộ capability và nhìn thấy nút tạo thành viên/admin;
@@ -33,7 +33,7 @@ cứng 100 mục, trả kết quả từng item và ghi audit chuyên biệt. C�
 apply/verify trên D1 staging; production chưa thay đổi.
 
 Full gate gần nhất đạt: full admin `190/190`, contact
-`104/104`, catalog `5/5`, purchase UI `1/1`, service `3/3`, commerce `65/65`,
+`104/104`, catalog `5/5`, purchase UI `1/1`, service `3/3`, commerce `67/67`,
 listing `4/4`, detail `29/29`, lint, typecheck và build đều exit `0`; audit
 dependency báo `0 vulnerabilities`. Public smoke 5 route sau deploy đạt HTTP
 `200`, 0 console error, 0 HTTP 4xx/5xx, không overflow và axe không có serious/
@@ -780,6 +780,23 @@ xem xét production promotion. Không đánh dấu đạt chỉ vì build thành
 - Deep QA public responsive sau deploy pass; P2 hiện có evidence runtime cho
   brand name/tagline và hero CTA mapping. Preview draft, role matrix nhiều
   identity, write/read-back đầy đủ các domain khác và production gate vẫn mở.
+
+## Runtime update 2026-09-02 (homepage content mapping)
+
+- Commit `732eba5` thêm `applyHomepageSiteSettingsToMarkup`, một adapter riêng
+  cho homepage để nối `hero_description`, `about_title` và
+  `about_description` vào captured `section01/section02`; selector không lan
+  sang các route captured khác và nội dung multiline được escape an toàn.
+- Full local gate sau thay đổi pass: admin `190/190`, contact `104/104`, catalog
+  `5/5`, purchase UI `1/1`, service `3/3`, commerce `67/67`, listing `4/4`,
+  detail `29/29`, lint, typecheck và build. Chrome public staging sau deploy
+  đọc đúng hero/about published, CTA, navigation và gallery.
+- Staging version `81b2e573-dea9-4e6a-b7ce-9cddb9b5fc70` đã promotion 100%,
+  rollback point là `0d4d66f9-2b6e-42d1-a8e2-58bda74f98f0`; audit giữ `139`
+  events. Probe không ghi D1/R2; production và DNS không thay đổi.
+- P2 hiện có evidence runtime cho brand, hero CTA và text hero/about. Preview
+  draft, role matrix nhiều identity, write/read-back đầy đủ các domain khác và
+  production gate vẫn mở.
 
 ## 5. Ma trận test và lệnh kiểm tra
 

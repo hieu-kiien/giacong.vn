@@ -22,15 +22,15 @@ storefront motion/menu đã được review và tích hợp từ worktree riêng
 gallery đã chấp nhận asset WebP. `qa:ux` là runner tracked để lặp lại audit
 staging. Public staging `https://staging.kienhieu.id.vn` vừa pass UX audit 5/5
 route. Staging đang phục vụ version
-`0d4d66f9-2b6e-42d1-a8e2-58bda74f98f0`; rollback point gần nhất là
-`c860a002-afcc-4c41-a329-b0390799d9bc`; owner thật `qtu1053@gmail.com` đã được
+`81b2e573-dea9-4e6a-b7ce-9cddb9b5fc70`; rollback point gần nhất là
+`0d4d66f9-2b6e-42d1-a8e2-58bda74f98f0`; owner thật `qtu1053@gmail.com` đã được
 bootstrap vào D1 staging với role `owner` cấp cao nhất. `/admin/thanh-vien` đã
 được browser xác nhận hiển thị tài khoản hiện tại, khóa self-demotion/self-
 deactivation và mở được luồng `Thêm tài khoản quản trị`.
 
 Full gate gần nhất: admin `190/190`, contact
 `104/104`, catalog `5/5`, catalog purchase UI `1/1`, service `3/3`, commerce
-`65/65`, listing `4/4`, detail `29/29`, kèm lint, typecheck và build. Public UX
+`67/67`, listing `4/4`, detail `29/29`, kèm lint, typecheck và build. Public UX
 audit năm route pass; browser identity role matrix đầy đủ, write/read-back từng
 domain và production gate vẫn chưa đóng.
 Wrapper PowerShell giữ process sau khi đã in xong output nên phải dừng thủ công;
@@ -132,6 +132,18 @@ DOM read-back có `data-site-setting="brand_tagline"` và element hiển thị; 
 `7 → 8 → 9 → 10 → 11`. `global.brand` hiện đã map brand name/tagline vào
 captured shell; logo URL vẫn có fallback capture an toàn. Role matrix nhiều
 identity, các domain write/read-back còn lại và production gate vẫn mở.
+
+**Runtime update 2026-09-02 (homepage content mapping):** commit `732eba5`
+thêm `applyHomepageSiteSettingsToMarkup` để nối `hero_description`,
+`about_title` và `about_description` vào đúng captured `section01/section02`;
+selector được giới hạn ở page boundary homepage, nội dung multiline được
+escape an toàn. Full commerce gate sau thay đổi đạt `67/67`; full check,
+staging deploy và Chrome public DOM read-back đều pass. Worker staging hiện là
+`81b2e573-dea9-4e6a-b7ce-9cddb9b5fc70`, rollback point là
+`0d4d66f9-2b6e-42d1-a8e2-58bda74f98f0`; audit giữ `139` events, không có
+mutation D1/R2 trong probe. `home.hero` hiện map đủ text hero/about, CTA,
+image và brand fields; preview draft, role matrix nhiều identity, các domain
+write/read-back còn lại và production gate vẫn mở.
 
 **Runtime update 2026-09-02 (Hero CTA publish mapping):** commit `173239e`
 bổ sung adapter cho `hero_primary/secondary_cta_label/url` và regression test

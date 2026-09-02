@@ -4,7 +4,8 @@
 
 Bản staging hiện **đủ điều kiện để tiếp tục nghiệm thu kỹ thuật**, nhưng chưa
 đủ điều kiện để gọi là bàn giao production hoàn hảo. Staging đang chạy
-`0d4d66f9-2b6e-42d1-a8e2-58bda74f98f0` ở 100%; production vẫn giữ nguyên và
+`81b2e573-dea9-4e6a-b7ce-9cddb9b5fc70` ở 100%, rollback point gần nhất là
+`0d4d66f9-2b6e-42d1-a8e2-58bda74f98f0`; production vẫn giữ nguyên và
 đang **NO-GO** cho migration hoặc promotion.
 
 Để bàn giao production an toàn, còn bốn nhóm gate phải đóng:
@@ -19,7 +20,7 @@ Bản staging hiện **đủ điều kiện để tiếp tục nghiệm thu kỹ
 
 - `npm run check` đã xanh toàn bộ test, lint, typecheck và build: admin `190/190`,
   contact `104/104`, catalog `5/5`, purchase UI `1/1`, service `3/3`, commerce
-  `65/65`, listing `4/4`, detail `29/29`; `npm audit` (cả production và đầy đủ
+  `67/67`, listing `4/4`, detail `29/29`; `npm audit` (cả production và đầy đủ
   dependency) báo `0 vulnerabilities`.
 - Staging D1 đã apply đủ migration đến `0019`; public smoke 7/7 route, product
   API, cart canonical money và R2 media đều pass.
@@ -61,6 +62,12 @@ Bản staging hiện **đủ điều kiện để tiếp tục nghiệm thu kỹ
   Commit `173239e`, staging version `0d4d66f9-2b6e-42d1-a8e2-58bda74f98f0` ở
   100%, rollback point là `c860a002-afcc-4c41-a329-b0390799d9bc`; audit hiện
   đọc `139` sự kiện.
+- Homepage content renderer đã được đóng ở commit `732eba5`: adapter riêng nối
+  `hero_description`, `about_title`, `about_description` vào đúng captured
+  `section01/section02`, không làm rộng selector sang route khác. Staging
+  version `81b2e573-dea9-4e6a-b7ce-9cddb9b5fc70` đã deploy 100%, rollback về
+  `0d4d66f9-2b6e-42d1-a8e2-58bda74f98f0`; Chrome public đọc lại đúng hero/about
+  mặc định, CTA, navigation và gallery. Không có D1/R2 mutation trong probe.
 - News owner staging đã tạo/đọc/xóa một bài nháp QA; public `/tin-tuc` vẫn
   empty trong suốt phép thử và danh sách admin trở lại `0 bài viết` sau khi
   dọn bản ghi. Đây chưa phải bằng chứng publish/cover-media đầy đủ.

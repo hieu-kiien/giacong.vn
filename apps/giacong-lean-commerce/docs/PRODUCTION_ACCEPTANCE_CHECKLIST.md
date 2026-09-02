@@ -238,8 +238,14 @@ Lưu ý: demo staging KHÔNG được seed sang production. Khách tự thao tá
   trị gốc. Commit `173239e`, staging version
   `0d4d66f9-2b6e-42d1-a8e2-58bda74f98f0`, rollback point
   `c860a002-afcc-4c41-a329-b0390799d9bc`; audit cuối `139` sự kiện.
+- [x] Homepage content renderer proof 2026-09-02: commit `732eba5` nối
+  `hero_description`, `about_title`, `about_description` qua adapter homepage-
+  only; Chrome public staging sau deploy đọc đúng hero/about published, CTA,
+  navigation và gallery. Version `81b2e573-dea9-4e6a-b7ce-9cddb9b5fc70` ở
+  100%, rollback point `0d4d66f9-2b6e-42d1-a8e2-58bda74f98f0`; không có D1/R2
+  mutation trong probe.
 - [x] Full local release gate sau thay đổi renderer: admin `190/190`, contact
-  `104/104`, catalog `5/5`, purchase UI `1/1`, service `3/3`, commerce `65/65`,
+  `104/104`, catalog `5/5`, purchase UI `1/1`, service `3/3`, commerce `67/67`,
   listing `4/4`, detail `29/29`, lint, typecheck và build đều exit `0`; deep QA
   staging sau deploy pass mobile/tablet/desktop.
 - [ ] Role × route/action với nhiều Access identity, write/read-back từng domain,
