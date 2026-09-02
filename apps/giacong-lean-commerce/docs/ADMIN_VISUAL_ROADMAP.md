@@ -713,6 +713,10 @@ xem xét production promotion. Không đánh dấu đạt chỉ vì build thành
   nằm ở draft, public vẫn hiển thị `Home`, rồi nhãn ban đầu được lưu lại và
   trạng thái trở về `Published`. Đây là draft isolation/read-back có hoàn
   nguyên, chưa đóng publish-all hoặc role matrix.
+- News staging đã kiểm tra create/read/delete có kiểm soát: owner tạo một bài
+  nháp QA, admin đọc lại, `/tin-tuc` public vẫn hiển thị empty state, sau đó
+  xóa đúng bản ghi qua confirm dialog và danh sách trở về `0 bài viết`. Không
+  coi đây là publish/cover-media hoặc role matrix đầy đủ.
 
 ## 5. Ma trận test và lệnh kiểm tra
 

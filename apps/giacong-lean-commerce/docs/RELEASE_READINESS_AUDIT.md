@@ -41,6 +41,9 @@ Bản staging hiện **đủ điều kiện để tiếp tục nghiệm thu kỹ
 - Navigation item `Home` cũng đã qua draft isolation/read-back có hoàn nguyên:
   nhãn QA không xuất hiện trên public, nhãn ban đầu được lưu lại và item trở
   lại `Published`. Publish-all, các mutation khác và role matrix vẫn mở.
+- News owner staging đã tạo/đọc/xóa một bài nháp QA; public `/tin-tuc` vẫn
+  empty trong suốt phép thử và danh sách admin trở lại `0 bài viết` sau khi
+  dọn bản ghi. Đây chưa phải bằng chứng publish/cover-media đầy đủ.
 - Export mới hiện có là `.runtime/production-d1-backup-20260902-pre-release.sql`,
   SHA-256 `583BE2FBFFC2C6D8F0C77E7D97C3786E838EDBFD228E024AD7A8F078A147ABFD`;
   local restore-drill đạt `integrity_check=ok` (19 bảng, 13 migration, 9

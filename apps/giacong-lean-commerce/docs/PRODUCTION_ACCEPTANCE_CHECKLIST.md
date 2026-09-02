@@ -205,6 +205,9 @@ Lưu ý: demo staging KHÔNG được seed sang production. Khách tự thao tá
 - [x] Owner staging kiểm tra navigation draft isolation trên item `Home`: nhãn
   QA không rò ra public, nhãn ban đầu được khôi phục và item trở lại
   `Published`; chưa coi đây là publish-all đầy đủ.
+- [x] Owner staging kiểm tra news create/read/delete: bài nháp QA không rò ra
+  `/tin-tuc` public, sau đó được xóa qua confirm dialog và danh sách trở lại
+  `0 bài viết`; chưa coi đây là publish/media acceptance đầy đủ.
 - [ ] Role × route/action với nhiều Access identity, write/read-back từng domain,
   production data approval, backup/restore, observability 24h và production
   promotion vẫn chưa đạt.

@@ -108,6 +108,10 @@ Navigation owner staging cũng đã kiểm tra mục `Home`: draft label QA khô
 ra public, sau đó nhãn `Home` được khôi phục và item trở lại `Published`. Đây
 chưa phải publish-all hoặc write/read-back đầy đủ cho navigation.
 
+News owner staging đã tạo một bài nháp QA, đọc lại đúng trong admin, xác nhận
+`/tin-tuc` public vẫn empty, rồi xóa bản ghi QA qua confirm dialog; danh sách
+trở về `0 bài viết`. Không để lại dữ liệu thử và chưa suy diễn publish/media.
+
 Repo chính không có GIF/video runtime bắt buộc: motion hiện dùng CSS/HTML và
 asset WebP phù hợp. Worktree motion riêng vẫn được giữ nguyên, không reset hoặc
 xóa các artifact người dùng đang làm.

@@ -785,3 +785,11 @@ runtime trước khi đóng gate hiệu năng/ổn định.
 - Nhãn ban đầu `Home` đã được lưu lại; admin đọc lại item ở trạng thái
   `Published`, không còn draft. Đây chưa phải bằng chứng publish-all, các item
   navigation khác, role matrix nhiều identity hoặc production readiness.
+
+## News draft create/delete round-trip — 2026-09-02
+
+- Owner staging đã tạo một bài nháp QA với slug riêng, danh sách admin đọc lại
+  đúng một record và public `/tin-tuc` vẫn hiển thị empty state vì chưa publish.
+- Bản ghi QA đã được xóa qua confirm dialog; danh sách admin trở về `0 bài
+  viết`. Không còn dữ liệu thử; publish/cover-media, các role khác và production
+  readiness vẫn chưa được suy diễn.
