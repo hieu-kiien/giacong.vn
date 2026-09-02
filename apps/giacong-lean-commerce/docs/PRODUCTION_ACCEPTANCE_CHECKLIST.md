@@ -208,7 +208,7 @@ Lưu ý: demo staging KHÔNG được seed sang production. Khách tự thao tá
 - [x] Owner staging kiểm tra news create/read/delete: bài nháp QA không rò ra
   `/tin-tuc` public, sau đó được xóa qua confirm dialog và danh sách trở lại
   `0 bài viết`; chưa coi đây là publish/media acceptance đầy đủ.
-- [x] `/admin/audit` đọc lại `123 sự kiện` sau các round-trip CMS/navigation/news;
+- [x] `/admin/audit` đọc lại `139 sự kiện` sau các round-trip CMS/navigation/news;
   event có actor, action, revision và request ID; chưa coi đây là full-domain
   consistency audit.
 - [x] Navigation single-item publish runtime proof 2026-09-02: owner staging đổi
@@ -231,7 +231,13 @@ Lưu ý: demo staging KHÔNG được seed sang production. Khách tự thao tá
   giá trị gốc. Commit `ca14e5f`, staging version
   `c860a002-afcc-4c41-a329-b0390799d9bc`, rollback point
   `26884d0b-0092-43cd-bad2-df077de605eb`; audit cuối `123` sự kiện, revision
-  tagline `7 → 8 → 9 → 10 → 11`.
+  tagline `7 → 8 → 9 → 10 → 11` (audit tại thời điểm đó `123` sự kiện).
+- [x] Owner staging Hero CTA publish-renderer proof 2026-09-02: bốn trường
+  `hero_primary/secondary_cta_label/url` đều được lưu draft → phát hành → public
+  storefront đọc đúng text, href và visibility; sau đó restore/publish về giá
+  trị gốc. Commit `173239e`, staging version
+  `0d4d66f9-2b6e-42d1-a8e2-58bda74f98f0`, rollback point
+  `c860a002-afcc-4c41-a329-b0390799d9bc`; audit cuối `139` sự kiện.
 - [x] Full local release gate sau thay đổi renderer: admin `190/190`, contact
   `104/104`, catalog `5/5`, purchase UI `1/1`, service `3/3`, commerce `65/65`,
   listing `4/4`, detail `29/29`, lint, typecheck và build đều exit `0`; deep QA

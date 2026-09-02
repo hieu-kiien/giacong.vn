@@ -4,7 +4,7 @@
 
 Bản staging hiện **đủ điều kiện để tiếp tục nghiệm thu kỹ thuật**, nhưng chưa
 đủ điều kiện để gọi là bàn giao production hoàn hảo. Staging đang chạy
-`c860a002-afcc-4c41-a329-b0390799d9bc` ở 100%; production vẫn giữ nguyên và
+`0d4d66f9-2b6e-42d1-a8e2-58bda74f98f0` ở 100%; production vẫn giữ nguyên và
 đang **NO-GO** cho migration hoặc promotion.
 
 Để bàn giao production an toàn, còn bốn nhóm gate phải đóng:
@@ -53,11 +53,18 @@ Bản staging hiện **đủ điều kiện để tiếp tục nghiệm thu kỹ
   draft QA → publish → public đọc đúng text và computed visibility; sau đó
   restore/publish giá trị gốc. Staging version `c860a002-afcc-4c41-a329-b0390799d9bc`
   ở 100%, rollback point là `26884d0b-0092-43cd-bad2-df077de605eb`; audit hiện
-  đọc `123` sự kiện với bốn event tagline mới, revision `7 → 8 → 9 → 10 → 11`.
+  audit tại thời điểm đó đọc `123` sự kiện với bốn event tagline mới, revision
+  `7 → 8 → 9 → 10 → 11`.
+- Publish runtime bốn trường Hero CTA cũng đã được kiểm chứng bằng owner
+  browser: primary/secondary label và URL đều draft → publish → public DOM đọc
+  đúng text, href và visibility; sau đó restore/publish cả bốn giá trị gốc.
+  Commit `173239e`, staging version `0d4d66f9-2b6e-42d1-a8e2-58bda74f98f0` ở
+  100%, rollback point là `c860a002-afcc-4c41-a329-b0390799d9bc`; audit hiện
+  đọc `139` sự kiện.
 - News owner staging đã tạo/đọc/xóa một bài nháp QA; public `/tin-tuc` vẫn
   empty trong suốt phép thử và danh sách admin trở lại `0 bài viết` sau khi
   dọn bản ghi. Đây chưa phải bằng chứng publish/cover-media đầy đủ.
-- `/admin/audit` đọc lại `123 sự kiện`; event mới nhất của news/navigation/site
+- `/admin/audit` đọc lại `139 sự kiện`; event mới nhất của news/navigation/site
   setting có actor, action, revision và request ID tương ứng với các round-trip.
   Đây chưa phải consistency audit cho mọi domain.
 - Export mới hiện có là `.runtime/production-d1-backup-20260902-pre-release.sql`,

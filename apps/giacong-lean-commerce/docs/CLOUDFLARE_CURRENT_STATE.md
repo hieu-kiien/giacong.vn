@@ -2,6 +2,19 @@
 
 Hồ sơ này ghi bằng chứng runtime đã xác minh trong quá trình chuyển Lean V1 sang Cloudflare-native.
 
+## Published hero CTA renderer round-trip — 2026-09-02
+
+- Commit `173239e` nối bốn setting `hero_primary/secondary_cta_label/url` vào
+  hai CTA captured của homepage. Label được HTML-escape, URL được attribute-
+  escape; renderer chỉ nhắm đúng class CTA đã xác định trong captured markup.
+- Owner Access thật đã chạy draft → publish với cả bốn trường; public DOM đọc
+  đúng label, href và visibility của hai nút. Sau đó cả bốn giá trị được
+  restore/publish về bản gốc.
+- Worker staging `giacong-vn-staging` hiện phục vụ version
+  `0d4d66f9-2b6e-42d1-a8e2-58bda74f98f0` ở 100%; rollback point là
+  `c860a002-afcc-4c41-a329-b0390799d9bc`. Audit owner hiện có `139` sự kiện;
+  deep QA public responsive sau deploy pass; production không bị thay đổi.
+
 ## Published brand tagline renderer round-trip — 2026-09-02
 
 - Commit `ca14e5f` nối setting `brand_tagline` vào shared captured storefront

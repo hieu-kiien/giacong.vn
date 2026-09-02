@@ -12,10 +12,10 @@ lý hàng loạt.
 
 **Checkpoint hiện tại — 2026-09-02:** Bản motion/menu storefront đã được
 review và tích hợp vào `master`; staging đang phục vụ version
-`c860a002-afcc-4c41-a329-b0390799d9bc` sau owner/RBAC hardening, navigation
+`0d4d66f9-2b6e-42d1-a8e2-58bda74f98f0` sau owner/RBAC hardening, navigation
 contract, dependency, copy, Access hardening và bulk-retry UX; commit `f4707b4`
 bổ sung trạng thái tải quyền, commit `d63c7ec` giữ request id/payload cho retry
-thao tác hàng loạt; version `379d20d7-44d2-40ee-a603-2890ba7515fb` là rollback
+thao tác hàng loạt; version `c860a002-afcc-4c41-a329-b0390799d9bc` là rollback
 point gần nhất.
 Owner staging đã được bootstrap có kiểm soát: `qtu1053@gmail.com` là admin cấp
 cao nhất (`owner`), có toàn bộ capability và nhìn thấy nút tạo thành viên/admin;
@@ -747,7 +747,7 @@ xem xét production promotion. Không đánh dấu đạt chỉ vì build thành
   nháp QA, admin đọc lại, `/tin-tuc` public vẫn hiển thị empty state, sau đó
   xóa đúng bản ghi qua confirm dialog và danh sách trở về `0 bài viết`. Không
   coi đây là publish/cover-media hoặc role matrix đầy đủ.
-- `/admin/audit` sau các phép thử đọc lại `123 sự kiện`; các event mới nhất của
+- `/admin/audit` sau các phép thử đọc lại `139 sự kiện`; các event mới nhất của
   news, navigation và site setting đều có actor, action, revision và request ID.
   Đây là audit evidence cho các round-trip trên, không phải consistency audit
   của mọi domain.
@@ -760,7 +760,7 @@ xem xét production promotion. Không đánh dấu đạt chỉ vì build thành
 - Owner Access thật trên staging đã chứng minh draft QA → publish → public DOM
   read-back đúng text và element hiển thị; sau đó restore/publish giá trị gốc.
   Staging version `c860a002-afcc-4c41-a329-b0390799d9bc` ở 100%, rollback point
-  `26884d0b-0092-43cd-bad2-df077de605eb`; audit cuối `123` events và revision
+  `26884d0b-0092-43cd-bad2-df077de605eb`; audit tại thời điểm đó `123` events và revision
   tagline `7 → 8 → 9 → 10 → 11`.
 - Full gate mới nhất: admin `190/190`, contact `104/104`, catalog `5/5`,
   purchase UI `1/1`, service `3/3`, commerce `65/65`, listing `4/4`, detail
@@ -768,6 +768,18 @@ xem xét production promotion. Không đánh dấu đạt chỉ vì build thành
 - P2 đã có evidence runtime cho brand name/tagline mapping; preview draft, role
   matrix nhiều identity, write/read-back đầy đủ các domain khác và production
   gate vẫn mở.
+
+## Runtime update 2026-09-02 (published hero CTA mapping)
+
+- Commit `173239e` nối bốn setting `hero_primary/secondary_cta_label/url` vào
+  hai CTA captured của homepage, có regression test escape cho label và URL.
+- Owner Access thật trên staging đã chạy draft → publish cả bốn trường; public
+  DOM đọc đúng label, href và visibility của hai nút, sau đó restore/publish về
+  giá trị gốc. Staging version `0d4d66f9-2b6e-42d1-a8e2-58bda74f98f0` ở 100%,
+  rollback point `c860a002-afcc-4c41-a329-b0390799d9bc`; audit cuối `139` events.
+- Deep QA public responsive sau deploy pass; P2 hiện có evidence runtime cho
+  brand name/tagline và hero CTA mapping. Preview draft, role matrix nhiều
+  identity, write/read-back đầy đủ các domain khác và production gate vẫn mở.
 
 ## 5. Ma trận test và lệnh kiểm tra
 

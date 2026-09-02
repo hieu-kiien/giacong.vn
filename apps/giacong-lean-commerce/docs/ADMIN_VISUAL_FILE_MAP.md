@@ -22,8 +22,8 @@ storefront motion/menu đã được review và tích hợp từ worktree riêng
 gallery đã chấp nhận asset WebP. `qa:ux` là runner tracked để lặp lại audit
 staging. Public staging `https://staging.kienhieu.id.vn` vừa pass UX audit 5/5
 route. Staging đang phục vụ version
-`c860a002-afcc-4c41-a329-b0390799d9bc`; rollback point gần nhất là
-`26884d0b-0092-43cd-bad2-df077de605eb`; owner thật `qtu1053@gmail.com` đã được
+`0d4d66f9-2b6e-42d1-a8e2-58bda74f98f0`; rollback point gần nhất là
+`c860a002-afcc-4c41-a329-b0390799d9bc`; owner thật `qtu1053@gmail.com` đã được
 bootstrap vào D1 staging với role `owner` cấp cao nhất. `/admin/thanh-vien` đã
 được browser xác nhận hiển thị tài khoản hiện tại, khóa self-demotion/self-
 deactivation và mở được luồng `Thêm tài khoản quản trị`.
@@ -126,14 +126,23 @@ gallery vẫn ở cùng page boundary.
 `ca14e5f` bổ sung adapter `brand_tagline` vào shared `site-markup` renderer và
 regression test HTML-escape. Owner staging đã chạy draft QA → publish → public
 DOM read-back có `data-site-setting="brand_tagline"` và element hiển thị; sau
-đó restore/publish giá trị gốc. Staging version hiện tại
+đó restore/publish giá trị gốc. Staging version trong phép thử
 `c860a002-afcc-4c41-a329-b0390799d9bc`, rollback point
-`26884d0b-0092-43cd-bad2-df077de605eb`; audit hiện `123` event, revision tagline
+`26884d0b-0092-43cd-bad2-df077de605eb`; audit tại thời điểm đó `123` event, revision tagline
 `7 → 8 → 9 → 10 → 11`. `global.brand` hiện đã map brand name/tagline vào
 captured shell; logo URL vẫn có fallback capture an toàn. Role matrix nhiều
 identity, các domain write/read-back còn lại và production gate vẫn mở.
 
-`/admin/audit` đọc lại `123 sự kiện` sau các round-trip; các event mới nhất của
+**Runtime update 2026-09-02 (Hero CTA publish mapping):** commit `173239e`
+bổ sung adapter cho `hero_primary/secondary_cta_label/url` và regression test
+escape. Owner staging đã draft → publish cả bốn setting; public DOM đọc đúng
+label, href và visibility của hai CTA, sau đó restore/publish về giá trị gốc.
+Staging version hiện tại `0d4d66f9-2b6e-42d1-a8e2-58bda74f98f0`, rollback point
+`c860a002-afcc-4c41-a329-b0390799d9bc`; audit hiện `139` event. `home.hero`
+hiện map eyebrow/title/description/image/CTA; preview draft, role matrix nhiều
+identity, các domain write/read-back còn lại và production gate vẫn mở.
+
+`/admin/audit` đọc lại `139 sự kiện` sau các round-trip; các event mới nhất của
 news/navigation/site setting có actor, action, revision và request ID. Đây là
 evidence audit của các phép thử có kiểm soát, không phải full-domain consistency.
 
