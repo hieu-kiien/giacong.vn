@@ -175,6 +175,34 @@ delete audits are coupled to their D1 mutation; batch writes also record one
 Migration `0012_news_draft_publish_contract.sql` must be applied and verified
 before enabling these writes on staging.
 
+### Managed page P4 contract
+
+Managed pages use the same draft/published separation as news, but their content
+is a validated `PageBlock[]` snapshot rather than arbitrary HTML. The routes are:
+
+- `GET /api/admin/pages` — bounded list of up to 100 pages;
+- `POST /api/admin/pages`: `{ requestId, pageKey, routePath, title }` creates a
+  disabled draft at version `1`;
+- `PATCH /api/admin/pages/[pageKey]`: `{ requestId, blocks, draftEnabled,
+  expectedVersion, seoTitle, seoDescription }` replaces the complete draft
+  snapshot and increments the page version once;
+- `POST /api/admin/pages/[pageKey]/publish`: `{ requestId, expectedVersion }`
+  copies the validated draft to the published snapshot and increments the
+  version once.
+
+The page key and route path are normalized to safe internal forms. Blocks are
+parsed by the shared page-builder contract; HTML/markup and unknown block shapes
+are rejected. Create, draft save and publish all require the page capability,
+same-origin request and a valid UUID request ID. A repeated request ID with the
+same canonical fingerprint replays the persisted result; another fingerprint
+returns `409 IDEMPOTENCY_CONFLICT`. The page mutation and its specialized audit
+row are one D1 batch, with `site_pages.last_request_id` retained for the latest
+request marker and `admin_site_page_audit` providing the page-specific audit
+envelope.
+
+Migration `0019_admin_site_page_write_contract.sql` must be applied and verified
+on staging before relying on this write contract.
+
 ## 6. Canonical normalization
 
 The server performs only deterministic normalization:

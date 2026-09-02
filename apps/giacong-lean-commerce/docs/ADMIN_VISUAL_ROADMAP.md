@@ -12,10 +12,10 @@ lý hàng loạt.
 
 **Checkpoint hiện tại — 2026-09-02:** Bản motion/menu storefront đã được
 review và tích hợp vào `master`; staging đang phục vụ version
-`379d20d7-44d2-40ee-a603-2890ba7515fb` sau owner/RBAC hardening, navigation
+`14a6e3c9-7a4f-46a2-b8a0-c6eaf827647c` sau owner/RBAC hardening, navigation
 contract, dependency, copy, Access hardening và bulk-retry UX; commit `f4707b4`
 bổ sung trạng thái tải quyền, commit `d63c7ec` giữ request id/payload cho retry
-thao tác hàng loạt; version `278030a5-c21b-423f-b443-7f2ad4834b76` là rollback
+thao tác hàng loạt; version `379d20d7-44d2-40ee-a603-2890ba7515fb` là rollback
 point gần nhất.
 Owner staging đã được bootstrap có kiểm soát: `qtu1053@gmail.com` là admin cấp
 cao nhất (`owner`), có toàn bộ capability và nhìn thấy nút tạo thành viên/admin;
@@ -31,7 +31,7 @@ cứng 100 mục, trả kết quả từng item và ghi audit chuyên biệt. C�
 `0018_navigation_create_contract.sql` đã chạy đủ trên D1 local tạm và đã
 apply/verify trên D1 staging; production chưa thay đổi.
 
-Full gate gần nhất đạt: focused admin UI `12/12`, full admin `179/179`, contact
+Full gate gần nhất đạt: full admin `185/185`, contact
 `104/104`, catalog `5/5`, purchase UI `1/1`, service `3/3`, commerce `63/63`,
 listing `4/4`, detail `29/29`, lint, typecheck và build đều exit `0`; audit
 dependency báo `0 vulnerabilities`. Public smoke 5 route sau deploy đạt HTTP
@@ -52,6 +52,16 @@ Các gate chưa đóng: role matrix với nhiều identity thật, write/read-ba
 domain, browser admin đầy đủ desktop/mobile/keyboard/focus/reduced-motion,
 production data/content approval, backup/restore production, observability và
 production promotion. Production chưa bị thay đổi.
+
+**Runtime update 2026-09-02 (managed page write):** commit `7d6b75b` đã hoàn
+thiện create/draft/publish của page với request ID, optimistic version,
+idempotent replay/conflict và audit chuyên biệt trong D1 batch; migration `0019`
+đã apply/verify trên staging. Version `14a6e3c9-7a4f-46a2-b8a0-c6eaf827647c`
+đang ở 100%, rollback point là `379d20d7-44d2-40ee-a603-2890ba7515fb`. Active
+smoke public 7/7, product/cart/R2 invariant và Chrome owner revalidation đều
+pass. Commit `fa3bdc6` đã sửa smoke assertion để chấp nhận variant không khả dụng
+trong dữ liệu test mà vẫn khóa các invariant canonical. Các gate production và
+role matrix nhiều identity vẫn mở.
 
 **Runtime update 2026-09-01 (owner/RBAC boundary):** commit `d14d4e4` đã làm
 rõ mô hình tài khoản quản trị: `qtu1053@gmail.com` là `owner` cấp cao nhất;

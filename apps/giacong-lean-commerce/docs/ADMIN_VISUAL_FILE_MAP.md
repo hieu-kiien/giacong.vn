@@ -22,13 +22,13 @@ storefront motion/menu đã được review và tích hợp từ worktree riêng
 gallery đã chấp nhận asset WebP. `qa:ux` là runner tracked để lặp lại audit
 staging. Public staging `https://staging.kienhieu.id.vn` vừa pass UX audit 5/5
 route. Staging đang phục vụ version
-`379d20d7-44d2-40ee-a603-2890ba7515fb`; rollback point gần nhất là
-`278030a5-c21b-423f-b443-7f2ad4834b76`; owner thật `qtu1053@gmail.com` đã được
+`14a6e3c9-7a4f-46a2-b8a0-c6eaf827647c`; rollback point gần nhất là
+`379d20d7-44d2-40ee-a603-2890ba7515fb`; owner thật `qtu1053@gmail.com` đã được
 bootstrap vào D1 staging với role `owner` cấp cao nhất. `/admin/thanh-vien` đã
 được browser xác nhận hiển thị tài khoản hiện tại, khóa self-demotion/self-
 deactivation và mở được luồng `Thêm tài khoản quản trị`.
 
-Full gate gần nhất: focused admin UI `12/12`, admin `179/179`, contact
+Full gate gần nhất: admin `185/185`, contact
 `104/104`, catalog `5/5`, catalog purchase UI `1/1`, service `3/3`, commerce
 `63/63`, listing `4/4`, detail `29/29`, kèm lint, typecheck và build. Public UX
 audit năm route pass; browser identity role matrix đầy đủ, write/read-back từng
@@ -87,6 +87,15 @@ in pass cho toàn bộ test/lint/typecheck/build; version staging mới là
 Repo chính không có GIF/video runtime bắt buộc: motion hiện dùng CSS/HTML và
 asset WebP phù hợp. Worktree motion riêng vẫn được giữ nguyên, không reset hoặc
 xóa các artifact người dùng đang làm.
+
+**Runtime update 2026-09-02 (managed page write):** commit `7d6b75b` và migration
+`0019_admin_site_page_write_contract.sql` đã chốt create/draft/publish page với
+request ID, optimistic version, replay/conflict và audit D1 atomic. Staging
+version `14a6e3c9-7a4f-46a2-b8a0-c6eaf827647c` đang ở 100%; active smoke 7/7
+public route, product/cart/R2 invariants đều pass. Release workflow commit
+`fa3bdc6` không còn phụ thuộc tổng variant staging cứng; nó kiểm tra số variant
+khả dụng và SKU chuẩn. Role matrix nhiều Access identity, authenticated
+write/read-back đầy đủ và production gate vẫn là phần chưa đóng.
 
 **Catalog contract slice 2026-08-31:** product/variant single-row
 create/update/soft-archive đã chuyển sang exact command envelope với

@@ -161,3 +161,24 @@ Lưu ý: demo staging KHÔNG được seed sang production. Khách tự thao tá
 - [ ] Write/read-back từng domain và audit consistency trên staging.
 - [ ] Production data/content approval, backup/restore drill, observability
   24h và quyết định promotion production.
+
+## 10. Latest staging revalidation — 2026-09-02
+
+- [x] Migration `0019_admin_site_page_write_contract.sql` đã apply/verify trên
+  D1 staging; schema có `site_pages.last_request_id` và
+  `admin_site_page_audit`; production không bị thay đổi.
+- [x] Version staging `14a6e3c9-7a4f-46a2-b8a0-c6eaf827647c` đang ở 100%;
+  `379d20d7-44d2-40ee-a603-2890ba7515fb` là rollback point ngay trước đó.
+- [x] Active smoke 7/7 public route HTTP 200; product/cart/R2 invariants pass:
+  variant khả dụng `3`, SKU `B2B-DEMO-BGL-05`, giá `78000`, cart subtotal
+  `1950000` với quantity `25`, media HTTP 200.
+- [x] Owner Chrome revalidation: `qtu1053@gmail.com` hiển thị là
+  `Chủ sở hữu (toàn quyền)`, mở được form thêm admin; trang sản phẩm hiển thị
+  xử lý hàng loạt `Ẩn đã chọn`. Không tạo admin mới hoặc mutation dữ liệu trong
+  lượt này.
+- [x] Release smoke workflows được sửa ở commit `fa3bdc6` để khóa invariant
+  nghiệp vụ thay vì tổng variant cứng; `git diff --check` và GitNexus
+  `detect_changes` pass, risk thấp.
+- [ ] Role × route/action với nhiều Access identity, write/read-back từng domain,
+  production data approval, backup/restore, observability 24h và production
+  promotion vẫn chưa đạt.

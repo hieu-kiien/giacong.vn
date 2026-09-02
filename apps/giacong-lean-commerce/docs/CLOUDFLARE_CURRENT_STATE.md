@@ -2,6 +2,33 @@
 
 Hồ sơ này ghi bằng chứng runtime đã xác minh trong quá trình chuyển Lean V1 sang Cloudflare-native.
 
+## Cập nhật runtime 2026-09-02 (managed page write + role-safe admin)
+
+- Commit `7d6b75b` đã hoàn tất contract ghi managed page: create/draft/publish
+  dùng UUID `requestId`, optimistic version, replay idempotent và
+  `409 IDEMPOTENCY_CONFLICT` khi fingerprint khác; mutation page và audit
+  chuyên biệt được ghép trong cùng D1 batch. Migration
+  `0019_admin_site_page_write_contract.sql` đã apply/verify trên D1 staging,
+  không còn migration pending và không đụng production.
+- Staging Worker `giacong-vn-staging` hiện phục vụ version
+  `14a6e3c9-7a4f-46a2-b8a0-c6eaf827647c` ở 100%; version ngay trước đó
+  `379d20d7-44d2-40ee-a603-2890ba7515fb` là rollback point. `ADMIN_PUBLIC=false`
+  và bindings staging vẫn đúng.
+- Active smoke sau promotion đạt 7/7 public route HTTP 200; product API trả
+  `availableVariantCount=3`, SKU `B2B-DEMO-BGL-05` khả dụng và giá `78000`;
+  cart revalidation trả subtotal `1950000` cho quantity 25; R2 media trả 200
+  với 1,979,346 bytes. Tổng variant staging là 4 vì có một variant smoke
+  không khả dụng; release workflow đã được sửa để kiểm tra invariant nghiệp vụ
+  thay vì đếm tổng cứng.
+- Local source gate gần nhất: admin `185/185`, lint, typecheck và build đều
+  exit `0`; browser Chrome với Access identity thật xác nhận
+  `qtu1053@gmail.com` là `Chủ sở hữu (toàn quyền)`, thấy form thêm admin, bulk
+  action sản phẩm và quyền xử lý các màn hình owner. Chưa tạo admin thứ hai và
+  chưa thực hiện mutation dữ liệu staging trong lượt revalidation này.
+- Production Worker, D1/R2 và route production chưa bị thay đổi. Các gate role
+  matrix nhiều identity, write/read-back từng domain, dữ liệu production,
+  backup/restore, observability và production promotion vẫn mở.
+
 ## Cập nhật runtime 2026-09-01
 
 - Local navigation contract commit `566489d` và create contract commit `d654f2e`
