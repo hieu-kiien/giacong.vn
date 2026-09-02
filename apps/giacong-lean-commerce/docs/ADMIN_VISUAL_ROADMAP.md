@@ -704,6 +704,11 @@ xem xét production promotion. Không đánh dấu đạt chỉ vì build thành
 - Evidence mới đóng thêm public deep-QA và owner route-navigation slice; admin
   mobile/focus/reduced-motion, nhiều identity, write/read-back đầy đủ và
   production gate vẫn mở.
+- Owner đã kiểm tra CMS draft isolation trên staging: đổi tạm `Khẩu hiệu thương
+  hiệu` thành giá trị QA, lưu draft và xác nhận public vẫn giữ bản published;
+  sau đó khôi phục đúng giá trị ban đầu, UI trở lại `Published/Đã đồng bộ` và
+  không còn draft treo. Đây chưa thay thế preview renderer, publish round-trip
+  hoặc role matrix.
 
 ## 5. Ma trận test và lệnh kiểm tra
 

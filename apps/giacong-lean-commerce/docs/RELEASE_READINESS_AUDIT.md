@@ -34,6 +34,10 @@ Bản staging hiện **đủ điều kiện để tiếp tục nghiệm thu kỹ
   search/filter/sort, product detail/cart và keyboard reachability. Đây là
   bằng chứng điều hướng và public deep-QA, không phải role matrix hay
   write/read-back đầy đủ.
+- CMS `brand_tagline` đã được owner kiểm tra draft isolation: lưu giá trị QA
+  không làm đổi public, sau đó khôi phục giá trị cũ và trạng thái trở lại
+  `Published/Đã đồng bộ`. Preview renderer, publish round-trip và các role khác
+  vẫn chưa được suy diễn từ phép thử này.
 - Export mới hiện có là `.runtime/production-d1-backup-20260902-pre-release.sql`,
   SHA-256 `583BE2FBFFC2C6D8F0C77E7D97C3786E838EDBFD228E024AD7A8F078A147ABFD`;
   local restore-drill đạt `integrity_check=ok` (19 bảng, 13 migration, 9

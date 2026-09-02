@@ -199,6 +199,9 @@ Lưu ý: demo staging KHÔNG được seed sang production. Khách tự thao tá
   đã có status write/read-back cùng audit revision `1 → 2`, `2 → 3`.
 - [x] Owner Chrome đã đi qua đủ 10 route admin canonical; `qa-deep-staging.mjs`
   pass public mobile/tablet/desktop, catalog/detail/cart và keyboard checks.
+- [x] Owner staging kiểm tra CMS draft isolation trên `brand_tagline`: draft QA
+  không rò ra public, giá trị ban đầu được khôi phục và UI trở lại
+  `Published/Đã đồng bộ`; chưa coi đây là publish/preview đầy đủ.
 - [ ] Role × route/action với nhiều Access identity, write/read-back từng domain,
   production data approval, backup/restore, observability 24h và production
   promotion vẫn chưa đạt.

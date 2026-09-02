@@ -68,8 +68,8 @@ npx wrangler queues info giacong-vn-leads-dlq      # hàng đợi lead thất b�
 - Thêm admin viên trên staging: cấu hình email/identity trong chính sách Cloudflare Access, sau đó owner `qtu1053@gmail.com` dùng `/admin/thanh-vien` để tạo bản ghi `admin_members` và cấp đúng một trong năm role. Không ghi trực tiếp production khi chưa có backup/acceptance.
 
 Trạng thái bàn giao hiện tại: code/test, staging storefront, Access identity
-thật, owner route navigation, public deep-QA, owner bootstrap và lead
-write/read-back có kiểm soát đã được xác minh;
+thật, owner route navigation, public deep-QA, owner bootstrap, CMS draft
+isolation và lead write/read-back có kiểm soát đã được xác minh;
 role matrix nhiều identity, write/read-back đầy đủ, production data approval, migrations `0009–0019` và
 restore/rollback drill vẫn cần chủ dự án phê duyệt và thực hiện chủ ý. Không
 dùng dữ liệu demo staging làm dữ liệu production.

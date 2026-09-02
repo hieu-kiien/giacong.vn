@@ -99,6 +99,11 @@ route, catalog, product detail/cart và keyboard. Đây là evidence navigation 
 public deep-QA bổ sung, không thay thế role matrix nhiều identity hoặc
 write/read-back từng domain.
 
+CMS owner staging đã có một draft round-trip có kiểm soát trên `brand_tagline`:
+giá trị QA chỉ xuất hiện trong trạng thái draft, public vẫn giữ bản published,
+sau đó giá trị ban đầu được lưu lại và UI trở về `Published/Đã đồng bộ`. Không
+đánh dấu đây là publish/preview đầy đủ hay bằng chứng cho role khác.
+
 Repo chính không có GIF/video runtime bắt buộc: motion hiện dùng CSS/HTML và
 asset WebP phù hợp. Worktree motion riêng vẫn được giữ nguyên, không reset hoặc
 xóa các artifact người dùng đang làm.

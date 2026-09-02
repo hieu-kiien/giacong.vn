@@ -767,3 +767,13 @@ runtime trước khi đóng gate hiệu năng/ổn định.
   reachability. Không submit lead và không mutate D1/R2.
 - Chưa suy diễn từ evidence này rằng các role khác đã pass, mọi domain đã
   write/read-back, hay production đã sẵn sàng.
+
+## CMS draft isolation round-trip — 2026-09-02
+
+- Owner staging đã đổi tạm setting `brand_tagline` sang một giá trị QA và lưu
+  draft; `/` public vẫn đọc `Giải pháp gia công toàn diện chuyên nghiệp` và
+  không lộ giá trị draft.
+- Owner đã lưu lại đúng giá trị ban đầu. Admin đọc lại trạng thái
+  `Published/Đã đồng bộ`, không còn draft treo; đây là write/read-back có hoàn
+  nguyên cho setting, không phải bằng chứng publish/preview đầy đủ, role matrix
+  nhiều identity hay production readiness.
