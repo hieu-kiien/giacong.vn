@@ -12,6 +12,7 @@ const heroMarkup = `<img
 
 const footerMarkup = `<footer id="footer"><section class="section footer-section"><div class="icon-box-text last-reset"><p>Nội dung footer cũ.</p></div><ul class="text-info"><li><i class="fas fa-map-marker-alt"></i><strong>VP Hà Nội:</strong> 109 Trần Hưng Đạo - Hoàn Kiếm - Hà Nội</li></ul></section><div class="copyright-footer">Copyright cũ</div></footer>`;
 const headerMarkup = `<header><div class="flex-col logo" id="logo"><a href="/" rel="home"><img alt="Giacong.vn" class="header_logo" src="/logo.png" /></a></div></header>`;
+const heroCtaMarkup = `<h3 class="entry-title">Eyebrow</h3><h1 class="entry-title">Hero</h1><a class="button primary nut-xem-them1" href="#"><span>Về chúng tôi</span></a><a class="button white nut-xem-them2" href="#"><span>Liên hệ ngay</span></a>`;
 
 const settings = (heroImageUrl) => ({
   about_title: "Giới thiệu",
@@ -68,6 +69,22 @@ test("applies the published brand tagline beside the captured logo safely", () =
 
   assert.match(result, /data-site-setting="brand_tagline"/);
   assert.match(result, /Khẩu hiệu &lt;QA&gt;/);
+  assert.doesNotMatch(result, /<QA>/);
+});
+
+test("applies published hero CTA labels and URLs safely", () => {
+  const result = applySiteSettingsToMarkup(heroCtaMarkup, {
+    ...settings(""),
+    hero_primary_cta_label: "Xem thêm <QA>",
+    hero_primary_cta_url: "/gioi-thieu?from=<qa>",
+    hero_secondary_cta_label: "Liên hệ & tư vấn",
+    hero_secondary_cta_url: "https://example.test/contact?source=qa&x=1",
+  });
+
+  assert.match(result, /href="\/gioi-thieu\?from=&lt;qa&gt;"/);
+  assert.match(result, /<span>Xem thêm &lt;QA&gt;<\/span>/);
+  assert.match(result, /href="https:\/\/example\.test\/contact\?source=qa&amp;x=1"/);
+  assert.match(result, /<span>Liên hệ &amp; tư vấn<\/span>/);
   assert.doesNotMatch(result, /<QA>/);
 });
 

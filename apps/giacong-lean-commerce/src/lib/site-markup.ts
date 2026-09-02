@@ -31,6 +31,8 @@ export function applySiteSettingsToMarkup(markup: string, settings: PublishedSit
   result = replaceHeroImage(result, settings.hero_image_url);
   result = replaceLogo(result, settings.logo_url);
   result = replaceBrandTagline(result, settings.brand_tagline);
+  result = replaceHeroCta(result, "nut-xem-them1", settings.hero_primary_cta_label, settings.hero_primary_cta_url);
+  result = replaceHeroCta(result, "nut-xem-them2", settings.hero_secondary_cta_label, settings.hero_secondary_cta_url);
 
   return result;
 }
@@ -45,6 +47,30 @@ function replaceBrandTagline(markup: string, value: string): string {
     (_match, opening: string, _quote: string, closing: string) =>
       `${opening}<span class="giacong-brand-tagline" data-site-setting="brand_tagline">${escapeHtml(tagline)}</span>${closing}`,
   );
+}
+
+function replaceHeroCta(markup: string, className: string, label: string, href: string): string {
+  const ctaPattern = new RegExp(
+    `<a\\b(?=[^>]*\\bclass=(['"])[^'"]*\\b${escapeRegExp(className)}\\b[^'"]*\\1)[^>]*>[\\s\\S]*?<\\/a>`,
+    "i",
+  );
+  const match = ctaPattern.exec(markup);
+  if (!match || match.index === undefined) return markup;
+
+  const nextLabel = typeof label === "string" ? label.trim() : "";
+  const nextHref = typeof href === "string" ? href.trim() : "";
+  let updated = match[0];
+  if (nextHref) {
+    updated = updated.replace(/\bhref=(['"])[^'"]*\1/i, `href="${escapeAttr(nextHref)}"`);
+  }
+  if (nextLabel) {
+    updated = updated.replace(
+      /(<span\b[^>]*>)[\s\S]*?(<\/span>)/i,
+      (_match, opening: string, closing: string) => `${opening}${escapeHtml(nextLabel)}${closing}`,
+    );
+  }
+
+  return `${markup.slice(0, match.index)}${updated}${markup.slice(match.index + match[0].length)}`;
 }
 
 function promoteHeroEyebrowAfterHeroTitle(markup: string): string {
@@ -140,6 +166,10 @@ function escapeHtml(value: string): string {
 
 function escapeAttr(value: string): string {
   return escapeHtml(value);
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 function safeColor(value: string, fallback: string): string {
