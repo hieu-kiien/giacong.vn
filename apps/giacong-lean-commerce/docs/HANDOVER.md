@@ -25,7 +25,8 @@ Tài liệu dành cho người vận hành (khách + chủ dự án). Quyết đ
 6. Thiết kế page: `/admin/thiet-ke` cho phép chỉnh các section schema an toàn, xem preview draft rồi Publish; không nhập HTML/CSS/JavaScript tùy ý.
 7. Điều hướng: `/admin/dieu-huong` chỉnh nhãn, href, thứ tự, ẩn/hiện primary menu desktop/mobile; chỉ bản Publish mới ra storefront.
 8. Thành viên & quyền: `qtu1053@gmail.com` là owner cấp cao nhất trên staging; tại `/admin/thanh-vien`, owner được thêm tài khoản admin, cấp/sửa role và active state. `accessSubject` phải khớp identity Cloudflare Access; không dùng shared administrator account. Owner không thể tự hạ quyền hoặc tự vô hiệu hóa.
-9. Mọi thay đổi ghi quan trọng đều vào `audit_logs` trong D1.
+9. Mọi thay đổi quan trọng đều xuất hiện trong trang `Lịch sử thay đổi` và các
+   bảng audit D1 liên quan; không lưu token hoặc secret vào audit.
 
 ## 3. Vận hành Google Sheet (request intake)
 

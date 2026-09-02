@@ -84,6 +84,16 @@ Không tự tạo production D1/R2 bằng tên suy đoán. Production resources 
 
 `npm run cf:deploy` chỉ được phép trỏ staging. Production không có auto-deploy trong giai đoạn migration.
 
+Khi kiểm tra production config bằng Wrangler, luôn chỉ rõ environment gốc bằng
+`--env=""`; nếu bỏ cờ này Wrangler cảnh báo vì file có nhiều environment. Dry-run
+không nhận traffic và không thay đổi Worker:
+
+```bash
+npm run check
+npm run cf:build
+npx wrangler deploy --dry-run --env=""
+```
+
 Quy trình:
 
 1. `npm run check` xanh.
@@ -94,7 +104,7 @@ Quy trình:
 6. Kiểm tra media R2 khi có object tương ứng.
 7. Chỉ khi preview đạt mới promotion version vào `giacong-vn-staging`.
 8. QA staging hoàn chỉnh.
-9. Sau đó mới tạo resource/migration production và promotion có kiểm soát cho `giacong-vn`.
+9. Sau đó mới tạo resource/migration production và promotion có kiểm soát cho `giacong-vn`; mỗi migration window phải có export D1 mới, checksum, restore-drill và rollback point.
 
 ## Production safety
 
