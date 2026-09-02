@@ -194,6 +194,9 @@ Lưu ý: demo staging KHÔNG được seed sang production. Khách tự thao tá
 - [x] Export/restore-drill mới 2026-09-02 đã hoàn tất: `.runtime/production-d1-backup-20260902-pre-release.sql`, SHA-256
   `583BE2FBFFC2C6D8F0C77E7D97C3786E838EDBFD228E024AD7A8F078A147ABFD`,
   `integrity_check=ok` (19 bảng, 13 migration, 9 product, 17 variant, 0 lead).
+- [x] Staging release `d1d270a8-52d5-4a8b-a988-daa21e8fdfa3` đã promote 100%
+  sau commit `8652130`; owner dashboard đọc đúng draft metric (`0`) và lead QA
+  đã có status write/read-back cùng audit revision `1 → 2`, `2 → 3`.
 - [ ] Role × route/action với nhiều Access identity, write/read-back từng domain,
   production data approval, backup/restore, observability 24h và production
   promotion vẫn chưa đạt.

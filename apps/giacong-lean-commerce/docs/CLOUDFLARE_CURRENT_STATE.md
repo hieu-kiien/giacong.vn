@@ -734,3 +734,23 @@ runtime trước khi đóng gate hiệu năng/ổn định.
   đúng host `https://staging.kienhieu.id.vn` pass 5/5 route, action pass, 0
   console error, 0 HTTP 4xx/5xx, 0 overflow, axe 5/5 không có serious/critical;
   warning duy nhất là iframe Google Maps bên thứ ba.
+
+## Dashboard metric và authenticated lead round-trip — 2026-09-02
+
+- Commit `8652130` sửa `getAdminOverview`: “Sản phẩm bản nháp” chỉ đếm product
+  có `product_admin_meta.status IN ('draft', 'review')`; không còn dùng nhầm
+  `products.is_active = 1`. Regression `scripts/admin-dashboard.test.mts` đã
+  được thêm vào `test:admin` và full admin gate đạt `186/186`.
+- Version staging `d1d270a8-52d5-4a8b-a988-daa21e8fdfa3` đã promote 100%; version
+  `14a6e3c9-7a4f-46a2-b8a0-c6eaf827647c` còn tồn tại làm rollback point. Chrome
+  với Access identity owner đọc lại dashboard: tổng `12`, active `10`, draft
+  `0`.
+- Trên lead QA `QA-STAGING staging-path`, owner đã thực hiện có kiểm soát
+  `Mới tiếp nhận → Đã xác thực → Mới tiếp nhận`. Inbox đọc lại đúng trạng thái
+  cuối; `/admin/audit` đọc hai event `admin_lead_audit`, revision `1 → 2` và
+  `2 → 3`, cùng actor subject và request ID. Dữ liệu cuối được khôi phục như
+  trước kiểm thử; đây chỉ là evidence cho lead domain, không thay thế
+  write/read-back mọi domain hoặc role matrix nhiều identity.
+- Public `https://staging.kienhieu.id.vn/` vẫn HTTP `200` và không có admin
+  control; request chưa xác thực tới admin staging vẫn HTTP `302` về Access;
+  staging D1 báo không còn migration pending. Production không bị thay đổi.

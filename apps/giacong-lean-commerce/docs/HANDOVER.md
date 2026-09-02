@@ -8,7 +8,7 @@ Tài liệu dành cho người vận hành (khách + chủ dự án). Quyết đ
 | --- | --- | --- |
 | Storefront production | https://kienhieu.id.vn | Cloudflare Worker `giacong-vn` @100% |
 | Admin production | https://admin.kienhieu.id.vn/admin | Sau Cloudflare Access — fail-closed |
-| Storefront staging | https://staging.kienhieu.id.vn | Worker `giacong-vn-staging`, public demo; version `14a6e3c9-7a4f-46a2-b8a0-c6eaf827647c` |
+| Storefront staging | https://staging.kienhieu.id.vn | Worker `giacong-vn-staging`, public demo; version `d1d270a8-52d5-4a8b-a988-daa21e8fdfa3` |
 | Admin staging | https://admin-staging.kienhieu.id.vn/admin | Cloudflare Access thật; storefront staging mới public; không có identity thì fail-closed |
 | D1 production | `giacong-vn-catalog` | Catalog, leads, media metadata, CMS |
 | R2 production | `giacong-vn-product-media` | Ảnh product/variant/service qua `/media/*` |
@@ -68,7 +68,7 @@ npx wrangler queues info giacong-vn-leads-dlq      # hàng đợi lead thất b�
 - Thêm admin viên trên staging: cấu hình email/identity trong chính sách Cloudflare Access, sau đó owner `qtu1053@gmail.com` dùng `/admin/thanh-vien` để tạo bản ghi `admin_members` và cấp đúng một trong năm role. Không ghi trực tiếp production khi chưa có backup/acceptance.
 
 Trạng thái bàn giao hiện tại: code/test, staging storefront, Access identity
-thật và owner bootstrap staging đã được xác minh; role matrix nhiều identity,
-write/read-back đầy đủ, production data approval, migrations `0009–0019` và
+thật, owner bootstrap và lead write/read-back có kiểm soát đã được xác minh;
+role matrix nhiều identity, write/read-back đầy đủ, production data approval, migrations `0009–0019` và
 restore/rollback drill vẫn cần chủ dự án phê duyệt và thực hiện chủ ý. Không
 dùng dữ liệu demo staging làm dữ liệu production.

@@ -4,7 +4,7 @@
 
 Bản staging hiện **đủ điều kiện để tiếp tục nghiệm thu kỹ thuật**, nhưng chưa
 đủ điều kiện để gọi là bàn giao production hoàn hảo. Staging đang chạy
-`14a6e3c9-7a4f-46a2-b8a0-c6eaf827647c` ở 100%; production vẫn giữ nguyên và
+`d1d270a8-52d5-4a8b-a988-daa21e8fdfa3` ở 100%; production vẫn giữ nguyên và
 đang **NO-GO** cho migration hoặc promotion.
 
 Để bàn giao production an toàn, còn bốn nhóm gate phải đóng:
@@ -23,8 +23,12 @@ Bản staging hiện **đủ điều kiện để tiếp tục nghiệm thu kỹ
   API, cart canonical money và R2 media đều pass.
 - Chrome với identity `qtu1053@gmail.com` đã đọc đúng `owner`/`Chủ sở hữu
   (toàn quyền)`, thấy luồng tạo admin, page builder và bulk product action.
-  Chưa tạo identity/member thứ hai hoặc ghi dữ liệu mới khi chưa có chủ ý cụ
-  thể.
+  Một lead QA staging đã được đổi status rồi khôi phục về trạng thái ban đầu;
+  read-back trên inbox và hai audit event với revision `1 → 2`, `2 → 3` đã
+  được xác nhận. Chưa tạo identity/member thứ hai hoặc ghi dữ liệu quyền hạn
+  mới khi chưa có chủ ý cụ thể.
+- Dashboard staging sau commit `8652130` đọc đúng `12` tổng sản phẩm, `10`
+  active và `0` draft; test hồi quy dashboard nằm trong admin gate.
 - Export mới hiện có là `.runtime/production-d1-backup-20260902-pre-release.sql`,
   SHA-256 `583BE2FBFFC2C6D8F0C77E7D97C3786E838EDBFD228E024AD7A8F078A147ABFD`;
   local restore-drill đạt `integrity_check=ok` (19 bảng, 13 migration, 9

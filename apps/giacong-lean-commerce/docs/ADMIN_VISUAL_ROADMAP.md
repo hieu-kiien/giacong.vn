@@ -12,7 +12,7 @@ lý hàng loạt.
 
 **Checkpoint hiện tại — 2026-09-02:** Bản motion/menu storefront đã được
 review và tích hợp vào `master`; staging đang phục vụ version
-`14a6e3c9-7a4f-46a2-b8a0-c6eaf827647c` sau owner/RBAC hardening, navigation
+`d1d270a8-52d5-4a8b-a988-daa21e8fdfa3` sau owner/RBAC hardening, navigation
 contract, dependency, copy, Access hardening và bulk-retry UX; commit `f4707b4`
 bổ sung trạng thái tải quyền, commit `d63c7ec` giữ request id/payload cho retry
 thao tác hàng loạt; version `379d20d7-44d2-40ee-a603-2890ba7515fb` là rollback
@@ -32,7 +32,7 @@ cứng 100 mục, trả kết quả từng item và ghi audit chuyên biệt. C�
 `0019_admin_site_page_write_contract.sql` đã chạy đủ trên D1 local tạm và đã
 apply/verify trên D1 staging; production chưa thay đổi.
 
-Full gate gần nhất đạt: full admin `185/185`, contact
+Full gate gần nhất đạt: full admin `186/186`, contact
 `104/104`, catalog `5/5`, purchase UI `1/1`, service `3/3`, commerce `63/63`,
 listing `4/4`, detail `29/29`, lint, typecheck và build đều exit `0`; audit
 dependency báo `0 vulnerabilities`. Public smoke 5 route sau deploy đạt HTTP
@@ -87,6 +87,18 @@ khi thành công hoặc lỗi 4xx. Focused contract đạt `18/18`; full gate đ
 cho toàn bộ test, lint, typecheck và build. Version staging
 `379d20d7-44d2-40ee-a603-2890ba7515fb` đã promote 100%; rollback về version
 `278030a5-c21b-423f-b443-7f2ad4834b76` nếu cần.
+
+**Runtime update 2026-09-02 (dashboard metric + owner lead round-trip):** commit
+`8652130` sửa thẻ “Sản phẩm bản nháp” để chỉ đếm `product_admin_meta.status` là
+`draft` hoặc `review`, không còn nhầm toàn bộ sản phẩm đang active thành bản
+nháp. Version staging `d1d270a8-52d5-4a8b-a988-daa21e8fdfa3` đã upload và
+promote 100%, version `14a6e3c9-7a4f-46a2-b8a0-c6eaf827647c` là rollback point;
+Chrome owner đọc lại dashboard với `12` tổng sản phẩm, `10` active và `0`
+draft. Cùng phiên Access đã đổi status lead QA staging `Mới tiếp nhận` →
+`Đã xác thực` → khôi phục `Mới tiếp nhận`; `/admin/yeu-cau` đọc lại thành công
+và `/admin/audit` ghi hai event chuyên biệt với revision `1 → 2` và `2 → 3`.
+Đây mới là evidence write/read-back cho lead domain; các domain admin còn lại,
+role matrix nhiều identity và production gate vẫn mở.
 
 ## 1. Quyết định sản phẩm
 

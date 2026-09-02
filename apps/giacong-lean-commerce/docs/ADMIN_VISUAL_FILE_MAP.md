@@ -22,13 +22,13 @@ storefront motion/menu đã được review và tích hợp từ worktree riêng
 gallery đã chấp nhận asset WebP. `qa:ux` là runner tracked để lặp lại audit
 staging. Public staging `https://staging.kienhieu.id.vn` vừa pass UX audit 5/5
 route. Staging đang phục vụ version
-`14a6e3c9-7a4f-46a2-b8a0-c6eaf827647c`; rollback point gần nhất là
-`379d20d7-44d2-40ee-a603-2890ba7515fb`; owner thật `qtu1053@gmail.com` đã được
+`d1d270a8-52d5-4a8b-a988-daa21e8fdfa3`; rollback point gần nhất là
+`14a6e3c9-7a4f-46a2-b8a0-c6eaf827647c`; owner thật `qtu1053@gmail.com` đã được
 bootstrap vào D1 staging với role `owner` cấp cao nhất. `/admin/thanh-vien` đã
 được browser xác nhận hiển thị tài khoản hiện tại, khóa self-demotion/self-
 deactivation và mở được luồng `Thêm tài khoản quản trị`.
 
-Full gate gần nhất: admin `185/185`, contact
+Full gate gần nhất: admin `186/186`, contact
 `104/104`, catalog `5/5`, catalog purchase UI `1/1`, service `3/3`, commerce
 `63/63`, listing `4/4`, detail `29/29`, kèm lint, typecheck và build. Public UX
 audit năm route pass; browser identity role matrix đầy đủ, write/read-back từng
@@ -84,6 +84,14 @@ chỉ reset marker ở success hoặc 4xx. Contract focused `18/18`, full gate �
 in pass cho toàn bộ test/lint/typecheck/build; version staging mới là
 `379d20d7-44d2-40ee-a603-2890ba7515fb`, rollback về
 `278030a5-c21b-423f-b443-7f2ad4834b76`.
+
+Commit `8652130` sửa metric dashboard “Sản phẩm bản nháp” để đếm đúng trạng
+thái `draft/review` trong `product_admin_meta`; focused regression đã được thêm
+vào `scripts/admin-dashboard.test.mts`. Version staging
+`d1d270a8-52d5-4a8b-a988-daa21e8fdfa3` đã promote 100% và Chrome owner đọc lại
+`12` tổng sản phẩm, `10` active, `0` draft. Lead QA staging cũng đã trải qua
+round-trip status có kiểm soát và audit read-back; đây chưa phải bằng chứng
+đóng write/read-back cho mọi domain.
 
 Repo chính không có GIF/video runtime bắt buộc: motion hiện dùng CSS/HTML và
 asset WebP phù hợp. Worktree motion riêng vẫn được giữ nguyên, không reset hoặc
