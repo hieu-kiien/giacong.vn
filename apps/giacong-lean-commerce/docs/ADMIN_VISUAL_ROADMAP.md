@@ -717,6 +717,10 @@ xem xét production promotion. Không đánh dấu đạt chỉ vì build thành
   nháp QA, admin đọc lại, `/tin-tuc` public vẫn hiển thị empty state, sau đó
   xóa đúng bản ghi qua confirm dialog và danh sách trở về `0 bài viết`. Không
   coi đây là publish/cover-media hoặc role matrix đầy đủ.
+- `/admin/audit` sau các phép thử đọc lại `103 sự kiện`; các event mới nhất của
+  news, navigation và site setting đều có actor, action, revision và request ID.
+  Đây là audit evidence cho các round-trip trên, không phải consistency audit
+  của mọi domain.
 
 ## 5. Ma trận test và lệnh kiểm tra
 

@@ -112,6 +112,10 @@ News owner staging đã tạo một bài nháp QA, đọc lại đúng trong adm
 `/tin-tuc` public vẫn empty, rồi xóa bản ghi QA qua confirm dialog; danh sách
 trở về `0 bài viết`. Không để lại dữ liệu thử và chưa suy diễn publish/media.
 
+`/admin/audit` đọc lại `103 sự kiện` sau các round-trip; các event mới nhất của
+news/navigation/site setting có actor, action, revision và request ID. Đây là
+evidence audit của các phép thử có kiểm soát, không phải full-domain consistency.
+
 Repo chính không có GIF/video runtime bắt buộc: motion hiện dùng CSS/HTML và
 asset WebP phù hợp. Worktree motion riêng vẫn được giữ nguyên, không reset hoặc
 xóa các artifact người dùng đang làm.

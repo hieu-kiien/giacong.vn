@@ -44,6 +44,9 @@ Bản staging hiện **đủ điều kiện để tiếp tục nghiệm thu kỹ
 - News owner staging đã tạo/đọc/xóa một bài nháp QA; public `/tin-tuc` vẫn
   empty trong suốt phép thử và danh sách admin trở lại `0 bài viết` sau khi
   dọn bản ghi. Đây chưa phải bằng chứng publish/cover-media đầy đủ.
+- `/admin/audit` đọc lại `103 sự kiện`; event mới nhất của news/navigation/site
+  setting có actor, action, revision và request ID tương ứng với các round-trip.
+  Đây chưa phải consistency audit cho mọi domain.
 - Export mới hiện có là `.runtime/production-d1-backup-20260902-pre-release.sql`,
   SHA-256 `583BE2FBFFC2C6D8F0C77E7D97C3786E838EDBFD228E024AD7A8F078A147ABFD`;
   local restore-drill đạt `integrity_check=ok` (19 bảng, 13 migration, 9

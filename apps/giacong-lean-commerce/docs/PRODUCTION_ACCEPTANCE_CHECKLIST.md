@@ -208,6 +208,9 @@ Lưu ý: demo staging KHÔNG được seed sang production. Khách tự thao tá
 - [x] Owner staging kiểm tra news create/read/delete: bài nháp QA không rò ra
   `/tin-tuc` public, sau đó được xóa qua confirm dialog và danh sách trở lại
   `0 bài viết`; chưa coi đây là publish/media acceptance đầy đủ.
+- [x] `/admin/audit` đọc lại `103 sự kiện` sau các round-trip CMS/navigation/news;
+  event có actor, action, revision và request ID; chưa coi đây là full-domain
+  consistency audit.
 - [ ] Role × route/action với nhiều Access identity, write/read-back từng domain,
   production data approval, backup/restore, observability 24h và production
   promotion vẫn chưa đạt.

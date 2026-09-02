@@ -793,3 +793,12 @@ runtime trước khi đóng gate hiệu năng/ổn định.
 - Bản ghi QA đã được xóa qua confirm dialog; danh sách admin trở về `0 bài
   viết`. Không còn dữ liệu thử; publish/cover-media, các role khác và production
   readiness vẫn chưa được suy diễn.
+
+## Audit read-back sau staging round-trips — 2026-09-02
+
+- `/admin/audit` đọc lại `103 sự kiện`. Các event mới nhất gồm
+  `admin_news_audit` cho bài QA, `admin_navigation_audit` cho item `home` và
+  `admin_site_setting_audit` cho `brand_tagline`; mỗi event hiển thị actor,
+  action, revision và request ID, không hiển thị payload nội dung.
+- Đây là bằng chứng audit cho các phép thử owner staging vừa thực hiện, không
+  thay thế consistency audit/write-read-back của mọi domain hoặc role matrix.
