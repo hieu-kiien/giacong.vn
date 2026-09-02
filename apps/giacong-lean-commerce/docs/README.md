@@ -10,6 +10,7 @@
 | [UI_CURRENT_MAP.md](./UI_CURRENT_MAP.md) | Bản đồ route và giao diện đang có |
 | [GOOGLE_SHEETS_CONTACT_WEBHOOK.md](./GOOGLE_SHEETS_CONTACT_WEBHOOK.md) | Hướng dẫn vận hành webhook và Google Sheet |
 | [PRODUCTION_ACCEPTANCE_CHECKLIST.md](./PRODUCTION_ACCEPTANCE_CHECKLIST.md) | Checklist cổng production acceptance: staging, admin CRUD, Google Sheet live, dữ liệu thật, rollback/promotion |
+| [RELEASE_READINESS_AUDIT.md](./RELEASE_READINESS_AUDIT.md) | Kết luận audit release, skills.sh, bằng chứng hiện có và các gate còn mở |
 | [AI_ADMIN_SKILL_GUIDE.md](./AI_ADMIN_SKILL_GUIDE.md) | Hợp đồng sử dụng skill repo-scoped `giacong-admin` để xây dựng và kiểm duyệt admin |
 | [ADMIN_VISUAL_ROADMAP.md](./ADMIN_VISUAL_ROADMAP.md) | Lộ trình triển khai admin storefront-first từ nền tảng, MVP nhỏ đến bản đầy đủ; gồm gate, test và Definition of Done |
 | [ADMIN_VISUAL_FILE_MAP.md](./ADMIN_VISUAL_FILE_MAP.md) | Bản đồ file, route, data source, quyền, test ownership và vùng editable của admin visual |

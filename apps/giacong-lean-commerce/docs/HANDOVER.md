@@ -8,12 +8,12 @@ Tài liệu dành cho người vận hành (khách + chủ dự án). Quyết đ
 | --- | --- | --- |
 | Storefront production | https://kienhieu.id.vn | Cloudflare Worker `giacong-vn` @100% |
 | Admin production | https://admin.kienhieu.id.vn/admin | Sau Cloudflare Access — fail-closed |
-| Storefront staging | https://staging.kienhieu.id.vn | Worker `giacong-vn-staging`, public demo; version `379d20d7-44d2-40ee-a603-2890ba7515fb` |
+| Storefront staging | https://staging.kienhieu.id.vn | Worker `giacong-vn-staging`, public demo; version `14a6e3c9-7a4f-46a2-b8a0-c6eaf827647c` |
 | Admin staging | https://admin-staging.kienhieu.id.vn/admin | Cloudflare Access thật; storefront staging mới public; không có identity thì fail-closed |
 | D1 production | `giacong-vn-catalog` | Catalog, leads, media metadata, CMS |
 | R2 production | `giacong-vn-product-media` | Ảnh product/variant/service qua `/media/*` |
 | Request intake | Google Sheet "Yêu cầu báo giá Giacong" + Apps Script | Xem mục 3 |
-| Backup D1 | Chưa có artifact trong workspace hiện tại | Đợt 2026-08-25 có ghi nhận snapshot; phải re-export + checksum + thử restore trước migration production tiếp theo |
+| Backup D1 | `.runtime/production-d1-backup-20260902-pre-release.sql` (SHA-256 `583BE2FBFFC2C6D8F0C77E7D97C3786E838EDBFD228E024AD7A8F078A147ABFD`) | Export mới + restore-drill cục bộ đạt `integrity_check=ok`; vẫn phải re-export lại ngay trước cửa sổ migration nếu dữ liệu thay đổi |
 
 ## 2. Vận hành admin
 

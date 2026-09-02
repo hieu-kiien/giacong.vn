@@ -59,16 +59,21 @@ Lưu ý: demo staging KHÔNG được seed sang production. Khách tự thao tá
 - [x] Sửa 3 lệch dữ liệu seed phát hiện bởi strict read path: contact threshold SME-02/NMC-10, thiếu cột variant_count, option_id = 0
 
 > Phạm vi lịch sử của các mục `[x]` trên chỉ gồm migrations `0004/0007/0008`
-> và đợt seed đã được ghi nhận. Read-only audit ngày 2026-08-31 cho thấy
-> production vẫn còn `0009–0016` chưa apply; không tự thay đổi production khi
+> và đợt seed đã được ghi nhận. Read-only audit ngày 2026-08-31 (bằng chứng
+> lịch sử) cho thấy production khi đó còn `0009–0016` chưa apply; không tự thay đổi production khi
 > các gate dữ liệu thật, Access role matrix và restore/rollback drill còn mở.
 
-> Revalidation 2026-08-31: artifact `.runtime/production-d1-backup-20260825.sql`
-> không có trong workspace hiện tại. Mục export ở trên chỉ là bằng chứng lịch sử;
-> phải re-export, lưu checksum và thử restore cục bộ ngay trước khi apply
-> `0009–0016`. Không coi production đã có backup restore-ready cho đến lúc đó.
+> Revalidation hiện tại: artifact `.runtime/production-d1-backup-20260825.sql` đã
+> được kiểm tra checksum và restore-drill cục bộ đạt `integrity_check=ok`. Export
+> mới ngày 2026-09-02 được ghi ở mục 10; cả hai chỉ là bằng chứng chuẩn bị và
+> phải re-export lại ngay trước cửa sổ migration nếu dữ liệu production thay đổi.
 
-- [ ] Apply và verify production migrations `0009–0016` sau khi có production
+- [x] Export production D1 mới ngày 2026-09-02 tại
+  `.runtime/production-d1-backup-20260902-pre-release.sql`, SHA-256
+  `583BE2FBFFC2C6D8F0C77E7D97C3786E838EDBFD228E024AD7A8F078A147ABFD`; local
+  restore-drill đạt `integrity_check=ok` (19 bảng, 13 migration, 9 product,
+  17 variant, 0 lead).
+- [ ] Apply và verify production migrations `0009–0019` sau khi có production
   acceptance/backup/rollback window được phê duyệt.
 
 ## 6. Promotion production — ĐÃ ĐÓNG (2026-08-25)
@@ -106,8 +111,8 @@ Lưu ý: demo staging KHÔNG được seed sang production. Khách tự thao tá
 - [x] Follow-up storefront staging version `ec0522c7-2840-4118-a7fb-0740c5d7c91e` promotion 100%; rollback point `a5534149-5af4-415b-8e2d-947a0a995016`; slider dots visible và click `Nội dung 2` chuyển `sliderIndex=1`, console không có error/warning.
 - [x] Follow-up footer settings staging version `cd4a973e-6fde-4538-b66b-04d3fadbb02d` promotion 100%; rollback point `ec0522c7-2840-4118-a7fb-0740c5d7c91e`; footer description/address/copyright đọc đúng từ DOM, không có script và console không có error/warning.
 - [x] Public staging smoke sau footer follow-up: `/`, `/san-pham/`, `/tin-tuc/`, `/gui-yeu-cau/`, `/thue-gia-cong/` đều có `main`/`footer`, public không có admin control và console không có error/warning.
-- [x] Production read-only audit: `d1 migrations list giacong-vn-catalog --remote` xác nhận pending `0009–0016`; không apply migration, không ghi D1/R2 và không deploy production trong đợt này.
-- [x] Production schema read-only audit: `sqlite_master`/`d1_migrations` xác nhận thiếu các bảng control-plane/audit cần cho migration `0009–0016`; query có `changed_db=false`, `rows_written=0`.
+- [x] Production read-only audit ngày 2026-08-31 (lịch sử): `d1 migrations list giacong-vn-catalog --remote` xác nhận pending `0009–0016`; không apply migration, không ghi D1/R2 và không deploy production trong đợt đó.
+- [x] Production schema read-only audit ngày 2026-08-31 (lịch sử): `sqlite_master`/`d1_migrations` xác nhận thiếu các bảng control-plane/audit cần cho migration `0009–0016`; query có `changed_db=false`, `rows_written=0`.
 - [x] Khóa staging admin bằng Cloudflare Access: commit `41f65eb`, version `11eb20a9-69c8-4dbd-884e-b65aa31d2d93` promote 100%; request không có identity bị chặn, storefront staging vẫn public và 5 route smoke pass.
 - [x] Blocked admin screen có nút `Đăng nhập Cloudflare Access`: commit `d6bfb43`, version `a772e2d3-06b6-4046-bf0f-36f6ed5b2329` promote 100%; browser snapshot xác nhận href login chuẩn.
 - [x] Login handoff được sửa để reload `/admin` và dùng edge redirect chuẩn (không dùng endpoint 404): commit `4d090b4`, version `0d73b4ce-ef7f-4f52-a3b0-63ecb7e3e90d` promote 100%; probe không identity nhận 302 tới Access.
@@ -186,6 +191,9 @@ Lưu ý: demo staging KHÔNG được seed sang production. Khách tự thao tá
   và restore-drill cục bộ đạt `PRAGMA integrity_check = ok` (16 bảng, 10
   migration, 9 product, 17 variant). Snapshot này chưa thay thế export mới
   ngay trước migration production.
+- [x] Export/restore-drill mới 2026-09-02 đã hoàn tất: `.runtime/production-d1-backup-20260902-pre-release.sql`, SHA-256
+  `583BE2FBFFC2C6D8F0C77E7D97C3786E838EDBFD228E024AD7A8F078A147ABFD`,
+  `integrity_check=ok` (19 bảng, 13 migration, 9 product, 17 variant, 0 lead).
 - [ ] Role × route/action với nhiều Access identity, write/read-back từng domain,
   production data approval, backup/restore, observability 24h và production
   promotion vẫn chưa đạt.
