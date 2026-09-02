@@ -84,7 +84,12 @@ jobs:
 
           curl --fail-with-body --silent --show-error --max-time 25 \
             "$STAGING_ORIGIN/api/catalog/products/bot-gao-lut-xay-min" > /tmp/product.json
-          jq -e '.product.slug == "bot-gao-lut-xay-min" and .product.startingPrice.price == 78000 and .product.variantCount == 3' /tmp/product.json
+          jq -e '
+            .product.slug == "bot-gao-lut-xay-min"
+            and .product.availableVariantCount == 3
+            and .product.startingPrice.price == 78000
+            and ([.product.variants[] | select(.sku == "B2B-DEMO-BGL-05" and .isAvailable == true)] | length == 1)
+          ' /tmp/product.json
 
           curl --fail-with-body --silent --show-error --max-time 25 \
             -H 'Content-Type: application/json' \

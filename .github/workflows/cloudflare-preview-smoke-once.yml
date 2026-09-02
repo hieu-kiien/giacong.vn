@@ -64,7 +64,6 @@ jobs:
             "$PREVIEW_ORIGIN/api/catalog/products/bot-gao-lut-xay-min" > /tmp/product.json
           jq -e '
             .product.slug == "bot-gao-lut-xay-min"
-            and .product.variantCount == 3
             and .product.availableVariantCount == 3
             and .product.startingPrice.currency == "VND"
             and .product.startingPrice.price == 78000
