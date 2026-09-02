@@ -11,6 +11,7 @@ const heroMarkup = `<img
   alt="Gia công thực phẩm">`;
 
 const footerMarkup = `<footer id="footer"><section class="section footer-section"><div class="icon-box-text last-reset"><p>Nội dung footer cũ.</p></div><ul class="text-info"><li><i class="fas fa-map-marker-alt"></i><strong>VP Hà Nội:</strong> 109 Trần Hưng Đạo - Hoàn Kiếm - Hà Nội</li></ul></section><div class="copyright-footer">Copyright cũ</div></footer>`;
+const headerMarkup = `<header><div class="flex-col logo" id="logo"><a href="/" rel="home"><img alt="Giacong.vn" class="header_logo" src="/logo.png" /></a></div></header>`;
 
 const settings = (heroImageUrl) => ({
   about_title: "Giới thiệu",
@@ -57,6 +58,17 @@ test("applies published footer description, address and copyright without allowi
   assert.match(result, /<strong>VP Hà Nội:<\/strong> 108 Trần Hưng Đạo &amp; &lt;script&gt;/);
   assert.match(result, /Copyright &lt;2026&gt; &amp; partners/);
   assert.doesNotMatch(result, /<script>/);
+});
+
+test("applies the published brand tagline beside the captured logo safely", () => {
+  const result = applySiteSettingsToMarkup(headerMarkup, {
+    ...settings(""),
+    brand_tagline: "Khẩu hiệu <QA>",
+  });
+
+  assert.match(result, /data-site-setting="brand_tagline"/);
+  assert.match(result, /Khẩu hiệu &lt;QA&gt;/);
+  assert.doesNotMatch(result, /<QA>/);
 });
 
 test("keeps the hero heading hierarchy without misapplying the about title", () => {

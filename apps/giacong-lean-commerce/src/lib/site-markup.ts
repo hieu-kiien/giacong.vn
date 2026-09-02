@@ -30,8 +30,21 @@ export function applySiteSettingsToMarkup(markup: string, settings: PublishedSit
   result = promoteHeroEyebrowAfterHeroTitle(result);
   result = replaceHeroImage(result, settings.hero_image_url);
   result = replaceLogo(result, settings.logo_url);
+  result = replaceBrandTagline(result, settings.brand_tagline);
 
   return result;
+}
+
+function replaceBrandTagline(markup: string, value: string): string {
+  const tagline = typeof value === "string" ? value.trim() : "";
+  if (!tagline) return markup;
+
+  const logoPattern = /(<div\b[^>]*\bid=(['"])logo\2[^>]*>[\s\S]*?<\/a>)(\s*<\/div>)/i;
+  return markup.replace(
+    logoPattern,
+    (_match, opening: string, _quote: string, closing: string) =>
+      `${opening}<span class="giacong-brand-tagline" data-site-setting="brand_tagline">${escapeHtml(tagline)}</span>${closing}`,
+  );
 }
 
 function promoteHeroEyebrowAfterHeroTitle(markup: string): string {
@@ -53,7 +66,7 @@ function promoteHeroEyebrowAfterHeroTitle(markup: string): string {
 export function siteBrandStyles(settings: PublishedSiteSettings): string {
   const primary = safeColor(settings.primary_color, "#6cbe45");
   const accent = safeColor(settings.accent_color, "#bde875");
-  return `:root{--giacong-primary:${primary};--giacong-accent:${accent}}.button.primary,.button.bg-primary{background-color:${primary}!important;border-color:${primary}!important}.button.primary:hover,.button.bg-primary:hover{filter:brightness(.92)}.button.is-outline:hover{background-color:${primary}!important;border-color:${primary}!important}.button.primary:focus-visible,.button.bg-primary:focus-visible,.button.is-outline:focus-visible{outline:2px solid ${primary};outline-offset:2px}.text-primary,.has-text-color{color:${primary}}`;
+  return `:root{--giacong-primary:${primary};--giacong-accent:${accent}}.button.primary,.button.bg-primary{background-color:${primary}!important;border-color:${primary}!important}.button.primary:hover,.button.bg-primary:hover{filter:brightness(.92)}.button.is-outline:hover{background-color:${primary}!important;border-color:${primary}!important}.button.primary:focus-visible,.button.bg-primary:focus-visible,.button.is-outline:focus-visible{outline:2px solid ${primary};outline-offset:2px}.text-primary,.has-text-color{color:${primary}}.giacong-brand-tagline{display:block;max-width:260px;margin:3px auto 0;color:inherit;font-size:10px;font-weight:500;letter-spacing:.06em;line-height:1.2;overflow-wrap:anywhere;text-align:center;text-transform:none}`;
 }
 
 function replaceFirstElementText(markup: string, pattern: RegExp, value: string): string {
