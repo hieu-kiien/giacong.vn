@@ -4,7 +4,7 @@
 
 Bản staging hiện **đủ điều kiện để tiếp tục nghiệm thu kỹ thuật**, nhưng chưa
 đủ điều kiện để gọi là bàn giao production hoàn hảo. Staging đang chạy
-`d1d270a8-52d5-4a8b-a988-daa21e8fdfa3` ở 100%; production vẫn giữ nguyên và
+`26884d0b-0092-43cd-bad2-df077de605eb` ở 100%; production vẫn giữ nguyên và
 đang **NO-GO** cho migration hoặc promotion.
 
 Để bàn giao production an toàn, còn bốn nhóm gate phải đóng:
@@ -41,10 +41,15 @@ Bản staging hiện **đủ điều kiện để tiếp tục nghiệm thu kỹ
 - Navigation item `Home` cũng đã qua draft isolation/read-back có hoàn nguyên:
   nhãn QA không xuất hiện trên public, nhãn ban đầu được lưu lại và item trở
   lại `Published`. Publish-all, các mutation khác và role matrix vẫn mở.
+- Sau đó đã kiểm thử publish từng mục thật: draft `Home [QA]` được lưu, nút
+  `Phát hành` bật đúng sau khi draft đã nằm trên server, public homepage hiển
+  thị `Home [QA]`, rồi được khôi phục về `Home`. Commit `7666d67` sửa state
+  `localDirty`; commit `8ecd8ae` nối published navigation vào homepage
+  captured fallback. D1 cuối `dirty = 0`, public và admin đều đọc `Home`.
 - News owner staging đã tạo/đọc/xóa một bài nháp QA; public `/tin-tuc` vẫn
   empty trong suốt phép thử và danh sách admin trở lại `0 bài viết` sau khi
   dọn bản ghi. Đây chưa phải bằng chứng publish/cover-media đầy đủ.
-- `/admin/audit` đọc lại `103 sự kiện`; event mới nhất của news/navigation/site
+- `/admin/audit` đọc lại `107 sự kiện`; event mới nhất của news/navigation/site
   setting có actor, action, revision và request ID tương ứng với các round-trip.
   Đây chưa phải consistency audit cho mọi domain.
 - Export mới hiện có là `.runtime/production-d1-backup-20260902-pre-release.sql`,

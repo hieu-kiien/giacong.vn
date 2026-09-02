@@ -12,7 +12,7 @@ lý hàng loạt.
 
 **Checkpoint hiện tại — 2026-09-02:** Bản motion/menu storefront đã được
 review và tích hợp vào `master`; staging đang phục vụ version
-`d1d270a8-52d5-4a8b-a988-daa21e8fdfa3` sau owner/RBAC hardening, navigation
+`26884d0b-0092-43cd-bad2-df077de605eb` sau owner/RBAC hardening, navigation
 contract, dependency, copy, Access hardening và bulk-retry UX; commit `f4707b4`
 bổ sung trạng thái tải quyền, commit `d63c7ec` giữ request id/payload cho retry
 thao tác hàng loạt; version `379d20d7-44d2-40ee-a603-2890ba7515fb` là rollback
@@ -32,8 +32,8 @@ cứng 100 mục, trả kết quả từng item và ghi audit chuyên biệt. C�
 `0019_admin_site_page_write_contract.sql` đã chạy đủ trên D1 local tạm và đã
 apply/verify trên D1 staging; production chưa thay đổi.
 
-Full gate gần nhất đạt: full admin `186/186`, contact
-`104/104`, catalog `5/5`, purchase UI `1/1`, service `3/3`, commerce `63/63`,
+Full gate gần nhất đạt: full admin `187/187`, contact
+`104/104`, catalog `5/5`, purchase UI `1/1`, service `3/3`, commerce `64/64`,
 listing `4/4`, detail `29/29`, lint, typecheck và build đều exit `0`; audit
 dependency báo `0 vulnerabilities`. Public smoke 5 route sau deploy đạt HTTP
 `200`, 0 console error, 0 HTTP 4xx/5xx, không overflow và axe không có serious/
@@ -99,6 +99,19 @@ draft. Cùng phiên Access đã đổi status lead QA staging `Mới tiếp nh�
 và `/admin/audit` ghi hai event chuyên biệt với revision `1 → 2` và `2 → 3`.
 Đây mới là evidence write/read-back cho lead domain; các domain admin còn lại,
 role matrix nhiều identity và production gate vẫn mở.
+
+**Runtime update 2026-09-02 (navigation publish round-trip):** commit `7666d67`
+tách `localDirty` khỏi trạng thái draft đã lưu để nút phát hành từng mục và
+publish-all không bị khóa sai; regression `scripts/admin-navigation-ui.test.mjs`
+được đưa vào `test:admin`. Commit `8ecd8ae` nối published navigation vào
+`CapturedHomePage`, khép lỗi homepage vẫn dùng menu captured sau khi D1 đã
+publish. Full gate pass: admin `187/187`, commerce `64/64`, lint, typecheck và
+build đều exit `0`. Staging version `26884d0b-0092-43cd-bad2-df077de605eb`
+đã promote 100%, rollback point `1ff986f1-49ba-4a33-97d0-a6dfeb9e9d09`.
+Browser owner đã chứng minh `Home [QA]` save → publish → public read-back, rồi
+restore `Home`; D1 cuối `dirty = 0`, audit `107` events và deep QA staging pass.
+Publish-all, role matrix nhiều identity, write/read-back mọi domain và
+production gate vẫn mở.
 
 ## 1. Quyết định sản phẩm
 

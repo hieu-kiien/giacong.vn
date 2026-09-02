@@ -22,15 +22,15 @@ storefront motion/menu đã được review và tích hợp từ worktree riêng
 gallery đã chấp nhận asset WebP. `qa:ux` là runner tracked để lặp lại audit
 staging. Public staging `https://staging.kienhieu.id.vn` vừa pass UX audit 5/5
 route. Staging đang phục vụ version
-`d1d270a8-52d5-4a8b-a988-daa21e8fdfa3`; rollback point gần nhất là
-`14a6e3c9-7a4f-46a2-b8a0-c6eaf827647c`; owner thật `qtu1053@gmail.com` đã được
+`26884d0b-0092-43cd-bad2-df077de605eb`; rollback point gần nhất là
+`1ff986f1-49ba-4a33-97d0-a6dfeb9e9d09`; owner thật `qtu1053@gmail.com` đã được
 bootstrap vào D1 staging với role `owner` cấp cao nhất. `/admin/thanh-vien` đã
 được browser xác nhận hiển thị tài khoản hiện tại, khóa self-demotion/self-
 deactivation và mở được luồng `Thêm tài khoản quản trị`.
 
-Full gate gần nhất: admin `186/186`, contact
+Full gate gần nhất: admin `187/187`, contact
 `104/104`, catalog `5/5`, catalog purchase UI `1/1`, service `3/3`, commerce
-`63/63`, listing `4/4`, detail `29/29`, kèm lint, typecheck và build. Public UX
+`64/64`, listing `4/4`, detail `29/29`, kèm lint, typecheck và build. Public UX
 audit năm route pass; browser identity role matrix đầy đủ, write/read-back từng
 domain và production gate vẫn chưa đóng.
 Wrapper PowerShell giữ process sau khi đã in xong output nên phải dừng thủ công;
@@ -111,6 +111,16 @@ chưa phải publish-all hoặc write/read-back đầy đủ cho navigation.
 News owner staging đã tạo một bài nháp QA, đọc lại đúng trong admin, xác nhận
 `/tin-tuc` public vẫn empty, rồi xóa bản ghi QA qua confirm dialog; danh sách
 trở về `0 bài viết`. Không để lại dữ liệu thử và chưa suy diễn publish/media.
+
+Navigation publish round-trip đã được xác minh trên staging owner: commit
+`7666d67` sửa `localDirty` để draft đã lưu bật đúng nút publish từng mục, còn
+local edit chưa lưu không thể publish; commit `8ecd8ae` sửa `CapturedHomePage`
+để homepage áp dụng published navigation. Browser đã chạy `Home [QA]` save →
+single-item publish → public read-back, sau đó restore/publish `Home`; D1 cuối
+`draft = published = Home`, `dirty = 0`, version `7`. `/admin/audit` đọc lại
+`107` events; deep QA staging sau deploy pass. `CapturedHomePage.tsx` hiện là
+HTML captured + site settings + published navigation mapping, còn fallback hero
+gallery vẫn ở cùng page boundary.
 
 `/admin/audit` đọc lại `103 sự kiện` sau các round-trip; các event mới nhất của
 news/navigation/site setting có actor, action, revision và request ID. Đây là
@@ -199,7 +209,7 @@ runtime acceptance còn mở.
 | Home route | src/app/(storefront)/page.tsx | đã có; đọc published settings/page rồi chọn managed blocks hoặc captured home | P1–P4 |
 | Nested captured route | src/app/(storefront)/[...slug]/page.tsx | đã có; shared shell + managed page hoặc captured fallback; managed branch truyền pageKey cho contextual editor hand-off | P1–P4 |
 | Storefront layout | src/app/(storefront)/layout.tsx | đã có; owner của boundary chung public/storefront | P1 |
-| Captured home render | src/components/site/CapturedHomePage.tsx | đã có; HTML string + settings mapping giới hạn | P2, P4 |
+| Captured home render | src/components/site/CapturedHomePage.tsx | đã có; HTML captured + site settings + published navigation mapping và fallback hero gallery | P2, P4 |
 | Captured page render | src/components/CapturedPage.tsx | đã có; captured markup fallback | P1–P4 |
 | Header/footer shell | src/components/site/CapturedStorefrontShell.tsx | đã có; áp settings/navigation vào captured shell | P2, P4 |
 | Safe block render | src/components/site/PageBlocks.tsx | đã có; renderer dùng chung với page builder preview; nhận pageKey tùy chọn để gắn action trên managed page | P4 |

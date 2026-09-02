@@ -2,6 +2,28 @@
 
 Hồ sơ này ghi bằng chứng runtime đã xác minh trong quá trình chuyển Lean V1 sang Cloudflare-native.
 
+## Navigation publish round-trip và homepage fallback — 2026-09-02
+
+- Commit `7666d67` tách trạng thái `dirty` của server khỏi `localDirty` của
+  form điều hướng: draft đã lưu được phép phát hành từng mục; draft chưa lưu
+  bị chặn phát hành và publish-all. Regression nằm trong
+  `scripts/admin-navigation-ui.test.mjs`; full admin gate đạt `187/187`.
+- Trong browser owner, `Home [QA]` đã được đổi và lưu draft; nút `Phát hành`
+  từng mục đã bật đúng, publish thành công và public homepage đọc đúng
+  `Home [QA]`. Commit `8ecd8ae` sửa nguyên nhân thứ hai: `CapturedHomePage`
+  trước đó không áp dụng `getPublishedSiteNavigation`, nên homepage luôn dùng
+  menu captured mặc định dù D1 đã publish.
+- Staging Worker `giacong-vn-staging` hiện phục vụ version
+  `26884d0b-0092-43cd-bad2-df077de605eb` ở 100%; version ngay trước đó
+  `1ff986f1-49ba-4a33-97d0-a6dfeb9e9d09` là rollback point. Build/deploy pass;
+  không có migration hay thay đổi production.
+- Owner đã khôi phục và publish lại nhãn `Home`. D1 staging đọc lại
+  `draft_label = published_label = Home`, `version = 7`, `dirty = 0`; public
+  hard reload đọc đúng `Home`. `/admin/audit` đọc `107 sự kiện`, trong đó có
+  bốn event navigation mới với revision `3 → 4 → 5 → 6 → 7`.
+- `node scripts/qa-deep-staging.mjs` sau version hiện hành pass toàn bộ kiểm tra
+  mobile/tablet/desktop, catalog, detail/cart, keyboard và no-overflow.
+
 ## Cập nhật runtime 2026-09-02 (managed page write + role-safe admin)
 
 - Commit `7d6b75b` đã hoàn tất contract ghi managed page: create/draft/publish
@@ -11,8 +33,8 @@ Hồ sơ này ghi bằng chứng runtime đã xác minh trong quá trình chuy�
   `0019_admin_site_page_write_contract.sql` đã apply/verify trên D1 staging,
   không còn migration pending và không đụng production.
 - Staging Worker `giacong-vn-staging` hiện phục vụ version
-  `14a6e3c9-7a4f-46a2-b8a0-c6eaf827647c` ở 100%; version ngay trước đó
-  `379d20d7-44d2-40ee-a603-2890ba7515fb` là rollback point. `ADMIN_PUBLIC=false`
+  `26884d0b-0092-43cd-bad2-df077de605eb` ở 100%; version ngay trước đó
+  `1ff986f1-49ba-4a33-97d0-a6dfeb9e9d09` là rollback point. `ADMIN_PUBLIC=false`
   và bindings staging vẫn đúng.
 - Active smoke sau promotion đạt 7/7 public route HTTP 200; product API trả
   `availableVariantCount=3`, SKU `B2B-DEMO-BGL-05` khả dụng và giá `78000`;
