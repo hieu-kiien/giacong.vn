@@ -21,6 +21,13 @@ test("home hero uses four independent local image elements", () => {
   assert.doesNotMatch(homePage, /gia-cong-thuc-pham\.png/);
 });
 
+test("homepage applies the published navigation to the captured fallback", () => {
+  assert.match(homePage, /applyNavigationToMarkup/);
+  assert.match(homePage, /getPublishedSiteNavigation/);
+  assert.match(homePage, /await getPublishedSiteNavigation\(\)/);
+  assert.match(homePage, /applyNavigationToMarkup\(\s*normalizedMarkup,\s*navigation,\s*["']menu-item-4618["']/);
+});
+
 test("news route has its own source-aligned page frame and active navigation", () => {
   assert.doesNotMatch(newsPage, /activeNavigation="products"/);
   assert.match(newsPage, /giacong-page-hero/);

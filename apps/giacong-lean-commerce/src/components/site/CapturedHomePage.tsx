@@ -2,6 +2,7 @@ import { GiacongInteractions } from "@/components/GiacongInteractions";
 import { CapturedFloatingContact } from "@/components/CapturedPage";
 import { layerCapturedStyles, normalizeCapturedMarkup } from "@/lib/captured-markup";
 import { applySiteSettingsToMarkup, siteBrandStyles } from "@/lib/site-markup";
+import { applyNavigationToMarkup, getPublishedSiteNavigation } from "@/lib/site-navigation";
 import { siteSettingDefaults, type PublishedSiteSettings } from "@/lib/site-settings";
 import type { CapturedPageData } from "@/types/captured-page";
 
@@ -22,7 +23,7 @@ type CapturedHomePageProps = Pick<
  * artwork with four real image elements. Keeping this at the page boundary
  * leaves the shared captured shell untouched for the other storefront routes.
  */
-export function CapturedHomePage({
+export async function CapturedHomePage({
   markup,
   pageStyles,
   bodyClasses,
@@ -30,8 +31,11 @@ export function CapturedHomePage({
   siteSettings,
 }: CapturedHomePageProps) {
   const settings = siteSettings ?? siteSettingDefaults;
+  const navigation = await getPublishedSiteNavigation();
   const normalizedMarkup = applySiteSettingsToMarkup(normalizeCapturedMarkup(markup), settings);
-  const homeMarkup = replaceCompositeHeroWithGallery(normalizedMarkup);
+  const homeMarkup = replaceCompositeHeroWithGallery(
+    applyNavigationToMarkup(normalizedMarkup, navigation, "menu-item-4618"),
+  );
 
   return (
     <>
