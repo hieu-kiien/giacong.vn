@@ -218,6 +218,13 @@ Lưu ý: demo staging KHÔNG được seed sang production. Khách tự thao tá
   audit ghi đủ các cặp draft/publish với request ID. Staging version chứa fix
   homepage fallback là `26884d0b-0092-43cd-bad2-df077de605eb`, rollback point là
   `1ff986f1-49ba-4a33-97d0-a6dfeb9e9d09`.
+- [x] Owner staging media runtime proof 2026-09-02 trên asset QA đang tham chiếu
+  tới sản phẩm `#12`: sửa alt text → đọc lại đúng → khôi phục đúng giá trị gốc;
+  thử xóa qua confirm dialog bị server chặn với `MEDIA_IN_USE`, asset vẫn còn.
+  Chưa coi đây là fresh upload R2 hoặc full-domain media acceptance.
+- [x] Owner staging service write/read-back proof 2026-09-02 trên service QA: sửa
+  summary → đọc lại đúng ở bảng → khôi phục `QA`; không đổi trạng thái archived,
+  slug hoặc nội dung production.
 - [ ] Role × route/action với nhiều Access identity, write/read-back từng domain,
   production data approval, backup/restore, observability 24h và production
   promotion vẫn chưa đạt.
