@@ -12,7 +12,7 @@ lý hàng loạt.
 
 **Checkpoint hiện tại — 2026-09-02:** Bản motion/menu storefront đã được
 review và tích hợp vào `master`; staging đang phục vụ version
-`26884d0b-0092-43cd-bad2-df077de605eb` sau owner/RBAC hardening, navigation
+`c860a002-afcc-4c41-a329-b0390799d9bc` sau owner/RBAC hardening, navigation
 contract, dependency, copy, Access hardening và bulk-retry UX; commit `f4707b4`
 bổ sung trạng thái tải quyền, commit `d63c7ec` giữ request id/payload cho retry
 thao tác hàng loạt; version `379d20d7-44d2-40ee-a603-2890ba7515fb` là rollback
@@ -32,8 +32,8 @@ cứng 100 mục, trả kết quả từng item và ghi audit chuyên biệt. C�
 `0019_admin_site_page_write_contract.sql` đã chạy đủ trên D1 local tạm và đã
 apply/verify trên D1 staging; production chưa thay đổi.
 
-Full gate gần nhất đạt: full admin `187/187`, contact
-`104/104`, catalog `5/5`, purchase UI `1/1`, service `3/3`, commerce `64/64`,
+Full gate gần nhất đạt: full admin `190/190`, contact
+`104/104`, catalog `5/5`, purchase UI `1/1`, service `3/3`, commerce `65/65`,
 listing `4/4`, detail `29/29`, lint, typecheck và build đều exit `0`; audit
 dependency báo `0 vulnerabilities`. Public smoke 5 route sau deploy đạt HTTP
 `200`, 0 console error, 0 HTTP 4xx/5xx, không overflow và axe không có serious/
@@ -747,10 +747,27 @@ xem xét production promotion. Không đánh dấu đạt chỉ vì build thành
   nháp QA, admin đọc lại, `/tin-tuc` public vẫn hiển thị empty state, sau đó
   xóa đúng bản ghi qua confirm dialog và danh sách trở về `0 bài viết`. Không
   coi đây là publish/cover-media hoặc role matrix đầy đủ.
-- `/admin/audit` sau các phép thử đọc lại `103 sự kiện`; các event mới nhất của
+- `/admin/audit` sau các phép thử đọc lại `123 sự kiện`; các event mới nhất của
   news, navigation và site setting đều có actor, action, revision và request ID.
   Đây là audit evidence cho các round-trip trên, không phải consistency audit
   của mọi domain.
+
+## Runtime update 2026-09-02 (published brand tagline mapping)
+
+- Commit `ca14e5f` bổ sung regression test và adapter cho `brand_tagline` trong
+  shared captured renderer. Giá trị được HTML-escape và render cạnh logo; không
+  cho phép biến setting thành HTML tùy ý.
+- Owner Access thật trên staging đã chứng minh draft QA → publish → public DOM
+  read-back đúng text và element hiển thị; sau đó restore/publish giá trị gốc.
+  Staging version `c860a002-afcc-4c41-a329-b0390799d9bc` ở 100%, rollback point
+  `26884d0b-0092-43cd-bad2-df077de605eb`; audit cuối `123` events và revision
+  tagline `7 → 8 → 9 → 10 → 11`.
+- Full gate mới nhất: admin `190/190`, contact `104/104`, catalog `5/5`,
+  purchase UI `1/1`, service `3/3`, commerce `65/65`, listing `4/4`, detail
+  `29/29`, lint, typecheck, build; deep QA staging responsive sau deploy pass.
+- P2 đã có evidence runtime cho brand name/tagline mapping; preview draft, role
+  matrix nhiều identity, write/read-back đầy đủ các domain khác và production
+  gate vẫn mở.
 
 ## 5. Ma trận test và lệnh kiểm tra
 
@@ -808,6 +825,8 @@ Chỉ tạo các file này khi phase tương ứng bắt đầu; không tạo pl
 - scripts/admin-product-batch.test.mts — P5 product archive batch contract và mock D1;
 - scripts/admin-audit.test.mts — P6 audit/history bounds, source merge và owner-only contract;
 - scripts/admin-service-batch.test.mts — P5 service archive batch contract và mock D1;
+- scripts/admin-route-capability-matrix.test.mts — P6 inventory và regression guard
+  cho toàn bộ admin route capability/owner boundaries;
 - scripts/admin-visual-pages-navigation.test.mjs — P4;
 - scripts/admin-visual-bulk.test.mts — P5;
 - scripts/site-navigation-bulk-contract.test.mts — P4/P5 navigation single/bulk contract;

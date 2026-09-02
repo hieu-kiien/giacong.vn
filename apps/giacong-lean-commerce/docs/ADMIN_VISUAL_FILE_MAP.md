@@ -22,15 +22,15 @@ storefront motion/menu đã được review và tích hợp từ worktree riêng
 gallery đã chấp nhận asset WebP. `qa:ux` là runner tracked để lặp lại audit
 staging. Public staging `https://staging.kienhieu.id.vn` vừa pass UX audit 5/5
 route. Staging đang phục vụ version
-`26884d0b-0092-43cd-bad2-df077de605eb`; rollback point gần nhất là
-`1ff986f1-49ba-4a33-97d0-a6dfeb9e9d09`; owner thật `qtu1053@gmail.com` đã được
+`c860a002-afcc-4c41-a329-b0390799d9bc`; rollback point gần nhất là
+`26884d0b-0092-43cd-bad2-df077de605eb`; owner thật `qtu1053@gmail.com` đã được
 bootstrap vào D1 staging với role `owner` cấp cao nhất. `/admin/thanh-vien` đã
 được browser xác nhận hiển thị tài khoản hiện tại, khóa self-demotion/self-
 deactivation và mở được luồng `Thêm tài khoản quản trị`.
 
-Full gate gần nhất: admin `187/187`, contact
+Full gate gần nhất: admin `190/190`, contact
 `104/104`, catalog `5/5`, catalog purchase UI `1/1`, service `3/3`, commerce
-`64/64`, listing `4/4`, detail `29/29`, kèm lint, typecheck và build. Public UX
+`65/65`, listing `4/4`, detail `29/29`, kèm lint, typecheck và build. Public UX
 audit năm route pass; browser identity role matrix đầy đủ, write/read-back từng
 domain và production gate vẫn chưa đóng.
 Wrapper PowerShell giữ process sau khi đã in xong output nên phải dừng thủ công;
@@ -122,7 +122,18 @@ single-item publish → public read-back, sau đó restore/publish `Home`; D1 cu
 HTML captured + site settings + published navigation mapping, còn fallback hero
 gallery vẫn ở cùng page boundary.
 
-`/admin/audit` đọc lại `103 sự kiện` sau các round-trip; các event mới nhất của
+**Runtime update 2026-09-02 (CMS brand tagline publish mapping):** commit
+`ca14e5f` bổ sung adapter `brand_tagline` vào shared `site-markup` renderer và
+regression test HTML-escape. Owner staging đã chạy draft QA → publish → public
+DOM read-back có `data-site-setting="brand_tagline"` và element hiển thị; sau
+đó restore/publish giá trị gốc. Staging version hiện tại
+`c860a002-afcc-4c41-a329-b0390799d9bc`, rollback point
+`26884d0b-0092-43cd-bad2-df077de605eb`; audit hiện `123` event, revision tagline
+`7 → 8 → 9 → 10 → 11`. `global.brand` hiện đã map brand name/tagline vào
+captured shell; logo URL vẫn có fallback capture an toàn. Role matrix nhiều
+identity, các domain write/read-back còn lại và production gate vẫn mở.
+
+`/admin/audit` đọc lại `123 sự kiện` sau các round-trip; các event mới nhất của
 news/navigation/site setting có actor, action, revision và request ID. Đây là
 evidence audit của các phép thử có kiểm soát, không phải full-domain consistency.
 
@@ -229,7 +240,7 @@ runtime acceptance còn mở.
 
 | Domain | Read model | Write/normalization | Published behavior | Capability chính | Test hiện có |
 | --- | --- | --- | --- | --- | --- |
-| Brand/contact/hero | src/lib/site-settings.ts, src/lib/site-markup.ts, src/lib/admin-request.ts | site settings API + bounded JSON + input validation | published_value và fallback default | content.read/write/publish | scripts/site-settings.test.mts, scripts/site-settings-write-contract.test.mts, scripts/admin-request.test.mts, scripts/site-markup-hero.test.mjs |
+| Brand/contact/hero | src/lib/site-settings.ts, src/lib/site-markup.ts, src/lib/admin-request.ts | site settings API + bounded JSON + input validation | published_value và fallback default; brand tagline được escape và render cạnh captured logo | content.read/write/publish | scripts/site-settings.test.mts, scripts/site-settings-write-contract.test.mts, scripts/admin-request.test.mts, scripts/site-markup-hero.test.mjs |
 | Managed pages | src/lib/site-pages.ts, src/lib/page-builder.ts | page API + safe block parser | published blocks chỉ khi enabled/published | pages.read/write/publish | scripts/site-pages.test.mts |
 | Primary/footer navigation | src/lib/site-navigation.ts | navigation API + trusted link normalization | published items; footer renderer cần xác minh riêng | navigation.read/write/publish | scripts/site-pages.test.mts có contract liên quan |
 | News | src/lib/news-public.ts, src/lib/admin-news-input.ts, src/lib/admin-data.ts | news API + draft input + publish/batch contract | public chỉ đọc `published_*`; detail trả published id cho contextual hand-off; draft chỉnh riêng, publish explicit; contract P3 đã có trong master | news.read/write và content publish theo quyết định | scripts/admin-news.test.mts, scripts/admin-news-write-contract.test.mts, scripts/admin-visual-news-media.test.mjs |
@@ -339,7 +350,7 @@ admin_visual tổng hợp tất cả domain.
 
 | regionKey | Visible surface | Canonical source | Quyền | Trạng thái hiện tại | Mục tiêu |
 | --- | --- | --- | --- | --- | --- |
-| global.brand | logo, brand name | site settings + captured shell | content write/publish | partial mapping | P2 |
+| global.brand | logo, brand name, brand tagline | site settings + captured shell + site-markup adapter | content write/publish | brand name/tagline mapped; logo fallback/custom URL | P2 |
 | global.contact | phone, email, Zalo, Messenger | site settings + markup adapter | content write/publish | partial mapping | P2 |
 | home.hero | eyebrow, title, desc, image, CTA | site settings/captured home | content write/publish | partial mapping | P2 |
 | home.about | about title/description | site settings + captured home | content write/publish | partial mapping | P2/P4 |
@@ -417,6 +428,7 @@ khối lượng mà contextual UI làm khó hiểu.
 | scripts/admin-request.test.mts | bounded JSON body cho toàn bộ admin JSON writes, content type, UUID request ID, exact-key checks và hard bound collection reads |
 | scripts/site-settings-bulk-contract.test.mts | bulk publish batch, per-setting audit, stale skip, replay và route/migration contract |
 | scripts/site-navigation-bulk-contract.test.mts | navigation single/bulk exact envelope, 100-item bound, stale result, atomic audit và replay |
+| scripts/admin-route-capability-matrix.test.mts | route handler discovery, read/write/publish capability guard và owner-only boundary cho toàn bộ admin API |
 | scripts/storefront-visual-contract.test.mjs | public visual/source boundaries |
 | scripts/captured-route-runtime.test.mjs | captured asset/runtime path |
 | scripts/development-port.test.mjs | reserved-port and local runner rules |

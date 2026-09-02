@@ -4,7 +4,7 @@
 
 Bản staging hiện **đủ điều kiện để tiếp tục nghiệm thu kỹ thuật**, nhưng chưa
 đủ điều kiện để gọi là bàn giao production hoàn hảo. Staging đang chạy
-`26884d0b-0092-43cd-bad2-df077de605eb` ở 100%; production vẫn giữ nguyên và
+`c860a002-afcc-4c41-a329-b0390799d9bc` ở 100%; production vẫn giữ nguyên và
 đang **NO-GO** cho migration hoặc promotion.
 
 Để bàn giao production an toàn, còn bốn nhóm gate phải đóng:
@@ -17,8 +17,10 @@ Bản staging hiện **đủ điều kiện để tiếp tục nghiệm thu kỹ
 
 ## Bằng chứng hiện có
 
-- `npm run check` đã xanh toàn bộ test, lint, typecheck và build; `npm audit`
-  (cả production và đầy đủ dependency) báo `0 vulnerabilities`.
+- `npm run check` đã xanh toàn bộ test, lint, typecheck và build: admin `190/190`,
+  contact `104/104`, catalog `5/5`, purchase UI `1/1`, service `3/3`, commerce
+  `65/65`, listing `4/4`, detail `29/29`; `npm audit` (cả production và đầy đủ
+  dependency) báo `0 vulnerabilities`.
 - Staging D1 đã apply đủ migration đến `0019`; public smoke 7/7 route, product
   API, cart canonical money và R2 media đều pass.
 - Chrome với identity `qtu1053@gmail.com` đã đọc đúng `owner`/`Chủ sở hữu
@@ -34,10 +36,11 @@ Bản staging hiện **đủ điều kiện để tiếp tục nghiệm thu kỹ
   search/filter/sort, product detail/cart và keyboard reachability. Đây là
   bằng chứng điều hướng và public deep-QA, không phải role matrix hay
   write/read-back đầy đủ.
-- CMS `brand_tagline` đã được owner kiểm tra draft isolation: lưu giá trị QA
-  không làm đổi public, sau đó khôi phục giá trị cũ và trạng thái trở lại
-  `Published/Đã đồng bộ`. Preview renderer, publish round-trip và các role khác
-  vẫn chưa được suy diễn từ phép thử này.
+- CMS `brand_tagline` đã được owner kiểm tra draft isolation và publish
+  round-trip. Sau commit `ca14e5f`, giá trị QA được lưu rồi phát hành, public DOM
+  đọc đúng `data-site-setting="brand_tagline"` và hiển thị thực; sau đó owner
+  đã khôi phục giá trị gốc và publish lại. Preview draft, các role khác và các
+  setting khác vẫn chưa được suy diễn từ phép thử này.
 - Navigation item `Home` cũng đã qua draft isolation/read-back có hoàn nguyên:
   nhãn QA không xuất hiện trên public, nhãn ban đầu được lưu lại và item trở
   lại `Published`. Publish-all, các mutation khác và role matrix vẫn mở.
@@ -46,10 +49,15 @@ Bản staging hiện **đủ điều kiện để tiếp tục nghiệm thu kỹ
   thị `Home [QA]`, rồi được khôi phục về `Home`. Commit `7666d67` sửa state
   `localDirty`; commit `8ecd8ae` nối published navigation vào homepage
   captured fallback. D1 cuối `dirty = 0`, public và admin đều đọc `Home`.
+- Publish runtime `brand_tagline` trên staging đã được kiểm chứng bằng browser:
+  draft QA → publish → public đọc đúng text và computed visibility; sau đó
+  restore/publish giá trị gốc. Staging version `c860a002-afcc-4c41-a329-b0390799d9bc`
+  ở 100%, rollback point là `26884d0b-0092-43cd-bad2-df077de605eb`; audit hiện
+  đọc `123` sự kiện với bốn event tagline mới, revision `7 → 8 → 9 → 10 → 11`.
 - News owner staging đã tạo/đọc/xóa một bài nháp QA; public `/tin-tuc` vẫn
   empty trong suốt phép thử và danh sách admin trở lại `0 bài viết` sau khi
   dọn bản ghi. Đây chưa phải bằng chứng publish/cover-media đầy đủ.
-- `/admin/audit` đọc lại `107 sự kiện`; event mới nhất của news/navigation/site
+- `/admin/audit` đọc lại `123 sự kiện`; event mới nhất của news/navigation/site
   setting có actor, action, revision và request ID tương ứng với các round-trip.
   Đây chưa phải consistency audit cho mọi domain.
 - Export mới hiện có là `.runtime/production-d1-backup-20260902-pre-release.sql`,

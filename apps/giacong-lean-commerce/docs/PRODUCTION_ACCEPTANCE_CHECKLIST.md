@@ -1,6 +1,6 @@
 # Production acceptance checklist
 
-Trạng thái chốt hạ trước promotion `giacong-vn` production. Nguồn yêu cầu gốc: [CLOUDFLARE_NATIVE_V1_PLAN.md](CLOUDFLARE_NATIVE_V1_PLAN.md) mục 7–8. Cập nhật 2026-09-02 sau owner/RBAC hardening và staging revalidation.
+Trạng thái chốt hạ trước promotion `giacong-vn` production. Nguồn yêu cầu gốc: [CLOUDFLARE_NATIVE_V1_PLAN.md](CLOUDFLARE_NATIVE_V1_PLAN.md) mục 7–8. Cập nhật 2026-09-02 sau owner/RBAC hardening, staging revalidation và publish-renderer verification.
 
 > Lưu ý trạng thái: các checkbox dưới đây giữ evidence lịch sử của đợt nghiệm thu
 > trước. Chúng không tự đóng các acceptance mới trong `ADMIN_VISUAL_ROADMAP.md`.
@@ -201,14 +201,14 @@ Lưu ý: demo staging KHÔNG được seed sang production. Khách tự thao tá
   pass public mobile/tablet/desktop, catalog/detail/cart và keyboard checks.
 - [x] Owner staging kiểm tra CMS draft isolation trên `brand_tagline`: draft QA
   không rò ra public, giá trị ban đầu được khôi phục và UI trở lại
-  `Published/Đã đồng bộ`; chưa coi đây là publish/preview đầy đủ.
+  `Published/Đã đồng bộ`; publish-renderer proof hiện được ghi ngay bên dưới.
 - [x] Owner staging kiểm tra navigation draft isolation trên item `Home`: nhãn
   QA không rò ra public, nhãn ban đầu được khôi phục và item trở lại
   `Published`; chưa coi đây là publish-all đầy đủ.
 - [x] Owner staging kiểm tra news create/read/delete: bài nháp QA không rò ra
   `/tin-tuc` public, sau đó được xóa qua confirm dialog và danh sách trở lại
   `0 bài viết`; chưa coi đây là publish/media acceptance đầy đủ.
-- [x] `/admin/audit` đọc lại `107 sự kiện` sau các round-trip CMS/navigation/news;
+- [x] `/admin/audit` đọc lại `123 sự kiện` sau các round-trip CMS/navigation/news;
   event có actor, action, revision và request ID; chưa coi đây là full-domain
   consistency audit.
 - [x] Navigation single-item publish runtime proof 2026-09-02: owner staging đổi
@@ -225,6 +225,17 @@ Lưu ý: demo staging KHÔNG được seed sang production. Khách tự thao tá
 - [x] Owner staging service write/read-back proof 2026-09-02 trên service QA: sửa
   summary → đọc lại đúng ở bảng → khôi phục `QA`; không đổi trạng thái archived,
   slug hoặc nội dung production.
+- [x] Owner staging CMS publish-renderer proof 2026-09-02: `brand_tagline` được
+  lưu draft QA → phát hành → public storefront đọc đúng text qua
+  `data-site-setting="brand_tagline"` và hiển thị thực; sau đó restore/publish
+  giá trị gốc. Commit `ca14e5f`, staging version
+  `c860a002-afcc-4c41-a329-b0390799d9bc`, rollback point
+  `26884d0b-0092-43cd-bad2-df077de605eb`; audit cuối `123` sự kiện, revision
+  tagline `7 → 8 → 9 → 10 → 11`.
+- [x] Full local release gate sau thay đổi renderer: admin `190/190`, contact
+  `104/104`, catalog `5/5`, purchase UI `1/1`, service `3/3`, commerce `65/65`,
+  listing `4/4`, detail `29/29`, lint, typecheck và build đều exit `0`; deep QA
+  staging sau deploy pass mobile/tablet/desktop.
 - [ ] Role × route/action với nhiều Access identity, write/read-back từng domain,
   production data approval, backup/restore, observability 24h và production
   promotion vẫn chưa đạt.

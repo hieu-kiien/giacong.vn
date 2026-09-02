@@ -2,6 +2,25 @@
 
 Hồ sơ này ghi bằng chứng runtime đã xác minh trong quá trình chuyển Lean V1 sang Cloudflare-native.
 
+## Published brand tagline renderer round-trip — 2026-09-02
+
+- Commit `ca14e5f` nối setting `brand_tagline` vào shared captured storefront
+  renderer. Adapter thêm text đã HTML-escape cạnh logo và CSS tối thiểu; không
+  thêm dependency, không mở rộng scope sang tùy ý sửa captured HTML.
+- Full local gate sau thay đổi pass: admin `190/190`, contact `104/104`, catalog
+  `5/5`, purchase UI `1/1`, service `3/3`, commerce `65/65`, listing `4/4`,
+  detail `29/29`, lint, typecheck và build.
+- Owner Access thật đã chạy trên staging: lưu draft tagline QA → publish →
+  storefront public đọc đúng `data-site-setting="brand_tagline"`, text đúng và
+  element có kích thước hiển thị; sau đó khôi phục/publish tagline gốc và đọc
+  lại đúng. Audit hiện có `123` sự kiện; bốn event mới có revision
+  `7 → 8 → 9 → 10 → 11`.
+- Worker staging `giacong-vn-staging` hiện phục vụ version
+  `c860a002-afcc-4c41-a329-b0390799d9bc` ở 100%; version ngay trước đó
+  `26884d0b-0092-43cd-bad2-df077de605eb` là rollback point. Deep QA public
+  responsive sau deploy pass toàn bộ; production Worker/D1/R2 và DNS không bị
+  thay đổi.
+
 ## Navigation publish round-trip và homepage fallback — 2026-09-02
 
 - Commit `7666d67` tách trạng thái `dirty` của server khỏi `localDirty` của
