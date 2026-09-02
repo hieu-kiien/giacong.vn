@@ -208,9 +208,16 @@ Lưu ý: demo staging KHÔNG được seed sang production. Khách tự thao tá
 - [x] Owner staging kiểm tra news create/read/delete: bài nháp QA không rò ra
   `/tin-tuc` public, sau đó được xóa qua confirm dialog và danh sách trở lại
   `0 bài viết`; chưa coi đây là publish/media acceptance đầy đủ.
-- [x] `/admin/audit` đọc lại `103 sự kiện` sau các round-trip CMS/navigation/news;
+- [x] `/admin/audit` đọc lại `107 sự kiện` sau các round-trip CMS/navigation/news;
   event có actor, action, revision và request ID; chưa coi đây là full-domain
   consistency audit.
+- [x] Navigation single-item publish runtime proof 2026-09-02: owner staging đổi
+  `Home → Home [QA]`, lưu draft, phát hành đúng mục, public hard reload đọc đúng
+  nhãn QA; sau đó khôi phục `Home`, phát hành lại và public đọc đúng nhãn gốc.
+  D1 cuối cùng có `draft_label = published_label = Home`, `dirty = 0`, version `7`;
+  audit ghi đủ các cặp draft/publish với request ID. Staging version chứa fix
+  homepage fallback là `26884d0b-0092-43cd-bad2-df077de605eb`, rollback point là
+  `1ff986f1-49ba-4a33-97d0-a6dfeb9e9d09`.
 - [ ] Role × route/action với nhiều Access identity, write/read-back từng domain,
   production data approval, backup/restore, observability 24h và production
   promotion vẫn chưa đạt.
