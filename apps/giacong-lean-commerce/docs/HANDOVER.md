@@ -68,6 +68,6 @@ npx wrangler queues info giacong-vn-leads-dlq      # hàng đợi lead thất b�
 
 Trạng thái bàn giao hiện tại: code/test, staging storefront, Access identity
 thật và owner bootstrap staging đã được xác minh; role matrix nhiều identity,
-write/read-back đầy đủ, production data approval, migrations `0009–0018` và
+write/read-back đầy đủ, production data approval, migrations `0009–0019` và
 restore/rollback drill vẫn cần chủ dự án phê duyệt và thực hiện chủ ý. Không
 dùng dữ liệu demo staging làm dữ liệu production.

@@ -28,6 +28,15 @@ Hồ sơ này ghi bằng chứng runtime đã xác minh trong quá trình chuy�
 - Production Worker, D1/R2 và route production chưa bị thay đổi. Các gate role
   matrix nhiều identity, write/read-back từng domain, dữ liệu production,
   backup/restore, observability và production promotion vẫn mở.
+- Read-only `wrangler d1 migrations list giacong-vn-catalog --remote` ngày
+  2026-09-02 xác nhận production còn pending chính xác `0009–0019`; không apply
+  migration, không ghi D1/R2 và không deploy production.
+- Snapshot production D1 đã lưu tại
+  `.runtime/production-d1-backup-20260825.sql` (54,437 bytes,
+  SHA-256 `E2D56E4CCD7DBDA38FFA25CC22471AE786FE4A0A47E78EAD82A5108F7CC974E8`).
+  Restore-drill cục bộ ngày 2026-09-02 đạt SQLite `integrity_check=ok` với 16
+  bảng, 10 migration, 9 product và 17 variant. Đây là bằng chứng snapshot cũ
+  đọc/restore được; vẫn cần export mới ngay trước bất kỳ migration production.
 
 ## Cập nhật runtime 2026-09-01
 

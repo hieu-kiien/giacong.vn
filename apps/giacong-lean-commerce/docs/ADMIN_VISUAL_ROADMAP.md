@@ -28,7 +28,8 @@ Lát navigation contract ở commit `566489d` và create contract ở commit
 cho create/save/publish từng mục; bulk publish được D1 batch atomic, giới hạn
 cứng 100 mục, trả kết quả từng item và ghi audit chuyên biệt. Các migration
 `0017_navigation_bulk_publish_contract.sql` và
-`0018_navigation_create_contract.sql` đã chạy đủ trên D1 local tạm và đã
+`0018_navigation_create_contract.sql` cùng
+`0019_admin_site_page_write_contract.sql` đã chạy đủ trên D1 local tạm và đã
 apply/verify trên D1 staging; production chưa thay đổi.
 
 Full gate gần nhất đạt: full admin `185/185`, contact

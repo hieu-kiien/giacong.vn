@@ -48,7 +48,8 @@ create contract. Cả create/single save/publish và bulk publish dùng request 
 revision guard, idempotent replay/conflict; mutation được ghép D1 batch atomic với
 audit chuyên biệt, bulk giới hạn 100 mục và trả kết quả stale theo id. Các migration
 `0017_navigation_bulk_publish_contract.sql`
-và `0018_navigation_create_contract.sql` đã được verify qua baseline + toàn bộ
+và `0018_navigation_create_contract.sql` cùng
+`0019_admin_site_page_write_contract.sql` đã được verify qua baseline + toàn bộ
 migration trên D1 local tạm và đã apply/verify trên D1 staging; production chưa
 apply các migration này. Browser đã đọc lại form create nhưng chưa submit để
 không tạo dữ liệu staging ngoài yêu cầu.

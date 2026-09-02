@@ -179,6 +179,13 @@ Lưu ý: demo staging KHÔNG được seed sang production. Khách tự thao tá
 - [x] Release smoke workflows được sửa ở commit `fa3bdc6` để khóa invariant
   nghiệp vụ thay vì tổng variant cứng; `git diff --check` và GitNexus
   `detect_changes` pass, risk thấp.
+- [x] Read-only production migration re-audit ngày 2026-09-02 xác nhận pending
+  chính xác `0009–0019`; không apply migration, không ghi D1/R2 và không deploy.
+- [x] Snapshot `.runtime/production-d1-backup-20260825.sql` đã được checksum
+  SHA-256 `E2D56E4CCD7DBDA38FFA25CC22471AE786FE4A0A47E78EAD82A5108F7CC974E8`
+  và restore-drill cục bộ đạt `PRAGMA integrity_check = ok` (16 bảng, 10
+  migration, 9 product, 17 variant). Snapshot này chưa thay thế export mới
+  ngay trước migration production.
 - [ ] Role × route/action với nhiều Access identity, write/read-back từng domain,
   production data approval, backup/restore, observability 24h và production
   promotion vẫn chưa đạt.
