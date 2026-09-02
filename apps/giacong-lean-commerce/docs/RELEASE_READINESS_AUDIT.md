@@ -4,8 +4,8 @@
 
 Bản staging hiện **đủ điều kiện để tiếp tục nghiệm thu kỹ thuật**, nhưng chưa
 đủ điều kiện để gọi là bàn giao production hoàn hảo. Staging đang chạy
-`81b2e573-dea9-4e6a-b7ce-9cddb9b5fc70` ở 100%, rollback point gần nhất là
-`0d4d66f9-2b6e-42d1-a8e2-58bda74f98f0`; production vẫn giữ nguyên và
+`6162fa96-38fb-46df-adba-beb1e2d99001` ở 100%, rollback point gần nhất là
+`dabb547e-1475-4815-b9e9-03be91064105`; production vẫn giữ nguyên và
 đang **NO-GO** cho migration hoặc promotion.
 
 Để bàn giao production an toàn, còn bốn nhóm gate phải đóng:
@@ -32,6 +32,12 @@ Bản staging hiện **đủ điều kiện để tiếp tục nghiệm thu kỹ
   mới khi chưa có chủ ý cụ thể.
 - Dashboard staging sau commit `8652130` đọc đúng `12` tổng sản phẩm, `10`
   active và `0` draft; test hồi quy dashboard nằm trong admin gate.
+- Direct-edit slice trên homepage đã được kiểm tra với owner thật: 8/8 target
+  selector nhận diện đúng DOM đang render; text đổi ngay tại chỗ, thanh action
+  báo dirty, reload khôi phục published. Bảng nội dung có text/link/media,
+  không còn draft preview mô phỏng; focused test `13/13`, full admin `192/192`,
+  commerce `67/67`, build OpenNext/TypeScript pass. Public staging không có
+  admin control và Chrome console không có error/warning.
 - Owner Chrome đã đi qua đủ 10 route admin canonical trên hostname staging;
   deep QA staging pass mobile/tablet/desktop cho public route, catalog
   search/filter/sort, product detail/cart và keyboard reachability. Đây là

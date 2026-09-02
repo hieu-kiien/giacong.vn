@@ -104,6 +104,17 @@ giá trị QA chỉ xuất hiện trong trạng thái draft, public vẫn giữ 
 sau đó giá trị ban đầu được lưu lại và UI trở về `Published/Đã đồng bộ`. Không
 đánh dấu đây là publish/preview đầy đủ hay bằng chứng cho role khác.
 
+**Runtime update 2026-09-02 (direct editing trên DOM thật):**
+`AdminVisualEditor.tsx` không còn render `DraftPreview`; khi session là owner hoặc
+content manager, editor gắn `admin-visual-targets.ts` vào 8 selector homepage
+đã xác định. Click/keyboard mở popover ngay cạnh nội dung thật và cập nhật DOM
+ngay lập tức; thanh cố định giữ `Bảng nội dung`, `Lưu draft`, `Xuất bản`. Bảng
+nội dung vẫn là đường xử lý URL/media và các field đầy đủ. Chrome staging đã
+kiểm tra 8/8 selector, temporary edit + reload restore, public staging 0 admin
+control; focused 13/13, full admin 192/192, commerce 67/67. Version hiện tại
+`6162fa96-38fb-46df-adba-beb1e2d99001` ở 100%, rollback point
+`dabb547e-1475-4815-b9e9-03be91064105`.
+
 Navigation owner staging cũng đã kiểm tra mục `Home`: draft label QA không rò
 ra public, sau đó nhãn `Home` được khôi phục và item trở lại `Published`. Đây
 chưa phải publish-all hoặc write/read-back đầy đủ cho navigation.
@@ -286,7 +297,7 @@ runtime acceptance còn mở.
 | Category/variant | AdminCategoryPanel.tsx, AdminVariantPanel.tsx | catalog sub-editors | dùng trong catalog/bulk flow, không nhồi hết vào homepage |
 | Product bulk import/archive | AdminProductImportPanel.tsx, src/app/admin/san-pham/page.tsx, src/lib/admin-product-batch.ts | chọn CSV, preview lỗi, import atomic; chọn sản phẩm đang hiển thị, snapshot revision, xác nhận và soft-archive batch | giữ ở catalog control plane; viewer read-only; không biến thành inline editor |
 | Storefront admin context | AdminVisualMode.tsx, AdminNewsContextualAction.tsx, AdminPageContextualAction.tsx, AdminNewsContextualAction.module.css | host/session gate, context role và contextual news/page actions; trạng thái loading/blocked/unavailable/ready | chỉ hiện action trên exact admin hostname sau session ready; public không fetch admin session và không render control |
-| Contextual settings editor | AdminVisualEditor.tsx, AdminVisualEditor.module.css | toolbar nhỏ cho brand/hero, draft/preview/publish và role-aware feedback | MVP cho region đã map; preview hiện là draft card có nhãn rõ ràng; news/page hand-off dùng editor back office hiện có |
+| Contextual settings editor | AdminVisualEditor.tsx, AdminVisualEditor.module.css, admin-visual-targets.ts | direct edit trên DOM storefront thật cho 8 homepage target, drawer field đầy đủ, draft/publish và role-aware feedback | MVP cho region đã map; không mô phỏng preview; URL/media và field phức tạp đi qua bảng nội dung |
 | Admin CSS | src/styles/admin.css | styling control plane | giữ token/brand language, không tạo dashboard stack mới |
 
 ### Visual layer: file đã có và file chưa cần tạo
@@ -298,6 +309,7 @@ Vertical slice hiện tại chứng minh chưa cần tách thành nhiều abstra
 | src/components/admin/AdminVisualMode.tsx | context/entry state cho admin storefront | không tự cấp quyền |
 | src/components/admin/AdminVisualEditor.tsx | toolbar/drawer và flow brand/home settings | không ghi D1/R2 trực tiếp |
 | src/components/admin/AdminVisualEditor.module.css | layout, focus, mobile và reduced-motion cho editor | không tạo token riêng ngoài hệ thống |
+| src/components/admin/admin-visual-targets.ts | registry selector/input type cho homepage direct edit | không scan HTML tùy ý hoặc mở rộng sang route chưa map |
 | src/components/admin/AdminNewsContextualAction.tsx, AdminPageContextualAction.tsx | link contextual theo session context tới editor canonical | không tự fetch session, không ghi dữ liệu, không hiện trên public context |
 | src/lib/admin-visual-contract.ts | exact host gate và session-ready contract | không quyết định capability server |
 

@@ -1,8 +1,8 @@
 "use client";
 
-import { Edit3, Eye, LoaderCircle, Save, Send, X } from "lucide-react";
+import { Edit3, LoaderCircle, MousePointer2, Save, Send, X } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import {
   AdminClientError,
@@ -12,6 +12,11 @@ import {
   type AdminSession,
 } from "@/lib/admin-client";
 
+import {
+  findAdminVisualTarget,
+  homepageDirectTargets,
+  type AdminVisualDirectTarget,
+} from "./admin-visual-targets";
 import styles from "./AdminVisualEditor.module.css";
 
 interface SiteSettingsResponse {
@@ -51,6 +56,8 @@ const editableRoles = new Set(["owner", "content_manager"]);
 export function AdminVisualEditor({ session }: { session: AdminSession }) {
   const [open, setOpen] = useState(false);
   const [region, setRegion] = useState<VisualRegion>("brand");
+  const [directMode, setDirectMode] = useState(() => editableRoles.has(session.role));
+  const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [settings, setSettings] = useState<AdminSiteSetting[]>([]);
   const [canEdit, setCanEdit] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -59,11 +66,11 @@ export function AdminVisualEditor({ session }: { session: AdminSession }) {
   const [publishing, setPublishing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const [preview, setPreview] = useState(false);
   const [localChanges, setLocalChanges] = useState<Set<string>>(new Set());
   const drawerRef = useRef<HTMLElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
   const restoreFocusRef = useRef<HTMLElement | null>(null);
+  const settingsRef = useRef<AdminSiteSetting[]>([]);
 
   const definition = regionDefinitions[region];
   const visibleSettings = useMemo(
@@ -72,11 +79,24 @@ export function AdminVisualEditor({ session }: { session: AdminSession }) {
       .filter((setting): setting is AdminSiteSetting => Boolean(setting)),
     [definition.keys, settings],
   );
-  const hasLocalChanges = visibleSettings.some((setting) => localChanges.has(setting.key));
-  const hasDraft = visibleSettings.some((setting) => setting.dirty);
+  const hasLocalChanges = settings.some((setting) => localChanges.has(setting.key));
+  const hasDraft = settings.some((setting) => setting.dirty);
+  const selectedSetting = selectedKey
+    ? settings.find((setting) => setting.key === selectedKey) ?? null
+    : null;
+
+  const selectDirectTarget = useCallback((key: string) => {
+    setSelectedKey(key);
+    setNotice(null);
+    setError(null);
+  }, []);
 
   useEffect(() => {
-    if (!editableRoles.has(session.role) || !open || loaded) return;
+    settingsRef.current = settings;
+  }, [settings]);
+
+  useEffect(() => {
+    if (!editableRoles.has(session.role) || (!open && !directMode) || loaded) return;
     const controller = new AbortController();
     setLoading(true);
     setError(null);
@@ -95,7 +115,72 @@ export function AdminVisualEditor({ session }: { session: AdminSession }) {
         if (!controller.signal.aborted) setLoading(false);
       });
     return () => controller.abort();
-  }, [loaded, open, session.role]);
+  }, [directMode, loaded, open, session.role]);
+
+  useEffect(() => {
+    if (!editableRoles.has(session.role) || !canEdit || !directMode || !loaded) return;
+
+    const cleanups: Array<() => void> = [];
+    for (const target of homepageDirectTargets) {
+      const element = findAdminVisualTarget(document, target);
+      if (!element) continue;
+
+      const previousTabIndex = element.getAttribute("tabindex");
+      element.dataset.adminDirectTarget = target.key;
+      element.classList.add(styles.directTarget);
+      if (!previousTabIndex && element.tagName !== "A") element.tabIndex = 0;
+
+      const onClick = (event: MouseEvent) => {
+        event.preventDefault();
+        event.stopPropagation();
+        selectDirectTarget(target.key);
+      };
+      const onKeyDown = (event: KeyboardEvent) => {
+        if (event.key !== "Enter" && event.key !== " ") return;
+        event.preventDefault();
+        event.stopPropagation();
+        selectDirectTarget(target.key);
+      };
+      element.addEventListener("click", onClick);
+      element.addEventListener("keydown", onKeyDown);
+      cleanups.push(() => {
+        element.removeEventListener("click", onClick);
+        element.removeEventListener("keydown", onKeyDown);
+        element.classList.remove(styles.directTarget, styles.directTargetSelected);
+        delete element.dataset.adminDirectTarget;
+        if (previousTabIndex === null) element.removeAttribute("tabindex");
+        else element.setAttribute("tabindex", previousTabIndex);
+      });
+    }
+
+    return () => cleanups.forEach((cleanup) => cleanup());
+  }, [canEdit, directMode, loaded, selectDirectTarget, session.role]);
+
+  useEffect(() => {
+    if (!editableRoles.has(session.role) || !directMode || !loaded) return;
+
+    for (const target of homepageDirectTargets) {
+      const setting = settings.find((item) => item.key === target.key);
+      const element = findAdminVisualTarget(document, target);
+      if (setting && element) applyDirectSettingValue(element, setting.draftValue, target);
+    }
+  }, [directMode, loaded, session.role, settings]);
+
+  useEffect(() => {
+    if (!editableRoles.has(session.role) || !directMode || !loaded) return;
+
+    for (const target of homepageDirectTargets) {
+      const element = findAdminVisualTarget(document, target);
+      element?.classList.toggle(styles.directTargetSelected, target.key === selectedKey);
+    }
+  }, [directMode, loaded, selectedKey, session.role]);
+
+  useEffect(() => {
+    if (!editableRoles.has(session.role) || !loaded || directMode) return;
+    restorePublishedDirectTargets(settingsRef.current);
+  }, [directMode, loaded, session.role]);
+
+  useEffect(() => () => restorePublishedDirectTargets(settingsRef.current), []);
 
   useEffect(() => {
     if (!editableRoles.has(session.role) || !open) return;
@@ -142,10 +227,18 @@ export function AdminVisualEditor({ session }: { session: AdminSession }) {
   function openRegion(nextRegion: VisualRegion) {
     if (!open && document.activeElement instanceof HTMLElement) restoreFocusRef.current = document.activeElement;
     setRegion(nextRegion);
-    setPreview(false);
     setNotice(null);
     setError(null);
     setOpen(true);
+  }
+
+  function toggleDirectMode() {
+    if (directMode) {
+      setDirectMode(false);
+      setSelectedKey(null);
+      return;
+    }
+    setDirectMode(true);
   }
 
   function updateDraft(key: string, value: string) {
@@ -162,7 +255,7 @@ export function AdminVisualEditor({ session }: { session: AdminSession }) {
   }
 
   async function saveDraft() {
-    const changed = visibleSettings.filter((setting) => localChanges.has(setting.key));
+    const changed = settings.filter((setting) => localChanges.has(setting.key));
     if (!canEdit || changed.length === 0) return;
     setSaving(true);
     setError(null);
@@ -183,7 +276,7 @@ export function AdminVisualEditor({ session }: { session: AdminSession }) {
       }
       setSettings(nextSettings);
       setLocalChanges(new Set());
-      setNotice("Đã lưu bản nháp. Bạn có thể xem trước hoặc phát hành khi sẵn sàng.");
+      setNotice("Đã lưu bản nháp. Thay đổi vẫn đang hiển thị trực tiếp ở storefront quản trị.");
     } catch (reason: unknown) {
       setError(reason instanceof AdminClientError ? reason.message : "Không thể lưu bản nháp.");
     } finally {
@@ -198,7 +291,7 @@ export function AdminVisualEditor({ session }: { session: AdminSession }) {
     setNotice(null);
     try {
       let nextSettings = settings;
-      for (const setting of visibleSettings.filter((item) => item.dirty)) {
+      for (const setting of settings.filter((item) => item.dirty)) {
         const result = await mutateAdmin<{ setting: AdminSiteSetting }>("/api/admin/site-settings/publish", {
           body: {
             expectedVersion: setting.version,
@@ -223,7 +316,10 @@ export function AdminVisualEditor({ session }: { session: AdminSession }) {
   return (
     <>
       <div aria-label="Vùng storefront có thể chỉnh sửa" className={styles.regionToolbar} data-admin-role={session.role}>
-        <span className={styles.regionLabel}>Đang chỉnh sửa storefront</span>
+        <span className={styles.regionLabel}>Chỉnh sửa trực tiếp trên trang</span>
+        <button aria-pressed={directMode} className={directMode ? styles.regionButtonActive : styles.regionButton} onClick={toggleDirectMode} type="button">
+          <MousePointer2 aria-hidden="true" size={15} /> {directMode ? "Đang bật" : "Bật chỉnh sửa"}
+        </button>
         <button className={styles.regionButton} onClick={() => openRegion("brand")} type="button">
           <Edit3 aria-hidden="true" size={15} /> Nhận diện
         </button>
@@ -231,6 +327,31 @@ export function AdminVisualEditor({ session }: { session: AdminSession }) {
           <Edit3 aria-hidden="true" size={15} /> Nội dung trang chủ
         </button>
       </div>
+      {directMode ? (
+        <div aria-label="Hành động chỉnh sửa trực tiếp" className={styles.directActionBar}>
+          <span>
+            {loading ? "Đang tải bản nháp…" : localChanges.size > 0
+              ? `${localChanges.size} thay đổi chưa lưu`
+              : "Bấm vào nội dung trên trang để sửa ngay tại chỗ"}
+          </span>
+          <button className={styles.secondaryButton} onClick={() => openRegion("home")} type="button">Bảng nội dung</button>
+          <button className={styles.secondaryButton} disabled={!hasLocalChanges || saving} onClick={() => void saveDraft()} type="button">
+            <Save size={15} /> {saving ? "Đang lưu…" : "Lưu draft"}
+          </button>
+          <button className={styles.primaryButton} disabled={!canEdit || hasLocalChanges || !hasDraft || publishing} onClick={() => void publishDraft()} type="button">
+            <Send size={15} /> {publishing ? "Đang phát hành…" : "Xuất bản"}
+          </button>
+        </div>
+      ) : null}
+      {directMode && selectedSetting ? (
+        <DirectEditPopover
+          setting={selectedSetting}
+          target={homepageDirectTargets.find((item) => item.key === selectedSetting.key) ?? null}
+          canEdit={canEdit}
+          onChange={updateDraft}
+          onClose={() => setSelectedKey(null)}
+        />
+      ) : null}
       {open ? (
         <div className={styles.overlay} onMouseDown={(event) => { if (event.target === event.currentTarget) closeEditor(); }}>
           <aside aria-describedby="admin-visual-editor-description" aria-labelledby="admin-visual-editor-title" aria-modal="true" className={styles.drawer} ref={drawerRef} role="dialog" tabIndex={-1}>
@@ -263,22 +384,19 @@ export function AdminVisualEditor({ session }: { session: AdminSession }) {
               {error ? <div className={styles.error} role="alert">{error}<button onClick={() => { setLoaded(false); setError(null); }} type="button">Tải lại</button></div> : null}
               {!loading && !error && !canEdit && loaded ? <div className={styles.readOnly} role="status">Bạn đang ở chế độ chỉ xem. <Link href="/admin">Mở trung tâm quản trị</Link> để kiểm tra quyền chỉnh sửa.</div> : null}
               {!loading && !error && loaded ? (
-                preview ? <DraftPreview settings={settings} /> : (
-                  <div className={styles.fields}>
-                    {visibleSettings.map((setting) => <SettingField key={setting.key} setting={setting} canEdit={canEdit} onChange={updateDraft} />)}
-                  </div>
-                )
+                <div className={styles.fields}>
+                  {visibleSettings.map((setting) => <SettingField key={setting.key} setting={setting} canEdit={canEdit} onChange={updateDraft} />)}
+                </div>
               ) : null}
               {notice ? <div className={styles.notice} role="status">{notice}</div> : null}
             </div>
             <div className={styles.footer}>
-              <button className={styles.secondaryButton} onClick={() => setPreview((value) => !value)} type="button"><Eye size={15} /> {preview ? "Quay lại chỉnh sửa" : "Xem trước draft"}</button>
               {canEdit ? <>
                 <button className={styles.secondaryButton} disabled={!hasLocalChanges || saving} onClick={() => void saveDraft()} type="button"><Save size={15} /> {saving ? "Đang lưu…" : "Lưu draft"}</button>
-                <button className={styles.primaryButton} disabled={hasLocalChanges || !hasDraft || publishing} onClick={() => void publishDraft()} type="button"><Send size={15} /> {publishing ? "Đang phát hành…" : "Publish"}</button>
+                <button className={styles.primaryButton} disabled={hasLocalChanges || !hasDraft || publishing} onClick={() => void publishDraft()} type="button"><Send size={15} /> {publishing ? "Đang phát hành…" : "Xuất bản"}</button>
               </> : <Link className={styles.secondaryButton} href="/admin">Mở trung tâm quản trị</Link>}
             </div>
-            <small className={styles.help}>Thay đổi chỉ xuất hiện công khai sau khi bạn bấm Publish. Nhấn Esc để đóng.</small>
+            <small className={styles.help}>Thay đổi hiển thị ngay trên storefront quản trị; chỉ xuất hiện công khai sau khi bạn bấm Xuất bản. Nhấn Esc để đóng.</small>
           </aside>
         </div>
       ) : null}
@@ -297,25 +415,57 @@ function SettingField({ setting, canEdit, onChange }: { canEdit: boolean; onChan
   );
 }
 
-function DraftPreview({ settings }: { settings: AdminSiteSetting[] }) {
-  const value = (key: string) => settings.find((setting) => setting.key === key)?.draftValue ?? "";
+function DirectEditPopover({
+  canEdit,
+  onChange,
+  onClose,
+  setting,
+  target,
+}: {
+  canEdit: boolean;
+  onChange: (key: string, value: string) => void;
+  onClose: () => void;
+  setting: AdminSiteSetting;
+  target: AdminVisualDirectTarget | null;
+}) {
+  if (!target) return null;
+  const multiline = target.inputType === "multiline";
   return (
-    <div className={styles.preview} aria-label="Xem trước nội dung trang chủ bản nháp">
-      <span className={styles.kicker}>DRAFT PREVIEW · TRANG CHỦ</span>
-      <strong>{value("brand_name") || "Giacong.vn"}</strong>
-      <small>{value("brand_tagline") || value("hero_eyebrow") || "Giải pháp gia công toàn diện"}</small>
-      <h3>{value("hero_title") || "Giải pháp gia công toàn diện chuyên nghiệp"}</h3>
-      <p>{value("hero_description") || "Nội dung hero bản nháp sẽ hiển thị ở đây."}</p>
-      <small>{value("hero_image_url") ? "Ảnh hero: URL tùy chỉnh" : "Ảnh hero: ảnh mặc định"}</small>
-      <div className={styles.previewActions}>
-        <button type="button">{value("hero_primary_cta_label") || "Xem thêm"}</button>
-        <button className={styles.previewSecondaryButton} type="button">{value("hero_secondary_cta_label") || "Liên hệ ngay"}</button>
+    <section aria-label={`Đang sửa ${setting.label}`} className={styles.inlineEditor} role="dialog">
+      <div className={styles.inlineEditorHeader}>
+        <div>
+          <span className={styles.kicker}>ĐANG SỬA TRÊN TRANG</span>
+          <strong>{setting.label}</strong>
+        </div>
+        <button aria-label="Đóng chỉnh sửa trực tiếp" className={styles.iconButton} onClick={onClose} type="button"><X aria-hidden="true" size={16} /></button>
       </div>
-      <div className={styles.previewAbout}>
-        <span className={styles.kicker}>PHẦN GIỚI THIỆU</span>
-        <h4>{value("about_title") || "Đồng hành cùng doanh nghiệp trong thời đại mới"}</h4>
-        <p>{value("about_description") || "Mô tả phần giới thiệu bản nháp sẽ hiển thị ở đây."}</p>
-      </div>
-    </div>
+      <label className={styles.inlineField}>
+        <span>{target.label}<small>{setting.dirty ? " · Có draft" : " · Đã publish"}</small></span>
+        {multiline ? <textarea autoFocus disabled={!canEdit} onChange={(event) => onChange(setting.key, event.target.value)} value={setting.draftValue} /> : <input autoFocus disabled={!canEdit} onChange={(event) => onChange(setting.key, event.target.value)} type="text" value={setting.draftValue} />}
+      </label>
+      <small className={styles.inlineHelp}>Bạn đang thay đổi đúng nội dung đang nhìn thấy. Bấm Lưu draft để giữ bản nháp, rồi Xuất bản khi muốn đưa ra công khai.</small>
+    </section>
   );
+}
+
+function applyDirectSettingValue(element: HTMLElement, value: string, target: AdminVisualDirectTarget): void {
+  if (target.inputType !== "multiline") {
+    element.textContent = value;
+    return;
+  }
+
+  const fragments = value.split(/\r?\n/);
+  element.replaceChildren(
+    ...fragments.flatMap((fragment, index) => index === 0
+      ? [document.createTextNode(fragment)]
+      : [document.createElement("br"), document.createTextNode(fragment)]),
+  );
+}
+
+function restorePublishedDirectTargets(settings: AdminSiteSetting[]): void {
+  for (const target of homepageDirectTargets) {
+    const setting = settings.find((item) => item.key === target.key);
+    const element = findAdminVisualTarget(document, target);
+    if (setting && element) applyDirectSettingValue(element, setting.publishedValue, target);
+  }
 }

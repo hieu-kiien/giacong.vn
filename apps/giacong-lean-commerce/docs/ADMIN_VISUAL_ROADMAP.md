@@ -54,6 +54,22 @@ domain, browser admin đầy đủ desktop/mobile/keyboard/focus/reduced-motion,
 production data/content approval, backup/restore production, observability và
 production promotion. Production chưa bị thay đổi.
 
+**Runtime update 2026-09-02 (direct editing trên storefront thật):**
+`AdminVisualEditor` đã bỏ draft preview mô phỏng và chuyển sang registry target
+an toàn trên DOM của homepage đang render. Owner/content manager có thể bấm đúng
+8 vùng mapped (brand tagline, hero eyebrow/title/description, hai CTA và
+about title/description), sửa ngay tại chỗ, thấy thanh hành động lưu draft/xuất
+bản, còn URL/media vẫn xử lý trong bảng nội dung đầy đủ. Test focused đạt
+`13/13`; full admin `192/192`, commerce `67/67`; OpenNext build chạy qua compile,
+TypeScript và static generation. Chrome owner staging đã xác nhận đủ `8/8`
+target, đổi tạm nội dung thật rồi reload khôi phục bản published, mở bảng nội
+dung có text/link/media và không còn `Xem trước draft`; console không có
+error/warning, public staging không có admin control. Version staging hiện tại
+`6162fa96-38fb-46df-adba-beb1e2d99001` ở 100%, rollback point là
+`dabb547e-1475-4815-b9e9-03be91064105`. Đây là lát direct-edit đã xác minh,
+không phải tuyên bố đóng toàn bộ role matrix, write/read-back mọi domain hay
+production gate; production/DNS chưa thay đổi.
+
 **Runtime update 2026-09-02 (managed page write):** commit `7d6b75b` đã hoàn
 thiện create/draft/publish của page với request ID, optimistic version,
 idempotent replay/conflict và audit chuyên biệt trong D1 batch; migration `0019`

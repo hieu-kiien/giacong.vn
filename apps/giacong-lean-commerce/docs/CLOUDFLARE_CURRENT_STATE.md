@@ -2,6 +2,24 @@
 
 Hồ sơ này ghi bằng chứng runtime đã xác minh trong quá trình chuyển Lean V1 sang Cloudflare-native.
 
+## Direct edit trên storefront thật — 2026-09-02
+
+- `AdminVisualEditor` đã chuyển từ draft preview mô phỏng sang registry an toàn
+  trên DOM homepage đang render. Owner/content manager có 8 target mapped:
+  brand tagline, hero eyebrow/title/description, hai CTA và about
+  title/description; URL/media vẫn dùng bảng nội dung đầy đủ.
+- Chrome owner staging đã xác nhận 8/8 selector, sửa tạm text ngay tại node
+  thật, thanh hành động báo thay đổi chưa lưu, reload khôi phục published;
+  drawer có field text/link/media và không còn `DraftPreview`/`Xem trước draft`.
+  Console admin không có error/warning; public staging không có toolbar hoặc
+  `data-admin-direct-target`.
+- Focused direct-editor test đạt `13/13`; full admin `192/192`, commerce
+  `67/67`; OpenNext build qua compile, TypeScript và static generation.
+- Worker `giacong-vn-staging` đang phục vụ version
+  `6162fa96-38fb-46df-adba-beb1e2d99001` ở 100%; rollback point là
+  `dabb547e-1475-4815-b9e9-03be91064105`. Production Worker/D1/R2 và DNS
+  không bị thay đổi.
+
 ## Homepage content renderer — 2026-09-02
 
 - Commit `732eba5` bổ sung adapter homepage riêng cho `hero_description`,

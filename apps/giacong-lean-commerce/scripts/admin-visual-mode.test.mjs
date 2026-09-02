@@ -98,11 +98,39 @@ test("contextual homepage editor exposes the complete supported content region",
   ]) {
     assert.match(source, new RegExp(`\\\"${key}\\\"`), `homepage region should expose ${key}`);
   }
-  assert.match(source, /value\("about_title"\)/);
-  assert.match(source, /value\("about_description"\)/);
-  assert.match(source, /value\("hero_secondary_cta_label"\)/);
-  assert.match(source, /preview \? <DraftPreview settings=\{settings\} \/>/);
-  assert.match(source, /styles\.previewAbout/);
+  assert.match(source, /homepageDirectTargets/);
+  assert.match(source, /dataset\.adminDirectTarget/);
+  assert.match(source, /Bấm vào nội dung trên trang để sửa ngay tại chỗ/);
+  assert.doesNotMatch(source, /DraftPreview/);
+  assert.doesNotMatch(source, /Xem trước draft/);
+});
+
+test("direct editing targets the rendered storefront nodes and keeps draft changes in place", async () => {
+  const [source, targets] = await Promise.all([
+    readSource("../src/components/admin/AdminVisualEditor.tsx"),
+    readSource("../src/components/admin/admin-visual-targets.ts"),
+  ]);
+
+  for (const key of [
+    "brand_tagline",
+    "hero_eyebrow",
+    "hero_title",
+    "hero_description",
+    "hero_primary_cta_label",
+    "hero_secondary_cta_label",
+    "about_title",
+    "about_description",
+  ]) {
+    assert.match(targets, new RegExp(`key: [\"']${key}[\"']`), `direct target should expose ${key}`);
+  }
+  assert.match(source, /findAdminVisualTarget\(document/);
+  assert.match(targets, /selector: ["']#section_250108065 h3["']/);
+  assert.match(source, /addEventListener\("click"/);
+  assert.match(source, /event\.preventDefault\(\)/);
+  assert.match(source, /applyDirectSettingValue/);
+  assert.match(source, /setSelectedKey/);
+  assert.match(source, /Lưu draft/);
+  assert.match(source, /Xuất bản/);
 });
 
 test("contextual editor hides edit affordances for read-only roles", async () => {
