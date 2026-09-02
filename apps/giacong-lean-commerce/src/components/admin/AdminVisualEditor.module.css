@@ -79,11 +79,11 @@
 .spinner { animation: spin 1s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 @media (max-width: 640px) {
-  .regionToolbar { left: 10px; max-width: none; right: 10px; top: 96px; }
+  .regionToolbar { left: 10px; margin: 10px; max-width: none; position: static; right: 10px; top: 96px; }
   .regionLabel { flex-basis: 100%; }
-  .directActionBar { bottom: 10px; left: 10px; max-width: none; right: 10px; }
+  .directActionBar { bottom: 10px; left: 10px; margin: 10px; max-width: none; position: static; right: 10px; }
   .directActionBar > span { flex-basis: 100%; }
-  .inlineEditor { bottom: 150px; left: 10px; max-width: none; right: 10px; width: auto; }
+  .inlineEditor { bottom: 10px; left: 10px; max-height: min(62dvh, 440px); max-width: none; overflow-y: auto; right: 10px; width: auto; }
   .drawer { max-width: none; padding: 18px; }
   .footer > * { flex: 1 1 140px; }
 }

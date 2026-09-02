@@ -57,3 +57,21 @@ test("contextual action has a bounded responsive style", async () => {
   assert.match(styles, /@media/);
   assert.match(styles, /focus-visible/);
 });
+
+test("single news publication locks duplicate submits while the request is active", async () => {
+  const source = await readSource("../src/app/admin/tin-tuc/page.tsx");
+
+  assert.match(source, /const publicationInFlight = useRef\(false\)/);
+  assert.match(source, /if \(publicationInFlight\.current \|\| newsBatchInFlight\.current\) return;/);
+  assert.match(source, /publicationInFlight\.current = true/);
+  assert.match(source, /publicationInFlight\.current = false/);
+  assert.match(source, /disabled=\{publicationId !== null \|\| batchAction !== null\}/);
+});
+
+test("news batch publication shares the single-publication in-flight lock", async () => {
+  const source = await readSource("../src/app/admin/tin-tuc/page.tsx");
+
+  assert.match(source, /selectedPosts\.length === 0 \|\| publicationInFlight\.current \|\| newsBatchInFlight\.current/);
+  assert.match(source, /data-testid="button-news-batch-publish" disabled=\{publicationId !== null \|\| batchAction !== null\}/);
+  assert.match(source, /data-testid="button-news-batch-unpublish" disabled=\{publicationId !== null \|\| batchAction !== null\}/);
+});

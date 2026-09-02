@@ -33,7 +33,10 @@ class OverviewStatement implements D1PreparedStatementLike {
 }
 
 class OverviewDatabase implements D1DatabaseLike {
+  prepareCount = 0;
+
   prepare(query: string): D1PreparedStatementLike {
+    this.prepareCount += 1;
     return new OverviewStatement(this, query);
   }
 
@@ -57,7 +60,10 @@ class OverviewDatabase implements D1DatabaseLike {
     throw new Error(`Unexpected overview query: ${query}`);
   }
 
-  async all<T>(_query: string, _values: unknown[]): Promise<{ results: T[] }> {
+  async all<T>(query: string, values: unknown[]): Promise<{ results: T[] }> {
+    if (query.includes("sqlite_master") && query.includes("name IN")) {
+      return { results: values.map((name) => ({ name: String(name) })) as T[] };
+    }
     return { results: [] };
   }
 }
@@ -75,4 +81,12 @@ test("dashboard counts only products explicitly marked draft or review", async (
     products: 12,
     services: 2,
   });
+});
+
+test("dashboard overview stays within a bounded D1 query budget", async () => {
+  const database = new OverviewDatabase();
+
+  await getAdminOverview(database, { includeRecentLeads: true });
+
+  assert.ok(database.prepareCount <= 11, `expected at most 11 D1 statements, got ${database.prepareCount}`);
 });

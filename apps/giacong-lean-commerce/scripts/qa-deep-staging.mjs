@@ -32,6 +32,16 @@ async function waitForRenderedSelector(page, selector, timeout = 15_000) {
   }
 }
 
+async function waitForPageSettled(page, selector = "main", timeout = 15_000) {
+  const rendered = await waitForRenderedSelector(page, selector, timeout);
+  if (!rendered) return false;
+  await page.evaluate(async () => {
+    await document.fonts?.ready;
+    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+  });
+  return true;
+}
+
 const browser = await chromium.launch();
 try {
   // 1. Responsive smoke: every route at every viewport renders without horizontal overflow.
@@ -45,7 +55,7 @@ try {
         response?.ok() ?? false,
         `status=${response?.status()}`,
       );
-      await page.waitForTimeout(500);
+      check(`${viewport.name} ${route} main rendered`, await waitForPageSettled(page));
       check(`${viewport.name} ${route} no horizontal overflow`, await noHorizontalOverflow(page));
     }
     await context.close();
@@ -74,7 +84,7 @@ try {
     const mobile = await browser.newContext({ viewport: { width: 390, height: 844 } });
     const mpage = await mobile.newPage();
     await mpage.goto(`${baseUrl}/san-pham/bot-gao-lut-xay-min`, { waitUntil: "domcontentloaded", timeout: 45_000 });
-    await waitForRenderedSelector(mpage, "h1");
+    await waitForPageSettled(mpage, "h1");
     await waitForRenderedSelector(mpage, '[class*="gallery"]');
     await waitForRenderedSelector(mpage, '[class*="commercial"]');
     await waitForRenderedSelector(mpage, 'button[class*="secondaryAction"]');
@@ -111,7 +121,7 @@ try {
     const kb = await browser.newContext({ viewport: { width: 1440, height: 900 } });
     const kpage = await kb.newPage();
     await kpage.goto(`${baseUrl}/san-pham`, { waitUntil: "domcontentloaded", timeout: 45_000 });
-    await waitForRenderedSelector(kpage, 'input[type=search]');
+    await waitForPageSettled(kpage, 'input[type=search]');
     let reachedInteractive = false;
     for (let i = 0; i < 12; i += 1) {
       await kpage.keyboard.press("Tab");

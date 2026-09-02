@@ -58,7 +58,6 @@ export function AdminVisualMode({ children }: AdminVisualModeProps) {
   return (
     <AdminVisualContext.Provider value={{ session, status }}>
       <>
-        {children}
         <AdminVisualStatusBar
           onRetry={() => {
             setSession(null);
@@ -69,6 +68,7 @@ export function AdminVisualMode({ children }: AdminVisualModeProps) {
           status={status}
         />
         {status === "ready" && session ? <AdminVisualEditor session={session} /> : null}
+        {children}
       </>
     </AdminVisualContext.Provider>
   );

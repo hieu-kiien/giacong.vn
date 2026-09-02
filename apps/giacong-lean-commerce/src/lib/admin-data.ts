@@ -275,20 +275,13 @@ export async function getAdminOverview(
   database: D1DatabaseLike,
   options: { includeRecentLeads?: boolean } = {},
 ) {
-  const [products, services, leads, members, metaTables, news, draftProducts, recentLeads] = await Promise.all([
-    countRows(database, "products"),
-    countRows(database, "services"),
-    countRows(database, "leads"),
-    countRows(database, "admin_members"),
-    Promise.all([
-      tableExists(database, "product_admin_meta"),
-      tableExists(database, "service_admin_meta"),
-      tableExists(database, "audit_logs"),
-    ]),
-    tableExists(database, "news_posts").then((ready) => (
-      ready ? countRows(database, "news_posts") : Promise.resolve({ count: 0, ready: false })
-    )),
-    countAdminDraftProducts(database),
+  const optionalTables = ["product_admin_meta", "service_admin_meta", "audit_logs", "news_posts"] as const;
+  const [existingTables, products, services, leads, members, recentLeads] = await Promise.all([
+    listExistingTables(database, optionalTables),
+    countRowsDirect(database, "products"),
+    countRowsDirect(database, "services"),
+    countRowsDirect(database, "leads"),
+    countRowsDirect(database, "admin_members"),
     options.includeRecentLeads ? database.prepare(`
         SELECT id, full_name, status, created_at
         FROM leads
@@ -299,23 +292,27 @@ export async function getAdminOverview(
         () => [],
       ) : Promise.resolve([]),
   ]);
+  const news = existingTables.has("news_posts")
+    ? await countRowsDirect(database, "news_posts")
+    : { count: 0, ready: false };
+  const draftProducts = await countAdminDraftProducts(database, existingTables.has("product_admin_meta"));
 
   return {
     dataReadiness: {
       adminMembersTable: members.ready,
-      auditLogsTable: metaTables[2],
+      auditLogsTable: existingTables.has("audit_logs"),
       leadsTable: leads.ready,
-      productMetaTable: metaTables[0],
-      serviceMetaTable: metaTables[1],
+      productMetaTable: existingTables.has("product_admin_meta"),
+      serviceMetaTable: existingTables.has("service_admin_meta"),
     },
     counts: {
-      activeProducts: products.ready ? await countRows(database, "products", "is_active = 1").then((result) => result.count) : 0,
-      activeServices: services.ready ? await countRows(database, "services", "is_active = 1").then((result) => result.count) : 0,
+      activeProducts: products.ready ? await countRowsDirect(database, "products", "is_active = 1").then((result) => result.count) : 0,
+      activeServices: services.ready ? await countRowsDirect(database, "services", "is_active = 1").then((result) => result.count) : 0,
       draftProducts: draftProducts.count,
       leads: leads.ready ? leads.count : 0,
       news: news.count,
       newLeads: leads.ready
-        ? await countRows(database, "leads", "status = 'new'").then((result) => result.count)
+        ? await countRowsDirect(database, "leads", "status = 'new'").then((result) => result.count)
         : 0,
       products: products.count,
       services: services.count,
@@ -1290,11 +1287,25 @@ async function countRows(
   }
 }
 
-async function countAdminDraftProducts(
+async function countRowsDirect(
   database: D1DatabaseLike,
+  tableName: string,
+  where?: string,
 ): Promise<{ count: number; ready: boolean }> {
   try {
-    if (!await tableExists(database, "product_admin_meta")) return { count: 0, ready: false };
+    const row = await database.prepare(`SELECT COUNT(*) AS total FROM ${tableName}${where ? ` WHERE ${where}` : ""}`).first<{ total: number }>();
+    return { count: integer(row?.total ?? 0), ready: true };
+  } catch {
+    return { count: 0, ready: false };
+  }
+}
+
+async function countAdminDraftProducts(
+  database: D1DatabaseLike,
+  tableReady?: boolean,
+): Promise<{ count: number; ready: boolean }> {
+  try {
+    if (tableReady === false || (tableReady !== true && !await tableExists(database, "product_admin_meta"))) return { count: 0, ready: false };
     const row = await database.prepare(`
       SELECT COUNT(*) AS total
       FROM products p
@@ -1304,6 +1315,24 @@ async function countAdminDraftProducts(
     return { count: integer(row?.total ?? 0), ready: true };
   } catch {
     return { count: 0, ready: false };
+  }
+}
+
+async function listExistingTables(
+  database: D1DatabaseLike,
+  tableNames: readonly string[],
+): Promise<Set<string>> {
+  if (tableNames.length === 0) return new Set();
+  try {
+    const placeholders = tableNames.map(() => "?").join(", ");
+    const rows = await database.prepare(`
+      SELECT name
+      FROM sqlite_master
+      WHERE type = 'table' AND name IN (${placeholders})
+    `).bind(...tableNames).all<{ name: string }>();
+    return new Set(rows.results.map((row) => row.name));
+  } catch {
+    return new Set();
   }
 }
 

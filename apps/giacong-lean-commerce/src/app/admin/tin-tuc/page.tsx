@@ -80,8 +80,10 @@ export default function AdminNewsPage() {
   const [pickerOpen, setPickerOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [batchAction, setBatchAction] = useState<"publish" | "unpublish" | null>(null);
+  const [publicationId, setPublicationId] = useState<number | null>(null);
   const newsBatchRequest = useRef<PendingNewsBatch | null>(null);
   const newsBatchInFlight = useRef(false);
+  const publicationInFlight = useRef(false);
 
   const openEditById = useCallback(async (id: number) => {
     if (!canManage) {
@@ -196,6 +198,9 @@ export default function AdminNewsPage() {
   }
 
   async function togglePublication(post: AdminNewsListItem) {
+    if (publicationInFlight.current || newsBatchInFlight.current) return;
+    publicationInFlight.current = true;
+    setPublicationId(post.id);
     try {
       await mutateAdmin(`/api/admin/news/${post.id}/publish`, {
         body: { expectedRevision: post.revision, publish: !post.isPublished, requestId: crypto.randomUUID() },
@@ -205,12 +210,15 @@ export default function AdminNewsPage() {
       setAttempt((value) => value + 1);
     } catch (reason: unknown) {
       showToast("error", reason instanceof AdminClientError ? reason.message : "Không thể thay đổi trạng thái bài viết.");
+    } finally {
+      publicationInFlight.current = false;
+      setPublicationId(null);
     }
   }
 
   async function runBatch(publish: boolean) {
     const selectedPosts = posts.filter((post) => selectedIds.has(post.id));
-    if (selectedPosts.length === 0 || newsBatchInFlight.current) return;
+    if (selectedPosts.length === 0 || publicationInFlight.current || newsBatchInFlight.current) return;
 
     const batchKey = `${publish ? "publish" : "unpublish"}:${selectedPosts.map((post) => post.id).sort((a, b) => a - b).join(",")}`;
     const pendingBatch = newsBatchRequest.current?.key === batchKey ? newsBatchRequest.current : null;
@@ -355,8 +363,8 @@ export default function AdminNewsPage() {
               {canManage && selectedIds.size > 0 ? (
                 <>
                   <span className="admin-item-meta" data-testid="news-selection-count">Đã chọn {selectedIds.size}</span>
-                  <button className="admin-button admin-button-quiet" data-testid="button-news-batch-publish" disabled={batchAction !== null} onClick={() => void runBatch(true)} type="button"><Eye size={13} /> {batchAction === "publish" ? "Đang phát hành..." : "Phát hành đã chọn"}</button>
-                  <button className="admin-button admin-button-quiet" data-testid="button-news-batch-unpublish" disabled={batchAction !== null} onClick={() => void runBatch(false)} type="button"><EyeOff size={13} /> {batchAction === "unpublish" ? "Đang ẩn..." : "Ẩn đã chọn"}</button>
+                  <button className="admin-button admin-button-quiet" data-testid="button-news-batch-publish" disabled={publicationId !== null || batchAction !== null} onClick={() => void runBatch(true)} type="button"><Eye size={13} /> {batchAction === "publish" ? "Đang phát hành..." : "Phát hành đã chọn"}</button>
+                  <button className="admin-button admin-button-quiet" data-testid="button-news-batch-unpublish" disabled={publicationId !== null || batchAction !== null} onClick={() => void runBatch(false)} type="button"><EyeOff size={13} /> {batchAction === "unpublish" ? "Đang ẩn..." : "Ẩn đã chọn"}</button>
                 </>
               ) : null}
               {canManage ? (
@@ -406,8 +414,8 @@ export default function AdminNewsPage() {
                                   >
                                     <Pencil size={13} /> Sửa nháp
                                   </button>
-                                  <button className="admin-button admin-button-quiet" data-testid={`button-news-publish-${post.id}`} onClick={() => void togglePublication(post)} type="button">
-                                    {post.isPublished ? <EyeOff size={13} /> : <Eye size={13} />} {post.isPublished ? "Ẩn khỏi web" : "Phát hành"}
+                                  <button className="admin-button admin-button-quiet" data-testid={`button-news-publish-${post.id}`} disabled={publicationId !== null || batchAction !== null} onClick={() => void togglePublication(post)} type="button">
+                                    {publicationId === post.id ? "Đang xử lý..." : <>{post.isPublished ? <EyeOff size={13} /> : <Eye size={13} />} {post.isPublished ? "Ẩn khỏi web" : "Phát hành"}</>}
                                   </button>
                                   <button className="admin-button admin-button-danger" data-testid={`button-news-delete-${post.id}`} onClick={() => setPendingDelete(post)} type="button"><Trash2 size={13} /> Xóa</button>
                                 </div>

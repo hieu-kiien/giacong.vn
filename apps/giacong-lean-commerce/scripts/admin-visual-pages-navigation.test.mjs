@@ -69,3 +69,12 @@ test("page contextual action has keyboard and responsive affordances", async () 
   assert.match(styles, /@media/);
   assert.match(styles, /focus-visible/);
 });
+
+test("page builder confirms section removal before changing the draft", async () => {
+  const source = await readSource("../src/components/admin/AdminPageBuilder.tsx");
+
+  assert.match(source, /AdminConfirmDialog/);
+  assert.match(source, /pendingRemove/);
+  assert.match(source, /Xóa section khỏi bản nháp/);
+  assert.match(source, /Bạn có thể hủy trước khi lưu draft/);
+});

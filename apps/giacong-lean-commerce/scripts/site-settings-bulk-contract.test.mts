@@ -223,6 +223,12 @@ test("bulk settings write contract has a tracked migration and exact request bod
   assert.match(page, /status >= 400 && clientError\.status < 500/);
 });
 
+test("read-only content roles cannot change the color picker", async () => {
+  const page = await readFile(new URL("../src/app/admin/noi-dung/page.tsx", import.meta.url), "utf8");
+
+  assert.match(page, /className="admin-color-input" disabled=\{!canEdit\}/);
+});
+
 test("bulk result keeps the existing AdminSiteSetting response shape", async () => {
   const database = new BulkSettingsDatabase();
   const result = await publishAllAdminSiteSettings(database, {

@@ -4,6 +4,7 @@ import { ArrowDown, ArrowUp, Eye, Plus, Save, Send, Trash2 } from "lucide-react"
 import { useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
+import { AdminConfirmDialog } from "@/components/admin/AdminDialog";
 import { AdminErrorState, AdminPageHeading, AdminStatusBadge } from "@/components/admin/AdminPrimitives";
 import { AdminField } from "@/components/admin/AdminField";
 import { useAdminToast } from "@/components/admin/AdminToast";
@@ -67,6 +68,7 @@ export function AdminPageBuilder() {
   const [error, setError] = useState<AdminClientError | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
+  const [pendingRemove, setPendingRemove] = useState<{ index: number; type: BuilderBlockType } | null>(null);
   const [createForm, setCreateForm] = useState({ pageKey: "", routePath: "/", title: "" });
   const saveRequest = useRef<PendingPageRequest | null>(null);
   const publishRequest = useRef<PendingPageRequest | null>(null);
@@ -132,6 +134,18 @@ export function AdminPageBuilder() {
       [next[index], next[nextIndex]] = [next[nextIndex], next[index]];
       return next;
     });
+  }
+
+  function requestRemoveBlock(index: number) {
+    const block = blocks[index];
+    if (!canEdit || !block) return;
+    setPendingRemove({ index, type: block.type });
+  }
+
+  function confirmRemoveBlock() {
+    if (!pendingRemove) return;
+    setBlocks((current) => current.filter((_, itemIndex) => itemIndex !== pendingRemove.index));
+    setPendingRemove(null);
   }
 
   async function saveDraft() {
@@ -295,7 +309,7 @@ export function AdminPageBuilder() {
                   key={`${block.type}-${index}`}
                   onChange={(next) => updateBlock(index, next)}
                   onMove={(direction) => moveBlock(index, direction)}
-                  onRemove={() => setBlocks((current) => current.filter((_, itemIndex) => itemIndex !== index))}
+                  onRemove={() => requestRemoveBlock(index)}
                 />
               ))}
             </div>
@@ -310,6 +324,15 @@ export function AdminPageBuilder() {
               </div>
             </div>
           </section>
+          {pendingRemove ? (
+            <AdminConfirmDialog
+              confirmLabel="Xóa section"
+              message={`Xóa section “${blockLabels[pendingRemove.type]}” khỏi bản nháp? Bạn có thể hủy trước khi lưu draft.`}
+              onConfirm={confirmRemoveBlock}
+              onDismiss={() => setPendingRemove(null)}
+              title="Xóa section khỏi bản nháp?"
+            />
+          ) : null}
           <aside className="admin-builder-preview" aria-label="Xem trước page draft">
             <div className="admin-content-preview-heading"><div><div className="admin-kicker">Live draft preview</div><h2>Preview page</h2></div><Eye size={17} /></div>
             <div className="admin-builder-preview-frame"><PageBlocks blocks={blocks} /></div>

@@ -69,6 +69,7 @@ export function AdminVisualEditor({ session }: { session: AdminSession }) {
   const [localChanges, setLocalChanges] = useState<Set<string>>(new Set());
   const drawerRef = useRef<HTMLElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
+  const directRestoreFocusRef = useRef<HTMLElement | null>(null);
   const restoreFocusRef = useRef<HTMLElement | null>(null);
   const settingsRef = useRef<AdminSiteSetting[]>([]);
 
@@ -85,7 +86,8 @@ export function AdminVisualEditor({ session }: { session: AdminSession }) {
     ? settings.find((setting) => setting.key === selectedKey) ?? null
     : null;
 
-  const selectDirectTarget = useCallback((key: string) => {
+  const selectDirectTarget = useCallback((key: string, opener?: HTMLElement | null) => {
+    if (opener) directRestoreFocusRef.current = opener;
     setSelectedKey(key);
     setNotice(null);
     setError(null);
@@ -133,13 +135,15 @@ export function AdminVisualEditor({ session }: { session: AdminSession }) {
       const onClick = (event: MouseEvent) => {
         event.preventDefault();
         event.stopPropagation();
-        selectDirectTarget(target.key);
+        const opener = event.currentTarget instanceof HTMLElement ? event.currentTarget : null;
+        selectDirectTarget(target.key, opener);
       };
       const onKeyDown = (event: KeyboardEvent) => {
         if (event.key !== "Enter" && event.key !== " ") return;
         event.preventDefault();
         event.stopPropagation();
-        selectDirectTarget(target.key);
+        const opener = event.currentTarget instanceof HTMLElement ? event.currentTarget : null;
+        selectDirectTarget(target.key, opener);
       };
       element.addEventListener("click", onClick);
       element.addEventListener("keydown", onKeyDown);
@@ -221,6 +225,14 @@ export function AdminVisualEditor({ session }: { session: AdminSession }) {
     window.setTimeout(() => {
       if (restoreFocusRef.current?.isConnected) restoreFocusRef.current?.focus();
       restoreFocusRef.current = null;
+    }, 0);
+  }
+
+  function closeDirectEditor() {
+    setSelectedKey(null);
+    window.setTimeout(() => {
+      if (directRestoreFocusRef.current?.isConnected) directRestoreFocusRef.current.focus();
+      directRestoreFocusRef.current = null;
     }, 0);
   }
 
@@ -349,7 +361,7 @@ export function AdminVisualEditor({ session }: { session: AdminSession }) {
           target={homepageDirectTargets.find((item) => item.key === selectedSetting.key) ?? null}
           canEdit={canEdit}
           onChange={updateDraft}
-          onClose={() => setSelectedKey(null)}
+          onClose={closeDirectEditor}
         />
       ) : null}
       {open ? (
@@ -428,6 +440,17 @@ function DirectEditPopover({
   setting: AdminSiteSetting;
   target: AdminVisualDirectTarget | null;
 }) {
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      event.stopPropagation();
+      onClose();
+    }
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [onClose]);
+
   if (!target) return null;
   const multiline = target.inputType === "multiline";
   return (

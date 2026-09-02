@@ -193,7 +193,9 @@
       flex-wrap: wrap;
       gap: 8px 12px;
       left: 10px;
+      margin: 10px;
       max-width: none;
+      position: static;
       right: 10px;
       top: 10px;
     }

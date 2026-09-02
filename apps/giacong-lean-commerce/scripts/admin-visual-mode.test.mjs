@@ -152,6 +152,29 @@ test("contextual editor traps focus and restores the opener on every close path"
   assert.match(source, /restoreFocusRef\.current\?\.focus\(\)/);
 });
 
+test("inline direct editing closes on Escape and restores focus on mobile-safe controls", async () => {
+  const [source, editorStyles, globalStyles] = await Promise.all([
+    readSource("../src/components/admin/AdminVisualEditor.tsx"),
+    readSource("../src/components/admin/AdminVisualEditor.module.css"),
+    readSource("../src/app/globals.css"),
+  ]);
+  const popover = source.slice(source.indexOf("function DirectEditPopover"));
+
+  assert.match(source, /function closeDirectEditor\(\)/);
+  assert.match(source, /selectDirectTarget\(target\.key, opener\)/);
+  assert.match(source, /onClose=\{closeDirectEditor\}/);
+  assert.match(popover, /useEffect\(\(\) =>/);
+  assert.match(popover, /event\.key !== "Escape"/);
+  assert.match(popover, /event\.preventDefault\(\)/);
+  assert.match(popover, /onClose\(\)/);
+
+  assert.match(globalStyles, /\.admin-visual-mode-banner[\s\S]*?position: static/);
+  assert.match(editorStyles, /\.regionToolbar[\s\S]*?position: static/);
+  assert.match(editorStyles, /\.directActionBar[\s\S]*?position: static/);
+  assert.match(editorStyles, /\.inlineEditor[\s\S]*?bottom: 10px/);
+  assert.match(editorStyles, /max-height: min\(62dvh, 440px\)/);
+});
+
 test("contextual editor exposes explicit dialog and tab relationships", async () => {
   const source = await readSource("../src/components/admin/AdminVisualEditor.tsx");
 
