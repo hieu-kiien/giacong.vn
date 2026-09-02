@@ -24,6 +24,7 @@ interface AdminNavigationItem {
   version: number;
   updatedAt: string;
   dirty: boolean;
+  localDirty?: boolean;
 }
 
 interface NavigationResponse {
@@ -76,7 +77,7 @@ export function AdminNavigationManager() {
       setPermissionsReady(false);
       try {
         const result = await fetchAdmin<NavigationResponse>("/api/admin/navigation", controller.signal);
-        setItems(result.items ?? []);
+        setItems((result.items ?? []).map((item) => ({ ...item, localDirty: false })));
         setCanEdit(result.canEdit);
         setCanPublish(result.canPublish);
         setPermissionsReady(true);
@@ -92,16 +93,17 @@ export function AdminNavigationManager() {
   }, [attempt, session.subject]);
 
   const dirtyCount = useMemo(() => items.filter((item) => item.dirty).length, [items]);
+  const hasUnsavedChanges = useMemo(() => items.some((item) => item.localDirty), [items]);
   const primaryItems = items.filter((item) => item.menuKey === "primary");
   const footerItems = items.filter((item) => item.menuKey === "footer");
 
   function updateDraft(id: string, patch: Partial<AdminNavigationItem>) {
-    setItems((current) => current.map((item) => item.id === id ? { ...item, ...patch, dirty: true } : item));
+    setItems((current) => current.map((item) => item.id === id ? { ...item, ...patch, dirty: true, localDirty: true } : item));
     setNotice(null);
   }
 
   function replaceItem(next: AdminNavigationItem) {
-    setItems((current) => current.map((item) => item.id === next.id ? next : item));
+    setItems((current) => current.map((item) => item.id === next.id ? { ...next, localDirty: false } : item));
   }
 
   function getMutationRequestId(operation: "draft" | "publish", id: string): string {
@@ -152,7 +154,7 @@ export function AdminNavigationManager() {
   }
 
   async function publishItem(item: AdminNavigationItem) {
-    if (!canPublish || item.dirty) return;
+    if (!canPublish || !item.dirty || item.localDirty || publishingId === item.id) return;
     setPublishingId(item.id);
     setError(null);
     setNotice(null);
@@ -179,7 +181,7 @@ export function AdminNavigationManager() {
   }
 
   async function publishAll() {
-    if (!canPublish || dirtyCount === 0) return;
+    if (!canPublish || dirtyCount === 0 || hasUnsavedChanges) return;
     setPublishingAll(true);
     setError(null);
     setNotice(null);
@@ -260,7 +262,7 @@ export function AdminNavigationManager() {
           <AdminStatusBadge kind={permissionsReady && canEdit ? "green" : "neutral"} value={!permissionsReady ? (error ? "Chưa xác định quyền" : "Đang kiểm tra quyền…") : canEdit ? "Có quyền chỉnh sửa" : "Chỉ xem"} />
           <button className="admin-button admin-button-quiet" onClick={() => setAttempt((value) => value + 1)} type="button"><RefreshCw size={14} /> Tải lại</button>
           {permissionsReady && canEdit ? <button className="admin-button admin-button-quiet" onClick={() => setShowCreate((value) => !value)} type="button"><Plus size={14} /> Thêm mục</button> : null}
-          {permissionsReady && canPublish ? <button className="admin-button admin-button-primary" disabled={publishingAll || dirtyCount === 0} onClick={() => void publishAll()} type="button"><Send size={14} /> {publishingAll ? "Đang phát hành..." : "Phát hành tất cả"}</button> : null}
+          {permissionsReady && canPublish ? <button className="admin-button admin-button-primary" disabled={publishingAll || dirtyCount === 0 || hasUnsavedChanges} onClick={() => void publishAll()} type="button"><Send size={14} /> {publishingAll ? "Đang phát hành..." : "Phát hành tất cả"}</button> : null}
         </div>
       </div>
       {showCreate && permissionsReady && canEdit ? (
@@ -359,8 +361,8 @@ function NavigationEditor({ canEdit, canPublish, item, onChange, onPublish, onSa
           <span><strong>Hiển thị mục này</strong><small>Public: {item.publishedIsActive ? "đang hiện" : "đang ẩn"} · v{item.version}</small></span>
         </label>
         <div className="admin-setting-actions">
-          <button className="admin-button admin-button-quiet" disabled={!canEdit || !item.dirty || saving} onClick={() => onSave(item)} type="button"><Save size={13} /> {saving ? "Đang lưu" : "Lưu nháp"}</button>
-          <button className="admin-button admin-button-primary" disabled={!canPublish || item.dirty || publishing} onClick={() => onPublish(item)} type="button"><Send size={13} /> {publishing ? "Đang phát hành" : "Phát hành"}</button>
+          <button className="admin-button admin-button-quiet" disabled={!canEdit || !item.localDirty || saving} onClick={() => onSave(item)} type="button"><Save size={13} /> {saving ? "Đang lưu" : "Lưu nháp"}</button>
+          <button className="admin-button admin-button-primary" disabled={!canPublish || !item.dirty || item.localDirty || publishing} onClick={() => onPublish(item)} type="button"><Send size={13} /> {publishing ? "Đang phát hành" : "Phát hành"}</button>
         </div>
       </div>
     </article>
