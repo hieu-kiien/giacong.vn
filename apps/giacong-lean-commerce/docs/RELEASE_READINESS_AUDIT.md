@@ -4,9 +4,9 @@
 
 Bản staging hiện **đủ điều kiện để tiếp tục nghiệm thu kỹ thuật**, nhưng chưa
 đủ điều kiện để gọi là bàn giao production hoàn hảo. Staging đang chạy
-`6162fa96-38fb-46df-adba-beb1e2d99001` ở 100%, rollback point gần nhất là
-`dabb547e-1475-4815-b9e9-03be91064105`; production vẫn giữ nguyên và
-đang **NO-GO** cho migration hoặc promotion.
+`eff0d7fa-c5e2-4641-911b-b3b324ac0284` ở 100%, rollback point gần nhất là
+`a709e5a4-c457-43ab-9d77-2d5d20ac0b7b`; production vẫn giữ nguyên và đang
+**NO-GO** cho migration hoặc promotion.
 
 ## Tái kiểm tra runtime resource-limit — 2026-09-02
 
@@ -105,6 +105,24 @@ Bản staging hiện **đủ điều kiện để tiếp tục nghiệm thu kỹ
 - Read-only production audit ngày 2026-09-02 xác nhận pending chính xác
   `0009–0019`; không có production D1/R2 mutation hoặc production deploy trong
   đợt audit này.
+
+## Revalidation sau hardening — 2026-09-02
+
+- Commit `e1936cfb` đã đóng race giữa publish news từng bài và publish hàng
+  loạt, khóa color picker với role chỉ xem, thêm confirm khi xóa section,
+  giảm query dashboard và làm mobile visual editor không che nội dung.
+- Staging version `eff0d7fa-c5e2-4641-911b-b3b324ac0284` đã build/deploy 100%,
+  startup 30 ms; không có D1/R2 mutation trong lượt QA.
+- `npm run check` exit `0`: admin `198/198`, contact `104/104`, catalog
+  `5/5`, purchase UI `1/1`, service `3/3`, commerce `68/68`, listing `4/4`,
+  detail `29/29`, lint, typecheck và build đều pass.
+- Deep QA read-only pass mobile/tablet/desktop: 4 route public HTTP 200,
+  semantic render wait, không overflow; catalog, detail/cart và keyboard đều
+  pass. Chrome owner staging xác nhận direct editor mở thật, Escape đóng và
+  focus quay lại đúng target, không console error/warning.
+- Production vẫn chỉ có read-only evidence; Wrangler xác nhận còn đúng 11
+  migration `0009–0019`. Các gate dữ liệu thật, nhiều Access identity,
+  write/read-back toàn domain, restore/rollback và observability 24 giờ vẫn mở.
 
 ## Audit skills.sh
 

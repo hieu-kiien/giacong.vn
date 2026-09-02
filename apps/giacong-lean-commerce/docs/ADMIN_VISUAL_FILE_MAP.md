@@ -28,6 +28,15 @@ bootstrap vào D1 staging với role `owner` cấp cao nhất. `/admin/thanh-vie
 được browser xác nhận hiển thị tài khoản hiện tại, khóa self-demotion/self-
 deactivation và mở được luồng `Thêm tài khoản quản trị`.
 
+**Checkpoint hardening mới nhất — 2026-09-02:** Commit `e1936cfb` và staging
+version `eff0d7fa-c5e2-4641-911b-b3b324ac0284` đã được revalidate. Các thay đổi
+được map gồm news publish lock, read-only color guard, confirm xóa section,
+dashboard query budget và mobile visual-editor/focus behavior. `npm run check`
+pass (`198/198` admin, `68/68` commerce, các suite còn lại, lint, typecheck,
+build); deep QA responsive và owner direct-edit smoke pass. Rollback point gần
+nhất là `a709e5a4-c457-43ab-9d77-2d5d20ac0b7b`. Production chưa được mutate;
+Wrangler còn ghi nhận 11 migration pending `0009–0019`.
+
 Full gate gần nhất: admin `190/190`, contact
 `104/104`, catalog `5/5`, catalog purchase UI `1/1`, service `3/3`, commerce
 `67/67`, listing `4/4`, detail `29/29`, kèm lint, typecheck và build. Public UX

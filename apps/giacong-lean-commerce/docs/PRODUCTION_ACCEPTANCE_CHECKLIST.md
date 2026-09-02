@@ -251,3 +251,19 @@ Lưu ý: demo staging KHÔNG được seed sang production. Khách tự thao tá
 - [ ] Role × route/action với nhiều Access identity, write/read-back từng domain,
   production data approval, backup/restore, observability 24h và production
   promotion vẫn chưa đạt.
+
+## 11. Revalidation sau hardening — 2026-09-02
+
+- [x] Commit `e1936cfb` khóa race publish news đơn/bulk, guard color picker
+  read-only, confirm xóa section, dashboard query budget và mobile visual
+  editor/focus behavior.
+- [x] Staging `eff0d7fa-c5e2-4641-911b-b3b324ac0284` deploy 100%, rollback point
+  `a709e5a4-c457-43ab-9d77-2d5d20ac0b7b`; không có production mutation.
+- [x] `npm run check` exit `0`: admin `198/198`, contact `104/104`, catalog
+  `5/5`, purchase UI `1/1`, service `3/3`, commerce `68/68`, listing `4/4`,
+  detail `29/29`, lint, typecheck và build.
+- [x] Deep QA responsive và Chrome owner smoke test direct editor → Escape →
+  focus restore pass; không có console error/warning.
+- [ ] Production gate còn mở: 11 migration `0009–0019`, role × route/action với
+  nhiều Access identity, full write/read-back/audit, data approval,
+  backup/restore, rollback window và observability 24 giờ.

@@ -23,6 +23,18 @@ UI khóa tự hạ quyền, tự đổi Access identity hoặc tự vô hiệu h
 được harden để nhận diện current account bằng D1 `memberId`, không phụ thuộc
 duy nhất vào Access `sub`.
 
+**Checkpoint hardening mới nhất — 2026-09-02:** Commit `e1936cfb` đã khóa race
+giữa publish news từng bài và publish hàng loạt, khóa color picker với role chỉ
+xem, thêm confirm khi xóa section, giảm query dashboard và làm mobile visual
+editor không che nội dung. Staging đang chạy
+`eff0d7fa-c5e2-4641-911b-b3b324ac0284` ở 100%, rollback point là
+`a709e5a4-c457-43ab-9d77-2d5d20ac0b7b`; `npm run check` pass với admin
+`198/198`, commerce `68/68` cùng các suite/lint/typecheck/build. Deep QA và
+Chrome owner smoke test direct editor → Escape → focus restore đều pass, không
+có console error/warning. Production vẫn **NO-GO**: còn 11 migration
+`0009–0019` và các gate multi-identity, write/read-back đầy đủ, data approval,
+backup/restore, rollback và observability 24 giờ.
+
 Lát navigation contract ở commit `566489d` và create contract ở commit
 `d654f2e` đã thêm request UUID bắt buộc, optimistic revision và idempotent replay
 cho create/save/publish từng mục; bulk publish được D1 batch atomic, giới hạn

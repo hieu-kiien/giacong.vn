@@ -8,7 +8,7 @@ Tài liệu dành cho người vận hành (khách + chủ dự án). Quyết đ
 | --- | --- | --- |
 | Storefront production | https://kienhieu.id.vn | Cloudflare Worker `giacong-vn` @100% |
 | Admin production | https://admin.kienhieu.id.vn/admin | Sau Cloudflare Access — fail-closed |
-| Storefront staging | https://staging.kienhieu.id.vn | Worker `giacong-vn-staging`, public demo; version `26884d0b-0092-43cd-bad2-df077de605eb` |
+| Storefront staging | https://staging.kienhieu.id.vn | Worker `giacong-vn-staging`, public demo; version `eff0d7fa-c5e2-4641-911b-b3b324ac0284`; rollback `a709e5a4-c457-43ab-9d77-2d5d20ac0b7b` |
 | Admin staging | https://admin-staging.kienhieu.id.vn/admin | Cloudflare Access thật; storefront staging mới public; không có identity thì fail-closed |
 | D1 production | `giacong-vn-catalog` | Catalog, leads, media metadata, CMS |
 | R2 production | `giacong-vn-product-media` | Ảnh product/variant/service qua `/media/*` |
@@ -74,3 +74,9 @@ write/read-back có kiểm soát, cùng audit read-back 107 sự kiện, đã đ
 role matrix nhiều identity, write/read-back đầy đủ, production data approval, migrations `0009–0019` và
 restore/rollback drill vẫn cần chủ dự án phê duyệt và thực hiện chủ ý. Không
 dùng dữ liệu demo staging làm dữ liệu production.
+
+Release hardening mới nhất: commit `e1936cfb`, staging `eff0d7fa` ở 100%,
+`npm run check` pass (`198/198` admin; `68/68` commerce; các suite còn lại,
+lint, typecheck và build), deep QA responsive pass và owner direct-editor
+Escape/focus smoke pass. Đây là trạng thái sẵn sàng nghiệm thu kỹ thuật trên
+staging, chưa phải xác nhận production hoàn hảo.
