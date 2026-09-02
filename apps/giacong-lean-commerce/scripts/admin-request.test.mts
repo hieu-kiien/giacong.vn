@@ -74,6 +74,21 @@ test("page and navigation admin JSON writes use the bounded request parser", asy
   }
 });
 
+test("page mutation routes require exact request IDs and map idempotency conflicts", async () => {
+  const expectations = [
+    ["../src/app/api/admin/pages/route.ts", /isAdminRequestId/, /hasOnlyKeys\(body, \["requestId", "pageKey", "routePath", "title"\]\)/],
+    ["../src/app/api/admin/pages/[pageKey]/route.ts", /isAdminRequestId/, /hasOnlyKeys\(body, \["requestId", "blocks", "draftEnabled", "expectedVersion", "seoTitle", "seoDescription"\]\)/],
+    ["../src/app/api/admin/pages/[pageKey]/publish/route.ts", /isAdminRequestId/, /hasOnlyKeys\(body, \["requestId", "expectedVersion"\]\)/],
+  ] as const;
+
+  for (const [routeFile, requestIdCheck, exactKeys] of expectations) {
+    const source = await readFile(new URL(routeFile, import.meta.url), "utf8");
+    assert.match(source, requestIdCheck, routeFile);
+    assert.match(source, exactKeys, routeFile);
+    assert.match(source, /IDEMPOTENCY_CONFLICT/, routeFile);
+  }
+});
+
 test("member, lead, service and media JSON writes use the bounded request parser", async () => {
   const routeFiles = [
     "../src/app/api/admin/members/route.ts",

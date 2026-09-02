@@ -31,7 +31,7 @@ test("page contextual action is host-gated by the shared visual context and role
   assert.doesNotMatch(action, /fetchAdmin|\/api\/admin\/session/);
 });
 
-test("admin page builder honors a safe page deep-link without changing the page API", async () => {
+test("admin page builder honors a safe page deep-link through the canonical page API", async () => {
   const source = await readSource("../src/components/admin/AdminPageBuilder.tsx");
 
   assert.match(source, /useSearchParams/);
@@ -39,6 +39,18 @@ test("admin page builder honors a safe page deep-link without changing the page 
   assert.match(source, /page\.pageKey === requestedPage/);
   assert.match(source, /fetchAdmin<PagesResponse>\(["']\/api\/admin\/pages["']\)/);
   assert.doesNotMatch(source, /api\/admin\/visual/);
+});
+
+test("admin page builder keeps request IDs stable across retriable writes and locks duplicate submits", async () => {
+  const source = await readSource("../src/components/admin/AdminPageBuilder.tsx");
+
+  assert.match(source, /getPageRequestId/);
+  assert.match(source, /crypto\.randomUUID\(\)/);
+  assert.match(source, /requestId \}/);
+  assert.match(source, /saveInFlight\.current/);
+  assert.match(source, /publishInFlight\.current/);
+  assert.match(source, /createInFlight\.current/);
+  assert.match(source, /status === 0 \|\| reason\.status >= 500/);
 });
 
 test("managed page contextual control stays out of captured fallback paths", async () => {

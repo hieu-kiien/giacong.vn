@@ -7,6 +7,7 @@ import { AdminModal } from "@/components/admin/AdminDialog";
 import { useAdminSession } from "@/components/admin/AdminShell";
 import { useAdminToast } from "@/components/admin/AdminToast";
 import { AdminClientError, fetchAdmin, formatAdminDate, mutateAdmin, type AdminLead, type LeadStatus } from "@/lib/admin-client";
+import { canManageLeads } from "@/lib/admin-permissions.ts";
 
 interface LeadResponse {
   leads: AdminLead[];
@@ -47,6 +48,7 @@ function deliveryKind(status: AdminLead["deliveryStatus"]): "green" | "amber" | 
 export default function AdminLeadsPage() {
   const session = useAdminSession();
   const { showToast } = useAdminToast();
+  const canManage = canManageLeads(session.role);
   const [leads, setLeads] = useState<AdminLead[]>([]);
   const [status, setStatus] = useState<LeadStatus | "">("");
   const [query, setQuery] = useState("");
@@ -94,7 +96,7 @@ export default function AdminLeadsPage() {
   }
 
   async function updateLeadStatus(lead: AdminLead, nextStatus: LeadStatus) {
-    if (lead.status === nextStatus) return;
+    if (!canManageLeads(session.role) || lead.status === nextStatus) return;
     setUpdatingId(lead.id);
     setMutationError(null);
     try {
@@ -173,17 +175,19 @@ export default function AdminLeadsPage() {
                         <td><div className="admin-message" title={lead.message ?? undefined}>{lead.message || "Không có nội dung"}</div><div className="admin-item-meta">{lead.source}</div></td>
                         <td>
                           <AdminStatusBadge kind={statusKind(lead.status)} value={statusLabels[lead.status] ?? lead.status} />
-                          <select
-                            aria-label={`Cập nhật trạng thái cho ${lead.fullName}`}
-                            className="admin-select"
-                            data-testid={`select-lead-status-${lead.id}`}
-                            disabled={updatingId === lead.id}
-                            onChange={(event) => void updateLeadStatus(lead, event.target.value as LeadStatus)}
-                            style={{ marginTop: 7, minHeight: 34, minWidth: 150 }}
-                            value={lead.status}
-                          >
-                            {pipelineStatusOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-                          </select>
+                          {canManage ? (
+                            <select
+                              aria-label={`Cập nhật trạng thái cho ${lead.fullName}`}
+                              className="admin-select"
+                              data-testid={`select-lead-status-${lead.id}`}
+                              disabled={updatingId === lead.id}
+                              onChange={(event) => void updateLeadStatus(lead, event.target.value as LeadStatus)}
+                              style={{ marginTop: 7, minHeight: 34, minWidth: 150 }}
+                              value={lead.status}
+                            >
+                              {pipelineStatusOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                            </select>
+                          ) : <span className="admin-item-meta">Chỉ xem</span>}
                         </td>
                         <td><AdminStatusBadge kind={deliveryKind(lead.deliveryStatus)} value={lead.deliveryStatus} /></td>
                         <td className="admin-mono">{formatAdminDate(lead.createdAt)}</td>

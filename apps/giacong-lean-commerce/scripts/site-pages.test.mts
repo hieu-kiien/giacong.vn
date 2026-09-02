@@ -1,9 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  createAdminSitePage,
   normalizeRoutePath,
   publishAdminSitePage,
   SitePageConflictError,
+  SitePageIdempotencyConflictError,
   SitePageValidationError,
   updateAdminSitePage,
 } from "../src/lib/site-pages.ts";
@@ -26,6 +28,7 @@ type PageRow = {
   updated_at: string;
   published_by: string | null;
   published_at: string | null;
+  last_request_id: string | null;
 };
 
 class FakePageDatabase {
@@ -46,8 +49,9 @@ class FakePageDatabase {
     updated_at: "2026-08-26T00:00:00Z",
     published_by: null,
     published_at: null,
+    last_request_id: null,
   };
-  audits: string[] = [];
+  audits = new Map<string, { entity_key: string; operation: string; payload_sha256: string }>();
 
   prepare(query: string) {
     let values: unknown[] = [];
@@ -62,15 +66,39 @@ class FakePageDatabase {
     };
   }
 
+  async batch(statements: Array<{ run(): Promise<unknown> }>): Promise<unknown[]> {
+    const results: unknown[] = [];
+    for (const statement of statements) results.push(await statement.run());
+    return results;
+  }
+
   private prepareBound(query: string, read: () => unknown[]) {
     return {
       bind: (...next: unknown[]) => this.prepareBound(query, () => next),
       all: async <T,>() => ({ results: [this.row] as unknown as T[] }),
-      first: async <T,>() => this.row as unknown as T,
+      first: async <T,>() => {
+        if (query.includes("FROM admin_site_page_audit")) {
+          return (this.audits.get(String(read()[0])) ?? null) as unknown as T;
+        }
+        return this.row as unknown as T;
+      },
       run: async () => {
         const values = read();
-        if (query.includes("INSERT INTO audit_logs")) {
-          this.audits.push(String(values[3]));
+        if (query.includes("INSERT INTO admin_site_page_audit")) {
+          const isCreate = query.includes("'create', 'create'");
+          this.audits.set(String(values[0]), {
+            entity_key: String(isCreate ? values[2] : values[5]),
+            operation: isCreate ? "create" : String(values[2]),
+            payload_sha256: String(isCreate ? values[3] : values[4]),
+          });
+          return { meta: { changes: 1 } };
+        }
+        if (query.includes("INSERT INTO site_pages")) {
+          this.row.page_key = String(values[0]);
+          this.row.route_path = String(values[1]);
+          this.row.title = String(values[2]);
+          this.row.updated_by = String(values[3]);
+          this.row.last_request_id = String(values[4]);
           return { meta: { changes: 1 } };
         }
         if (query.includes("published_blocks_json = draft_blocks_json")) {
@@ -80,6 +108,7 @@ class FakePageDatabase {
           this.row.published_seo_title = this.row.draft_seo_title;
           this.row.published_seo_description = this.row.draft_seo_description;
           this.row.published_by = String(values[0]);
+          this.row.last_request_id = String(values[2]);
           this.row.version += 1;
           return { meta: { changes: 1 } };
         }
@@ -90,6 +119,7 @@ class FakePageDatabase {
           this.row.draft_seo_title = String(values[2]);
           this.row.draft_seo_description = String(values[3]);
           this.row.updated_by = String(values[4]);
+          this.row.last_request_id = String(values[5]);
           this.row.version += 1;
           return { meta: { changes: 1 } };
         }
@@ -107,6 +137,7 @@ test("page draft and publish are separate optimistic operations", async () => {
     draftEnabled: true,
     expectedVersion: 1,
     pageKey: "home",
+    requestId: "11111111-1111-4111-8111-111111111111",
     seoDescription: "Mô tả mới",
     seoTitle: "Trang chủ mới",
   });
@@ -118,6 +149,7 @@ test("page draft and publish are separate optimistic operations", async () => {
     actorSubject: "owner",
     expectedVersion: 2,
     pageKey: "home",
+    requestId: "22222222-2222-4222-8222-222222222222",
   });
   assert.equal(published.dirty, false);
   assert.equal(published.publishedEnabled, true);
@@ -133,6 +165,7 @@ test("page updates reject stale versions and unsafe block payloads", async () =>
       draftEnabled: true,
       expectedVersion: 1,
       pageKey: "home",
+      requestId: "33333333-3333-4333-8333-333333333333",
       seoDescription: "",
       seoTitle: "",
     }),
@@ -144,6 +177,7 @@ test("page updates reject stale versions and unsafe block payloads", async () =>
     draftEnabled: false,
     expectedVersion: 1,
     pageKey: "home",
+    requestId: "44444444-4444-4444-8444-444444444444",
     seoDescription: "",
     seoTitle: "",
   });
@@ -154,10 +188,71 @@ test("page updates reject stale versions and unsafe block payloads", async () =>
       draftEnabled: false,
       expectedVersion: 1,
       pageKey: "home",
+      requestId: "55555555-5555-4555-8555-555555555555",
       seoDescription: "",
       seoTitle: "",
     }),
     SitePageConflictError,
+  );
+});
+
+test("page draft and publish retries replay once and reject request-id reuse with a different payload", async () => {
+  const database = new FakePageDatabase();
+  const draftRequestId = "88888888-8888-4888-8888-888888888888";
+  const draftInput = {
+    actorSubject: "owner",
+    blocks: [{ type: "rich_text" as const, title: "Giới thiệu", body: "Nội dung đã duyệt." }],
+    draftEnabled: true,
+    expectedVersion: 1,
+    pageKey: "home",
+    requestId: draftRequestId,
+    seoDescription: "Mô tả mới",
+    seoTitle: "Trang chủ mới",
+  };
+  const firstDraft = await updateAdminSitePage(database, draftInput);
+  const replayedDraft = await updateAdminSitePage(database, { ...draftInput, actorSubject: "retrying-owner" });
+  assert.equal(replayedDraft.version, firstDraft.version);
+  assert.equal(database.audits.size, 1);
+
+  await assert.rejects(
+    updateAdminSitePage(database, { ...draftInput, seoTitle: "Payload khác" }),
+    SitePageIdempotencyConflictError,
+  );
+
+  const publishRequestId = "99999999-9999-4999-8999-999999999999";
+  const firstPublish = await publishAdminSitePage(database, {
+    actorSubject: "owner",
+    expectedVersion: firstDraft.version,
+    pageKey: "home",
+    requestId: publishRequestId,
+  });
+  const replayedPublish = await publishAdminSitePage(database, {
+    actorSubject: "retrying-owner",
+    expectedVersion: firstDraft.version,
+    pageKey: "home",
+    requestId: publishRequestId,
+  });
+  assert.equal(replayedPublish.version, firstPublish.version);
+  assert.equal(database.audits.size, 2);
+});
+
+test("page creation is request-idempotent and records a create audit", async () => {
+  const database = new FakePageDatabase();
+  const input = {
+    actorSubject: "owner",
+    pageKey: "about-new",
+    requestId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+    routePath: "/about-new",
+    title: "Giới thiệu mới",
+  };
+  const first = await createAdminSitePage(database, input);
+  const replay = await createAdminSitePage(database, { ...input, actorSubject: "retrying-owner" });
+  assert.equal(first.pageKey, "about-new");
+  assert.equal(replay.pageKey, first.pageKey);
+  assert.equal(database.audits.size, 1);
+  await assert.rejects(
+    createAdminSitePage(database, { ...input, title: "Tên khác" }),
+    SitePageIdempotencyConflictError,
   );
 });
 
@@ -175,6 +270,7 @@ test("page blocks reject unknown fields instead of dropping arbitrary payload", 
       draftEnabled: true,
       expectedVersion: 1,
       pageKey: "home",
+      requestId: crypto.randomUUID(),
       seoDescription: "",
       seoTitle: "",
     }),

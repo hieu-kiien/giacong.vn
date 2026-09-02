@@ -2,10 +2,11 @@ import { adminFailure, adminSuccess } from "@/lib/admin-api.ts";
 import { adminErrorFrom } from "@/lib/admin-error-mapping.ts";
 import { requireAdmin } from "@/lib/admin-guard";
 import { canManage, canManagePages } from "@/lib/admin-permissions.ts";
-import { readBoundedAdminJson } from "@/lib/admin-request";
+import { hasOnlyKeys, isAdminRequestId, readBoundedAdminJson } from "@/lib/admin-request";
 import {
   getAdminSitePage,
   SitePageConflictError,
+  SitePageIdempotencyConflictError,
   SitePageNotFoundError,
   SitePageValidationError,
   updateAdminSitePage,
@@ -42,16 +43,21 @@ export async function PATCH(request: Request, context: RouteContext): Promise<Re
   const parsedRequest = await readBoundedAdminJson(request);
   if (!parsedRequest.ok) return adminFailure(parsedRequest.requestId, parsedRequest.status, parsedRequest.code, parsedRequest.message);
   const body = parsedRequest.body;
+  const requestId = isRecord(body) && typeof body.requestId === "string"
+    ? body.requestId.trim().toLowerCase()
+    : parsedRequest.requestId;
   if (
     !isRecord(body)
+    || !isAdminRequestId(body.requestId)
     || !Array.isArray(body.blocks)
     || typeof body.draftEnabled !== "boolean"
     || typeof body.expectedVersion !== "number"
     || !Number.isInteger(body.expectedVersion)
     || typeof body.seoTitle !== "string"
     || typeof body.seoDescription !== "string"
+    || !hasOnlyKeys(body, ["requestId", "blocks", "draftEnabled", "expectedVersion", "seoTitle", "seoDescription"])
   ) {
-    return adminFailure(parsedRequest.requestId, 422, "VALIDATION_ERROR", "Cần blocks, draftEnabled, expectedVersion và SEO hợp lệ.");
+    return adminFailure(requestId, 400, "INVALID_REQUEST", "Cần requestId, blocks, draftEnabled, expectedVersion và SEO hợp lệ.");
   }
   try {
     const page = await updateAdminSitePage(guard.database, {
@@ -60,20 +66,22 @@ export async function PATCH(request: Request, context: RouteContext): Promise<Re
       draftEnabled: body.draftEnabled,
       expectedVersion: body.expectedVersion,
       pageKey: (await context.params).pageKey,
+      requestId,
       seoDescription: body.seoDescription,
       seoTitle: body.seoTitle,
     });
-    return adminSuccess(parsedRequest.requestId, { page });
+    return adminSuccess(requestId, { page });
   } catch (error) {
-    return pageFailure(error, "Không thể lưu page.");
+    return pageFailure(error, "Không thể lưu page.", requestId);
   }
 }
 
-function pageFailure(error: unknown, fallbackMessage: string): Response {
-  if (error instanceof SitePageConflictError) return adminFailure(crypto.randomUUID(), 409, "STALE_WRITE", error.message);
-  if (error instanceof SitePageNotFoundError) return adminFailure(crypto.randomUUID(), 404, "NOT_FOUND", error.message);
-  if (error instanceof SitePageValidationError) return adminFailure(crypto.randomUUID(), 422, "VALIDATION_ERROR", error.message);
-  return adminErrorFrom(crypto.randomUUID(), error, fallbackMessage);
+function pageFailure(error: unknown, fallbackMessage: string, requestId = crypto.randomUUID()): Response {
+  if (error instanceof SitePageConflictError) return adminFailure(requestId, 409, "STALE_WRITE", error.message);
+  if (error instanceof SitePageIdempotencyConflictError) return adminFailure(requestId, 409, "IDEMPOTENCY_CONFLICT", error.message);
+  if (error instanceof SitePageNotFoundError) return adminFailure(requestId, 404, "NOT_FOUND", error.message);
+  if (error instanceof SitePageValidationError) return adminFailure(requestId, 422, "VALIDATION_ERROR", error.message);
+  return adminErrorFrom(requestId, error, fallbackMessage);
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

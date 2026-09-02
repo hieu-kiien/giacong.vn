@@ -2,11 +2,13 @@ import { adminFailure, adminSuccess } from "@/lib/admin-api.ts";
 import { adminErrorFrom } from "@/lib/admin-error-mapping.ts";
 import { requireAdmin } from "@/lib/admin-guard";
 import { canPublishPages } from "@/lib/admin-permissions.ts";
-import { readBoundedAdminJson } from "@/lib/admin-request";
+import { hasOnlyKeys, isAdminRequestId, readBoundedAdminJson } from "@/lib/admin-request";
 import {
   publishAdminSitePage,
   SitePageConflictError,
+  SitePageIdempotencyConflictError,
   SitePageNotFoundError,
+  SitePageValidationError,
 } from "@/lib/site-pages.ts";
 
 export const dynamic = "force-dynamic";
@@ -24,20 +26,32 @@ export async function POST(request: Request, context: RouteContext): Promise<Res
   const parsedRequest = await readBoundedAdminJson(request);
   if (!parsedRequest.ok) return adminFailure(parsedRequest.requestId, parsedRequest.status, parsedRequest.code, parsedRequest.message);
   const body = parsedRequest.body;
-  if (!isRecord(body) || typeof body.expectedVersion !== "number" || !Number.isInteger(body.expectedVersion)) {
-    return adminFailure(parsedRequest.requestId, 422, "VALIDATION_ERROR", "Cần expectedVersion hợp lệ.");
+  const requestId = isRecord(body) && typeof body.requestId === "string"
+    ? body.requestId.trim().toLowerCase()
+    : parsedRequest.requestId;
+  if (
+    !isRecord(body)
+    || !isAdminRequestId(body.requestId)
+    || typeof body.expectedVersion !== "number"
+    || !Number.isInteger(body.expectedVersion)
+    || !hasOnlyKeys(body, ["requestId", "expectedVersion"])
+  ) {
+    return adminFailure(requestId, 400, "INVALID_REQUEST", "Cần requestId và expectedVersion hợp lệ.");
   }
   try {
     const page = await publishAdminSitePage(guard.database, {
       actorSubject: guard.actorSubject,
       expectedVersion: body.expectedVersion,
       pageKey: (await context.params).pageKey,
+      requestId,
     });
-    return adminSuccess(parsedRequest.requestId, { page });
+    return adminSuccess(requestId, { page });
   } catch (error) {
-    if (error instanceof SitePageConflictError) return adminFailure(parsedRequest.requestId, 409, "STALE_WRITE", error.message);
-    if (error instanceof SitePageNotFoundError) return adminFailure(parsedRequest.requestId, 404, "NOT_FOUND", error.message);
-    return adminErrorFrom(parsedRequest.requestId, error, "Không thể phát hành page.");
+    if (error instanceof SitePageConflictError) return adminFailure(requestId, 409, "STALE_WRITE", error.message);
+    if (error instanceof SitePageIdempotencyConflictError) return adminFailure(requestId, 409, "IDEMPOTENCY_CONFLICT", error.message);
+    if (error instanceof SitePageNotFoundError) return adminFailure(requestId, 404, "NOT_FOUND", error.message);
+    if (error instanceof SitePageValidationError) return adminFailure(requestId, 422, "VALIDATION_ERROR", error.message);
+    return adminErrorFrom(requestId, error, "Không thể phát hành page.");
   }
 }
 

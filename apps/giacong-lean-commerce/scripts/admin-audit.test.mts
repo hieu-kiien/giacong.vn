@@ -23,6 +23,7 @@ class FakeAuditDatabase implements D1DatabaseLike {
     "admin_news_bulk_audit",
     "admin_site_setting_audit",
     "admin_site_setting_bulk_audit",
+    "admin_site_page_audit",
     "admin_navigation_audit",
     "admin_navigation_bulk_audit",
     "admin_navigation_create_audit",
@@ -44,17 +45,18 @@ class FakeAuditStatement implements D1PreparedStatementLike {
   }
 
   private assertD1CompoundSelectLimit(): void {
-    const unionCountsByDepth = new Map<number, number>();
-    let depth = 0;
+    const unionCountsByQuery = new Map<number, number>();
+    const openings: number[] = [];
     for (let index = 0; index < this.query.length; index += 1) {
       const character = this.query[index];
-      if (character === "(") depth += 1;
-      if (character === ")") depth -= 1;
+      if (character === "(") openings.push(index);
+      if (character === ")") openings.pop();
       if (this.query.slice(index, index + 9) === "UNION ALL") {
-        unionCountsByDepth.set(depth, (unionCountsByDepth.get(depth) ?? 0) + 1);
+        const queryStart = openings.at(-1) ?? -1;
+        unionCountsByQuery.set(queryStart, (unionCountsByQuery.get(queryStart) ?? 0) + 1);
       }
     }
-    if ([...unionCountsByDepth.values()].some((unionCount) => unionCount + 1 > 5)) {
+    if ([...unionCountsByQuery.values()].some((unionCount) => unionCount + 1 > 5)) {
       throw new Error("too many terms in compound SELECT");
     }
   }
@@ -70,7 +72,7 @@ class FakeAuditStatement implements D1PreparedStatementLike {
       const tableName = String(this.values[0]);
       return (this.database.tables.has(tableName) ? { name: tableName } : null) as T | null;
     }
-    if (this.query.includes("COUNT(*)")) return { count: this.query.includes("admin_navigation_create_audit") ? 5 : this.query.includes("admin_navigation_audit") || this.query.includes("admin_navigation_bulk_audit") ? 4 : 2 } as T;
+    if (this.query.includes("COUNT(*)")) return { count: this.query.includes("admin_site_page_audit") ? 6 : this.query.includes("admin_navigation_create_audit") ? 5 : this.query.includes("admin_navigation_audit") || this.query.includes("admin_navigation_bulk_audit") ? 4 : 2 } as T;
     return null;
   }
 
@@ -79,6 +81,21 @@ class FakeAuditStatement implements D1PreparedStatementLike {
     if (!this.query.includes("FROM (")) return { results: [] };
     return {
       results: [
+        ...(this.query.includes("admin_site_page_audit") ? [
+          {
+            action: "update",
+            actor_subject: "owner@example.com",
+            created_at: "2026-08-29T17:00:00.000Z",
+            entity_key: "home",
+            entity_type: "page",
+            operation: "publish",
+            previous_revision: 2,
+            request_id: "66666666-6666-4666-8666-666666666666",
+            resulting_revision: 3,
+            source: "admin_site_page_audit",
+            source_id: "14",
+          },
+        ] : []),
         ...(this.query.includes("admin_navigation_create_audit") ? [
           {
             action: "create",
@@ -183,9 +200,21 @@ test("audit reader merges all available tables without exceeding D1 compound SEL
     search: "",
   });
 
-  assert.equal(result.total, 5);
-  assert.deepEqual(result.pagination, { currentPage: 1, lastPage: 1, pageSize: 20, total: 5 });
+  assert.equal(result.total, 6);
+  assert.deepEqual(result.pagination, { currentPage: 1, lastPage: 1, pageSize: 20, total: 6 });
   assert.deepEqual(result.entries, [
+    {
+      action: "update",
+      actorSubject: "owner@example.com",
+      createdAt: "2026-08-29T17:00:00.000Z",
+      entityKey: "home",
+      entityType: "page",
+      operation: "publish",
+      previousRevision: 2,
+      requestId: "66666666-6666-4666-8666-666666666666",
+      resultingRevision: 3,
+      source: "admin_site_page_audit",
+    },
     {
       action: "create",
       actorSubject: "owner@example.com",
@@ -254,7 +283,7 @@ test("audit reader skips an absent specialized table without failing", async () 
   const database = new FakeAuditDatabase();
   database.tables.delete("admin_news_audit");
   const result = await listAdminAudit(database, { page: 1, pageSize: 20, search: "" });
-  assert.equal(result.entries.length, 5);
+  assert.equal(result.entries.length, 6);
 });
 
 test("audit API is owner-only, read-only and bounded", async () => {

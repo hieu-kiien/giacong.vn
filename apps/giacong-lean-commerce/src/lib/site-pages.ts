@@ -1,6 +1,7 @@
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 
-import type { D1DatabaseLike } from "./admin-data";
+import type { D1DatabaseLike, D1PreparedStatementLike } from "./admin-data";
+import { isAdminRequestId } from "./admin-request.ts";
 import {
   PageBuilderValidationError,
   parsePageBlocks,
@@ -59,6 +60,20 @@ export class SitePageNotFoundError extends Error {
   }
 }
 
+export class SitePageStorageError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "SitePageStorageError";
+  }
+}
+
+export class SitePageIdempotencyConflictError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "SitePageIdempotencyConflictError";
+  }
+}
+
 export async function listAdminSitePages(database: D1DatabaseLike): Promise<AdminSitePage[]> {
   const rows = await database.prepare(`
     SELECT page_key, route_path, title,
@@ -66,7 +81,7 @@ export async function listAdminSitePages(database: D1DatabaseLike): Promise<Admi
       draft_blocks_json, published_blocks_json,
       draft_seo_title, published_seo_title,
       draft_seo_description, published_seo_description,
-      version, updated_by, updated_at, published_by, published_at
+      version, updated_by, updated_at, published_by, published_at, last_request_id
     FROM site_pages
     ORDER BY title COLLATE NOCASE ASC, page_key ASC
     LIMIT 100
@@ -85,7 +100,7 @@ export async function getAdminSitePage(
       draft_blocks_json, published_blocks_json,
       draft_seo_title, published_seo_title,
       draft_seo_description, published_seo_description,
-      version, updated_by, updated_at, published_by, published_at
+      version, updated_by, updated_at, published_by, published_at, last_request_id
     FROM site_pages
     WHERE page_key = ?
     LIMIT 1
@@ -95,26 +110,48 @@ export async function getAdminSitePage(
 
 export async function createAdminSitePage(
   database: D1DatabaseLike,
-  input: { actorSubject: string; pageKey: string; routePath: string; title: string },
+  input: { actorSubject: string; pageKey: string; requestId: string; routePath: string; title: string },
 ): Promise<AdminSitePage> {
   const pageKey = normalizePageKey(input.pageKey);
   const routePath = normalizeRoutePath(input.routePath);
   const title = normalizeText(input.title, "title", 240, true);
-
-  await database.prepare(`
+  const requestId = normalizePageRequestId(input.requestId);
+  const payloadSha256 = await fingerprintPageMutation({ operation: "create", pageKey, routePath, title });
+  const existingMutation = await findPageMutation(database, requestId);
+  if (existingMutation) {
+    assertMatchingPageMutation(existingMutation, "create", payloadSha256);
+    return readPageMutationResult(database, existingMutation);
+  }
+  const idempotentInsert = database.prepare(`
     INSERT INTO site_pages (
       page_key, route_path, title,
       draft_enabled, published_enabled,
       draft_blocks_json, published_blocks_json,
       draft_seo_title, published_seo_title,
       draft_seo_description, published_seo_description,
-      updated_by
-    ) VALUES (?, ?, ?, 0, 0, '[]', '[]', '', '', '', '', ?)
-  `).bind(pageKey, routePath, title, input.actorSubject).run();
-  await writePageAudit(database, input.actorSubject, "site_page.created", pageKey, { routePath, title });
-  const page = await getAdminSitePage(database, pageKey);
-  if (!page) throw new SitePageNotFoundError("Không thể đọc page vừa tạo.");
-  return page;
+      updated_by, last_request_id
+    ) VALUES (?, ?, ?, 0, 0, '[]', '[]', '', '', '', '', ?, ?)
+  `).bind(pageKey, routePath, title, input.actorSubject, requestId);
+  const audit = database.prepare(`
+    INSERT INTO admin_site_page_audit (
+      request_id, actor_subject, action, operation, entity_type, entity_key,
+      previous_revision, resulting_revision, payload_sha256
+    ) VALUES (?, ?, 'create', 'create', 'page', ?, NULL, 1, ?)
+  `).bind(requestId, input.actorSubject, pageKey, payloadSha256);
+  try {
+    const changed = await applyAtomicPageMutation(database, idempotentInsert, audit);
+    if (!changed) throw new SitePageStorageError("Không ghi được page mới.");
+  } catch (error) {
+    const racedMutation = await findPageMutation(database, requestId);
+    if (racedMutation) {
+      assertMatchingPageMutation(racedMutation, "create", payloadSha256);
+      return readPageMutationResult(database, racedMutation);
+    }
+    throw error;
+  }
+  const mutation = await findPageMutation(database, requestId);
+  if (!mutation) throw new SitePageStorageError("Không đọc được audit page vừa tạo.");
+  return readPageMutationResult(database, mutation);
 }
 
 export async function updateAdminSitePage(
@@ -125,6 +162,7 @@ export async function updateAdminSitePage(
     draftEnabled: boolean;
     expectedVersion: number;
     pageKey: string;
+    requestId: string;
     seoDescription: unknown;
     seoTitle: unknown;
   },
@@ -144,6 +182,21 @@ export async function updateAdminSitePage(
   if (!Number.isInteger(input.expectedVersion) || input.expectedVersion < 1) {
     throw new SitePageValidationError("expectedVersion không hợp lệ.");
   }
+  const requestId = normalizePageRequestId(input.requestId);
+  const payloadSha256 = await fingerprintPageMutation({
+    blocks,
+    draftEnabled: input.draftEnabled,
+    expectedVersion: input.expectedVersion,
+    operation: "draft",
+    pageKey,
+    seoDescription,
+    seoTitle,
+  });
+  const existingMutation = await findPageMutation(database, requestId);
+  if (existingMutation) {
+    assertMatchingPageMutation(existingMutation, "draft", payloadSha256);
+    return readPageMutationResult(database, existingMutation);
+  }
 
   const current = await getAdminSitePage(database, pageKey);
   if (!current) throw new SitePageNotFoundError("Không tìm thấy page cần cập nhật.");
@@ -151,11 +204,12 @@ export async function updateAdminSitePage(
     throw new SitePageConflictError("Page đã thay đổi ở phiên khác. Hãy tải lại trước khi lưu.");
   }
 
-  const result = await database.prepare(`
+  const update = database.prepare(`
     UPDATE site_pages
     SET draft_blocks_json = ?, draft_enabled = ?,
       draft_seo_title = ?, draft_seo_description = ?,
-      version = version + 1, updated_by = ?, updated_at = CURRENT_TIMESTAMP
+      version = version + 1, updated_by = ?, updated_at = CURRENT_TIMESTAMP,
+      last_request_id = ?
     WHERE page_key = ? AND version = ?
   `).bind(
     serializePageBlocks(blocks),
@@ -163,15 +217,29 @@ export async function updateAdminSitePage(
     seoTitle,
     seoDescription,
     input.actorSubject,
+    requestId,
     pageKey,
     input.expectedVersion,
-  ).run();
-  if (!hasChanged(result)) throw new SitePageConflictError("Page đã thay đổi ở phiên khác. Hãy tải lại trước khi lưu.");
-  await writePageAudit(database, input.actorSubject, "site_page.updated", pageKey, {
-    blockCount: blocks.length,
-    draftEnabled: input.draftEnabled,
-    expectedVersion: input.expectedVersion,
+  );
+  const audit = buildPageAuditStatement(database, {
+    actorSubject: input.actorSubject,
+    entityId: pageKey,
+    expectedRevision: input.expectedVersion,
+    operation: "draft",
+    payloadSha256,
+    requestId,
   });
+  try {
+    const changed = await applyAtomicPageMutation(database, update, audit);
+    if (!changed) throw new SitePageConflictError("Page đã thay đổi ở phiên khác. Hãy tải lại trước khi lưu.");
+  } catch (error) {
+    const racedMutation = await findPageMutation(database, requestId);
+    if (racedMutation) {
+      assertMatchingPageMutation(racedMutation, "draft", payloadSha256);
+      return readPageMutationResult(database, racedMutation);
+    }
+    throw error;
+  }
   const updated = await getAdminSitePage(database, pageKey);
   if (!updated) throw new SitePageNotFoundError("Không thể đọc page vừa cập nhật.");
   return updated;
@@ -179,16 +247,30 @@ export async function updateAdminSitePage(
 
 export async function publishAdminSitePage(
   database: D1DatabaseLike,
-  input: { actorSubject: string; expectedVersion: number; pageKey: string },
+  input: { actorSubject: string; expectedVersion: number; pageKey: string; requestId: string },
 ): Promise<AdminSitePage> {
   const pageKey = normalizePageKey(input.pageKey);
+  if (!Number.isInteger(input.expectedVersion) || input.expectedVersion < 1) {
+    throw new SitePageValidationError("expectedVersion không hợp lệ.");
+  }
+  const requestId = normalizePageRequestId(input.requestId);
+  const payloadSha256 = await fingerprintPageMutation({
+    expectedVersion: input.expectedVersion,
+    operation: "publish",
+    pageKey,
+  });
+  const existingMutation = await findPageMutation(database, requestId);
+  if (existingMutation) {
+    assertMatchingPageMutation(existingMutation, "publish", payloadSha256);
+    return readPageMutationResult(database, existingMutation);
+  }
   const current = await getAdminSitePage(database, pageKey);
   if (!current) throw new SitePageNotFoundError("Không tìm thấy page cần phát hành.");
   if (current.version !== input.expectedVersion) {
     throw new SitePageConflictError("Page đã thay đổi ở phiên khác. Hãy tải lại trước khi phát hành.");
   }
 
-  const result = await database.prepare(`
+  const update = database.prepare(`
     UPDATE site_pages
     SET published_blocks_json = draft_blocks_json,
       published_enabled = draft_enabled,
@@ -196,18 +278,35 @@ export async function publishAdminSitePage(
       published_seo_description = draft_seo_description,
       version = version + 1,
       published_by = ?, published_at = CURRENT_TIMESTAMP,
-      updated_by = ?, updated_at = CURRENT_TIMESTAMP
+      updated_by = ?, updated_at = CURRENT_TIMESTAMP,
+      last_request_id = ?
     WHERE page_key = ? AND version = ?
   `).bind(
     input.actorSubject,
     input.actorSubject,
+    requestId,
     pageKey,
     input.expectedVersion,
-  ).run();
-  if (!hasChanged(result)) throw new SitePageConflictError("Page đã thay đổi ở phiên khác. Hãy tải lại trước khi phát hành.");
-  await writePageAudit(database, input.actorSubject, "site_page.published", pageKey, {
-    previousPublishedBlocks: current.publishedBlocks.length,
+  );
+  const audit = buildPageAuditStatement(database, {
+    actorSubject: input.actorSubject,
+    entityId: pageKey,
+    expectedRevision: input.expectedVersion,
+    operation: "publish",
+    payloadSha256,
+    requestId,
   });
+  try {
+    const changed = await applyAtomicPageMutation(database, update, audit);
+    if (!changed) throw new SitePageConflictError("Page đã thay đổi ở phiên khác. Hãy tải lại trước khi phát hành.");
+  } catch (error) {
+    const racedMutation = await findPageMutation(database, requestId);
+    if (racedMutation) {
+      assertMatchingPageMutation(racedMutation, "publish", payloadSha256);
+      return readPageMutationResult(database, racedMutation);
+    }
+    throw error;
+  }
   const published = await getAdminSitePage(database, pageKey);
   if (!published) throw new SitePageNotFoundError("Không thể đọc page vừa phát hành.");
   return published;
@@ -290,6 +389,7 @@ interface SitePageRow {
   updated_at: string;
   published_by: string | null;
   published_at: string | null;
+  last_request_id: string | null;
 }
 
 interface PublishedSitePageRow {
@@ -336,17 +436,111 @@ async function getSiteDatabase(): Promise<D1DatabaseLike> {
   return database;
 }
 
-async function writePageAudit(
+interface D1DatabaseWithBatch extends D1DatabaseLike {
+  batch(statements: D1PreparedStatementLike[]): Promise<unknown[]>;
+}
+
+type SitePageMutationOperation = "create" | "draft" | "publish";
+
+interface SitePageMutationRow {
+  entity_key: string;
+  operation: SitePageMutationOperation;
+  payload_sha256: string;
+}
+
+interface SitePageAuditStatementInput {
+  actorSubject: string;
+  entityId: string;
+  expectedRevision: number;
+  operation: Exclude<SitePageMutationOperation, "create">;
+  payloadSha256: string;
+  requestId: string;
+}
+
+async function applyAtomicPageMutation(
   database: D1DatabaseLike,
-  actorSubject: string,
-  action: string,
-  entityId: string,
-  metadata: unknown,
-): Promise<void> {
-  await database.prepare(`
-    INSERT INTO audit_logs (id, actor_subject, action, entity_type, entity_id, metadata_json)
-    VALUES (?, ?, ?, 'site_page', ?, ?)
-  `).bind(crypto.randomUUID(), actorSubject, action, entityId, JSON.stringify(metadata)).run();
+  mutation: D1PreparedStatementLike,
+  audit: D1PreparedStatementLike,
+): Promise<boolean> {
+  const databaseWithBatch = database as D1DatabaseWithBatch;
+  if (typeof databaseWithBatch.batch !== "function") {
+    throw new SitePageStorageError("D1 atomic batch chưa sẵn sàng cho thay đổi page.");
+  }
+  const results = await databaseWithBatch.batch([mutation, audit]);
+  if (results.length !== 2) throw new SitePageStorageError("D1 page mutation trả về kết quả không hợp lệ.");
+  const mutationChanged = hasChanged(results[0]);
+  const auditChanged = hasChanged(results[1]);
+  if (mutationChanged !== auditChanged) {
+    throw new SitePageStorageError("Thay đổi page chưa ghép được với audit.");
+  }
+  return mutationChanged;
+}
+
+function buildPageAuditStatement(
+  database: D1DatabaseLike,
+  input: SitePageAuditStatementInput,
+): D1PreparedStatementLike {
+  return database.prepare(`
+    INSERT INTO admin_site_page_audit (
+      request_id, actor_subject, action, operation, entity_type, entity_key,
+      previous_revision, resulting_revision, payload_sha256
+    )
+    SELECT ?, ?, 'update', ?, 'page', page_key, ?, version, ?
+    FROM site_pages
+    WHERE page_key = ? AND version = ? AND last_request_id = ?
+  `).bind(
+    input.requestId,
+    input.actorSubject,
+    input.operation,
+    input.expectedRevision,
+    input.payloadSha256,
+    input.entityId,
+    input.expectedRevision + 1,
+    input.requestId,
+  );
+}
+
+async function findPageMutation(
+  database: D1DatabaseLike,
+  requestId: string,
+): Promise<SitePageMutationRow | null> {
+  return database.prepare(`
+    SELECT entity_key, operation, payload_sha256
+    FROM admin_site_page_audit
+    WHERE request_id = ?
+    LIMIT 1
+  `).bind(requestId).first<SitePageMutationRow>();
+}
+
+function assertMatchingPageMutation(
+  mutation: SitePageMutationRow,
+  operation: SitePageMutationOperation,
+  payloadSha256: string,
+): void {
+  if (mutation.operation !== operation || mutation.payload_sha256 !== payloadSha256) {
+    throw new SitePageIdempotencyConflictError("requestId đã được dùng cho payload page khác.");
+  }
+}
+
+async function readPageMutationResult(
+  database: D1DatabaseLike,
+  mutation: SitePageMutationRow,
+): Promise<AdminSitePage> {
+  const page = await getAdminSitePage(database, mutation.entity_key);
+  if (!page) throw new SitePageStorageError("Không đọc được page từ audit request.");
+  return page;
+}
+
+async function fingerprintPageMutation(payload: Record<string, unknown>): Promise<string> {
+  const bytes = new TextEncoder().encode(JSON.stringify(payload));
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+function normalizePageRequestId(value: string): string {
+  const requestId = value.trim().toLowerCase();
+  if (!isAdminRequestId(requestId)) throw new SitePageValidationError("requestId phải là UUID hợp lệ.");
+  return requestId;
 }
 
 function hasChanged(result: unknown): boolean {

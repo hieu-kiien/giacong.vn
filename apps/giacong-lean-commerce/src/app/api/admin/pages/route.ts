@@ -2,8 +2,13 @@ import { adminFailure, adminSuccess } from "@/lib/admin-api.ts";
 import { adminErrorFrom } from "@/lib/admin-error-mapping.ts";
 import { requireAdmin } from "@/lib/admin-guard";
 import { canManage, canManagePages, canPublishPages } from "@/lib/admin-permissions.ts";
-import { readBoundedAdminJson } from "@/lib/admin-request";
-import { createAdminSitePage, listAdminSitePages, SitePageValidationError } from "@/lib/site-pages.ts";
+import { hasOnlyKeys, isAdminRequestId, readBoundedAdminJson } from "@/lib/admin-request";
+import {
+  createAdminSitePage,
+  listAdminSitePages,
+  SitePageIdempotencyConflictError,
+  SitePageValidationError,
+} from "@/lib/site-pages.ts";
 
 export const dynamic = "force-dynamic";
 
@@ -35,22 +40,34 @@ export async function POST(request: Request): Promise<Response> {
   const parsedRequest = await readBoundedAdminJson(request);
   if (!parsedRequest.ok) return adminFailure(parsedRequest.requestId, parsedRequest.status, parsedRequest.code, parsedRequest.message);
   const body = parsedRequest.body;
-  if (!isRecord(body) || typeof body.pageKey !== "string" || typeof body.routePath !== "string" || typeof body.title !== "string") {
-    return adminFailure(parsedRequest.requestId, 422, "VALIDATION_ERROR", "Cần pageKey, routePath và title.");
+  const requestId = isRecord(body) && typeof body.requestId === "string"
+    ? body.requestId.trim().toLowerCase()
+    : parsedRequest.requestId;
+  if (
+    !isRecord(body)
+    || !isAdminRequestId(body.requestId)
+    || typeof body.pageKey !== "string"
+    || typeof body.routePath !== "string"
+    || typeof body.title !== "string"
+    || !hasOnlyKeys(body, ["requestId", "pageKey", "routePath", "title"])
+  ) {
+    return adminFailure(requestId, 400, "INVALID_REQUEST", "Cần requestId, pageKey, routePath và title hợp lệ.");
   }
   try {
     const page = await createAdminSitePage(guard.database, {
       actorSubject: guard.actorSubject,
       pageKey: body.pageKey,
+      requestId,
       routePath: body.routePath,
       title: body.title,
     });
-    return adminSuccess(parsedRequest.requestId, { page }, 201);
+    return adminSuccess(requestId, { page }, 201);
   } catch (error) {
+    if (error instanceof SitePageIdempotencyConflictError) return adminFailure(requestId, 409, "IDEMPOTENCY_CONFLICT", error.message);
     if (error instanceof SitePageValidationError) {
-      return adminFailure(parsedRequest.requestId, 422, "VALIDATION_ERROR", error.message);
+      return adminFailure(requestId, 422, "VALIDATION_ERROR", error.message);
     }
-    return adminErrorFrom(parsedRequest.requestId, error, "Không thể tạo page.", {
+    return adminErrorFrom(requestId, error, "Không thể tạo page.", {
       fieldErrors: { pageKey: "pageKey hoặc routePath đã tồn tại." },
       message: "pageKey hoặc routePath đã tồn tại.",
     });

@@ -14,7 +14,9 @@ export async function GET(request: Request): Promise<Response> {
   }
 
   try {
-    const data = await getAdminOverview(guard.database);
+    const data = await getAdminOverview(guard.database, {
+      includeRecentLeads: canManage(guard.member.role, "leads.read"),
+    });
     return adminSuccess(crypto.randomUUID(), {
       ...data,
       member: guard.member,

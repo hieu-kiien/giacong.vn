@@ -10,6 +10,7 @@ import { AdminEmptyState, AdminErrorState, AdminLoadingTable, AdminPageHeading, 
 import { useAdminSession } from "@/components/admin/AdminShell";
 import { useAdminToast } from "@/components/admin/AdminToast";
 import { AdminClientError, fetchAdmin, formatAdminDate, mutateAdmin } from "@/lib/admin-client";
+import { canManageNews } from "@/lib/admin-permissions.ts";
 
 interface AdminNewsListItem {
   excerpt: string;
@@ -62,7 +63,7 @@ export default function AdminNewsPage() {
   const session = useAdminSession();
   const { showToast } = useAdminToast();
   const searchParams = useSearchParams();
-  const canManage = session.role === "owner" || session.role === "content_manager";
+  const canManage = canManageNews(session.role);
 
   const [posts, setPosts] = useState<AdminNewsListItem[]>([]);
   const [page, setPage] = useState(1);
@@ -83,6 +84,10 @@ export default function AdminNewsPage() {
   const newsBatchInFlight = useRef(false);
 
   const openEditById = useCallback(async (id: number) => {
+    if (!canManage) {
+      showToast("error", "Vai trò hiện tại chỉ được xem bài viết.");
+      return;
+    }
     setFieldErrors({});
     setFormError(null);
     try {
@@ -99,18 +104,18 @@ export default function AdminNewsPage() {
     } catch (reason: unknown) {
       showToast("error", reason instanceof AdminClientError ? reason.message : "Không thể tải bài viết được yêu cầu.");
     }
-  }, [showToast]);
+  }, [canManage, showToast]);
 
   const editQuery = searchParams.get("edit");
   useEffect(() => {
-    if (!editQuery) return;
+    if (!editQuery || !canManage) return;
     const id = Number(editQuery);
     if (!Number.isSafeInteger(id) || id <= 0) {
       showToast("error", "Không thể tải bài viết được yêu cầu.");
       return;
     }
     void openEditById(id);
-  }, [editQuery, openEditById, showToast]);
+  }, [canManage, editQuery, openEditById, showToast]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -137,7 +142,7 @@ export default function AdminNewsPage() {
 
   async function submitPost(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!editor) return;
+    if (!editor || !canManage) return;
     setSaving(true);
     setFieldErrors({});
     setFormError(null);

@@ -4,7 +4,7 @@ import test from "node:test";
 import type { D1DatabaseLike, D1PreparedStatementLike } from "../src/lib/admin-data.ts";
 import { findAdminMember } from "../src/lib/admin-data.ts";
 import { parseAdminMemberPayload } from "../src/lib/admin-members-input.ts";
-import { canManage, canManageMembers, canManageNavigation, canManagePages } from "../src/lib/admin-permissions.ts";
+import { ADMIN_CAPABILITIES, canManage, canManageMembers, canManageNavigation, canManagePages } from "../src/lib/admin-permissions.ts";
 
 interface LookupRow {
   access_subject: string;
@@ -98,6 +98,54 @@ test("admin capabilities separate owner, content, catalog, sales and viewer acce
   assert.equal(canManage("viewer", "catalog.read"), true);
   assert.equal(canManage("viewer", "members.read"), false);
   assert.equal(canManage("administrator", "pages.write"), false);
+});
+
+test("admin capability matrix is explicit for every supported role", () => {
+  const expected: Record<string, readonly string[]> = {
+    owner: [...ADMIN_CAPABILITIES],
+    content_manager: [
+      "dashboard.read",
+      "catalog.read",
+      "content.read",
+      "content.write",
+      "content.publish",
+      "navigation.read",
+      "navigation.write",
+      "navigation.publish",
+      "pages.read",
+      "pages.write",
+      "pages.publish",
+      "media.read",
+      "media.write",
+      "news.read",
+      "news.write",
+      "services.read",
+      "services.write",
+    ],
+    catalog_manager: ["dashboard.read", "catalog.read", "catalog.write", "media.read", "media.write"],
+    sales_manager: ["dashboard.read", "leads.read", "leads.write"],
+    viewer: [
+      "dashboard.read",
+      "catalog.read",
+      "content.read",
+      "navigation.read",
+      "pages.read",
+      "media.read",
+      "news.read",
+      "services.read",
+      "leads.read",
+    ],
+  };
+
+  for (const [role, capabilities] of Object.entries(expected)) {
+    for (const capability of ADMIN_CAPABILITIES) {
+      assert.equal(
+        canManage(role, capability),
+        capabilities.includes(capability),
+        `${role} ${capability}`,
+      );
+    }
+  }
 });
 
 test("Access subject wins over a different member email and duplicate email matches fail closed", async () => {

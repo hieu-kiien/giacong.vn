@@ -2,7 +2,7 @@
 
 import { ArrowDown, ArrowUp, Eye, Plus, Save, Send, Trash2 } from "lucide-react";
 import { useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { AdminErrorState, AdminPageHeading, AdminStatusBadge } from "@/components/admin/AdminPrimitives";
 import { AdminField } from "@/components/admin/AdminField";
@@ -34,6 +34,11 @@ interface PagesResponse {
   pages: AdminPageRecord[];
 }
 
+interface PendingPageRequest {
+  key: string;
+  requestId: string;
+}
+
 type BuilderBlockType = PageBlock["type"];
 
 const blockLabels: Record<BuilderBlockType, string> = {
@@ -58,10 +63,17 @@ export function AdminPageBuilder() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [publishing, setPublishing] = useState(false);
+  const [creating, setCreating] = useState(false);
   const [error, setError] = useState<AdminClientError | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
   const [createForm, setCreateForm] = useState({ pageKey: "", routePath: "/", title: "" });
+  const saveRequest = useRef<PendingPageRequest | null>(null);
+  const publishRequest = useRef<PendingPageRequest | null>(null);
+  const createRequest = useRef<PendingPageRequest | null>(null);
+  const saveInFlight = useRef(false);
+  const publishInFlight = useRef(false);
+  const createInFlight = useRef(false);
   const { showToast } = useAdminToast();
 
   const selectedPage = data?.pages.find((page) => page.pageKey === selectedKey) ?? null;
@@ -123,43 +135,55 @@ export function AdminPageBuilder() {
   }
 
   async function saveDraft() {
-    if (!selectedPage || !canEdit) return;
+    if (!selectedPage || !canEdit || saveInFlight.current) return;
+    const payload = { blocks, draftEnabled, expectedVersion: selectedPage.version, pageKey: selectedPage.pageKey, seoDescription, seoTitle };
+    const requestId = getPageRequestId(saveRequest, JSON.stringify(payload));
+    saveInFlight.current = true;
     setSaving(true);
     setNotice(null);
     try {
       const result = await mutateAdmin<{ page: AdminPageRecord }>(`/api/admin/pages/${encodeURIComponent(selectedPage.pageKey)}`, {
-        body: { blocks, draftEnabled, expectedVersion: selectedPage.version, seoDescription, seoTitle },
+        body: { ...payload, requestId },
         method: "PATCH",
       });
       updatePage(result.page);
+      saveRequest.current = null;
       setNotice("Đã lưu bản nháp page.");
       showToast("success", "Bản nháp page đã được lưu.");
     } catch (reason: unknown) {
+      if (!shouldRetryPageRequest(reason)) saveRequest.current = null;
       const clientError = reason instanceof AdminClientError ? reason : new AdminClientError("Không thể lưu page.", 0);
       setError(clientError);
       showToast("error", clientError.message);
     } finally {
+      saveInFlight.current = false;
       setSaving(false);
     }
   }
 
   async function publishPage() {
-    if (!selectedPage || !canPublish || selectedPage.dirty || blocksChanged()) return;
+    if (!selectedPage || !canPublish || selectedPage.dirty || blocksChanged() || publishInFlight.current) return;
+    const payload = { expectedVersion: selectedPage.version, pageKey: selectedPage.pageKey };
+    const requestId = getPageRequestId(publishRequest, JSON.stringify(payload));
+    publishInFlight.current = true;
     setPublishing(true);
     setNotice(null);
     try {
       const result = await mutateAdmin<{ page: AdminPageRecord }>(`/api/admin/pages/${encodeURIComponent(selectedPage.pageKey)}/publish`, {
-        body: { expectedVersion: selectedPage.version },
+        body: { ...payload, requestId },
         method: "POST",
       });
       updatePage(result.page);
+      publishRequest.current = null;
       setNotice("Đã phát hành page ra storefront.");
       showToast("success", "Page đã được phát hành.");
     } catch (reason: unknown) {
+      if (!shouldRetryPageRequest(reason)) publishRequest.current = null;
       const clientError = reason instanceof AdminClientError ? reason : new AdminClientError("Không thể phát hành page.", 0);
       setError(clientError);
       showToast("error", clientError.message);
     } finally {
+      publishInFlight.current = false;
       setPublishing(false);
     }
   }
@@ -177,19 +201,27 @@ export function AdminPageBuilder() {
   }
 
   async function createPage() {
-    if (!canEdit) return;
+    if (!canEdit || createInFlight.current) return;
+    const requestId = getPageRequestId(createRequest, JSON.stringify(createForm));
+    createInFlight.current = true;
+    setCreating(true);
     setError(null);
     try {
-      const result = await mutateAdmin<{ page: AdminPageRecord }>("/api/admin/pages", { body: createForm, method: "POST" });
+      const result = await mutateAdmin<{ page: AdminPageRecord }>("/api/admin/pages", { body: { requestId, ...createForm }, method: "POST" });
       setData((current) => current ? { ...current, pages: [...current.pages, result.page] } : current);
+      createRequest.current = null;
       setShowCreate(false);
       setCreateForm({ pageKey: "", routePath: "/", title: "" });
       selectPage(result.page);
       showToast("success", "Đã tạo page mới. Hãy thêm section rồi lưu draft.");
     } catch (reason: unknown) {
+      if (!shouldRetryPageRequest(reason)) createRequest.current = null;
       const clientError = reason instanceof AdminClientError ? reason : new AdminClientError("Không thể tạo page.", 0);
       setError(clientError);
       showToast("error", clientError.message);
+    } finally {
+      createInFlight.current = false;
+      setCreating(false);
     }
   }
 
@@ -233,7 +265,7 @@ export function AdminPageBuilder() {
               <input className="admin-input" disabled={!canEdit} id="builder-create-route" onChange={(event) => setCreateForm((current) => ({ ...current, routePath: event.target.value }))} value={createForm.routePath} />
             </AdminField>
           </div>
-          <div className="admin-editor-actions"><button className="admin-button admin-button-primary" disabled={!createForm.pageKey || !createForm.title || !canEdit} onClick={() => void createPage()} type="button"><Plus size={14} /> Tạo page</button></div>
+          <div className="admin-editor-actions"><button className="admin-button admin-button-primary" disabled={!createForm.pageKey || !createForm.title || !canEdit || creating} onClick={() => void createPage()} type="button"><Plus size={14} /> {creating ? "Đang tạo" : "Tạo page"}</button></div>
         </section>
       ) : null}
       {notice ? <div className="admin-content-notice" role="status">{notice}</div> : null}
@@ -287,6 +319,18 @@ export function AdminPageBuilder() {
       ) : <div className="admin-state"><div><h2>Chưa có page</h2><p>Chạy migration control plane rồi tải lại để tạo page đầu tiên.</p></div></div>}
     </div>
   );
+}
+
+function getPageRequestId(
+  ref: { current: PendingPageRequest | null },
+  key: string,
+): string {
+  if (!ref.current || ref.current.key !== key) ref.current = { key, requestId: crypto.randomUUID() };
+  return ref.current.requestId;
+}
+
+function shouldRetryPageRequest(reason: unknown): boolean {
+  return reason instanceof AdminClientError && (reason.status === 0 || reason.status >= 500);
 }
 
 function BlockTypeMenu({ disabled, onAdd }: { disabled: boolean; onAdd: (type: BuilderBlockType) => void }) {

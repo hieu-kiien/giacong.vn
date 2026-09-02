@@ -155,3 +155,20 @@ test("shared admin states explain readiness without infrastructure jargon", asyn
   assert.match(shell, /Dữ liệu hiển thị trực tiếp từ hệ thống/);
   assert.doesNotMatch(shell, /Dữ liệu hiển thị trực tiếp từ D1/);
 });
+
+test("read-only roles do not receive lead/news mutation affordances or private dashboard lead names", async () => {
+  const [leads, news, dashboard, dashboardApi] = await Promise.all([
+    readSource("app", "admin", "yeu-cau", "page.tsx"),
+    readSource("app", "admin", "tin-tuc", "page.tsx"),
+    readSource("app", "admin", "page.tsx"),
+    readFile(new URL("../src/app/api/admin/dashboard/route.ts", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(leads, /canManageLeads\(session\.role\)/);
+  assert.match(leads, /!canManageLeads\(session\.role\)/);
+  assert.match(news, /canManageNews\(session\.role\)/);
+  assert.match(news, /if \(!canManage\)/);
+  assert.match(dashboard, /canManageLeads\(session\.role\)/);
+  assert.match(dashboard, /canManageServices\(session\.role\)/);
+  assert.match(dashboardApi, /includeRecentLeads/);
+});

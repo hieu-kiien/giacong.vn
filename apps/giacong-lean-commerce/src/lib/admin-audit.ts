@@ -61,7 +61,7 @@ export class AdminAuditStorageError extends Error {}
 // Keep the compound tree shallow enough that every nested SELECT has headroom
 // for the outer paging/count wrappers. D1's limit is five terms, and the audit
 // registry grows over time.
-const MAX_D1_COMPOUND_SELECT_TERMS = 2;
+const MAX_D1_COMPOUND_SELECT_TERMS = 4;
 
 interface AdminAuditDbRow {
   action: unknown;
@@ -243,6 +243,24 @@ const auditSources: readonly AuditSource[] = [
         NULL AS resulting_revision,
         created_at
       FROM admin_site_setting_bulk_audit
+    `,
+  },
+  {
+    tableName: "admin_site_page_audit",
+    query: `
+      SELECT
+        'admin_site_page_audit' AS source,
+        CAST(id AS TEXT) AS source_id,
+        actor_subject,
+        action,
+        operation,
+        entity_type,
+        entity_key,
+        request_id,
+        previous_revision,
+        resulting_revision,
+        created_at
+      FROM admin_site_page_audit
     `,
   },
   {

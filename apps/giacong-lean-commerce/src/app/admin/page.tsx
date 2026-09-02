@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { AdminErrorState, AdminMetric, AdminPageHeading, AdminLoadingTable, DataReadiness } from "@/components/admin/AdminPrimitives";
 import { useAdminSession } from "@/components/admin/AdminShell";
 import { AdminClientError, fetchAdmin } from "@/lib/admin-client";
+import { canManageLeads, canManageServices } from "@/lib/admin-permissions.ts";
 
 interface DashboardData {
   counts: { draftProducts: number; products: number; activeProducts: number; services: number; activeServices: number; leads: number; newLeads: number; news: number };
@@ -16,6 +17,8 @@ interface DashboardData {
 
 export default function AdminDashboardPage() {
   const session = useAdminSession();
+  const canViewLeads = canManageLeads(session.role);
+  const canViewServices = canManageServices(session.role);
   const [data, setData] = useState<DashboardData | null>(null);
   const [error, setError] = useState<AdminClientError | null>(null);
   const [loading, setLoading] = useState(true);
@@ -56,7 +59,7 @@ export default function AdminDashboardPage() {
             <AdminMetric label="Bài viết tin tức" value={data.counts.news} foot="Tổng bài trong /tin-tuc" testId="metric-news" />
           </div>
           <div className="admin-grid-2">
-                        <section className="admin-panel" aria-labelledby="recent-leads-heading">
+            {canViewLeads ? <section className="admin-panel" aria-labelledby="recent-leads-heading">
               <div className="admin-panel-heading"><div><h2 className="admin-panel-title" id="recent-leads-heading">Yêu cầu mới nhất</h2><p className="admin-panel-caption">5 lead gần đây nhất từ inbox</p></div><ClipboardList aria-hidden="true" color="#6e8c42" size={19} /></div>
               <div className="admin-brief-list">
                 {data.recentLeads.length === 0 ? <p style={{ color: "var(--admin-ink-muted)", padding: "0 21px 16px" }}>Chưa có yêu cầu nào được tiếp nhận.</p> : data.recentLeads.map((lead) => (
@@ -66,13 +69,14 @@ export default function AdminDashboardPage() {
                   </Link>
                 ))}
               </div>
-            </section><DataReadiness data={data.dataReadiness} />
+            </section> : null}
+            <DataReadiness data={data.dataReadiness} />
             <section className="admin-panel" aria-labelledby="quick-links-heading">
               <div className="admin-panel-heading"><div><h2 className="admin-panel-title" id="quick-links-heading">Điểm vào nhanh</h2><p className="admin-panel-caption">Các màn hình cần dùng hàng ngày</p></div><ArrowUpRight aria-hidden="true" color="#6e8c42" size={19} /></div>
               <div className="admin-brief-list">
                 <Link className="admin-brief-row" data-testid="link-dashboard-products" href="/admin/san-pham"><span className="admin-brief-icon"><Package size={16} /></span><span className="admin-brief-copy"><strong>Kiểm tra catalog</strong><span>{data.counts.products} sản phẩm trong hệ thống</span></span><ArrowUpRight size={14} /></Link>
-                <Link className="admin-brief-row" data-testid="link-dashboard-services" href="/admin/dich-vu"><span className="admin-brief-icon"><Settings2 size={16} /></span><span className="admin-brief-copy"><strong>Rà soát dịch vụ</strong><span>{data.counts.services} dịch vụ gia công</span></span><ArrowUpRight size={14} /></Link>
-                <Link className="admin-brief-row" data-testid="link-dashboard-leads" href="/admin/yeu-cau"><span className="admin-brief-icon"><ClipboardList size={16} /></span><span className="admin-brief-copy"><strong>Mở inbox yêu cầu</strong><span>{data.counts.leads} yêu cầu cần theo dõi</span></span><ArrowUpRight size={14} /></Link>
+                {canViewServices ? <Link className="admin-brief-row" data-testid="link-dashboard-services" href="/admin/dich-vu"><span className="admin-brief-icon"><Settings2 size={16} /></span><span className="admin-brief-copy"><strong>Rà soát dịch vụ</strong><span>{data.counts.services} dịch vụ gia công</span></span><ArrowUpRight size={14} /></Link> : null}
+                {canViewLeads ? <Link className="admin-brief-row" data-testid="link-dashboard-leads" href="/admin/yeu-cau"><span className="admin-brief-icon"><ClipboardList size={16} /></span><span className="admin-brief-copy"><strong>Mở inbox yêu cầu</strong><span>{data.counts.leads} yêu cầu cần theo dõi</span></span><ArrowUpRight size={14} /></Link> : null}
               </div>
               <p className="admin-panel-caption" style={{ marginTop: 19 }}>Đang truy cập với vai trò <strong>{data.member.displayName}</strong> · {data.member.role}</p>
             </section>

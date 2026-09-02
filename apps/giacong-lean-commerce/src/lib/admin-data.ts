@@ -271,7 +271,10 @@ export async function listAdminCategories(database: D1DatabaseLike): Promise<Adm
   return rows.results;
 }
 
-export async function getAdminOverview(database: D1DatabaseLike) {
+export async function getAdminOverview(
+  database: D1DatabaseLike,
+  options: { includeRecentLeads?: boolean } = {},
+) {
   const [products, services, leads, members, metaTables, news, draftProducts, recentLeads] = await Promise.all([
     countRows(database, "products"),
     countRows(database, "services"),
@@ -286,15 +289,15 @@ export async function getAdminOverview(database: D1DatabaseLike) {
       ready ? countRows(database, "news_posts") : Promise.resolve({ count: 0, ready: false })
     )),
     countRows(database, "products", "is_active = 1").catch(() => ({ count: 0, ready: false })),
-    database.prepare(`
-      SELECT id, full_name, status, created_at
-      FROM leads
-      ORDER BY created_at DESC
-      LIMIT 5
-    `).all<{ created_at: string; full_name: string; id: string; status: string }>().then(
-      (result) => result.results,
-      () => [],
-    ),
+    options.includeRecentLeads ? database.prepare(`
+        SELECT id, full_name, status, created_at
+        FROM leads
+        ORDER BY created_at DESC
+        LIMIT 5
+      `).all<{ created_at: string; full_name: string; id: string; status: string }>().then(
+        (result) => result.results,
+        () => [],
+      ) : Promise.resolve([]),
   ]);
 
   return {
