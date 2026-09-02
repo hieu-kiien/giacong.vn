@@ -8,6 +8,23 @@ Bản staging hiện **đủ điều kiện để tiếp tục nghiệm thu kỹ
 `dabb547e-1475-4815-b9e9-03be91064105`; production vẫn giữ nguyên và
 đang **NO-GO** cho migration hoặc promotion.
 
+## Tái kiểm tra runtime resource-limit — 2026-09-02
+
+- Một lượt điều hướng admin quá dồn trước đó đã hiện trang Cloudflare
+  `Worker exceeded resource limits` tại `/admin/dich-vu`; đây là lỗi 1102 cần
+  phân biệt giữa CPU và memory, không được coi là lỗi UI thông thường.
+- Kiểm tra phân lớp sau đó không cho thấy D1 là nút thắt: staging có đủ bảng
+  admin/service, đủ migration `0001–0019`, chỉ có 2 service; các truy vấn schema
+  và count trực tiếp qua Wrangler đều hoàn tất với SQL duration dưới 1 ms.
+- `wrangler check startup --env=staging` ghi nhận bundle `7706.51 KiB` (gzip
+  `1521.96 KiB`) và local startup active `57.0 ms`. Tail public homepage của
+  version `6162...` ghi nhận `cpuTime=514`, `wallTime=720` và outcome `ok`.
+- Khi tải cô lập và điều hướng chậm, `/admin/dich-vu` đã đọc lại thành công
+  với owner, 2 bản ghi, không console error; lượt audit → dịch vụ kế tiếp cũng
+  không tái hiện 1102. Gate này vẫn **chưa đóng** cho tới khi có stress test
+  có kiểm soát và observability production phân biệt rõ `exceededCpu`/
+  `exceededMemory`.
+
 Để bàn giao production an toàn, còn bốn nhóm gate phải đóng:
 
 1. kiểm thử role × route × action bằng các identity Cloudflare Access thật;
