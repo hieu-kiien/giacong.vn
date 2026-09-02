@@ -288,7 +288,7 @@ export async function getAdminOverview(
     tableExists(database, "news_posts").then((ready) => (
       ready ? countRows(database, "news_posts") : Promise.resolve({ count: 0, ready: false })
     )),
-    countRows(database, "products", "is_active = 1").catch(() => ({ count: 0, ready: false })),
+    countAdminDraftProducts(database),
     options.includeRecentLeads ? database.prepare(`
         SELECT id, full_name, status, created_at
         FROM leads
@@ -1284,6 +1284,23 @@ async function countRows(
     const exists = await tableExists(database, tableName);
     if (!exists) return { count: 0, ready: false };
     const row = await database.prepare(`SELECT COUNT(*) AS total FROM ${tableName}${where ? ` WHERE ${where}` : ""}`).first<{ total: number }>();
+    return { count: integer(row?.total ?? 0), ready: true };
+  } catch {
+    return { count: 0, ready: false };
+  }
+}
+
+async function countAdminDraftProducts(
+  database: D1DatabaseLike,
+): Promise<{ count: number; ready: boolean }> {
+  try {
+    if (!await tableExists(database, "product_admin_meta")) return { count: 0, ready: false };
+    const row = await database.prepare(`
+      SELECT COUNT(*) AS total
+      FROM products p
+      INNER JOIN product_admin_meta m ON m.product_id = p.id
+      WHERE m.status IN ('draft', 'review')
+    `).first<{ total: number }>();
     return { count: integer(row?.total ?? 0), ready: true };
   } catch {
     return { count: 0, ready: false };
