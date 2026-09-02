@@ -202,6 +202,9 @@ Lưu ý: demo staging KHÔNG được seed sang production. Khách tự thao tá
 - [x] Owner staging kiểm tra CMS draft isolation trên `brand_tagline`: draft QA
   không rò ra public, giá trị ban đầu được khôi phục và UI trở lại
   `Published/Đã đồng bộ`; chưa coi đây là publish/preview đầy đủ.
+- [x] Owner staging kiểm tra navigation draft isolation trên item `Home`: nhãn
+  QA không rò ra public, nhãn ban đầu được khôi phục và item trở lại
+  `Published`; chưa coi đây là publish-all đầy đủ.
 - [ ] Role × route/action với nhiều Access identity, write/read-back từng domain,
   production data approval, backup/restore, observability 24h và production
   promotion vẫn chưa đạt.

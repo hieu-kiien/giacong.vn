@@ -104,6 +104,10 @@ giá trị QA chỉ xuất hiện trong trạng thái draft, public vẫn giữ 
 sau đó giá trị ban đầu được lưu lại và UI trở về `Published/Đã đồng bộ`. Không
 đánh dấu đây là publish/preview đầy đủ hay bằng chứng cho role khác.
 
+Navigation owner staging cũng đã kiểm tra mục `Home`: draft label QA không rò
+ra public, sau đó nhãn `Home` được khôi phục và item trở lại `Published`. Đây
+chưa phải publish-all hoặc write/read-back đầy đủ cho navigation.
+
 Repo chính không có GIF/video runtime bắt buộc: motion hiện dùng CSS/HTML và
 asset WebP phù hợp. Worktree motion riêng vẫn được giữ nguyên, không reset hoặc
 xóa các artifact người dùng đang làm.

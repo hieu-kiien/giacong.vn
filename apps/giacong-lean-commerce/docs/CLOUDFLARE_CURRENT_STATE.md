@@ -777,3 +777,11 @@ runtime trước khi đóng gate hiệu năng/ổn định.
   `Published/Đã đồng bộ`, không còn draft treo; đây là write/read-back có hoàn
   nguyên cho setting, không phải bằng chứng publish/preview đầy đủ, role matrix
   nhiều identity hay production readiness.
+
+## Navigation draft isolation round-trip — 2026-09-02
+
+- Owner staging đã đổi tạm nhãn item `Home` thành giá trị QA và lưu draft;
+  public vẫn hiển thị `Home`, không lộ draft.
+- Nhãn ban đầu `Home` đã được lưu lại; admin đọc lại item ở trạng thái
+  `Published`, không còn draft. Đây chưa phải bằng chứng publish-all, các item
+  navigation khác, role matrix nhiều identity hoặc production readiness.

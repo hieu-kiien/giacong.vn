@@ -709,6 +709,10 @@ xem xét production promotion. Không đánh dấu đạt chỉ vì build thành
   sau đó khôi phục đúng giá trị ban đầu, UI trở lại `Published/Đã đồng bộ` và
   không còn draft treo. Đây chưa thay thế preview renderer, publish round-trip
   hoặc role matrix.
+- Navigation cũng đã được kiểm tra theo cùng cách trên mục `Home`: nhãn QA chỉ
+  nằm ở draft, public vẫn hiển thị `Home`, rồi nhãn ban đầu được lưu lại và
+  trạng thái trở về `Published`. Đây là draft isolation/read-back có hoàn
+  nguyên, chưa đóng publish-all hoặc role matrix.
 
 ## 5. Ma trận test và lệnh kiểm tra
 
