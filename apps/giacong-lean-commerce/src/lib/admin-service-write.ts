@@ -59,6 +59,24 @@ interface D1DatabaseWithBatch extends D1DatabaseLike {
 type ServiceMutationAction = "create" | "delete" | "update";
 type ServiceLegacyAction = "service.archived" | "service.created" | "service.updated";
 
+interface ServiceMutationMetaExpectation {
+  leadTimeDays?: number | null;
+  moqSummary?: string | null;
+  status: AdminServiceInput["status"] | "archived";
+}
+
+interface ServiceMutationPostcondition {
+  action: ServiceMutationAction;
+  entityId?: number;
+  expectedRevision?: number;
+  legacyAction: ServiceLegacyAction;
+  metadataJson: string;
+  meta: ServiceMutationMetaExpectation | null;
+  payloadSha256: string;
+  requestId: string;
+  serviceInput?: AdminServiceInput;
+}
+
 export async function createAdminServiceAtomically(
   database: D1DatabaseLike,
   input: AdminServiceInput,
@@ -72,10 +90,19 @@ export async function createAdminServiceAtomically(
     operation: "create",
   });
   const hasMeta = await requireAuditTables(database);
+  const postcondition = createServiceMutationPostcondition(
+    normalizedRequestId,
+    "create",
+    "service.created",
+    payloadSha256,
+    input,
+    undefined,
+    hasMeta,
+  );
   const existingMutation = await findMutation(database, normalizedRequestId);
   if (existingMutation) {
     assertMatchingMutation(existingMutation, normalizedRequestId, "create", undefined, payloadSha256);
-    return readMutationId(existingMutation);
+    return ensureServiceMutationComplete(database, existingMutation, postcondition);
   }
 
   const databaseWithBatch = requireBatch(database);
@@ -85,26 +112,22 @@ export async function createAdminServiceAtomically(
     buildLegacyAudit(database, normalizedRequestId, actorSubject, "service.created", "create", input.slug, payloadSha256),
   ];
   if (hasMeta) statements.push(buildServiceMetaWrite(database, normalizedRequestId, actorSubject, input));
+  statements.push(buildServicePostconditionAssertion(database, postcondition));
 
   try {
-    const results = await databaseWithBatch.batch(statements);
-    assertRows(results[0], "Không ghi được dịch vụ.");
-    assertRows(results[1], "Không ghi được audit dịch vụ.");
-    assertRows(results[2], "Không ghi được lịch sử dịch vụ.");
-    if (hasMeta) assertRows(results[3], "Không đồng bộ được trạng thái dịch vụ.");
+    await databaseWithBatch.batch(statements);
   } catch (error) {
     const racedMutation = await findMutation(database, normalizedRequestId);
     if (racedMutation) {
       assertMatchingMutation(racedMutation, normalizedRequestId, "create", undefined, payloadSha256);
-      return readMutationId(racedMutation);
+      return ensureServiceMutationComplete(database, racedMutation, postcondition);
     }
-    throw error;
+    throw normalizeServiceBatchError(error);
   }
-
   const mutation = await findMutation(database, normalizedRequestId);
   if (!mutation) throw new AdminServiceWriteStorageError("Không đọc lại được audit dịch vụ vừa tạo.");
   assertMatchingMutation(mutation, normalizedRequestId, "create", undefined, payloadSha256);
-  return readMutationId(mutation);
+  return ensureServiceMutationComplete(database, mutation, postcondition);
 }
 
 export async function updateAdminServiceAtomically(
@@ -125,10 +148,20 @@ export async function updateAdminServiceAtomically(
     operation: "update",
   });
   const hasMeta = await requireAuditTables(database);
+  const postcondition = createServiceMutationPostcondition(
+    normalizedRequestId,
+    "update",
+    "service.updated",
+    payloadSha256,
+    input,
+    id,
+    hasMeta,
+    expectedRevision,
+  );
   const existingMutation = await findMutation(database, normalizedRequestId);
   if (existingMutation) {
     assertMatchingMutation(existingMutation, normalizedRequestId, "update", String(id), payloadSha256);
-    return readMutationId(existingMutation);
+    return ensureServiceMutationComplete(database, existingMutation, postcondition);
   }
 
   const existing = await readServiceRevision(database, id);
@@ -142,22 +175,24 @@ export async function updateAdminServiceAtomically(
     buildLegacyAudit(database, normalizedRequestId, actorSubject, "service.updated", "id", id, payloadSha256, expectedRevision),
   ];
   if (hasMeta) statements.push(buildServiceMetaWrite(database, normalizedRequestId, actorSubject, input, id));
+  statements.push(buildServicePostconditionAssertion(database, postcondition));
 
+  let results: D1BatchResultLike[];
   try {
-    const results = await databaseWithBatch.batch(statements);
-    if (!hasRows(results[0])) return resolveServiceConflict(database, normalizedRequestId, payloadSha256, "update", id);
-    assertRows(results[1], "Không ghi được audit dịch vụ.");
-    assertRows(results[2], "Không ghi được lịch sử dịch vụ.");
-    if (hasMeta) assertRows(results[3], "Không đồng bộ được trạng thái dịch vụ.");
+    results = await databaseWithBatch.batch(statements);
   } catch (error) {
     const racedMutation = await findMutation(database, normalizedRequestId);
     if (racedMutation) {
       assertMatchingMutation(racedMutation, normalizedRequestId, "update", String(id), payloadSha256);
-      return readMutationId(racedMutation);
+      return ensureServiceMutationComplete(database, racedMutation, postcondition);
     }
-    throw error;
+    throw normalizeServiceBatchError(error);
   }
-  return id;
+  if (!hasRows(results[0])) return resolveServiceConflict(database, normalizedRequestId, payloadSha256, "update", id, postcondition);
+  const mutation = await findMutation(database, normalizedRequestId);
+  if (!mutation) throw new AdminServiceWriteStorageError("Không đọc lại được audit dịch vụ vừa cập nhật.");
+  assertMatchingMutation(mutation, normalizedRequestId, "update", String(id), payloadSha256);
+  return ensureServiceMutationComplete(database, mutation, postcondition);
 }
 
 export async function archiveAdminServiceAtomically(
@@ -176,10 +211,20 @@ export async function archiveAdminServiceAtomically(
     operation: "archive",
   });
   const hasMeta = await requireAuditTables(database);
+  const postcondition = createServiceMutationPostcondition(
+    normalizedRequestId,
+    "delete",
+    "service.archived",
+    payloadSha256,
+    undefined,
+    id,
+    hasMeta,
+    expectedRevision,
+  );
   const existingMutation = await findMutation(database, normalizedRequestId);
   if (existingMutation) {
     assertMatchingMutation(existingMutation, normalizedRequestId, "delete", String(id), payloadSha256);
-    return readMutationId(existingMutation);
+    return ensureServiceMutationComplete(database, existingMutation, postcondition);
   }
 
   const existing = await readServiceRevision(database, id);
@@ -193,22 +238,24 @@ export async function archiveAdminServiceAtomically(
     buildLegacyAudit(database, normalizedRequestId, actorSubject, "service.archived", "id", id, payloadSha256, expectedRevision),
   ];
   if (hasMeta) statements.push(buildServiceArchiveMeta(database, normalizedRequestId, actorSubject, id));
+  statements.push(buildServicePostconditionAssertion(database, postcondition));
 
+  let results: D1BatchResultLike[];
   try {
-    const results = await databaseWithBatch.batch(statements);
-    if (!hasRows(results[0])) return resolveServiceConflict(database, normalizedRequestId, payloadSha256, "delete", id);
-    assertRows(results[1], "Không ghi được audit ẩn dịch vụ.");
-    assertRows(results[2], "Không ghi được lịch sử ẩn dịch vụ.");
-    if (hasMeta) assertRows(results[3], "Không đồng bộ được trạng thái dịch vụ.");
+    results = await databaseWithBatch.batch(statements);
   } catch (error) {
     const racedMutation = await findMutation(database, normalizedRequestId);
     if (racedMutation) {
       assertMatchingMutation(racedMutation, normalizedRequestId, "delete", String(id), payloadSha256);
-      return readMutationId(racedMutation);
+      return ensureServiceMutationComplete(database, racedMutation, postcondition);
     }
-    throw error;
+    throw normalizeServiceBatchError(error);
   }
-  return id;
+  if (!hasRows(results[0])) return resolveServiceConflict(database, normalizedRequestId, payloadSha256, "delete", id, postcondition);
+  const mutation = await findMutation(database, normalizedRequestId);
+  if (!mutation) throw new AdminServiceWriteStorageError("Không đọc lại được audit dịch vụ vừa ẩn.");
+  assertMatchingMutation(mutation, normalizedRequestId, "delete", String(id), payloadSha256);
+  return ensureServiceMutationComplete(database, mutation, postcondition);
 }
 
 async function requireAuditTables(database: D1DatabaseLike): Promise<boolean> {
@@ -349,11 +396,7 @@ function buildLegacyAudit(
   payloadSha256: string,
   expectedRevision?: number,
 ): D1PreparedStatementLike {
-  const metadata = JSON.stringify({
-    expectedRevision: expectedRevision ?? null,
-    payloadSha256,
-    requestId,
-  });
+  const metadata = buildServiceLegacyMetadata(requestId, payloadSha256, expectedRevision);
   const where = lookup === "create" ? "slug = ?" : "id = ?";
   return database.prepare(`
     INSERT INTO audit_logs (id, actor_subject, action, entity_type, entity_id, metadata_json)
@@ -414,17 +457,369 @@ function buildServiceArchiveMeta(
   `).bind(id, actorSubject, requestId);
 }
 
+function createServiceMutationPostcondition(
+  requestId: string,
+  action: ServiceMutationAction,
+  legacyAction: ServiceLegacyAction,
+  payloadSha256: string,
+  input: AdminServiceInput | undefined,
+  entityId: number | undefined,
+  hasMeta: boolean,
+  expectedRevision?: number,
+): ServiceMutationPostcondition {
+  return {
+    action,
+    entityId,
+    legacyAction,
+    metadataJson: buildServiceLegacyMetadata(requestId, payloadSha256, expectedRevision),
+    meta: hasMeta
+      ? input
+        ? {
+            leadTimeDays: input.leadTimeDays,
+            moqSummary: input.moqSummary,
+            status: input.status,
+          }
+        : { status: "archived" }
+      : null,
+    payloadSha256,
+    requestId,
+    serviceInput: input,
+    expectedRevision,
+  };
+}
+
+function buildServiceLegacyMetadata(
+  requestId: string,
+  payloadSha256: string,
+  expectedRevision?: number,
+): string {
+  return JSON.stringify({
+    expectedRevision: expectedRevision ?? null,
+    payloadSha256,
+    requestId,
+  });
+}
+
+function buildServicePostconditionAssertion(
+  database: D1DatabaseLike,
+  postcondition: ServiceMutationPostcondition,
+): D1PreparedStatementLike {
+  const { expression, values } = buildServiceMutationPostconditionExpression(postcondition);
+  const started = buildServiceMutationStartedExpression(postcondition);
+  return database.prepare(`
+    /* service-write-postcondition-assert */
+    INSERT INTO admin_audit_log (
+      request_id, actor_subject, action, entity_type, entity_key,
+      previous_revision, resulting_revision, payload_sha256
+    )
+    SELECT NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL
+    WHERE (${started.expression}
+      OR EXISTS (
+        SELECT 1
+        FROM admin_audit_log
+        WHERE request_id = ?
+      ))
+      AND NOT (${expression})
+  `).bind(...started.values, postcondition.requestId, ...values);
+}
+
+async function ensureServiceMutationComplete(
+  database: D1DatabaseLike,
+  mutation: ServiceMutationRow,
+  postcondition: ServiceMutationPostcondition,
+): Promise<number> {
+  const { expression, values } = buildServiceMutationReplayExpression(postcondition);
+  const row = await database.prepare(`
+    /* service-write-postcondition-read */
+    SELECT CASE WHEN (${expression}) THEN 1 ELSE 0 END AS complete
+  `).bind(...values).first<{ complete?: unknown }>();
+  if (Number(row?.complete) !== 1) {
+    throw new AdminServiceWriteStorageError(
+      "Không thể xác nhận đầy đủ trạng thái dịch vụ và audit; thao tác bị khóa để tránh báo thành công sai.",
+    );
+  }
+  return readMutationId(mutation);
+}
+
+function buildServiceMutationReplayExpression(
+  postcondition: ServiceMutationPostcondition,
+): { expression: string; values: unknown[] } {
+  const revision = postcondition.expectedRevision === undefined
+    ? {
+        sql: "marker.previous_revision IS NULL AND marker.resulting_revision = 1",
+        values: [],
+      }
+    : {
+        sql: "marker.previous_revision = ? AND marker.resulting_revision = ?",
+        values: [postcondition.expectedRevision, postcondition.expectedRevision + 1],
+      };
+  const entity = postcondition.entityId === undefined
+    ? { sql: "", values: [] }
+    : { sql: "AND service_row.id = ?", values: [postcondition.entityId] };
+  const parts = [
+    `EXISTS (
+      SELECT 1
+      FROM admin_audit_log marker
+      JOIN services service_row ON service_row.id = CAST(marker.entity_key AS INTEGER)
+      WHERE marker.request_id = ?
+        AND marker.action = ?
+        AND marker.entity_type = 'service'
+        AND marker.payload_sha256 = ?
+        ${entity.sql}
+        AND ${revision.sql}
+    )`,
+    `EXISTS (
+      SELECT 1
+      FROM audit_logs legacy
+      JOIN admin_audit_log marker
+        ON marker.request_id = ?
+       AND marker.entity_key = legacy.entity_id
+      WHERE legacy.action = ?
+        AND legacy.entity_type = 'service'
+        AND legacy.metadata_json = ?
+    )`,
+  ];
+  const values: unknown[] = [
+    postcondition.requestId,
+    postcondition.action,
+    postcondition.payloadSha256,
+    ...entity.values,
+    ...revision.values,
+    postcondition.requestId,
+    postcondition.legacyAction,
+    postcondition.metadataJson,
+  ];
+  if (postcondition.meta) {
+    parts.push(`EXISTS (
+      SELECT 1
+      FROM service_admin_meta meta
+      JOIN admin_audit_log marker
+        ON marker.request_id = ?
+       AND meta.service_id = CAST(marker.entity_key AS INTEGER)
+      WHERE meta.updated_by IS NOT NULL
+    )`);
+    values.push(postcondition.requestId);
+  }
+  return { expression: parts.join("\n AND "), values };
+}
+
+function buildServiceMutationStartedExpression(
+  postcondition: ServiceMutationPostcondition,
+): { expression: string; values: unknown[] } {
+  if (postcondition.entityId === undefined || postcondition.serviceInput) {
+    const input = postcondition.serviceInput;
+    if (postcondition.entityId === undefined) {
+      return {
+        expression: `EXISTS (
+          SELECT 1
+          FROM services
+          WHERE slug = ?
+            AND name = ?
+            AND summary = ?
+            AND description = ?
+            AND image_url IS ?
+            AND is_active = ?
+            AND revision = 1
+        )`,
+        values: [
+          input?.slug,
+          input?.name,
+          input?.summary,
+          input?.description,
+          input?.imageUrl,
+          input?.isActive ? 1 : 0,
+        ],
+      };
+    }
+    return {
+      expression: `EXISTS (
+        SELECT 1
+        FROM services
+        WHERE id = ?
+          AND revision = ?
+          AND slug = ?
+          AND name = ?
+          AND summary = ?
+          AND description = ?
+          AND image_url IS ?
+          AND is_active = ?
+      )`,
+      values: [
+        postcondition.entityId,
+        (postcondition.expectedRevision ?? 0) + 1,
+        input?.slug,
+        input?.name,
+        input?.summary,
+        input?.description,
+        input?.imageUrl,
+        input?.isActive ? 1 : 0,
+      ],
+    };
+  }
+  return {
+    expression: `EXISTS (
+      SELECT 1
+      FROM services
+      WHERE id = ?
+        AND revision = ?
+        AND is_active = 0
+    )`,
+    values: [postcondition.entityId, (postcondition.expectedRevision ?? 0) + 1],
+  };
+}
+
+function buildServiceMutationPostconditionExpression(
+  postcondition: ServiceMutationPostcondition,
+): { expression: string; values: unknown[] } {
+  const entity = postcondition.entityId === undefined
+    ? {
+        sql: `EXISTS (
+          SELECT 1
+          FROM admin_audit_log marker
+          JOIN services service_row ON service_row.id = CAST(marker.entity_key AS INTEGER)
+          WHERE marker.request_id = ?
+            AND marker.action = ?
+            AND marker.entity_type = 'service'
+            AND marker.payload_sha256 = ?
+            AND service_row.slug = ?
+            AND service_row.name = ?
+            AND service_row.summary = ?
+            AND service_row.description = ?
+            AND service_row.image_url IS ?
+            AND service_row.is_active = ?
+            AND service_row.revision = 1
+        )`,
+        values: [
+          postcondition.requestId,
+          postcondition.action,
+          postcondition.payloadSha256,
+          postcondition.serviceInput?.slug,
+          postcondition.serviceInput?.name,
+          postcondition.serviceInput?.summary,
+          postcondition.serviceInput?.description,
+          postcondition.serviceInput?.imageUrl,
+          postcondition.serviceInput?.isActive ? 1 : 0,
+        ],
+      }
+    : postcondition.serviceInput
+      ? {
+          sql: `EXISTS (
+            SELECT 1
+            FROM admin_audit_log marker
+            JOIN services service_row ON service_row.id = CAST(marker.entity_key AS INTEGER)
+            WHERE marker.request_id = ?
+              AND marker.action = ?
+              AND marker.entity_type = 'service'
+              AND marker.payload_sha256 = ?
+              AND service_row.id = ?
+              AND service_row.revision = ?
+              AND service_row.slug = ?
+              AND service_row.name = ?
+              AND service_row.summary = ?
+              AND service_row.description = ?
+              AND service_row.image_url IS ?
+              AND service_row.is_active = ?
+          )`,
+          values: [
+            postcondition.requestId,
+            postcondition.action,
+            postcondition.payloadSha256,
+            postcondition.entityId,
+            (postcondition.expectedRevision ?? 0) + 1,
+            postcondition.serviceInput.slug,
+            postcondition.serviceInput.name,
+            postcondition.serviceInput.summary,
+            postcondition.serviceInput.description,
+            postcondition.serviceInput.imageUrl,
+            postcondition.serviceInput.isActive ? 1 : 0,
+          ],
+        }
+      : {
+          sql: `EXISTS (
+            SELECT 1
+            FROM admin_audit_log marker
+            JOIN services service_row ON service_row.id = CAST(marker.entity_key AS INTEGER)
+            WHERE marker.request_id = ?
+              AND marker.action = ?
+              AND marker.entity_type = 'service'
+              AND marker.payload_sha256 = ?
+              AND service_row.id = ?
+              AND service_row.revision = ?
+              AND service_row.is_active = 0
+          )`,
+          values: [
+            postcondition.requestId,
+            postcondition.action,
+            postcondition.payloadSha256,
+            postcondition.entityId,
+            (postcondition.expectedRevision ?? 0) + 1,
+          ],
+        };
+
+  const legacy = {
+    sql: `EXISTS (
+      SELECT 1
+      FROM audit_logs legacy
+      JOIN admin_audit_log marker
+        ON marker.request_id = ?
+       AND marker.entity_key = legacy.entity_id
+      WHERE legacy.action = ?
+        AND legacy.entity_type = 'service'
+        AND legacy.metadata_json = ?
+    )`,
+    values: [postcondition.requestId, postcondition.legacyAction, postcondition.metadataJson],
+  };
+
+  const parts = [entity.sql, legacy.sql];
+  const values: unknown[] = [...entity.values, ...legacy.values];
+  const meta = postcondition.meta;
+  if (meta) {
+    if (meta.leadTimeDays !== undefined && meta.moqSummary !== undefined) {
+      parts.push(`EXISTS (
+        SELECT 1
+        FROM service_admin_meta meta
+        JOIN admin_audit_log marker
+          ON marker.request_id = ?
+         AND meta.service_id = CAST(marker.entity_key AS INTEGER)
+        WHERE meta.status = ?
+          AND meta.lead_time_days IS ?
+          AND meta.moq_summary IS ?
+          AND meta.updated_by IS NOT NULL
+      )`);
+      values.push(
+        postcondition.requestId,
+        meta.status,
+        meta.leadTimeDays,
+        meta.moqSummary,
+      );
+    } else {
+      parts.push(`EXISTS (
+        SELECT 1
+        FROM service_admin_meta meta
+        JOIN admin_audit_log marker
+          ON marker.request_id = ?
+         AND meta.service_id = CAST(marker.entity_key AS INTEGER)
+        WHERE meta.status = ?
+          AND meta.updated_by IS NOT NULL
+      )`);
+      values.push(postcondition.requestId, meta.status);
+    }
+  }
+  return { expression: parts.join("\n AND "), values };
+}
+
 async function resolveServiceConflict(
   database: D1DatabaseLike,
   requestId: string,
   payloadSha256: string,
   action: ServiceMutationAction,
   id: number,
+  postcondition: ServiceMutationPostcondition,
 ): Promise<number> {
   const mutation = await findMutation(database, requestId);
   if (mutation) {
     assertMatchingMutation(mutation, requestId, action, String(id), payloadSha256);
-    return readMutationId(mutation);
+    return ensureServiceMutationComplete(database, mutation, postcondition);
   }
   throw new AdminServiceWriteConflictError("Dịch vụ đã thay đổi ở phiên khác. Hãy tải lại rồi thử lại.");
 }
@@ -460,12 +855,19 @@ function assertExpectedRevision(actual: number, expected: number, message: strin
   if (actual !== expected) throw new AdminServiceWriteConflictError(message);
 }
 
-function assertRows(result: D1BatchResultLike | undefined, message: string): void {
-  if (!hasRows(result)) throw new AdminServiceWriteStorageError(message);
-}
-
 function hasRows(result: D1BatchResultLike | undefined): boolean {
   return Array.isArray(result?.results) && result.results.length > 0;
+}
+
+function normalizeServiceBatchError(error: unknown): unknown {
+  const message = error instanceof Error ? error.message : String(error);
+  if (message.includes("service write postcondition failed")
+    || (message.includes("admin_audit_log") && message.toLowerCase().includes("constraint failed"))) {
+    return new AdminServiceWriteStorageError(
+      "Không ghi đồng bộ được dịch vụ và audit; hệ thống đã rollback để tránh trạng thái dở dang.",
+    );
+  }
+  return error;
 }
 
 function requireBatch(database: D1DatabaseLike): D1DatabaseWithBatch {

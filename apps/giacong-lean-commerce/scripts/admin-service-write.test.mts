@@ -1,10 +1,12 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
+import { DatabaseSync } from "node:sqlite";
 import test from "node:test";
 
 import {
   AdminServiceWriteConflictError,
   AdminServiceWriteIdempotencyConflictError,
+  AdminServiceWriteStorageError,
   archiveAdminServiceAtomically,
   createAdminServiceAtomically,
   updateAdminServiceAtomically,
@@ -61,12 +63,18 @@ class FakeServiceWriteDatabase implements D1DatabaseLike {
   };
   readonly mutations = new Map<string, MutationState>();
   readonly legacyAudits = new Set<string>();
+  readonly legacyAuditRequests = new Set<string>();
   readonly meta = new Set<number>();
   readonly batches: FakeServiceWriteStatement[][] = [];
   failLegacyAudit = false;
+  returnEmptyLegacyAudit = false;
+  returnEmptyMeta = false;
+  returnEmptyMutation = false;
+  returnEmptyMutationResult = false;
   raceBeforeBatch = false;
   private nextId = 8;
   private lastChanges = 0;
+  private serviceWriteSucceeded = false;
 
   prepare(query: string): FakeServiceWriteStatement {
     return new FakeServiceWriteStatement(this, query);
@@ -76,6 +84,16 @@ class FakeServiceWriteDatabase implements D1DatabaseLike {
     if (query.includes("sqlite_master")) {
       const table = String(values[0]);
       return (["admin_audit_log", "audit_logs", "service_admin_meta"].includes(table) ? { name: table } : null) as T | null;
+    }
+    if (query.includes("service-write-postcondition-read")) {
+      const requestId = String(values[0]);
+      const mutation = this.mutations.get(requestId);
+      const complete = Boolean(
+        mutation
+        && this.legacyAuditRequests.has(requestId)
+        && this.meta.has(Number(mutation.entity_key)),
+      );
+      return { complete: complete ? 1 : 0 } as T;
     }
     if (query.includes("FROM admin_audit_log")) return (this.mutations.get(String(values[0])) ?? null) as T | null;
     if (query.includes("SELECT id, revision") && query.includes("FROM services")) {
@@ -88,22 +106,29 @@ class FakeServiceWriteDatabase implements D1DatabaseLike {
     this.batches.push([...statements]);
     const snapshot = structuredClone({
       legacyAudits: [...this.legacyAudits],
+      legacyAuditRequests: [...this.legacyAuditRequests],
       meta: [...this.meta],
       mutations: [...this.mutations.entries()],
       nextId: this.nextId,
       service: this.service,
     });
+    this.serviceWriteSucceeded = false;
+    this.pendingRequestId = null;
     try {
       return statements.map((statement) => this.execute(statement.query, statement.values));
     } catch (error) {
       this.legacyAudits.clear();
       snapshot.legacyAudits.forEach((id) => this.legacyAudits.add(id));
+      this.legacyAuditRequests.clear();
+      snapshot.legacyAuditRequests.forEach((requestId) => this.legacyAuditRequests.add(requestId));
       this.meta.clear();
       snapshot.meta.forEach((id) => this.meta.add(id));
       this.mutations.clear();
       snapshot.mutations.forEach(([id, mutation]) => this.mutations.set(id, mutation));
       this.nextId = snapshot.nextId;
       this.service = snapshot.service;
+      this.serviceWriteSucceeded = false;
+      this.pendingRequestId = null;
       throw error;
     }
   }
@@ -122,19 +147,30 @@ class FakeServiceWriteDatabase implements D1DatabaseLike {
         summary: String(summary),
       };
       this.lastChanges = 1;
+      this.serviceWriteSucceeded = true;
       return { meta: { changes: 1 }, results: [{ id: this.service.id, revision: 1 }] };
     }
     if (query.includes("UPDATE services")) return this.executeServiceUpdate(query, values);
+    if (query.includes("service-write-postcondition-assert")) return this.executePostconditionAssertion();
     if (query.includes("INSERT INTO admin_audit_log")) return this.executeMutation(query, values);
     if (query.includes("INSERT INTO audit_logs")) {
       if (this.failLegacyAudit) throw new Error("legacy audit failed");
+      if (this.returnEmptyLegacyAudit) {
+        this.lastChanges = 0;
+        return { meta: { changes: 0 }, results: [] };
+      }
       if (this.lastChanges !== 1) return { meta: { changes: 0 }, results: [] };
       const id = String(values[0]);
       this.legacyAudits.add(id);
+      this.legacyAuditRequests.add(String(values[4]));
       this.lastChanges = 1;
       return { meta: { changes: 1 }, results: [{ id }] };
     }
     if (query.includes("INSERT INTO service_admin_meta")) {
+      if (this.returnEmptyMeta) {
+        this.lastChanges = 0;
+        return { meta: { changes: 0 }, results: [] };
+      }
       if (this.lastChanges !== 1) return { meta: { changes: 0 }, results: [] };
       const serviceId = query.includes("CAST(entity_key AS INTEGER)")
         ? Number(this.mutations.get(String(values[0]))?.entity_key)
@@ -172,12 +208,18 @@ class FakeServiceWriteDatabase implements D1DatabaseLike {
       this.service.is_active = Number(values[5]);
     }
     this.service.revision += 1;
+    this.serviceWriteSucceeded = true;
     this.lastChanges = 1;
     return { meta: { changes: 1 }, results: [{ id, revision: this.service.revision }] };
   }
 
   private executeMutation(query: string, values: unknown[]): { meta: { changes: number }; results?: unknown[] } {
+    this.pendingRequestId = String(values[0]);
     if (this.lastChanges !== 1) return { meta: { changes: 0 }, results: [] };
+    if (this.returnEmptyMutation) {
+      this.lastChanges = 0;
+      return { meta: { changes: 0 }, results: [] };
+    }
     const requestId = String(values[0]);
     if (this.mutations.has(requestId)) throw new Error("UNIQUE constraint failed: admin_audit_log.request_id");
     const action = query.includes("'create'") ? "create" : query.includes("'delete'") ? "delete" : "update";
@@ -190,7 +232,28 @@ class FakeServiceWriteDatabase implements D1DatabaseLike {
       request_id: requestId,
     });
     this.lastChanges = 1;
+    if (this.returnEmptyMutationResult) return { meta: { changes: 1 }, results: [] };
     return { meta: { changes: 1 }, results: [{ request_id: requestId }] };
+  }
+
+  private pendingRequestId: string | null = null;
+
+  private executePostconditionAssertion(): { meta: { changes: number }; results?: unknown[] } {
+    const requestId = this.pendingRequestId;
+    const mutation = requestId ? this.mutations.get(requestId) : null;
+    if (!requestId || !mutation) {
+      if (this.serviceWriteSucceeded) throw new Error("service write postcondition failed");
+      this.lastChanges = 0;
+      return { meta: { changes: 0 }, results: [] };
+    }
+    const complete = Boolean(
+      mutation
+      && this.legacyAuditRequests.has(requestId)
+      && this.meta.has(Number(mutation.entity_key)),
+    );
+    if (!complete) throw new Error("service write postcondition failed");
+    this.lastChanges = 0;
+    return { meta: { changes: 0 }, results: [] };
   }
 }
 
@@ -222,6 +285,123 @@ class FakeServiceWriteStatement implements D1PreparedStatementLike {
   }
 }
 
+class SqliteServiceWriteStatement implements D1PreparedStatementLike {
+  readonly query: string;
+  private values: unknown[] = [];
+  private readonly statement: ReturnType<DatabaseSync["prepare"]>;
+
+  constructor(query: string, statement: ReturnType<DatabaseSync["prepare"]>) {
+    this.query = query.replace(/\s+/g, " ").trim();
+    this.statement = statement;
+  }
+
+  bind(...values: unknown[]): SqliteServiceWriteStatement {
+    this.values = values;
+    return this;
+  }
+
+  async all<T>(): Promise<{ results: T[] }> {
+    return { results: this.statement.all(...(this.values as never[])) as T[] };
+  }
+
+  async first<T>(): Promise<T | null> {
+    return (this.statement.get(...(this.values as never[])) as T | undefined) ?? null;
+  }
+
+  async run(): Promise<unknown> {
+    this.statement.run(...(this.values as never[]));
+    return {};
+  }
+}
+
+class SqliteServiceWriteDatabase implements D1DatabaseLike {
+  readonly sqlite = new DatabaseSync(":memory:");
+  faultAfterLegacyAudit = false;
+  faultAfterMutationMarker = false;
+
+  constructor() {
+    this.sqlite.exec(`
+      CREATE TABLE services (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        slug TEXT NOT NULL UNIQUE,
+        name TEXT NOT NULL,
+        summary TEXT NOT NULL,
+        description TEXT NOT NULL,
+        image_url TEXT,
+        meta_title TEXT NOT NULL DEFAULT '',
+        is_active INTEGER NOT NULL,
+        revision INTEGER NOT NULL DEFAULT 1,
+        updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE TABLE service_admin_meta (
+        service_id INTEGER PRIMARY KEY,
+        status TEXT NOT NULL CHECK (status IN ('draft', 'review', 'published', 'archived')),
+        lead_time_days INTEGER,
+        moq_summary TEXT,
+        capabilities_json TEXT NOT NULL DEFAULT '[]',
+        process_steps_json TEXT NOT NULL DEFAULT '[]',
+        certifications_json TEXT NOT NULL DEFAULT '[]',
+        updated_by TEXT,
+        updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE TABLE admin_audit_log (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        request_id TEXT NOT NULL UNIQUE CHECK (length(request_id) = 36),
+        created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+        actor_subject TEXT NOT NULL CHECK (length(actor_subject) BETWEEN 1 AND 255),
+        action TEXT NOT NULL CHECK (action IN ('create', 'update', 'delete', 'upload')),
+        entity_type TEXT NOT NULL CHECK (entity_type IN ('category', 'product', 'variant', 'tier_prices', 'media', 'service')),
+        entity_key TEXT NOT NULL CHECK (length(entity_key) BETWEEN 1 AND 500),
+        previous_revision INTEGER CHECK (previous_revision IS NULL OR previous_revision > 0),
+        resulting_revision INTEGER CHECK (resulting_revision IS NULL OR resulting_revision > 0),
+        payload_sha256 TEXT NOT NULL CHECK (length(payload_sha256) = 64)
+      );
+      CREATE TABLE audit_logs (
+        id TEXT PRIMARY KEY NOT NULL,
+        actor_subject TEXT NOT NULL,
+        action TEXT NOT NULL,
+        entity_type TEXT NOT NULL,
+        entity_id TEXT,
+        metadata_json TEXT NOT NULL DEFAULT '{}',
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );
+      INSERT INTO services (slug, name, summary, description, image_url, is_active, revision)
+      VALUES ('dich-vu-cu', 'Dịch vụ cũ', 'Cũ', 'Cũ', NULL, 1, 1);
+    `);
+  }
+
+  prepare(query: string): SqliteServiceWriteStatement {
+    return new SqliteServiceWriteStatement(query, this.sqlite.prepare(query));
+  }
+
+  async batch(statements: SqliteServiceWriteStatement[]) {
+    this.sqlite.exec("BEGIN");
+    try {
+      const results = [];
+      for (const statement of statements) {
+        results.push(await statement.all());
+        if (this.faultAfterMutationMarker
+          && statement.query.includes("INSERT INTO admin_audit_log")
+          && !statement.query.includes("service-write-postcondition-assert")) {
+          this.sqlite.exec("DELETE FROM admin_audit_log");
+        }
+        if (this.faultAfterLegacyAudit && statement.query.includes("INSERT INTO audit_logs")) {
+          this.sqlite.exec("DELETE FROM audit_logs");
+        }
+      }
+      this.sqlite.exec("COMMIT");
+      return results;
+    } catch (error) {
+      this.sqlite.exec("ROLLBACK");
+      throw error;
+    }
+  }
+}
+
+function sqliteServiceCount(database: SqliteServiceWriteDatabase, table: "services" | "service_admin_meta" | "admin_audit_log" | "audit_logs"): number {
+  return Number((database.sqlite.prepare(`SELECT COUNT(*) AS count FROM ${table}`).get() as { count: number }).count);
+}
+
 async function read(path: string): Promise<string> {
   return readFile(new URL(path, root), "utf8");
 }
@@ -233,7 +413,7 @@ test("service create couples row, idempotency audit, legacy audit and meta in on
 
   assert.equal(id, 8);
   assert.equal(database.batches.length, 1);
-  assert.equal(database.batches[0]?.length, 4);
+  assert.equal(database.batches[0]?.length, 5);
   assert.equal(database.service.revision, 1);
   assert.equal(database.mutations.size, 1);
   assert.equal(database.legacyAudits.size, 1);
@@ -243,6 +423,7 @@ test("service create couples row, idempotency audit, legacy audit and meta in on
   assert.match(database.batches[0]?.[1]?.query ?? "", /INSERT INTO admin_audit_log/);
   assert.match(database.batches[0]?.[2]?.query ?? "", /INSERT INTO audit_logs/);
   assert.match(database.batches[0]?.[3]?.query ?? "", /INSERT INTO service_admin_meta/);
+  assert.match(database.batches[0]?.[4]?.query ?? "", /service-write-postcondition-assert/);
 });
 
 test("service update and archive use exact revision CAS and increment once", async () => {
@@ -303,6 +484,166 @@ test("a legacy audit failure rolls back the service row, marker and meta", async
   assert.equal(database.mutations.size, 0);
   assert.equal(database.legacyAudits.size, 0);
   assert.equal(database.meta.size, 0);
+});
+
+test("service postcondition assertion is valid SQLite and rolls back a missing legacy audit", async () => {
+  const database = new SqliteServiceWriteDatabase();
+  database.faultAfterLegacyAudit = true;
+
+  await assert.rejects(
+    () => updateAdminServiceAtomically(database, 1, input, 1, actor, updateRequestId),
+    AdminServiceWriteStorageError,
+  );
+
+  const service = database.sqlite.prepare("SELECT revision, name FROM services WHERE id = 1").get() as { revision: number; name: string };
+  assert.equal(service.name, "Dịch vụ cũ");
+  assert.equal(service.revision, 1);
+  assert.equal(sqliteServiceCount(database, "admin_audit_log"), 0);
+  assert.equal(sqliteServiceCount(database, "audit_logs"), 0);
+  assert.equal(sqliteServiceCount(database, "service_admin_meta"), 0);
+});
+
+test("service postcondition assertion rolls back when the mutation marker is missing", async () => {
+  const database = new SqliteServiceWriteDatabase();
+  database.faultAfterMutationMarker = true;
+
+  await assert.rejects(
+    () => updateAdminServiceAtomically(database, 1, input, 1, actor, updateRequestId),
+    AdminServiceWriteStorageError,
+  );
+
+  const service = database.sqlite.prepare("SELECT revision, name FROM services WHERE id = 1").get() as { revision: number; name: string };
+  assert.equal(service.name, "Dịch vụ cũ");
+  assert.equal(service.revision, 1);
+  assert.equal(sqliteServiceCount(database, "admin_audit_log"), 0);
+  assert.equal(sqliteServiceCount(database, "audit_logs"), 0);
+  assert.equal(sqliteServiceCount(database, "service_admin_meta"), 0);
+});
+
+test("service postcondition assertion accepts create, update, archive and replay in SQLite", async () => {
+  const database = new SqliteServiceWriteDatabase();
+  const updatedInput = { ...input, isActive: true, name: "Gia công cập nhật", status: "published" as const };
+
+  const createdId = await createAdminServiceAtomically(database, input, actor, createRequestId);
+  assert.equal(createdId, 2);
+  assert.equal(await createAdminServiceAtomically(database, input, "other@example.com", createRequestId), 2);
+
+  const updatedId = await updateAdminServiceAtomically(database, 2, updatedInput, 1, actor, updateRequestId);
+  assert.equal(updatedId, 2);
+  const replayedUpdateId = await updateAdminServiceAtomically(database, 2, updatedInput, 1, "other@example.com", updateRequestId);
+  assert.equal(replayedUpdateId, 2);
+  const archivedId = await archiveAdminServiceAtomically(database, 2, 2, actor, archiveRequestId);
+  assert.equal(archivedId, 2);
+  const replayedArchiveId = await archiveAdminServiceAtomically(database, 2, 2, "other@example.com", archiveRequestId);
+  assert.equal(replayedArchiveId, 2);
+  assert.equal(await createAdminServiceAtomically(database, input, "other@example.com", createRequestId), 2);
+  assert.equal(await updateAdminServiceAtomically(database, 2, updatedInput, 1, "other@example.com", updateRequestId), 2);
+
+  assert.equal(sqliteServiceCount(database, "services"), 2);
+  assert.equal(sqliteServiceCount(database, "admin_audit_log"), 3);
+  assert.equal(sqliteServiceCount(database, "audit_logs"), 3);
+  assert.equal(sqliteServiceCount(database, "service_admin_meta"), 1);
+});
+
+test("a missing legacy audit postcondition rolls back the complete service update", async () => {
+  const database = new FakeServiceWriteDatabase();
+  database.returnEmptyLegacyAudit = true;
+
+  await assert.rejects(
+    () => updateAdminServiceAtomically(database, 7, input, 4, actor, updateRequestId),
+    AdminServiceWriteStorageError,
+  );
+  assert.equal(database.service.revision, 4);
+  assert.equal(database.service.name, "Dịch vụ cũ");
+  assert.equal(database.mutations.size, 0);
+  assert.equal(database.legacyAudits.size, 0);
+  assert.equal(database.meta.size, 0);
+});
+
+test("a missing mutation marker postcondition rolls back the complete service update", async () => {
+  const database = new FakeServiceWriteDatabase();
+  database.returnEmptyMutation = true;
+
+  await assert.rejects(
+    () => updateAdminServiceAtomically(database, 7, input, 4, actor, updateRequestId),
+    AdminServiceWriteStorageError,
+  );
+  assert.equal(database.service.revision, 4);
+  assert.equal(database.service.name, "Dịch vụ cũ");
+  assert.equal(database.mutations.size, 0);
+  assert.equal(database.legacyAudits.size, 0);
+  assert.equal(database.meta.size, 0);
+});
+
+test("a missing legacy audit postcondition rolls back the complete service create", async () => {
+  const database = new FakeServiceWriteDatabase();
+  database.returnEmptyLegacyAudit = true;
+
+  await assert.rejects(
+    () => createAdminServiceAtomically(database, input, actor, createRequestId),
+    AdminServiceWriteStorageError,
+  );
+  assert.equal(database.service.id, 7);
+  assert.equal(database.mutations.size, 0);
+  assert.equal(database.legacyAudits.size, 0);
+  assert.equal(database.meta.size, 0);
+});
+
+test("a missing legacy audit postcondition rolls back the complete service archive", async () => {
+  const database = new FakeServiceWriteDatabase();
+  database.returnEmptyLegacyAudit = true;
+
+  await assert.rejects(
+    () => archiveAdminServiceAtomically(database, 7, 4, actor, archiveRequestId),
+    AdminServiceWriteStorageError,
+  );
+  assert.equal(database.service.revision, 4);
+  assert.equal(database.service.is_active, 1);
+  assert.equal(database.mutations.size, 0);
+  assert.equal(database.legacyAudits.size, 0);
+  assert.equal(database.meta.size, 0);
+});
+
+test("a missing service meta postcondition rolls back the complete service update", async () => {
+  const database = new FakeServiceWriteDatabase();
+  database.returnEmptyMeta = true;
+
+  await assert.rejects(
+    () => updateAdminServiceAtomically(database, 7, input, 4, actor, updateRequestId),
+    AdminServiceWriteStorageError,
+  );
+  assert.equal(database.service.revision, 4);
+  assert.equal(database.mutations.size, 0);
+  assert.equal(database.legacyAudits.size, 0);
+  assert.equal(database.meta.size, 0);
+});
+
+test("a complete service batch remains successful when D1 omits returned rows", async () => {
+  const database = new FakeServiceWriteDatabase();
+  database.returnEmptyMutationResult = true;
+
+  const id = await updateAdminServiceAtomically(database, 7, input, 4, actor, updateRequestId);
+
+  assert.equal(id, 7);
+  assert.equal(database.service.revision, 5);
+  assert.equal(database.mutations.size, 1);
+  assert.equal(database.legacyAudits.size, 1);
+  assert.equal(database.meta.size, 1);
+});
+
+test("an incomplete existing service marker is never treated as a successful replay", async () => {
+  const database = new FakeServiceWriteDatabase();
+
+  await updateAdminServiceAtomically(database, 7, input, 4, actor, updateRequestId);
+  database.legacyAudits.clear();
+  database.legacyAuditRequests.clear();
+  database.meta.clear();
+
+  await assert.rejects(
+    () => updateAdminServiceAtomically(database, 7, input, 4, actor, updateRequestId),
+    AdminServiceWriteStorageError,
+  );
+  assert.equal(database.batches.length, 1);
 });
 
 test("service routes and UI use exact commands, bounded parsing, revisions and atomic writers", async () => {
