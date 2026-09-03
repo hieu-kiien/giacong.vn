@@ -1,6 +1,7 @@
 "use client";
 
-import { ArrowDown, ArrowUp, Eye, Plus, Save, Send, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowUp, Eye, ExternalLink, Plus, Save, Send, Trash2 } from "lucide-react";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
@@ -8,7 +9,6 @@ import { AdminConfirmDialog } from "@/components/admin/AdminDialog";
 import { AdminErrorState, AdminPageHeading, AdminStatusBadge } from "@/components/admin/AdminPrimitives";
 import { AdminField } from "@/components/admin/AdminField";
 import { useAdminToast } from "@/components/admin/AdminToast";
-import { PageBlocks } from "@/components/site/PageBlocks";
 import { useAdminSession } from "@/components/admin/AdminShell";
 import { AdminClientError, fetchAdmin, mutateAdmin } from "@/lib/admin-client";
 import type { PageBlock, PageCta } from "@/lib/page-builder";
@@ -333,14 +333,31 @@ export function AdminPageBuilder() {
               title="Xóa section khỏi bản nháp?"
             />
           ) : null}
-          <aside className="admin-builder-preview" aria-label="Xem trước page draft">
-            <div className="admin-content-preview-heading"><div><div className="admin-kicker">Live draft preview</div><h2>Preview page</h2></div><Eye size={17} /></div>
-            <div className="admin-builder-preview-frame"><PageBlocks blocks={blocks} /></div>
-            <p className="admin-content-preview-note">Preview dùng draft hiện tại trong trình duyệt admin. Public chỉ đổi sau bước Publish.</p>
-          </aside>
+          <LivePageHandoff routePath={selectedPage.routePath} />
         </div>
       ) : <div className="admin-state"><div><h2>Chưa có page</h2><p>Chạy migration control plane rồi tải lại để tạo page đầu tiên.</p></div></div>}
     </div>
+  );
+}
+
+function LivePageHandoff({ routePath }: { routePath: string }) {
+  return (
+    <aside className="admin-live-storefront-card" aria-label={`Mở page thật ${routePath}`}>
+      <div className="admin-live-storefront-card-heading">
+        <div><div className="admin-kicker">STOREFRONT THẬT</div><h2>Xem page đang phục vụ</h2></div>
+        <ExternalLink aria-hidden="true" size={17} />
+      </div>
+      <div className="admin-live-storefront-card-body">
+        <p>Page builder chỉ quản lý section, SEO và trạng thái publish. Mình không dựng lại page trong một khung mô phỏng.</p>
+        <p>Hãy lưu và phát hành bản nháp, sau đó mở đúng đường dẫn bên dưới để kiểm tra kết quả trên renderer thật.</p>
+        <code className="admin-live-storefront-route">{routePath}</code>
+      </div>
+      <Link className="admin-button admin-button-primary admin-live-storefront-card-action" data-testid="link-open-live-page" href={routePath} rel="noreferrer" target="_blank">
+        Mở page thật
+        <ExternalLink aria-hidden="true" size={14} />
+      </Link>
+      <p className="admin-live-storefront-card-note">Storefront chỉ đọc bản published; thay đổi chưa publish sẽ không xuất hiện ở tab mới.</p>
+    </aside>
   );
 }
 

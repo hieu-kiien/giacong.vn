@@ -1,6 +1,6 @@
 "use client";
 
-import { Eye, Image as ImageIcon, Palette, RefreshCw, Save, Send, SendHorizonal, ShieldCheck, Upload } from "lucide-react";
+import { ExternalLink, RefreshCw, Save, Send, SendHorizonal, ShieldCheck, Upload } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AdminErrorState, AdminPageHeading, AdminStatusBadge } from "@/components/admin/AdminPrimitives";
 import { useAdminSession } from "@/components/admin/AdminShell";
@@ -257,7 +257,7 @@ export default function AdminContentPage() {
               </section>
             ))}
           </div>
-          <ContentPreview settings={settings} />
+          <LiveStorefrontHandoff />
         </div>
       )}
     </div>
@@ -333,35 +333,22 @@ function SettingEditor({
   );
 }
 
-function ContentPreview({ settings }: { settings: AdminSiteSetting[] }) {
-  const value = (key: string) => settings.find((setting) => setting.key === key)?.draftValue ?? "";
-  const primary = /^#[0-9a-f]{6}$/i.test(value("primary_color")) ? value("primary_color") : "#6cbe45";
-  const accent = /^#[0-9a-f]{6}$/i.test(value("accent_color")) ? value("accent_color") : "#bde875";
-  const logo = value("logo_url");
+function LiveStorefrontHandoff() {
   return (
-    <aside className="admin-content-preview" aria-label="Xem trước nhận diện">
-      <div className="admin-content-preview-heading"><div><div className="admin-kicker">Live draft preview</div><h2>Nhìn nhanh storefront</h2></div><Eye size={17} /></div>
-      <div className="admin-preview-browser">
-        <div className="admin-preview-browser-bar"><span /><span /><span /><small>kienhieu.id.vn</small></div>
-        <div className="admin-preview-page" style={{ "--preview-primary": primary, "--preview-accent": accent } as React.CSSProperties}>
-          <div className="admin-preview-nav">
-            <div className="admin-preview-logo">
-              {logo ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img alt="" src={logo} />
-              ) : <span>{value("brand_name").slice(0, 1).toLowerCase() || "g"}. </span>}
-              <strong>{value("brand_name") || "Giacong.vn"}</strong>
-            </div>
-            <span className="admin-preview-menu">Sản phẩm&nbsp;&nbsp; Dịch vụ&nbsp;&nbsp; Liên hệ</span>
-          </div>
-          <div className="admin-preview-hero">
-            <div><small>{value("hero_eyebrow") || "Giacong.vn cung cấp"}</small><h3>{value("hero_title") || "Giải pháp gia công toàn diện chuyên nghiệp"}</h3><p>{value("hero_description") || "Nội dung hero sẽ hiển thị ở đây."}</p><button type="button">{value("hero_primary_cta_label") || "Về chúng tôi"}</button></div>
-            <div className="admin-preview-art"><Palette size={26} /><ImageIcon size={21} /></div>
-          </div>
-          <div className="admin-preview-contact"><strong>{value("contact_phone") || "Hotline"}</strong><span>{value("contact_email") || "Email tư vấn"}</span></div>
-        </div>
+    <aside className="admin-live-storefront-card" aria-label="Chỉnh sửa trên storefront thật">
+      <div className="admin-live-storefront-card-heading">
+        <div><div className="admin-kicker">STOREFRONT THẬT</div><h2>Chỉnh sửa tại nơi hiển thị</h2></div>
+        <ExternalLink aria-hidden="true" size={17} />
       </div>
-      <p className="admin-content-preview-note">Preview dùng bản nháp để bạn kiểm tra nhận diện trước khi publish.</p>
+      <div className="admin-live-storefront-card-body">
+        <p>Trang này quản lý dữ liệu, bản nháp và phát hành. Không dựng một bản xem trước riêng có thể khác với website thật.</p>
+        <p>Muốn thấy đúng layout, menu, ảnh và animation, hãy mở storefront thật rồi bấm nút <strong>Sửa</strong> cạnh vùng nội dung khi phiên của bạn có quyền.</p>
+      </div>
+      <a className="admin-button admin-button-primary admin-live-storefront-card-action" data-testid="link-open-live-storefront" href="/" rel="noreferrer" target="_blank">
+        Mở storefront thật
+        <ExternalLink aria-hidden="true" size={14} />
+      </a>
+      <p className="admin-live-storefront-card-note">Bản nháp chỉ nằm trong trung tâm quản trị. Storefront public chỉ đổi sau khi bạn lưu và phát hành.</p>
     </aside>
   );
 }

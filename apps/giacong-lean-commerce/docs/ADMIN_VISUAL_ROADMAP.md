@@ -86,6 +86,13 @@ pass.
 `owner`; bốn role còn lại chưa có identity thật. Role-matrix runner đã sẵn sàng
 nhưng chưa được phép dùng placeholder/demo account để thay thế bằng chứng thật.
 
+**Live storefront handoff update 2026-09-03:** Hai màn hình control plane
+`Nội dung & thương hiệu` và `Thiết kế page` đã bỏ preview tự dựng riêng. Chúng
+vẫn quản lý draft/publish và các thao tác phức tạp, nhưng nút kiểm tra luôn mở
+đúng route storefront thật trên cùng worker để người vận hành thấy renderer,
+layout, menu, media và motion thực tế. Draft chưa publish được ghi rõ là chưa
+xuất hiện ở tab storefront.
+
 **Runtime update 2026-09-02 (direct editing trên storefront thật):**
 `AdminVisualEditor` đã bỏ draft preview mô phỏng và chuyển sang registry target
 an toàn trên DOM của homepage đang render. Owner/content manager có thể bấm đúng
@@ -179,8 +186,8 @@ admin-staging.kienhieu.id.vn
 - Admin sau Cloudflare Access dùng cùng renderer và cùng giao diện storefront;
   một thanh điều khiển nhỏ là tùy chọn, không phải điều kiện bắt buộc.
 - Nút Sửa cạnh vùng nội dung là cơ chế chính cho chỉnh sửa cục bộ. Toolbar chỉ
-  chứa hành động toàn cục như xem trước, lưu nháp, phát hành và mở trung tâm
-  quản trị.
+  chứa hành động toàn cục như lưu nháp, phát hành, mở storefront thật và mở
+  trung tâm quản trị.
 - Owner có toàn bộ capability được phê duyệt; các role khác chỉ thấy và thực thi
   đúng phần được cấp. UI ẩn nút không thay thế cho server authorization.
 - Không biến hệ thống thành page builder tự do. Chỉ chỉnh sửa region/field có
@@ -281,7 +288,7 @@ Public và admin phải gọi cùng source/render path. Admin chỉ thêm contex
 
 ~~~
 published data → shared storefront renderer → public view
-draft data     → same renderer + admin context → edit/preview view
+draft data     → admin control plane; published data → same renderer + admin context → live edit view
 ~~~
 
 Không tạo cặp PublicHero/AdminHero chỉ vì admin có thêm nút. Vùng nào hiện còn
@@ -294,7 +301,7 @@ giả vờ rằng mọi node HTML đều là field có thể sửa.
 | --- | --- | --- |
 | Published | public và admin | bản đang phục vụ storefront |
 | Draft | admin có quyền | bản đang chỉnh sửa, chưa làm public |
-| Preview | admin có quyền | render draft trong cùng layout để kiểm tra |
+| Live check | admin có quyền | mở storefront thật trên cùng worker để kiểm tra bản published và chỉnh đúng vùng |
 
 Mỗi mutation phải có version hiện tại. Write cũ phải bị từ chối bằng lỗi stale
 thay vì ghi đè âm thầm.
@@ -389,9 +396,9 @@ không chuyên môn.
 **Checkpoint 2026-08-28:** Per-setting settings write contract, bulk
 `publish-all` và contextual editor brand/hero đã vào `master`. Editor dùng
 canonical `/api/admin/site-settings`, có role-aware read/write/publish, draft,
-preview card, loading/error/stale feedback và keyboard/mobile handling. Gate còn
-mở của P2 là browser proof trên admin host thật, staging read-back và kiểm tra
-preview bằng renderer storefront đầy đủ thay cho draft card MVP.
+loading/error/stale feedback và keyboard/mobile handling. Handoff tới
+storefront thật là nơi kiểm tra renderer; không giữ draft card mô phỏng trong
+control plane.
 
 **Mục tiêu:** hoàn thành trọn vẹn một flow có giá trị cao, bắt đầu từ brand/hero
 đã có mapping.
@@ -401,7 +408,7 @@ preview bằng renderer storefront đầy đủ thay cho draft card MVP.
 - logo và brand name;
 - phone, email và kênh liên hệ;
 - hero eyebrow/title/description/image/CTA đã có trong settings;
-- lưu draft, preview draft, publish và hiển thị public sau publish.
+- lưu draft, mở storefront thật để kiểm tra bản published, publish và đọc lại public.
 
 **Công việc:**
 
@@ -417,7 +424,7 @@ preview bằng renderer storefront đầy đủ thay cho draft card MVP.
 
 - field validation và URL/media validation;
 - draft không làm thay đổi public;
-- preview dùng draft nhưng không ghi public;
+- live check dùng storefront thật và không biến bản draft chưa publish thành public;
 - publish thay đổi public đúng một lần;
 - stale write trả lỗi và giữ nội dung của người sửa trước;
 - role matrix cho read/write/publish;
@@ -518,7 +525,7 @@ toàn có thể chỉnh sửa.
 1. Dùng PageBlocks và schema an toàn hiện có: hero, rich text, image,
    feature grid, CTA, contact.
 2. Storefront edit button mở đúng block/section; thêm, di chuyển và xóa có
-   confirmation, giới hạn và preview.
+   confirmation, giới hạn; kiểm tra kết quả bằng route storefront thật.
 3. Navigation primary desktop/mobile dùng cùng published source; kiểm tra riêng
    footer vì model hiện có nhưng renderer không mặc định áp dụng đầy đủ.
 4. Chỉ cho phép URL/text đã normalize; không cho HTML/CSS/JS tùy ý.
@@ -882,7 +889,7 @@ mutation remote nếu phase chưa ghi rõ staging gate.
 | Auth/admission | host, Access, same-origin, fail-closed test | mọi admin route/write |
 | Permission | role × capability × action matrix | mọi nút/route/batch |
 | Persistence | D1 query/update, version, atomic audit | mọi write |
-| Draft/publish | draft không rò public, preview đúng, publish đúng | mọi nội dung public |
+| Draft/publish | draft không rò public, storefront thật đọc đúng bản published, publish đúng | mọi nội dung public |
 | Concurrency | stale version và retry/idempotency | mọi update/batch/upload |
 | Media | MIME/size/path/checksum/reference guard | mọi media change |
 | Browser | desktop, mobile, keyboard, focus, error/loading/empty | mọi UI admin |

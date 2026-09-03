@@ -31,6 +31,23 @@ test("page contextual action is host-gated by the shared visual context and role
   assert.doesNotMatch(action, /fetchAdmin|\/api\/admin\/session/);
 });
 
+test("content and page editors hand off to the real storefront instead of reconstructing a preview", async () => {
+  const [content, builder, styles] = await Promise.all([
+    readSource("../src/app/admin/noi-dung/page.tsx"),
+    readSource("../src/components/admin/AdminPageBuilder.tsx"),
+    readSource("../src/styles/admin.css"),
+  ]);
+
+  assert.doesNotMatch(content, /ContentPreview|admin-preview-page|Live draft preview|Preview dùng bản nháp/);
+  assert.match(content, /Mở storefront thật/);
+  assert.match(content, /href="\/"/);
+  assert.doesNotMatch(builder, /PageBlocks|admin-builder-preview-frame|Live draft preview|Preview dùng draft/);
+  assert.match(builder, /selectedPage\.routePath/);
+  assert.match(builder, /Mở page thật/);
+  assert.doesNotMatch(styles, /admin-preview-|admin-content-preview|admin-builder-preview/);
+  assert.match(styles, /admin-live-storefront-card/);
+});
+
 test("admin page builder honors a safe page deep-link through the canonical page API", async () => {
   const source = await readSource("../src/components/admin/AdminPageBuilder.tsx");
 

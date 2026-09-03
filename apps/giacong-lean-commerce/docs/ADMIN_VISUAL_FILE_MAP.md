@@ -51,6 +51,12 @@ checkpoint source và staging vẫn nguyên vẹn. Phiên Chrome owner đã đ�
 tải dữ liệu/1102/502/503 được render. Đây là bằng chứng read-only sau restart;
 role matrix nhiều identity, write/read-back đầy đủ và production gate vẫn mở.
 
+**Live storefront handoff update 2026-09-03:** `AdminContentPage` và
+`AdminPageBuilder` không còn dựng card preview bằng JSX/CSS riêng. Hai màn hình
+giữ vai trò control plane cho draft/publish nhưng chỉ đưa người vận hành sang
+route storefront thật để kiểm tra renderer, layout, menu, ảnh và animation; bản
+nháp chưa publish được ghi rõ là chưa xuất hiện ở tab storefront.
+
 Rollback drill staging 2026-09-01 đã pass: chuyển 100% traffic về
 `a1f71e85-113e-4559-9377-ebedc22b92e7`, smoke public pass, sau đó khôi phục
 100% về `902b3a6e-732f-4de6-a9fc-429b6478d833`; sau đó version
@@ -270,7 +276,7 @@ runtime acceptance còn mở.
 | Captured home render | src/components/site/CapturedHomePage.tsx | đã có; HTML captured + site settings + published navigation mapping và fallback hero gallery | P2, P4 |
 | Captured page render | src/components/CapturedPage.tsx | đã có; captured markup fallback | P1–P4 |
 | Header/footer shell | src/components/site/CapturedStorefrontShell.tsx | đã có; áp settings/navigation vào captured shell | P2, P4 |
-| Safe block render | src/components/site/PageBlocks.tsx | đã có; renderer dùng chung với page builder preview; nhận pageKey tùy chọn để gắn action trên managed page | P4 |
+| Safe block render | src/components/site/PageBlocks.tsx | đã có; renderer dùng chung với managed page thật; nhận pageKey tùy chọn để gắn action trên managed page | P4 |
 | News frame | src/components/CapturedNewsFrame.tsx | đã có; cần adapter nếu inline news được bật | P3 |
 | Request cart | src/components/request-cart/ | đã có; không đưa vào visual admin scope | không mở rộng |
 | Public nav interactions | src/components/site/storefront-navigation.ts, src/components/storefront/ | đã có; public behavior phải giữ nguyên | P1–P4 |
@@ -305,7 +311,7 @@ runtime acceptance còn mở.
 | Primitives | src/components/admin/AdminPrimitives.tsx | heading, state, table-level UI | dùng chung cho back office và drawer đặc biệt |
 | Dialog/field/toast | src/components/admin/AdminDialog.tsx, AdminField.tsx, AdminToast.tsx | feedback, focus-trapped modal/confirm và form guard | tái sử dụng cho contextual editor; browser focus evidence còn mở |
 | Media | AdminMediaPanel.tsx, AdminMediaPickerModal.tsx | media list/picker | mở từ storefront khi capability cho phép |
-| Page builder | AdminPageBuilder.tsx | safe blocks, draft/preview/publish; chọn page theo query `?page=` từ contextual hand-off | vẫn là advanced editor/back office; inline là shortcut |
+| Page builder | AdminPageBuilder.tsx | safe blocks, draft/publish; chọn page theo query `?page=` và mở route storefront thật để kiểm tra | vẫn là advanced editor/back office; inline là shortcut |
 | Navigation | AdminNavigationManager.tsx | primary menu manager | giữ full editor; contextual edit gọi vào đúng item |
 | Members | AdminMembersManager.tsx | owner quản lý admin roles | trang đặc biệt, không inline trên storefront |
 | Audit/history | src/app/admin/audit/page.tsx, src/app/api/admin/audit/route.ts, src/lib/admin-audit.ts | owner-only timeline read-only, filter/pagination, revision/request id | trang đặc biệt P6; không có rollback nếu chưa được phê duyệt |
@@ -442,7 +448,7 @@ khối lượng mà contextual UI làm khó hiểu.
 | /admin/tin-tuc | viết, lọc, publish nhiều bài | giữ, chuẩn hóa draft/publish |
 | /admin/yeu-cau | inbox/status/lead workflow | bắt buộc back office |
 | /admin/noi-dung | global settings/brand/SEO | giữ làm advanced editor |
-| /admin/thiet-ke | blocks/sections/page preview | giữ làm advanced editor |
+| /admin/thiet-ke | blocks/sections + mở page storefront thật | giữ làm advanced editor; không dựng preview riêng |
 | /admin/dieu-huong | menu reorder/publish | giữ |
 | /admin/thanh-vien | internal roles/members | owner-only, không phải customer account |
 | Audit/rollback | chỉ tạo nếu history workflow cần UI | P6, không tự thêm sớm |
