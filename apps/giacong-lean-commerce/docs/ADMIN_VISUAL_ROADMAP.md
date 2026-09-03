@@ -10,6 +10,17 @@ Tài liệu này là nguồn bám theo cho việc biến admin hiện tại thà
 hiển thị, nhưng vẫn giữ trung tâm vận hành đầy đủ cho nghiệp vụ phức tạp và xử
 lý hàng loạt.
 
+**Checkpoint authoritative — 2026-09-03:** `master` đang ở commit `d4ead63a`;
+footer managed renderer đã được deploy lên staging version
+`e50223de-208f-45d8-bd4f-27ecc32b37ea` ở 100%, rollback point gần nhất là
+`430d41b1-a61c-46d1-ac9f-89eb8df74feb`. Deep QA read-only mới nhất trên
+staging đạt responsive cho 4 route ở mobile/tablet/desktop, catalog
+search/sort, detail/cart và keyboard; không có horizontal overflow hay
+console error. Production Worker `giacong-vn` vẫn giữ version
+`1d8a2b41-6154-46d5-935b-8cb7fbc35688` và chưa bị deploy, migrate hoặc ghi dữ
+liệu. Các gate Access nhiều identity, write/read-back đầy đủ, dữ liệu
+production, restore/rollback và observability 24 giờ vẫn mở.
+
 **Checkpoint hiện tại — 2026-09-02:** Bản motion/menu storefront đã được
 review và tích hợp vào `master`; staging đang phục vụ version
 `81b2e573-dea9-4e6a-b7ce-9cddb9b5fc70` sau owner/RBAC hardening, navigation
