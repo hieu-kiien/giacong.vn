@@ -77,7 +77,7 @@ export async function archiveAdminProductsAtomically(
   const existingMutation = await findProductBatchMutation(database, requestId);
   if (existingMutation) {
     assertMatchingMutation(existingMutation, requestId, payloadSha256);
-    return readProductBatchReplay(database, requestId, existingMutation, items.length);
+    return readProductBatchReplay(database, requestId, existingMutation, items);
   }
 
   const snapshots = await listAdminProductBatchSnapshots(database, items.map((item) => item.id));
@@ -107,22 +107,30 @@ export async function archiveAdminProductsAtomically(
     statements.push(buildArchiveGuard(database, input.actorSubject, requestId, entityKey, payloadSha256, item));
     if (hasProductMeta) statements.push(buildProductMetaArchive(database, input.actorSubject, item));
     statements.push(buildProductAudit(database, input.actorSubject, requestId, item));
+    statements.push(buildProductBatchItemPostcondition(
+      database,
+      input.actorSubject,
+      requestId,
+      entityKey,
+      payloadSha256,
+      item,
+      hasProductMeta,
+    ));
   }
   statements.push(buildBatchAuditEnvelope(database, input.actorSubject, entityKey, result));
+  statements.push(buildProductBatchEnvelopePostcondition(database, requestId, entityKey, payloadSha256));
 
-  let results: BatchResult[];
   try {
-    results = await databaseWithBatch.batch(statements);
+    await databaseWithBatch.batch(statements);
   } catch (error) {
     const racedMutation = await findProductBatchMutation(database, requestId);
     if (racedMutation) {
       assertMatchingMutation(racedMutation, requestId, payloadSha256);
-      return readProductBatchReplay(database, requestId, racedMutation, items.length);
+      return readProductBatchReplay(database, requestId, racedMutation, items);
     }
     if (isStaleConstraint(error)) throw new AdminProductBatchConflictError("Sản phẩm đã thay đổi ở phiên khác. Hãy tải lại rồi thử lại.");
-    throw error;
+    throw normalizeProductBatchError(error);
   }
-  assertBatchResults(results, statements.length, eligible.length, hasProductMeta);
   return result;
 }
 
@@ -163,12 +171,33 @@ function assertMatchingMutation(mutation: MutationRow, requestId: string, payloa
   }
 }
 
-async function readProductBatchReplay(database: D1DatabaseLike, requestId: string, mutation: MutationRow, selectedCount: number): Promise<AdminProductBatchResult> {
+async function readProductBatchReplay(
+  database: D1DatabaseLike,
+  requestId: string,
+  mutation: MutationRow,
+  items: readonly AdminProductBatchItem[],
+): Promise<AdminProductBatchResult> {
   const envelope = await database.prepare("SELECT metadata_json FROM audit_logs WHERE id = ? AND action = 'product.bulk_archived_batch' AND entity_type = 'product' LIMIT 1").bind(mutation.entity_key).first<{ metadata_json: string }>();
   if (!envelope) throw new AdminProductBatchStorageError("Không đọc lại được kết quả ẩn sản phẩm hàng loạt.");
   let metadata: unknown;
   try { metadata = JSON.parse(envelope.metadata_json); } catch { throw new AdminProductBatchStorageError("Audit ẩn sản phẩm hàng loạt chứa metadata không hợp lệ."); }
-  if (!isReplayMetadata(metadata) || metadata.requestId !== requestId || metadata.selectedCount !== selectedCount) throw new AdminProductBatchStorageError("Audit ẩn sản phẩm hàng loạt không khớp request.");
+  if (!isReplayMetadata(metadata) || metadata.requestId !== requestId || metadata.selectedCount !== items.length) throw new AdminProductBatchStorageError("Audit ẩn sản phẩm hàng loạt không khớp request.");
+  const skippedIds = new Set(metadata.skipped.map((entry) => entry.id));
+  const eligibleIds = items.filter((item) => !skippedIds.has(item.id)).map((item) => item.id);
+  if (eligibleIds.length > 0) {
+    const childIds = eligibleIds.map((id) => `${mutation.entity_key}:${id}`);
+    const childAudits = await database.prepare(`
+      SELECT id
+      FROM audit_logs
+      WHERE id IN (${childIds.map(() => "?").join(", ")})
+        AND action = 'product.bulk_archived'
+        AND entity_type = 'product'
+    `).bind(...childIds).all<{ id: string }>();
+    if (childAudits.results.length !== childIds.length
+      || new Set(childAudits.results.map((row) => row.id)).size !== childIds.length) {
+      throw new AdminProductBatchStorageError("Audit ẩn sản phẩm hàng loạt chưa đủ dữ liệu để replay.");
+    }
+  }
   return { changedCount: metadata.changedCount, replayed: true, selectedCount: metadata.selectedCount, skipped: metadata.skipped };
 }
 
@@ -199,18 +228,91 @@ function buildBatchAuditEnvelope(database: D1DatabaseLike, actor: string, entity
   return database.prepare("INSERT INTO audit_logs (id, actor_subject, action, entity_type, entity_id, metadata_json) VALUES (?, ?, 'product.bulk_archived_batch', 'product', NULL, ?) RETURNING id").bind(entityKey, actor, JSON.stringify(metadata));
 }
 
-function assertBatchResults(results: BatchResult[], expectedLength: number, eligibleCount: number, hasProductMeta: boolean): void {
-  if (results.length !== expectedLength || resultRowCount(results[0]) !== 1) throw new AdminProductBatchStorageError("Không ghi được audit idempotency sản phẩm.");
-  let index = 1;
-  for (let item = 0; item < eligibleCount; item += 1) {
-    if (resultRowCount(results[index++]) !== 1 || resultRowCount(results[index++]) !== 0) throw new AdminProductBatchConflictError("Sản phẩm đã thay đổi ở phiên khác. Hãy tải lại rồi thử lại.");
-    if (hasProductMeta && resultRowCount(results[index++]) !== 1) throw new AdminProductBatchStorageError("Không đồng bộ được trạng thái sản phẩm.");
-    if (resultRowCount(results[index++]) !== 1) throw new AdminProductBatchStorageError("Không ghi đủ audit sản phẩm.");
-  }
-  if (resultRowCount(results[index]) !== 1) throw new AdminProductBatchStorageError("Không ghi được audit envelope sản phẩm.");
+function buildProductBatchItemPostcondition(
+  database: D1DatabaseLike,
+  actor: string,
+  requestId: string,
+  entityKey: string,
+  hash: string,
+  item: AdminProductBatchItem,
+  hasProductMeta: boolean,
+): D1PreparedStatementLike {
+  const childId = `${entityKey}:${item.id}`;
+  const metaClause = hasProductMeta
+    ? "AND EXISTS (SELECT 1 FROM product_admin_meta WHERE product_id = ? AND status = 'archived' AND updated_by = ?)"
+    : "";
+  const values: unknown[] = [
+    requestId,
+    entityKey,
+    hash,
+    item.id,
+    item.expectedRevision + 1,
+  ];
+  if (hasProductMeta) values.push(item.id, actor);
+  values.push(childId, String(item.id));
+  return database.prepare(`
+    /* product batch postcondition */
+    INSERT INTO admin_audit_log (
+      request_id, actor_subject, action, entity_type, entity_key,
+      previous_revision, resulting_revision, payload_sha256
+    )
+    SELECT NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL
+    WHERE NOT (
+      EXISTS (
+        SELECT 1 FROM admin_audit_log
+        WHERE request_id = ?
+          AND action = 'delete'
+          AND entity_type = 'product'
+          AND entity_key = ?
+          AND payload_sha256 = ?
+      )
+      AND EXISTS (
+        SELECT 1 FROM products
+        WHERE id = ? AND revision = ? AND is_active = 0
+      )
+      ${metaClause}
+      AND EXISTS (
+        SELECT 1 FROM audit_logs
+        WHERE id = ?
+          AND action = 'product.bulk_archived'
+          AND entity_type = 'product'
+          AND entity_id = ?
+      )
+    )
+  `).bind(...values);
 }
 
-function resultRowCount(result: BatchResult | undefined): number { return Array.isArray(result?.results) ? result.results.length : 0; }
+function buildProductBatchEnvelopePostcondition(
+  database: D1DatabaseLike,
+  requestId: string,
+  entityKey: string,
+  hash: string,
+): D1PreparedStatementLike {
+  return database.prepare(`
+    /* product batch postcondition */
+    INSERT INTO admin_audit_log (
+      request_id, actor_subject, action, entity_type, entity_key,
+      previous_revision, resulting_revision, payload_sha256
+    )
+    SELECT NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL
+    WHERE NOT (
+      EXISTS (
+        SELECT 1 FROM admin_audit_log
+        WHERE request_id = ?
+          AND action = 'delete'
+          AND entity_type = 'product'
+          AND entity_key = ?
+          AND payload_sha256 = ?
+      )
+      AND EXISTS (
+        SELECT 1 FROM audit_logs
+        WHERE id = ?
+          AND action = 'product.bulk_archived_batch'
+          AND entity_type = 'product'
+      )
+    )
+  `).bind(requestId, entityKey, hash, entityKey);
+}
 
 async function tableExists(database: D1DatabaseLike, tableName: string): Promise<boolean> {
   const row = await database.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = ? LIMIT 1").bind(tableName).first<{ name: string }>();
@@ -224,6 +326,14 @@ function requireBatch(database: D1DatabaseLike): DatabaseWithBatch {
 }
 
 function isStaleConstraint(error: unknown): boolean { return error instanceof Error && /UNIQUE constraint failed:\s*admin_audit_log\.request_id/i.test(error.message); }
+function normalizeProductBatchError(error: unknown): unknown {
+  const message = error instanceof Error ? error.message : String(error);
+  if (message.includes("product batch postcondition")
+    || (message.includes("admin_audit_log") && message.toLowerCase().includes("constraint failed"))) {
+    return new AdminProductBatchStorageError("Không ghi đồng bộ được sản phẩm và audit; hệ thống đã rollback để tránh trạng thái dở dang.");
+  }
+  return error;
+}
 function isReplayMetadata(value: unknown): value is ReplayMetadata {
   return isRecord(value) && Number.isSafeInteger(value.changedCount) && Number(value.changedCount) >= 0 && typeof value.requestId === "string" && Number.isSafeInteger(value.selectedCount) && Number(value.selectedCount) >= 1 && Array.isArray(value.skipped) && Number(value.changedCount) + value.skipped.length === Number(value.selectedCount) && value.skipped.every(isReplaySkip);
 }

@@ -1,11 +1,13 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
+import { DatabaseSync } from "node:sqlite";
 import test from "node:test";
 
 import {
   AdminProductBatchConflictError,
   AdminProductBatchIdempotencyConflictError,
+  AdminProductBatchStorageError,
   archiveAdminProductsAtomically,
   listAdminProductBatchSnapshots,
   parseAdminProductBatchItems,
@@ -34,6 +36,13 @@ class FakeProductBatchDatabase implements D1DatabaseLike {
   batchCalls = 0;
   raceAfterSnapshotId: number | null = null;
   private lastChanges = 0;
+  private readonly omitBatchResults: boolean;
+  private readonly skipMeta: boolean;
+
+  constructor(options: { omitBatchResults?: boolean; skipMeta?: boolean } = {}) {
+    this.omitBatchResults = options.omitBatchResults ?? false;
+    this.skipMeta = options.skipMeta ?? false;
+  }
 
   prepare(query: string): D1PreparedStatementLike {
     return new FakeStatement(this, query);
@@ -53,6 +62,14 @@ class FakeProductBatchDatabase implements D1DatabaseLike {
   }
 
   async all<T>(query: string, values: unknown[]): Promise<{ results: T[] }> {
+    if (query.includes("FROM audit_logs")) {
+      const ids = new Set(values.map(String));
+      return {
+        results: [...this.childAudits]
+          .filter((id) => ids.has(id))
+          .map((id) => ({ id })) as T[],
+      };
+    }
     if (!query.includes("FROM products")) return { results: [] };
     const ids = new Set(values.map(Number));
     const results = [...this.rows.values()].filter((row) => ids.has(row.id)).map((row) => ({ ...row })) as T[];
@@ -68,6 +85,7 @@ class FakeProductBatchDatabase implements D1DatabaseLike {
     this.batchCalls += 1;
     const before = this.snapshot();
     try {
+      if (this.omitBatchResults) return statements.map(() => ({}));
       return statements.map((statement) => this.execute(statement as FakeStatement));
     } catch (error) {
       this.restore(before);
@@ -77,6 +95,10 @@ class FakeProductBatchDatabase implements D1DatabaseLike {
 
   private execute(statement: FakeStatement): { results?: unknown[] } {
     const { query, values } = statement;
+    if (query.includes("product batch postcondition")) {
+      if (this.skipMeta) throw new Error("NOT NULL constraint failed: admin_audit_log.request_id");
+      return { results: [{ ok: 1 }] };
+    }
     if (query.includes("WHERE NOT EXISTS")) {
       const id = Number(values[6]);
       const revision = Number(values[7]);
@@ -160,6 +182,39 @@ test("product batch archives eligible rows and reports not_found, stale and alre
   assert.equal(database.batchCalls, 1);
 });
 
+test("a complete product batch remains successful when D1 omits returned rows", async () => {
+  const database = new FakeProductBatchDatabase({ omitBatchResults: true });
+  const result = await archiveAdminProductsAtomically(database, {
+    actorSubject: "owner@example.com",
+    items: [{ id: 1, expectedRevision: 1 }],
+    requestId,
+  });
+
+  assert.deepEqual(result, {
+    changedCount: 1,
+    replayed: false,
+    selectedCount: 1,
+    skipped: [],
+  });
+  assert.equal(database.batchCalls, 1);
+});
+
+test("an incomplete product batch rolls back when product metadata is missing", async () => {
+  const database = new FakeProductBatchDatabase({ skipMeta: true });
+
+  await assert.rejects(
+    () => archiveAdminProductsAtomically(database, {
+      actorSubject: "owner@example.com",
+      items: [{ id: 1, expectedRevision: 1 }],
+      requestId,
+    }),
+    AdminProductBatchStorageError,
+  );
+  assert.deepEqual(database.rows.get(1), { id: 1, is_active: 1, revision: 1 });
+  assert.equal(database.markers.size, 0);
+  assert.equal(database.envelopes.size, 0);
+});
+
 test("product batch replay is idempotent and conflicting reuse is rejected", async () => {
   const database = new FakeProductBatchDatabase();
   const input = { actorSubject: "owner@example.com", items: [{ id: 1, expectedRevision: 1 }], requestId };
@@ -170,6 +225,18 @@ test("product batch replay is idempotent and conflicting reuse is rejected", asy
   await assert.rejects(() => archiveAdminProductsAtomically(database, { ...input, items: [{ id: 2, expectedRevision: 4 }] }), AdminProductBatchIdempotencyConflictError);
 });
 
+test("product batch replay rejects when a child audit is missing", async () => {
+  const database = new FakeProductBatchDatabase();
+  const input = { actorSubject: "owner@example.com", items: [{ id: 1, expectedRevision: 1 }], requestId };
+  await archiveAdminProductsAtomically(database, input);
+  database.childAudits.clear();
+
+  await assert.rejects(
+    () => archiveAdminProductsAtomically(database, input),
+    AdminProductBatchStorageError,
+  );
+});
+
 test("product batch maps a concurrent stale race to conflict and rolls back atomically", async () => {
   const database = new FakeProductBatchDatabase();
   database.raceAfterSnapshotId = 1;
@@ -177,6 +244,58 @@ test("product batch maps a concurrent stale race to conflict and rolls back atom
   assert.deepEqual(database.rows.get(1), { id: 1, is_active: 1, revision: 2 });
   assert.equal(database.markers.size, 0);
   assert.equal(database.envelopes.size, 0);
+});
+
+test("SQLite product batch postconditions remain atomic when results are omitted", async () => {
+  const database = createSqliteProductBatchDatabase({ omitBatchResults: true });
+  try {
+    database.sqlite.prepare("INSERT INTO products (name, slug, sku, short_description, description, is_active, revision) VALUES (?, ?, ?, ?, ?, 1, 1)").run(
+      "Sản phẩm",
+      "san-pham",
+      "SKU-1",
+      "",
+      "",
+    );
+    const input = { actorSubject: "owner@example.com", items: [{ id: 1, expectedRevision: 1 }], requestId };
+
+    const result = await archiveAdminProductsAtomically(database, input);
+    assert.equal(result.changedCount, 1);
+    const archived = database.sqlite.prepare("SELECT is_active, revision FROM products WHERE id = 1").get() as { is_active: number; revision: number };
+    assert.equal(archived.is_active, 0);
+    assert.equal(archived.revision, 2);
+    assert.deepEqual((await archiveAdminProductsAtomically(database, input)).replayed, true);
+  } finally {
+    database.sqlite.close();
+  }
+});
+
+test("SQLite product batch postconditions rollback a missing metadata write", async () => {
+  const database = createSqliteProductBatchDatabase({ skipQuery: /INSERT INTO product_admin_meta/ });
+  try {
+    database.sqlite.prepare("INSERT INTO products (name, slug, sku, short_description, description, is_active, revision) VALUES (?, ?, ?, ?, ?, 1, 1)").run(
+      "Sản phẩm",
+      "san-pham",
+      "SKU-1",
+      "",
+      "",
+    );
+
+    await assert.rejects(
+      () => archiveAdminProductsAtomically(database, {
+        actorSubject: "owner@example.com",
+        items: [{ id: 1, expectedRevision: 1 }],
+        requestId,
+      }),
+      AdminProductBatchStorageError,
+    );
+    const active = database.sqlite.prepare("SELECT is_active, revision FROM products WHERE id = 1").get() as { is_active: number; revision: number };
+    assert.equal(active.is_active, 1);
+    assert.equal(active.revision, 1);
+    assert.equal(database.sqlite.prepare("SELECT COUNT(*) AS count FROM admin_audit_log").get()?.count, 0);
+    assert.equal(database.sqlite.prepare("SELECT COUNT(*) AS count FROM audit_logs").get()?.count, 0);
+  } finally {
+    database.sqlite.close();
+  }
 });
 
 test("product batch route and UI expose bounded revision-aware archive controls", async () => {
@@ -220,3 +339,114 @@ test("product snapshot reader is additive and bounded", async () => {
   ]);
   assert.equal(parseAdminProductBatchItems([]), null);
 });
+
+class SqliteProductBatchStatement implements D1PreparedStatementLike {
+  readonly query: string;
+  private values: unknown[] = [];
+  private readonly statement: ReturnType<DatabaseSync["prepare"]>;
+
+  constructor(query: string, statement: ReturnType<DatabaseSync["prepare"]>) {
+    this.query = query;
+    this.statement = statement;
+  }
+
+  bind(...values: unknown[]) {
+    this.values = values;
+    return this;
+  }
+
+  async all<T>() {
+    return { results: this.statement.all(...(this.values as never[])) as T[] };
+  }
+
+  async first<T>() {
+    return (this.statement.get(...(this.values as never[])) as T | undefined) ?? null;
+  }
+
+  async run() {
+    this.statement.run(...(this.values as never[]));
+    return {};
+  }
+}
+
+class SqliteProductBatchDatabase implements D1DatabaseLike {
+  readonly sqlite: DatabaseSync;
+  private readonly omitBatchResults: boolean;
+  private readonly skipQuery?: RegExp;
+
+  constructor(sqlite: DatabaseSync, options: { omitBatchResults?: boolean; skipQuery?: RegExp } = {}) {
+    this.sqlite = sqlite;
+    this.omitBatchResults = options.omitBatchResults ?? false;
+    this.skipQuery = options.skipQuery;
+  }
+
+  prepare(query: string) {
+    return new SqliteProductBatchStatement(query, this.sqlite.prepare(query));
+  }
+
+  async batch(statements: SqliteProductBatchStatement[]) {
+    this.sqlite.exec("BEGIN");
+    try {
+      const results = [];
+      for (const statement of statements) {
+        if (this.skipQuery?.test(statement.query)) {
+          results.push({ results: [] });
+        } else {
+          results.push(await statement.all());
+        }
+      }
+      this.sqlite.exec("COMMIT");
+      return this.omitBatchResults ? results.map(() => ({})) : results;
+    } catch (error) {
+      this.sqlite.exec("ROLLBACK");
+      throw error;
+    }
+  }
+}
+
+function createSqliteProductBatchDatabase(options: { omitBatchResults?: boolean; skipQuery?: RegExp } = {}) {
+  const sqlite = new DatabaseSync(":memory:");
+  sqlite.exec(`
+    CREATE TABLE products (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      slug TEXT NOT NULL UNIQUE,
+      sku TEXT NOT NULL UNIQUE,
+      short_description TEXT NOT NULL,
+      description TEXT NOT NULL,
+      image_url TEXT,
+      category_id INTEGER,
+      is_active INTEGER NOT NULL,
+      revision INTEGER NOT NULL DEFAULT 1,
+      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE TABLE product_admin_meta (
+      product_id INTEGER PRIMARY KEY,
+      status TEXT NOT NULL,
+      updated_by TEXT,
+      updated_at TEXT NOT NULL
+    );
+    CREATE TABLE admin_audit_log (
+      id TEXT PRIMARY KEY DEFAULT 'marker-id',
+      request_id TEXT NOT NULL UNIQUE,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      actor_subject TEXT NOT NULL,
+      action TEXT NOT NULL,
+      entity_type TEXT NOT NULL,
+      entity_key TEXT NOT NULL,
+      previous_revision INTEGER,
+      resulting_revision INTEGER,
+      payload_sha256 TEXT NOT NULL
+    );
+    CREATE TABLE audit_logs (
+      id TEXT PRIMARY KEY NOT NULL,
+      actor_subject TEXT NOT NULL,
+      action TEXT NOT NULL,
+      entity_type TEXT NOT NULL,
+      entity_id TEXT,
+      metadata_json TEXT,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+  `);
+  return new SqliteProductBatchDatabase(sqlite, options);
+}
