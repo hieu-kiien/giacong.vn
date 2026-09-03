@@ -137,6 +137,19 @@ Bản staging hiện **đủ điều kiện để tiếp tục nghiệm thu kỹ
   audit. Vì Worker production chưa chứa release staging `eff0d7fa`, không được
   dùng smoke cũ để tuyên bố bản code hiện tại đã bàn giao production.
 
+## Owner staging route smoke sau khi khởi động lại — 2026-09-03
+
+- Phiên Chrome owner trên `admin-staging.kienhieu.id.vn` đã khôi phục và
+  dashboard đọc đúng `Qtu1053 · owner`, nhãn `Chủ sở hữu`, cùng dữ liệu D1
+  hiện hành.
+- Fresh semantic traversal qua 10 route admin canonical (`/admin`, nội dung,
+  thiết kế, sản phẩm, dịch vụ, tin tức, điều hướng, yêu cầu, thành viên và
+  audit) đạt `10/10`: heading đúng, nhận diện owner, không có trạng thái lỗi
+  tải dữ liệu/1102/502/503 được render.
+- Đây là owner navigation/read-only evidence sau restart; không submit form,
+  không publish, không tạo member và không ghi D1/R2. Role matrix nhiều
+  identity, write/read-back đầy đủ và production gate vẫn mở.
+
 ## Revalidation sau hardening — 2026-09-02
 
 - Commit `e1936cfb` đã đóng race giữa publish news từng bài và publish hàng

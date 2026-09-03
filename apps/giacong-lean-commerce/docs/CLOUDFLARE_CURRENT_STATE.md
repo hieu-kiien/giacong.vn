@@ -41,6 +41,19 @@ Hồ sơ này ghi bằng chứng runtime đã xác minh trong quá trình chuy�
 - Wrangler liệt kê đủ cặp resource production/staging cho 2 R2 bucket và queue
   lead/DLQ; không có dấu hiệu binding staging trỏ nhầm production.
 
+## Owner staging route smoke sau khi khởi động lại — 2026-09-03
+
+- Phiên Chrome owner trên `admin-staging.kienhieu.id.vn` đã khôi phục và
+  dashboard đọc đúng `Qtu1053 · owner`, nhãn `Chủ sở hữu`, cùng dữ liệu D1
+  hiện hành.
+- Fresh semantic traversal qua 10 route admin canonical (`/admin`, nội dung,
+  thiết kế, sản phẩm, dịch vụ, tin tức, điều hướng, yêu cầu, thành viên và
+  audit) đạt `10/10`: heading đúng, nhận diện owner, không có trạng thái lỗi
+  tải dữ liệu/1102/502/503 được render.
+- Đây là owner navigation/read-only evidence sau restart; không submit form,
+  không publish, không tạo member và không ghi D1/R2. Role matrix nhiều
+  identity, write/read-back đầy đủ và production gate vẫn mở.
+
 Các version và kết quả bên dưới là evidence lịch sử; khi mâu thuẫn với
 snapshot này, snapshot này phản ánh trạng thái runtime mới nhất.
 
