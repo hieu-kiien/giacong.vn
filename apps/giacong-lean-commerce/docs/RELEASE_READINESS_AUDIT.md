@@ -104,10 +104,10 @@ Bản staging hiện **đủ điều kiện để tiếp tục nghiệm thu kỹ
 
 ## Bằng chứng hiện có
 
-- `npm run check` đã xanh toàn bộ test, lint, typecheck và build: admin `190/190`,
-  contact `104/104`, catalog `5/5`, purchase UI `1/1`, service `3/3`, commerce
-  `67/67`, listing `4/4`, detail `29/29`; `npm audit` (cả production và đầy đủ
-  dependency) báo `0 vulnerabilities`.
+- Source head hiện tại là `2e96b603`; latest admin suite đạt `205/205`, build
+  isolated đạt `27/27`, lint/typecheck pass và `npm audit --audit-level=high`
+  báo `0 vulnerabilities`. Các full-suite counts lịch sử vẫn được giữ ở các
+  mục evidence tương ứng bên dưới.
 - Staging D1 đã apply đủ migration đến `0019`; public smoke 7/7 route, product
   API, cart canonical money và R2 media đều pass.
 - Chrome với identity `qtu1053@gmail.com` đã đọc đúng `owner`/`Chủ sở hữu

@@ -14,34 +14,31 @@ Mục tiêu của file này là trả lời nhanh bốn câu hỏi trước khi 
 Không thêm file mới vào map chỉ vì đã nghĩ ra tên. File chỉ được đánh dấu “đã có”
 khi tồn tại trong checkout; file “dự kiến” phải được tạo trong phase tương ứng.
 
-**Checkpoint 2026-09-02:** P1 host-gated admin context, P2 settings write
+**Checkpoint 2026-09-03:** master hiện ở commit `2e96b603`. P1 host-gated admin context, P2 settings write
 contract (per-setting + bulk publish), contextual editor MVP, P3 contextual
 news-detail hand-off, P4 managed-page hand-off, P5 product bulk import UI và
 product/service/category bulk archive contract đã có trong `master`. Bản
 storefront motion/menu đã được review và tích hợp từ worktree riêng; fallback
 gallery đã chấp nhận asset WebP. `qa:ux` là runner tracked để lặp lại audit
-staging. Public staging `https://staging.kienhieu.id.vn` vừa pass UX audit 5/5
+staging. Public staging `https://staging.kienhieu.id.vn` vừa pass deep QA responsive và functional
 route. Staging đang phục vụ version
-`81b2e573-dea9-4e6a-b7ce-9cddb9b5fc70`; rollback point gần nhất là
-`0d4d66f9-2b6e-42d1-a8e2-58bda74f98f0`; owner thật `qtu1053@gmail.com` đã được
+`e50223de-208f-45d8-bd4f-27ecc32b37ea`; rollback point gần nhất là
+`430d41b1-a61c-46d1-ac9f-89eb8df74feb`; owner thật `qtu1053@gmail.com` đã được
 bootstrap vào D1 staging với role `owner` cấp cao nhất. `/admin/thanh-vien` đã
 được browser xác nhận hiển thị tài khoản hiện tại, khóa self-demotion/self-
 deactivation và mở được luồng `Thêm tài khoản quản trị`.
 
-**Checkpoint hardening mới nhất — 2026-09-02:** Commit `e1936cfb` và staging
-version `eff0d7fa-c5e2-4641-911b-b3b324ac0284` đã được revalidate. Các thay đổi
-được map gồm news publish lock, read-only color guard, confirm xóa section,
-dashboard query budget và mobile visual-editor/focus behavior. `npm run check`
-pass (`198/198` admin, `68/68` commerce, các suite còn lại, lint, typecheck,
-build); deep QA responsive và owner direct-edit smoke pass. Rollback point gần
-nhất là `a709e5a4-c457-43ab-9d77-2d5d20ac0b7b`. Production chưa được mutate;
-Wrangler còn ghi nhận 11 migration pending `0009–0019`.
+**Checkpoint QA mới nhất — 2026-09-03:** Source head `2e96b603`; QA-only
+commit `0b1986bf` sửa false-positive của admin matcher. Staging runtime
+`e50223de-208f-45d8-bd4f-27ecc32b37ea` vẫn ở 100%, rollback point gần nhất là
+`430d41b1-a61c-46d1-ac9f-89eb8df74feb`. Full admin đạt `205/205`, build
+isolated đạt `27/27`, lint/typecheck pass; production chưa bị mutate và còn 11
+migration pending `0009–0019`.
 
-Full gate gần nhất: admin `190/190`, contact
-`104/104`, catalog `5/5`, catalog purchase UI `1/1`, service `3/3`, commerce
-`67/67`, listing `4/4`, detail `29/29`, kèm lint, typecheck và build. Public UX
-audit năm route pass; browser identity role matrix đầy đủ, write/read-back từng
-domain và production gate vẫn chưa đóng.
+Full gate gần nhất có admin `205/205`; các suite contact/catalog/purchase/service/
+commerce/listing/detail, lint, typecheck và build đều đã có evidence pass ở các
+lượt revalidation tương ứng. Public deep QA pass; browser role matrix đủ năm
+identity, write/read-back từng domain và production gate vẫn chưa đóng.
 Wrapper PowerShell giữ process sau khi đã in xong output nên phải dừng thủ công;
 không dùng điều đó để thay thế cửa sổ release có exit code sạch.
 

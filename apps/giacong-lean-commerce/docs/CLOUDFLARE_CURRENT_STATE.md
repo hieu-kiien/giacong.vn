@@ -7,13 +7,13 @@ Hồ sơ này ghi bằng chứng runtime đã xác minh trong quá trình chuy�
 - Staging Worker `giacong-vn-staging` đang chạy version
   `e50223de-208f-45d8-bd4f-27ecc32b37ea` ở 100%; rollback point gần nhất là
   `430d41b1-a61c-46d1-ac9f-89eb8df74feb`.
-- Commit hardening tương ứng là `e1936cfb`. `npm run check` exit `0`: admin
-  `198/198`, contact `104/104`, catalog `5/5`, purchase UI `1/1`, service
-  `3/3`, commerce `68/68`, listing `4/4`, detail `29/29`, lint, typecheck và
-  build đều pass. Deep QA responsive và Chrome owner direct-editor smoke test
-  cũng pass, không có console error/warning.
-- Revalidation ngày 2026-09-03 sau lockfile security patch `8a1bb1b3` vẫn giữ
-  full check exit `0`; `npm audit --audit-level=high` trả `0 vulnerabilities`.
+- Source head hiện tại là `2e96b603`; staging runtime vẫn ở release đã deploy
+  `e50223de`. QA-only commit `0b1986bf` đã sửa false-positive của admin matcher
+  mà không cần deploy lại runtime. Full admin suite hiện đạt `205/205`, build
+  isolated static đạt `27/27`, lint và typecheck pass; deep QA responsive và
+  Chrome owner route smoke cũng pass, không có console error/warning.
+- `npm audit --audit-level=high` đã được revalidate với `0 vulnerabilities`;
+  các kết quả full suite cũ hơn vẫn được giữ bên dưới như evidence lịch sử.
 - Production Worker/D1/R2/DNS chưa bị mutate. Read-only Wrangler ngày này còn
   xác nhận 11 migration pending `0009–0019` trên D1 production.
 - Export production D1 fresh đã được tạo bằng Wrangler tại
