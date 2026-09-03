@@ -374,10 +374,10 @@ class SqliteSettingsDatabase {
         values = nextValues;
         return statement;
       },
-      all: async <T,>() => ({ results: prepared.all(...values) as T[] }),
-      first: async <T,>() => (prepared.get(...values) as T | undefined) ?? null,
+      all: async <T,>() => ({ results: prepared.all(...(values as never[])) as T[] }),
+      first: async <T,>() => (prepared.get(...(values as never[])) as T | undefined) ?? null,
       run: async () => {
-        const result = prepared.run(...values);
+        const result = prepared.run(...(values as never[]));
         return { meta: { changes: Number(result.changes) } };
       },
     };

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { DatabaseSync } from "node:sqlite";
 import test from "node:test";
+import type { D1DatabaseLike, D1PreparedStatementLike } from "../src/lib/admin-data.ts";
 import {
   AdminNewsIdempotencyConflictError,
   AdminNewsStorageError,

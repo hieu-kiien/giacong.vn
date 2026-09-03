@@ -107,11 +107,11 @@ class FakeDatabase implements D1DatabaseLike {
     return new FakeStatement(this, query);
   }
 
-  async batch(statements: FakeStatement[]): Promise<Array<{ meta: { changes: number } }>> {
+  async batch(statements: FakeStatement[]): Promise<Array<{ meta?: { changes: number }; results?: unknown[] }>> {
     this.batchCalls += 1;
     const snapshot = this.snapshot();
     try {
-      const results: Array<{ meta: { changes: number } }> = [];
+      const results: Array<{ meta?: { changes: number }; results?: unknown[] }> = [];
       for (const statement of statements) results.push(await statement.run() as { meta: { changes: number } });
       return this.omitBatchResults ? statements.map(() => ({})) : results;
     } catch (error) {
@@ -430,10 +430,10 @@ class SqliteMediaDatabase implements D1DatabaseLike {
     return new SqliteMediaStatement(query, this.sqlite.prepare(query));
   }
 
-  async batch(statements: SqliteMediaStatement[]): Promise<Array<{ results?: unknown[] }>> {
+  async batch(statements: SqliteMediaStatement[]): Promise<Array<{ meta?: { changes: number }; results?: unknown[] }>> {
     this.sqlite.exec("BEGIN");
     try {
-      const results: Array<{ results?: unknown[] }> = [];
+      const results: Array<{ meta?: { changes: number }; results?: unknown[] }> = [];
       for (const statement of statements) {
         if (this.skipQuery?.test(statement.query)) results.push({ results: [] });
         else results.push(await statement.run());

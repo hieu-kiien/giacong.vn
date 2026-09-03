@@ -348,10 +348,10 @@ class SqliteSiteMediaDatabase implements D1DatabaseLike {
     return new SqliteSiteMediaStatement(query, this.sqlite.prepare(query));
   }
 
-  async batch(statements: SqliteSiteMediaStatement[]): Promise<Array<{ results?: unknown[] }>> {
+  async batch(statements: SqliteSiteMediaStatement[]): Promise<Array<{ meta?: { changes: number }; results?: unknown[] }>> {
     this.sqlite.exec("BEGIN");
     try {
-      const results: Array<{ results?: unknown[] }> = [];
+      const results: Array<{ meta?: { changes: number }; results?: unknown[] }> = [];
       for (const statement of statements) {
         if (this.skipQuery?.test(statement.query)) results.push({ results: [] });
         else results.push(await statement.run());

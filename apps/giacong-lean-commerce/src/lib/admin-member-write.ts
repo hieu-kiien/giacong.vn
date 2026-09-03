@@ -591,7 +591,7 @@ function validateMemberInput(input: AdminMemberInput): void {
   if (typeof input.isActive !== "boolean") throw new AdminMemberWriteValidationError("isActive không hợp lệ.");
 }
 
-function canonicalMemberInput(input: AdminMemberInput): Record<string, unknown> {
+function canonicalMemberInput(input: AdminMemberInput): MemberMutationPostcondition["input"] {
   return {
     accessSubject: input.accessSubject.trim(),
     displayName: input.displayName.trim(),
