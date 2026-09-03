@@ -33,6 +33,24 @@ Bản staging hiện **đủ điều kiện để tiếp tục nghiệm thu kỹ
 4. export backup mới, restore-drill, migration `0009–0019`, promotion có rollback
    point và theo dõi observability 24 giờ.
 
+## Controlled admin 1102 recheck — 2026-09-03
+
+- Lượt smoke dồn trước đó đã từng hiện Cloudflare `Worker exceeded resource
+  limits` tại `/admin/san-pham`; sự cố này được giữ lại như một incident cần
+  theo dõi, không được hạ thành lỗi của harness chỉ vì reload sau đó thành công.
+- Một tab owner Chrome mới đã mở riêng `/admin` và `/admin/san-pham`, rồi điều
+  hướng thật qua `/admin/dich-vu`, `/admin/san-pham` và `/admin/yeu-cau`; các màn
+  hình đều render đúng dữ liệu D1, không có 1102/5xx hoặc console error. API
+  products trong lượt có kiểm soát trả `200` với thời gian khoảng `1,27 s`.
+- Wrangler tail của version `a3d82449-4dee-4b3f-a001-0b97e70e21e4` ghi các
+  invocation owner quan sát được là `outcome=ok`, CPU khoảng `10–522 ms`, wall
+  time khoảng `253–679 ms`; D1 staging báo không còn migration pending và
+  public smoke 5 route đều `200`, không có runtime error hay admin marker.
+- Kết luận tạm thời: chưa có bằng chứng 1102 tái hiện độc lập từ truy vấn sản
+  phẩm hoặc D1; khả năng cao liên quan đến burst navigation/prefetch hoặc sự
+  cố runtime thoáng qua. Performance gate vẫn mở cho tới khi có stress test có
+  kiểm soát và observability phân biệt rõ `exceededCpu`/`exceededMemory`.
+
 ## Staging role inventory read-only — 2026-09-03
 
 - D1 staging hiện chỉ có `1` tài khoản active với role `owner`; bốn role
