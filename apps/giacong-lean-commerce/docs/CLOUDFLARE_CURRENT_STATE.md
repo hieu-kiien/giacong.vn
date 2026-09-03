@@ -12,9 +12,10 @@ Hồ sơ này ghi bằng chứng runtime đã xác minh trong quá trình chuy�
   storage state phân biệt và không thực hiện mutation. Full `npm run check`
   hiện đạt admin `215/215`, contact `104/104`, catalog `5/5`, purchase UI
   `1/1`, service `3/3`, commerce `68/68`, listing `4/4`, detail `29/29`,
-  build static `27/27`, lint và typecheck; deep QA responsive và
-  Chrome owner route smoke trước deploy cũng pass; smoke sau deploy đang chờ
-  Access re-auth, không có thay đổi D1/R2 trong deploy.
+  build static `27/27`, lint và typecheck; deep QA responsive và Chrome owner
+  route smoke sau deploy đều pass read-only, không có thay đổi D1/R2 trong
+  deploy. Incident 1102 khi điều hướng dồn và lượt recheck có kiểm soát được
+  ghi ở mục riêng bên dưới.
 - `npm audit --audit-level=high` đã được revalidate với `0 vulnerabilities`;
   các kết quả full suite cũ hơn vẫn được giữ bên dưới như evidence lịch sử.
 - Production Worker/D1/R2/DNS chưa bị mutate. Read-only Wrangler ngày này còn
@@ -68,6 +69,19 @@ Hồ sơ này ghi bằng chứng runtime đã xác minh trong quá trình chuy�
 - Đây là owner navigation/read-only evidence sau restart; không submit form,
   không publish, không tạo member và không ghi D1/R2. Role matrix nhiều
   identity, write/read-back đầy đủ và production gate vẫn mở.
+
+## Controlled admin 1102 recheck — 2026-09-03
+
+- Một lượt điều hướng dồn trước đó đã hiện `Worker exceeded resource limits` tại
+  `/admin/san-pham`; đây là incident runtime cần theo dõi, không được coi là
+  pass hoặc bỏ qua.
+- Tab owner mới mở riêng `/admin` và `/admin/san-pham`, sau đó điều hướng thật
+  qua `/admin/dich-vu`, `/admin/san-pham` và `/admin/yeu-cau` đều render đúng;
+  API products trả `200`, không có 1102/5xx hoặc console error.
+- Wrangler tail của version `a3d82449…` ghi invocation quan sát được
+  `outcome=ok`, CPU `10–522 ms`, wall time `253–679 ms`; D1 staging không còn
+  migration pending và public smoke 5 route trả `200`. Performance gate vẫn mở
+  cho stress test có kiểm soát và phân biệt `exceededCpu`/`exceededMemory`.
 
 ## Authenticated admin staging QA runner — 2026-09-03
 

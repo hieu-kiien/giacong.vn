@@ -1,6 +1,6 @@
 # Production acceptance checklist
 
-Trạng thái chốt hạ trước promotion `giacong-vn` production. Nguồn yêu cầu gốc: [CLOUDFLARE_NATIVE_V1_PLAN.md](CLOUDFLARE_NATIVE_V1_PLAN.md) mục 7–8. Cập nhật 2026-09-02 sau owner/RBAC hardening, staging revalidation và publish-renderer verification.
+Trạng thái chốt hạ trước promotion `giacong-vn` production. Nguồn yêu cầu gốc: [CLOUDFLARE_NATIVE_V1_PLAN.md](CLOUDFLARE_NATIVE_V1_PLAN.md) mục 7–8. Cập nhật 2026-09-03 sau owner/RBAC hardening, staging revalidation và controlled 1102 recheck.
 
 > Lưu ý trạng thái: các checkbox dưới đây giữ evidence lịch sử của đợt nghiệm thu
 > trước. Chúng không tự đóng các acceptance mới trong `ADMIN_VISUAL_ROADMAP.md`.
@@ -279,4 +279,19 @@ Lưu ý: demo staging KHÔNG được seed sang production. Khách tự thao tá
   `sales_manager`, `viewer`; query có `changed_db=false`, `rows_written=0`.
 - [ ] Production gate còn mở: 11 migration `0009–0019`, role × route/action với
   nhiều Access identity, full write/read-back/audit, data approval,
+  migration/rollback window và observability 24 giờ.
+
+## 12. Controlled admin 1102 recheck — 2026-09-03
+
+- [x] Owner tab mới mở riêng `/admin` và `/admin/san-pham`, sau đó điều hướng
+  thật qua `/admin/dich-vu`, `/admin/san-pham` và `/admin/yeu-cau`; các trang
+  render đúng, API products trả `200`, không console error.
+- [x] Wrangler tail version `a3d82449…` ghi invocation quan sát được
+  `outcome=ok`, CPU `10–522 ms`, wall time `253–679 ms`; D1 staging báo không
+  còn migration pending; public smoke 5 route trả `200` và không có admin marker.
+- [ ] Incident 1102 từng xảy ra trong burst navigation vẫn cần stress test có
+  kiểm soát và observability phân biệt `exceededCpu`/`exceededMemory`; mục này
+  không được đóng chỉ bằng một lượt reload thành công.
+- [ ] Production gate tổng thể vẫn mở: role × route/action với nhiều identity,
+  write/read-back/audit toàn domain, production data approval,
   migration/rollback window và observability 24 giờ.

@@ -41,8 +41,8 @@ Source gate hiện hành sau bulk-import hardening và role-matrix QA đạt adm
 `215/215`, contact `104/104`, catalog `5/5`, purchase UI `1/1`, service `3/3`,
 commerce `68/68`, listing `4/4`, detail `29/29`, lint, typecheck và build
 `27/27`; focused bulk-import đạt `19/19`. Commit này đã deploy staging;
-owner smoke sau deploy đang chờ Access re-auth, còn role matrix vẫn cần bốn
-identity thật ngoài owner.
+owner smoke sau deploy đã đọc lại được, còn role matrix vẫn cần bốn identity
+thật ngoài owner.
 
 Full gate gần nhất có admin `215/215`; các suite contact/catalog/purchase/service/
 commerce/listing/detail, lint, typecheck và build đều đã có evidence pass ở các
@@ -56,6 +56,13 @@ checkpoint source và staging vẫn nguyên vẹn. Phiên Chrome owner đã đ�
 10/10 route admin canonical; owner/heading đúng và không có trạng thái lỗi
 tải dữ liệu/1102/502/503 được render. Đây là bằng chứng read-only sau restart;
 role matrix nhiều identity, write/read-back đầy đủ và production gate vẫn mở.
+
+**Controlled 1102 recheck update 2026-09-03:** Một lượt điều hướng dồn trước đó
+đã từng hiện Cloudflare `Worker exceeded resource limits` tại `/admin/san-pham`.
+Tab owner mới mở riêng rồi điều hướng chậm qua các route liên quan đều render
+đúng; API products trả `200`, Wrangler tail quan sát được các invocation
+`outcome=ok` với CPU `10–522 ms` và wall time `253–679 ms`. Incident đã được
+ghi trong audit nhưng performance gate vẫn mở cho tới stress test có kiểm soát.
 
 **Live storefront handoff update 2026-09-03:** `AdminContentPage` và
 `AdminPageBuilder` không còn dựng card preview bằng JSX/CSS riêng. Hai màn hình
