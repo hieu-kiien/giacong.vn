@@ -1,6 +1,6 @@
 import "server-only";
 
-import { tableExists, type D1DatabaseLike, type D1PreparedStatementLike } from "./admin-data";
+import { tableExists, type D1DatabaseLike, type D1PreparedStatementLike } from "./admin-data.ts";
 import { isAdminRequestId } from "./admin-request.ts";
 import type { R2BucketLike } from "./media-data";
 
@@ -29,6 +29,17 @@ interface SiteMediaRow {
   status: SiteMediaAsset["status"];
   storage_key: string;
   revision: number;
+}
+
+interface SiteMediaMutationPostcondition {
+  action: "create" | "update" | "delete";
+  actorSubject: string;
+  entityId: string;
+  expectedRevision: number | undefined;
+  legacyAction?: "site_media.replaced" | "site_media.deleted";
+  payloadSha256: string;
+  requestId: string;
+  resultingStatus: "active" | "deleted" | "replaced";
 }
 
 export class SiteMediaStorageError extends Error {
@@ -80,11 +91,28 @@ export async function createSiteMediaAsset(
   const existingMutation = await findSiteMediaMutation(database, normalizedRequestId);
   if (existingMutation) {
     assertMatchingSiteMediaMutation(existingMutation, "create", payloadSha256);
-    return readSiteMediaMutation(database, existingMutation);
+    return ensureSiteMediaMutationComplete(database, existingMutation, {
+      action: "create",
+      actorSubject,
+      entityId: normalizeAssetId(existingMutation.entity_key),
+      expectedRevision: undefined,
+      payloadSha256,
+      requestId: normalizedRequestId,
+      resultingStatus: "active",
+    });
   }
 
   const id = crypto.randomUUID();
   const storageKey = `site-settings/${input.settingKey}/${id}${extensionFor(input.contentType)}`;
+  const postcondition: SiteMediaMutationPostcondition = {
+    action: "create",
+    actorSubject,
+    entityId: id,
+    expectedRevision: undefined,
+    payloadSha256,
+    requestId: normalizedRequestId,
+    resultingStatus: "active",
+  };
 
   await bucket.put(storageKey, input.bytes, {
     customMetadata: { assetId: id, settingKey: input.settingKey },
@@ -93,7 +121,7 @@ export async function createSiteMediaAsset(
 
   try {
     const databaseWithBatch = requireBatch(database);
-    const results = await databaseWithBatch.batch([
+    await databaseWithBatch.batch([
       database.prepare(`
         INSERT INTO site_media_assets (
           id, setting_key, storage_key, original_filename, content_type,
@@ -111,22 +139,25 @@ export async function createSiteMediaAsset(
         normalizedRequestId,
       ),
       buildSiteMediaAudit(database, normalizedRequestId, actorSubject, "create", id, payloadSha256),
+      buildSiteMediaPostconditionAssertion(database, postcondition),
     ]);
-    if (!hasRows(results[0]) || !hasRows(results[1])) throw new SiteMediaStorageError("Media website chưa ghi đủ metadata và audit.");
   } catch (error) {
     await bucket.delete(storageKey).catch(() => undefined);
     const racedMutation = await findSiteMediaMutation(database, normalizedRequestId);
     if (racedMutation) {
       assertMatchingSiteMediaMutation(racedMutation, "create", payloadSha256);
-      return readSiteMediaMutation(database, racedMutation);
+      return ensureSiteMediaMutationComplete(database, racedMutation, {
+        ...postcondition,
+        entityId: normalizeAssetId(racedMutation.entity_key),
+      });
     }
-    throw error;
+    throw normalizeSiteMediaWriteError(error);
   }
 
   const mutation = await findSiteMediaMutation(database, normalizedRequestId);
   if (!mutation) throw new SiteMediaStorageError("Không đọc lại được audit media website vừa upload.");
   assertMatchingSiteMediaMutation(mutation, "create", payloadSha256);
-  return readSiteMediaMutation(database, mutation);
+  return ensureSiteMediaMutationComplete(database, mutation, postcondition);
 }
 
 export async function replaceActiveSiteMedia(
@@ -157,6 +188,16 @@ export async function replaceActiveSiteMedia(
       parentRequestId: requestId ?? null,
       status: "replaced",
     });
+    const postcondition: SiteMediaMutationPostcondition = {
+      action: "update",
+      actorSubject,
+      entityId: row.id,
+      expectedRevision: row.revision,
+      legacyAction: "site_media.replaced",
+      payloadSha256,
+      requestId: childRequestId,
+      resultingStatus: "replaced",
+    };
     statements.push(
       database.prepare(`
         UPDATE site_media_assets
@@ -165,13 +206,13 @@ export async function replaceActiveSiteMedia(
       `).bind(childRequestId, row.id, row.revision),
       buildSiteMediaAudit(database, childRequestId, actorSubject, "update", row.id, payloadSha256, row.revision, "replaced"),
       buildLegacySiteMediaAudit(database, actorSubject, "site_media.replaced", row.id, payloadSha256, row.revision, childRequestId, "replaced"),
+      buildSiteMediaPostconditionAssertion(database, postcondition),
     );
   }
-  const results = await databaseWithBatch.batch(statements);
-  for (let index = 0; index < results.length; index += 3) {
-    if (!hasRows(results[index]) || !hasRows(results[index + 1]) || !hasRows(results[index + 2])) {
-      throw new SiteMediaStorageError("Không thể ghi trạng thái replaced và audit media website đồng bộ.");
-    }
+  try {
+    await databaseWithBatch.batch(statements);
+  } catch (error) {
+    throw normalizeSiteMediaWriteError(error);
   }
 }
 
@@ -198,7 +239,16 @@ export async function deleteSiteMediaAsset(
   const existingMutation = await findSiteMediaMutation(database, normalizedRequestId);
   if (existingMutation) {
     assertMatchingSiteMediaMutation(existingMutation, "delete", payloadSha256);
-    const replayed = await readSiteMediaMutation(database, existingMutation);
+    const replayed = await ensureSiteMediaMutationComplete(database, existingMutation, {
+      action: "delete",
+      actorSubject: normalizedActor,
+      entityId: normalizedAssetId,
+      expectedRevision,
+      legacyAction: "site_media.deleted",
+      payloadSha256,
+      requestId: normalizedRequestId,
+      resultingStatus: "deleted",
+    });
     await bucket.delete(replayed.storageKey);
     return;
   }
@@ -209,18 +259,45 @@ export async function deleteSiteMediaAsset(
   if (row.status === "deleted") return;
 
   const databaseWithBatch = requireBatch(database);
-  const results = await databaseWithBatch.batch([
-    database.prepare(`
-      UPDATE site_media_assets
-      SET status = 'deleted', deleted_at = CURRENT_TIMESTAMP,
-        revision = revision + 1, last_request_id = ?, updated_at = CURRENT_TIMESTAMP
-      WHERE id = ? AND revision = ? AND status <> 'deleted'
-    `).bind(normalizedRequestId, normalizedAssetId, expectedRevision),
-    buildSiteMediaAudit(database, normalizedRequestId, normalizedActor, "delete", normalizedAssetId, payloadSha256, expectedRevision, "deleted"),
-    buildLegacySiteMediaAudit(database, normalizedActor, "site_media.deleted", normalizedAssetId, payloadSha256, expectedRevision, normalizedRequestId, "deleted"),
-  ]);
-  if (!hasRows(results[0])) throw new SiteMediaConflictError("Media website đã thay đổi ở phiên khác. Hãy tải lại rồi thử lại.");
-  if (!hasRows(results[1]) || !hasRows(results[2])) throw new SiteMediaStorageError("Media website chưa ghi đủ audit xóa đồng bộ.");
+  const postcondition: SiteMediaMutationPostcondition = {
+    action: "delete",
+    actorSubject: normalizedActor,
+    entityId: normalizedAssetId,
+    expectedRevision,
+    legacyAction: "site_media.deleted",
+    payloadSha256,
+    requestId: normalizedRequestId,
+    resultingStatus: "deleted",
+  };
+  try {
+    await databaseWithBatch.batch([
+      database.prepare(`
+        UPDATE site_media_assets
+        SET status = 'deleted', deleted_at = CURRENT_TIMESTAMP,
+          revision = revision + 1, last_request_id = ?, updated_at = CURRENT_TIMESTAMP
+        WHERE id = ? AND revision = ? AND status <> 'deleted'
+      `).bind(normalizedRequestId, normalizedAssetId, expectedRevision),
+      buildSiteMediaAudit(database, normalizedRequestId, normalizedActor, "delete", normalizedAssetId, payloadSha256, expectedRevision, "deleted"),
+      buildLegacySiteMediaAudit(database, normalizedActor, "site_media.deleted", normalizedAssetId, payloadSha256, expectedRevision, normalizedRequestId, "deleted"),
+      buildSiteMediaPostconditionAssertion(database, postcondition),
+    ]);
+  } catch (error) {
+    const racedMutation = await findSiteMediaMutation(database, normalizedRequestId);
+    if (racedMutation) {
+      assertMatchingSiteMediaMutation(racedMutation, "delete", payloadSha256);
+      const replayed = await ensureSiteMediaMutationComplete(database, racedMutation, postcondition);
+      await bucket.delete(replayed.storageKey);
+      return;
+    }
+    const current = await getSiteMediaRow(database, normalizedAssetId);
+    if (!current || current.revision !== expectedRevision || current.status === "deleted") {
+      throw new SiteMediaConflictError("Media website đã thay đổi ở phiên khác. Hãy tải lại rồi thử lại.");
+    }
+    throw normalizeSiteMediaWriteError(error);
+  }
+  const mutation = await findSiteMediaMutation(database, normalizedRequestId);
+  if (!mutation) throw new SiteMediaStorageError("Không đọc lại được audit media website sau khi xóa.");
+  await ensureSiteMediaMutationComplete(database, mutation, postcondition);
   await bucket.delete(row.storage_key);
 }
 
@@ -269,6 +346,105 @@ async function readSiteMediaMutation(database: D1DatabaseLike, mutation: SiteMed
   const row = await getSiteMediaRow(database, normalizeAssetId(mutation.entity_key));
   if (!row) throw new SiteMediaStorageError("Không đọc lại được kết quả media website từ audit.");
   return toSiteMediaAsset(row);
+}
+
+async function ensureSiteMediaMutationComplete(
+  database: D1DatabaseLike,
+  mutation: SiteMediaMutationRow,
+  postcondition: SiteMediaMutationPostcondition,
+): Promise<SiteMediaAsset> {
+  const { expression, values } = buildSiteMediaMutationPostconditionExpression(postcondition);
+  const row = await database.prepare(`
+    /* site-media-write-postcondition-read */
+    SELECT CASE WHEN (${expression}) THEN 1 ELSE 0 END AS complete
+  `).bind(...values).first<{ complete?: unknown }>();
+  if (Number(row?.complete) !== 1) {
+    throw new SiteMediaStorageError(
+      "Không thể xác nhận đầy đủ trạng thái media website và audit; thao tác bị khóa để tránh báo thành công sai.",
+    );
+  }
+  return readSiteMediaMutation(database, mutation);
+}
+
+function buildSiteMediaPostconditionAssertion(
+  database: D1DatabaseLike,
+  postcondition: SiteMediaMutationPostcondition,
+): D1PreparedStatementLike {
+  const { expression, values } = buildSiteMediaMutationPostconditionExpression(postcondition);
+  return database.prepare(`
+    /* site-media-write-postcondition */
+    INSERT INTO admin_media_audit (
+      request_id, actor_subject, action, entity_type, entity_key,
+      previous_revision, resulting_revision, payload_sha256
+    )
+    SELECT NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL
+    WHERE NOT (${expression})
+  `).bind(...values);
+}
+
+function buildSiteMediaMutationPostconditionExpression(
+  postcondition: SiteMediaMutationPostcondition,
+): { expression: string; values: unknown[] } {
+  const revision = postcondition.expectedRevision === undefined
+    ? { sql: "marker.previous_revision IS NULL AND marker.resulting_revision = 1", values: [] }
+    : {
+        sql: "marker.previous_revision = ? AND marker.resulting_revision = ?",
+        values: [postcondition.expectedRevision, postcondition.expectedRevision + 1],
+      };
+  const resultingRevision = postcondition.expectedRevision === undefined ? 1 : postcondition.expectedRevision + 1;
+  const parts = [`
+    EXISTS (
+      SELECT 1
+      FROM admin_media_audit marker
+      JOIN site_media_assets media_row ON media_row.id = marker.entity_key
+      WHERE marker.request_id = ?
+        AND marker.actor_subject = ?
+        AND marker.action = ?
+        AND marker.entity_type = 'site_media_asset'
+        AND marker.entity_key = ?
+        AND marker.payload_sha256 = ?
+        AND ${revision.sql}
+        AND media_row.revision = ?
+        AND media_row.status = ?
+        AND media_row.last_request_id = ?
+    )`];
+  const values: unknown[] = [
+    postcondition.requestId,
+    postcondition.actorSubject,
+    postcondition.action,
+    postcondition.entityId,
+    postcondition.payloadSha256,
+    ...revision.values,
+    resultingRevision,
+    postcondition.resultingStatus,
+    postcondition.requestId,
+  ];
+  if (postcondition.legacyAction) {
+    parts.push(`
+      EXISTS (
+        SELECT 1
+        FROM audit_logs legacy
+        WHERE legacy.action = ?
+          AND legacy.entity_type = 'site_media_asset'
+          AND legacy.entity_id = ?
+          AND legacy.metadata_json = ?
+      )`);
+    values.push(
+      postcondition.legacyAction,
+      postcondition.entityId,
+      JSON.stringify({ expectedRevision: postcondition.expectedRevision, payloadSha256: postcondition.payloadSha256 }),
+    );
+  }
+  return { expression: parts.join("\n AND "), values };
+}
+
+function normalizeSiteMediaWriteError(error: unknown): unknown {
+  const message = error instanceof Error ? error.message : String(error);
+  if (message.includes("site-media-write-postcondition")
+    || (message.includes("admin_media_audit") && message.toLowerCase().includes("constraint failed"))) {
+    return new SiteMediaStorageError("Không ghi đồng bộ được media website và audit; hệ thống đã rollback để tránh báo thành công sai.");
+  }
+  return error;
 }
 
 function assertMatchingSiteMediaMutation(

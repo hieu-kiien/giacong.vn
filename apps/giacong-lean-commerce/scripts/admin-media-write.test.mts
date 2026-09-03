@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
+import { DatabaseSync } from "node:sqlite";
 import test from "node:test";
 
 import type { D1DatabaseLike, D1PreparedStatementLike } from "../src/lib/admin-data.ts";
@@ -8,6 +9,7 @@ import {
   deleteMediaAsset,
   MediaWriteConflictError,
   MediaWriteIdempotencyConflictError,
+  MediaWriteStorageError,
   type R2BucketLike,
   updateMediaAssetAltText,
 } from "../src/lib/media-data.ts";
@@ -93,6 +95,13 @@ class FakeDatabase implements D1DatabaseLike {
   legacyAudits = 0;
   batchCalls = 0;
   failAudit = false;
+  private readonly omitBatchResults: boolean;
+  private readonly skipLegacyAudit: boolean;
+
+  constructor(options: { omitBatchResults?: boolean; skipLegacyAudit?: boolean } = {}) {
+    this.omitBatchResults = options.omitBatchResults ?? false;
+    this.skipLegacyAudit = options.skipLegacyAudit ?? false;
+  }
 
   prepare(query: string): FakeStatement {
     return new FakeStatement(this, query);
@@ -104,7 +113,7 @@ class FakeDatabase implements D1DatabaseLike {
     try {
       const results: Array<{ meta: { changes: number } }> = [];
       for (const statement of statements) results.push(await statement.run() as { meta: { changes: number } });
-      return results;
+      return this.omitBatchResults ? statements.map(() => ({})) : results;
     } catch (error) {
       this.restore(snapshot);
       throw error;
@@ -115,6 +124,9 @@ class FakeDatabase implements D1DatabaseLike {
     if (query.includes("sqlite_master")) {
       const table = String(values[0]);
       return (["admin_media_audit", "audit_logs"].includes(table) ? { name: table } : null) as T | null;
+    }
+    if (query.includes("media-write-postcondition-read")) {
+      return (this.assets.size > 0 && this.audits.size > 0 && this.legacyAudits > 0 ? { complete: 1 } : { complete: 0 }) as T;
     }
     if (query.includes("FROM admin_media_audit")) return (this.audits.get(String(values[0])) ?? null) as T | null;
     if (query.includes("FROM media_assets")) return (this.assets.get(String(values[0])) ?? null) as T | null;
@@ -127,6 +139,12 @@ class FakeDatabase implements D1DatabaseLike {
   }
 
   execute(query: string, values: unknown[]): { meta: { changes: number } } {
+    if (query.includes("media-write-postcondition")) {
+      if (this.assets.size === 0 || this.audits.size === 0 || this.legacyAudits === 0) {
+        throw new Error("NOT NULL constraint failed: admin_media_audit.request_id");
+      }
+      return { meta: { changes: 1 } };
+    }
     if (query.includes("INSERT INTO media_assets")) {
       const [id, namespace, productId, variantId, serviceId, storageKey, filename, contentType, byteSize, checksum, altText, createdBy] = values;
       this.assets.set(String(id), {
@@ -183,6 +201,7 @@ class FakeDatabase implements D1DatabaseLike {
       return { meta: { changes: 1 } };
     }
     if (query.includes("INSERT INTO audit_logs")) {
+      if (this.skipLegacyAudit) return { meta: { changes: 0 } };
       this.legacyAudits += 1;
       return { meta: { changes: 1 } };
     }
@@ -246,6 +265,44 @@ test("media create is atomic, request-idempotent and rollback-safe", async () =>
   assert.equal(failedBucket.objects.size, 0);
 });
 
+test("media writes remain successful when D1 omits batch result rows", async () => {
+  const database = new FakeDatabase({ omitBatchResults: true });
+  const bucket = new FakeBucket();
+  const created = await createMediaAsset(database, bucket, createInput());
+  const updated = await updateMediaAssetAltText(database, created.id, "Alt mới", 1, "owner@example.com", altRequest);
+  const deleted = await deleteMediaAsset(database, bucket, created.id, 2, "owner@example.com", deleteRequest);
+
+  assert.equal(updated?.revision, 2);
+  assert.equal(deleted?.revision, 3);
+  assert.equal(deleted?.status, "deleted");
+});
+
+test("media create rolls back when the legacy audit postcondition is missing", async () => {
+  const database = new FakeDatabase({ skipLegacyAudit: true });
+  const bucket = new FakeBucket();
+
+  await assert.rejects(
+    () => createMediaAsset(database, bucket, createInput()),
+    MediaWriteStorageError,
+  );
+  assert.equal(database.assets.size, 0);
+  assert.equal(database.audits.size, 0);
+  assert.equal(database.legacyAudits, 0);
+  assert.equal(bucket.objects.size, 0);
+});
+
+test("media replay rejects when its legacy audit is missing", async () => {
+  const database = new FakeDatabase();
+  const bucket = new FakeBucket();
+  await createMediaAsset(database, bucket, createInput());
+  database.legacyAudits = 0;
+
+  await assert.rejects(
+    () => createMediaAsset(database, bucket, createInput()),
+    MediaWriteStorageError,
+  );
+});
+
 test("media alt text and delete use revision CAS, audit and replay", async () => {
   const database = new FakeDatabase();
   const bucket = new FakeBucket();
@@ -283,4 +340,144 @@ test("media route and migration expose request and revision boundaries", async (
   assert.match(migration, /CREATE TABLE IF NOT EXISTS admin_media_audit/);
   assert.match(migration, /ALTER TABLE media_assets/);
   assert.match(migration, /ALTER TABLE site_media_assets/);
+});
+
+class SqliteMediaStatement implements D1PreparedStatementLike {
+  readonly query: string;
+  private readonly statement: ReturnType<DatabaseSync["prepare"]>;
+  private values: unknown[] = [];
+
+  constructor(query: string, statement: ReturnType<DatabaseSync["prepare"]>) {
+    this.query = query;
+    this.statement = statement;
+  }
+
+  bind(...values: unknown[]): SqliteMediaStatement {
+    this.values = values;
+    return this;
+  }
+
+  async all<T>(): Promise<{ results: T[] }> {
+    return { results: this.statement.all(...(this.values as never[])) as T[] };
+  }
+
+  async first<T>(): Promise<T | null> {
+    return (this.statement.get(...(this.values as never[])) as T | undefined) ?? null;
+  }
+
+  async run(): Promise<{ meta: { changes: number } }> {
+    const result = this.statement.run(...(this.values as never[]));
+    return { meta: { changes: Number(result.changes ?? 0) } };
+  }
+}
+
+class SqliteMediaDatabase implements D1DatabaseLike {
+  readonly sqlite = new DatabaseSync(":memory:");
+  private readonly omitBatchResults: boolean;
+  private readonly skipQuery?: RegExp;
+
+  constructor(options: { omitBatchResults?: boolean; skipQuery?: RegExp } = {}) {
+    this.omitBatchResults = options.omitBatchResults ?? false;
+    this.skipQuery = options.skipQuery;
+    this.sqlite.exec(`
+      CREATE TABLE products (id INTEGER PRIMARY KEY, name TEXT NOT NULL, image_url TEXT);
+      CREATE TABLE product_variants (id INTEGER PRIMARY KEY, name TEXT NOT NULL, image_url TEXT);
+      CREATE TABLE services (id INTEGER PRIMARY KEY, name TEXT NOT NULL, image_url TEXT);
+      CREATE TABLE media_assets (
+        id TEXT PRIMARY KEY,
+        namespace TEXT NOT NULL,
+        product_id INTEGER,
+        variant_id INTEGER,
+        service_id INTEGER,
+        storage_key TEXT NOT NULL UNIQUE,
+        original_filename TEXT NOT NULL,
+        content_type TEXT NOT NULL,
+        byte_size INTEGER NOT NULL,
+        checksum_sha256 TEXT NOT NULL,
+        alt_text TEXT,
+        status TEXT NOT NULL DEFAULT 'active',
+        created_by TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        deleted_at TEXT,
+        revision INTEGER NOT NULL DEFAULT 1,
+        last_request_id TEXT
+      );
+      CREATE TABLE admin_media_audit (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        request_id TEXT NOT NULL UNIQUE,
+        actor_subject TEXT NOT NULL,
+        action TEXT NOT NULL,
+        entity_type TEXT NOT NULL,
+        entity_key TEXT NOT NULL,
+        previous_revision INTEGER,
+        resulting_revision INTEGER NOT NULL,
+        payload_sha256 TEXT NOT NULL
+      );
+      CREATE TABLE audit_logs (
+        id TEXT PRIMARY KEY NOT NULL,
+        actor_subject TEXT NOT NULL,
+        action TEXT NOT NULL,
+        entity_type TEXT NOT NULL,
+        entity_id TEXT,
+        metadata_json TEXT,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+  }
+
+  prepare(query: string): SqliteMediaStatement {
+    return new SqliteMediaStatement(query, this.sqlite.prepare(query));
+  }
+
+  async batch(statements: SqliteMediaStatement[]): Promise<Array<{ results?: unknown[] }>> {
+    this.sqlite.exec("BEGIN");
+    try {
+      const results: Array<{ results?: unknown[] }> = [];
+      for (const statement of statements) {
+        if (this.skipQuery?.test(statement.query)) results.push({ results: [] });
+        else results.push(await statement.run());
+      }
+      this.sqlite.exec("COMMIT");
+      return this.omitBatchResults ? statements.map(() => ({})) : results;
+    } catch (error) {
+      this.sqlite.exec("ROLLBACK");
+      throw error;
+    }
+  }
+}
+
+test("SQLite media postconditions are atomic when results are omitted", async () => {
+  const database = new SqliteMediaDatabase({ omitBatchResults: true });
+  const bucket = new FakeBucket();
+  try {
+    database.sqlite.prepare("INSERT INTO products (id, name) VALUES (1, 'Sản phẩm')").run();
+    const created = await createMediaAsset(database, bucket, createInput());
+    const updated = await updateMediaAssetAltText(database, created.id, "Alt SQL", 1, "owner@example.com", altRequest);
+    const deleted = await deleteMediaAsset(database, bucket, created.id, 2, "owner@example.com", deleteRequest);
+    const row = database.sqlite.prepare("SELECT status, revision FROM media_assets WHERE id = ?").get(created.id) as { status: string; revision: number };
+
+    assert.equal(updated?.revision, 2);
+    assert.equal(deleted?.revision, 3);
+    assert.equal(row.status, "deleted");
+    assert.equal(row.revision, 3);
+  } finally {
+    database.sqlite.close();
+  }
+});
+
+test("SQLite media postconditions roll back a missing legacy audit", async () => {
+  const database = new SqliteMediaDatabase({ skipQuery: /INSERT INTO audit_logs/ });
+  const bucket = new FakeBucket();
+  try {
+    database.sqlite.prepare("INSERT INTO products (id, name) VALUES (1, 'Sản phẩm')").run();
+    await assert.rejects(
+      () => createMediaAsset(database, bucket, createInput()),
+      MediaWriteStorageError,
+    );
+    assert.equal(database.sqlite.prepare("SELECT COUNT(*) AS count FROM media_assets").get()?.count, 0);
+    assert.equal(database.sqlite.prepare("SELECT COUNT(*) AS count FROM admin_media_audit").get()?.count, 0);
+  } finally {
+    database.sqlite.close();
+  }
 });
