@@ -171,6 +171,14 @@ test("published navigation owns parents while captured child choices stay source
   assert.match(capturedMarkupSource, /const mobileServiceMenuLinks/);
 });
 
+test("desktop UX audit finds the product mega-menu by canonical id", () => {
+  assert.match(
+    uxAuditPilot,
+    /#header li#menu-item-1742\.menu-item-design-container-width\.has-dropdown/,
+  );
+  assert.doesNotMatch(uxAuditPilot, /filter\(\{ hasText: "Mua hàng" \}\)/);
+});
+
 test("keeps the hero eyebrow as h3 and applies the about title to the real h2", () => {
   const markup = '<section class="section01"><h3 class="entry-title">Old eyebrow</h3><h1 class="entry-title">Old hero</h1></section><section><h2 class="entry-title">Old about</h2></section>';
   const result = applySiteSettingsToMarkup(markup, settings);

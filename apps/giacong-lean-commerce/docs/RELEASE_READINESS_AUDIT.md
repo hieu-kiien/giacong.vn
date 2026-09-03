@@ -51,6 +51,21 @@ Bản staging hiện **đủ điều kiện để tiếp tục nghiệm thu kỹ
   cố runtime thoáng qua. Performance gate vẫn mở cho tới khi có stress test có
   kiểm soát và observability phân biệt rõ `exceededCpu`/`exceededMemory`.
 
+## Public UX audit sau khi sửa false-negative menu — 2026-09-03
+
+- Lượt audit đầu tiên báo fail hover desktop vì runner tìm text cố định
+  `Mua hàng`, trong khi nhãn top-level hiện tại do D1 quản lý và staging đang
+  render `Sản Phẩm`. Đây là lỗi của QA selector, không phải lỗi mega-menu.
+- Đã thêm regression contract và đổi runner sang identity ổn định
+  `#menu-item-1742`; không đổi dữ liệu navigation hay nội dung storefront.
+  `test:commerce` sau thay đổi đạt `69/69`.
+- Audit lại trên `https://staging.kienhieu.id.vn` đạt toàn bộ action ở 5 route
+  (`12/12`), HTTP `200`, `0` console error, `0` HTTP 4xx/5xx, axe `0`
+  serious/critical và không overflow. Evidence tái tạo nằm tại
+  `.runtime/ux-audit-20260903-after-selector/audit.json`.
+- Contact còn `1` console warning từ iframe Google Maps về `postMessage`
+  cross-origin; đã phân loại là third-party warning, không phải lỗi ứng dụng.
+
 ## Staging role inventory read-only — 2026-09-03
 
 - D1 staging hiện chỉ có `1` tài khoản active với role `owner`; bốn role

@@ -372,8 +372,10 @@ async function auditHomepageScroll(page, result) {
 
 async function auditHomepageDesktop(page, result) {
   await capture(page, result, "before");
-  const menuItems = page.locator("#header li.menu-item-design-container-width.has-dropdown");
-  const item = menuItems.filter({ hasText: "Mua hàng" }).first();
+  // The top-level label is editable through D1, so it may be “Mua hàng”,
+  // “Sản Phẩm”, or another approved operator label. The captured menu id is
+  // the stable identity used by the navigation contract.
+  const item = page.locator("#header li#menu-item-1742.menu-item-design-container-width.has-dropdown").first();
   if (await isVisible(item)) {
     const panel = item.locator(":scope > .nav-dropdown");
     await item.hover();
@@ -392,8 +394,8 @@ async function auditHomepageDesktop(page, result) {
     await recordAction(result, {
       id: "hover-desktop-products-menu",
       type: "hover",
-      expected: "Mega-menu hiện ở đúng vị trí, fade/visibility hoạt động và nội dung đứng yên.",
-      observed: opened,
+      expected: "Mega-menu sản phẩm hiện ở đúng vị trí, fade/visibility hoạt động và nội dung đứng yên.",
+      observed: { label: await item.locator(":scope > a").innerText(), ...opened },
       pass: opened.visibility !== "hidden" && Number(opened.opacity) > 0.8,
     });
     if (await isVisible(panel)) {
@@ -415,7 +417,7 @@ async function auditHomepageDesktop(page, result) {
     await recordAction(result, {
       id: "hover-desktop-products-menu",
       type: "hover",
-      expected: "Có mega-menu Mua hàng để kiểm tra.",
+      expected: "Có mega-menu sản phẩm để kiểm tra.",
       observed: "menu item not visible",
       pass: false,
     });
@@ -697,5 +699,4 @@ console.log(JSON.stringify({
   hardGates: audit.hardGates,
 }, null, 2));
 setTimeout(() => process.exit(0), 100);
-
 

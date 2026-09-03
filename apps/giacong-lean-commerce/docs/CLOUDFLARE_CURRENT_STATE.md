@@ -84,6 +84,16 @@ Hồ sơ này ghi bằng chứng runtime đã xác minh trong quá trình chuy�
   migration pending và public smoke 5 route trả `200`. Performance gate vẫn mở
   cho stress test có kiểm soát và phân biệt `exceededCpu`/`exceededMemory`.
 
+## Public UX audit sau khi sửa false-negative menu — 2026-09-03
+
+- Lượt audit đầu tiên tìm hover bằng nhãn `Mua hàng`, nhưng nhãn top-level do
+  D1 quản lý và staging đang render `Sản Phẩm`; selector đã được sửa sang
+  identity ổn định `#menu-item-1742`, không đổi dữ liệu navigation.
+- Audit lại 5 route public đạt `12/12` action, HTTP `200`, không console error,
+  không HTTP 4xx/5xx, không serious/critical axe và không horizontal overflow.
+  Contact còn một warning `postMessage` từ iframe Google Maps cross-origin,
+  được phân loại là third-party warning.
+
 ## Authenticated admin staging QA runner — 2026-09-03
 
 - Đã thêm `scripts/qa-admin-staging.mjs` và lệnh `npm run qa:admin-staging`.
