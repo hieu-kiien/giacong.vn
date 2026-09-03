@@ -5,8 +5,8 @@ Hồ sơ này ghi bằng chứng runtime đã xác minh trong quá trình chuy�
 ## Snapshot hiện hành — 2026-09-03
 
 - Staging Worker `giacong-vn-staging` đang chạy version
-  `430d41b1-a61c-46d1-ac9f-89eb8df74feb` ở 100%; rollback point gần nhất là
-  `eff0d7fa-c5e2-4641-911b-b3b324ac0284`.
+  `e50223de-208f-45d8-bd4f-27ecc32b37ea` ở 100%; rollback point gần nhất là
+  `430d41b1-a61c-46d1-ac9f-89eb8df74feb`.
 - Commit hardening tương ứng là `e1936cfb`. `npm run check` exit `0`: admin
   `198/198`, contact `104/104`, catalog `5/5`, purchase UI `1/1`, service
   `3/3`, commerce `68/68`, listing `4/4`, detail `29/29`, lint, typecheck và
@@ -29,6 +29,18 @@ Hồ sơ này ghi bằng chứng runtime đã xác minh trong quá trình chuy�
   với nhiều Access identity, full write/read-back/audit, duyệt dữ liệu thật,
   migration window/rollback, và observability 24 giờ. Backup/restore artifact
   hiện đã có nhưng phải export lại ngay trước migration nếu dữ liệu thay đổi.
+
+## Footer navigation staging deploy/read-only smoke — 2026-09-03
+
+- Commit `eef99fd9` đã deploy lên staging; version
+  `e50223de-208f-45d8-bd4f-27ecc32b37ea` được promotion 100%. Build Cloudflare
+  compile/typecheck và static generation `27/27` pass; chỉ upload 3 asset mới.
+- Public storefront đọc đúng homepage, footer captured legacy, không overflow
+  ngang, không admin control và console error/warning rỗng. D1/R2 không bị ghi.
+- Staging hiện chưa có footer item active nên managed list không xuất hiện —
+  đây là hành vi fail-closed đúng thiết kế. Chưa tạo dữ liệu thử vì navigation
+  create hiện không có delete thật; active-footer write/read-back và visual
+  desktop/mobile cần owner phê duyệt dữ liệu/ý định trước khi chạy.
 
 ## Production infrastructure re-audit — 2026-09-03
 

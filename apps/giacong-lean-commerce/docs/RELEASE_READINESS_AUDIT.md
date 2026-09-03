@@ -4,8 +4,8 @@
 
 Bản staging hiện **đủ điều kiện để tiếp tục nghiệm thu kỹ thuật**, nhưng chưa
 đủ điều kiện để gọi là bàn giao production hoàn hảo. Staging đang chạy
-`430d41b1-a61c-46d1-ac9f-89eb8df74feb` ở 100%, rollback point gần nhất là
-`eff0d7fa-c5e2-4641-911b-b3b324ac0284`; production vẫn giữ nguyên và đang
+`e50223de-208f-45d8-bd4f-27ecc32b37ea` ở 100%, rollback point gần nhất là
+`430d41b1-a61c-46d1-ac9f-89eb8df74feb`; production vẫn giữ nguyên và đang
 **NO-GO** cho migration hoặc promotion.
 
 ## Tái kiểm tra runtime resource-limit — 2026-09-02

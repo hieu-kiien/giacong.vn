@@ -8,7 +8,7 @@ Tài liệu dành cho người vận hành (khách + chủ dự án). Quyết đ
 | --- | --- | --- |
 | Storefront production | https://kienhieu.id.vn | Cloudflare Worker `giacong-vn` @100% |
 | Admin production | https://admin.kienhieu.id.vn/admin | Sau Cloudflare Access — fail-closed |
-| Storefront staging | https://staging.kienhieu.id.vn | Worker `giacong-vn-staging`, public demo; version `eff0d7fa-c5e2-4641-911b-b3b324ac0284`; rollback `a709e5a4-c457-43ab-9d77-2d5d20ac0b7b` |
+| Storefront staging | https://staging.kienhieu.id.vn | Worker `giacong-vn-staging`, public demo; version `e50223de-208f-45d8-bd4f-27ecc32b37ea`; rollback `430d41b1-a61c-46d1-ac9f-89eb8df74feb` |
 | Admin staging | https://admin-staging.kienhieu.id.vn/admin | Cloudflare Access thật; storefront staging mới public; không có identity thì fail-closed |
 | D1 production | `giacong-vn-catalog` | Catalog, leads, media metadata, CMS |
 | R2 production | `giacong-vn-product-media` | Ảnh product/variant/service qua `/media/*` |
@@ -23,7 +23,7 @@ Tài liệu dành cho người vận hành (khách + chủ dự án). Quyết đ
 4. Ảnh: upload qua panel media (≤ 8 MiB, JPEG/PNG/WebP) → "Dùng làm ảnh chính". Xóa ảnh đang là ảnh chính sẽ bị chặn 409 — chọn ảnh chính khác trước.
 5. CMS (logo/hero/hotline): tab Nội dung → lưu draft → Publish riêng biệt; có chống ghi đè (stale-write).
 6. Thiết kế page: `/admin/thiet-ke` cho phép chỉnh các section schema an toàn, lưu/Publish rồi mở đúng route storefront thật để kiểm tra; không nhập HTML/CSS/JavaScript tùy ý.
-7. Điều hướng: `/admin/dieu-huong` chỉnh nhãn, href, thứ tự, ẩn/hiện primary menu desktop/mobile; chỉ bản Publish mới ra storefront.
+7. Điều hướng: `/admin/dieu-huong` chỉnh nhãn, href, thứ tự, ẩn/hiện menu chính desktop/mobile hoặc tạo mục liên kết cuối trang; chỉ bản Publish mới ra storefront. Footer managed links xuất hiện trong vùng riêng, không ghi đè cột captured legacy.
 8. Thành viên & quyền: `qtu1053@gmail.com` là owner cấp cao nhất trên staging; tại `/admin/thanh-vien`, owner được thêm tài khoản admin, cấp/sửa role và active state. `accessSubject` phải khớp identity Cloudflare Access; không dùng shared administrator account. Owner không thể tự hạ quyền hoặc tự vô hiệu hóa.
 9. Mọi thay đổi quan trọng đều xuất hiện trong trang `Lịch sử thay đổi` và các
    bảng audit D1 liên quan; không lưu token hoặc secret vào audit.
@@ -103,6 +103,8 @@ Trạng thái bàn giao hiện tại: code/test, staging storefront, Access iden
 thật, owner route navigation, public deep-QA, owner bootstrap, CMS draft
 isolation, navigation draft/publish round-trip, news draft round-trip và lead
 write/read-back có kiểm soát, cùng audit read-back 107 sự kiện, đã được xác minh;
+footer renderer đã deploy staging và public read-only smoke pass nhưng chưa có
+footer item active để chạy write/read-back;
 role matrix nhiều identity, write/read-back đầy đủ, production data approval, migrations `0009–0019` và
 restore/rollback drill vẫn cần chủ dự án phê duyệt và thực hiện chủ ý. Không
 dùng dữ liệu demo staging làm dữ liệu production.

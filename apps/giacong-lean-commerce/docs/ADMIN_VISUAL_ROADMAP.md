@@ -537,7 +537,10 @@ renderer local: admin có thể chọn `Menu chính` hoặc `Liên kết cuối 
 thêm mục; homepage và captured shell cùng render các mục footer đã publish vào
 một vùng managed riêng, có escape URL/label và không sửa nội dung footer legacy.
 Focused/full check pass; cần deploy staging và đọc lại bằng browser ở desktop /
-mobile trước khi đóng gate P4.
+mobile trước khi đóng gate P4. Staging đã deploy version
+`e50223de-208f-45d8-bd4f-27ecc32b37ea` và public read-only smoke pass; vì staging
+chưa có footer item active nên active-footer write/read-back và visual footer
+desktop/mobile vẫn chưa được chấm đạt.
 
 **Runtime evidence 2026-09-02:** owner staging đã đổi `Home → Home [QA]`, lưu
 draft, phát hành single-item, hard reload public để đọc lại nhãn QA, rồi khôi

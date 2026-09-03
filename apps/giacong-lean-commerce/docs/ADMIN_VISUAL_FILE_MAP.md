@@ -64,6 +64,13 @@ xuất hiện trong khu vực “Liên kết website”; các cột footer captu
 bị ghi đè. Local contract/full check đã pass; staging deploy, Access
 write/read-back và visual footer desktop/mobile vẫn là gate runtime riêng.
 
+**Footer staging deploy/read-only smoke 2026-09-03:** commit `eef99fd9` đã
+lên `giacong-vn-staging` version
+`e50223de-208f-45d8-bd4f-27ecc32b37ea` ở 100%; homepage public đọc đúng,
+không overflow/admin control/console error. Staging chưa có footer item active
+nên managed list không hiện; không tạo dữ liệu thử vì create không có delete
+thật. Active-footer write/read-back và visual desktop/mobile vẫn mở.
+
 **Staging deploy/read-only smoke 2026-09-03:** Commit `655ff4f1` đã lên
 `giacong-vn-staging` version `430d41b1-a61c-46d1-ac9f-89eb8df74feb` ở 100%.
 Sau propagation, owner chạy lại đủ 10 route admin canonical đạt `10/10` theo
