@@ -4,8 +4,8 @@
 
 Bản staging hiện **đủ điều kiện để tiếp tục nghiệm thu kỹ thuật**, nhưng chưa
 đủ điều kiện để gọi là bàn giao production hoàn hảo. Staging đang chạy
-`e50223de-208f-45d8-bd4f-27ecc32b37ea` ở 100%, rollback point gần nhất là
-`430d41b1-a61c-46d1-ac9f-89eb8df74feb`; production vẫn giữ nguyên và đang
+`a3d82449-4dee-4b3f-a001-0b97e70e21e4` ở 100%, rollback point gần nhất là
+`e50223de-208f-45d8-bd4f-27ecc32b37ea`; production vẫn giữ nguyên và đang
 **NO-GO** cho migration hoặc promotion.
 
 ## Tái kiểm tra runtime resource-limit — 2026-09-02
@@ -108,8 +108,8 @@ Bản staging hiện **đủ điều kiện để tiếp tục nghiệm thu kỹ
   focused bulk-import đạt `19/19`, full build isolated đạt `27/27`,
   lint/typecheck pass và `npm audit --omit=dev --audit-level=high` báo
   `0 vulnerabilities`. Các full-suite counts lịch sử vẫn được giữ ở các mục
-  evidence tương ứng bên dưới. Commit hiện tại chưa được deploy lên staging;
-  staging runtime vẫn giữ version `e50223de`.
+  evidence tương ứng bên dưới. Commit hiện tại đã deploy lên staging; owner
+  browser smoke sau deploy đang chờ Access re-auth.
 - Staging D1 đã apply đủ migration đến `0019`; public smoke 7/7 route, product
   API, cart canonical money và R2 media đều pass.
 - Chrome với identity `qtu1053@gmail.com` đã đọc đúng `owner`/`Chủ sở hữu

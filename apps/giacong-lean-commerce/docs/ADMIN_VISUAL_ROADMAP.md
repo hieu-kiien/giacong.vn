@@ -16,9 +16,9 @@ và role-matrix QA runner đã fail-closed cho đủ năm identity. Source gate 
 nhất `npm run check` đạt admin `215/215`, contact `104/104`, catalog `5/5`,
 purchase UI `1/1`, service `3/3`, commerce `68/68`, listing `4/4`, detail
 `29/29`, lint, typecheck và build `27/27`; `npm audit --omit=dev` báo `0`
-vulnerability. Staging runtime vẫn đang ở version
-`e50223de-208f-45d8-bd4f-27ecc32b37ea` ở 100%, rollback point gần nhất là
-`430d41b1-a61c-46d1-ac9f-89eb8df74feb`. Deep QA read-only mới nhất trên
+vulnerability. Source commit này đã được deploy lên staging version
+`a3d82449-4dee-4b3f-a001-0b97e70e21e4` ở 100%, rollback point gần nhất là
+`e50223de-208f-45d8-bd4f-27ecc32b37ea`. Deep QA read-only mới nhất trên
 staging đạt responsive cho 4 route ở mobile/tablet/desktop, catalog
 search/sort, detail/cart và keyboard; không có horizontal overflow hay
 console error. Production Worker `giacong-vn` vẫn giữ version

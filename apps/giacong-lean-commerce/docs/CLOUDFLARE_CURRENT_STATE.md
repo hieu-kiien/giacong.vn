@@ -5,16 +5,16 @@ Hồ sơ này ghi bằng chứng runtime đã xác minh trong quá trình chuy�
 ## Snapshot hiện hành — 2026-09-03
 
 - Staging Worker `giacong-vn-staging` đang chạy version
-  `e50223de-208f-45d8-bd4f-27ecc32b37ea` ở 100%; rollback point gần nhất là
-  `430d41b1-a61c-46d1-ac9f-89eb8df74feb`.
-- Source head hiện tại là `0adb917a`; staging runtime vẫn ở release đã deploy
-  `e50223de`. QA-only commit `0b1986bf` đã sửa false-positive của admin matcher
-  mà không cần deploy lại runtime. Role-matrix runner hiện yêu cầu đủ năm
+  `a3d82449-4dee-4b3f-a001-0b97e70e21e4` ở 100%; rollback point gần nhất là
+  `e50223de-208f-45d8-bd4f-27ecc32b37ea`.
+- Source head hiện tại là `0adb917a`; commit này đã được deploy lên staging.
+  QA-only commit `0b1986bf` đã sửa false-positive của admin matcher. Role-matrix runner hiện yêu cầu đủ năm
   storage state phân biệt và không thực hiện mutation. Full `npm run check`
   hiện đạt admin `215/215`, contact `104/104`, catalog `5/5`, purchase UI
   `1/1`, service `3/3`, commerce `68/68`, listing `4/4`, detail `29/29`,
   build static `27/27`, lint và typecheck; deep QA responsive và
-  Chrome owner route smoke cũng pass, không có console error/warning.
+  Chrome owner route smoke trước deploy cũng pass; smoke sau deploy đang chờ
+  Access re-auth, không có thay đổi D1/R2 trong deploy.
 - `npm audit --audit-level=high` đã được revalidate với `0 vulnerabilities`;
   các kết quả full suite cũ hơn vẫn được giữ bên dưới như evidence lịch sử.
 - Production Worker/D1/R2/DNS chưa bị mutate. Read-only Wrangler ngày này còn

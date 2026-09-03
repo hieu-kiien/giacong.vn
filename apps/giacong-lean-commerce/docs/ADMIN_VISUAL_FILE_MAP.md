@@ -22,8 +22,8 @@ storefront motion/menu đã được review và tích hợp từ worktree riêng
 gallery đã chấp nhận asset WebP. `qa:ux` là runner tracked để lặp lại audit
 staging. Public staging `https://staging.kienhieu.id.vn` vừa pass deep QA responsive và functional
 route. Staging đang phục vụ version
-`e50223de-208f-45d8-bd4f-27ecc32b37ea`; rollback point gần nhất là
-`430d41b1-a61c-46d1-ac9f-89eb8df74feb`; owner thật `qtu1053@gmail.com` đã được
+`a3d82449-4dee-4b3f-a001-0b97e70e21e4`; rollback point gần nhất là
+`e50223de-208f-45d8-bd4f-27ecc32b37ea`; owner thật `qtu1053@gmail.com` đã được
 bootstrap vào D1 staging với role `owner` cấp cao nhất. `/admin/thanh-vien` đã
 được browser xác nhận hiển thị tài khoản hiện tại, khóa self-demotion/self-
 deactivation và mở được luồng `Thêm tài khoản quản trị`.
@@ -31,8 +31,8 @@ deactivation và mở được luồng `Thêm tài khoản quản trị`.
 **Checkpoint QA mới nhất — 2026-09-03:** Source head `0adb917a`; QA-only
 commit `0b1986bf` sửa false-positive của admin matcher, sau đó role-matrix
 runner được harden để yêu cầu đủ năm storage state phân biệt. Staging runtime
-`e50223de-208f-45d8-bd4f-27ecc32b37ea` vẫn ở 100%, rollback point gần nhất là
-`430d41b1-a61c-46d1-ac9f-89eb8df74feb`. Full admin tại source hiện hành đạt
+`a3d82449-4dee-4b3f-a001-0b97e70e21e4` đang ở 100%, rollback point gần nhất là
+`e50223de-208f-45d8-bd4f-27ecc32b37ea`. Full admin tại source hiện hành đạt
 `215/215`, build
 isolated đạt `27/27`, lint/typecheck pass; production chưa bị mutate và còn 11
 migration pending `0009–0019`.
@@ -40,8 +40,9 @@ migration pending `0009–0019`.
 Source gate hiện hành sau bulk-import hardening và role-matrix QA đạt admin
 `215/215`, contact `104/104`, catalog `5/5`, purchase UI `1/1`, service `3/3`,
 commerce `68/68`, listing `4/4`, detail `29/29`, lint, typecheck và build
-`27/27`; focused bulk-import đạt `19/19`. Chưa deploy commit này lên staging;
-runtime role matrix vẫn cần bốn identity thật ngoài owner.
+`27/27`; focused bulk-import đạt `19/19`. Commit này đã deploy staging;
+owner smoke sau deploy đang chờ Access re-auth, còn role matrix vẫn cần bốn
+identity thật ngoài owner.
 
 Full gate gần nhất có admin `215/215`; các suite contact/catalog/purchase/service/
 commerce/listing/detail, lint, typecheck và build đều đã có evidence pass ở các
