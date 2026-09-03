@@ -5,14 +5,16 @@ Hồ sơ này ghi bằng chứng runtime đã xác minh trong quá trình chuy�
 ## Snapshot hiện hành — 2026-09-03
 
 - Staging Worker `giacong-vn-staging` đang chạy version
-  `a3d82449-4dee-4b3f-a001-0b97e70e21e4` ở 100%; rollback point gần nhất là
+  `b8b344ca-07c3-4449-bfca-d5acad685931` ở 100%; rollback point gần nhất là
   `e50223de-208f-45d8-bd4f-27ecc32b37ea`.
-- Checkout head hiện tại là `7ef8b216`; QA-only selector correction đã được
+- Checkout head hiện tại là `222ec6c4`; bản sửa giảm burst prefetch protected
+  admin đã được deploy lên staging và QA owner sau deploy đã đọc dashboard
+  thành công. QA-only selector correction trước đó đã được
   kiểm thử ở source. Staging runtime vẫn ở version nêu trên; commit
   `0b1986bf` trước đó đã sửa false-positive của
   admin matcher. Role-matrix runner hiện yêu cầu đủ năm
   storage state phân biệt và không thực hiện mutation. Full `npm run check`
-  hiện đạt admin `215/215`, contact `104/104`, catalog `5/5`, purchase UI
+  hiện đạt admin `216/216`, contact `104/104`, catalog `5/5`, purchase UI
   `1/1`, service `3/3`, commerce `69/69`, listing `4/4`, detail `29/29`,
   build static `27/27`, lint và typecheck; deep QA responsive và Chrome owner
   route smoke sau deploy đều pass read-only, không có thay đổi D1/R2 trong
@@ -35,6 +37,17 @@ Hồ sơ này ghi bằng chứng runtime đã xác minh trong quá trình chuy�
   với nhiều Access identity, full write/read-back/audit, duyệt dữ liệu thật,
   migration window/rollback, và observability 24 giờ. Backup/restore artifact
   hiện đã có nhưng phải export lại ngay trước migration nếu dữ liệu thay đổi.
+
+## Admin dashboard prefetch hardening — 2026-09-03
+
+- `AdminShell` đã tắt prefetch cho các protected sidebar route bằng commit
+  `222ec6c4`, có regression contract riêng; mục tiêu là không tạo burst RSC
+  request cho toàn bộ màn hình admin khi mở dashboard.
+- Staging version `b8b344ca-07c3-4449-bfca-d5acad685931` đã được xác minh bằng
+  owner Chrome: dashboard có dữ liệu, `/api/admin/dashboard` `200`,
+  `outcome=ok`, CPU `24 ms`, wall `827 ms`, console rỗng.
+- Incident 1102 vẫn là performance gate mở; bằng chứng này không thay thế
+  controlled stress test hoặc production observability.
 
 ## Footer navigation staging deploy/read-only smoke — 2026-09-03
 

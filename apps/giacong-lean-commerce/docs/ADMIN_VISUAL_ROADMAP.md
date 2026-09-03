@@ -11,15 +11,16 @@ hiển thị, nhưng vẫn giữ trung tâm vận hành đầy đủ cho nghiệ
 lý hàng loạt.
 
 **Checkpoint authoritative — 2026-09-03:** checkout `master` đang ở commit
-`7ef8b216` (đã sửa selector menu của QA bằng identity ổn định; staging runtime
+`222ec6c4` (đã giảm burst prefetch protected admin sidebar và sửa selector menu
+của QA bằng identity ổn định; staging runtime
 vẫn được định danh bằng version bên dưới);
 bulk product import đã được harden theo bind-budget D1, retry audit exact-match
 và role-matrix QA runner đã fail-closed cho đủ năm identity. Source gate mới
-nhất đạt admin `215/215`, contact `104/104`, catalog `5/5`, purchase UI `1/1`,
+nhất đạt admin `216/216`, contact `104/104`, catalog `5/5`, purchase UI `1/1`,
 service `3/3`, commerce `69/69`, listing `4/4`, detail
 `29/29`, lint, typecheck và build `27/27`; `npm audit --omit=dev` báo `0`
 vulnerability. Source commit này đã được deploy lên staging version
-`a3d82449-4dee-4b3f-a001-0b97e70e21e4` ở 100%, rollback point gần nhất là
+`b8b344ca-07c3-4449-bfca-d5acad685931` ở 100%, rollback point gần nhất là
 `e50223de-208f-45d8-bd4f-27ecc32b37ea`. Deep QA read-only mới nhất trên
 staging đạt responsive cho 4 route ở mobile/tablet/desktop, catalog
 search/sort, detail/cart và keyboard; không có horizontal overflow hay
@@ -28,7 +29,8 @@ console error. Production Worker `giacong-vn` vẫn giữ version
 liệu. Các gate Access nhiều identity, write/read-back đầy đủ, dữ liệu
 production, restore/rollback và observability 24 giờ vẫn mở.
 
-Owner authenticated recheck sau đó đạt đủ `10/10` route admin canonical, trong
+Source gate sau prefetch hardening đạt admin `216/216`; owner authenticated
+recheck sau đó đạt đủ `10/10` route admin canonical, trong
 đó `/admin/thanh-vien` mở đúng form tạo admin với đủ năm role và giữ khóa tự hạ
 quyền/tự vô hiệu hóa. Mobile `390×844`, reduced-motion và keyboard focus cũng
 đã pass; đây vẫn chỉ là bằng chứng owner, chưa phải role matrix năm identity.
@@ -96,12 +98,18 @@ production promotion. Production chưa bị thay đổi.
   lỗi tải dữ liệu/1102/502/503. Đây là navigation/read-only evidence, không
   thay thế role matrix nhiều identity hoặc write/read-back đầy đủ.
 
+**Admin prefetch hardening update 2026-09-03:** Commit `222ec6c4` tắt prefetch
+cho protected sidebar route để tránh burst RSC request lúc mở dashboard. Staging
+version `b8b344ca-07c3-4449-bfca-d5acad685931` đã được owner kiểm tra lại:
+dashboard có dữ liệu, API trả `200`, tail `outcome=ok`, CPU `24 ms`, wall
+`827 ms`, console rỗng. Đây là evidence controlled, chưa đóng performance gate.
+
 **QA automation update 2026-09-03:** Đã thêm runner
 `npm run qa:admin-staging` nhận Playwright storage state của phiên Access,
 kiểm tra 10 route admin ở mobile/desktop và chỉ thực hiện navigation/read-only.
 Có thể truyền `QA_ADMIN_ROLE_STATES` trỏ tới JSON map đủ năm role để chạy tuần
 tự từng identity, đối chiếu tập link sidebar theo capability và không suy diễn
-role từ một phiên khác. Contract test nằm trong `test:admin` hiện đạt `215/215`;
+role từ một phiên khác. Contract test nằm trong `test:admin` hiện đạt `216/216`;
 runner cố ý báo `ADMIN QA BLOCKED`
 khi thiếu hoặc thiếu role state, không dùng trạng thái chưa xác thực để tuyên bố
 pass.
@@ -110,7 +118,7 @@ pass.
 `prefers-reduced-motion`, ở hai viewport, đồng thời gửi một phím `Tab` để xác
 nhận focus tới phần tử nhìn thấy. Đây vẫn là kiểm tra read-only; không click,
 fill, submit hay gọi HTTP mutation. Contract test đã được đưa vào
-`test:admin` và nằm trong lượt pass `215/215`. Bằng chứng runtime vẫn cần storage state của
+`test:admin` và nằm trong lượt pass `216/216`. Bằng chứng runtime vẫn cần storage state của
 identity thật.
 
 **Role inventory update 2026-09-03:** D1 staging hiện chỉ có một active

@@ -4,9 +4,24 @@
 
 Bản staging hiện **đủ điều kiện để tiếp tục nghiệm thu kỹ thuật**, nhưng chưa
 đủ điều kiện để gọi là bàn giao production hoàn hảo. Staging đang chạy
-`a3d82449-4dee-4b3f-a001-0b97e70e21e4` ở 100%, rollback point gần nhất là
+`b8b344ca-07c3-4449-bfca-d5acad685931` ở 100%, rollback point gần nhất là
 `e50223de-208f-45d8-bd4f-27ecc32b37ea`; production vẫn giữ nguyên và đang
 **NO-GO** cho migration hoặc promotion.
+
+## Giảm burst prefetch admin — 2026-09-03
+
+- Điều tra browser owner cho thấy các protected link trong `AdminShell` tự
+  prefetch nhiều route admin ngay khi mở dashboard; đây là tín hiệu phù hợp
+  với incident 1102 trong lượt điều hướng dồn.
+- Commit `222ec6c4` thêm `prefetch={false}` cho sidebar protected và regression
+  test tương ứng. Admin suite sau thay đổi đạt `216/216`; lint, typecheck và
+  build OpenNext/static `27/27` vẫn pass.
+- Commit đã deploy lên staging version
+  `b8b344ca-07c3-4449-bfca-d5acad685931`. Owner dashboard tải dữ liệu thành
+  công; `/api/admin/dashboard` trả `200`, tail ghi `outcome=ok`,
+  `cpuTime=24 ms`, `wallTime=827 ms`, console browser rỗng.
+- Đây là controlled recheck, chưa đóng performance/1102 gate; vẫn cần stress
+  test có kiểm soát và observability trước khi xét production.
 
 ## Tái kiểm tra runtime resource-limit — 2026-09-02
 

@@ -14,7 +14,8 @@ Mục tiêu của file này là trả lời nhanh bốn câu hỏi trước khi 
 Không thêm file mới vào map chỉ vì đã nghĩ ra tên. File chỉ được đánh dấu “đã có”
 khi tồn tại trong checkout; file “dự kiến” phải được tạo trong phase tương ứng.
 
-**Checkpoint 2026-09-03:** checkout hiện ở commit `7ef8b216` (QA selector menu
+**Checkpoint 2026-09-03:** checkout hiện ở commit `222ec6c4` (đã giảm burst
+prefetch protected admin sidebar; QA selector menu
 đã dùng identity ổn định; code behavior staging vẫn ở version đã ghi bên dưới). P1 host-gated admin context, P2 settings write
 contract (per-setting + bulk publish), contextual editor MVP, P3 contextual
 news-detail hand-off, P4 managed-page hand-off, P5 product bulk import UI và
@@ -23,29 +24,30 @@ storefront motion/menu đã được review và tích hợp từ worktree riêng
 gallery đã chấp nhận asset WebP. `qa:ux` là runner tracked để lặp lại audit
 staging. Public staging `https://staging.kienhieu.id.vn` vừa pass deep QA responsive và functional
 route. Staging đang phục vụ version
-`a3d82449-4dee-4b3f-a001-0b97e70e21e4`; rollback point gần nhất là
+`b8b344ca-07c3-4449-bfca-d5acad685931`; rollback point gần nhất là
 `e50223de-208f-45d8-bd4f-27ecc32b37ea`; owner thật `qtu1053@gmail.com` đã được
 bootstrap vào D1 staging với role `owner` cấp cao nhất. `/admin/thanh-vien` đã
 được browser xác nhận hiển thị tài khoản hiện tại, khóa self-demotion/self-
 deactivation và mở được luồng `Thêm tài khoản quản trị`.
 
-**Checkpoint QA mới nhất — 2026-09-03:** Checkout head `7ef8b216`; QA-only
+**Checkpoint QA mới nhất — 2026-09-03:** Checkout head `222ec6c4`; bản sửa
+prefetch protected sidebar có regression contract; QA-only
 commit `0b1986bf` sửa false-positive của admin matcher, sau đó role-matrix
 runner được harden để yêu cầu đủ năm storage state phân biệt. Staging runtime
-`a3d82449-4dee-4b3f-a001-0b97e70e21e4` đang ở 100%, rollback point gần nhất là
+`b8b344ca-07c3-4449-bfca-d5acad685931` đang ở 100%, rollback point gần nhất là
 `e50223de-208f-45d8-bd4f-27ecc32b37ea`. Full admin tại source hiện hành đạt
-`215/215`, build
+`216/216`, build
 isolated đạt `27/27`, lint/typecheck pass; production chưa bị mutate và còn 11
 migration pending `0009–0019`.
 
-Source gate hiện hành sau bulk-import hardening, role-matrix QA và sửa selector
-menu đạt admin `215/215`, contact `104/104`, catalog `5/5`, purchase UI `1/1`, service `3/3`,
+Source gate hiện hành sau bulk-import hardening, role-matrix QA, sửa selector
+menu và giảm burst prefetch admin đạt admin `216/216`, contact `104/104`, catalog `5/5`, purchase UI `1/1`, service `3/3`,
 commerce `69/69`, listing `4/4`, detail `29/29`, lint, typecheck và build
 `27/27`; focused bulk-import đạt `19/19`. Commit này đã deploy staging;
 owner smoke sau deploy đã đọc lại được, còn role matrix vẫn cần bốn identity
 thật ngoài owner.
 
-Full gate gần nhất có admin `215/215`; các suite contact/catalog/purchase/service/
+Full gate gần nhất có admin `216/216`; các suite contact/catalog/purchase/service/
 commerce/listing/detail, lint, typecheck và build đều đã có evidence pass ở các
 lượt revalidation tương ứng. Public deep QA pass; browser role matrix đủ năm
 identity, write/read-back từng domain và production gate vẫn chưa đóng.
@@ -64,6 +66,12 @@ Tab owner mới mở riêng rồi điều hướng chậm qua các route liên q
 đúng; API products trả `200`, Wrangler tail quan sát được các invocation
 `outcome=ok` với CPU `10–522 ms` và wall time `253–679 ms`. Incident đã được
 ghi trong audit nhưng performance gate vẫn mở cho tới stress test có kiểm soát.
+
+**Admin prefetch hardening update 2026-09-03:** Commit `222ec6c4` tắt prefetch
+cho protected sidebar route để tránh burst RSC request lúc mở dashboard. Staging
+version `b8b344ca-07c3-4449-bfca-d5acad685931` đã được owner kiểm tra lại:
+dashboard có dữ liệu, API trả `200`, tail `outcome=ok`, CPU `24 ms`, wall
+`827 ms`, console rỗng. Đây là evidence controlled, chưa đóng performance gate.
 
 **Live storefront handoff update 2026-09-03:** `AdminContentPage` và
 `AdminPageBuilder` không còn dựng card preview bằng JSX/CSS riêng. Hai màn hình
