@@ -97,6 +97,10 @@ Bản staging hiện **đủ điều kiện để tiếp tục nghiệm thu kỹ
   `prefers-reduced-motion: reduce` đạt heading đúng, không overflow và phím Tab
   tới button nhìn thấy; console vẫn rỗng. Emulator đã được trả về
   `no-preference` và viewport trình duyệt bình thường sau phép thử.
+- `/admin/thanh-vien` đã mở đúng form tạo tài khoản: có Access subject, tên,
+  email, trạng thái kích hoạt và combobox đủ năm role, gồm `Chủ sở hữu (toàn
+  quyền)`. Bản ghi owner hiện tại hiển thị đúng và khóa tự đổi role/tự vô hiệu
+  hóa. Form chỉ được mở để kiểm tra UI; không submit và không ghi D1.
 
 ## Bằng chứng hiện có
 
