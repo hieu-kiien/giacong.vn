@@ -1,8 +1,10 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
+import { DatabaseSync } from "node:sqlite";
 import test from "node:test";
 import {
   AdminNewsIdempotencyConflictError,
+  AdminNewsStorageError,
   batchAdminNewsPublication,
   createAdminNewsPost,
   deleteAdminNewsPost,
@@ -95,7 +97,9 @@ interface FakeNewsAudit {
   action: "create" | "delete" | "update";
   entity_key: string;
   operation: "delete" | "draft" | "publish" | "unpublish";
+  previous_revision?: number | null;
   payload_sha256: string;
+  resulting_revision?: number | null;
   request_id: string;
   bulk_request_id?: string;
 }
@@ -140,8 +144,16 @@ class FakeNewsDatabase {
   readonly audits: FakeNewsAudit[] = [];
   readonly bulkAudits: FakeNewsBulkAudit[] = [];
   failAudit = false;
+  omitBatchResults = false;
+  skipBulkChildAudit = false;
+  private readonly skipAudit: boolean;
   private nextId = 1;
   private readonly rows = new Map<number, FakeNewsRow>();
+
+  constructor(options: { omitBatchResults?: boolean; skipAudit?: boolean } = {}) {
+    this.omitBatchResults = options.omitBatchResults ?? false;
+    this.skipAudit = options.skipAudit ?? false;
+  }
 
   prepare(query: string): FakeNewsStatement {
     return new FakeNewsStatement(this, query);
@@ -155,7 +167,7 @@ class FakeNewsDatabase {
     try {
       const results: unknown[] = [];
       for (const statement of statements) results.push(await statement.run());
-      return results;
+      return this.omitBatchResults ? results.map(() => ({})) : results;
     } catch (error) {
       this.rows.clear();
       for (const [id, row] of snapshotRows) this.rows.set(id, row);
@@ -170,6 +182,10 @@ class FakeNewsDatabase {
     return this.rows.get(id);
   }
 
+  deleteRow(id: number): void {
+    this.rows.delete(id);
+  }
+
   all<T>(query: string, values: unknown[]): T[] {
     if (query.includes("FROM news_posts") && query.includes("ORDER BY")) {
       return [...this.rows.values()].map((row) => this.readRow(row)) as T[];
@@ -178,12 +194,22 @@ class FakeNewsDatabase {
       const bulkRequestId = String(values[0]);
       return this.audits
         .filter((audit) => audit.bulk_request_id === bulkRequestId)
-        .map(({ entity_key }) => ({ entity_key })) as T[];
+        .map(({ entity_key, operation, payload_sha256, previous_revision, request_id, resulting_revision }) => ({
+          entity_key,
+          operation,
+          payload_sha256,
+          previous_revision,
+          request_id,
+          resulting_revision,
+        })) as T[];
     }
     throw new Error(`Unexpected all query: ${query}`);
   }
 
   first<T>(query: string, values: unknown[]): T | null {
+    if (query.includes("news-write-postcondition-read")) {
+      return (this.audits.length > 0 ? { complete: 1 } : { complete: 0 }) as T;
+    }
     if (query.includes("FROM admin_news_bulk_audit") && query.includes("request_id = ?")) {
       return (this.bulkAudits.find((audit) => audit.request_id === String(values[0])) ?? null) as T | null;
     }
@@ -202,6 +228,14 @@ class FakeNewsDatabase {
   }
 
   async run(query: string, values: unknown[]): Promise<{ meta: { changes: number } }> {
+    if (query.includes("news-bulk-postcondition")) {
+      if (this.skipBulkChildAudit) throw new Error("NOT NULL constraint failed: admin_news_audit.request_id");
+      return { meta: { changes: 1 } };
+    }
+    if (query.includes("news-write-postcondition")) {
+      if (this.audits.length === 0) throw new Error("NOT NULL constraint failed: admin_news_audit.request_id");
+      return { meta: { changes: 1 } };
+    }
     if (query.includes("INSERT INTO admin_news_bulk_audit")) {
       const [requestId, , payloadSha256, selectedCount] = values;
       this.bulkAudits.push({
@@ -242,8 +276,10 @@ class FakeNewsDatabase {
       return { meta: { changes: 1 } };
     }
     if (query.includes("INSERT INTO admin_news_audit")) {
+      if (this.skipAudit) return { meta: { changes: 0 } };
       if (this.failAudit) throw new Error("audit insert failed");
       if (query.includes("bulk_request_id")) {
+        if (this.skipBulkChildAudit) return { meta: { changes: 0 } };
         const childRequestId = String(values[0]);
         const operation = String(values[2]) as FakeNewsAudit["operation"];
         const resultingRevision = Number(values[7]);
@@ -256,8 +292,10 @@ class FakeNewsDatabase {
           bulk_request_id: String(values[5]),
           entity_key: String(row.id),
           operation,
+          previous_revision: Number(values[3]),
           payload_sha256: String(values[4]),
           request_id: childRequestId,
+          resulting_revision: resultingRevision,
         });
         return { meta: { changes: 1 } };
       }
@@ -383,6 +421,103 @@ test("news request ids replay without repeating the mutation and reject payload 
   assert.equal(database.audits.length, 1);
 });
 
+test("news single writes remain successful when D1 omits batch result rows", async () => {
+  const database = new FakeNewsDatabase({ omitBatchResults: true });
+  const created = await createAdminNewsPost(database, draftInput, "owner-1", "17171717-1717-4171-8171-171717171717");
+  const updated = await updateAdminNewsPost(
+    database,
+    created.id,
+    { ...draftInput, title: "Bản nháp mới" },
+    created.revision,
+    "owner-1",
+    "18181818-1818-4181-8181-181818181818",
+  );
+  const published = await publishAdminNewsPost(
+    database,
+    created.id,
+    updated?.revision ?? 0,
+    "owner-1",
+    "19191919-1919-4191-8191-191919191919",
+  );
+
+  assert.equal(published?.isPublished, true);
+  assert.equal(published?.revision, 3);
+});
+
+test("news draft create rolls back when the mutation audit postcondition is missing", async () => {
+  const database = new FakeNewsDatabase({ skipAudit: true });
+
+  await assert.rejects(
+    () => createAdminNewsPost(database, draftInput, "owner-1", "20202020-2020-4202-8202-202020202020"),
+    AdminNewsStorageError,
+  );
+  assert.equal(database.row(1), undefined);
+  assert.equal(database.audits.length, 0);
+});
+
+test("news bulk publication remains successful when D1 omits batch result rows", async () => {
+  const database = new FakeNewsDatabase();
+  const first = await createAdminNewsPost(database, draftInput, "owner-1", "21212121-2121-4212-8212-212121212121");
+  const second = await createAdminNewsPost(
+    database,
+    { ...draftInput, slug: "bai-viet-hai", title: "Bài viết hai" },
+    "owner-1",
+    "22222222-2222-4222-8222-222222222222",
+  );
+  database.omitBatchResults = true;
+
+  const result = await batchAdminNewsPublication(database, {
+    actorSubject: "owner-1",
+    items: [
+      { id: first.id, expectedRevision: first.revision },
+      { id: second.id, expectedRevision: second.revision },
+    ],
+    publish: true,
+    requestId: "23232323-2323-4232-8232-232323232323",
+  });
+
+  assert.equal(result.changedCount, 2);
+  assert.equal(result.changed.length, 2);
+});
+
+test("news bulk publication rolls back when a child audit postcondition is missing", async () => {
+  const database = new FakeNewsDatabase();
+  const first = await createAdminNewsPost(database, draftInput, "owner-1", "24242424-2424-4242-8242-242424242424");
+  database.skipBulkChildAudit = true;
+
+  await assert.rejects(
+    () => batchAdminNewsPublication(database, {
+      actorSubject: "owner-1",
+      items: [{ id: first.id, expectedRevision: first.revision }],
+      publish: true,
+      requestId: "25252525-2525-4252-8252-252525252525",
+    }),
+    AdminNewsStorageError,
+  );
+  assert.equal(database.row(first.id)?.revision, first.revision);
+  assert.equal(database.row(first.id)?.is_published, 0);
+  assert.equal(database.bulkAudits.length, 0);
+});
+
+test("news bulk replay rejects when a changed post is missing", async () => {
+  const database = new FakeNewsDatabase();
+  const first = await createAdminNewsPost(database, draftInput, "owner-1", "26262626-2626-4262-8262-262626262626");
+  const requestId = "27272727-2727-4272-8272-272727272727";
+  const input = {
+    actorSubject: "owner-1",
+    items: [{ id: first.id, expectedRevision: first.revision }],
+    publish: true,
+    requestId,
+  };
+  await batchAdminNewsPublication(database, input);
+  database.deleteRow(first.id);
+
+  await assert.rejects(
+    () => batchAdminNewsPublication(database, input),
+    AdminNewsStorageError,
+  );
+});
+
 test("news update, publication and delete retries replay after the row revision changes", async () => {
   const database = new FakeNewsDatabase();
   const created = await createAdminNewsPost(database, draftInput, "owner-1", "12121212-1212-4121-8121-121212121212");
@@ -476,4 +611,148 @@ test("news bulk publication is atomic, revision-aware and idempotent", async () 
   assert.equal(replay.skipped[0]?.reason, "stale");
   assert.equal(database.audits.length, auditCount);
   assert.equal(database.bulkAudits.length, 1);
+});
+
+class SqliteNewsStatement implements D1PreparedStatementLike {
+  readonly query: string;
+  private readonly statement: ReturnType<DatabaseSync["prepare"]>;
+  private values: unknown[] = [];
+
+  constructor(query: string, statement: ReturnType<DatabaseSync["prepare"]>) {
+    this.query = query;
+    this.statement = statement;
+  }
+
+  bind(...values: unknown[]): SqliteNewsStatement {
+    this.values = values;
+    return this;
+  }
+
+  async all<T>(): Promise<{ results: T[] }> {
+    return { results: this.statement.all(...(this.values as never[])) as T[] };
+  }
+
+  async first<T>(): Promise<T | null> {
+    return (this.statement.get(...(this.values as never[])) as T | undefined) ?? null;
+  }
+
+  async run(): Promise<{ meta: { changes: number } }> {
+    const result = this.statement.run(...(this.values as never[]));
+    return { meta: { changes: Number(result.changes ?? 0) } };
+  }
+}
+
+class SqliteNewsDatabase implements D1DatabaseLike {
+  readonly sqlite = new DatabaseSync(":memory:");
+  private readonly omitBatchResults: boolean;
+
+  constructor(options: { omitBatchResults?: boolean } = {}) {
+    this.omitBatchResults = options.omitBatchResults ?? false;
+    this.sqlite.exec(`
+      CREATE TABLE news_posts (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        slug TEXT NOT NULL UNIQUE,
+        title TEXT NOT NULL,
+        excerpt TEXT NOT NULL,
+        content TEXT NOT NULL,
+        cover_image_url TEXT,
+        is_published INTEGER NOT NULL DEFAULT 0,
+        published_at TEXT,
+        draft_slug TEXT NOT NULL,
+        draft_title TEXT NOT NULL,
+        draft_excerpt TEXT NOT NULL,
+        draft_content TEXT NOT NULL,
+        draft_cover_image_url TEXT,
+        published_slug TEXT,
+        published_title TEXT,
+        published_excerpt TEXT,
+        published_content TEXT,
+        published_cover_image_url TEXT,
+        revision INTEGER NOT NULL DEFAULT 1,
+        updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        last_request_id TEXT
+      );
+      CREATE TABLE admin_news_audit (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        request_id TEXT NOT NULL UNIQUE,
+        actor_subject TEXT NOT NULL,
+        action TEXT NOT NULL,
+        operation TEXT NOT NULL,
+        entity_type TEXT NOT NULL,
+        entity_key TEXT NOT NULL,
+        previous_revision INTEGER,
+        resulting_revision INTEGER,
+        payload_sha256 TEXT NOT NULL,
+        bulk_request_id TEXT
+      );
+      CREATE TABLE admin_news_bulk_audit (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        request_id TEXT NOT NULL UNIQUE,
+        actor_subject TEXT NOT NULL,
+        action TEXT NOT NULL,
+        operation TEXT NOT NULL,
+        payload_sha256 TEXT NOT NULL,
+        selected_count INTEGER NOT NULL,
+        changed_count INTEGER NOT NULL
+      );
+    `);
+  }
+
+  prepare(query: string): SqliteNewsStatement {
+    return new SqliteNewsStatement(query, this.sqlite.prepare(query));
+  }
+
+  async batch(statements: SqliteNewsStatement[]): Promise<unknown[]> {
+    this.sqlite.exec("BEGIN");
+    try {
+      const results: unknown[] = [];
+      for (const statement of statements) results.push(await statement.run());
+      this.sqlite.exec("COMMIT");
+      return this.omitBatchResults ? statements.map(() => ({})) : results;
+    } catch (error) {
+      this.sqlite.exec("ROLLBACK");
+      throw error;
+    }
+  }
+}
+
+test("SQLite news postconditions remain atomic when results are omitted", async () => {
+  const database = new SqliteNewsDatabase({ omitBatchResults: true });
+  try {
+    const first = await createAdminNewsPost(database, draftInput, "owner-1", "28282828-2828-4282-8282-282828282828");
+    const updated = await updateAdminNewsPost(
+      database,
+      first.id,
+      { ...draftInput, title: "Bản nháp SQL" },
+      first.revision,
+      "owner-1",
+      "29292929-2929-4292-8292-292929292929",
+    );
+    const published = await publishAdminNewsPost(
+      database,
+      first.id,
+      updated?.revision ?? 0,
+      "owner-1",
+      "30303030-3030-4303-8303-303030303030",
+    );
+    const second = await createAdminNewsPost(
+      database,
+      { ...draftInput, slug: "bai-viet-sql-hai", title: "Bài viết SQL hai" },
+      "owner-1",
+      "31313131-3131-4313-8313-313131313131",
+    );
+    const bulk = await batchAdminNewsPublication(database, {
+      actorSubject: "owner-1",
+      items: [{ id: second.id, expectedRevision: second.revision }],
+      publish: true,
+      requestId: "32323232-3232-4323-8323-323232323232",
+    });
+
+    assert.equal(published?.isPublished, true);
+    assert.equal(published?.revision, 3);
+    assert.equal(bulk.changedCount, 1);
+    assert.equal(bulk.changed[0]?.isPublished, true);
+  } finally {
+    database.sqlite.close();
+  }
 });

@@ -1507,6 +1507,29 @@ interface NewsRow {
   updated_at: string;
 }
 
+interface NewsMutationPostcondition {
+  action: "create" | "update" | "delete";
+  actorSubject: string;
+  entityId?: number;
+  expectedRevision?: number;
+  operation: "draft" | "publish" | "unpublish" | "delete";
+  payloadSha256: string;
+  requestId: string;
+}
+
+interface NewsBulkItemPostcondition extends NewsMutationPostcondition {
+  bulkRequestId: string;
+}
+
+interface NewsBulkEnvelopePostcondition {
+  actorSubject: string;
+  changedCount: number;
+  operation: "publish" | "unpublish";
+  payloadSha256: string;
+  requestId: string;
+  selectedCount: number;
+}
+
 function toNewsPost(row: NewsRow): AdminNewsPost {
   const draft: AdminNewsSnapshot = {
     content: row.draft_content,
@@ -1617,6 +1640,13 @@ export async function createAdminNewsPost(
   const existingMutation = await findNewsMutation(database, normalizedRequestId);
   if (existingMutation) {
     assertMatchingNewsMutation(existingMutation, "draft", payloadSha256);
+    await ensureNewsMutationComplete(database, existingMutation, {
+      action: "create",
+      actorSubject,
+      operation: "draft",
+      payloadSha256,
+      requestId: normalizedRequestId,
+    });
     return readNewsPostFromMutation(database, existingMutation);
   }
 
@@ -1652,24 +1682,48 @@ export async function createAdminNewsPost(
   `).bind(normalizedRequestId, actorSubject, payloadSha256, normalizedRequestId, input.slug);
 
   try {
-    const results = await databaseWithBatch.batch([insert, audit]);
-    assertNewsBatchResult(results, 2);
-    if (!hasChanged(results[0]) || !hasChanged(results[1])) {
-      throw new AdminNewsStorageError("News create chưa ghi được audit đồng bộ.");
-    }
+    await databaseWithBatch.batch([
+      insert,
+      audit,
+      buildNewsPostconditionAssertion(database, {
+        action: "create",
+        actorSubject,
+        operation: "draft",
+        payloadSha256,
+        requestId: normalizedRequestId,
+      }),
+    ]);
   } catch (error) {
     const racedMutation = await findNewsMutation(database, normalizedRequestId);
     if (racedMutation) {
       assertMatchingNewsMutation(racedMutation, "draft", payloadSha256);
+      await ensureNewsMutationComplete(database, racedMutation, {
+        action: "create",
+        actorSubject,
+        entityId: Number(racedMutation.entity_key),
+        operation: "draft",
+        payloadSha256,
+        requestId: normalizedRequestId,
+      });
       return readNewsPostFromMutation(database, racedMutation);
     }
-    throw error;
+    throw normalizeNewsWriteError(error);
   }
 
   const created = await database.prepare("SELECT id FROM news_posts WHERE last_request_id = ? LIMIT 1")
     .bind(normalizedRequestId)
     .first<{ id: number }>();
   if (!created) throw new AdminNewsStorageError("Không thể đọc lại bài viết vừa tạo.");
+  const mutation = await findNewsMutation(database, normalizedRequestId);
+  if (!mutation) throw new AdminNewsStorageError("Không đọc lại được audit news vừa tạo.");
+  await ensureNewsMutationComplete(database, mutation, {
+    action: "create",
+    actorSubject,
+    entityId: created.id,
+    operation: "draft",
+    payloadSha256,
+    requestId: normalizedRequestId,
+  });
   const post = await getAdminNewsPost(database, created.id);
   if (!post) throw new AdminNewsStorageError("Không thể đọc lại bài viết vừa tạo.");
   return post;
@@ -1693,6 +1747,15 @@ export async function updateAdminNewsPost(
   const existingMutation = await findNewsMutation(database, normalizedRequestId);
   if (existingMutation) {
     assertMatchingNewsMutation(existingMutation, "draft", payloadSha256);
+    await ensureNewsMutationComplete(database, existingMutation, {
+      action: "update",
+      actorSubject,
+      entityId: id,
+      expectedRevision,
+      operation: "draft",
+      payloadSha256,
+      requestId: normalizedRequestId,
+    });
     return readNewsPostFromMutation(database, existingMutation);
   }
 
@@ -1742,17 +1805,39 @@ export async function updateAdminNewsPost(
     normalizedRequestId,
   );
   try {
-    const results = await databaseWithBatch.batch([update, audit]);
-    assertNewsBatchResult(results, 2);
-    if (!hasChanged(results[0])) return resolveNewsConflict(database, normalizedRequestId, payloadSha256, "draft");
-    if (!hasChanged(results[1])) throw new AdminNewsStorageError("News draft chưa ghi được audit đồng bộ.");
+    await databaseWithBatch.batch([
+      update,
+      audit,
+      buildNewsPostconditionAssertion(database, {
+        action: "update",
+        actorSubject,
+        entityId: id,
+        expectedRevision,
+        operation: "draft",
+        payloadSha256,
+        requestId: normalizedRequestId,
+      }),
+    ]);
   } catch (error) {
     const racedMutation = await findNewsMutation(database, normalizedRequestId);
     if (racedMutation) {
       assertMatchingNewsMutation(racedMutation, "draft", payloadSha256);
+      await ensureNewsMutationComplete(database, racedMutation, {
+        action: "update",
+        actorSubject,
+        entityId: id,
+        expectedRevision,
+        operation: "draft",
+        payloadSha256,
+        requestId: normalizedRequestId,
+      });
       return readNewsPostFromMutation(database, racedMutation);
     }
-    throw error;
+    const currentAfterFailure = await getAdminNewsPost(database, id);
+    if (!currentAfterFailure || currentAfterFailure.revision !== expectedRevision) {
+      throw new AdminNewsConflictError("Bài viết đã thay đổi ở phiên khác. Hãy tải lại rồi thử lại.");
+    }
+    throw normalizeNewsWriteError(error);
   }
   return getAdminNewsPost(database, id);
 }
@@ -1769,6 +1854,15 @@ export async function deleteAdminNewsPost(
   const existingMutation = await findNewsMutation(database, normalizedRequestId);
   if (existingMutation) {
     assertMatchingNewsMutation(existingMutation, "delete", payloadSha256);
+    await ensureNewsMutationComplete(database, existingMutation, {
+      action: "delete",
+      actorSubject,
+      entityId: id,
+      expectedRevision,
+      operation: "delete",
+      payloadSha256,
+      requestId: normalizedRequestId,
+    });
     return true;
   }
 
@@ -1791,18 +1885,40 @@ export async function deleteAdminNewsPost(
   const deletion = database.prepare("DELETE FROM news_posts WHERE id = ? AND revision = ?")
     .bind(id, expectedRevision);
   try {
-    const results = await databaseWithBatch.batch([audit, deletion]);
-    assertNewsBatchResult(results, 2);
-    if (!hasChanged(results[0]) || !hasChanged(results[1])) {
-      throw new AdminNewsConflictError("Bài viết đã thay đổi. Hãy tải lại trước khi xóa.");
-    }
+    await databaseWithBatch.batch([
+      audit,
+      deletion,
+      buildNewsPostconditionAssertion(database, {
+        action: "delete",
+        actorSubject,
+        entityId: id,
+        expectedRevision,
+        operation: "delete",
+        payloadSha256,
+        requestId: normalizedRequestId,
+      }),
+    ]);
+    // The mutation audit and deletion are checked by the in-batch sentinel below.
   } catch (error) {
     const racedMutation = await findNewsMutation(database, normalizedRequestId);
     if (racedMutation) {
       assertMatchingNewsMutation(racedMutation, "delete", payloadSha256);
+      await ensureNewsMutationComplete(database, racedMutation, {
+        action: "delete",
+        actorSubject,
+        entityId: id,
+        expectedRevision,
+        operation: "delete",
+        payloadSha256,
+        requestId: normalizedRequestId,
+      });
       return true;
     }
-    throw error;
+    const currentAfterFailure = await getAdminNewsPost(database, id);
+    if (!currentAfterFailure || currentAfterFailure.revision !== expectedRevision) {
+      throw new AdminNewsConflictError("Bài viết đã thay đổi ở phiên khác. Hãy tải lại rồi thử lại.");
+    }
+    throw normalizeNewsWriteError(error);
   }
   return true;
 }
@@ -1923,34 +2039,48 @@ export async function batchAdminNewsPublication(
       item.expectedRevision + 1,
       childRequestId,
     );
-    statements.push(update, audit);
+    statements.push(
+      update,
+      audit,
+      buildNewsBulkItemPostcondition(database, {
+        action: "update",
+        actorSubject: input.actorSubject,
+        bulkRequestId: requestId,
+        entityId: item.id,
+        expectedRevision: item.expectedRevision,
+        operation,
+        payloadSha256: childPayloadSha256,
+        requestId: childRequestId,
+      }),
+    );
   }
-  statements.push(database.prepare(`
-    UPDATE admin_news_bulk_audit
-    SET changed_count = (
-      SELECT COUNT(*) FROM admin_news_audit WHERE bulk_request_id = ?
-    )
-    WHERE request_id = ?
-  `).bind(requestId, requestId));
+  statements.push(
+    database.prepare(`
+      UPDATE admin_news_bulk_audit
+      SET changed_count = (
+        SELECT COUNT(*) FROM admin_news_audit WHERE bulk_request_id = ?
+      )
+      WHERE request_id = ?
+    `).bind(requestId, requestId),
+    buildNewsBulkEnvelopePostcondition(database, {
+      actorSubject: input.actorSubject,
+      changedCount: eligible.length,
+      operation,
+      payloadSha256,
+      requestId,
+      selectedCount: items.length,
+    }),
+  );
 
   try {
-    const results = await databaseWithBatch.batch(statements);
-    assertNewsBatchResult(results, statements.length);
-    if (!hasChanged(results[0]) || !hasChanged(results.at(-1))) {
-      throw new AdminNewsStorageError("News bulk chưa ghi được audit envelope.");
-    }
-    for (let index = 1; index < results.length - 1; index += 2) {
-      if (hasChanged(results[index]) !== hasChanged(results[index + 1])) {
-        throw new AdminNewsStorageError("News bulk có bài viết thiếu audit đồng bộ.");
-      }
-    }
+    await databaseWithBatch.batch(statements);
   } catch (error) {
     const racedMutation = await findNewsBulkMutation(database, requestId);
     if (racedMutation) {
       assertMatchingNewsBulkMutation(racedMutation, payloadSha256);
       return readNewsBulkResult(database, requestId, racedMutation, items, input.publish);
     }
-    throw error;
+    throw normalizeNewsWriteError(error);
   }
   const mutation = await findNewsBulkMutation(database, requestId);
   if (!mutation) throw new AdminNewsStorageError("Không đọc lại được audit news bulk.");
@@ -1971,6 +2101,15 @@ async function setAdminNewsPublication(
   const existingMutation = await findNewsMutation(database, normalizedRequestId);
   if (existingMutation) {
     assertMatchingNewsMutation(existingMutation, operation, payloadSha256);
+    await ensureNewsMutationComplete(database, existingMutation, {
+      action: "update",
+      actorSubject,
+      entityId: id,
+      expectedRevision,
+      operation,
+      payloadSha256,
+      requestId: normalizedRequestId,
+    });
     return readNewsPostFromMutation(database, existingMutation);
   }
 
@@ -2019,19 +2158,39 @@ async function setAdminNewsPublication(
     normalizedRequestId,
   );
   try {
-    const results = await databaseWithBatch.batch([update, audit]);
-    assertNewsBatchResult(results, 2);
-    if (!hasChanged(results[0])) {
-      return resolveNewsConflict(database, normalizedRequestId, payloadSha256, operation);
-    }
-    if (!hasChanged(results[1])) throw new AdminNewsStorageError("News publication chưa ghi được audit đồng bộ.");
+    await databaseWithBatch.batch([
+      update,
+      audit,
+      buildNewsPostconditionAssertion(database, {
+        action: "update",
+        actorSubject,
+        entityId: id,
+        expectedRevision,
+        operation,
+        payloadSha256,
+        requestId: normalizedRequestId,
+      }),
+    ]);
   } catch (error) {
     const racedMutation = await findNewsMutation(database, normalizedRequestId);
     if (racedMutation) {
       assertMatchingNewsMutation(racedMutation, operation, payloadSha256);
+      await ensureNewsMutationComplete(database, racedMutation, {
+        action: "update",
+        actorSubject,
+        entityId: id,
+        expectedRevision,
+        operation,
+        payloadSha256,
+        requestId: normalizedRequestId,
+      });
       return readNewsPostFromMutation(database, racedMutation);
     }
-    throw error;
+    const currentAfterFailure = await getAdminNewsPost(database, id);
+    if (!currentAfterFailure || currentAfterFailure.revision !== expectedRevision) {
+      throw new AdminNewsConflictError("Bài viết đã thay đổi ở phiên khác. Hãy tải lại rồi thử lại.");
+    }
+    throw normalizeNewsWriteError(error);
   }
   return getAdminNewsPost(database, id);
 }
@@ -2096,23 +2255,47 @@ async function readNewsBulkResult(
   publish: boolean,
 ): Promise<AdminNewsBatchResult> {
   const auditRows = await database.prepare(`
-    SELECT entity_key
+    SELECT entity_key, request_id, operation, previous_revision, resulting_revision
     FROM admin_news_audit
     WHERE bulk_request_id = ?
     ORDER BY id ASC
-  `).bind(requestId).all<{ entity_key: string }>();
+  `).bind(requestId).all<{
+    entity_key: string;
+    operation: "publish" | "unpublish";
+    previous_revision: number | null;
+    request_id: string;
+    resulting_revision: number | null;
+  }>();
   if (auditRows.results.length !== mutation.changed_count) {
     throw new AdminNewsStorageError("News bulk audit không khớp số bài đã xử lý.");
   }
-  const changedIds = new Set(
-    auditRows.results
-      .map((row) => Number(row.entity_key))
-      .filter((id) => Number.isInteger(id) && id > 0),
-  );
+  if (mutation.selected_count !== items.length) {
+    throw new AdminNewsStorageError("News bulk audit không khớp số lựa chọn ban đầu.");
+  }
+  const expectedOperation = publish ? "publish" : "unpublish";
+  const expectedById = new Map(items.map((item) => [item.id, item.expectedRevision]));
+  const changedIds = new Set<number>();
+  for (const row of auditRows.results) {
+    const id = Number(row.entity_key);
+    if (!Number.isInteger(id) || id < 1 || changedIds.has(id)
+      || row.operation !== expectedOperation
+      || row.previous_revision !== expectedById.get(id)
+      || row.resulting_revision !== (expectedById.get(id) ?? 0) + 1
+      || !row.request_id) {
+      throw new AdminNewsStorageError("News bulk audit không khớp trạng thái bài viết đã xử lý.");
+    }
+    changedIds.add(id);
+  }
   const currentPosts = await Promise.all(items.map(async (item) => ({
     item,
     post: await getAdminNewsPost(database, item.id),
   })));
+  for (const id of changedIds) {
+    const current = currentPosts.find(({ item }) => item.id === id)?.post;
+    if (!current || current.revision !== (expectedById.get(id) ?? 0) + 1 || current.isPublished !== publish) {
+      throw new AdminNewsStorageError("News bulk replay thiếu trạng thái bài viết đã xử lý.");
+    }
+  }
   const changed = currentPosts
     .filter(({ item }) => changedIds.has(item.id))
     .map(({ post }) => post)
@@ -2142,6 +2325,234 @@ async function readNewsPostFromMutation(database: D1DatabaseLike, mutation: News
   const post = Number.isInteger(id) && id > 0 ? await getAdminNewsPost(database, id) : null;
   if (!post) throw new AdminNewsStorageError("Không đọc lại được kết quả news từ audit.");
   return post;
+}
+
+async function ensureNewsMutationComplete(
+  database: D1DatabaseLike,
+  mutation: NewsMutationRow,
+  postcondition: NewsMutationPostcondition,
+): Promise<void> {
+  const { expression, values } = buildNewsMutationPostconditionExpression(postcondition);
+  const row = await database.prepare(`
+    /* news-write-postcondition-read */
+    SELECT CASE WHEN (${expression}) THEN 1 ELSE 0 END AS complete
+  `).bind(...values).first<{ complete?: unknown }>();
+  if (Number(row?.complete) !== 1) {
+    throw new AdminNewsStorageError(
+      "Không thể xác nhận đầy đủ trạng thái news và audit; thao tác bị khóa để tránh báo thành công sai.",
+    );
+  }
+  void mutation;
+}
+
+function buildNewsPostconditionAssertion(
+  database: D1DatabaseLike,
+  postcondition: NewsMutationPostcondition,
+): D1PreparedStatementLike {
+  const { expression, values } = buildNewsMutationPostconditionExpression(postcondition);
+  return database.prepare(`
+    /* news-write-postcondition */
+    INSERT INTO admin_news_audit (
+      request_id, actor_subject, action, operation, entity_type, entity_key,
+      previous_revision, resulting_revision, payload_sha256
+    )
+    SELECT NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL
+    WHERE NOT (${expression})
+  `).bind(...values);
+}
+
+function buildNewsBulkItemPostcondition(
+  database: D1DatabaseLike,
+  postcondition: NewsBulkItemPostcondition,
+): D1PreparedStatementLike {
+  return database.prepare(`
+    /* news-bulk-postcondition */
+    INSERT INTO admin_news_audit (
+      request_id, actor_subject, action, operation, entity_type, entity_key,
+      previous_revision, resulting_revision, payload_sha256, bulk_request_id
+    )
+    SELECT NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL
+    WHERE NOT EXISTS (
+      SELECT 1
+      FROM admin_news_audit marker
+      JOIN news_posts news_row ON CAST(marker.entity_key AS INTEGER) = news_row.id
+      WHERE marker.request_id = ?
+        AND marker.actor_subject = ?
+        AND marker.action = 'update'
+        AND marker.operation = ?
+        AND marker.entity_type = 'news_post'
+        AND marker.entity_key = ?
+        AND marker.previous_revision = ?
+        AND marker.resulting_revision = ?
+        AND marker.payload_sha256 = ?
+        AND marker.bulk_request_id = ?
+        AND news_row.id = ?
+        AND news_row.revision = ?
+        AND news_row.last_request_id = ?
+    )
+  `).bind(
+    postcondition.requestId,
+    postcondition.actorSubject,
+    postcondition.operation,
+    String(postcondition.entityId),
+    postcondition.expectedRevision,
+    (postcondition.expectedRevision ?? 0) + 1,
+    postcondition.payloadSha256,
+    postcondition.bulkRequestId,
+    postcondition.entityId,
+    (postcondition.expectedRevision ?? 0) + 1,
+    postcondition.requestId,
+  );
+}
+
+function buildNewsBulkEnvelopePostcondition(
+  database: D1DatabaseLike,
+  postcondition: NewsBulkEnvelopePostcondition,
+): D1PreparedStatementLike {
+  return database.prepare(`
+    /* news-bulk-postcondition */
+    INSERT INTO admin_news_bulk_audit (
+      request_id, actor_subject, action, operation, payload_sha256,
+      selected_count, changed_count
+    )
+    SELECT NULL, NULL, NULL, NULL, NULL, NULL, NULL
+    WHERE NOT (
+      EXISTS (
+        SELECT 1
+        FROM admin_news_bulk_audit envelope
+        WHERE envelope.request_id = ?
+          AND envelope.actor_subject = ?
+          AND envelope.action = 'update'
+          AND envelope.operation = 'status_batch'
+          AND envelope.payload_sha256 = ?
+          AND envelope.selected_count = ?
+          AND envelope.changed_count = ?
+      )
+      AND (
+        SELECT COUNT(*)
+        FROM admin_news_audit child
+        WHERE child.bulk_request_id = ?
+          AND child.action = 'update'
+          AND child.entity_type = 'news_post'
+          AND child.operation = ?
+      ) = ?
+    )
+  `).bind(
+    postcondition.requestId,
+    postcondition.actorSubject,
+    postcondition.payloadSha256,
+    postcondition.selectedCount,
+    postcondition.changedCount,
+    postcondition.requestId,
+    postcondition.operation,
+    postcondition.changedCount,
+  );
+}
+
+function buildNewsMutationPostconditionExpression(
+  postcondition: NewsMutationPostcondition,
+): { expression: string; values: unknown[] } {
+  const revision = postcondition.action === "delete"
+    ? { sql: "marker.previous_revision = ? AND marker.resulting_revision IS NULL", values: [postcondition.expectedRevision] }
+    : postcondition.expectedRevision === undefined
+    ? { sql: "marker.previous_revision IS NULL AND marker.resulting_revision = 1", values: [] }
+    : {
+        sql: "marker.previous_revision = ? AND marker.resulting_revision = ?",
+        values: [postcondition.expectedRevision, postcondition.expectedRevision + 1],
+      };
+  const core = `
+    marker.request_id = ?
+    AND marker.actor_subject = ?
+    AND marker.action = ?
+    AND marker.operation = ?
+    AND marker.entity_type = 'news_post'
+    AND marker.payload_sha256 = ?
+  `;
+  if (postcondition.action === "delete") {
+    return {
+      expression: `
+        EXISTS (
+          SELECT 1
+          FROM admin_news_audit marker
+          WHERE ${core}
+            AND marker.entity_key = ?
+            AND ${revision.sql}
+        )
+        AND NOT EXISTS (SELECT 1 FROM news_posts WHERE id = ?)
+      `,
+      values: [
+        postcondition.requestId,
+        postcondition.actorSubject,
+        postcondition.action,
+        postcondition.operation,
+        postcondition.payloadSha256,
+        String(postcondition.entityId),
+        ...revision.values,
+        postcondition.entityId,
+      ],
+    };
+  }
+  if (postcondition.entityId === undefined) {
+    return {
+      expression: `
+        EXISTS (
+          SELECT 1
+          FROM admin_news_audit marker
+          JOIN news_posts news_row ON CAST(marker.entity_key AS INTEGER) = news_row.id
+          WHERE ${core}
+            AND ${revision.sql}
+            AND news_row.revision = 1
+            AND news_row.last_request_id = ?
+        )
+      `,
+      values: [
+        postcondition.requestId,
+        postcondition.actorSubject,
+        postcondition.action,
+        postcondition.operation,
+        postcondition.payloadSha256,
+        ...revision.values,
+        postcondition.requestId,
+      ],
+    };
+  }
+  const resultingRevision = postcondition.expectedRevision === undefined ? 1 : postcondition.expectedRevision + 1;
+  return {
+    expression: `
+      EXISTS (
+        SELECT 1
+        FROM admin_news_audit marker
+        JOIN news_posts news_row ON CAST(marker.entity_key AS INTEGER) = news_row.id
+        WHERE ${core}
+          AND marker.entity_key = ?
+          AND ${revision.sql}
+          AND news_row.id = ?
+          AND news_row.revision = ?
+          AND news_row.last_request_id = ?
+      )
+    `,
+    values: [
+      postcondition.requestId,
+      postcondition.actorSubject,
+      postcondition.action,
+      postcondition.operation,
+      postcondition.payloadSha256,
+      String(postcondition.entityId),
+      ...revision.values,
+      postcondition.entityId,
+      resultingRevision,
+      postcondition.requestId,
+    ],
+  };
+}
+
+function normalizeNewsWriteError(error: unknown): unknown {
+  const message = error instanceof Error ? error.message : String(error);
+  if (message.includes("news-write-postcondition")
+    || (message.includes("admin_news_audit") && message.toLowerCase().includes("constraint failed"))) {
+    return new AdminNewsStorageError("Không ghi đồng bộ được news và audit; hệ thống đã rollback để tránh báo thành công sai.");
+  }
+  return error;
 }
 
 async function resolveNewsConflict(
