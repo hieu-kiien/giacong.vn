@@ -4,11 +4,20 @@ import { MAX_ADMIN_PRODUCT_IMPORT_ROWS } from "./admin-product-import-csv.ts";
 import type { AdminProductImportRow } from "./admin-product-import-csv.ts";
 
 export {
+  ADMIN_PRODUCT_IMPORT_AUDIT_BIND_COUNT,
+  ADMIN_PRODUCT_IMPORT_BATCH_STATEMENTS,
+  ADMIN_PRODUCT_IMPORT_CHUNK_ROWS,
   ADMIN_PRODUCT_IMPORT_HEADERS,
   ADMIN_PRODUCT_IMPORT_REQUIRED_HEADERS,
+  ADMIN_PRODUCT_IMPORT_MARKER_BIND_COUNT,
+  ADMIN_PRODUCT_IMPORT_META_BIND_COUNT,
+  ADMIN_PRODUCT_IMPORT_PRODUCT_BIND_COUNT,
   MAX_ADMIN_PRODUCT_IMPORT_BYTES,
+  MAX_ADMIN_PRODUCT_IMPORT_BIND_VARIABLES,
   MAX_ADMIN_PRODUCT_IMPORT_ROWS,
+  getAdminProductImportBindCounts,
   parseProductImportCsv,
+  type AdminProductImportBindCounts,
   type AdminProductImportHeader,
   type AdminProductImportRow,
   type ProductImportCsvResult,
@@ -156,10 +165,7 @@ export async function fingerprintAdminProductImportRows(rows: readonly unknown[]
 }
 
 async function fingerprintCanonicalValue(value: string): Promise<string> {
-  const digest = await crypto.subtle.digest(
-    "SHA-256",
-    new TextEncoder().encode(value),
-  );
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
   return [...new Uint8Array(digest)].map((value) => value.toString(16).padStart(2, "0")).join("");
 }
 

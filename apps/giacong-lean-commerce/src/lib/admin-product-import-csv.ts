@@ -10,8 +10,35 @@ export const ADMIN_PRODUCT_IMPORT_HEADERS = [
 ] as const;
 
 export const ADMIN_PRODUCT_IMPORT_REQUIRED_HEADERS = ["name", "slug", "sku"] as const;
+export const MAX_ADMIN_PRODUCT_IMPORT_BIND_VARIABLES = 100;
+export const ADMIN_PRODUCT_IMPORT_MARKER_BIND_COUNT = 4;
+export const ADMIN_PRODUCT_IMPORT_PRODUCT_BIND_COUNT = 7;
+export const ADMIN_PRODUCT_IMPORT_META_BIND_COUNT = 4;
+export const ADMIN_PRODUCT_IMPORT_AUDIT_BIND_COUNT = 4;
+export const ADMIN_PRODUCT_IMPORT_CHUNK_ROWS = Math.floor(
+  MAX_ADMIN_PRODUCT_IMPORT_BIND_VARIABLES / ADMIN_PRODUCT_IMPORT_PRODUCT_BIND_COUNT,
+);
 export const MAX_ADMIN_PRODUCT_IMPORT_ROWS = 50;
+export const ADMIN_PRODUCT_IMPORT_BATCH_STATEMENTS = 1 + Math.ceil(
+  MAX_ADMIN_PRODUCT_IMPORT_ROWS / ADMIN_PRODUCT_IMPORT_CHUNK_ROWS,
+) * 3;
 export const MAX_ADMIN_PRODUCT_IMPORT_BYTES = 64 * 1024;
+
+export interface AdminProductImportBindCounts {
+  audit: number;
+  marker: number;
+  meta: number;
+  product: number;
+}
+
+export function getAdminProductImportBindCounts(rowCount: number): AdminProductImportBindCounts {
+  return {
+    audit: rowCount * ADMIN_PRODUCT_IMPORT_AUDIT_BIND_COUNT,
+    marker: ADMIN_PRODUCT_IMPORT_MARKER_BIND_COUNT,
+    meta: rowCount * ADMIN_PRODUCT_IMPORT_META_BIND_COUNT,
+    product: rowCount * ADMIN_PRODUCT_IMPORT_PRODUCT_BIND_COUNT,
+  };
+}
 
 export type AdminProductImportHeader = typeof ADMIN_PRODUCT_IMPORT_HEADERS[number];
 
@@ -33,6 +60,13 @@ export interface ProductImportCsvResult {
 }
 
 export function parseProductImportCsv(text: string): ProductImportCsvResult {
+  if (new TextEncoder().encode(text).byteLength > MAX_ADMIN_PRODUCT_IMPORT_BYTES) {
+    return {
+      errors: [`File không được vượt quá ${MAX_ADMIN_PRODUCT_IMPORT_BYTES / 1024} KiB.`],
+      headers: [],
+      rows: [],
+    };
+  }
   const parsed = parseCsvMatrix(text);
   if (parsed.rows.length === 0) {
     return {

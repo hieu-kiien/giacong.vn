@@ -9,8 +9,10 @@ import {
 } from "@/lib/admin-product-import";
 import { readJsonBodyWithinLimit, resolveAdminProductImportRequestId } from "@/lib/admin-product-import-request";
 import {
+  AdminProductImportIdempotencyConflictError,
   createAdminProductsAtomically,
   findAdminProductImportReplay,
+  isAdminProductImportReplay,
 } from "@/lib/admin-product-import-write";
 import { requireAdmin } from "@/lib/admin-guard";
 import { canManageCatalog } from "@/lib/admin-permissions.ts";
@@ -51,8 +53,24 @@ export async function POST(request: Request): Promise<Response> {
       ? payloadTooLarge(requestId)
       : adminFailure(requestId, 400, "INVALID_REQUEST", "Request nhập sản phẩm không phải JSON hợp lệ.");
   }
-  if (!isRecord(body.value) || !Array.isArray(body.value.rows)) {
-    return adminFailure(requestId, 400, "INVALID_REQUEST", "Request nhập sản phẩm phải có trường rows là một mảng.");
+  if (!isRecord(body.value)) {
+    return adminFailure(requestId, 400, "INVALID_REQUEST", "Request nhập sản phẩm phải là một object JSON.");
+  }
+  if (!Array.isArray(body.value.rows) || Object.keys(body.value).some((key) => key !== "rows")) {
+    return adminFailure(
+      requestId,
+      400,
+      "INVALID_REQUEST",
+      "Request nhập sản phẩm phải có đúng một trường rows là một mảng.",
+    );
+  }
+  if (body.value.rows.length > MAX_ADMIN_PRODUCT_IMPORT_ROWS) {
+    return adminFailure(
+      requestId,
+      422,
+      "VALIDATION_ERROR",
+      `Chỉ được nhập tối đa ${MAX_ADMIN_PRODUCT_IMPORT_ROWS} sản phẩm mỗi lần.`,
+    );
   }
 
   let payloadSha256: string;
@@ -65,7 +83,10 @@ export async function POST(request: Request): Promise<Response> {
   try {
     const replay = await findAdminProductImportReplay(guard.database, requestId);
     if (replay) return replayResponse(requestId, replay.payloadSha256, payloadSha256, replay.productIds);
-  } catch {
+  } catch (error) {
+    if (error instanceof AdminProductImportIdempotencyConflictError) {
+      return adminFailure(requestId, 409, "IDEMPOTENCY_CONFLICT", error.message);
+    }
     return adminFailure(requestId, 500, "INTERNAL_ERROR", "Không thể đọc trạng thái lần nhập trước.");
   }
 
@@ -116,11 +137,17 @@ export async function POST(request: Request): Promise<Response> {
     );
     return adminSuccess(requestId, { createdCount: productIds.length, productIds, replayed: false }, 201);
   } catch (error) {
-    if (isUniqueError(error)) {
+    if (error instanceof AdminProductImportIdempotencyConflictError) {
+      return adminFailure(requestId, 409, "IDEMPOTENCY_CONFLICT", error.message);
+    }
+    if (isUniqueConstraintError(error)) {
       try {
         const replay = await findAdminProductImportReplay(guard.database, requestId);
         if (replay) return replayResponse(requestId, replay.payloadSha256, payloadSha256, replay.productIds);
-      } catch {
+      } catch (replayError) {
+        if (replayError instanceof AdminProductImportIdempotencyConflictError) {
+          return adminFailure(requestId, 409, "IDEMPOTENCY_CONFLICT", replayError.message);
+        }
         // Fall through to the safe conflict response when the replay record is unavailable.
       }
       return adminFailure(
@@ -140,7 +167,7 @@ function replayResponse(
   payloadSha256: string,
   productIds: number[],
 ): Response {
-  if (storedPayloadSha256 !== payloadSha256) {
+  if (!isAdminProductImportReplay(storedPayloadSha256, payloadSha256)) {
     return adminFailure(
       requestId,
       409,
@@ -164,10 +191,6 @@ function parseDeclaredLength(value: string | null): number | null {
   if (value === null) return null;
   const parsed = Number(value);
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
-}
-
-function isUniqueError(error: unknown): boolean {
-  return isUniqueConstraintError(error);
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
