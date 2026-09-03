@@ -8,6 +8,7 @@ import process from "node:process";
 import { access, readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { chromium } from "playwright";
+import { hasRenderedAdminFailure } from "./qa-admin-staging-helpers.mjs";
 
 const baseUrl = (process.env.QA_ADMIN_BASE_URL ?? "https://admin-staging.kienhieu.id.vn").replace(/\/$/, "");
 const storageStatePath = process.env.QA_ADMIN_STORAGE_STATE?.trim();
@@ -160,7 +161,7 @@ try {
           const bodyText = await page.locator("body").innerText();
           check(
             `${label} has no rendered admin failure`,
-            !/Cloudflare Access|Không thể tải dữ liệu|Đã xảy ra lỗi|Worker exceeded resource limits|\b1102\b|\b502\b|\b503\b/i.test(bodyText),
+            !hasRenderedAdminFailure(bodyText),
           );
           check(
             `${label} no horizontal overflow`,
