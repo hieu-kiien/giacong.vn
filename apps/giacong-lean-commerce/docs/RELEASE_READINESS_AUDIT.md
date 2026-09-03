@@ -67,6 +67,19 @@ Bản staging hiện **đủ điều kiện để tiếp tục nghiệm thu kỹ
   console error/warning rỗng. Smoke này chỉ navigation/read-only, chưa submit
   form, publish, D1/R2 mutation hay thay đổi production.
 
+## Deep QA staging recheck sau footer release — 2026-09-03
+
+- Chạy lại `node scripts/qa-deep-staging.mjs` trên staging đang ở version
+  `e50223de-208f-45d8-bd4f-27ecc32b37ea`; toàn bộ lượt read-only đạt `PASS`.
+- Responsive smoke đạt cho 4 route (`/`, `/san-pham`, `/thue-gia-cong`,
+  `/gui-yeu-cau`) ở mobile `390px`, tablet `768px` và desktop `1440px`: HTTP
+  `200`, main rendered và không horizontal overflow.
+- Catalog search/sort, detail mobile stacking, add-to-cart localStorage,
+  request route và keyboard reachability đều pass. Runner không submit lead và
+  không ghi D1/R2; cart chỉ ghi localStorage của browser test.
+- Đây là bằng chứng runtime public mới nhất, không đóng các gate cần Access
+  identity, write/read-back, production data hoặc promotion.
+
 ## Bằng chứng hiện có
 
 - `npm run check` đã xanh toàn bộ test, lint, typecheck và build: admin `190/190`,
