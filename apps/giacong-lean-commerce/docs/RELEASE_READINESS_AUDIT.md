@@ -104,10 +104,12 @@ Bản staging hiện **đủ điều kiện để tiếp tục nghiệm thu kỹ
 
 ## Bằng chứng hiện có
 
-- Source head hiện tại là `2e96b603`; latest admin suite đạt `205/205`, build
-  isolated đạt `27/27`, lint/typecheck pass và `npm audit --audit-level=high`
-  báo `0 vulnerabilities`. Các full-suite counts lịch sử vẫn được giữ ở các
-  mục evidence tương ứng bên dưới.
+- Source head hiện tại là `0adb917a`; latest admin suite đạt `215/215`,
+  focused bulk-import đạt `19/19`, full build isolated đạt `27/27`,
+  lint/typecheck pass và `npm audit --omit=dev --audit-level=high` báo
+  `0 vulnerabilities`. Các full-suite counts lịch sử vẫn được giữ ở các mục
+  evidence tương ứng bên dưới. Commit hiện tại chưa được deploy lên staging;
+  staging runtime vẫn giữ version `e50223de`.
 - Staging D1 đã apply đủ migration đến `0019`; public smoke 7/7 route, product
   API, cart canonical money và R2 media đều pass.
 - Chrome với identity `qtu1053@gmail.com` đã đọc đúng `owner`/`Chủ sở hữu

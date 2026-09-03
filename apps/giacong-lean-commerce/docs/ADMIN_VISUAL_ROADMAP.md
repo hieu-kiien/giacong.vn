@@ -10,8 +10,13 @@ Tài liệu này là nguồn bám theo cho việc biến admin hiện tại thà
 hiển thị, nhưng vẫn giữ trung tâm vận hành đầy đủ cho nghiệp vụ phức tạp và xử
 lý hàng loạt.
 
-**Checkpoint authoritative — 2026-09-03:** `master` đang ở commit `2e96b603`;
-footer managed renderer đã được deploy lên staging version
+**Checkpoint authoritative — 2026-09-03:** `master` đang ở commit `0adb917a`;
+bulk product import đã được harden theo bind-budget D1, retry audit exact-match
+và role-matrix QA runner đã fail-closed cho đủ năm identity. Source gate mới
+nhất `npm run check` đạt admin `215/215`, contact `104/104`, catalog `5/5`,
+purchase UI `1/1`, service `3/3`, commerce `68/68`, listing `4/4`, detail
+`29/29`, lint, typecheck và build `27/27`; `npm audit --omit=dev` báo `0`
+vulnerability. Staging runtime vẫn đang ở version
 `e50223de-208f-45d8-bd4f-27ecc32b37ea` ở 100%, rollback point gần nhất là
 `430d41b1-a61c-46d1-ac9f-89eb8df74feb`. Deep QA read-only mới nhất trên
 staging đạt responsive cho 4 route ở mobile/tablet/desktop, catalog
@@ -94,7 +99,8 @@ production promotion. Production chưa bị thay đổi.
 kiểm tra 10 route admin ở mobile/desktop và chỉ thực hiện navigation/read-only.
 Có thể truyền `QA_ADMIN_ROLE_STATES` trỏ tới JSON map đủ năm role để chạy tuần
 tự từng identity, đối chiếu tập link sidebar theo capability và không suy diễn
-role từ một phiên khác. Contract test đạt; runner cố ý báo `ADMIN QA BLOCKED`
+role từ một phiên khác. Contract test nằm trong `test:admin` hiện đạt `215/215`;
+runner cố ý báo `ADMIN QA BLOCKED`
 khi thiếu hoặc thiếu role state, không dùng trạng thái chưa xác thực để tuyên bố
 pass.
 
@@ -102,7 +108,7 @@ pass.
 `prefers-reduced-motion`, ở hai viewport, đồng thời gửi một phím `Tab` để xác
 nhận focus tới phần tử nhìn thấy. Đây vẫn là kiểm tra read-only; không click,
 fill, submit hay gọi HTTP mutation. Contract test đã được đưa vào
-`test:admin` và pass `201/201`. Bằng chứng runtime vẫn cần storage state của
+`test:admin` và nằm trong lượt pass `215/215`. Bằng chứng runtime vẫn cần storage state của
 identity thật.
 
 **Role inventory update 2026-09-03:** D1 staging hiện chỉ có một active

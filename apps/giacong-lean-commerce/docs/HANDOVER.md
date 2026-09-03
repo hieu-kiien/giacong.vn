@@ -110,8 +110,11 @@ role cũng đã được kiểm tra read-only; role matrix nhiều identity, wri
 restore/rollback drill vẫn cần chủ dự án phê duyệt và thực hiện chủ ý. Không
 dùng dữ liệu demo staging làm dữ liệu production.
 
-Release hardening mới nhất: commit `0b1986bf` sửa false-positive của QA matcher,
-staging vẫn ở `e50223de` 100%; full admin suite đạt `205/205`, build isolated
-đạt `27/27`, lint và typecheck pass. Deep QA public và owner admin read-only
-đều pass; đây là trạng thái sẵn sàng nghiệm thu kỹ thuật trên staging, chưa
-phải xác nhận production hoàn hảo.
+Release hardening source mới nhất: commit `0adb917a` bổ sung chunk-safe bulk
+product import, idempotency audit exact-match và role-matrix QA fail-closed.
+Staging vẫn ở `e50223de` 100% vì commit này chưa được deploy; source
+`npm run check` đạt admin `215/215`, contact `104/104`, catalog `5/5`, purchase
+UI `1/1`, service `3/3`, commerce `68/68`, listing `4/4`, detail `29/29`,
+lint, typecheck và build `27/27`; dependency audit không có vulnerability.
+Deep QA public và owner admin read-only đều pass; role matrix nhiều identity,
+write/read-back đầy đủ và production gate vẫn cần nghiệm thu có chủ ý.

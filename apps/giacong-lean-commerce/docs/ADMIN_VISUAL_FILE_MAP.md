@@ -14,7 +14,7 @@ Mục tiêu của file này là trả lời nhanh bốn câu hỏi trước khi 
 Không thêm file mới vào map chỉ vì đã nghĩ ra tên. File chỉ được đánh dấu “đã có”
 khi tồn tại trong checkout; file “dự kiến” phải được tạo trong phase tương ứng.
 
-**Checkpoint 2026-09-03:** master hiện ở commit `2e96b603`. P1 host-gated admin context, P2 settings write
+**Checkpoint 2026-09-03:** master hiện ở commit `0adb917a`. P1 host-gated admin context, P2 settings write
 contract (per-setting + bulk publish), contextual editor MVP, P3 contextual
 news-detail hand-off, P4 managed-page hand-off, P5 product bulk import UI và
 product/service/category bulk archive contract đã có trong `master`. Bản
@@ -28,14 +28,22 @@ bootstrap vào D1 staging với role `owner` cấp cao nhất. `/admin/thanh-vie
 được browser xác nhận hiển thị tài khoản hiện tại, khóa self-demotion/self-
 deactivation và mở được luồng `Thêm tài khoản quản trị`.
 
-**Checkpoint QA mới nhất — 2026-09-03:** Source head `2e96b603`; QA-only
-commit `0b1986bf` sửa false-positive của admin matcher. Staging runtime
+**Checkpoint QA mới nhất — 2026-09-03:** Source head `0adb917a`; QA-only
+commit `0b1986bf` sửa false-positive của admin matcher, sau đó role-matrix
+runner được harden để yêu cầu đủ năm storage state phân biệt. Staging runtime
 `e50223de-208f-45d8-bd4f-27ecc32b37ea` vẫn ở 100%, rollback point gần nhất là
-`430d41b1-a61c-46d1-ac9f-89eb8df74feb`. Full admin đạt `205/205`, build
+`430d41b1-a61c-46d1-ac9f-89eb8df74feb`. Full admin tại source hiện hành đạt
+`215/215`, build
 isolated đạt `27/27`, lint/typecheck pass; production chưa bị mutate và còn 11
 migration pending `0009–0019`.
 
-Full gate gần nhất có admin `205/205`; các suite contact/catalog/purchase/service/
+Source gate hiện hành sau bulk-import hardening và role-matrix QA đạt admin
+`215/215`, contact `104/104`, catalog `5/5`, purchase UI `1/1`, service `3/3`,
+commerce `68/68`, listing `4/4`, detail `29/29`, lint, typecheck và build
+`27/27`; focused bulk-import đạt `19/19`. Chưa deploy commit này lên staging;
+runtime role matrix vẫn cần bốn identity thật ngoài owner.
+
+Full gate gần nhất có admin `215/215`; các suite contact/catalog/purchase/service/
 commerce/listing/detail, lint, typecheck và build đều đã có evidence pass ở các
 lượt revalidation tương ứng. Public deep QA pass; browser role matrix đủ năm
 identity, write/read-back từng domain và production gate vẫn chưa đóng.
