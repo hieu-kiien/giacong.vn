@@ -77,7 +77,15 @@ async function loadRoleStates() {
     blocked("set either QA_ADMIN_STORAGE_STATE or QA_ADMIN_ROLE_STATES, not both.");
   }
 
+  if (expectedRole && !supportedRoles.includes(expectedRole)) {
+    blocked(`QA_ADMIN_EXPECTED_ROLE must be one of ${supportedRoles.join(", ")}.`);
+  }
+
   if (roleStatesPath) {
+    if (expectedRole) {
+      blocked("QA_ADMIN_EXPECTED_ROLE cannot be used with QA_ADMIN_ROLE_STATES.");
+    }
+
     let parsed;
     const matrixPath = resolve(roleStatesPath);
     try {
@@ -96,13 +104,27 @@ async function loadRoleStates() {
       blocked(`role-state map must contain exactly owner, content_manager, catalog_manager, sales_manager and viewer (missing: ${missingRoles.join(", ") || "none"}; unknown: ${unknownRoles.join(", ") || "none"}).`);
     }
 
-    return Promise.all(supportedRoles.map(async (role) => {
+    const completeRoleStatePaths = supportedRoles.map((role) => parsed[role]);
+    const invalidRole = supportedRoles.find((role) => {
       const path = parsed[role];
-      if (typeof path !== "string" || !path.trim()) {
-        blocked(`${role} must map to a storage-state JSON path.`);
-      }
-      return { role, storageState: await assertStorageState(path, role) };
-    }));
+      return typeof path !== "string" || !path.trim();
+    });
+    if (invalidRole) {
+      blocked(`${invalidRole} must map to a storage-state JSON path.`);
+    }
+
+    const resolvedRoleStatePaths = completeRoleStatePaths.map((path) => resolve(path));
+    if (
+      new Set(completeRoleStatePaths).size !== completeRoleStatePaths.length
+      || new Set(resolvedRoleStatePaths).size !== resolvedRoleStatePaths.length
+    ) {
+      blocked("each supported role must use a distinct storage-state JSON file.");
+    }
+
+    return Promise.all(supportedRoles.map(async (role, index) => ({
+      role,
+      storageState: await assertStorageState(resolvedRoleStatePaths[index], role),
+    })));
   }
 
   if (!storageStatePath) {
@@ -121,8 +143,9 @@ const matrixMode = Boolean(roleStatesPath);
 const browser = await chromium.launch();
 try {
   for (const operator of roleStates) {
-    const routes = operator.role && matrixMode
-      ? adminRoutes.filter((route) => roleNavigationRoutes[operator.role]?.includes(route.path))
+    const expectedNavigationRoutes = roleNavigationRoutes[operator.role] ?? null;
+    const routes = operator.role && matrixMode && expectedNavigationRoutes
+      ? adminRoutes.filter((route) => expectedNavigationRoutes.includes(route.path))
       : adminRoutes;
     for (const viewport of viewports) {
       for (const motionMode of motionModes) {
@@ -134,6 +157,11 @@ try {
         const page = await context.newPage();
         const pageIssues = [];
         page.on("pageerror", (error) => pageIssues.push(`pageerror: ${error.message}`));
+        page.on("request", (request) => {
+          if (["POST", "PUT", "PATCH", "DELETE"].includes(request.method())) {
+            pageIssues.push(`unexpected mutation request: ${request.method()} ${request.url()}`);
+          }
+        });
         page.on("console", (message) => {
           if (!["error", "warning"].includes(message.type())) return;
           const url = message.location().url || "";
@@ -141,11 +169,17 @@ try {
         });
 
         for (const route of routes) {
-          const response = await page.goto(`${baseUrl}${route.path}`, {
-            waitUntil: "domcontentloaded",
-            timeout: 45_000,
-          });
           const label = `${operator.role ?? "admin"} ${viewport.name} ${motionMode.name} ${route.path}`;
+          let response;
+          try {
+            response = await page.goto(`${baseUrl}${route.path}`, {
+              waitUntil: "domcontentloaded",
+              timeout: 45_000,
+            });
+          } catch (error) {
+            check(`${label} navigation`, false, error instanceof Error ? error.message : String(error));
+            continue;
+          }
           check(`${label} status`, response?.status() === 200, `status=${response?.status()}`);
           const heading = page.locator("h1").first();
           const rendered = await heading.waitFor({ state: "visible", timeout: 15_000 }).then(() => true).catch(() => false);
@@ -207,9 +241,18 @@ try {
             ));
             check(
               `${operator.role} ${viewport.name} ${motionMode.name} navigation route matrix`,
-              JSON.stringify(actualNavigationRoutes) === JSON.stringify(roleNavigationRoutes[operator.role]),
-              `expected=${roleNavigationRoutes[operator.role].join(",")} actual=${actualNavigationRoutes.join(",")}`,
+              JSON.stringify(actualNavigationRoutes) === JSON.stringify(expectedNavigationRoutes),
+              `expected=${expectedNavigationRoutes.join(",")} actual=${actualNavigationRoutes.join(",")}`,
             );
+            for (const route of adminRoutes) {
+              const expectedVisible = expectedNavigationRoutes.includes(route.path);
+              const actualVisible = actualNavigationRoutes.includes(route.path);
+              check(
+                `${operator.role} ${viewport.name} ${motionMode.name} ${route.path} sidebar visibility`,
+                actualVisible === expectedVisible,
+                `expected=${expectedVisible ? "visible" : "hidden"} actual=${actualVisible ? "visible" : "hidden"}`,
+              );
+            }
           }
         }
 
