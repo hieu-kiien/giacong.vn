@@ -110,7 +110,7 @@ export async function archiveAdminServicesAtomically(
   const existingMutation = await findServiceBatchMutation(database, requestId);
   if (existingMutation) {
     assertMatchingMutation(existingMutation, requestId, payloadSha256);
-    return readServiceBatchReplay(database, requestId, existingMutation, items.length);
+    return readServiceBatchReplay(database, requestId, existingMutation, items);
   }
 
   const snapshots = await listAdminServiceBatchSnapshots(database, items.map((item) => item.id));
@@ -148,24 +148,32 @@ export async function archiveAdminServicesAtomically(
     statements.push(buildArchiveGuard(database, input.actorSubject, requestId, envelopeId, payloadSha256, item));
     if (hasServiceMeta) statements.push(buildServiceMetaArchive(database, input.actorSubject, item));
     statements.push(buildServiceAudit(database, input.actorSubject, requestId, item));
+    statements.push(buildServiceBatchItemPostcondition(
+      database,
+      input.actorSubject,
+      requestId,
+      envelopeId,
+      payloadSha256,
+      item,
+      hasServiceMeta,
+    ));
   }
   statements.push(buildBatchAuditEnvelope(database, input.actorSubject, envelopeId, result));
+  statements.push(buildServiceBatchEnvelopePostcondition(database, requestId, envelopeId, payloadSha256));
 
-  let batchResults: D1BatchResultLike[];
   try {
-    batchResults = await databaseWithBatch.batch(statements);
+    await databaseWithBatch.batch(statements);
   } catch (error) {
     const racedMutation = await findServiceBatchMutation(database, requestId);
     if (racedMutation) {
       assertMatchingMutation(racedMutation, requestId, payloadSha256);
-      return readServiceBatchReplay(database, requestId, racedMutation, items.length);
+      return readServiceBatchReplay(database, requestId, racedMutation, items);
     }
     if (isServiceBatchStaleConstraint(error)) {
       throw new AdminServiceBatchConflictError("Dịch vụ đã thay đổi ở phiên khác. Hãy tải lại rồi thử lại.");
     }
-    throw error;
+    throw normalizeServiceBatchError(error);
   }
-  assertBatchResults(batchResults, statements.length, eligible.length, hasServiceMeta);
 
   return result;
 }
@@ -251,7 +259,7 @@ async function readServiceBatchReplay(
   database: D1DatabaseLike,
   requestId: string,
   mutation: ServiceBatchMutationRow,
-  selectedCount: number,
+  items: readonly AdminServiceBatchItem[],
 ): Promise<AdminServiceBatchResult> {
   const envelope = await database.prepare(`
     SELECT metadata_json
@@ -269,8 +277,25 @@ async function readServiceBatchReplay(
   }
   if (!isReplayMetadata(metadata)
     || metadata.requestId !== requestId
-    || metadata.selectedCount !== selectedCount) {
+    || metadata.selectedCount !== items.length) {
     throw new AdminServiceBatchStorageError("Audit ẩn dịch vụ hàng loạt không khớp request.");
+  }
+  const skippedIds = new Set(metadata.skipped.map((entry) => entry.id));
+  const childIds = items
+    .filter((item) => !skippedIds.has(item.id))
+    .map((item) => `${mutation.entity_key}:${item.id}`);
+  if (childIds.length > 0) {
+    const childAudits = await database.prepare(`
+      SELECT id
+      FROM audit_logs
+      WHERE id IN (${childIds.map(() => "?").join(", ")})
+        AND action = 'service.bulk_archived'
+        AND entity_type = 'service'
+    `).bind(...childIds).all<{ id: string }>();
+    if (childAudits.results.length !== childIds.length
+      || new Set(childAudits.results.map((row) => row.id)).size !== childIds.length) {
+      throw new AdminServiceBatchStorageError("Audit ẩn dịch vụ hàng loạt chưa đủ dữ liệu để replay.");
+    }
   }
   return {
     changedCount: metadata.changedCount,
@@ -397,33 +422,90 @@ function buildBatchAuditEnvelope(
   `).bind(entityKey, actorSubject, metadata);
 }
 
-function assertBatchResults(
-  results: D1BatchResultLike[],
-  expectedLength: number,
-  eligibleCount: number,
+function buildServiceBatchItemPostcondition(
+  database: D1DatabaseLike,
+  actor: string,
+  requestId: string,
+  entityKey: string,
+  hash: string,
+  item: AdminServiceBatchItem,
   hasServiceMeta: boolean,
-): void {
-  if (results.length !== expectedLength) throw new AdminServiceBatchStorageError("D1 service batch trả về kết quả không hợp lệ.");
-  if (resultRowCount(results[0]) !== 1) throw new AdminServiceBatchStorageError("Không ghi được audit idempotency dịch vụ.");
-
-  let index = 1;
-  for (let item = 0; item < eligibleCount; item += 1) {
-    if (resultRowCount(results[index]) !== 1) throw new AdminServiceBatchConflictError("Dịch vụ đã thay đổi ở phiên khác. Hãy tải lại rồi thử lại.");
-    index += 1;
-    if (resultRowCount(results[index]) !== 0) throw new AdminServiceBatchConflictError("Dịch vụ đã thay đổi ở phiên khác. Hãy tải lại rồi thử lại.");
-    index += 1;
-    if (hasServiceMeta) {
-      if (resultRowCount(results[index]) !== 1) throw new AdminServiceBatchStorageError("Không đồng bộ được trạng thái dịch vụ.");
-      index += 1;
-    }
-    if (resultRowCount(results[index]) !== 1) throw new AdminServiceBatchStorageError("Không ghi đủ audit dịch vụ.");
-    index += 1;
-  }
-  if (resultRowCount(results[index]) !== 1) throw new AdminServiceBatchStorageError("Không ghi được audit envelope dịch vụ.");
+): D1PreparedStatementLike {
+  const childId = `${entityKey}:${item.id}`;
+  const metaClause = hasServiceMeta
+    ? "AND EXISTS (SELECT 1 FROM service_admin_meta WHERE service_id = ? AND status = 'archived' AND updated_by = ?)"
+    : "";
+  const values: unknown[] = [
+    requestId,
+    entityKey,
+    hash,
+    item.id,
+    item.expectedRevision + 1,
+  ];
+  if (hasServiceMeta) values.push(item.id, actor);
+  values.push(childId, String(item.id));
+  return database.prepare(`
+    /* service batch postcondition */
+    INSERT INTO admin_audit_log (
+      request_id, actor_subject, action, entity_type, entity_key,
+      previous_revision, resulting_revision, payload_sha256
+    )
+    SELECT NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL
+    WHERE NOT (
+      EXISTS (
+        SELECT 1 FROM admin_audit_log
+        WHERE request_id = ?
+          AND action = 'delete'
+          AND entity_type = 'service'
+          AND entity_key = ?
+          AND payload_sha256 = ?
+      )
+      AND EXISTS (
+        SELECT 1 FROM services
+        WHERE id = ? AND revision = ? AND is_active = 0
+      )
+      ${metaClause}
+      AND EXISTS (
+        SELECT 1 FROM audit_logs
+        WHERE id = ?
+          AND action = 'service.bulk_archived'
+          AND entity_type = 'service'
+          AND entity_id = ?
+      )
+    )
+  `).bind(...values);
 }
 
-function resultRowCount(result: D1BatchResultLike | undefined): number {
-  return Array.isArray(result?.results) ? result.results.length : 0;
+function buildServiceBatchEnvelopePostcondition(
+  database: D1DatabaseLike,
+  requestId: string,
+  entityKey: string,
+  hash: string,
+): D1PreparedStatementLike {
+  return database.prepare(`
+    /* service batch postcondition */
+    INSERT INTO admin_audit_log (
+      request_id, actor_subject, action, entity_type, entity_key,
+      previous_revision, resulting_revision, payload_sha256
+    )
+    SELECT NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL
+    WHERE NOT (
+      EXISTS (
+        SELECT 1 FROM admin_audit_log
+        WHERE request_id = ?
+          AND action = 'delete'
+          AND entity_type = 'service'
+          AND entity_key = ?
+          AND payload_sha256 = ?
+      )
+      AND EXISTS (
+        SELECT 1 FROM audit_logs
+        WHERE id = ?
+          AND action = 'service.bulk_archived_batch'
+          AND entity_type = 'service'
+      )
+    )
+  `).bind(requestId, entityKey, hash, entityKey);
 }
 
 async function tableExists(database: D1DatabaseLike, tableName: string): Promise<boolean> {
@@ -443,6 +525,15 @@ function requireBatch(database: D1DatabaseLike): D1DatabaseWithBatch {
 
 function isServiceBatchStaleConstraint(error: unknown): boolean {
   return error instanceof Error && /UNIQUE constraint failed:\s*admin_audit_log\.request_id/i.test(error.message);
+}
+
+function normalizeServiceBatchError(error: unknown): unknown {
+  const message = error instanceof Error ? error.message : String(error);
+  if (message.includes("service batch postcondition")
+    || (message.includes("admin_audit_log") && message.toLowerCase().includes("constraint failed"))) {
+    return new AdminServiceBatchStorageError("Không ghi đồng bộ được dịch vụ và audit; hệ thống đã rollback để tránh trạng thái dở dang.");
+  }
+  return error;
 }
 
 function serviceBatchEntityKey(requestId: string): string {

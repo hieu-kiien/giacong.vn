@@ -1,9 +1,11 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
+import { DatabaseSync } from "node:sqlite";
 import test from "node:test";
 import {
   AdminServiceBatchConflictError,
   AdminServiceBatchIdempotencyConflictError,
+  AdminServiceBatchStorageError,
   archiveAdminServicesAtomically,
   parseAdminServiceBatchItems,
 } from "../src/lib/admin-service-batch.ts";
@@ -30,6 +32,13 @@ class FakeServiceBatchDatabase implements D1DatabaseLike {
   batchCalls = 0;
   raceAfterSnapshotId: number | null = null;
   private lastChanges = 0;
+  private readonly omitBatchResults: boolean;
+  private readonly skipMeta: boolean;
+
+  constructor(options: { omitBatchResults?: boolean; skipMeta?: boolean } = {}) {
+    this.omitBatchResults = options.omitBatchResults ?? false;
+    this.skipMeta = options.skipMeta ?? false;
+  }
 
   prepare(query: string): D1PreparedStatementLike {
     return new FakeServiceBatchStatement(this, query);
@@ -53,6 +62,12 @@ class FakeServiceBatchDatabase implements D1DatabaseLike {
   }
 
   async all<T>(query: string, values: unknown[]): Promise<{ results: T[] }> {
+    if (query.includes("FROM audit_logs")) {
+      const ids = new Set(values.map(String));
+      return {
+        results: [...this.childAudits].filter((id) => ids.has(id)).map((id) => ({ id })) as T[],
+      };
+    }
     if (!query.includes("FROM services")) return { results: [] };
     const ids = new Set(values.map(Number));
     const results = [...this.rows.values()]
@@ -76,6 +91,7 @@ class FakeServiceBatchDatabase implements D1DatabaseLike {
     const lastChangesBefore = this.lastChanges;
     const results: Array<{ results?: unknown[] }> = [];
     try {
+      if (this.omitBatchResults) return statements.map(() => ({}));
       for (const statement of statements) {
         const current = statement as FakeServiceBatchStatement;
         results.push(this.execute(current.query, current.values));
@@ -98,6 +114,10 @@ class FakeServiceBatchDatabase implements D1DatabaseLike {
   }
 
   private execute(query: string, values: unknown[]): { results?: unknown[] } {
+    if (query.includes("service batch postcondition")) {
+      if (this.skipMeta) throw new Error("NOT NULL constraint failed: admin_audit_log.request_id");
+      return { results: [{ ok: 1 }] };
+    }
     if (query.includes("WHERE NOT EXISTS")) {
       const id = Number(values[6]);
       const expectedRevision = Number(values[7]);
@@ -229,6 +249,51 @@ test("service batch archives active rows, reports skips, and replays idempotentl
   );
 });
 
+test("a complete service batch remains successful when D1 omits returned rows", async () => {
+  const database = new FakeServiceBatchDatabase({ omitBatchResults: true });
+  const result = await archiveAdminServicesAtomically(database, {
+    actorSubject: "owner@example.com",
+    items: [{ expectedRevision: 1, id: 1 }],
+    requestId: "55555555-5555-4555-8555-555555555555",
+  });
+
+  assert.equal(result.changedCount, 1);
+  assert.equal(database.batchCalls, 1);
+});
+
+test("an incomplete service batch rolls back when service metadata is missing", async () => {
+  const database = new FakeServiceBatchDatabase({ skipMeta: true });
+  await assert.rejects(
+    () => archiveAdminServicesAtomically(database, {
+      actorSubject: "owner@example.com",
+      items: [{ expectedRevision: 1, id: 1 }],
+      requestId: "55555555-5555-4555-8555-555555555555",
+    }),
+    AdminServiceBatchStorageError,
+  );
+  assert.deepEqual(database.rows.get(1), { id: 1, is_active: 1, revision: 1 });
+  assert.equal(database.markers.size, 0);
+  assert.equal(database.envelopes.size, 0);
+  assert.equal(database.childAudits.size, 0);
+  assert.equal(database.meta.size, 0);
+});
+
+test("service batch replay rejects when a child audit is missing", async () => {
+  const database = new FakeServiceBatchDatabase();
+  const input = {
+    actorSubject: "owner@example.com",
+    items: [{ expectedRevision: 1, id: 1 }],
+    requestId: "55555555-5555-4555-8555-555555555555",
+  };
+  await archiveAdminServicesAtomically(database, input);
+  database.childAudits.clear();
+
+  await assert.rejects(
+    () => archiveAdminServicesAtomically(database, input),
+    AdminServiceBatchStorageError,
+  );
+});
+
 test("service batch maps a concurrent revision race to stale write and rolls back", async () => {
   const database = new FakeServiceBatchDatabase();
   database.raceAfterSnapshotId = 1;
@@ -246,6 +311,56 @@ test("service batch maps a concurrent revision race to stale write and rolls bac
   assert.equal(database.envelopes.size, 0);
   assert.equal(database.childAudits.size, 0);
   assert.equal(database.meta.size, 0);
+});
+
+test("SQLite service batch postconditions are atomic when results are omitted", async () => {
+  const database = createSqliteServiceBatchDatabase({ omitBatchResults: true });
+  try {
+    database.sqlite.prepare("INSERT INTO services (name, slug, summary, description, is_active, revision) VALUES (?, ?, ?, ?, 1, 1)").run(
+      "Dịch vụ",
+      "dich-vu",
+      "",
+      "",
+    );
+    const input = {
+      actorSubject: "owner@example.com",
+      items: [{ expectedRevision: 1, id: 1 }],
+      requestId: "55555555-5555-4555-8555-555555555555",
+    };
+    const result = await archiveAdminServicesAtomically(database, input);
+    assert.equal(result.changedCount, 1);
+    const archived = database.sqlite.prepare("SELECT is_active, revision FROM services WHERE id = 1").get() as { is_active: number; revision: number };
+    assert.equal(archived.is_active, 0);
+    assert.equal(archived.revision, 2);
+    assert.equal((await archiveAdminServicesAtomically(database, input)).replayed, true);
+  } finally {
+    database.sqlite.close();
+  }
+});
+
+test("SQLite service batch postconditions rollback a missing metadata write", async () => {
+  const database = createSqliteServiceBatchDatabase({ skipQuery: /INSERT INTO service_admin_meta/ });
+  try {
+    database.sqlite.prepare("INSERT INTO services (name, slug, summary, description, is_active, revision) VALUES (?, ?, ?, ?, 1, 1)").run(
+      "Dịch vụ",
+      "dich-vu",
+      "",
+      "",
+    );
+    await assert.rejects(
+      () => archiveAdminServicesAtomically(database, {
+        actorSubject: "owner@example.com",
+        items: [{ expectedRevision: 1, id: 1 }],
+        requestId: "55555555-5555-4555-8555-555555555555",
+      }),
+      AdminServiceBatchStorageError,
+    );
+    const active = database.sqlite.prepare("SELECT is_active, revision FROM services WHERE id = 1").get() as { is_active: number; revision: number };
+    assert.equal(active.is_active, 1);
+    assert.equal(active.revision, 1);
+  } finally {
+    database.sqlite.close();
+  }
 });
 
 test("service batch route is bounded, authorized and idempotent", async () => {
@@ -300,3 +415,109 @@ test("service batch contract is included in the admin gate", async () => {
 
   assert.match(packageJson, /scripts\/admin-service-batch\.test\.mts/);
 });
+
+class SqliteServiceBatchStatement implements D1PreparedStatementLike {
+  readonly query: string;
+  private values: unknown[] = [];
+  private readonly statement: ReturnType<DatabaseSync["prepare"]>;
+
+  constructor(query: string, statement: ReturnType<DatabaseSync["prepare"]>) {
+    this.query = query;
+    this.statement = statement;
+  }
+
+  bind(...values: unknown[]) {
+    this.values = values;
+    return this;
+  }
+
+  async all<T>() {
+    return { results: this.statement.all(...(this.values as never[])) as T[] };
+  }
+
+  async first<T>() {
+    return (this.statement.get(...(this.values as never[])) as T | undefined) ?? null;
+  }
+
+  async run() {
+    this.statement.run(...(this.values as never[]));
+    return {};
+  }
+}
+
+class SqliteServiceBatchDatabase implements D1DatabaseLike {
+  readonly sqlite: DatabaseSync;
+  private readonly omitBatchResults: boolean;
+  private readonly skipQuery?: RegExp;
+
+  constructor(sqlite: DatabaseSync, options: { omitBatchResults?: boolean; skipQuery?: RegExp } = {}) {
+    this.sqlite = sqlite;
+    this.omitBatchResults = options.omitBatchResults ?? false;
+    this.skipQuery = options.skipQuery;
+  }
+
+  prepare(query: string) {
+    return new SqliteServiceBatchStatement(query, this.sqlite.prepare(query));
+  }
+
+  async batch(statements: SqliteServiceBatchStatement[]) {
+    this.sqlite.exec("BEGIN");
+    try {
+      const results = [];
+      for (const statement of statements) {
+        if (this.skipQuery?.test(statement.query)) results.push({ results: [] });
+        else results.push(await statement.all());
+      }
+      this.sqlite.exec("COMMIT");
+      return this.omitBatchResults ? results.map(() => ({})) : results;
+    } catch (error) {
+      this.sqlite.exec("ROLLBACK");
+      throw error;
+    }
+  }
+}
+
+function createSqliteServiceBatchDatabase(options: { omitBatchResults?: boolean; skipQuery?: RegExp } = {}) {
+  const sqlite = new DatabaseSync(":memory:");
+  sqlite.exec(`
+    CREATE TABLE services (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      slug TEXT NOT NULL UNIQUE,
+      summary TEXT NOT NULL,
+      description TEXT NOT NULL,
+      image_url TEXT,
+      is_active INTEGER NOT NULL,
+      revision INTEGER NOT NULL DEFAULT 1,
+      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE TABLE service_admin_meta (
+      service_id INTEGER PRIMARY KEY,
+      status TEXT NOT NULL,
+      updated_by TEXT,
+      updated_at TEXT NOT NULL
+    );
+    CREATE TABLE admin_audit_log (
+      id TEXT PRIMARY KEY DEFAULT 'marker-id',
+      request_id TEXT NOT NULL UNIQUE,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      actor_subject TEXT NOT NULL,
+      action TEXT NOT NULL,
+      entity_type TEXT NOT NULL,
+      entity_key TEXT NOT NULL,
+      previous_revision INTEGER,
+      resulting_revision INTEGER,
+      payload_sha256 TEXT NOT NULL
+    );
+    CREATE TABLE audit_logs (
+      id TEXT PRIMARY KEY NOT NULL,
+      actor_subject TEXT NOT NULL,
+      action TEXT NOT NULL,
+      entity_type TEXT NOT NULL,
+      entity_id TEXT,
+      metadata_json TEXT,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+  `);
+  return new SqliteServiceBatchDatabase(sqlite, options);
+}
