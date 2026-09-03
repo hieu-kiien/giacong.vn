@@ -274,6 +274,9 @@ Lưu ý: demo staging KHÔNG được seed sang production. Khách tự thao tá
 - [x] Dependency security revalidation ngày 2026-09-03: `npm audit
   --audit-level=high` trả `0 vulnerabilities`; full `npm run check` sau
   lockfile patch trả exit code `0`.
+- [x] Read-only role inventory staging ngày 2026-09-03: D1 chỉ có `1` active
+  `owner`, chưa có identity thật cho `content_manager`, `catalog_manager`,
+  `sales_manager`, `viewer`; query có `changed_db=false`, `rows_written=0`.
 - [ ] Production gate còn mở: 11 migration `0009–0019`, role × route/action với
   nhiều Access identity, full write/read-back/audit, data approval,
   migration/rollback window và observability 24 giờ.

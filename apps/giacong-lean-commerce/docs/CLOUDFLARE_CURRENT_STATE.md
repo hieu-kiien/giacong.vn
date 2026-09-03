@@ -71,6 +71,16 @@ Hồ sơ này ghi bằng chứng runtime đã xác minh trong quá trình chuy�
   role matrix nhiều identity hoặc write/read-back vì các gate đó cần storage
   state/identity thật được cấp phép riêng.
 
+## Staging role inventory read-only — 2026-09-03
+
+- Wrangler query trực tiếp bảng `admin_members` trên D1 staging cho thấy chỉ có
+  `1` tài khoản active với role `owner`; chưa có `content_manager`,
+  `catalog_manager`, `sales_manager` hoặc `viewer`.
+- Query metadata ghi `changed_db=false`, `rows_written=0`, nên lượt kiểm tra này
+  không tạo hoặc sửa tài khoản. Vì chưa có identity thật cho bốn role còn lại,
+  role-matrix browser chưa thể chạy; không dùng placeholder/demo identity để
+  tuyên bố đạt.
+
 Các version và kết quả bên dưới là evidence lịch sử; khi mâu thuẫn với
 snapshot này, snapshot này phản ánh trạng thái runtime mới nhất.
 

@@ -33,6 +33,15 @@ Bản staging hiện **đủ điều kiện để tiếp tục nghiệm thu kỹ
 4. export backup mới, restore-drill, migration `0009–0019`, promotion có rollback
    point và theo dõi observability 24 giờ.
 
+## Staging role inventory read-only — 2026-09-03
+
+- D1 staging hiện chỉ có `1` tài khoản active với role `owner`; bốn role
+  `content_manager`, `catalog_manager`, `sales_manager`, `viewer` chưa có
+  identity/member thật để kiểm thử.
+- Wrangler metadata xác nhận `changed_db=false`, `rows_written=0`. Đây là
+  bằng chứng giải thích blocker của role matrix, không phải lý do để tạo user
+  giả hoặc đánh dấu gate đạt.
+
 ## Bằng chứng hiện có
 
 - `npm run check` đã xanh toàn bộ test, lint, typecheck và build: admin `190/190`,

@@ -82,6 +82,10 @@ role từ một phiên khác. Contract test đạt; runner cố ý báo `ADMIN Q
 khi thiếu hoặc thiếu role state, không dùng trạng thái chưa xác thực để tuyên bố
 pass.
 
+**Role inventory update 2026-09-03:** D1 staging hiện chỉ có một active
+`owner`; bốn role còn lại chưa có identity thật. Role-matrix runner đã sẵn sàng
+nhưng chưa được phép dùng placeholder/demo account để thay thế bằng chứng thật.
+
 **Runtime update 2026-09-02 (direct editing trên storefront thật):**
 `AdminVisualEditor` đã bỏ draft preview mô phỏng và chuyển sang registry target
 an toàn trên DOM của homepage đang render. Owner/content manager có thể bấm đúng
