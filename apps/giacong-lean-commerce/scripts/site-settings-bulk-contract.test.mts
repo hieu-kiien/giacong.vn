@@ -28,7 +28,14 @@ const bulkRequestId = "55555555-5555-4555-8555-555555555555";
 class BulkSettingsDatabase {
   readonly rows = new Map<SettingKey, Row>();
   readonly bulkAudits = new Map<string, { selected: number; published: number; fingerprint: string }>();
-  readonly settingAudits: Array<{ bulkRequestId: string; key: SettingKey }> = [];
+  readonly settingAudits: Array<{
+    bulkRequestId: string;
+    key: SettingKey;
+    requestId: string;
+    previousRevision: number;
+    resultingRevision: number;
+    payloadSha256: string;
+  }> = [];
   batchCalls = 0;
   staleKey: SettingKey | null = null;
 
@@ -65,7 +72,17 @@ class BulkSettingsDatabase {
       return {
         results: this.settingAudits
           .filter((audit) => audit.bulkRequestId === bulkRequestId)
-          .map((audit) => ({ entity_key: audit.key })) as T[],
+          .map((audit) => ({
+            entity_key: audit.key,
+            request_id: audit.requestId,
+            previous_revision: audit.previousRevision,
+            resulting_revision: audit.resultingRevision,
+            payload_sha256: audit.payloadSha256,
+            version: this.rows.get(audit.key)?.version ?? null,
+            last_request_id: this.rows.get(audit.key)?.last_request_id ?? null,
+            draft_value: this.rows.get(audit.key)?.draft_value ?? null,
+            published_value: this.rows.get(audit.key)?.published_value ?? null,
+          })) as T[],
       };
     }
     if (query.includes("FROM site_settings")) {
@@ -96,6 +113,9 @@ class BulkSettingsDatabase {
   }
 
   private async run(query: string, values: unknown[]) {
+    if (query.includes("site-setting-bulk-postcondition")) {
+      return { meta: { changes: 1 } };
+    }
     if (query.includes("INSERT INTO admin_site_setting_bulk_audit")) {
       this.bulkAudits.set(String(values[0]), {
         fingerprint: String(values[2]),
@@ -119,7 +139,14 @@ class BulkSettingsDatabase {
       if (!row || row.version !== Number(values[6]) || row.last_request_id !== String(values[0])) {
         return { meta: { changes: 0 } };
       }
-      this.settingAudits.push({ bulkRequestId, key });
+      this.settingAudits.push({
+        bulkRequestId,
+        key,
+        requestId: String(values[0]),
+        previousRevision: Number(values[2]),
+        resultingRevision: Number(values[6]),
+        payloadSha256: String(values[3]),
+      });
       return { meta: { changes: 1 } };
     }
     if (query.includes("UPDATE site_settings")) {

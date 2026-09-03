@@ -59,6 +59,9 @@ class FakeSiteDatabase {
   }
 
   private async first<T>(query: string, values: unknown[]): Promise<T | null> {
+    if (query.includes("site-setting-write-postcondition-read")) {
+      return { complete: 1 } as T;
+    }
     if (query.includes("admin_site_setting_audit")) {
       return (this.mutationAudits.get(String(values[0])) ?? null) as T | null;
     }
@@ -66,6 +69,9 @@ class FakeSiteDatabase {
   }
 
   private async run(query: string, values: unknown[]) {
+    if (query.includes("site-setting-write-postcondition")) {
+      return { meta: { changes: 1 } };
+    }
     if (query.includes("INSERT INTO admin_site_setting_audit")) {
       const requestId = String(values[0]);
       const key = String(values[5]);

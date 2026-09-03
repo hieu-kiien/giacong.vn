@@ -113,10 +113,20 @@ export async function updateAdminSiteSetting(
     operation: "draft",
     value,
   });
+  const postcondition: SiteSettingMutationPostcondition = {
+    actorSubject: input.actorSubject,
+    expectedVersion,
+    key: definition.key,
+    operation: "draft",
+    payloadSha256,
+    requestId,
+    value,
+  };
   const existingMutation = await findSiteSettingMutation(database, requestId);
   if (existingMutation) {
     assertMatchingMutation(existingMutation, "draft", payloadSha256);
-    return getSettingRowOrThrow(database, definition.key).then(toAdminSiteSetting);
+    await ensureSiteSettingMutationComplete(database, postcondition);
+    return toAdminSiteSetting(await getSettingRowOrThrow(database, definition.key));
   }
 
   const current = await getSettingRow(database, definition.key);
@@ -125,23 +135,32 @@ export async function updateAdminSiteSetting(
     throw new SiteSettingConflictError("Setting đã thay đổi ở phiên khác. Hãy tải lại trước khi lưu.");
   }
 
-  const applied = await applyAtomicSiteSettingMutation(database, {
-    actorSubject: input.actorSubject,
-    expectedVersion,
-    key: definition.key,
-    operation: "draft",
-    payloadSha256,
-    requestId,
-    value,
-  });
+  let applied: boolean;
+  try {
+    applied = await applyAtomicSiteSettingMutation(database, postcondition);
+  } catch (error) {
+    const racedMutation = await findSiteSettingMutation(database, requestId);
+    if (racedMutation) {
+      assertMatchingMutation(racedMutation, "draft", payloadSha256);
+      await ensureSiteSettingMutationComplete(database, postcondition);
+      return toAdminSiteSetting(await getSettingRowOrThrow(database, definition.key));
+    }
+    const latest = await getSettingRow(database, definition.key);
+    if (latest && latest.version !== expectedVersion) {
+      throw new SiteSettingConflictError("Setting đã thay đổi ở phiên khác. Hãy tải lại trước khi lưu.");
+    }
+    throw normalizeSiteSettingWriteError(error);
+  }
   if (!applied) {
     const racedMutation = await findSiteSettingMutation(database, requestId);
     if (racedMutation) {
       assertMatchingMutation(racedMutation, "draft", payloadSha256);
-      return getSettingRowOrThrow(database, definition.key).then(toAdminSiteSetting);
+      await ensureSiteSettingMutationComplete(database, postcondition);
+      return toAdminSiteSetting(await getSettingRowOrThrow(database, definition.key));
     }
     throw new SiteSettingConflictError("Setting đã thay đổi ở phiên khác. Hãy tải lại trước khi lưu.");
   }
+  await ensureSiteSettingMutationComplete(database, postcondition);
   return toAdminSiteSetting(await getSettingRowOrThrow(database, definition.key));
 }
 
@@ -157,10 +176,19 @@ export async function publishAdminSiteSetting(
     key: definition.key,
     operation: "publish",
   });
+  const postcondition: SiteSettingMutationPostcondition = {
+    actorSubject: input.actorSubject,
+    expectedVersion,
+    key: definition.key,
+    operation: "publish",
+    payloadSha256,
+    requestId,
+  };
   const existingMutation = await findSiteSettingMutation(database, requestId);
   if (existingMutation) {
     assertMatchingMutation(existingMutation, "publish", payloadSha256);
-    return getSettingRowOrThrow(database, definition.key).then(toAdminSiteSetting);
+    await ensureSiteSettingMutationComplete(database, postcondition);
+    return toAdminSiteSetting(await getSettingRowOrThrow(database, definition.key));
   }
 
   const current = await getSettingRow(database, definition.key);
@@ -169,22 +197,32 @@ export async function publishAdminSiteSetting(
     throw new SiteSettingConflictError("Setting đã thay đổi ở phiên khác. Hãy tải lại trước khi phát hành.");
   }
 
-  const applied = await applyAtomicSiteSettingMutation(database, {
-    actorSubject: input.actorSubject,
-    expectedVersion,
-    key: definition.key,
-    operation: "publish",
-    payloadSha256,
-    requestId,
-  });
+  let applied: boolean;
+  try {
+    applied = await applyAtomicSiteSettingMutation(database, postcondition);
+  } catch (error) {
+    const racedMutation = await findSiteSettingMutation(database, requestId);
+    if (racedMutation) {
+      assertMatchingMutation(racedMutation, "publish", payloadSha256);
+      await ensureSiteSettingMutationComplete(database, postcondition);
+      return toAdminSiteSetting(await getSettingRowOrThrow(database, definition.key));
+    }
+    const latest = await getSettingRow(database, definition.key);
+    if (latest && latest.version !== expectedVersion) {
+      throw new SiteSettingConflictError("Setting đã thay đổi ở phiên khác. Hãy tải lại trước khi phát hành.");
+    }
+    throw normalizeSiteSettingWriteError(error);
+  }
   if (!applied) {
     const racedMutation = await findSiteSettingMutation(database, requestId);
     if (racedMutation) {
       assertMatchingMutation(racedMutation, "publish", payloadSha256);
-      return getSettingRowOrThrow(database, definition.key).then(toAdminSiteSetting);
+      await ensureSiteSettingMutationComplete(database, postcondition);
+      return toAdminSiteSetting(await getSettingRowOrThrow(database, definition.key));
     }
     throw new SiteSettingConflictError("Setting đã thay đổi ở phiên khác. Hãy tải lại trước khi phát hành.");
   }
+  await ensureSiteSettingMutationComplete(database, postcondition);
   return toAdminSiteSetting(await getSettingRowOrThrow(database, definition.key));
 }
 
@@ -217,6 +255,11 @@ export async function publishAllAdminSiteSettings(
 
   for (const row of rows.results) {
     const settingRequestId = crypto.randomUUID();
+    const itemPayloadSha256 = await fingerprintSiteSettingMutation({
+      expectedVersion: row.version,
+      key: row.setting_key,
+      operation: "publish",
+    });
     statements.push(database.prepare(`
       UPDATE site_settings
       SET published_value = draft_value, version = version + 1,
@@ -237,16 +280,21 @@ export async function publishAllAdminSiteSettings(
       settingRequestId,
       input.actorSubject,
       row.version,
-      await fingerprintSiteSettingMutation({
-        expectedVersion: row.version,
-        key: row.setting_key,
-        operation: "publish",
-      }),
+      itemPayloadSha256,
       requestId,
       row.setting_key,
       row.version + 1,
       settingRequestId,
     ));
+    statements.push(buildSiteSettingBulkItemPostcondition(database, {
+      actorSubject: input.actorSubject,
+      bulkRequestId: requestId,
+      expectedVersion: row.version,
+      key: row.setting_key,
+      operation: "publish",
+      payloadSha256: itemPayloadSha256,
+      requestId: settingRequestId,
+    }));
   }
 
   statements.push(database.prepare(`
@@ -256,33 +304,27 @@ export async function publishAllAdminSiteSettings(
     )
     WHERE request_id = ?
   `).bind(requestId, requestId));
+  statements.push(buildSiteSettingBulkEnvelopePostcondition(database, {
+    actorSubject: input.actorSubject,
+    operation: "publish_all",
+    payloadSha256,
+    requestId,
+    selectedCount: rows.results.length,
+  }));
 
   const databaseWithBatch = database as D1DatabaseWithBatch;
   if (typeof databaseWithBatch.batch !== "function") {
     throw new SiteSettingStorageError("D1 atomic batch chưa sẵn sàng cho bulk publish settings.");
   }
   try {
-    const results = await databaseWithBatch.batch(statements);
-    if (results.length !== statements.length) {
-      throw new SiteSettingStorageError("D1 bulk batch trả về kết quả không hợp lệ.");
-    }
-    if (!hasChanged(results[0]) || !hasChanged(results.at(-1))) {
-      throw new SiteSettingStorageError("Bulk publish chưa ghi được audit envelope.");
-    }
-    for (let index = 1; index < results.length - 1; index += 2) {
-      const updateChanged = hasChanged(results[index]);
-      const auditChanged = hasChanged(results[index + 1]);
-      if (updateChanged !== auditChanged) {
-        throw new SiteSettingStorageError("Bulk publish có setting thiếu audit đồng bộ.");
-      }
-    }
+    await databaseWithBatch.batch(statements);
   } catch (error) {
     const racedMutation = await findSiteSettingBulkMutation(database, requestId);
     if (racedMutation) {
       assertMatchingBulkMutation(racedMutation, payloadSha256);
       return readBulkSiteSettingResult(database, requestId, racedMutation);
     }
-    throw error;
+    throw normalizeSiteSettingWriteError(error);
   }
 
   const mutation = await findSiteSettingBulkMutation(database, requestId);
@@ -333,6 +375,28 @@ interface SiteSettingBulkMutationRow {
   payload_sha256: string;
   selected_count: number;
   published_count: number;
+}
+
+interface SiteSettingMutationPostcondition {
+  actorSubject: string;
+  expectedVersion: number;
+  key: SiteSettingKey;
+  operation: SiteSettingMutationOperation;
+  payloadSha256: string;
+  requestId: string;
+  value?: string;
+}
+
+interface SiteSettingBulkItemPostcondition extends SiteSettingMutationPostcondition {
+  bulkRequestId: string;
+}
+
+interface SiteSettingBulkEnvelopePostcondition {
+  actorSubject: string;
+  operation: "publish_all";
+  payloadSha256: string;
+  requestId: string;
+  selectedCount: number;
 }
 
 interface AtomicSiteSettingMutation {
@@ -398,13 +462,40 @@ async function readBulkSiteSettingResult(
   mutation: SiteSettingBulkMutationRow,
 ): Promise<{ published: AdminSiteSetting[]; skipped: number }> {
   const auditRows = await database.prepare(`
-    SELECT entity_key
-    FROM admin_site_setting_audit
-    WHERE bulk_request_id = ?
+    SELECT audit.entity_key, audit.request_id, audit.previous_revision,
+      audit.resulting_revision, audit.payload_sha256,
+      setting.version, setting.last_request_id,
+      setting.draft_value, setting.published_value
+    FROM admin_site_setting_audit audit
+    JOIN site_settings setting ON setting.setting_key = audit.entity_key
+    WHERE audit.bulk_request_id = ?
     ORDER BY id ASC
-  `).bind(requestId).all<{ entity_key: string }>();
+  `).bind(requestId).all<{
+    entity_key: string;
+    request_id: string;
+    previous_revision: number;
+    resulting_revision: number;
+    payload_sha256: string;
+    version: number;
+    last_request_id: string | null;
+    draft_value: string;
+    published_value: string;
+  }>();
   if (auditRows.results.length !== mutation.published_count) {
     throw new SiteSettingStorageError("Bulk audit không khớp số setting đã phát hành.");
+  }
+  const invalidAudit = auditRows.results.some((row) => (
+    !isSiteSettingKey(row.entity_key)
+    || !isAdminRequestId(row.request_id)
+    || row.previous_revision <= 0
+    || row.resulting_revision !== row.previous_revision + 1
+    || row.version !== row.resulting_revision
+    || row.last_request_id !== row.request_id
+    || row.draft_value !== row.published_value
+    || row.payload_sha256 !== undefined && row.payload_sha256.length !== 64
+  ));
+  if (invalidAudit) {
+    throw new SiteSettingStorageError("Bulk publish có audit hoặc revision setting không hợp lệ.");
   }
 
   const settings = await listAdminSiteSettings(database);
@@ -467,11 +558,206 @@ async function applyAtomicSiteSettingMutation(
     input.requestId,
   );
 
-  const results = await databaseWithBatch.batch([update, audit]);
-  if (results.length < 2) throw new SiteSettingStorageError("D1 atomic batch trả về kết quả không hợp lệ.");
-  if (!hasChanged(results[0])) return false;
-  if (!hasChanged(results[1])) throw new SiteSettingStorageError("Settings write chưa ghi được audit đồng bộ.");
-  return true;
+  try {
+    await databaseWithBatch.batch([
+      update,
+      audit,
+      buildSiteSettingPostconditionAssertion(database, input),
+    ]);
+  } catch (error) {
+    throw normalizeSiteSettingWriteError(error);
+  }
+  return Boolean(await findSiteSettingMutation(database, input.requestId));
+}
+
+async function ensureSiteSettingMutationComplete(
+  database: D1DatabaseLike,
+  postcondition: SiteSettingMutationPostcondition,
+): Promise<void> {
+  const { expression, values } = buildSiteSettingMutationPostconditionExpression(postcondition);
+  const row = await database.prepare(`
+    /* site-setting-write-postcondition-read */
+    SELECT CASE WHEN (${expression}) THEN 1 ELSE 0 END AS complete
+  `).bind(...values).first<{ complete?: unknown }>();
+  if (Number(row?.complete) !== 1) {
+    throw new SiteSettingStorageError(
+      "Không thể xác nhận đầy đủ trạng thái setting và audit; thao tác bị khóa để tránh báo thành công sai.",
+    );
+  }
+}
+
+function buildSiteSettingPostconditionAssertion(
+  database: D1DatabaseLike,
+  postcondition: SiteSettingMutationPostcondition,
+): D1PreparedStatementLike {
+  const { expression, values } = buildSiteSettingMutationPostconditionExpression(postcondition);
+  return database.prepare(`
+    /* site-setting-write-postcondition */
+    INSERT INTO admin_site_setting_audit (
+      request_id, actor_subject, action, operation, entity_type, entity_key,
+      previous_revision, resulting_revision, payload_sha256
+    )
+    SELECT NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL
+    WHERE NOT (${expression})
+  `).bind(...values);
+}
+
+function buildSiteSettingBulkItemPostcondition(
+  database: D1DatabaseLike,
+  postcondition: SiteSettingBulkItemPostcondition,
+): D1PreparedStatementLike {
+  const valueCheck = "setting_row.published_value = setting_row.draft_value AND setting_row.published_by = ?";
+  return database.prepare(`
+    /* site-setting-bulk-postcondition */
+    INSERT INTO admin_site_setting_audit (
+      request_id, actor_subject, action, operation, entity_type, entity_key,
+      previous_revision, resulting_revision, payload_sha256, bulk_request_id
+    )
+    SELECT NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL
+    WHERE NOT EXISTS (
+      SELECT 1
+      FROM admin_site_setting_audit marker
+      JOIN site_settings setting_row ON setting_row.setting_key = marker.entity_key
+      WHERE marker.request_id = ?
+        AND marker.actor_subject = ?
+        AND marker.action = 'update'
+        AND marker.operation = 'publish'
+        AND marker.entity_type = 'site_setting'
+        AND marker.entity_key = ?
+        AND marker.previous_revision = ?
+        AND marker.resulting_revision = ?
+        AND marker.payload_sha256 = ?
+        AND marker.bulk_request_id = ?
+        AND setting_row.version = ?
+        AND setting_row.last_request_id = ?
+        AND ${valueCheck}
+    )
+  `).bind(
+    postcondition.requestId,
+    postcondition.actorSubject,
+    postcondition.key,
+    postcondition.expectedVersion,
+    postcondition.expectedVersion + 1,
+    postcondition.payloadSha256,
+    postcondition.bulkRequestId,
+    postcondition.expectedVersion + 1,
+    postcondition.requestId,
+    postcondition.actorSubject,
+  );
+}
+
+function buildSiteSettingBulkEnvelopePostcondition(
+  database: D1DatabaseLike,
+  postcondition: SiteSettingBulkEnvelopePostcondition,
+): D1PreparedStatementLike {
+  return database.prepare(`
+    /* site-setting-bulk-postcondition */
+    INSERT INTO admin_site_setting_bulk_audit (
+      request_id, actor_subject, action, operation, payload_sha256,
+      selected_count, published_count
+    )
+    SELECT NULL, NULL, NULL, NULL, NULL, NULL, NULL
+    WHERE NOT (
+      EXISTS (
+        SELECT 1
+        FROM admin_site_setting_bulk_audit envelope
+        WHERE envelope.request_id = ?
+          AND envelope.actor_subject = ?
+          AND envelope.action = 'update'
+          AND envelope.operation = 'publish_all'
+          AND envelope.payload_sha256 = ?
+          AND envelope.selected_count = ?
+      )
+      AND (
+        SELECT COUNT(*)
+        FROM admin_site_setting_audit item
+        WHERE item.bulk_request_id = ?
+          AND item.action = 'update'
+          AND item.operation = 'publish'
+          AND item.entity_type = 'site_setting'
+      ) = (
+        SELECT envelope.published_count
+        FROM admin_site_setting_bulk_audit envelope
+        WHERE envelope.request_id = ?
+      )
+      AND NOT EXISTS (
+        SELECT 1
+        FROM admin_site_setting_audit item
+        LEFT JOIN site_settings setting_row ON setting_row.setting_key = item.entity_key
+        WHERE item.bulk_request_id = ?
+          AND (
+            setting_row.setting_key IS NULL
+            OR setting_row.version <> item.resulting_revision
+            OR setting_row.last_request_id <> item.request_id
+            OR setting_row.draft_value <> setting_row.published_value
+          )
+      )
+    )
+  `).bind(
+    postcondition.requestId,
+    postcondition.actorSubject,
+    postcondition.payloadSha256,
+    postcondition.selectedCount,
+    postcondition.requestId,
+    postcondition.requestId,
+    postcondition.requestId,
+  );
+}
+
+function buildSiteSettingMutationPostconditionExpression(
+  postcondition: SiteSettingMutationPostcondition,
+): { expression: string; values: unknown[] } {
+  const valueCheck = postcondition.operation === "draft"
+    ? "setting_row.draft_value = ?"
+    : "setting_row.published_value = setting_row.draft_value AND setting_row.published_by = ?";
+  const value = postcondition.operation === "draft" ? postcondition.value ?? "" : postcondition.actorSubject;
+  return {
+    expression: `
+      EXISTS (
+        SELECT 1
+        FROM admin_site_setting_audit marker
+        JOIN site_settings setting_row ON setting_row.setting_key = marker.entity_key
+        WHERE marker.request_id = ?
+          AND marker.actor_subject = ?
+          AND marker.action = 'update'
+          AND marker.operation = ?
+          AND marker.entity_type = 'site_setting'
+          AND marker.entity_key = ?
+          AND marker.previous_revision = ?
+          AND marker.resulting_revision = ?
+          AND marker.payload_sha256 = ?
+          AND setting_row.version = ?
+          AND setting_row.last_request_id = ?
+          AND ${valueCheck}
+      )
+    `,
+    values: [
+      postcondition.requestId,
+      postcondition.actorSubject,
+      postcondition.operation,
+      postcondition.key,
+      postcondition.expectedVersion,
+      postcondition.expectedVersion + 1,
+      postcondition.payloadSha256,
+      postcondition.expectedVersion + 1,
+      postcondition.requestId,
+      value,
+    ],
+  };
+}
+
+function normalizeSiteSettingWriteError(error: unknown): unknown {
+  const message = error instanceof Error ? error.message : String(error);
+  const normalized = message.toLowerCase();
+  if (message.includes("site-setting-write-postcondition")
+    || message.includes("site-setting-bulk-postcondition")
+    || (normalized.includes("admin_site_setting_audit") && normalized.includes("constraint"))
+    || (normalized.includes("admin_site_setting_bulk_audit") && normalized.includes("constraint"))) {
+    return new SiteSettingStorageError(
+      "Không ghi đồng bộ được settings và audit; hệ thống đã rollback để tránh báo thành công sai.",
+    );
+  }
+  return error;
 }
 
 function normalizeExpectedVersion(value: number): number {
@@ -488,6 +774,10 @@ function normalizeRequestId(value: string | undefined): string {
     throw new SiteSettingValidationError("requestId phải là UUID hợp lệ.");
   }
   return requestId;
+}
+
+function isAdminRequestId(value: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
 }
 
 async function fingerprintSiteSettingMutation(input: {
