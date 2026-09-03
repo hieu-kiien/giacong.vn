@@ -57,6 +57,13 @@ giữ vai trò control plane cho draft/publish nhưng chỉ đưa người vận
 route storefront thật để kiểm tra renderer, layout, menu, ảnh và animation; bản
 nháp chưa publish được ghi rõ là chưa xuất hiện ở tab storefront.
 
+**Footer navigation renderer update 2026-09-03:** commit `f66eb2b9` bổ sung
+`applyFooterNavigationToMarkup` cho homepage và shared captured shell. Mục
+`footer` mới có thể tạo từ admin, chỉ các mục đã publish và đang active mới
+xuất hiện trong khu vực “Liên kết website”; các cột footer captured legacy không
+bị ghi đè. Local contract/full check đã pass; staging deploy, Access
+write/read-back và visual footer desktop/mobile vẫn là gate runtime riêng.
+
 **Staging deploy/read-only smoke 2026-09-03:** Commit `655ff4f1` đã lên
 `giacong-vn-staging` version `430d41b1-a61c-46d1-ac9f-89eb8df74feb` ở 100%.
 Sau propagation, owner chạy lại đủ 10 route admin canonical đạt `10/10` theo
@@ -302,7 +309,7 @@ runtime acceptance còn mở.
 | --- | --- | --- | --- | --- | --- |
 | Brand/contact/hero | src/lib/site-settings.ts, src/lib/site-markup.ts, src/lib/admin-request.ts | site settings API + bounded JSON + input validation | published_value và fallback default; brand tagline được escape và render cạnh captured logo | content.read/write/publish | scripts/site-settings.test.mts, scripts/site-settings-write-contract.test.mts, scripts/admin-request.test.mts, scripts/site-markup-hero.test.mjs |
 | Managed pages | src/lib/site-pages.ts, src/lib/page-builder.ts | page API + safe block parser | published blocks chỉ khi enabled/published | pages.read/write/publish | scripts/site-pages.test.mts |
-| Primary/footer navigation | src/lib/site-navigation.ts | navigation API + trusted link normalization | published items; footer renderer cần xác minh riêng | navigation.read/write/publish | scripts/site-pages.test.mts có contract liên quan |
+| Primary/footer navigation | src/lib/site-navigation.ts | navigation API + trusted link normalization | published items; footer managed-links renderer đã có, giữ nguyên cột captured legacy | navigation.read/write/publish | scripts/site-pages.test.mts, scripts/storefront-visual-contract.test.mjs |
 | News | src/lib/news-public.ts, src/lib/admin-news-input.ts, src/lib/admin-data.ts | news API + draft input + publish/batch contract | public chỉ đọc `published_*`; detail trả published id cho contextual hand-off; draft chỉnh riêng, publish explicit; contract P3 đã có trong master | news.read/write và content publish theo quyết định | scripts/admin-news.test.mts, scripts/admin-news-write-contract.test.mts, scripts/admin-visual-news-media.test.mjs |
 | Media | src/lib/media-data.ts, src/lib/site-media-data.ts, src/lib/media-input.ts | media API/R2 guard + bounded multipart + signature validation; exact requestId/revision/CAS, replay/conflict và specialized audit | reference phải còn hợp lệ; JPEG/PNG/WebP tối đa 8 MiB; D1 audit đi cùng mutation và R2 có compensation | media.read/write | scripts/media-contract.test.mts, scripts/admin-media-write.test.mts |
 | Product/category/variant | src/lib/admin-product-input.ts, src/lib/admin-product-command.ts, src/lib/admin-variant-input.ts, src/lib/admin-variant-command.ts, src/lib/admin-catalog-write.ts, src/lib/admin-product-batch.ts, src/lib/admin-category-batch.ts và catalog adapters | admin API + exact command parser + D1 canonical rules; single-row/bulk import/archive contract | product/service public read theo trạng thái; import luôn tạo draft/inactive; single-row và bulk archive là soft archive có revision, audit và idempotency; category archive bảo toàn dữ liệu và tăng revision | catalog.read/write/publish | scripts/admin-catalog-write.test.mts, scripts/admin-categories.test.mts, scripts/admin-category-batch.test.mts, scripts/admin-product-import.test.mts, scripts/admin-product-batch.test.mts, catalog/detail suites |
@@ -319,7 +326,7 @@ runtime acceptance còn mở.
 | Dialog/field/toast | src/components/admin/AdminDialog.tsx, AdminField.tsx, AdminToast.tsx | feedback, focus-trapped modal/confirm và form guard | tái sử dụng cho contextual editor; browser focus evidence còn mở |
 | Media | AdminMediaPanel.tsx, AdminMediaPickerModal.tsx | media list/picker | mở từ storefront khi capability cho phép |
 | Page builder | AdminPageBuilder.tsx | safe blocks, draft/publish; chọn page theo query `?page=` và mở route storefront thật để kiểm tra | vẫn là advanced editor/back office; inline là shortcut |
-| Navigation | AdminNavigationManager.tsx | primary menu manager | giữ full editor; contextual edit gọi vào đúng item |
+| Navigation | AdminNavigationManager.tsx | primary/footer menu manager; tạo được mục ở đúng vị trí và publish riêng/bulk | giữ full editor; contextual edit gọi vào đúng item |
 | Members | AdminMembersManager.tsx | owner quản lý admin roles | trang đặc biệt, không inline trên storefront |
 | Audit/history | src/app/admin/audit/page.tsx, src/app/api/admin/audit/route.ts, src/lib/admin-audit.ts | owner-only timeline read-only, filter/pagination, revision/request id | trang đặc biệt P6; không có rollback nếu chưa được phê duyệt |
 | Category/variant | AdminCategoryPanel.tsx, AdminVariantPanel.tsx | catalog sub-editors | dùng trong catalog/bulk flow, không nhồi hết vào homepage |

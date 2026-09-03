@@ -532,6 +532,13 @@ nhận event create, event từng mục và bulk envelope; test admin hiện `17
 read-only đã được xác minh, còn browser write/read-back vẫn chưa được đánh dấu
 đạt.
 
+**Footer renderer update 2026-09-03:** commit `f66eb2b9` đóng khoảng trống
+renderer local: admin có thể chọn `Menu chính` hoặc `Liên kết cuối trang` khi
+thêm mục; homepage và captured shell cùng render các mục footer đã publish vào
+một vùng managed riêng, có escape URL/label và không sửa nội dung footer legacy.
+Focused/full check pass; cần deploy staging và đọc lại bằng browser ở desktop /
+mobile trước khi đóng gate P4.
+
 **Runtime evidence 2026-09-02:** owner staging đã đổi `Home → Home [QA]`, lưu
 draft, phát hành single-item, hard reload public để đọc lại nhãn QA, rồi khôi
 phục và phát hành lại `Home`. D1 cuối cùng sạch (`dirty = 0`, version `7`) và
@@ -548,8 +555,9 @@ toàn có thể chỉnh sửa.
    feature grid, CTA, contact.
 2. Storefront edit button mở đúng block/section; thêm, di chuyển và xóa có
    confirmation, giới hạn; kiểm tra kết quả bằng route storefront thật.
-3. Navigation primary desktop/mobile dùng cùng published source; kiểm tra riêng
-   footer vì model hiện có nhưng renderer không mặc định áp dụng đầy đủ.
+3. Navigation primary desktop/mobile dùng cùng published source; footer dùng
+   managed renderer additive, giữ nguyên các cột captured legacy; kiểm tra
+   staging riêng ở desktop/mobile.
 4. Chỉ cho phép URL/text đã normalize; không cho HTML/CSS/JS tùy ý.
 5. Giữ page builder back office cho thao tác lớn; inline editing chỉ là shortcut
    đến đúng region/block.
