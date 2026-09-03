@@ -43,6 +43,16 @@ interface DatabaseWithBatch extends D1DatabaseLike {
 
 type ProductVariantWriteInput = Omit<AdminProductVariantInput, "revision">;
 
+interface VariantMutationPostcondition {
+  action: CatalogMutationRow["action"];
+  expectedRevision?: number;
+  input?: ProductVariantWriteInput;
+  payloadSha256: string;
+  productId: number;
+  requestId: string;
+  variantId?: number;
+}
+
 export async function createAdminProductAtomically(
   database: D1DatabaseLike,
   input: AdminProductInput,
@@ -238,10 +248,11 @@ export async function createAdminProductVariantAtomically(
   const normalizedRequestId = normalizeRequestId(requestId);
   const payloadSha256 = await fingerprint({ entityType: "variant", input, operation: "create", productId });
   await requireAuditTable(database);
+  const postcondition = createVariantMutationPostcondition(normalizedRequestId, "create", payloadSha256, productId, input);
   const existingMutation = await findMutation(database, normalizedRequestId);
   if (existingMutation) {
     assertMatchingMutation(existingMutation, normalizedRequestId, "create", "variant", payloadSha256);
-    return readVariantMutation(database, existingMutation);
+    return ensureVariantMutationComplete(database, existingMutation, postcondition);
   }
   if (!await getAdminProduct(database, productId)) return null;
 
@@ -262,23 +273,21 @@ export async function createAdminProductVariantAtomically(
   for (const tier of input.tierPrices) {
     statements.push(buildCreatedVariantTier(database, productId, input.sku, tier, normalizedRequestId));
   }
+  statements.push(buildVariantPostconditionAssertion(database, postcondition));
 
   try {
-    const results = await databaseWithBatch.batch(statements);
-    assertChanged(results[0], "Không ghi được variant.");
-    assertChanged(results[1], "Không ghi được audit variant.");
-    for (const result of results.slice(2)) assertChanged(result, "Không ghi được tier price variant.");
+    await databaseWithBatch.batch(statements);
   } catch (error) {
     const racedMutation = await findMutation(database, normalizedRequestId);
     if (racedMutation) {
       assertMatchingMutation(racedMutation, normalizedRequestId, "create", "variant", payloadSha256);
-      return readVariantMutation(database, racedMutation);
+      return ensureVariantMutationComplete(database, racedMutation, postcondition);
     }
-    throw error;
+    throw normalizeCatalogBatchError(error);
   }
   const mutation = await findMutation(database, normalizedRequestId);
   if (!mutation) throw new AdminCatalogWriteStorageError("Không đọc lại được audit variant vừa tạo.");
-  return readVariantMutation(database, mutation);
+  return ensureVariantMutationComplete(database, mutation, postcondition);
 }
 
 export async function updateAdminProductVariantAtomically(
@@ -293,10 +302,11 @@ export async function updateAdminProductVariantAtomically(
   const normalizedRequestId = normalizeRequestId(requestId);
   const payloadSha256 = await fingerprint({ entityType: "variant", expectedRevision, input, operation: "update", productId, variantId });
   await requireAuditTable(database);
+  const postcondition = createVariantMutationPostcondition(normalizedRequestId, "update", payloadSha256, productId, input, variantId, expectedRevision);
   const existingMutation = await findMutation(database, normalizedRequestId);
   if (existingMutation) {
     assertMatchingMutation(existingMutation, normalizedRequestId, "update", "variant", payloadSha256);
-    return readVariantMutation(database, existingMutation);
+    return ensureVariantMutationComplete(database, existingMutation, postcondition);
   }
 
   const existing = await getAdminProductVariant(database, productId, variantId);
@@ -308,23 +318,22 @@ export async function updateAdminProductVariantAtomically(
   const audit = buildVariantAudit(database, normalizedRequestId, actorSubject, "update", productId, variantId, expectedRevision, payloadSha256);
   const statements: D1PreparedStatementLike[] = [update, audit, buildTierDelete(database, variantId, normalizedRequestId)];
   for (const tier of input.tierPrices) statements.push(buildVariantTier(database, variantId, tier, normalizedRequestId));
+  statements.push(buildVariantPostconditionAssertion(database, postcondition));
 
   try {
     const results = await databaseWithBatch.batch(statements);
-    if (!hasRows(results[0])) return resolveVariantConflict(database, normalizedRequestId, payloadSha256);
-    assertChanged(results[1], "Không ghi được audit variant.");
-    for (const result of results.slice(3)) {
-      if (!hasRows(result) && !hasChanged(result)) throw new AdminCatalogWriteStorageError("Không cập nhật được tier price variant.");
-    }
+    if (!hasRows(results[0])) return resolveVariantConflict(database, normalizedRequestId, payloadSha256, postcondition);
   } catch (error) {
     const racedMutation = await findMutation(database, normalizedRequestId);
     if (racedMutation) {
       assertMatchingMutation(racedMutation, normalizedRequestId, "update", "variant", payloadSha256);
-      return readVariantMutation(database, racedMutation);
+      return ensureVariantMutationComplete(database, racedMutation, postcondition);
     }
-    throw error;
+    throw normalizeCatalogBatchError(error);
   }
-  return getAdminProductVariant(database, productId, variantId);
+  const mutation = await findMutation(database, normalizedRequestId);
+  if (!mutation) throw new AdminCatalogWriteStorageError("Không đọc lại được audit variant vừa cập nhật.");
+  return ensureVariantMutationComplete(database, mutation, postcondition);
 }
 
 export async function archiveAdminProductVariantAtomically(
@@ -338,10 +347,11 @@ export async function archiveAdminProductVariantAtomically(
   const normalizedRequestId = normalizeRequestId(requestId);
   const payloadSha256 = await fingerprint({ entityType: "variant", expectedRevision, operation: "archive", productId, variantId });
   await requireAuditTable(database);
+  const postcondition = createVariantMutationPostcondition(normalizedRequestId, "delete", payloadSha256, productId, undefined, variantId, expectedRevision);
   const existingMutation = await findMutation(database, normalizedRequestId);
   if (existingMutation) {
     assertMatchingMutation(existingMutation, normalizedRequestId, "delete", "variant", payloadSha256);
-    return readVariantMutation(database, existingMutation);
+    return ensureVariantMutationComplete(database, existingMutation, postcondition);
   }
 
   const existing = await getAdminProductVariant(database, productId, variantId);
@@ -357,18 +367,19 @@ export async function archiveAdminProductVariantAtomically(
   `).bind(productId, variantId, expectedRevision);
   const audit = buildVariantAudit(database, normalizedRequestId, actorSubject, "delete", productId, variantId, expectedRevision, payloadSha256);
   try {
-    const results = await databaseWithBatch.batch([update, audit]);
-    if (!hasRows(results[0])) return resolveVariantConflict(database, normalizedRequestId, payloadSha256);
-    assertChanged(results[1], "Không ghi được audit ẩn variant.");
+    const results = await databaseWithBatch.batch([update, audit, buildVariantPostconditionAssertion(database, postcondition)]);
+    if (!hasRows(results[0])) return resolveVariantConflict(database, normalizedRequestId, payloadSha256, postcondition);
   } catch (error) {
     const racedMutation = await findMutation(database, normalizedRequestId);
     if (racedMutation) {
       assertMatchingMutation(racedMutation, normalizedRequestId, "delete", "variant", payloadSha256);
-      return readVariantMutation(database, racedMutation);
+      return ensureVariantMutationComplete(database, racedMutation, postcondition);
     }
-    throw error;
+    throw normalizeCatalogBatchError(error);
   }
-  return getAdminProductVariant(database, productId, variantId);
+  const mutation = await findMutation(database, normalizedRequestId);
+  if (!mutation) throw new AdminCatalogWriteStorageError("Không đọc lại được audit variant vừa ẩn.");
+  return ensureVariantMutationComplete(database, mutation, postcondition);
 }
 
 async function requireAuditTable(database: D1DatabaseLike): Promise<void> {
@@ -681,6 +692,233 @@ function productInputValues(input: AdminProductInput): unknown[] {
   ];
 }
 
+function createVariantMutationPostcondition(
+  requestId: string,
+  action: CatalogMutationRow["action"],
+  payloadSha256: string,
+  productId: number,
+  input: ProductVariantWriteInput | undefined,
+  variantId?: number,
+  expectedRevision?: number,
+): VariantMutationPostcondition {
+  return { action, expectedRevision, input, payloadSha256, productId, requestId, variantId };
+}
+
+function buildVariantPostconditionAssertion(
+  database: D1DatabaseLike,
+  postcondition: VariantMutationPostcondition,
+): D1PreparedStatementLike {
+  const commit = buildVariantMutationCommitExpression(postcondition);
+  const started = buildVariantMutationStartedExpression(postcondition);
+  return database.prepare(`
+    /* catalog-variant-postcondition-assert */
+    INSERT INTO admin_audit_log (
+      request_id, actor_subject, action, entity_type, entity_key,
+      previous_revision, resulting_revision, payload_sha256
+    )
+    SELECT NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL
+    WHERE (${started.expression}
+      OR EXISTS (
+        SELECT 1
+        FROM admin_audit_log
+        WHERE request_id = ?
+      ))
+      AND NOT (${commit.expression})
+  `).bind(...started.values, postcondition.requestId, ...commit.values);
+}
+
+async function ensureVariantMutationComplete(
+  database: D1DatabaseLike,
+  mutation: CatalogMutationRow,
+  postcondition: VariantMutationPostcondition,
+): Promise<AdminProductVariant> {
+  const replay = buildVariantMutationReplayExpression(postcondition);
+  const row = await database.prepare(`
+    /* catalog-variant-postcondition-read */
+    SELECT CASE WHEN (${replay.expression}) THEN 1 ELSE 0 END AS complete
+  `).bind(...replay.values).first<{ complete?: unknown }>();
+  if (Number(row?.complete) !== 1) {
+    throw new AdminCatalogWriteStorageError(
+      "Không thể xác nhận đầy đủ trạng thái variant, tier và audit; thao tác bị khóa để tránh báo thành công sai.",
+    );
+  }
+  return readVariantMutation(database, mutation);
+}
+
+function buildVariantMutationReplayExpression(
+  postcondition: VariantMutationPostcondition,
+): { expression: string; values: unknown[] } {
+  const revision = postcondition.expectedRevision === undefined
+    ? { sql: "marker.previous_revision IS NULL AND marker.resulting_revision = 1", values: [] }
+    : {
+        sql: "marker.previous_revision = ? AND marker.resulting_revision = ?",
+        values: [postcondition.expectedRevision, postcondition.expectedRevision + 1],
+      };
+  const variantId = postcondition.variantId === undefined
+    ? { sql: "", values: [] }
+    : { sql: "AND variant_row.id = ?", values: [postcondition.variantId] };
+  return {
+    expression: `EXISTS (
+      SELECT 1
+      FROM admin_audit_log marker
+      JOIN product_variants variant_row ON variant_row.id = CAST(marker.entity_key AS INTEGER)
+      WHERE marker.request_id = ?
+        AND marker.action = ?
+        AND marker.entity_type = 'variant'
+        AND marker.payload_sha256 = ?
+        AND variant_row.product_id = ?
+        ${variantId.sql}
+        AND ${revision.sql}
+    )`,
+    values: [
+      postcondition.requestId,
+      postcondition.action,
+      postcondition.payloadSha256,
+      postcondition.productId,
+      ...variantId.values,
+      ...revision.values,
+    ],
+  };
+}
+
+function buildVariantMutationStartedExpression(
+  postcondition: VariantMutationPostcondition,
+): { expression: string; values: unknown[] } {
+  const state = buildVariantStateExpression(postcondition, "variant_row");
+  const tiers = buildVariantTierChecks("variant_row", postcondition.input);
+  return {
+    expression: `EXISTS (
+      SELECT 1
+      FROM product_variants variant_row
+      WHERE ${state.expression}
+        ${tiers.expression}
+    )`,
+    values: [...state.values, ...tiers.values],
+  };
+}
+
+function buildVariantMutationCommitExpression(
+  postcondition: VariantMutationPostcondition,
+): { expression: string; values: unknown[] } {
+  const revision = postcondition.expectedRevision === undefined
+    ? { sql: "marker.previous_revision IS NULL AND marker.resulting_revision = 1", values: [] }
+    : {
+        sql: "marker.previous_revision = ? AND marker.resulting_revision = ?",
+        values: [postcondition.expectedRevision, postcondition.expectedRevision + 1],
+      };
+  const state = buildVariantStateExpression(postcondition, "variant_row");
+  const tiers = buildVariantTierChecks("variant_row", postcondition.input);
+  return {
+    expression: `EXISTS (
+      SELECT 1
+      FROM admin_audit_log marker
+      JOIN product_variants variant_row ON variant_row.id = CAST(marker.entity_key AS INTEGER)
+      WHERE marker.request_id = ?
+        AND marker.action = ?
+        AND marker.entity_type = 'variant'
+        AND marker.payload_sha256 = ?
+        AND ${revision.sql}
+        AND ${state.expression}
+        ${tiers.expression}
+    )`,
+    values: [
+      postcondition.requestId,
+      postcondition.action,
+      postcondition.payloadSha256,
+      ...revision.values,
+      ...state.values,
+      ...tiers.values,
+    ],
+  };
+}
+
+function buildVariantStateExpression(
+  postcondition: VariantMutationPostcondition,
+  alias: string,
+): { expression: string; values: unknown[] } {
+  if (postcondition.input) {
+    const id = postcondition.variantId === undefined
+      ? { sql: "", values: [] }
+      : { sql: `${alias}.id = ? AND`, values: [postcondition.variantId] };
+    return {
+      expression: `${alias}.product_id = ?
+        AND ${id.sql}
+        ${alias}.name = ?
+        AND ${alias}.sku = ?
+        AND ${alias}.option_label = ?
+        AND ${alias}.unit = ?
+        AND ${alias}.moq = ?
+        AND ${alias}.quantity_step = ?
+        AND ${alias}.contact_from_quantity = ?
+        AND ${alias}.is_available = ?
+        AND ${alias}.sort_order = ?
+        AND ${alias}.attribute_id = ?
+        AND ${alias}.attribute_code = ?
+        AND ${alias}.attribute_label = ?
+        AND ${alias}.option_id = ?
+        AND ${alias}.image_url IS ?
+        AND ${alias}.revision = ?`,
+      values: [
+        postcondition.productId,
+        ...id.values,
+        ...variantInputValues(postcondition.input),
+        postcondition.expectedRevision === undefined ? 1 : postcondition.expectedRevision + 1,
+      ],
+    };
+  }
+  return {
+    expression: `${alias}.product_id = ?
+      AND ${alias}.id = ?
+      AND ${alias}.revision = ?
+      AND ${alias}.is_available = 0`,
+    values: [postcondition.productId, postcondition.variantId, (postcondition.expectedRevision ?? 0) + 1],
+  };
+}
+
+function buildVariantTierChecks(
+  alias: string,
+  input: ProductVariantWriteInput | undefined,
+): { expression: string; values: unknown[] } {
+  if (!input) return { expression: "", values: [] };
+  const expressions = [
+    `(SELECT COUNT(*) FROM variant_tier_prices tier WHERE tier.variant_id = ${alias}.id) = ?`,
+    ...input.tierPrices.map(() => `EXISTS (
+      SELECT 1
+      FROM variant_tier_prices tier
+      WHERE tier.variant_id = ${alias}.id
+        AND tier.min_quantity = ?
+        AND tier.price = ?
+        AND tier.currency = ?
+    )`),
+  ];
+  return {
+    expression: expressions.map((expression) => `AND ${expression}`).join("\n        "),
+    values: [
+      input.tierPrices.length,
+      ...input.tierPrices.flatMap((tier) => [tier.minQuantity, tier.price, tier.currency]),
+    ],
+  };
+}
+
+function variantInputValues(input: ProductVariantWriteInput): unknown[] {
+  return [
+    input.name,
+    input.sku,
+    input.optionLabel,
+    input.unit,
+    input.moq,
+    input.quantityStep,
+    input.contactFromQuantity,
+    input.isAvailable ? 1 : 0,
+    input.sortOrder,
+    input.attributeId,
+    input.attributeCode,
+    input.attributeLabel,
+    input.optionId,
+    input.imageUrl,
+  ];
+}
+
 async function resolveProductConflict(
   database: D1DatabaseLike,
   requestId: string,
@@ -695,11 +933,16 @@ async function resolveProductConflict(
   throw new AdminCatalogWriteConflictError("Sản phẩm đã thay đổi ở phiên khác. Hãy tải lại rồi thử lại.");
 }
 
-async function resolveVariantConflict(database: D1DatabaseLike, requestId: string, payloadSha256: string): Promise<AdminProductVariant> {
+async function resolveVariantConflict(
+  database: D1DatabaseLike,
+  requestId: string,
+  payloadSha256: string,
+  postcondition: VariantMutationPostcondition,
+): Promise<AdminProductVariant> {
   const mutation = await findMutation(database, requestId);
   if (mutation) {
-    assertMatchingMutation(mutation, requestId, mutation.action, "variant", payloadSha256);
-    return readVariantMutation(database, mutation);
+    assertMatchingMutation(mutation, requestId, postcondition.action, "variant", payloadSha256);
+    return ensureVariantMutationComplete(database, mutation, postcondition);
   }
   throw new AdminCatalogWriteConflictError("Variant đã thay đổi ở phiên khác. Hãy tải lại rồi thử lại.");
 }
@@ -919,6 +1162,7 @@ function hasRows(result: BatchResult | undefined): boolean {
 function normalizeCatalogBatchError(error: unknown): unknown {
   const message = error instanceof Error ? error.message : String(error);
   if (message.includes("catalog product write postcondition failed")
+    || message.includes("catalog variant write postcondition failed")
     || (message.includes("admin_audit_log") && message.toLowerCase().includes("constraint failed"))) {
     return new AdminCatalogWriteStorageError(
       "Không ghi đồng bộ được sản phẩm và audit; hệ thống đã rollback để tránh trạng thái dở dang.",
