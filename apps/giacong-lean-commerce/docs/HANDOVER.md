@@ -102,15 +102,16 @@ npx wrangler queues info giacong-vn-leads-dlq      # hàng đợi lead thất b�
 Trạng thái bàn giao hiện tại: code/test, staging storefront, Access identity
 thật, owner route navigation, public deep-QA, owner bootstrap, CMS draft
 isolation, navigation draft/publish round-trip, news draft round-trip và lead
-write/read-back có kiểm soát, cùng audit read-back 107 sự kiện, đã được xác minh;
+write/read-back có kiểm soát, cùng audit read-back 139 sự kiện, đã được xác minh;
 footer renderer đã deploy staging và public read-only smoke pass nhưng chưa có
 footer item active để chạy write/read-back;
-role matrix nhiều identity, write/read-back đầy đủ, production data approval, migrations `0009–0019` và
+owner admin route `10/10`, mobile/reduced-motion/focus và form tạo admin đủ năm
+role cũng đã được kiểm tra read-only; role matrix nhiều identity, write/read-back đầy đủ, production data approval, migrations `0009–0019` và
 restore/rollback drill vẫn cần chủ dự án phê duyệt và thực hiện chủ ý. Không
 dùng dữ liệu demo staging làm dữ liệu production.
 
-Release hardening mới nhất: commit `e1936cfb`, staging `eff0d7fa` ở 100%,
-`npm run check` pass (`198/198` admin; `68/68` commerce; các suite còn lại,
-lint, typecheck và build), deep QA responsive pass và owner direct-editor
-Escape/focus smoke pass. Đây là trạng thái sẵn sàng nghiệm thu kỹ thuật trên
-staging, chưa phải xác nhận production hoàn hảo.
+Release hardening mới nhất: commit `0b1986bf` sửa false-positive của QA matcher,
+staging vẫn ở `e50223de` 100%; full admin suite đạt `205/205`, build isolated
+đạt `27/27`, lint và typecheck pass. Deep QA public và owner admin read-only
+đều pass; đây là trạng thái sẵn sàng nghiệm thu kỹ thuật trên staging, chưa
+phải xác nhận production hoàn hảo.
