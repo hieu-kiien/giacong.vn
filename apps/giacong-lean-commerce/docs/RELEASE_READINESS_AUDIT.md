@@ -93,6 +93,10 @@ Bản staging hiện **đủ điều kiện để tiếp tục nghiệm thu kỹ
 - Owner recheck này chỉ là bằng chứng của một identity có quyền cao nhất; chưa
   thay thế role matrix đủ năm identity, write/read-back mutation hoặc production
   acceptance. Không có mutation nào được thực hiện trong lượt recheck.
+- Kiểm tra bổ sung trên cùng phiên owner với emulator tạm `390×844` và
+  `prefers-reduced-motion: reduce` đạt heading đúng, không overflow và phím Tab
+  tới button nhìn thấy; console vẫn rỗng. Emulator đã được trả về
+  `no-preference` và viewport trình duyệt bình thường sau phép thử.
 
 ## Bằng chứng hiện có
 
