@@ -80,6 +80,20 @@ Bản staging hiện **đủ điều kiện để tiếp tục nghiệm thu kỹ
 - Đây là bằng chứng runtime public mới nhất, không đóng các gate cần Access
   identity, write/read-back, production data hoặc promotion.
 
+## Authenticated owner admin recheck và sửa false-positive QA — 2026-09-03
+
+- Phiên owner staging trong Chrome đã đọc lại đủ `10/10` route admin canonical:
+  heading đúng, marker vai trò `Chủ sở hữu` đúng, không horizontal overflow,
+  không có các trạng thái lỗi runtime; console error/warning rỗng. `/admin/audit`
+  đọc được `139` sự kiện.
+- Lượt kiểm tra đầu tiên đánh dấu nhầm `/admin/thanh-vien` vì copy hợp lệ có câu
+  “Cloudflare Access vẫn là lớp xác thực”. Đây là lỗi của matcher QA, không phải
+  lỗi trang. Commit `0b1986bf` đã thu hẹp matcher để chỉ bắt màn hình Access bị
+  chặn cụ thể và lỗi runtime; regression đạt `2/2`, full admin đạt `205/205`.
+- Owner recheck này chỉ là bằng chứng của một identity có quyền cao nhất; chưa
+  thay thế role matrix đủ năm identity, write/read-back mutation hoặc production
+  acceptance. Không có mutation nào được thực hiện trong lượt recheck.
+
 ## Bằng chứng hiện có
 
 - `npm run check` đã xanh toàn bộ test, lint, typecheck và build: admin `190/190`,
