@@ -21,7 +21,7 @@ export const ADMIN_PRODUCT_IMPORT_CHUNK_ROWS = Math.floor(
 export const MAX_ADMIN_PRODUCT_IMPORT_ROWS = 50;
 export const ADMIN_PRODUCT_IMPORT_BATCH_STATEMENTS = 1 + Math.ceil(
   MAX_ADMIN_PRODUCT_IMPORT_ROWS / ADMIN_PRODUCT_IMPORT_CHUNK_ROWS,
-) * 3;
+) * 4;
 export const MAX_ADMIN_PRODUCT_IMPORT_BYTES = 64 * 1024;
 
 export interface AdminProductImportBindCounts {

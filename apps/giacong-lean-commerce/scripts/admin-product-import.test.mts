@@ -25,6 +25,7 @@ import {
 } from "../src/lib/admin-product-import.ts";
 import {
   AdminProductImportIdempotencyConflictError,
+  AdminProductImportWriteError,
   adminProductImportAuditId,
   createAdminProductsAtomically,
   findAdminProductImportReplay,
@@ -66,9 +67,16 @@ class FakeStatement {
 class FakeBatchDatabase {
   readonly statements: FakeStatement[] = [];
   batchCalls = 0;
+  private readonly omitBatchResults: boolean;
+
+  constructor(omitBatchResults = false) {
+    this.omitBatchResults = omitBatchResults;
+  }
 
   prepare(query: string) {
-    const statement = new FakeStatement(query);
+    const statement = /SELECT\s+id,\s+slug\s+FROM\s+products/.test(query)
+      ? new ProductLookupStatement(query)
+      : new FakeStatement(query);
     this.statements.push(statement);
     return statement;
   }
@@ -76,6 +84,7 @@ class FakeBatchDatabase {
   async batch(statements: FakeStatement[]) {
     this.batchCalls += 1;
     assert.ok(statements.length <= ADMIN_PRODUCT_IMPORT_BATCH_STATEMENTS);
+    if (this.omitBatchResults) return statements.map(() => ({}));
     let nextProductId = 101;
     return statements.map((statement) => {
       if (/INSERT INTO products/.test(statement.query)) {
@@ -87,16 +96,26 @@ class FakeBatchDatabase {
           })),
         };
       }
-      if (/INSERT INTO product_admin_meta|product\.bulk_created/.test(statement.query)) {
+      if (/INSERT INTO product_admin_meta/.test(statement.query)) {
         const count = statement.values.length / (
-          /INSERT INTO product_admin_meta/.test(statement.query)
-            ? ADMIN_PRODUCT_IMPORT_META_BIND_COUNT
-            : ADMIN_PRODUCT_IMPORT_AUDIT_BIND_COUNT
+          ADMIN_PRODUCT_IMPORT_META_BIND_COUNT
         );
+        return { results: Array.from({ length: count }, () => ({ ok: 1 })) };
+      }
+      if (/INSERT INTO audit_logs/.test(statement.query)) {
+        const count = statement.values.length / ADMIN_PRODUCT_IMPORT_AUDIT_BIND_COUNT;
         return { results: Array.from({ length: count }, () => ({ ok: 1 })) };
       }
       return { results: [{ ok: 1 }] };
     });
+  }
+}
+
+class ProductLookupStatement extends FakeStatement {
+  override async all<T>() {
+    return {
+      results: this.values.map((slug, index) => ({ id: 201 + index, slug })) as T[],
+    };
   }
 }
 
@@ -130,8 +149,8 @@ class ReplayStatement extends FakeStatement {
     return (this.kind === "audit"
       ? {
         results: [
-          { id: adminProductImportAuditId(REQUEST_ID, 0), entity_id: "101" },
-          { id: adminProductImportAuditId(REQUEST_ID, 1), entity_id: "102" },
+          { id: adminProductImportAuditId(REQUEST_ID, 0), entity_id: "101", product_id: 101, meta_product_id: 101 },
+          { id: adminProductImportAuditId(REQUEST_ID, 1), entity_id: "102", product_id: 102, meta_product_id: 102 },
         ],
       }
       : { results: [] }) as { results: T[] };
@@ -162,10 +181,15 @@ class ReplayDatabase {
 }
 
 class SqliteD1PreparedStatement {
+  readonly query: string;
   private values: unknown[] = [];
   private readonly statement: ReturnType<DatabaseSync["prepare"]>;
 
-  constructor(statement: ReturnType<DatabaseSync["prepare"]>) {
+  constructor(
+    query: string,
+    statement: ReturnType<DatabaseSync["prepare"]>,
+  ) {
+    this.query = query;
     this.statement = statement;
   }
 
@@ -190,20 +214,31 @@ class SqliteD1PreparedStatement {
 
 class SqliteD1Database {
   readonly sqlite: DatabaseSync;
+  private readonly skipQuery?: RegExp;
 
-  constructor(sqlite: DatabaseSync) {
+  constructor(
+    sqlite: DatabaseSync,
+    skipQuery?: RegExp,
+  ) {
     this.sqlite = sqlite;
+    this.skipQuery = skipQuery;
   }
 
   prepare(query: string) {
-    return new SqliteD1PreparedStatement(this.sqlite.prepare(query));
+    return new SqliteD1PreparedStatement(query, this.sqlite.prepare(query));
   }
 
   async batch(statements: SqliteD1PreparedStatement[]) {
     this.sqlite.exec("BEGIN");
     try {
       const results = [];
-      for (const statement of statements) results.push(await statement.all());
+      for (const statement of statements) {
+        if (this.skipQuery?.test(statement.query)) {
+          results.push({ results: [] });
+        } else {
+          results.push(await statement.all());
+        }
+      }
       this.sqlite.exec("COMMIT");
       return results;
     } catch (error) {
@@ -248,7 +283,7 @@ test("bulk import row cap is derived from every D1 statement bind budget", () =>
   assert.equal(MAX_ADMIN_PRODUCT_IMPORT_BIND_VARIABLES, 100);
   assert.equal(ADMIN_PRODUCT_IMPORT_CHUNK_ROWS, 14);
   assert.equal(MAX_ADMIN_PRODUCT_IMPORT_ROWS, 50);
-  assert.equal(ADMIN_PRODUCT_IMPORT_BATCH_STATEMENTS, 13);
+  assert.equal(ADMIN_PRODUCT_IMPORT_BATCH_STATEMENTS, 17);
   assert.deepEqual(getAdminProductImportBindCounts(MAX_ADMIN_PRODUCT_IMPORT_ROWS), {
     audit: MAX_ADMIN_PRODUCT_IMPORT_ROWS * ADMIN_PRODUCT_IMPORT_AUDIT_BIND_COUNT,
     marker: ADMIN_PRODUCT_IMPORT_MARKER_BIND_COUNT,
@@ -412,8 +447,8 @@ test("bulk product create, meta and per-item audit use one D1 batch", async () =
   assert.deepEqual(result, [101, 102]);
   assert.equal(database.statements.filter((statement) => /INSERT INTO products/.test(statement.query)).length, 1);
   assert.equal(database.statements.filter((statement) => /INSERT INTO product_admin_meta/.test(statement.query)).length, 1);
-  assert.equal(database.statements.filter((statement) => /INSERT INTO admin_audit_log/.test(statement.query)).length, 1);
-  assert.equal(database.statements.filter((statement) => /product\.bulk_created/.test(statement.query)).length, 1);
+  assert.equal(database.statements.filter((statement) => /INSERT INTO admin_audit_log/.test(statement.query)).length, 2);
+  assert.equal(database.statements.filter((statement) => /INSERT INTO audit_logs/.test(statement.query)).length, 1);
   assert.match(database.statements.find((statement) => /INSERT INTO admin_audit_log/.test(statement.query))!.query, /NULL, 1, \?/);
   assert.ok(database.statements.every((statement) => statement.runCalls === 0));
 });
@@ -449,22 +484,22 @@ test("bulk writer covers zero, one and maximum row counts within the D1 bind cap
 
   assert.equal(productIds.length, MAX_ADMIN_PRODUCT_IMPORT_ROWS);
   assert.equal(maxDatabase.statements.length, ADMIN_PRODUCT_IMPORT_BATCH_STATEMENTS);
-  assert.deepEqual(maxDatabase.statements.map((statement) => statement.values.length), [
-    ADMIN_PRODUCT_IMPORT_MARKER_BIND_COUNT,
-    98,
-    56,
-    56,
-    98,
-    56,
-    56,
-    98,
-    56,
-    56,
-    56,
-    32,
-    32,
-  ]);
+  assert.equal(
+    maxDatabase.statements.filter((statement) => /product import postcondition/i.test(statement.query)).length,
+    4,
+  );
   assert.ok(maxDatabase.statements.every((statement) => statement.values.length <= MAX_ADMIN_PRODUCT_IMPORT_BIND_VARIABLES));
+});
+
+test("bulk import reads committed product IDs when D1 omits RETURNING rows", async () => {
+  const database = new FakeBatchDatabase(true);
+  const entries = prepareAdminProductImportRows(validRows, categories).entries;
+
+  assert.deepEqual(
+    await createAdminProductsAtomically(database, entries, "actor@example.com", REQUEST_ID, FINGERPRINT),
+    [201, 202],
+  );
+  assert.equal(database.statements.filter((statement) => /SELECT\s+id,\s+slug\s+FROM\s+products/.test(statement.query)).length, 1);
 });
 
 test("D1 batch is all-or-none when a later product violates a constraint", async () => {
@@ -492,6 +527,53 @@ test("D1 batch is all-or-none when a later product violates a constraint", async
     assert.equal(sqliteCount(database, "product_admin_meta"), 0);
     assert.equal(sqliteCount(database, "admin_audit_log"), 0);
     assert.equal(sqliteCount(database, "audit_logs"), 0);
+  } finally {
+    database.sqlite.close();
+  }
+});
+
+test("bulk import rolls back when product metadata is not written", async () => {
+  const database = createSqliteD1Database(/INSERT INTO product_admin_meta/);
+  try {
+    const entries = prepareAdminProductImportRows(validRows, categories).entries;
+
+    await assert.rejects(() => createAdminProductsAtomically(
+      database,
+      entries,
+      "actor@example.com",
+      REQUEST_ID,
+      FINGERPRINT,
+    ));
+    assert.equal(sqliteCount(database, "products"), 0);
+    assert.equal(sqliteCount(database, "product_admin_meta"), 0);
+    assert.equal(sqliteCount(database, "admin_audit_log"), 0);
+    assert.equal(sqliteCount(database, "audit_logs"), 0);
+  } finally {
+    database.sqlite.close();
+  }
+});
+
+test("import replay rejects when a committed product or metadata row is missing", async () => {
+  const database = createSqliteD1Database();
+  try {
+    const entries = prepareAdminProductImportRows(validRows, categories).entries;
+    const productIds = await createAdminProductsAtomically(
+      database,
+      entries,
+      "actor@example.com",
+      REQUEST_ID,
+      FINGERPRINT,
+    );
+    assert.deepEqual(
+      (await findAdminProductImportReplay(database, REQUEST_ID))?.productIds,
+      productIds,
+    );
+
+    database.sqlite.prepare("DELETE FROM product_admin_meta WHERE product_id = ?").run(productIds[0]);
+    await assert.rejects(
+      () => findAdminProductImportReplay(database, REQUEST_ID),
+      AdminProductImportWriteError,
+    );
   } finally {
     database.sqlite.close();
   }
@@ -558,7 +640,7 @@ test("bulk product route is protected, bounded, idempotent and atomic", async ()
   assert.ok(route.indexOf("fingerprintAdminProductImportRows") < route.indexOf("categories = await listAdminCategories"));
 });
 
-function createSqliteD1Database(): SqliteD1Database {
+function createSqliteD1Database(skipQuery?: RegExp): SqliteD1Database {
   const sqlite = new DatabaseSync(":memory:");
   sqlite.exec(`
     CREATE TABLE products (
@@ -602,7 +684,7 @@ function createSqliteD1Database(): SqliteD1Database {
       created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
     );
   `);
-  return new SqliteD1Database(sqlite);
+  return new SqliteD1Database(sqlite, skipQuery);
 }
 
 function sqliteCount(

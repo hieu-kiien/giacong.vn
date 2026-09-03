@@ -73,18 +73,29 @@ export async function findAdminProductImportReplay(
     (_, index) => adminProductImportAuditId(requestId, index),
   );
   const auditRows = await database.prepare(`
-    SELECT id, entity_id
-    FROM audit_logs
-    WHERE id IN (${auditIds.map(() => "?").join(", ")})
-      AND action = 'product.bulk_created'
-      AND entity_type = 'product'
-    ORDER BY id ASC
-  `).bind(...auditIds).all<{ id: string; entity_id: string }>();
+    SELECT audit.id, audit.entity_id, product.id AS product_id, meta.product_id AS meta_product_id
+    FROM audit_logs AS audit
+    LEFT JOIN products AS product ON product.id = CAST(audit.entity_id AS INTEGER)
+    LEFT JOIN product_admin_meta AS meta ON meta.product_id = product.id
+    WHERE audit.id IN (${auditIds.map(() => "?").join(", ")})
+      AND audit.action = 'product.bulk_created'
+      AND audit.entity_type = 'product'
+    ORDER BY audit.id ASC
+  `).bind(...auditIds).all<{
+    id: string;
+    entity_id: string;
+    product_id: number | null;
+    meta_product_id: number | null;
+  }>();
   const indexedRows = auditRows.results.map((row) => ({
     index: parseProductImportAuditIndex(row.id, requestId),
-    productId: parseProductId(row.entity_id),
+    productId: parseReplayProductId(row),
   })).sort((left, right) => left.index - right.index);
-  if (indexedRows.length === 0 || indexedRows.some((row, index) => row.index !== index)) {
+  if (
+    indexedRows.length === 0
+    || indexedRows.some((row, index) => row.index !== index)
+    || new Set(indexedRows.map((row) => row.productId)).size !== indexedRows.length
+  ) {
     throw new AdminProductImportWriteError("Không đọc được kết quả lần nhập đã ghi nhận.");
   }
   return { payloadSha256: marker.payload_sha256, productIds: indexedRows.map((row) => row.productId) };
@@ -123,22 +134,18 @@ export async function createAdminProductsAtomically(
       payloadSha256,
       chunkIndex * ADMIN_PRODUCT_IMPORT_CHUNK_ROWS,
     ));
+    statements.push(buildProductImportPostcondition(
+      database,
+      actorSubject,
+      requestId,
+      payloadSha256,
+      chunk,
+      chunkIndex * ADMIN_PRODUCT_IMPORT_CHUNK_ROWS,
+    ));
   }
   const results = await batchDatabase.batch(statements);
-  assertSingleResult(results[0]?.results, "request ID");
-  const returnedRows: Array<{ id: number; slug: string }> = [];
-  let resultIndex = 1;
-  for (const chunk of chunks) {
-    const chunkRows = readProductRows(results[resultIndex]?.results);
-    if (chunkRows.length !== chunk.length) throw new AdminProductImportWriteError("Không ghi đủ sản phẩm vừa nhập.");
-    returnedRows.push(...chunkRows);
-    assertResultCount(results[resultIndex + 1]?.results, chunk.length, "metadata sản phẩm");
-    assertResultCount(results[resultIndex + 2]?.results, chunk.length, "audit sản phẩm");
-    resultIndex += 3;
-  }
-  if (results.length !== resultIndex || returnedRows.length !== entries.length) {
-    throw new AdminProductImportWriteError("Không ghi đủ sản phẩm vừa nhập.");
-  }
+  const returnedRows = readReturnedProductRows(results, chunks)
+    ?? await readCommittedProductRows(database, entries);
   const idsBySlug = new Map(returnedRows.map((row) => [row.slug, row.id]));
   const productIds = entries.map(({ input }) => idsBySlug.get(input.slug));
   if (productIds.some((id) => id === undefined)) {
@@ -231,6 +238,68 @@ function buildProductAuditInsert(
   `).bind(...values);
 }
 
+function buildProductImportPostcondition(
+  database: D1DatabaseLike,
+  actorSubject: string,
+  requestId: string,
+  payloadSha256: string,
+  entries: readonly AdminProductImportEntry[],
+  indexOffset: number,
+): D1PreparedStatementLike {
+  const expectedRows = entries.map(() => "SELECT ? AS slug, ? AS lead_time_days").join(" UNION ALL ");
+  const auditPlaceholders = entries.map(() => "?").join(", ");
+  const values = [
+    requestId,
+    `${ADMIN_PRODUCT_IMPORT_AUDIT_NAMESPACE}:${requestId}`,
+    payloadSha256,
+    ...entries.flatMap(({ input }) => [input.slug, input.leadTimeDays]),
+    actorSubject,
+    ...entries.map((_, index) => adminProductImportAuditId(requestId, indexOffset + index)),
+    entries.length,
+  ];
+
+  return database.prepare(`
+    /* product import postcondition */
+    INSERT INTO admin_audit_log (
+      request_id, actor_subject, action, entity_type, entity_key,
+      previous_revision, resulting_revision, payload_sha256
+    )
+    SELECT NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL
+    WHERE NOT (
+      EXISTS (
+        SELECT 1
+        FROM admin_audit_log
+        WHERE request_id = ?
+          AND action = 'create'
+          AND entity_type = 'product'
+          AND entity_key = ?
+          AND resulting_revision = 1
+          AND payload_sha256 = ?
+      )
+      AND NOT EXISTS (
+        WITH expected(slug, lead_time_days) AS (${expectedRows})
+        SELECT 1
+        FROM expected
+        LEFT JOIN products AS product ON product.slug = expected.slug
+        LEFT JOIN product_admin_meta AS meta ON meta.product_id = product.id
+        WHERE product.id IS NULL
+           OR product.is_active <> 0
+           OR meta.product_id IS NULL
+           OR meta.status <> 'draft'
+           OR meta.lead_time_days IS NOT expected.lead_time_days
+           OR meta.updated_by IS NOT ?
+      )
+      AND (
+        SELECT COUNT(*)
+        FROM audit_logs
+        WHERE id IN (${auditPlaceholders})
+          AND action = 'product.bulk_created'
+          AND entity_type = 'product'
+      ) = ?
+    )
+  `).bind(...values);
+}
+
 function productValues(input: AdminProductInput): unknown[] {
   return [
     input.name,
@@ -257,12 +326,60 @@ function readProductRows(rows: unknown[] | undefined): Array<{ id: number; slug:
   });
 }
 
+function readReturnedProductRows(
+  results: D1BatchResultLike[] | undefined,
+  chunks: readonly (readonly AdminProductImportEntry[])[],
+): Array<{ id: number; slug: string }> | null {
+  if (!Array.isArray(results) || results.length !== 1 + chunks.length * 4) return null;
+  const returnedRows: Array<{ id: number; slug: string }> = [];
+  let resultIndex = 1;
+  for (const chunk of chunks) {
+    const chunkRows = readProductRows(results[resultIndex]?.results);
+    if (chunkRows.length !== chunk.length) return null;
+    returnedRows.push(...chunkRows);
+    resultIndex += 4;
+  }
+  return returnedRows.length === chunks.reduce((total, chunk) => total + chunk.length, 0)
+    ? returnedRows
+    : null;
+}
+
+async function readCommittedProductRows(
+  database: D1DatabaseLike,
+  entries: readonly AdminProductImportEntry[],
+): Promise<Array<{ id: number; slug: string }>> {
+  const slugs = entries.map(({ input }) => input.slug);
+  const result = await database.prepare(`
+    SELECT id, slug
+    FROM products
+    WHERE slug IN (${slugs.map(() => "?").join(", ")})
+    ORDER BY slug ASC
+  `).bind(...slugs).all<{ id: number; slug: string }>();
+  const rows = readProductRows(result.results);
+  if (rows.length !== entries.length) {
+    throw new AdminProductImportWriteError("Không đối chiếu được sản phẩm vừa nhập sau khi commit.");
+  }
+  return rows;
+}
+
 function parseProductId(value: string): number {
   const id = Number(value);
   if (!Number.isInteger(id) || id < 1) {
     throw new AdminProductImportWriteError("Audit sản phẩm chứa ID không hợp lệ.");
   }
   return id;
+}
+
+function parseReplayProductId(row: {
+  entity_id: string;
+  product_id?: number | null;
+  meta_product_id?: number | null;
+}): number {
+  const productId = parseProductId(row.entity_id);
+  if (row.product_id !== productId || row.meta_product_id !== productId) {
+    throw new AdminProductImportWriteError("Kết quả lần nhập không còn đủ dữ liệu sản phẩm.");
+  }
+  return productId;
 }
 
 function parseProductImportAuditIndex(value: string, requestId: string): number {
@@ -299,18 +416,6 @@ function chunkEntries<T>(entries: readonly T[]): T[][] {
     chunks.push(entries.slice(offset, offset + ADMIN_PRODUCT_IMPORT_CHUNK_ROWS));
   }
   return chunks;
-}
-
-function assertSingleResult(rows: unknown[] | undefined, label: string): void {
-  if (!Array.isArray(rows) || rows.length !== 1) {
-    throw new AdminProductImportWriteError(`Không ghi được ${label}.`);
-  }
-}
-
-function assertResultCount(rows: unknown[] | undefined, expected: number, label: string): void {
-  if (!Array.isArray(rows) || rows.length !== expected) {
-    throw new AdminProductImportWriteError(`Không ghi đủ ${label}.`);
-  }
 }
 
 function requireBatch(database: D1DatabaseLike): D1BatchDatabaseLike {
