@@ -14,6 +14,10 @@ import {
   applyNavigationToMarkup,
   type PublishedNavigationItem,
 } from "../src/lib/site-navigation.ts";
+import {
+  PageBuilderValidationError,
+  parsePageBlocks,
+} from "../src/lib/page-builder.ts";
 
 test("custom published footer navigation is rendered into the captured footer", () => {
   const markup = '<footer><section class="section footer-section"><div class="section-content relative"><div class="row"><div class="col"><div class="col-inner">Captured footer</div></div></div></div></section></footer>';
@@ -207,6 +211,16 @@ test("page draft and publish are separate optimistic operations", async () => {
   assert.equal(published.dirty, false);
   assert.equal(published.publishedEnabled, true);
   assert.equal(published.publishedSeoTitle, "Trang chủ mới");
+});
+
+test("prototype-shaped page block types fail with a validation error", () => {
+  for (const type of ["constructor", "__proto__"]) {
+    assert.throws(
+      () => parsePageBlocks([{ type }]),
+      PageBuilderValidationError,
+      `type=${type}`,
+    );
+  }
 });
 
 test("page updates reject stale versions and unsafe block payloads", async () => {

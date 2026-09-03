@@ -22,14 +22,14 @@ export class PageBuilderValidationError extends Error {
   }
 }
 
-const allowedBlockKeys: Readonly<Record<string, readonly string[]>> = {
-  cta: ["type", "title", "body", "label", "href"],
-  contact: ["type", "title", "body"],
-  feature_grid: ["type", "title", "items"],
-  hero: ["type", "eyebrow", "title", "description", "imageUrl", "primaryCta", "secondaryCta"],
-  image: ["type", "imageUrl", "alt", "caption"],
-  rich_text: ["type", "title", "body"],
-};
+const allowedBlockKeys: ReadonlyMap<string, readonly string[]> = new Map([
+  ["cta", ["type", "title", "body", "label", "href"]],
+  ["contact", ["type", "title", "body"]],
+  ["feature_grid", ["type", "title", "items"]],
+  ["hero", ["type", "eyebrow", "title", "description", "imageUrl", "primaryCta", "secondaryCta"]],
+  ["image", ["type", "imageUrl", "alt", "caption"]],
+  ["rich_text", ["type", "title", "body"]],
+]);
 
 export function parsePageBlocks(value: unknown): PageBlock[] {
   if (!Array.isArray(value)) throw new PageBuilderValidationError("Page phải là một danh sách section.");
@@ -59,7 +59,7 @@ function parseBlock(value: unknown, index: number): PageBlock {
   const path = `Section ${index + 1}`;
   const record = asRecord(value, path);
   const type = readRequiredText(record.type, `${path}.type`, 40);
-  assertAllowedKeys(record, allowedBlockKeys[type] ?? ["type"], path);
+  assertAllowedKeys(record, allowedBlockKeys.get(type) ?? ["type"], path);
   switch (type) {
     case "hero":
       return {
