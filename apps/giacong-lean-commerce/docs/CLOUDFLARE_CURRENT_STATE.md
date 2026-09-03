@@ -103,9 +103,12 @@ Hồ sơ này ghi bằng chứng runtime đã xác minh trong quá trình chuy�
   propagation; reload read-only đã hồi phục về trang admin đầy đủ. Đây không
   được coi là pass im lặng: route đã được đọc lại sau khi hồi phục và console
   error/warning là rỗng.
-- Owner staging đọc lại `/admin/noi-dung` thấy card `Chỉnh sửa tại nơi hiển
-  thị` và link `Mở storefront thật`; `/admin/thiet-ke` thấy link `Mở page thật`
-  theo route `/`. Page builder không còn khung `PageBlocks` mô phỏng.
+- Owner staging đã chạy lại đủ 10 route admin canonical (`/admin`, nội dung,
+  thiết kế, sản phẩm, dịch vụ, tin tức, điều hướng, yêu cầu, thành viên và
+  audit), đối chiếu đúng heading `h1` đạt `10/10`; riêng trang thành viên đọc
+  đúng `Tài khoản quản trị & quyền`. `/admin/noi-dung` có card `Chỉnh sửa tại
+  nơi hiển thị`, `/admin/thiet-ke` có link `Mở page thật` theo route `/`, và
+  Page builder không còn khung `PageBlocks` mô phỏng.
 - Storefront `https://staging.kienhieu.id.vn/` đọc đúng heading/CTA public,
   không có admin control hoặc direct-edit marker; console error/warning là
   rỗng. Đây là browser read-only smoke, chưa submit mutation/publish.

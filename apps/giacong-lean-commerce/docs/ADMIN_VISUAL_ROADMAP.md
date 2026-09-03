@@ -102,8 +102,8 @@ production acceptance.
 
 **Staging deploy smoke sau handoff — 2026-09-03:** Commit `655ff4f1` đã deploy
 qua `npm run cf:deploy:staging`; version `430d41b1-a61c-46d1-ac9f-89eb8df74feb`
-đang ở 100%. Owner đọc lại `/admin/audit`, `/admin/noi-dung` và
-`/admin/thiet-ke`; storefront `/` cũng render đúng. Một 502 thoáng qua ngay sau
+đang ở 100%. Owner chạy lại đủ 10 route admin canonical và đối chiếu đúng `h1`
+đạt `10/10`; storefront `/` cũng render đúng. Một 502 thoáng qua ngay sau
 deploy đã hồi phục sau reload, không có console error/warning ở các route đọc lại.
 Đây chỉ là browser read-only smoke, không đóng role matrix, write/read-back hay
 production gate.

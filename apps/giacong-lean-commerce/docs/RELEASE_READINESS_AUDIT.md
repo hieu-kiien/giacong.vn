@@ -60,9 +60,9 @@ Bản staging hiện **đủ điều kiện để tiếp tục nghiệm thu kỹ
 - Commit `655ff4f1` đã deploy qua `npm run cf:deploy:staging`; version staging
   mới là `430d41b1-a61c-46d1-ac9f-89eb8df74feb` ở 100%.
 - Một 502 thoáng qua xuất hiện ngay sau deploy tại `/admin/audit`; reload đã
-  khôi phục thành công. Owner sau đó đọc lại audit, Nội dung và Thiết kế page;
-  hai nút handoff `Mở storefront thật`/`Mở page thật` hiện đúng, không có lỗi
-  console.
+  khôi phục thành công. Owner sau đó chạy lại đủ 10 route admin canonical,
+  đối chiếu đúng `h1` đạt `10/10`; hai nút handoff `Mở storefront thật`/`Mở page
+  thật` hiện đúng, không có lỗi console.
 - Storefront `/` đọc đúng heading/CTA public, không render admin control và
   console error/warning rỗng. Smoke này chỉ navigation/read-only, chưa submit
   form, publish, D1/R2 mutation hay thay đổi production.
