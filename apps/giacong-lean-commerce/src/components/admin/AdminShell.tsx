@@ -147,6 +147,7 @@ export function AdminShell({ children }: AdminShellProps) {
                       href={href}
                       key={href}
                       onClick={() => setMobileOpen(false)}
+                      prefetch={false}
                     >
                       <Icon aria-hidden="true" />
                       <span>{label}</span>

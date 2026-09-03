@@ -98,6 +98,14 @@ test("the shell groups routes in plain-language control-plane sections", async (
   assert.match(shell, /Lịch sử thay đổi/);
 });
 
+test("protected sidebar links do not prefetch every admin route on first paint", async () => {
+  const shell = await readSource("components", "admin", "AdminShell.tsx");
+  const navLink = shell.match(/className="admin-nav-link"[\s\S]*?\n\s+>/)?.[0];
+
+  assert.ok(navLink, "the protected sidebar link opening tag should remain explicit");
+  assert.match(navLink, /prefetch=\{false\}/);
+});
+
 test("blocked admin sessions offer a direct Cloudflare Access login handoff", async () => {
   const shell = await readSource("components", "admin", "AdminShell.tsx");
 
