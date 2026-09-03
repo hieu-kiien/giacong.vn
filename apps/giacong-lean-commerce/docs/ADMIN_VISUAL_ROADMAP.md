@@ -10,7 +10,7 @@ Tài liệu này là nguồn bám theo cho việc biến admin hiện tại thà
 hiển thị, nhưng vẫn giữ trung tâm vận hành đầy đủ cho nghiệp vụ phức tạp và xử
 lý hàng loạt.
 
-**Checkpoint authoritative — 2026-09-03:** `master` đang ở commit `b0b34846`;
+**Checkpoint authoritative — 2026-09-03:** `master` đang ở commit `ada05378`;
 footer managed renderer đã được deploy lên staging version
 `e50223de-208f-45d8-bd4f-27ecc32b37ea` ở 100%, rollback point gần nhất là
 `430d41b1-a61c-46d1-ac9f-89eb8df74feb`. Deep QA read-only mới nhất trên
