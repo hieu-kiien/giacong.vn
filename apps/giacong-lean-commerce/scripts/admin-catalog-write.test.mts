@@ -5,6 +5,7 @@ import test from "node:test";
 import {
   AdminCatalogWriteConflictError,
   AdminCatalogWriteIdempotencyConflictError,
+  AdminCatalogWriteStorageError,
   archiveAdminProductAtomically,
   createAdminProductAtomically,
   createAdminProductVariantAtomically,
@@ -130,10 +131,14 @@ class FakeCatalogDatabase implements D1DatabaseLike {
   readonly mutations = new Map<string, MutationState>();
   batchCalls = 0;
   failTierInsert = false;
+  returnEmptyMetaResult = false;
+  returnEmptyMutationResult = false;
   private nextProductId = 1;
   private nextVariantId = 1;
   private nextTierId = 1;
   private lastChanges = 0;
+  private pendingRequestId: string | null = null;
+  private productWriteSucceeded = false;
 
   prepare(query: string): FakeCatalogStatement {
     return new FakeCatalogStatement(this, query);
@@ -142,12 +147,16 @@ class FakeCatalogDatabase implements D1DatabaseLike {
   async batch(statements: FakeCatalogStatement[]): Promise<unknown[]> {
     this.batchCalls += 1;
     const snapshot = this.snapshot();
+    this.pendingRequestId = null;
+    this.productWriteSucceeded = false;
     try {
       const results: unknown[] = [];
       for (const statement of statements) results.push(await statement.run());
       return results;
     } catch (error) {
       this.restore(snapshot);
+      this.pendingRequestId = null;
+      this.productWriteSucceeded = false;
       throw error;
     }
   }
@@ -156,6 +165,12 @@ class FakeCatalogDatabase implements D1DatabaseLike {
     if (query.includes("sqlite_master")) {
       const table = String(values[0]);
       return (["admin_audit_log", "product_admin_meta"].includes(table) ? { name: table } : null) as T | null;
+    }
+    if (query.includes("catalog-product-postcondition-read")) {
+      const requestId = String(values[0]);
+      const mutation = this.mutations.get(requestId);
+      const product = mutation ? this.products.get(Number(mutation.entity_key)) : null;
+      return { complete: mutation && product && product.meta_updated_at !== null ? 1 : 0 } as T;
     }
     if (query.includes("FROM admin_audit_log")) return (this.mutations.get(String(values[0])) ?? null) as T | null;
     if (query.includes("FROM product_variants") && query.includes("SELECT product_id")) {
@@ -201,6 +216,7 @@ class FakeCatalogDatabase implements D1DatabaseLike {
         status: "draft",
       });
       this.lastChanges = 1;
+      this.productWriteSucceeded = true;
       return { meta: { changes: 1 }, results: [{ id, revision: 1 }] };
     }
     if (query.includes("INSERT INTO product_variants")) {
@@ -230,8 +246,13 @@ class FakeCatalogDatabase implements D1DatabaseLike {
     }
     if (query.includes("UPDATE products")) return this.updateProduct(query, values);
     if (query.includes("UPDATE product_variants")) return this.updateVariant(query, values);
+    if (query.includes("catalog-product-postcondition-assert")) return this.executeProductPostconditionAssertion();
     if (query.includes("INSERT INTO admin_audit_log")) return this.insertMutation(query, values);
     if (query.includes("INSERT INTO product_admin_meta")) {
+      if (this.returnEmptyMetaResult) {
+        this.lastChanges = 0;
+        return { meta: { changes: 0 }, results: [] };
+      }
       const archive = query.includes("'archived'");
       const requestId = String(archive ? values[2] : values.at(-1));
       const productId = archive
@@ -295,6 +316,7 @@ class FakeCatalogDatabase implements D1DatabaseLike {
     }
     row.revision += 1;
     this.lastChanges = 1;
+    this.productWriteSucceeded = true;
     return { meta: { changes: 1 }, results: [{ id, revision: row.revision }] };
   }
 
@@ -335,6 +357,7 @@ class FakeCatalogDatabase implements D1DatabaseLike {
     const action = query.includes("'create'") ? "create" : query.includes("'delete'") ? "delete" : "update";
     const isProduct = query.includes("FROM products");
     const requestId = String(values[0]);
+    this.pendingRequestId = requestId;
     if (this.mutations.has(requestId)) throw new Error("UNIQUE constraint failed: admin_audit_log.request_id");
     const entityKey = isProduct
       ? (action === "create" ? String(this.findProductBySlug(String(values[3]))?.id ?? "") : String(this.products.get(Number(values[4]))?.id ?? ""))
@@ -344,7 +367,17 @@ class FakeCatalogDatabase implements D1DatabaseLike {
     const mutation = { action, entity_key: entityKey, entity_type: isProduct ? "product" : "variant", payload_sha256: hash, request_id: requestId };
     this.mutations.set(requestId, mutation);
     this.lastChanges = 1;
+    if (this.returnEmptyMutationResult) return { meta: { changes: 1 }, results: [] };
     return { meta: { changes: 1 }, results: [{ request_id: requestId }] };
+  }
+
+  private executeProductPostconditionAssertion(): { meta: { changes: number }; results: unknown[] } {
+    const mutation = this.pendingRequestId ? this.mutations.get(this.pendingRequestId) : null;
+    const product = mutation ? this.products.get(Number(mutation.entity_key)) : null;
+    if (this.productWriteSucceeded && (!mutation || !product || product.meta_updated_at === null)) {
+      throw new Error("catalog product write postcondition failed");
+    }
+    return { meta: { changes: 0 }, results: [] };
   }
 
   private findProductBySlug(slug: string): ProductState | undefined {
@@ -427,6 +460,30 @@ test("product create/update/archive use one atomic batch, revision guards and id
   const archived = await archiveAdminProductAtomically(database, created.id, 2, actor, "55555555-5555-4555-8555-555555555555");
   assert.equal(archived?.isActive, false);
   assert.equal(archived?.revision, 3);
+});
+
+test("a complete product batch remains successful when D1 omits returned rows", async () => {
+  const database = new FakeCatalogDatabase();
+  database.returnEmptyMutationResult = true;
+
+  const created = await createAdminProductAtomically(database, productFields, actor, productRequest);
+
+  assert.equal(created.revision, 1);
+  assert.equal(database.products.size, 1);
+  assert.equal(database.mutations.size, 1);
+});
+
+test("an incomplete product batch is not accepted as an idempotent replay", async () => {
+  const database = new FakeCatalogDatabase();
+  database.returnEmptyMetaResult = true;
+
+  await assert.rejects(
+    () => createAdminProductAtomically(database, productFields, actor, productRequest),
+    AdminCatalogWriteStorageError,
+  );
+
+  assert.equal(database.products.size, 0);
+  assert.equal(database.mutations.size, 0);
 });
 
 test("variant tier replacement is in the same batch and rolls back on a tier failure", async () => {

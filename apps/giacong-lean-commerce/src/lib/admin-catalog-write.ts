@@ -27,6 +27,16 @@ interface BatchResult {
   results?: unknown[];
 }
 
+interface ProductMutationPostcondition {
+  action: CatalogMutationRow["action"];
+  entityId?: number;
+  expectedRevision?: number;
+  hasMeta: boolean;
+  input?: AdminProductInput;
+  payloadSha256: string;
+  requestId: string;
+}
+
 interface DatabaseWithBatch extends D1DatabaseLike {
   batch(statements: D1PreparedStatementLike[]): Promise<BatchResult[]>;
 }
@@ -42,14 +52,15 @@ export async function createAdminProductAtomically(
   const normalizedRequestId = normalizeRequestId(requestId);
   const payloadSha256 = await fingerprint({ entityType: "product", input, operation: "create" });
   await requireAuditTable(database);
+  const hasMeta = await tableExists(database, "product_admin_meta");
+  const postcondition = createProductMutationPostcondition(normalizedRequestId, "create", payloadSha256, input, undefined, hasMeta);
   const existingMutation = await findMutation(database, normalizedRequestId);
   if (existingMutation) {
     assertMatchingMutation(existingMutation, normalizedRequestId, "create", "product", payloadSha256);
-    return readProductMutation(database, existingMutation);
+    return ensureProductMutationComplete(database, existingMutation, postcondition);
   }
 
   const databaseWithBatch = requireBatch(database);
-  const hasMeta = await tableExists(database, "product_admin_meta");
   const insert = database.prepare(`
     INSERT INTO products (
       name, slug, sku, short_description, description, image_url, category_id, is_active
@@ -78,6 +89,7 @@ export async function createAdminProductAtomically(
   `).bind(normalizedRequestId, actorSubject, payloadSha256, input.slug);
   const statements: D1PreparedStatementLike[] = [insert, audit];
   if (hasMeta) statements.push(buildProductMetaWrite(database, input, actorSubject, normalizedRequestId));
+  statements.push(buildProductPostconditionAssertion(database, postcondition));
 
   try {
     const results = await databaseWithBatch.batch(statements);
@@ -88,14 +100,14 @@ export async function createAdminProductAtomically(
     const racedMutation = await findMutation(database, normalizedRequestId);
     if (racedMutation) {
       assertMatchingMutation(racedMutation, normalizedRequestId, "create", "product", payloadSha256);
-      return readProductMutation(database, racedMutation);
+      return ensureProductMutationComplete(database, racedMutation, postcondition);
     }
-    throw error;
+    throw normalizeCatalogBatchError(error);
   }
 
   const mutation = await findMutation(database, normalizedRequestId);
   if (!mutation) throw new AdminCatalogWriteStorageError("Không đọc lại được audit sản phẩm vừa tạo.");
-  return readProductMutation(database, mutation);
+  return ensureProductMutationComplete(database, mutation, postcondition);
 }
 
 export async function updateAdminProductAtomically(
@@ -109,10 +121,12 @@ export async function updateAdminProductAtomically(
   const normalizedRequestId = normalizeRequestId(requestId);
   const payloadSha256 = await fingerprint({ entityType: "product", expectedRevision, id, input, operation: "update" });
   await requireAuditTable(database);
+  const hasMeta = await tableExists(database, "product_admin_meta");
+  const postcondition = createProductMutationPostcondition(normalizedRequestId, "update", payloadSha256, input, id, hasMeta, expectedRevision);
   const existingMutation = await findMutation(database, normalizedRequestId);
   if (existingMutation) {
     assertMatchingMutation(existingMutation, normalizedRequestId, "update", "product", payloadSha256);
-    return readProductMutation(database, existingMutation);
+    return ensureProductMutationComplete(database, existingMutation, postcondition);
   }
 
   const existing = await getAdminProduct(database, id);
@@ -120,7 +134,6 @@ export async function updateAdminProductAtomically(
   assertExpectedRevision(existing.revision, expectedRevision, "Sản phẩm đã thay đổi. Hãy tải lại trước khi lưu.");
 
   const databaseWithBatch = requireBatch(database);
-  const hasMeta = await tableExists(database, "product_admin_meta");
   const update = database.prepare(`
     UPDATE products
     SET name = ?, slug = ?, sku = ?, short_description = ?, description = ?,
@@ -143,21 +156,24 @@ export async function updateAdminProductAtomically(
   const audit = buildProductAudit(database, normalizedRequestId, actorSubject, "update", id, expectedRevision, payloadSha256);
   const statements: D1PreparedStatementLike[] = [update, audit];
   if (hasMeta) statements.push(buildProductMetaWrite(database, input, actorSubject, normalizedRequestId, id));
+  statements.push(buildProductPostconditionAssertion(database, postcondition));
 
   try {
     const results = await databaseWithBatch.batch(statements);
-    if (!hasRows(results[0])) return resolveProductConflict(database, normalizedRequestId, payloadSha256);
+    if (!hasRows(results[0])) return resolveProductConflict(database, normalizedRequestId, payloadSha256, postcondition);
     assertChanged(results[1], "Không ghi được audit sản phẩm.");
     if (hasMeta) assertChanged(results[2], "Không đồng bộ được trạng thái sản phẩm.");
   } catch (error) {
     const racedMutation = await findMutation(database, normalizedRequestId);
     if (racedMutation) {
       assertMatchingMutation(racedMutation, normalizedRequestId, "update", "product", payloadSha256);
-      return readProductMutation(database, racedMutation);
+      return ensureProductMutationComplete(database, racedMutation, postcondition);
     }
-    throw error;
+    throw normalizeCatalogBatchError(error);
   }
-  return getAdminProduct(database, id);
+  const mutation = await findMutation(database, normalizedRequestId);
+  if (!mutation) throw new AdminCatalogWriteStorageError("Không đọc lại được audit sản phẩm vừa cập nhật.");
+  return ensureProductMutationComplete(database, mutation, postcondition);
 }
 
 export async function archiveAdminProductAtomically(
@@ -170,10 +186,12 @@ export async function archiveAdminProductAtomically(
   const normalizedRequestId = normalizeRequestId(requestId);
   const payloadSha256 = await fingerprint({ entityType: "product", expectedRevision, id, operation: "archive" });
   await requireAuditTable(database);
+  const hasMeta = await tableExists(database, "product_admin_meta");
+  const postcondition = createProductMutationPostcondition(normalizedRequestId, "delete", payloadSha256, undefined, id, hasMeta, expectedRevision);
   const existingMutation = await findMutation(database, normalizedRequestId);
   if (existingMutation) {
     assertMatchingMutation(existingMutation, normalizedRequestId, "delete", "product", payloadSha256);
-    return readProductMutation(database, existingMutation);
+    return ensureProductMutationComplete(database, existingMutation, postcondition);
   }
 
   const existing = await getAdminProduct(database, id);
@@ -181,7 +199,6 @@ export async function archiveAdminProductAtomically(
   assertExpectedRevision(existing.revision, expectedRevision, "Sản phẩm đã thay đổi. Hãy tải lại trước khi ẩn.");
 
   const databaseWithBatch = requireBatch(database);
-  const hasMeta = await tableExists(database, "product_admin_meta");
   const update = database.prepare(`
     UPDATE products
     SET is_active = 0, revision = revision + 1, updated_at = CURRENT_TIMESTAMP
@@ -191,21 +208,24 @@ export async function archiveAdminProductAtomically(
   const audit = buildProductAudit(database, normalizedRequestId, actorSubject, "delete", id, expectedRevision, payloadSha256);
   const statements: D1PreparedStatementLike[] = [update, audit];
   if (hasMeta) statements.push(buildProductArchiveMeta(database, id, actorSubject, normalizedRequestId));
+  statements.push(buildProductPostconditionAssertion(database, postcondition));
 
   try {
     const results = await databaseWithBatch.batch(statements);
-    if (!hasRows(results[0])) return resolveProductConflict(database, normalizedRequestId, payloadSha256);
+    if (!hasRows(results[0])) return resolveProductConflict(database, normalizedRequestId, payloadSha256, postcondition);
     assertChanged(results[1], "Không ghi được audit ẩn sản phẩm.");
     if (hasMeta) assertChanged(results[2], "Không đồng bộ được trạng thái sản phẩm.");
   } catch (error) {
     const racedMutation = await findMutation(database, normalizedRequestId);
     if (racedMutation) {
       assertMatchingMutation(racedMutation, normalizedRequestId, "delete", "product", payloadSha256);
-      return readProductMutation(database, racedMutation);
+      return ensureProductMutationComplete(database, racedMutation, postcondition);
     }
-    throw error;
+    throw normalizeCatalogBatchError(error);
   }
-  return getAdminProduct(database, id);
+  const mutation = await findMutation(database, normalizedRequestId);
+  if (!mutation) throw new AdminCatalogWriteStorageError("Không đọc lại được audit sản phẩm vừa ẩn.");
+  return ensureProductMutationComplete(database, mutation, postcondition);
 }
 
 export async function createAdminProductVariantAtomically(
@@ -409,11 +429,268 @@ async function readVariantById(database: D1DatabaseLike, variantId: number): Pro
   return row ? getAdminProductVariant(database, row.product_id, variantId) : null;
 }
 
-async function resolveProductConflict(database: D1DatabaseLike, requestId: string, payloadSha256: string): Promise<AdminProduct> {
+function createProductMutationPostcondition(
+  requestId: string,
+  action: CatalogMutationRow["action"],
+  payloadSha256: string,
+  input: AdminProductInput | undefined,
+  entityId: number | undefined,
+  hasMeta: boolean,
+  expectedRevision?: number,
+): ProductMutationPostcondition {
+  return { action, entityId, expectedRevision, hasMeta, input, payloadSha256, requestId };
+}
+
+function buildProductPostconditionAssertion(
+  database: D1DatabaseLike,
+  postcondition: ProductMutationPostcondition,
+): D1PreparedStatementLike {
+  const commit = buildProductMutationCommitExpression(postcondition);
+  const started = buildProductMutationStartedExpression(postcondition);
+  return database.prepare(`
+    /* catalog-product-postcondition-assert */
+    INSERT INTO admin_audit_log (
+      request_id, actor_subject, action, entity_type, entity_key,
+      previous_revision, resulting_revision, payload_sha256
+    )
+    SELECT NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL
+    WHERE (${started.expression}
+      OR EXISTS (
+        SELECT 1
+        FROM admin_audit_log
+        WHERE request_id = ?
+      ))
+      AND NOT (${commit.expression})
+  `).bind(...started.values, postcondition.requestId, ...commit.values);
+}
+
+async function ensureProductMutationComplete(
+  database: D1DatabaseLike,
+  mutation: CatalogMutationRow,
+  postcondition: ProductMutationPostcondition,
+): Promise<AdminProduct> {
+  const replay = buildProductMutationReplayExpression(postcondition);
+  const row = await database.prepare(`
+    /* catalog-product-postcondition-read */
+    SELECT CASE WHEN (${replay.expression}) THEN 1 ELSE 0 END AS complete
+  `).bind(...replay.values).first<{ complete?: unknown }>();
+  if (Number(row?.complete) !== 1) {
+    throw new AdminCatalogWriteStorageError(
+      "Không thể xác nhận đầy đủ trạng thái sản phẩm và audit; thao tác bị khóa để tránh báo thành công sai.",
+    );
+  }
+  return readProductMutation(database, mutation);
+}
+
+function buildProductMutationReplayExpression(
+  postcondition: ProductMutationPostcondition,
+): { expression: string; values: unknown[] } {
+  const revision = postcondition.expectedRevision === undefined
+    ? { sql: "marker.previous_revision IS NULL AND marker.resulting_revision = 1", values: [] }
+    : {
+        sql: "marker.previous_revision = ? AND marker.resulting_revision = ?",
+        values: [postcondition.expectedRevision, postcondition.expectedRevision + 1],
+      };
+  const entity = postcondition.entityId === undefined
+    ? { sql: "", values: [] }
+    : { sql: "AND product_row.id = ?", values: [postcondition.entityId] };
+  const parts = [`EXISTS (
+    SELECT 1
+    FROM admin_audit_log marker
+    JOIN products product_row ON product_row.id = CAST(marker.entity_key AS INTEGER)
+    WHERE marker.request_id = ?
+      AND marker.action = ?
+      AND marker.entity_type = 'product'
+      AND marker.payload_sha256 = ?
+      ${entity.sql}
+      AND ${revision.sql}
+  )`];
+  const values: unknown[] = [
+    postcondition.requestId,
+    postcondition.action,
+    postcondition.payloadSha256,
+    ...entity.values,
+    ...revision.values,
+  ];
+  if (postcondition.hasMeta) {
+    parts.push(`EXISTS (
+      SELECT 1
+      FROM product_admin_meta meta
+      JOIN admin_audit_log marker
+        ON marker.request_id = ?
+       AND meta.product_id = CAST(marker.entity_key AS INTEGER)
+      WHERE meta.updated_by IS NOT NULL
+    )`);
+    values.push(postcondition.requestId);
+  }
+  return { expression: parts.join("\n AND "), values };
+}
+
+function buildProductMutationStartedExpression(
+  postcondition: ProductMutationPostcondition,
+): { expression: string; values: unknown[] } {
+  const input = postcondition.input;
+  if (postcondition.entityId === undefined && input) {
+    return {
+      expression: `EXISTS (
+        SELECT 1
+        FROM products
+        WHERE name = ?
+          AND slug = ?
+          AND sku = ?
+          AND short_description = ?
+          AND description = ?
+          AND image_url IS ?
+          AND category_id IS ?
+          AND is_active = ?
+          AND revision = 1
+      )`,
+      values: productInputValues(input),
+    };
+  }
+  if (postcondition.entityId !== undefined && input) {
+    return {
+      expression: `EXISTS (
+        SELECT 1
+        FROM products
+        WHERE id = ?
+          AND revision = ?
+          AND name = ?
+          AND slug = ?
+          AND sku = ?
+          AND short_description = ?
+          AND description = ?
+          AND image_url IS ?
+          AND category_id IS ?
+          AND is_active = ?
+      )`,
+      values: [postcondition.entityId, (postcondition.expectedRevision ?? 0) + 1, ...productInputValues(input)],
+    };
+  }
+  return {
+    expression: `EXISTS (
+      SELECT 1
+      FROM products
+      WHERE id = ?
+        AND revision = ?
+        AND is_active = 0
+    )`,
+    values: [postcondition.entityId, (postcondition.expectedRevision ?? 0) + 1],
+  };
+}
+
+function buildProductMutationCommitExpression(
+  postcondition: ProductMutationPostcondition,
+): { expression: string; values: unknown[] } {
+  const input = postcondition.input;
+  const markerRevision = postcondition.expectedRevision === undefined
+    ? { sql: "marker.previous_revision IS NULL AND marker.resulting_revision = 1", values: [] }
+    : {
+        sql: "marker.previous_revision = ? AND marker.resulting_revision = ?",
+        values: [postcondition.expectedRevision, postcondition.expectedRevision + 1],
+      };
+  const productState = postcondition.entityId === undefined && input
+    ? {
+        sql: `product_row.name = ?
+          AND product_row.slug = ?
+          AND product_row.sku = ?
+          AND product_row.short_description = ?
+          AND product_row.description = ?
+          AND product_row.image_url IS ?
+          AND product_row.category_id IS ?
+          AND product_row.is_active = ?
+          AND product_row.revision = 1`,
+        values: productInputValues(input),
+      }
+    : input
+      ? {
+          sql: `product_row.id = ?
+            AND product_row.revision = ?
+            AND product_row.name = ?
+            AND product_row.slug = ?
+            AND product_row.sku = ?
+            AND product_row.short_description = ?
+            AND product_row.description = ?
+            AND product_row.image_url IS ?
+            AND product_row.category_id IS ?
+            AND product_row.is_active = ?`,
+          values: [postcondition.entityId, (postcondition.expectedRevision ?? 0) + 1, ...productInputValues(input)],
+        }
+      : {
+          sql: `product_row.id = ?
+            AND product_row.revision = ?
+            AND product_row.is_active = 0`,
+          values: [postcondition.entityId, (postcondition.expectedRevision ?? 0) + 1],
+        };
+  const parts = [`EXISTS (
+    SELECT 1
+    FROM admin_audit_log marker
+    JOIN products product_row ON product_row.id = CAST(marker.entity_key AS INTEGER)
+    WHERE marker.request_id = ?
+      AND marker.action = ?
+      AND marker.entity_type = 'product'
+      AND marker.payload_sha256 = ?
+      AND ${markerRevision.sql}
+      AND ${productState.sql}
+  )`];
+  const values: unknown[] = [
+    postcondition.requestId,
+    postcondition.action,
+    postcondition.payloadSha256,
+    ...markerRevision.values,
+    ...productState.values,
+  ];
+  if (postcondition.hasMeta) {
+    const status = input?.status ?? "archived";
+    parts.push(input
+      ? `EXISTS (
+          SELECT 1
+          FROM product_admin_meta meta
+          JOIN admin_audit_log marker
+            ON marker.request_id = ?
+           AND meta.product_id = CAST(marker.entity_key AS INTEGER)
+          WHERE meta.status = ?
+            AND meta.lead_time_days IS ?
+            AND meta.updated_by IS NOT NULL
+        )`
+      : `EXISTS (
+          SELECT 1
+          FROM product_admin_meta meta
+          JOIN admin_audit_log marker
+            ON marker.request_id = ?
+           AND meta.product_id = CAST(marker.entity_key AS INTEGER)
+          WHERE meta.status = ?
+            AND meta.updated_by IS NOT NULL
+        )`);
+    values.push(postcondition.requestId, status);
+    if (input) values.push(input.leadTimeDays);
+  }
+  return { expression: parts.join("\n AND "), values };
+}
+
+function productInputValues(input: AdminProductInput): unknown[] {
+  return [
+    input.name,
+    input.slug,
+    input.sku,
+    input.shortDescription,
+    input.description,
+    input.imageUrl,
+    input.categoryId,
+    input.isActive ? 1 : 0,
+  ];
+}
+
+async function resolveProductConflict(
+  database: D1DatabaseLike,
+  requestId: string,
+  payloadSha256: string,
+  postcondition: ProductMutationPostcondition,
+): Promise<AdminProduct> {
   const mutation = await findMutation(database, requestId);
   if (mutation) {
-    assertMatchingMutation(mutation, requestId, mutation.action, "product", payloadSha256);
-    return readProductMutation(database, mutation);
+    assertMatchingMutation(mutation, requestId, postcondition.action, "product", payloadSha256);
+    return ensureProductMutationComplete(database, mutation, postcondition);
   }
   throw new AdminCatalogWriteConflictError("Sản phẩm đã thay đổi ở phiên khác. Hãy tải lại rồi thử lại.");
 }
@@ -631,11 +908,23 @@ function assertChanged(result: BatchResult | undefined, message: string): void {
 function hasChanged(result: BatchResult | undefined): boolean {
   if (!result) return false;
   if (Array.isArray(result.results)) return result.results.length > 0;
-  return result.meta?.changes === undefined || Number(result.meta.changes) > 0;
+  const changes = result.meta?.changes;
+  return changes !== undefined && Number(changes) > 0;
 }
 
 function hasRows(result: BatchResult | undefined): boolean {
   return Boolean(result && Array.isArray(result.results) && result.results.length > 0);
+}
+
+function normalizeCatalogBatchError(error: unknown): unknown {
+  const message = error instanceof Error ? error.message : String(error);
+  if (message.includes("catalog product write postcondition failed")
+    || (message.includes("admin_audit_log") && message.toLowerCase().includes("constraint failed"))) {
+    return new AdminCatalogWriteStorageError(
+      "Không ghi đồng bộ được sản phẩm và audit; hệ thống đã rollback để tránh trạng thái dở dang.",
+    );
+  }
+  return error;
 }
 
 function normalizeRequestId(value: string): string {
