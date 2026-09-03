@@ -19,6 +19,10 @@ Hồ sơ này ghi bằng chứng runtime đã xác minh trong quá trình chuy�
   SHA-256 `583BE2FBFFC2C6D8F0C77E7D97C3786E838EDBFD228E024AD7A8F078A147ABFD`).
   Restore-drill SQLite độc lập đạt `integrity_check=ok`, foreign-key violations
   `0`, với 19 bảng, 13 migration, 9 product, 17 variant và 0 lead.
+- Migration preflight drill ngày 2026-09-03 đã đọc backup vào SQLite memory và
+  chạy lần lượt toàn bộ file `0009–0019`; kết quả `integrity_check=ok`, foreign-
+  key violations `0`, schema sau drill có 32 bảng. Drill không ghi D1 remote và
+  không thay thế bước apply/verify production có cửa sổ rollback.
 - Production promotion vẫn **NO-GO** cho tới khi hoàn tất role × route/action
   với nhiều Access identity, full write/read-back/audit, duyệt dữ liệu thật,
   migration window/rollback, và observability 24 giờ. Backup/restore artifact

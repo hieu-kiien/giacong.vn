@@ -268,6 +268,9 @@ Lưu ý: demo staging KHÔNG được seed sang production. Khách tự thao tá
   `.runtime/production-d1-backup-20260902-pre-release.sql`, SHA-256
   `583BE2FBFFC2C6D8F0C77E7D97C3786E838EDBFD228E024AD7A8F078A147ABFD`,
   SQLite `integrity_check=ok`, foreign-key violations `0`.
+- [x] Migration preflight trên bản sao backup ngày 2026-09-03: chạy lần lượt
+  `0009–0019`, `integrity_check=ok`, foreign-key violations `0`, schema sau
+  drill có 32 bảng; không ghi D1 remote.
 - [ ] Production gate còn mở: 11 migration `0009–0019`, role × route/action với
   nhiều Access identity, full write/read-back/audit, data approval,
   migration/rollback window và observability 24 giờ.

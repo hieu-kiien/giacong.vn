@@ -106,6 +106,17 @@ Bản staging hiện **đủ điều kiện để tiếp tục nghiệm thu kỹ
   `0009–0019`; không có production D1/R2 mutation hoặc production deploy trong
   đợt audit này.
 
+## Migration preflight drill — 2026-09-03
+
+- Fresh backup production đã được nạp vào SQLite memory và chạy lần lượt toàn
+  bộ file migration `0009–0019` hiện có trong checkout.
+- Kết quả: `integrity_check=ok`, foreign-key violations `0`, schema sau drill
+  có 32 bảng. Không có lệnh nào ghi D1 remote; đây là preflight trên bản sao,
+  không phải production apply.
+- Production vẫn phải xử lý ledger legacy/current có 13 entry đã áp dụng,
+  mở migration window, export/checksum lại ngay trước giờ chạy, apply qua
+  Wrangler và verify post-condition từng nhóm trước promotion.
+
 ## Revalidation sau hardening — 2026-09-02
 
 - Commit `e1936cfb` đã đóng race giữa publish news từng bài và publish hàng
