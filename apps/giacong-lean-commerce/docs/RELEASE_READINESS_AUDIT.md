@@ -156,6 +156,9 @@ Bản staging hiện **đủ điều kiện để tiếp tục nghiệm thu kỹ
   Runner nhận Playwright storage state sau Access login, chạy 10 route admin ở
   mobile/desktop, đợi heading render, kiểm tra role tùy chọn, lỗi Access/1102/
   5xx, overflow và console error/warning từ staging origin.
+- Có thể truyền `QA_ADMIN_ROLE_STATES` là JSON map đúng đủ owner,
+  content_manager, catalog_manager, sales_manager và viewer để chạy tuần tự
+  từng identity và đối chiếu tập link sidebar theo role.
 - Runner chỉ dùng navigation/read APIs; contract test khóa storage-state,
   bounded route list và không có thao tác click/fill/type/press hoặc HTTP
   mutation. Thiếu storage state sẽ dừng với trạng thái `ADMIN QA BLOCKED`,

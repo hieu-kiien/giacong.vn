@@ -59,8 +59,26 @@ npm run qa:admin-staging
 
 Runner kiểm tra 10 route admin ở mobile/desktop, heading, trạng thái Access,
 lỗi 1102/5xx, overflow và console lỗi từ staging origin. Không dùng storage
-state chứa secret trong Git; role matrix phải chạy riêng với storage state của
-từng identity được chủ dự án cấp phép.
+state chứa secret trong Git; role matrix đủ năm role có thể chạy bằng một JSON
+map local, ví dụ:
+
+```json
+{
+  "owner": "./.runtime/access-owner.storage.json",
+  "content_manager": "./.runtime/access-content.storage.json",
+  "catalog_manager": "./.runtime/access-catalog.storage.json",
+  "sales_manager": "./.runtime/access-sales.storage.json",
+  "viewer": "./.runtime/access-viewer.storage.json"
+}
+```
+
+```bash
+QA_ADMIN_ROLE_STATES=./.runtime/admin-role-states.json \\
+npm run qa:admin-staging
+```
+
+Mỗi storage state phải thuộc một identity được chủ dự án cấp phép; runner
+không tạo tài khoản, không submit form và không tự đóng write/read-back gate.
 
 Rollback: `npx wrangler versions deploy <VERSION_CŨ> --name giacong-vn` (mỗi lần promote đều ghi rõ rollback point trong checklist). Rollback D1: chỉ dùng backup `.sql` đã re-export, checksum và thử restore — chỉ khi có chủ ý, kèm audit trước/sau.
 

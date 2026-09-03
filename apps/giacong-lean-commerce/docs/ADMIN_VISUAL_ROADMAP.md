@@ -76,8 +76,11 @@ production promotion. Production chưa bị thay đổi.
 **QA automation update 2026-09-03:** Đã thêm runner
 `npm run qa:admin-staging` nhận Playwright storage state của phiên Access,
 kiểm tra 10 route admin ở mobile/desktop và chỉ thực hiện navigation/read-only.
-Contract test đạt; runner cố ý báo `ADMIN QA BLOCKED` khi thiếu storage state,
-không dùng trạng thái chưa xác thực để tuyên bố pass.
+Có thể truyền `QA_ADMIN_ROLE_STATES` trỏ tới JSON map đủ năm role để chạy tuần
+tự từng identity, đối chiếu tập link sidebar theo capability và không suy diễn
+role từ một phiên khác. Contract test đạt; runner cố ý báo `ADMIN QA BLOCKED`
+khi thiếu hoặc thiếu role state, không dùng trạng thái chưa xác thực để tuyên bố
+pass.
 
 **Runtime update 2026-09-02 (direct editing trên storefront thật):**
 `AdminVisualEditor` đã bỏ draft preview mô phỏng và chuyển sang registry target
