@@ -127,6 +127,16 @@ Bản staging hiện **đủ điều kiện để tiếp tục nghiệm thu kỹ
   admin, 104 contact, 5 catalog, 1 purchase UI, 3 service, 68 commerce, 4
   listing, 29 detail; lint, typecheck và build 27/27 route đều pass.
 
+## Production infrastructure re-audit — 2026-09-03
+
+- Wrangler read-only: Worker production `giacong-vn` vẫn ở version
+  `1d8a2b41-6154-46d5-935b-8cb7fbc35688` @100%; D1 có 18 bảng/324 kB, 207
+  read query và 0 write trong 24 giờ; đủ resource R2/queue production và
+  staging tách biệt.
+- Không có production upload, deploy, migration hay data mutation trong lượt
+  audit. Vì Worker production chưa chứa release staging `eff0d7fa`, không được
+  dùng smoke cũ để tuyên bố bản code hiện tại đã bàn giao production.
+
 ## Revalidation sau hardening — 2026-09-02
 
 - Commit `e1936cfb` đã đóng race giữa publish news từng bài và publish hàng

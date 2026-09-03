@@ -30,6 +30,17 @@ Hồ sơ này ghi bằng chứng runtime đã xác minh trong quá trình chuy�
   migration window/rollback, và observability 24 giờ. Backup/restore artifact
   hiện đã có nhưng phải export lại ngay trước migration nếu dữ liệu thay đổi.
 
+## Production infrastructure re-audit — 2026-09-03
+
+- Read-only Wrangler xác nhận Worker production `giacong-vn` vẫn phục vụ version
+  `1d8a2b41-6154-46d5-935b-8cb7fbc35688` ở 100%; chưa upload hoặc promote
+  `eff0d7fa`/bản source mới lên production.
+- D1 production `giacong-vn-catalog` có 18 bảng, dung lượng 324 kB, vùng APAC;
+  thống kê 24 giờ là 207 read query, 4.907 rows read, 0 write query và 0 rows
+  written. Đây là bằng chứng production không bị mutate trong lượt audit.
+- Wrangler liệt kê đủ cặp resource production/staging cho 2 R2 bucket và queue
+  lead/DLQ; không có dấu hiệu binding staging trỏ nhầm production.
+
 Các version và kết quả bên dưới là evidence lịch sử; khi mâu thuẫn với
 snapshot này, snapshot này phản ánh trạng thái runtime mới nhất.
 
