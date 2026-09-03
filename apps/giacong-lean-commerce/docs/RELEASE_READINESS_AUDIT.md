@@ -1,4 +1,4 @@
-# Audit sẵn sàng bàn giao — 2026-09-02
+# Audit sẵn sàng bàn giao — 2026-09-03
 
 ## Kết luận
 
@@ -41,6 +41,19 @@ Bản staging hiện **đủ điều kiện để tiếp tục nghiệm thu kỹ
 - Wrangler metadata xác nhận `changed_db=false`, `rows_written=0`. Đây là
   bằng chứng giải thích blocker của role matrix, không phải lý do để tạo user
   giả hoặc đánh dấu gate đạt.
+
+## Source gate sau khi bỏ preview mô phỏng — 2026-09-03
+
+- Commit `655ff4f1` đã chuyển `Nội dung & thương hiệu` và `Thiết kế page` sang
+  mô hình control plane + handoff tới storefront thật; không còn card preview
+  tự dựng có thể lệch renderer production. Direct editor trên storefront vẫn là
+  luồng chỉnh sửa theo vùng chính.
+- Regression visual đạt `8/8`; full source gate đạt exit `0` với admin `200/200`,
+  contact `104/104`, catalog `5/5`, purchase UI `1/1`, service `3/3`, commerce
+  `68/68`, listing `4/4`, detail `29/29`, lint, typecheck và build `27/27`.
+- Đây chưa phải staging runtime evidence: source mới chưa được deploy, và các
+  gate Access nhiều identity, write/read-back, dữ liệu production và promotion
+  vẫn giữ nguyên trạng thái mở.
 
 ## Bằng chứng hiện có
 

@@ -93,6 +93,13 @@ vẫn quản lý draft/publish và các thao tác phức tạp, nhưng nút ki�
 layout, menu, media và motion thực tế. Draft chưa publish được ghi rõ là chưa
 xuất hiện ở tab storefront.
 
+**Local source gate sau handoff — 2026-09-03:** Commit `655ff4f1` đã được
+kiểm tra với regression visual `8/8` và full `npm run check` exit `0`: admin
+`200/200`, contact `104/104`, catalog `5/5`, purchase UI `1/1`, service `3/3`,
+commerce `68/68`, listing `4/4`, detail `29/29`, lint, typecheck và build tĩnh
+`27/27`. Đây mới là bằng chứng source/local; chưa phải staging deploy hoặc
+production acceptance.
+
 **Runtime update 2026-09-02 (direct editing trên storefront thật):**
 `AdminVisualEditor` đã bỏ draft preview mô phỏng và chuyển sang registry target
 an toàn trên DOM của homepage đang render. Owner/content manager có thể bấm đúng

@@ -1,8 +1,8 @@
-# Cloudflare current state — 2026-09-02
+# Cloudflare current state — 2026-09-03
 
 Hồ sơ này ghi bằng chứng runtime đã xác minh trong quá trình chuyển Lean V1 sang Cloudflare-native.
 
-## Snapshot hiện hành — 2026-09-02
+## Snapshot hiện hành — 2026-09-03
 
 - Staging Worker `giacong-vn-staging` đang chạy version
   `eff0d7fa-c5e2-4641-911b-b3b324ac0284` ở 100%; rollback point gần nhất là
@@ -83,6 +83,20 @@ Hồ sơ này ghi bằng chứng runtime đã xác minh trong quá trình chuy�
 
 Các version và kết quả bên dưới là evidence lịch sử; khi mâu thuẫn với
 snapshot này, snapshot này phản ánh trạng thái runtime mới nhất.
+
+## Current-source visual handoff gate — 2026-09-03
+
+- Commit `655ff4f1` đã bỏ hai bản preview tự dựng riêng trong
+  `AdminContentPage` và `AdminPageBuilder`: không còn dựng JSX/CSS mô phỏng
+  storefront trong admin. Control plane vẫn giữ draft/publish, còn nút kiểm tra
+  mở đúng route storefront thật để dùng chung renderer, layout, menu, media và
+  motion.
+- Regression `admin-visual-pages-navigation` đạt `8/8`; full `npm run check`
+  trên source hiện tại đạt exit `0`: admin `200/200`, contact `104/104`, catalog
+  `5/5`, purchase UI `1/1`, service `3/3`, commerce `68/68`, listing `4/4`,
+  detail `29/29`, lint, typecheck và build static `27/27`.
+- Đây là source/local evidence; commit này chưa được upload hoặc promote lên
+  staging. Không có D1/R2/production mutation trong bước thay đổi hoặc kiểm tra.
 
 ## Direct edit trên storefront thật — 2026-09-02
 
