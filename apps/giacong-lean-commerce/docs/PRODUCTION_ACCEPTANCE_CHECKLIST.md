@@ -271,6 +271,9 @@ Lưu ý: demo staging KHÔNG được seed sang production. Khách tự thao tá
 - [x] Migration preflight trên bản sao backup ngày 2026-09-03: chạy lần lượt
   `0009–0019`, `integrity_check=ok`, foreign-key violations `0`, schema sau
   drill có 32 bảng; không ghi D1 remote.
+- [x] Dependency security revalidation ngày 2026-09-03: `npm audit
+  --audit-level=high` trả `0 vulnerabilities`; full `npm run check` sau
+  lockfile patch trả exit code `0`.
 - [ ] Production gate còn mở: 11 migration `0009–0019`, role × route/action với
   nhiều Access identity, full write/read-back/audit, data approval,
   migration/rollback window và observability 24 giờ.

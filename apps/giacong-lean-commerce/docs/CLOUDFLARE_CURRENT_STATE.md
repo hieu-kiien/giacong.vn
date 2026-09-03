@@ -12,6 +12,8 @@ Hồ sơ này ghi bằng chứng runtime đã xác minh trong quá trình chuy�
   `3/3`, commerce `68/68`, listing `4/4`, detail `29/29`, lint, typecheck và
   build đều pass. Deep QA responsive và Chrome owner direct-editor smoke test
   cũng pass, không có console error/warning.
+- Revalidation ngày 2026-09-03 sau lockfile security patch `8a1bb1b3` vẫn giữ
+  full check exit `0`; `npm audit --audit-level=high` trả `0 vulnerabilities`.
 - Production Worker/D1/R2/DNS chưa bị mutate. Read-only Wrangler ngày này còn
   xác nhận 11 migration pending `0009–0019` trên D1 production.
 - Export production D1 fresh đã được tạo bằng Wrangler tại

@@ -117,6 +117,16 @@ Bản staging hiện **đủ điều kiện để tiếp tục nghiệm thu kỹ
   mở migration window, export/checksum lại ngay trước giờ chạy, apply qua
   Wrangler và verify post-condition từng nhóm trước promotion.
 
+## Dependency revalidation — 2026-09-03
+
+- `npm audit --audit-level=high` sau patch trả `found 0 vulnerabilities`.
+- Lockfile commit `8a1bb1b3` chỉ nâng `@humanfs/node` lên `0.16.8`,
+  `@humanfs/core` lên `0.19.2` và thêm `@humanfs/types`; không đổi runtime
+  dependency.
+- Full `npm run check` chạy bằng `cmd.exe` trả exit code `0` sau patch: 198
+  admin, 104 contact, 5 catalog, 1 purchase UI, 3 service, 68 commerce, 4
+  listing, 29 detail; lint, typecheck và build 27/27 route đều pass.
+
 ## Revalidation sau hardening — 2026-09-02
 
 - Commit `e1936cfb` đã đóng race giữa publish news từng bài và publish hàng
