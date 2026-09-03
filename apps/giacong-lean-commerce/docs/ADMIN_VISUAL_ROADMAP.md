@@ -100,6 +100,14 @@ commerce `68/68`, listing `4/4`, detail `29/29`, lint, typecheck và build tĩnh
 `27/27`. Đây mới là bằng chứng source/local; chưa phải staging deploy hoặc
 production acceptance.
 
+**Staging deploy smoke sau handoff — 2026-09-03:** Commit `655ff4f1` đã deploy
+qua `npm run cf:deploy:staging`; version `430d41b1-a61c-46d1-ac9f-89eb8df74feb`
+đang ở 100%. Owner đọc lại `/admin/audit`, `/admin/noi-dung` và
+`/admin/thiet-ke`; storefront `/` cũng render đúng. Một 502 thoáng qua ngay sau
+deploy đã hồi phục sau reload, không có console error/warning ở các route đọc lại.
+Đây chỉ là browser read-only smoke, không đóng role matrix, write/read-back hay
+production gate.
+
 **Runtime update 2026-09-02 (direct editing trên storefront thật):**
 `AdminVisualEditor` đã bỏ draft preview mô phỏng và chuyển sang registry target
 an toàn trên DOM của homepage đang render. Owner/content manager có thể bấm đúng

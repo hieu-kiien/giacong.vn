@@ -4,8 +4,8 @@
 
 Bản staging hiện **đủ điều kiện để tiếp tục nghiệm thu kỹ thuật**, nhưng chưa
 đủ điều kiện để gọi là bàn giao production hoàn hảo. Staging đang chạy
-`eff0d7fa-c5e2-4641-911b-b3b324ac0284` ở 100%, rollback point gần nhất là
-`a709e5a4-c457-43ab-9d77-2d5d20ac0b7b`; production vẫn giữ nguyên và đang
+`430d41b1-a61c-46d1-ac9f-89eb8df74feb` ở 100%, rollback point gần nhất là
+`eff0d7fa-c5e2-4641-911b-b3b324ac0284`; production vẫn giữ nguyên và đang
 **NO-GO** cho migration hoặc promotion.
 
 ## Tái kiểm tra runtime resource-limit — 2026-09-02
@@ -51,9 +51,21 @@ Bản staging hiện **đủ điều kiện để tiếp tục nghiệm thu kỹ
 - Regression visual đạt `8/8`; full source gate đạt exit `0` với admin `200/200`,
   contact `104/104`, catalog `5/5`, purchase UI `1/1`, service `3/3`, commerce
   `68/68`, listing `4/4`, detail `29/29`, lint, typecheck và build `27/27`.
-- Đây chưa phải staging runtime evidence: source mới chưa được deploy, và các
-  gate Access nhiều identity, write/read-back, dữ liệu production và promotion
-  vẫn giữ nguyên trạng thái mở.
+- Đây là source/local evidence độc lập; staging deploy/read-only smoke được ghi
+  ngay bên dưới. Các gate Access nhiều identity, write/read-back, dữ liệu
+  production và promotion vẫn giữ nguyên trạng thái mở.
+
+## Staging deploy/read-only smoke — 2026-09-03
+
+- Commit `655ff4f1` đã deploy qua `npm run cf:deploy:staging`; version staging
+  mới là `430d41b1-a61c-46d1-ac9f-89eb8df74feb` ở 100%.
+- Một 502 thoáng qua xuất hiện ngay sau deploy tại `/admin/audit`; reload đã
+  khôi phục thành công. Owner sau đó đọc lại audit, Nội dung và Thiết kế page;
+  hai nút handoff `Mở storefront thật`/`Mở page thật` hiện đúng, không có lỗi
+  console.
+- Storefront `/` đọc đúng heading/CTA public, không render admin control và
+  console error/warning rỗng. Smoke này chỉ navigation/read-only, chưa submit
+  form, publish, D1/R2 mutation hay thay đổi production.
 
 ## Bằng chứng hiện có
 

@@ -5,8 +5,8 @@ Hồ sơ này ghi bằng chứng runtime đã xác minh trong quá trình chuy�
 ## Snapshot hiện hành — 2026-09-03
 
 - Staging Worker `giacong-vn-staging` đang chạy version
-  `eff0d7fa-c5e2-4641-911b-b3b324ac0284` ở 100%; rollback point gần nhất là
-  `a709e5a4-c457-43ab-9d77-2d5d20ac0b7b`.
+  `430d41b1-a61c-46d1-ac9f-89eb8df74feb` ở 100%; rollback point gần nhất là
+  `eff0d7fa-c5e2-4641-911b-b3b324ac0284`.
 - Commit hardening tương ứng là `e1936cfb`. `npm run check` exit `0`: admin
   `198/198`, contact `104/104`, catalog `5/5`, purchase UI `1/1`, service
   `3/3`, commerce `68/68`, listing `4/4`, detail `29/29`, lint, typecheck và
@@ -81,9 +81,6 @@ Hồ sơ này ghi bằng chứng runtime đã xác minh trong quá trình chuy�
   role-matrix browser chưa thể chạy; không dùng placeholder/demo identity để
   tuyên bố đạt.
 
-Các version và kết quả bên dưới là evidence lịch sử; khi mâu thuẫn với
-snapshot này, snapshot này phản ánh trạng thái runtime mới nhất.
-
 ## Current-source visual handoff gate — 2026-09-03
 
 - Commit `655ff4f1` đã bỏ hai bản preview tự dựng riêng trong
@@ -95,8 +92,26 @@ snapshot này, snapshot này phản ánh trạng thái runtime mới nhất.
   trên source hiện tại đạt exit `0`: admin `200/200`, contact `104/104`, catalog
   `5/5`, purchase UI `1/1`, service `3/3`, commerce `68/68`, listing `4/4`,
   detail `29/29`, lint, typecheck và build static `27/27`.
-- Đây là source/local evidence; commit này chưa được upload hoặc promote lên
-  staging. Không có D1/R2/production mutation trong bước thay đổi hoặc kiểm tra.
+- Commit này đã được deploy riêng lên staging bằng `npm run cf:deploy:staging`;
+  Worker `giacong-vn-staging` đang phục vụ version
+  `430d41b1-a61c-46d1-ac9f-89eb8df74feb` ở 100%. Không có D1/R2/production
+  mutation trong bước build/deploy hoặc kiểm tra.
+
+## Staging visual handoff smoke — 2026-09-03
+
+- Sau deploy, `/admin/audit` xuất hiện một lần 502 thoáng qua trong lúc
+  propagation; reload read-only đã hồi phục về trang admin đầy đủ. Đây không
+  được coi là pass im lặng: route đã được đọc lại sau khi hồi phục và console
+  error/warning là rỗng.
+- Owner staging đọc lại `/admin/noi-dung` thấy card `Chỉnh sửa tại nơi hiển
+  thị` và link `Mở storefront thật`; `/admin/thiet-ke` thấy link `Mở page thật`
+  theo route `/`. Page builder không còn khung `PageBlocks` mô phỏng.
+- Storefront `https://staging.kienhieu.id.vn/` đọc đúng heading/CTA public,
+  không có admin control hoặc direct-edit marker; console error/warning là
+  rỗng. Đây là browser read-only smoke, chưa submit mutation/publish.
+
+Các version và kết quả bên dưới là evidence lịch sử; khi mâu thuẫn với
+snapshot này, snapshot này phản ánh trạng thái runtime mới nhất.
 
 ## Direct edit trên storefront thật — 2026-09-02
 

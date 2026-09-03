@@ -57,6 +57,13 @@ giữ vai trò control plane cho draft/publish nhưng chỉ đưa người vận
 route storefront thật để kiểm tra renderer, layout, menu, ảnh và animation; bản
 nháp chưa publish được ghi rõ là chưa xuất hiện ở tab storefront.
 
+**Staging deploy/read-only smoke 2026-09-03:** Commit `655ff4f1` đã lên
+`giacong-vn-staging` version `430d41b1-a61c-46d1-ac9f-89eb8df74feb` ở 100%.
+Sau propagation, owner đọc lại `/admin/audit`, `/admin/noi-dung`,
+`/admin/thiet-ke` và storefront `/`; handoff tới route thật hiện đúng, public
+không có admin control, console error/warning rỗng. Một 502 thoáng qua ngay sau
+deploy đã được reload và xác minh hồi phục; chưa có mutation dữ liệu.
+
 Rollback drill staging 2026-09-01 đã pass: chuyển 100% traffic về
 `a1f71e85-113e-4559-9377-ebedc22b92e7`, smoke public pass, sau đó khôi phục
 100% về `902b3a6e-732f-4de6-a9fc-429b6478d833`; sau đó version
