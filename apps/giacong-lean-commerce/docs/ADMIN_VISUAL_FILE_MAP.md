@@ -1,7 +1,7 @@
 # Bản đồ file Giacong Visual Admin
 
 **Trạng thái:** bản đồ ownership và source-of-truth
-**Cập nhật:** 2026-09-02
+**Cập nhật:** 2026-09-03
 **Roadmap:** ADMIN_VISUAL_ROADMAP.md
 
 Mục tiêu của file này là trả lời nhanh bốn câu hỏi trước khi sửa code:
@@ -44,6 +44,12 @@ audit năm route pass; browser identity role matrix đầy đủ, write/read-bac
 domain và production gate vẫn chưa đóng.
 Wrapper PowerShell giữ process sau khi đã in xong output nên phải dừng thủ công;
 không dùng điều đó để thay thế cửa sổ release có exit code sạch.
+
+**Runtime recovery update 2026-09-03:** Sau khi các phiên subagent bị dừng,
+checkpoint source và staging vẫn nguyên vẹn. Phiên Chrome owner đã đọc lại
+10/10 route admin canonical; owner/heading đúng và không có trạng thái lỗi
+tải dữ liệu/1102/502/503 được render. Đây là bằng chứng read-only sau restart;
+role matrix nhiều identity, write/read-back đầy đủ và production gate vẫn mở.
 
 Rollback drill staging 2026-09-01 đã pass: chuyển 100% traffic về
 `a1f71e85-113e-4559-9377-ebedc22b92e7`, smoke public pass, sau đó khôi phục

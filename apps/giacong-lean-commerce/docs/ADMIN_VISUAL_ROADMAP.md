@@ -1,7 +1,7 @@
 # Lộ trình Giacong Visual Admin
 
 **Trạng thái:** kế hoạch thực thi chính
-**Cập nhật:** 2026-09-02
+**Cập nhật:** 2026-09-03
 **Phạm vi:** apps/giacong-lean-commerce
 **Bản đồ đi kèm:** ADMIN_VISUAL_FILE_MAP.md
 
@@ -65,6 +65,13 @@ Các gate chưa đóng: role matrix với nhiều identity thật, write/read-ba
 domain, browser admin đầy đủ desktop/mobile/keyboard/focus/reduced-motion,
 production data/content approval, backup/restore production, observability và
 production promotion. Production chưa bị thay đổi.
+
+**Runtime recovery update 2026-09-03:** Sau khi các phiên subagent bị dừng,
+  checkpoint vẫn nguyên vẹn. Phiên Chrome owner trên
+  `admin-staging.kienhieu.id.vn` đã khôi phục; semantic traversal 10/10 route
+  admin canonical đọc đúng heading và vai trò owner, không render trạng thái
+  lỗi tải dữ liệu/1102/502/503. Đây là navigation/read-only evidence, không
+  thay thế role matrix nhiều identity hoặc write/read-back đầy đủ.
 
 **Runtime update 2026-09-02 (direct editing trên storefront thật):**
 `AdminVisualEditor` đã bỏ draft preview mô phỏng và chuyển sang registry target
