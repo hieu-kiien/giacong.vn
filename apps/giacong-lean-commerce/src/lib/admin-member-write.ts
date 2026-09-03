@@ -385,9 +385,11 @@ function assertRows(result: D1BatchResultLike | undefined, message: string): voi
 }
 
 function hasRows(result: unknown): boolean {
-  if (typeof result !== "object" || result === null) return true;
-  const meta = (result as D1BatchResultLike).meta;
-  return meta?.changes === undefined || Number(meta.changes) > 0;
+  if (typeof result !== "object" || result === null) return false;
+  const record = result as D1BatchResultLike & { results?: unknown[] };
+  if (Array.isArray(record.results)) return record.results.length > 0;
+  const changes = record.meta?.changes;
+  return changes !== undefined && Number(changes) > 0;
 }
 
 function validateMemberInput(input: AdminMemberInput): void {

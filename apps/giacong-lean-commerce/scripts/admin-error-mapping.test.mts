@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 import { isUniqueConstraintError, mapAdminWriteError } from "../src/lib/admin-error-mapping.ts";
@@ -40,4 +41,25 @@ test("maps every other failure to the safe fallback without surfacing internals"
   assert.equal(mapped.message, "Không thể tải danh sách sản phẩm.");
   assert.equal(mapped.fieldErrors, undefined);
   assert.doesNotMatch(JSON.stringify(mapped), /lead_rows|f6aabba5/, "internal detail must never reach the client body");
+});
+
+test("D1 mutation result helpers fail closed when result metadata is missing", async () => {
+  const files = [
+    "admin-catalog-write.ts",
+    "admin-data.ts",
+    "admin-lead-write.ts",
+    "admin-member-write.ts",
+    "admin-members.ts",
+    "media-data.ts",
+    "site-navigation.ts",
+    "site-pages.ts",
+    "site-settings.ts",
+  ];
+  for (const file of files) {
+    const source = await readFile(new URL(`../src/lib/${file}`, import.meta.url), "utf8");
+    assert.doesNotMatch(source, /changes === undefined \|\| Number\([^)]*changes\) > 0/,
+      `${file} must not treat missing D1 changes as a successful write`);
+    assert.doesNotMatch(source, /typeof result !== "object" \|\| result === null\) return true/,
+      `${file} must not treat an unknown D1 result as a successful write`);
+  }
 });

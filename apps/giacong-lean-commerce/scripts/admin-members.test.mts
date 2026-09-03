@@ -38,7 +38,7 @@ class LookupStatement implements D1PreparedStatementLike {
   }
 
   async run(): Promise<unknown> {
-    return { success: true };
+    return { meta: { changes: 1 } };
   }
 }
 

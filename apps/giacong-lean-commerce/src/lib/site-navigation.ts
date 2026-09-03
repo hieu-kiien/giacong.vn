@@ -1110,7 +1110,9 @@ function escapeRegExp(value: string): string {
 }
 
 function hasChanged(result: unknown): boolean {
-  if (typeof result !== "object" || result === null) return true;
-  const meta = (result as { meta?: { changes?: unknown } }).meta;
-  return meta?.changes === undefined || Number(meta.changes) > 0;
+  if (typeof result !== "object" || result === null) return false;
+  const record = result as { meta?: { changes?: unknown }; results?: unknown[] };
+  if (Array.isArray(record.results)) return record.results.length > 0;
+  const changes = record.meta?.changes;
+  return changes !== undefined && Number(changes) > 0;
 }
