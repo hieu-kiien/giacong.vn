@@ -804,6 +804,40 @@ export function applyNavigationToMarkup(
   return reorderManagedNavigationLists(result, primaryItems);
 }
 
+/**
+ * Adds published, operator-managed links without rewriting the captured
+ * legacy footer columns. The captured footer is the visual source of truth;
+ * managed links get an explicit, inert section only when an active footer item
+ * exists in D1.
+ */
+export function applyFooterNavigationToMarkup(
+  markup: string,
+  items: readonly PublishedNavigationItem[],
+): string {
+  const footerItems = items
+    .filter((item) => item.menuKey === "footer" && item.isActive)
+    .sort((left, right) => left.sortOrder - right.sortOrder || left.id.localeCompare(right.id));
+  if (footerItems.length === 0) return markup;
+
+  const footerNavigationMarkup = [
+    '<div class="giacong-managed-footer-navigation" data-site-navigation="footer">',
+    '  <div class="container">',
+    '    <h2 class="giacong-managed-footer-navigation__title">Liên kết website</h2>',
+    '    <ul class="giacong-managed-footer-navigation__list">',
+    ...footerItems.map((item) => (
+      `      <li><a href="${escapeAttribute(item.href)}">${escapeHtml(item.label)}</a></li>`
+    )),
+    "    </ul>",
+    "  </div>",
+    "</div>",
+  ].join("\n");
+  const footerSectionPattern = /(<section\b[^>]*\bclass=(['"])[^'\"]*\bfooter-section\b[^'\"]*\2[^>]*>)([\s\S]*?)(<\/section>)/i;
+  return markup.replace(footerSectionPattern, (match, opening: string, _quote: string, content: string, closing: string) => {
+    if (content.includes('data-site-navigation="footer"')) return match;
+    return `${opening}${content}${footerNavigationMarkup}${closing}`;
+  });
+}
+
 function reorderManagedNavigationLists(markup: string, items: readonly PublishedNavigationItem[]): string {
   const sortById = new Map(items.filter((item) => item.capturedMenuId).map((item) => [item.capturedMenuId as string, item]));
   if (sortById.size < 2) return markup;

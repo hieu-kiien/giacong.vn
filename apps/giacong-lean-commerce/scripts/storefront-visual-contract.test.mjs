@@ -4,6 +4,7 @@ import test from "node:test";
 
 const read = (path) => readFile(new URL(path, import.meta.url), "utf8");
 const homePage = await read("../src/components/site/CapturedHomePage.tsx");
+const storefrontShell = await read("../src/components/site/CapturedStorefrontShell.tsx");
 const newsPage = await read("../src/app/(storefront)/tin-tuc/page.tsx");
 const capturedRoute = await read("../src/app/(storefront)/[...slug]/page.tsx");
 const newsData = await read("../src/lib/news-public.ts");
@@ -27,6 +28,8 @@ test("homepage applies the published navigation to the captured fallback", () =>
   assert.match(homePage, /getPublishedSiteNavigation/);
   assert.match(homePage, /await getPublishedSiteNavigation\(\)/);
   assert.match(homePage, /applyNavigationToMarkup\(\s*normalizedMarkup,\s*navigation,\s*["']menu-item-4618["']/);
+  assert.match(homePage, /applyFooterNavigationToMarkup/);
+  assert.match(storefrontShell, /applyFooterNavigationToMarkup/);
 });
 
 test("news route has its own source-aligned page frame and active navigation", () => {

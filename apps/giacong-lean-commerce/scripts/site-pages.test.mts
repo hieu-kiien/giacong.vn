@@ -9,7 +9,60 @@ import {
   SitePageValidationError,
   updateAdminSitePage,
 } from "../src/lib/site-pages.ts";
-import { applyNavigationToMarkup, type PublishedNavigationItem } from "../src/lib/site-navigation.ts";
+import {
+  applyFooterNavigationToMarkup,
+  applyNavigationToMarkup,
+  type PublishedNavigationItem,
+} from "../src/lib/site-navigation.ts";
+
+test("custom published footer navigation is rendered into the captured footer", () => {
+  const markup = '<footer><section class="section footer-section"><div class="section-content relative"><div class="row"><div class="col"><div class="col-inner">Captured footer</div></div></div></div></section></footer>';
+  const result = applyFooterNavigationToMarkup(markup, [{
+    id: "footer-contact",
+    capturedMenuId: null,
+    href: "/lien-he/",
+    isActive: true,
+    label: "Liên hệ <chính thức>",
+    menuKey: "footer",
+    sortOrder: 10,
+  }, {
+    id: "footer-hidden",
+    capturedMenuId: null,
+    href: "/khong-hien/",
+    isActive: false,
+    label: "Không hiển thị",
+    menuKey: "footer",
+    sortOrder: 20,
+  }]);
+
+  assert.match(result, /data-site-navigation="footer"/);
+  assert.match(result, /href="\/lien-he\/"[^>]*>Liên hệ &lt;chính thức&gt;<\/a>/);
+  assert.doesNotMatch(result, /Không hiển thị|khong-hien/);
+  assert.equal((result.match(/data-site-navigation="footer"/g) ?? []).length, 1);
+});
+
+test("footer navigation does not change captured markup when no footer item is active", () => {
+  const markup = '<footer><section class="section footer-section"><div class="section-content">Captured footer</div></section></footer>';
+  const result = applyFooterNavigationToMarkup(markup, [{
+    id: "footer-hidden",
+    capturedMenuId: null,
+    href: "/khong-hien/",
+    isActive: false,
+    label: "Không hiển thị",
+    menuKey: "footer",
+    sortOrder: 10,
+  }, {
+    id: "primary",
+    capturedMenuId: null,
+    href: "/",
+    isActive: true,
+    label: "Primary",
+    menuKey: "primary",
+    sortOrder: 20,
+  }]);
+
+  assert.equal(result, markup);
+});
 
 type PageRow = {
   page_key: string;

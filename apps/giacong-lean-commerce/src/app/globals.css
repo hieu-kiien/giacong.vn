@@ -240,6 +240,52 @@
   width: 100% !important;
 }
 
+.giacong-managed-footer-navigation {
+  border-top: 1px solid rgb(90 164 0 / 20%);
+  margin-top: 24px;
+  padding: 24px 0 4px;
+}
+
+.giacong-managed-footer-navigation__title {
+  color: #263127;
+  font-size: 18px;
+  margin: 0 0 12px;
+}
+
+.giacong-managed-footer-navigation__list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 24px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.giacong-managed-footer-navigation__list li {
+  margin: 0;
+}
+
+.giacong-managed-footer-navigation__list a {
+  color: #318a00;
+  text-decoration: none;
+}
+
+.giacong-managed-footer-navigation__list a:hover,
+.giacong-managed-footer-navigation__list a:focus-visible {
+  color: #1f5700;
+  text-decoration: underline;
+}
+
+@media (max-width: 549px) {
+  .giacong-managed-footer-navigation__list {
+    display: block;
+  }
+
+  .giacong-managed-footer-navigation__list li + li {
+    margin-top: 8px;
+  }
+}
+
 .section-duong-dan,
 .section-lien-he {
   isolation: isolate;

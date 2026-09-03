@@ -9,7 +9,11 @@ import {
 import newsPage from "@/data/pages/tin-tuc.json";
 import { layerCapturedStyles, normalizeCapturedMarkup } from "@/lib/captured-markup";
 import { applySiteSettingsToMarkup, siteBrandStyles } from "@/lib/site-markup";
-import { applyNavigationToMarkup, getPublishedSiteNavigation } from "@/lib/site-navigation";
+import {
+  applyFooterNavigationToMarkup,
+  applyNavigationToMarkup,
+  getPublishedSiteNavigation,
+} from "@/lib/site-navigation";
 import { getPublishedSiteSettings } from "@/lib/site-settings";
 
 interface CapturedStorefrontShellProps {
@@ -71,7 +75,10 @@ export async function CapturedStorefrontShell({
     ),
     settings,
   );
-  const footerMarkup = applySiteSettingsToMarkup(capturedFooter.markup, settings);
+  const footerMarkup = applySiteSettingsToMarkup(
+    applyFooterNavigationToMarkup(capturedFooter.markup, navigation),
+    settings,
+  );
 
   return (
     <>

@@ -2,7 +2,11 @@ import { GiacongInteractions } from "@/components/GiacongInteractions";
 import { CapturedFloatingContact } from "@/components/CapturedPage";
 import { layerCapturedStyles, normalizeCapturedMarkup } from "@/lib/captured-markup";
 import { applyHomepageSiteSettingsToMarkup, siteBrandStyles } from "@/lib/site-markup";
-import { applyNavigationToMarkup, getPublishedSiteNavigation } from "@/lib/site-navigation";
+import {
+  applyFooterNavigationToMarkup,
+  applyNavigationToMarkup,
+  getPublishedSiteNavigation,
+} from "@/lib/site-navigation";
 import { siteSettingDefaults, type PublishedSiteSettings } from "@/lib/site-settings";
 import type { CapturedPageData } from "@/types/captured-page";
 
@@ -34,7 +38,10 @@ export async function CapturedHomePage({
   const navigation = await getPublishedSiteNavigation();
   const normalizedMarkup = applyHomepageSiteSettingsToMarkup(normalizeCapturedMarkup(markup), settings);
   const homeMarkup = replaceCompositeHeroWithGallery(
-    applyNavigationToMarkup(normalizedMarkup, navigation, "menu-item-4618"),
+    applyFooterNavigationToMarkup(
+      applyNavigationToMarkup(normalizedMarkup, navigation, "menu-item-4618"),
+      navigation,
+    ),
   );
 
   return (
