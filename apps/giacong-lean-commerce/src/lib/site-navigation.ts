@@ -93,7 +93,7 @@ export async function listAdminSiteNavigation(database: D1DatabaseLike): Promise
     SELECT id, menu_key, captured_menu_id,
       draft_label, draft_href, draft_sort_order, draft_is_active,
       published_label, published_href, published_sort_order, published_is_active,
-      version, updated_by, updated_at, published_by, published_at
+      version, updated_by, updated_at, published_by, published_at, last_request_id
     FROM site_navigation_items
     ORDER BY menu_key ASC, draft_sort_order ASC, id ASC
     LIMIT 100
@@ -110,7 +110,7 @@ export async function getAdminSiteNavigation(
     SELECT id, menu_key, captured_menu_id,
       draft_label, draft_href, draft_sort_order, draft_is_active,
       published_label, published_href, published_sort_order, published_is_active,
-      version, updated_by, updated_at, published_by, published_at
+      version, updated_by, updated_at, published_by, published_at, last_request_id
     FROM site_navigation_items
     WHERE id = ?
     LIMIT 1
@@ -147,12 +147,26 @@ export async function createAdminSiteNavigation(
     operation: "create",
     sortOrder,
   });
+  const postcondition: NavigationCreatePostcondition = {
+    actorSubject: input.actorSubject,
+    capturedMenuId,
+    entityId: "",
+    href,
+    isActive,
+    label,
+    menuKey,
+    payloadSha256,
+    requestId,
+    sortOrder,
+  };
   const existingMutation = await findNavigationCreateMutation(database, requestId);
   if (existingMutation) {
     assertMatchingNavigationCreateMutation(existingMutation, payloadSha256);
-    return readNavigationCreateMutationResult(database, existingMutation);
+    postcondition.entityId = existingMutation.entity_key;
+    return readNavigationCreateMutationResult(database, existingMutation, postcondition);
   }
   const id = crypto.randomUUID();
+  postcondition.entityId = id;
 
   const insert = database.prepare(`
     INSERT INTO site_navigation_items (
@@ -183,20 +197,24 @@ export async function createAdminSiteNavigation(
     ) VALUES (?, ?, 'create', 'create', 'site_navigation', ?, 0, 1, ?)
   `).bind(requestId, input.actorSubject, id, payloadSha256);
   try {
-    const changed = await applyAtomicNavigationMutation(database, insert, audit);
-    if (!changed) throw new SiteNavigationStorageError("Không ghi được mục điều hướng mới.");
+    await applyAtomicNavigationMutation(
+      database,
+      insert,
+      audit,
+      buildNavigationCreatePostcondition(database, postcondition),
+    );
   } catch (error) {
     const racedMutation = await findNavigationCreateMutation(database, requestId);
     if (racedMutation) {
       assertMatchingNavigationCreateMutation(racedMutation, payloadSha256);
-      return readNavigationCreateMutationResult(database, racedMutation);
+      return readNavigationCreateMutationResult(database, racedMutation, postcondition);
     }
-    throw error;
+    throw normalizeNavigationWriteError(error);
   }
   const mutation = await findNavigationCreateMutation(database, requestId);
   if (!mutation) throw new SiteNavigationStorageError("Không đọc được audit mục điều hướng vừa tạo.");
   assertMatchingNavigationCreateMutation(mutation, payloadSha256);
-  return readNavigationCreateMutationResult(database, mutation);
+  return readNavigationCreateMutationResult(database, mutation, postcondition);
 }
 
 export async function updateAdminSiteNavigation(
@@ -230,10 +248,22 @@ export async function updateAdminSiteNavigation(
     operation: "draft",
     sortOrder,
   });
+  const postcondition: NavigationMutationPostcondition = {
+    actorSubject: input.actorSubject,
+    draftHref: href,
+    draftIsActive: isActive,
+    draftLabel: label,
+    draftSortOrder: sortOrder,
+    entityId: id,
+    expectedVersion: input.expectedVersion,
+    operation: "draft",
+    payloadSha256,
+    requestId,
+  };
   const existingMutation = await findNavigationMutation(database, requestId);
   if (existingMutation) {
     assertMatchingNavigationMutation(existingMutation, "draft", payloadSha256);
-    return readNavigationMutationResult(database, existingMutation);
+    return readNavigationMutationResult(database, existingMutation, postcondition);
   }
   const current = await getAdminSiteNavigation(database, id);
   if (!current) throw new SiteNavigationNotFoundError("Không tìm thấy mục điều hướng.");
@@ -266,19 +296,28 @@ export async function updateAdminSiteNavigation(
     requestId,
   });
   try {
-    const changed = await applyAtomicNavigationMutation(database, update, audit);
-    if (!changed) throw new SiteNavigationConflictError("Mục điều hướng đã thay đổi ở phiên khác. Hãy tải lại trước khi lưu.");
+    await applyAtomicNavigationMutation(
+      database,
+      update,
+      audit,
+      buildNavigationPostconditionAssertion(database, postcondition),
+    );
   } catch (error) {
     const racedMutation = await findNavigationMutation(database, requestId);
     if (racedMutation) {
       assertMatchingNavigationMutation(racedMutation, "draft", payloadSha256);
-      return readNavigationMutationResult(database, racedMutation);
+      return readNavigationMutationResult(database, racedMutation, postcondition);
     }
-    throw error;
+    const latest = await getAdminSiteNavigation(database, id);
+    if (latest && latest.version !== input.expectedVersion) {
+      throw new SiteNavigationConflictError("Mục điều hướng đã thay đổi ở phiên khác. Hãy tải lại trước khi lưu.");
+    }
+    throw normalizeNavigationWriteError(error);
   }
-  const updated = await getAdminSiteNavigation(database, id);
-  if (!updated) throw new SiteNavigationNotFoundError("Không thể đọc mục điều hướng vừa cập nhật.");
-  return updated;
+  const mutation = await findNavigationMutation(database, requestId);
+  if (!mutation) throw new SiteNavigationConflictError("Mục điều hướng đã thay đổi ở phiên khác. Hãy tải lại trước khi lưu.");
+  assertMatchingNavigationMutation(mutation, "draft", payloadSha256);
+  return readNavigationMutationResult(database, mutation, postcondition);
 }
 
 export async function publishAdminSiteNavigation(
@@ -295,10 +334,18 @@ export async function publishAdminSiteNavigation(
     id,
     operation: "publish",
   });
+  const postcondition: NavigationMutationPostcondition = {
+    actorSubject: input.actorSubject,
+    entityId: id,
+    expectedVersion: input.expectedVersion,
+    operation: "publish",
+    payloadSha256,
+    requestId,
+  };
   const existingMutation = await findNavigationMutation(database, requestId);
   if (existingMutation) {
     assertMatchingNavigationMutation(existingMutation, "publish", payloadSha256);
-    return readNavigationMutationResult(database, existingMutation);
+    return readNavigationMutationResult(database, existingMutation, postcondition);
   }
   const current = await getAdminSiteNavigation(database, id);
   if (!current) throw new SiteNavigationNotFoundError("Không tìm thấy mục điều hướng.");
@@ -325,19 +372,28 @@ export async function publishAdminSiteNavigation(
     requestId,
   });
   try {
-    const changed = await applyAtomicNavigationMutation(database, update, audit);
-    if (!changed) throw new SiteNavigationConflictError("Mục điều hướng đã thay đổi ở phiên khác. Hãy tải lại trước khi phát hành.");
+    await applyAtomicNavigationMutation(
+      database,
+      update,
+      audit,
+      buildNavigationPostconditionAssertion(database, postcondition),
+    );
   } catch (error) {
     const racedMutation = await findNavigationMutation(database, requestId);
     if (racedMutation) {
       assertMatchingNavigationMutation(racedMutation, "publish", payloadSha256);
-      return readNavigationMutationResult(database, racedMutation);
+      return readNavigationMutationResult(database, racedMutation, postcondition);
     }
-    throw error;
+    const latest = await getAdminSiteNavigation(database, id);
+    if (latest && latest.version !== input.expectedVersion) {
+      throw new SiteNavigationConflictError("Mục điều hướng đã thay đổi ở phiên khác. Hãy tải lại trước khi phát hành.");
+    }
+    throw normalizeNavigationWriteError(error);
   }
-  const published = await getAdminSiteNavigation(database, id);
-  if (!published) throw new SiteNavigationNotFoundError("Không thể đọc mục điều hướng vừa phát hành.");
-  return published;
+  const mutation = await findNavigationMutation(database, requestId);
+  if (!mutation) throw new SiteNavigationConflictError("Mục điều hướng đã thay đổi ở phiên khác. Hãy tải lại trước khi phát hành.");
+  assertMatchingNavigationMutation(mutation, "publish", payloadSha256);
+  return readNavigationMutationResult(database, mutation, postcondition);
 }
 
 export async function publishAllAdminSiteNavigation(
@@ -356,7 +412,7 @@ export async function publishAllAdminSiteNavigation(
     SELECT id, menu_key, captured_menu_id,
       draft_label, draft_href, draft_sort_order, draft_is_active,
       published_label, published_href, published_sort_order, published_is_active,
-      version, updated_by, updated_at, published_by, published_at
+      version, updated_by, updated_at, published_by, published_at, last_request_id
     FROM site_navigation_items
     WHERE draft_label <> published_label
       OR draft_href <> published_href
@@ -413,6 +469,15 @@ export async function publishAllAdminSiteNavigation(
       row.version + 1,
       itemRequestId,
     ));
+    statements.push(buildNavigationBulkItemPostcondition(database, {
+      actorSubject: input.actorSubject,
+      bulkRequestId: requestId,
+      entityId: row.id,
+      expectedVersion: row.version,
+      operation: "publish",
+      payloadSha256: itemPayloadSha256,
+      requestId: itemRequestId,
+    }));
   }
 
   statements.push(database.prepare(`
@@ -422,33 +487,27 @@ export async function publishAllAdminSiteNavigation(
     )
     WHERE request_id = ?
   `).bind(requestId, requestId));
+  statements.push(buildNavigationBulkEnvelopePostcondition(database, {
+    actorSubject: input.actorSubject,
+    operation: "publish_all",
+    payloadSha256,
+    requestId,
+    selectedCount: rows.results.length,
+  }));
 
   const databaseWithBatch = database as D1DatabaseWithBatch;
   if (typeof databaseWithBatch.batch !== "function") {
     throw new SiteNavigationStorageError("D1 atomic batch chưa sẵn sàng cho bulk publish điều hướng.");
   }
   try {
-    const results = await databaseWithBatch.batch(statements);
-    if (results.length !== statements.length) {
-      throw new SiteNavigationStorageError("D1 bulk batch điều hướng trả về kết quả không hợp lệ.");
-    }
-    if (!hasChanged(results[0]) || !hasChanged(results.at(-1))) {
-      throw new SiteNavigationStorageError("Bulk publish điều hướng chưa ghi được audit envelope.");
-    }
-    for (let index = 1; index < results.length - 1; index += 2) {
-      const updateChanged = hasChanged(results[index]);
-      const itemAuditChanged = hasChanged(results[index + 1]);
-      if (updateChanged !== itemAuditChanged) {
-        throw new SiteNavigationStorageError("Bulk publish điều hướng có mục thiếu audit đồng bộ.");
-      }
-    }
+    await databaseWithBatch.batch(statements);
   } catch (error) {
     const racedMutation = await findNavigationBulkMutation(database, requestId);
     if (racedMutation) {
       assertMatchingNavigationBulkMutation(racedMutation, payloadSha256);
       return readBulkNavigationResult(database, requestId, racedMutation);
     }
-    throw error;
+    throw normalizeNavigationWriteError(error);
   }
 
   const mutation = await findNavigationBulkMutation(database, requestId);
@@ -475,6 +534,44 @@ interface D1DatabaseWithBatch extends D1DatabaseLike {
 }
 
 type NavigationMutationOperation = "draft" | "publish";
+
+interface NavigationMutationPostcondition {
+  actorSubject: string;
+  draftHref?: string;
+  draftIsActive?: boolean;
+  draftLabel?: string;
+  draftSortOrder?: number;
+  entityId: string;
+  expectedVersion: number;
+  operation: NavigationMutationOperation;
+  payloadSha256: string;
+  requestId: string;
+}
+
+interface NavigationCreatePostcondition {
+  actorSubject: string;
+  capturedMenuId: string | null;
+  entityId: string;
+  href: string;
+  isActive: boolean;
+  label: string;
+  menuKey: NavigationMenuKey;
+  payloadSha256: string;
+  requestId: string;
+  sortOrder: number;
+}
+
+interface NavigationBulkItemPostcondition extends NavigationMutationPostcondition {
+  bulkRequestId: string;
+}
+
+interface NavigationBulkEnvelopePostcondition {
+  actorSubject: string;
+  operation: "publish_all";
+  payloadSha256: string;
+  requestId: string;
+  selectedCount: number;
+}
 
 interface NavigationMutationRow {
   entity_key: string;
@@ -526,17 +623,331 @@ async function applyAtomicNavigationMutation(
   database: D1DatabaseLike,
   update: D1PreparedStatementLike,
   audit: D1PreparedStatementLike,
-): Promise<boolean> {
+  postcondition: D1PreparedStatementLike,
+): Promise<void> {
   const databaseWithBatch = database as D1DatabaseWithBatch;
   if (typeof databaseWithBatch.batch !== "function") {
     throw new SiteNavigationStorageError("D1 atomic batch chưa sẵn sàng cho thay đổi điều hướng.");
   }
-  const results = await databaseWithBatch.batch([update, audit]);
-  if (results.length !== 2) throw new SiteNavigationStorageError("D1 navigation mutation trả về kết quả không hợp lệ.");
-  const updateChanged = hasChanged(results[0]);
-  const auditChanged = hasChanged(results[1]);
-  if (updateChanged !== auditChanged) throw new SiteNavigationStorageError("Thay đổi điều hướng chưa ghép được với audit.");
-  return updateChanged;
+  try {
+    await databaseWithBatch.batch([update, audit, postcondition]);
+  } catch (error) {
+    throw normalizeNavigationWriteError(error);
+  }
+}
+
+async function ensureNavigationMutationComplete(
+  database: D1DatabaseLike,
+  postcondition: NavigationMutationPostcondition,
+): Promise<void> {
+  const { expression, values } = buildNavigationMutationPostconditionExpression(postcondition);
+  const row = await database.prepare(`
+    /* navigation-write-postcondition-read */
+    SELECT CASE WHEN (${expression}) THEN 1 ELSE 0 END AS complete
+  `).bind(...values).first<{ complete?: unknown }>();
+  if (Number(row?.complete) !== 1) {
+    throw new SiteNavigationStorageError(
+      "Không thể xác nhận đầy đủ trạng thái mục điều hướng và audit; thao tác bị khóa để tránh báo thành công sai.",
+    );
+  }
+}
+
+function buildNavigationPostconditionAssertion(
+  database: D1DatabaseLike,
+  postcondition: NavigationMutationPostcondition,
+): D1PreparedStatementLike {
+  const { expression, values } = buildNavigationMutationPostconditionExpression(postcondition);
+  return database.prepare(`
+    /* navigation-write-postcondition */
+    INSERT INTO admin_navigation_audit (
+      request_id, actor_subject, action, operation, entity_type, entity_key,
+      previous_revision, resulting_revision, payload_sha256, bulk_request_id
+    )
+    SELECT NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL
+    WHERE NOT (${expression})
+  `).bind(...values);
+}
+
+async function ensureNavigationCreateMutationComplete(
+  database: D1DatabaseLike,
+  postcondition: NavigationCreatePostcondition,
+): Promise<void> {
+  const { expression, values } = buildNavigationCreatePostconditionExpression(postcondition);
+  const row = await database.prepare(`
+    /* navigation-write-postcondition-read */
+    SELECT CASE WHEN (${expression}) THEN 1 ELSE 0 END AS complete
+  `).bind(...values).first<{ complete?: unknown }>();
+  if (Number(row?.complete) !== 1) {
+    throw new SiteNavigationStorageError(
+      "Không thể xác nhận đầy đủ trạng thái mục điều hướng mới và audit; thao tác bị khóa để tránh báo thành công sai.",
+    );
+  }
+}
+
+function buildNavigationCreatePostcondition(
+  database: D1DatabaseLike,
+  postcondition: NavigationCreatePostcondition,
+): D1PreparedStatementLike {
+  const { expression, values } = buildNavigationCreatePostconditionExpression(postcondition);
+  return database.prepare(`
+    /* navigation-write-postcondition */
+    INSERT INTO admin_navigation_create_audit (
+      request_id, actor_subject, action, operation, entity_type, entity_key,
+      previous_revision, resulting_revision, payload_sha256
+    )
+    SELECT NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL
+    WHERE NOT (${expression})
+  `).bind(...values);
+}
+
+function buildNavigationBulkItemPostcondition(
+  database: D1DatabaseLike,
+  postcondition: NavigationBulkItemPostcondition,
+): D1PreparedStatementLike {
+  return database.prepare(`
+    /* navigation-bulk-postcondition */
+    INSERT INTO admin_navigation_audit (
+      request_id, actor_subject, action, operation, entity_type, entity_key,
+      previous_revision, resulting_revision, payload_sha256, bulk_request_id
+    )
+    SELECT NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL
+    WHERE NOT (
+      EXISTS (
+        SELECT 1
+        FROM admin_navigation_audit marker
+        JOIN site_navigation_items navigation_row ON navigation_row.id = marker.entity_key
+        WHERE marker.request_id = ?
+          AND marker.actor_subject = ?
+          AND marker.action = 'update'
+          AND marker.operation = 'publish'
+          AND marker.entity_type = 'site_navigation'
+          AND marker.entity_key = ?
+          AND marker.previous_revision = ?
+          AND marker.resulting_revision = ?
+          AND marker.payload_sha256 = ?
+          AND marker.bulk_request_id = ?
+          AND navigation_row.version = ?
+          AND navigation_row.last_request_id = ?
+          AND navigation_row.published_label = navigation_row.draft_label
+          AND navigation_row.published_href = navigation_row.draft_href
+          AND navigation_row.published_sort_order = navigation_row.draft_sort_order
+          AND navigation_row.published_is_active = navigation_row.draft_is_active
+          AND navigation_row.published_by = ?
+          AND navigation_row.published_at IS NOT NULL
+      )
+      OR (
+        NOT EXISTS (
+          SELECT 1 FROM admin_navigation_audit marker
+          WHERE marker.request_id = ?
+        )
+        AND NOT EXISTS (
+          SELECT 1 FROM site_navigation_items navigation_row
+          WHERE navigation_row.id = ?
+            AND navigation_row.version = ?
+            AND navigation_row.last_request_id = ?
+        )
+      )
+    )
+  `).bind(
+    postcondition.requestId,
+    postcondition.actorSubject,
+    postcondition.entityId,
+    postcondition.expectedVersion,
+    postcondition.expectedVersion + 1,
+    postcondition.payloadSha256,
+    postcondition.bulkRequestId,
+    postcondition.expectedVersion + 1,
+    postcondition.requestId,
+    postcondition.actorSubject,
+    postcondition.requestId,
+    postcondition.entityId,
+    postcondition.expectedVersion + 1,
+    postcondition.requestId,
+  );
+}
+
+function buildNavigationBulkEnvelopePostcondition(
+  database: D1DatabaseLike,
+  postcondition: NavigationBulkEnvelopePostcondition,
+): D1PreparedStatementLike {
+  return database.prepare(`
+    /* navigation-bulk-postcondition */
+    INSERT INTO admin_navigation_bulk_audit (
+      request_id, actor_subject, action, operation, payload_sha256,
+      selected_count, published_count, selected_ids_json
+    )
+    SELECT NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL
+    WHERE NOT (
+      EXISTS (
+        SELECT 1
+        FROM admin_navigation_bulk_audit envelope
+        WHERE envelope.request_id = ?
+          AND envelope.actor_subject = ?
+          AND envelope.action = 'update'
+          AND envelope.operation = 'publish_all'
+          AND envelope.payload_sha256 = ?
+          AND envelope.selected_count = ?
+      )
+      AND (
+        SELECT COUNT(*)
+        FROM admin_navigation_audit item
+        WHERE item.bulk_request_id = ?
+          AND item.action = 'update'
+          AND item.operation = 'publish'
+          AND item.entity_type = 'site_navigation'
+      ) = (
+        SELECT envelope.published_count
+        FROM admin_navigation_bulk_audit envelope
+        WHERE envelope.request_id = ?
+      )
+      AND NOT EXISTS (
+        SELECT 1
+        FROM admin_navigation_audit item
+        LEFT JOIN site_navigation_items navigation_row ON navigation_row.id = item.entity_key
+        WHERE item.bulk_request_id = ?
+          AND (
+            item.actor_subject <> ?
+            OR item.action <> 'update'
+            OR item.operation <> 'publish'
+            OR item.entity_type <> 'site_navigation'
+            OR item.previous_revision < 1
+            OR item.resulting_revision <> item.previous_revision + 1
+            OR navigation_row.id IS NULL
+            OR navigation_row.version <> item.resulting_revision
+            OR navigation_row.last_request_id <> item.request_id
+            OR navigation_row.draft_label <> navigation_row.published_label
+            OR navigation_row.draft_href <> navigation_row.published_href
+            OR navigation_row.draft_sort_order <> navigation_row.published_sort_order
+            OR navigation_row.draft_is_active <> navigation_row.published_is_active
+            OR navigation_row.published_by <> item.actor_subject
+            OR navigation_row.published_at IS NULL
+          )
+      )
+    )
+  `).bind(
+    postcondition.requestId,
+    postcondition.actorSubject,
+    postcondition.payloadSha256,
+    postcondition.selectedCount,
+    postcondition.requestId,
+    postcondition.requestId,
+    postcondition.requestId,
+    postcondition.actorSubject,
+  );
+}
+
+function buildNavigationMutationPostconditionExpression(
+  postcondition: NavigationMutationPostcondition,
+): { expression: string; values: unknown[] } {
+  const contentCheck = postcondition.operation === "draft"
+    ? `
+          AND navigation_row.draft_label = ?
+          AND navigation_row.draft_href = ?
+          AND navigation_row.draft_sort_order = ?
+          AND navigation_row.draft_is_active = ?
+      `
+    : `
+          AND navigation_row.published_label = navigation_row.draft_label
+          AND navigation_row.published_href = navigation_row.draft_href
+          AND navigation_row.published_sort_order = navigation_row.draft_sort_order
+          AND navigation_row.published_is_active = navigation_row.draft_is_active
+          AND navigation_row.published_by = ?
+          AND navigation_row.published_at IS NOT NULL
+      `;
+  const contentValues = postcondition.operation === "draft"
+    ? [
+      postcondition.draftLabel ?? "",
+      postcondition.draftHref ?? "",
+      postcondition.draftSortOrder ?? 0,
+      postcondition.draftIsActive ? 1 : 0,
+    ]
+    : [postcondition.actorSubject];
+  return {
+    expression: `
+      EXISTS (
+        SELECT 1
+        FROM admin_navigation_audit marker
+        JOIN site_navigation_items navigation_row ON navigation_row.id = marker.entity_key
+        WHERE marker.request_id = ?
+          AND marker.actor_subject = ?
+          AND marker.action = 'update'
+          AND marker.operation = ?
+          AND marker.entity_type = 'site_navigation'
+          AND marker.entity_key = ?
+          AND marker.previous_revision = ?
+          AND marker.resulting_revision = ?
+          AND marker.payload_sha256 = ?
+          AND marker.bulk_request_id IS NULL
+          AND navigation_row.version = ?
+          AND navigation_row.last_request_id = ?
+          ${contentCheck}
+      )
+    `,
+    values: [
+      postcondition.requestId,
+      postcondition.actorSubject,
+      postcondition.operation,
+      postcondition.entityId,
+      postcondition.expectedVersion,
+      postcondition.expectedVersion + 1,
+      postcondition.payloadSha256,
+      postcondition.expectedVersion + 1,
+      postcondition.requestId,
+      ...contentValues,
+    ],
+  };
+}
+
+function buildNavigationCreatePostconditionExpression(
+  postcondition: NavigationCreatePostcondition,
+): { expression: string; values: unknown[] } {
+  return {
+    expression: `
+      EXISTS (
+        SELECT 1
+        FROM admin_navigation_create_audit marker
+        JOIN site_navigation_items navigation_row ON navigation_row.id = marker.entity_key
+        WHERE marker.request_id = ?
+          AND marker.actor_subject = ?
+          AND marker.action = 'create'
+          AND marker.operation = 'create'
+          AND marker.entity_type = 'site_navigation'
+          AND marker.entity_key = ?
+          AND marker.previous_revision = 0
+          AND marker.resulting_revision = 1
+          AND marker.payload_sha256 = ?
+          AND navigation_row.id = ?
+          AND navigation_row.menu_key = ?
+          AND navigation_row.captured_menu_id IS ?
+          AND navigation_row.version = 1
+          AND navigation_row.updated_by = ?
+          AND navigation_row.last_request_id = ?
+          AND navigation_row.draft_label = ?
+          AND navigation_row.draft_href = ?
+          AND navigation_row.draft_sort_order = ?
+          AND navigation_row.draft_is_active = ?
+          AND navigation_row.published_label = navigation_row.draft_label
+          AND navigation_row.published_href = navigation_row.draft_href
+          AND navigation_row.published_sort_order = navigation_row.draft_sort_order
+          AND navigation_row.published_is_active = navigation_row.draft_is_active
+      )
+    `,
+    values: [
+      postcondition.requestId,
+      postcondition.actorSubject,
+      postcondition.entityId,
+      postcondition.payloadSha256,
+      postcondition.entityId,
+      postcondition.menuKey,
+      postcondition.capturedMenuId,
+      postcondition.actorSubject,
+      postcondition.requestId,
+      postcondition.label,
+      postcondition.href,
+      postcondition.sortOrder,
+      postcondition.isActive ? 1 : 0,
+    ],
+  };
 }
 
 async function findNavigationMutation(
@@ -576,9 +987,14 @@ function assertMatchingNavigationMutation(
 async function readNavigationMutationResult(
   database: D1DatabaseLike,
   mutation: NavigationMutationRow,
+  postcondition: NavigationMutationPostcondition,
 ): Promise<AdminNavigationItem> {
+  await ensureNavigationMutationComplete(database, postcondition);
   const item = await getAdminSiteNavigation(database, mutation.entity_key);
   if (!item) throw new SiteNavigationStorageError("Không đọc được mục điều hướng sau khi replay.");
+  if (item.version !== postcondition.expectedVersion + 1) {
+    throw new SiteNavigationStorageError("Revision mục điều hướng không khớp sau khi ghi.");
+  }
   return item;
 }
 
@@ -594,13 +1010,19 @@ function assertMatchingNavigationCreateMutation(
 async function readNavigationCreateMutationResult(
   database: D1DatabaseLike,
   mutation: NavigationCreateMutationRow,
+  postcondition: NavigationCreatePostcondition,
 ): Promise<AdminNavigationItem> {
+  await ensureNavigationCreateMutationComplete(database, postcondition);
   const item = await getAdminSiteNavigation(database, mutation.entity_key);
   if (!item) throw new SiteNavigationStorageError("Không đọc được mục điều hướng sau khi replay.");
+  if (item.version !== 1 || item.dirty) {
+    throw new SiteNavigationStorageError("Trạng thái mục điều hướng mới tạo không khớp sau khi ghi.");
+  }
   return item;
 }
 
 interface NavigationBulkMutationRow {
+  actor_subject: string;
   operation: "publish_all";
   payload_sha256: string;
   published_count: number;
@@ -610,6 +1032,22 @@ interface NavigationBulkMutationRow {
 
 interface NavigationBulkAuditItemRow {
   navigation_id: string;
+  request_id: string;
+  previous_revision: number;
+  resulting_revision: number;
+  payload_sha256: string;
+  version: number;
+  last_request_id: string | null;
+  draft_label: string;
+  draft_href: string;
+  draft_sort_order: number;
+  draft_is_active: number;
+  published_label: string;
+  published_href: string;
+  published_sort_order: number;
+  published_is_active: number;
+  published_by: string | null;
+  published_at: string | null;
 }
 
 async function findNavigationBulkMutation(
@@ -617,7 +1055,7 @@ async function findNavigationBulkMutation(
   requestId: string,
 ): Promise<NavigationBulkMutationRow | null> {
   return database.prepare(`
-    SELECT operation, payload_sha256, selected_count, published_count, selected_ids_json
+    SELECT actor_subject, operation, payload_sha256, selected_count, published_count, selected_ids_json
     FROM admin_navigation_bulk_audit
     WHERE request_id = ?
     LIMIT 1
@@ -639,13 +1077,41 @@ async function readBulkNavigationResult(
   mutation: NavigationBulkMutationRow,
 ): Promise<AdminNavigationBulkResult> {
   const auditRows = await database.prepare(`
-    SELECT entity_key AS navigation_id
-    FROM admin_navigation_audit
-    WHERE bulk_request_id = ?
-    ORDER BY id ASC
+    SELECT audit.entity_key AS navigation_id,
+      audit.request_id, audit.previous_revision, audit.resulting_revision, audit.payload_sha256,
+      navigation_row.version, navigation_row.last_request_id,
+      navigation_row.draft_label, navigation_row.draft_href,
+      navigation_row.draft_sort_order, navigation_row.draft_is_active,
+      navigation_row.published_label, navigation_row.published_href,
+      navigation_row.published_sort_order, navigation_row.published_is_active,
+      navigation_row.published_by, navigation_row.published_at
+    FROM admin_navigation_audit audit
+    JOIN site_navigation_items navigation_row ON navigation_row.id = audit.entity_key
+    WHERE audit.bulk_request_id = ?
+      AND audit.action = 'update'
+      AND audit.operation = 'publish'
+      AND audit.entity_type = 'site_navigation'
+    ORDER BY audit.id ASC
   `).bind(requestId).all<NavigationBulkAuditItemRow>();
   if (auditRows.results.length !== mutation.published_count) {
     throw new SiteNavigationStorageError("Bulk audit điều hướng không khớp số mục đã phát hành.");
+  }
+  const invalidAudit = auditRows.results.some((row) => (
+    !isAdminRequestId(row.request_id)
+    || !isSha256(row.payload_sha256)
+    || row.previous_revision < 1
+    || row.resulting_revision !== row.previous_revision + 1
+    || row.version !== row.resulting_revision
+    || row.last_request_id !== row.request_id
+    || row.draft_label !== row.published_label
+    || row.draft_href !== row.published_href
+    || row.draft_sort_order !== row.published_sort_order
+    || row.draft_is_active !== row.published_is_active
+    || row.published_by !== mutation.actor_subject
+    || row.published_at === null
+  ));
+  if (invalidAudit) {
+    throw new SiteNavigationStorageError("Bulk publish có audit hoặc revision mục điều hướng không hợp lệ.");
   }
 
   const selectedIds = parseNavigationBulkSelectedIds(mutation.selected_ids_json, mutation.selected_count);
@@ -709,6 +1175,14 @@ function normalizeNavigationRequestId(value: string | undefined): string {
     throw new SiteNavigationValidationError("requestId phải là UUID hợp lệ.");
   }
   return requestId;
+}
+
+function isAdminRequestId(value: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+}
+
+function isSha256(value: string): boolean {
+  return /^[0-9a-f]{64}$/i.test(value);
 }
 
 export class SiteNavigationIdempotencyConflictError extends Error {
@@ -1048,6 +1522,7 @@ interface SiteNavigationRow {
   updated_at: string;
   published_by: string | null;
   published_at: string | null;
+  last_request_id: string | null;
 }
 
 interface PublishedNavigationRow {
@@ -1115,4 +1590,19 @@ function hasChanged(result: unknown): boolean {
   if (Array.isArray(record.results)) return record.results.length > 0;
   const changes = record.meta?.changes;
   return changes !== undefined && Number(changes) > 0;
+}
+
+function normalizeNavigationWriteError(error: unknown): unknown {
+  const message = error instanceof Error ? error.message : String(error);
+  const normalized = message.toLowerCase();
+  if (message.includes("navigation-write-postcondition")
+    || message.includes("navigation-bulk-postcondition")
+    || (normalized.includes("admin_navigation_audit") && normalized.includes("constraint"))
+    || (normalized.includes("admin_navigation_create_audit") && normalized.includes("constraint"))
+    || (normalized.includes("admin_navigation_bulk_audit") && normalized.includes("constraint"))) {
+    return new SiteNavigationStorageError(
+      "Không ghi đồng bộ được mục điều hướng và audit; hệ thống đã rollback để tránh báo thành công sai.",
+    );
+  }
+  return error;
 }

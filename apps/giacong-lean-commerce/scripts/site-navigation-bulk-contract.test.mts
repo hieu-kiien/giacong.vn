@@ -7,6 +7,7 @@ import {
   SiteNavigationBatchLimitError,
   SiteNavigationConflictError,
   SiteNavigationIdempotencyConflictError,
+  SiteNavigationStorageError,
   createAdminSiteNavigation,
   publishAdminSiteNavigation,
   publishAllAdminSiteNavigation,
@@ -205,6 +206,7 @@ test("navigation bulk publish rolls back when a per-item audit statement fails",
 test("navigation bulk publish rejects request ID reuse with a different stored fingerprint", async () => {
   const database = new FakeNavigationDatabase([navigationRow({ id: "home", draftLabel: "Trang chủ mới" })]);
   database.audits.set("55555555-5555-4555-8555-555555555555", {
+    actor_subject: "qtu1053@gmail.com",
     operation: "publish_all",
     payload_sha256: "0".repeat(64),
     published_count: 0,
@@ -289,6 +291,91 @@ test("single navigation mutation keeps stale writes out of the audit", async () 
   assert.equal(database.singleAudits.size, 0);
 });
 
+test("navigation single writes succeed when D1 omits batch result rows", async () => {
+  const database = new FakeNavigationDatabase([]);
+  database.omitBatchResults = true;
+  const created = await createAdminSiteNavigation(database, {
+    actorSubject: "qtu1053@gmail.com",
+    href: "/new/",
+    label: "Mục mới",
+    menuKey: "primary",
+    requestId: "99999999-9999-4999-8999-999999999999",
+  } as Parameters<typeof createAdminSiteNavigation>[1]);
+  const updated = await updateAdminSiteNavigation(database, {
+    actorSubject: "qtu1053@gmail.com",
+    expectedVersion: created.version,
+    href: "/newer/",
+    id: created.id,
+    isActive: true,
+    label: "Mục mới đã lưu",
+    requestId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+    sortOrder: 80,
+  });
+  const published = await publishAdminSiteNavigation(database, {
+    actorSubject: "qtu1053@gmail.com",
+    expectedVersion: updated.version,
+    id: created.id,
+    requestId: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+  });
+
+  assert.equal(published.dirty, false);
+  assert.equal(published.version, 3);
+  assert.equal(database.createAudits.size, 1);
+  assert.equal(database.singleAudits.size, 2);
+});
+
+test("navigation single write rolls back when its postcondition is missing", async () => {
+  const database = new FakeNavigationDatabase([navigationRow({ id: "home", draftLabel: "Trang chủ mới" })]);
+  database.failPostcondition = true;
+
+  await assert.rejects(
+    () => updateAdminSiteNavigation(database, {
+      actorSubject: "qtu1053@gmail.com",
+      expectedVersion: 1,
+      href: "/rollback/",
+      id: "home",
+      isActive: true,
+      label: "Rollback",
+      requestId: "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+      sortOrder: 10,
+    }),
+    SiteNavigationStorageError,
+  );
+  assert.equal(database.rows[0]?.version, 1);
+  assert.equal(database.singleAudits.size, 0);
+});
+
+test("navigation bulk publish succeeds when D1 omits batch result rows", async () => {
+  const database = new FakeNavigationDatabase([
+    navigationRow({ id: "home", draftLabel: "Trang chủ mới" }),
+    navigationRow({ id: "about", draftLabel: "Giới thiệu mới" }),
+  ]);
+  database.omitBatchResults = true;
+
+  const result = await publishAllAdminSiteNavigation(database, {
+    actorSubject: "qtu1053@gmail.com",
+    requestId: "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
+  });
+  assert.equal(result.changedCount, 2);
+  assert.equal(database.navigationAuditCount, 2);
+});
+
+test("navigation bulk publish rolls back when a postcondition is missing", async () => {
+  const database = new FakeNavigationDatabase([navigationRow({ id: "home", draftLabel: "Trang chủ mới" })]);
+  database.failPostcondition = true;
+
+  await assert.rejects(
+    () => publishAllAdminSiteNavigation(database, {
+      actorSubject: "qtu1053@gmail.com",
+      requestId: "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
+    }),
+    SiteNavigationStorageError,
+  );
+  assert.equal(database.rows[0]?.version, 1);
+  assert.equal(database.items.length, 0);
+  assert.equal(database.audits.size, 0);
+});
+
 function navigationRow(input: { draftLabel?: string; id: string; menuKey?: "primary" | "footer" }): NavigationRow {
   return {
     id: input.id,
@@ -332,6 +419,7 @@ interface NavigationRow {
 }
 
 interface BulkAudit {
+  actor_subject: string;
   operation: "publish_all";
   payload_sha256: string;
   published_count: number;
@@ -342,6 +430,10 @@ interface BulkAudit {
 interface BulkAuditItem {
   bulk_request_id: string;
   navigation_id: string;
+  request_id: string;
+  previous_revision: number;
+  resulting_revision: number;
+  payload_sha256: string;
 }
 
 interface SingleAudit {
@@ -366,6 +458,8 @@ class FakeNavigationDatabase implements D1DatabaseLike {
   navigationAuditCount = 0;
   readonly skipUpdateIds = new Set<string>();
   failOnQuery: string | null = null;
+  omitBatchResults = false;
+  failPostcondition = false;
 
   constructor(rows: NavigationRow[]) {
     this.rows = rows;
@@ -383,7 +477,7 @@ class FakeNavigationDatabase implements D1DatabaseLike {
       for (const statement of statements) {
         results.push(await (statement as FakeNavigationStatement).execute());
       }
-      return results;
+      return this.omitBatchResults ? [] : results;
     } catch (error) {
       this.audits.clear();
       snapshot.audits.forEach(([key, value]) => this.audits.set(key, value));
@@ -419,7 +513,25 @@ class FakeNavigationStatement implements D1PreparedStatementLike {
       return {
         results: this.database.items
           .filter((item) => item.bulk_request_id === String(this.values[0]))
-          .map((item) => ({ navigation_id: item.navigation_id }) as T),
+          .map((item) => {
+            const row = this.database.rows.find((candidate) => candidate.id === item.navigation_id);
+            return {
+              ...item,
+              entity_key: item.navigation_id,
+              version: row?.version,
+              last_request_id: row?.last_request_id ?? null,
+              draft_label: row?.draft_label,
+              draft_href: row?.draft_href,
+              draft_sort_order: row?.draft_sort_order,
+              draft_is_active: row?.draft_is_active,
+              published_label: row?.published_label,
+              published_href: row?.published_href,
+              published_sort_order: row?.published_sort_order,
+              published_is_active: row?.published_is_active,
+              published_by: row?.published_by ?? null,
+              published_at: row?.published_at ?? null,
+            } as T;
+          }),
       };
     }
     if (this.query.includes("draft_label <> published_label")) {
@@ -444,8 +556,12 @@ class FakeNavigationStatement implements D1PreparedStatementLike {
   }
 
   async first<T = Record<string, unknown>>(): Promise<T | null> {
+    if (this.query.includes("navigation-write-postcondition-read")) {
+      return { complete: this.database.failPostcondition ? 0 : 1 } as T;
+    }
     if (this.query.includes("FROM admin_navigation_bulk_audit")) {
-      return (this.database.audits.get(String(this.values[0])) ?? null) as T | null;
+      const audit = this.database.audits.get(String(this.values[0]));
+      return (audit ? { ...audit } : null) as T | null;
     }
     if (this.query.includes("FROM admin_navigation_create_audit")) {
       return (this.database.createAudits.get(String(this.values[0])) ?? null) as T | null;
@@ -466,6 +582,10 @@ class FakeNavigationStatement implements D1PreparedStatementLike {
   async execute(): Promise<unknown> {
     if (this.database.failOnQuery && this.query.includes(this.database.failOnQuery)) {
       throw new Error("forced fake D1 failure");
+    }
+    if (this.query.includes("navigation-write-postcondition") || this.query.includes("navigation-bulk-postcondition")) {
+      if (this.database.failPostcondition) throw new Error("navigation-write-postcondition failed");
+      return { meta: { changes: 1 } };
     }
     if (this.query.includes("INSERT INTO site_navigation_items")) {
       const [id, menuKey, capturedMenuId, draftLabel, draftHref, draftSortOrder, draftIsActive, publishedLabel, publishedHref, publishedSortOrder, publishedIsActive, updatedBy, lastRequestId] = this.values;
@@ -513,18 +633,26 @@ class FakeNavigationStatement implements D1PreparedStatementLike {
         });
         return { meta: { changes: 1 } };
       }
-      const [, , previousRevision, , bulkRequestId, navigationId, resultingRevision, itemRequestId] = this.values;
+      const [, , previousRevision, payloadSha256, bulkRequestId, navigationId, resultingRevision, itemRequestId] = this.values;
       const row = this.database.rows.find((candidate) => candidate.id === String(navigationId));
       if (!row || row.last_request_id !== String(itemRequestId)
         || row.version !== Number(resultingRevision)
         || Number(resultingRevision) !== Number(previousRevision) + 1) return { meta: { changes: 0 } };
-      this.database.items.push({ bulk_request_id: String(bulkRequestId), navigation_id: row.id });
+      this.database.items.push({
+        bulk_request_id: String(bulkRequestId),
+        navigation_id: row.id,
+        request_id: String(itemRequestId),
+        previous_revision: Number(previousRevision),
+        resulting_revision: Number(resultingRevision),
+        payload_sha256: String(payloadSha256),
+      });
       this.database.navigationAuditCount++;
       return { meta: { changes: 1 } };
     }
     if (this.query.includes("INSERT INTO admin_navigation_bulk_audit (")) {
-      const [requestId, , payloadSha256, selectedCount] = this.values;
+      const [requestId, actorSubject, payloadSha256, selectedCount] = this.values;
       this.database.audits.set(String(requestId), {
+        actor_subject: String(actorSubject),
         operation: "publish_all",
         payload_sha256: String(payloadSha256),
         published_count: 0,
@@ -554,6 +682,8 @@ class FakeNavigationStatement implements D1PreparedStatementLike {
       row.published_href = row.draft_href;
       row.published_sort_order = row.draft_sort_order;
       row.published_is_active = row.draft_is_active;
+      row.published_by = String(this.values[0]);
+      row.published_at = "2026-09-01T00:00:00.000Z";
       row.version += 1;
       row.last_request_id = String(itemRequestId);
       return { meta: { changes: 1 } };
