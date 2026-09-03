@@ -54,6 +54,20 @@ Hồ sơ này ghi bằng chứng runtime đã xác minh trong quá trình chuy�
   không publish, không tạo member và không ghi D1/R2. Role matrix nhiều
   identity, write/read-back đầy đủ và production gate vẫn mở.
 
+## Authenticated admin staging QA runner — 2026-09-03
+
+- Đã thêm `scripts/qa-admin-staging.mjs` và lệnh `npm run qa:admin-staging`.
+  Runner nhận Playwright storage state sau Access login, chạy 10 route admin ở
+  mobile/desktop, đợi heading render, kiểm tra role tùy chọn, lỗi Access/1102/
+  5xx, overflow và console error/warning từ staging origin.
+- Runner chỉ dùng navigation/read APIs; contract test khóa storage-state,
+  bounded route list và không có thao tác click/fill/type/press hoặc HTTP
+  mutation. Thiếu storage state sẽ dừng với trạng thái `ADMIN QA BLOCKED`,
+  không giả vờ pass.
+- Lát này mới cung cấp bằng chứng tự động hóa có thể tái chạy; không tự đóng
+  role matrix nhiều identity hoặc write/read-back vì các gate đó cần storage
+  state/identity thật được cấp phép riêng.
+
 Các version và kết quả bên dưới là evidence lịch sử; khi mâu thuẫn với
 snapshot này, snapshot này phản ánh trạng thái runtime mới nhất.
 

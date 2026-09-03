@@ -481,6 +481,7 @@ khối lượng mà contextual UI làm khó hiểu.
 | scripts/captured-route-runtime.test.mjs | captured asset/runtime path |
 | scripts/development-port.test.mjs | reserved-port and local runner rules |
 | scripts/qa-deep-staging.test.mjs | harness chờ streamed storefront content trước detail/keyboard assertions |
+| scripts/qa-admin-staging-contract.test.mjs | authenticated admin staging runner, storage-state boundary và read-only/no-mutation contract |
 
 Test file mới chỉ được thêm cho gap thật, ưu tiên mở rộng test canonical trước khi
 tạo test wrapper mới.

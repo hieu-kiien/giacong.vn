@@ -1,6 +1,6 @@
 # Bàn giao vận hành — giacong.vn trên kienhieu.id.vn
 
-Tài liệu dành cho người vận hành (khách + chủ dự án). Quyết định kiến trúc xem [CLOUDFLARE_DEPLOYMENT.md](./CLOUDFLARE_DEPLOYMENT.md); checklist nghiệm thu xem [PRODUCTION_ACCEPTANCE_CHECKLIST.md](./PRODUCTION_ACCEPTANCE_CHECKLIST.md). Cập nhật 2026-09-02.
+Tài liệu dành cho người vận hành (khách + chủ dự án). Quyết định kiến trúc xem [CLOUDFLARE_DEPLOYMENT.md](./CLOUDFLARE_DEPLOYMENT.md); checklist nghiệm thu xem [PRODUCTION_ACCEPTANCE_CHECKLIST.md](./PRODUCTION_ACCEPTANCE_CHECKLIST.md). Cập nhật 2026-09-03.
 
 ## 1. Bản đồ hệ thống
 
@@ -47,6 +47,20 @@ npm run check && npm run cf:deploy:staging
 npm run cf:upload:production
 npx wrangler versions deploy <VERSION_ID> --name giacong-vn
 ```
+
+Authenticated admin staging QA (read-only, không submit form) dùng một
+Playwright storage state đã tạo sau khi đăng nhập Access:
+
+```bash
+QA_ADMIN_STORAGE_STATE=./.runtime/access-owner.storage.json \\
+QA_ADMIN_EXPECTED_ROLE=owner \\
+npm run qa:admin-staging
+```
+
+Runner kiểm tra 10 route admin ở mobile/desktop, heading, trạng thái Access,
+lỗi 1102/5xx, overflow và console lỗi từ staging origin. Không dùng storage
+state chứa secret trong Git; role matrix phải chạy riêng với storage state của
+từng identity được chủ dự án cấp phép.
 
 Rollback: `npx wrangler versions deploy <VERSION_CŨ> --name giacong-vn` (mỗi lần promote đều ghi rõ rollback point trong checklist). Rollback D1: chỉ dùng backup `.sql` đã re-export, checksum và thử restore — chỉ khi có chủ ý, kèm audit trước/sau.
 

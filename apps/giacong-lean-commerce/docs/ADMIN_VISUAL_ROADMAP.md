@@ -73,6 +73,12 @@ production promotion. Production chưa bị thay đổi.
   lỗi tải dữ liệu/1102/502/503. Đây là navigation/read-only evidence, không
   thay thế role matrix nhiều identity hoặc write/read-back đầy đủ.
 
+**QA automation update 2026-09-03:** Đã thêm runner
+`npm run qa:admin-staging` nhận Playwright storage state của phiên Access,
+kiểm tra 10 route admin ở mobile/desktop và chỉ thực hiện navigation/read-only.
+Contract test đạt; runner cố ý báo `ADMIN QA BLOCKED` khi thiếu storage state,
+không dùng trạng thái chưa xác thực để tuyên bố pass.
+
 **Runtime update 2026-09-02 (direct editing trên storefront thật):**
 `AdminVisualEditor` đã bỏ draft preview mô phỏng và chuyển sang registry target
 an toàn trên DOM của homepage đang render. Owner/content manager có thể bấm đúng
