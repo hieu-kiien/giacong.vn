@@ -82,6 +82,13 @@ role từ một phiên khác. Contract test đạt; runner cố ý báo `ADMIN Q
 khi thiếu hoặc thiếu role state, không dùng trạng thái chưa xác thực để tuyên bố
 pass.
 
+**A11y runner update 2026-09-03:** Runner hiện chạy cả chế độ mặc định và
+`prefers-reduced-motion`, ở hai viewport, đồng thời gửi một phím `Tab` để xác
+nhận focus tới phần tử nhìn thấy. Đây vẫn là kiểm tra read-only; không click,
+fill, submit hay gọi HTTP mutation. Contract test đã được đưa vào
+`test:admin` và pass `201/201`. Bằng chứng runtime vẫn cần storage state của
+identity thật.
+
 **Role inventory update 2026-09-03:** D1 staging hiện chỉ có một active
 `owner`; bốn role còn lại chưa có identity thật. Role-matrix runner đã sẵn sàng
 nhưng chưa được phép dùng placeholder/demo account để thay thế bằng chứng thật.

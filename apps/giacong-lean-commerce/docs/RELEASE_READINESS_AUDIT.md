@@ -201,6 +201,17 @@ Bản staging hiện **đủ điều kiện để tiếp tục nghiệm thu kỹ
   role matrix nhiều identity hoặc write/read-back vì các gate đó cần storage
   state/identity thật được cấp phép riêng.
 
+### A11y runner hardening — 2026-09-03
+
+- Runner chạy mỗi viewport ở cả `no-preference` và `reduce`, kiểm tra
+  `prefers-reduced-motion` đúng với context đã cấu hình.
+- Sau mỗi route, runner gửi `Tab` và xác nhận `document.activeElement` là phần
+  tử focusable, nhìn thấy; đây là kiểm tra keyboard reachability, không phải
+  thao tác nghiệp vụ.
+- Contract test đã vào `npm run test:admin`; suite hiện pass `201/201`.
+- Khi không có storage state, runner vẫn fail closed với `ADMIN QA BLOCKED`;
+  thay đổi này không biến bằng chứng local thành role-matrix runtime.
+
 ## Revalidation sau hardening — 2026-09-02
 
 - Commit `e1936cfb` đã đóng race giữa publish news từng bài và publish hàng

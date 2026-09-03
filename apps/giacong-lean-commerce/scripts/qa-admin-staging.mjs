@@ -2,7 +2,8 @@
 // Prepare a Playwright storage state after the operator completes Access login,
 // then run with QA_ADMIN_STORAGE_STATE=path/to/state.json, or provide a complete
 // role map with QA_ADMIN_ROLE_STATES=path/to/role-states.json. This runner never
-// clicks, fills, submits, or calls a mutation endpoint.
+// clicks, fills, submits, or calls a mutation endpoint. Keyboard navigation is
+// used only to verify focus reachability.
 import process from "node:process";
 import { access, readFile } from "node:fs/promises";
 import { resolve } from "node:path";
@@ -15,6 +16,10 @@ const expectedRole = process.env.QA_ADMIN_EXPECTED_ROLE?.trim().toLowerCase();
 const viewports = [
   { name: "mobile", width: 390, height: 844 },
   { name: "desktop", width: 1440, height: 900 },
+];
+const motionModes = [
+  { name: "default-motion", reducedMotion: "no-preference" },
+  { name: "reduced-motion", reducedMotion: "reduce" },
 ];
 const supportedRoles = ["owner", "content_manager", "catalog_manager", "sales_manager", "viewer"];
 const roleLabels = {
@@ -119,69 +124,97 @@ try {
       ? adminRoutes.filter((route) => roleNavigationRoutes[operator.role]?.includes(route.path))
       : adminRoutes;
     for (const viewport of viewports) {
-      const context = await browser.newContext({
-        storageState: operator.storageState,
-        viewport: { width: viewport.width, height: viewport.height },
-      });
-      const page = await context.newPage();
-      const pageIssues = [];
-      page.on("pageerror", (error) => pageIssues.push(`pageerror: ${error.message}`));
-      page.on("console", (message) => {
-        if (!["error", "warning"].includes(message.type())) return;
-        const url = message.location().url || "";
-        if (url.startsWith(baseUrl)) pageIssues.push(`${message.type()}: ${message.text()}`);
-      });
-
-      for (const route of routes) {
-        const response = await page.goto(`${baseUrl}${route.path}`, {
-          waitUntil: "domcontentloaded",
-          timeout: 45_000,
+      for (const motionMode of motionModes) {
+        const context = await browser.newContext({
+          storageState: operator.storageState,
+          viewport: { width: viewport.width, height: viewport.height },
+          reducedMotion: motionMode.reducedMotion,
         });
-        check(`${operator.role ?? "admin"} ${viewport.name} ${route.path} status`, response?.status() === 200, `status=${response?.status()}`);
-        const heading = page.locator("h1").first();
-        const rendered = await heading.waitFor({ state: "visible", timeout: 15_000 }).then(() => true).catch(() => false);
-        check(`${operator.role ?? "admin"} ${viewport.name} ${route.path} main rendered`, rendered);
-        if (!rendered) continue;
+        const page = await context.newPage();
+        const pageIssues = [];
+        page.on("pageerror", (error) => pageIssues.push(`pageerror: ${error.message}`));
+        page.on("console", (message) => {
+          if (!["error", "warning"].includes(message.type())) return;
+          const url = message.location().url || "";
+          if (url.startsWith(baseUrl)) pageIssues.push(`${message.type()}: ${message.text()}`);
+        });
 
-        const actualHeading = (await heading.innerText()).trim();
-        check(
-          `${operator.role ?? "admin"} ${viewport.name} ${route.path} heading`,
-          actualHeading === route.heading,
-          `"${actualHeading}"`,
-        );
-        const bodyText = await page.locator("body").innerText();
-        check(
-          `${operator.role ?? "admin"} ${viewport.name} ${route.path} has no rendered admin failure`,
-          !/Cloudflare Access|Không thể tải dữ liệu|Đã xảy ra lỗi|Worker exceeded resource limits|\b1102\b|\b502\b|\b503\b/i.test(bodyText),
-        );
-        check(
-          `${operator.role ?? "admin"} ${viewport.name} ${route.path} no horizontal overflow`,
-          await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1),
-        );
-        if (operator.role) {
-          const roleMarker = roleLabels[operator.role] ?? operator.role;
-          const normalizedBody = bodyText.toLocaleLowerCase("vi");
+        for (const route of routes) {
+          const response = await page.goto(`${baseUrl}${route.path}`, {
+            waitUntil: "domcontentloaded",
+            timeout: 45_000,
+          });
+          const label = `${operator.role ?? "admin"} ${viewport.name} ${motionMode.name} ${route.path}`;
+          check(`${label} status`, response?.status() === 200, `status=${response?.status()}`);
+          const heading = page.locator("h1").first();
+          const rendered = await heading.waitFor({ state: "visible", timeout: 15_000 }).then(() => true).catch(() => false);
+          check(`${label} main rendered`, rendered);
+          if (!rendered) continue;
+
+          const actualHeading = (await heading.innerText()).trim();
           check(
-            `${operator.role} ${viewport.name} ${route.path} expected role`,
-            normalizedBody.includes(operator.role.toLocaleLowerCase("vi")) || normalizedBody.includes(roleMarker.toLocaleLowerCase("vi")),
-            roleMarker,
+            `${label} heading`,
+            actualHeading === route.heading,
+            `"${actualHeading}"`,
           );
+          const bodyText = await page.locator("body").innerText();
+          check(
+            `${label} has no rendered admin failure`,
+            !/Cloudflare Access|Không thể tải dữ liệu|Đã xảy ra lỗi|Worker exceeded resource limits|\b1102\b|\b502\b|\b503\b/i.test(bodyText),
+          );
+          check(
+            `${label} no horizontal overflow`,
+            await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1),
+          );
+          const motionPreference = await page.evaluate(() => window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+          check(
+            `${label} reduced-motion preference`,
+            motionMode.reducedMotion === "reduce" ? motionPreference : !motionPreference,
+            motionMode.reducedMotion,
+          );
+          const focusableSelector = "a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex='-1'])";
+          await page.keyboard.press("Tab");
+          const focusState = await page.evaluate((selector) => {
+            const active = document.activeElement;
+            if (!(active instanceof HTMLElement)) return { focusable: false, visible: false, target: "none" };
+            const rect = active.getBoundingClientRect();
+            const styles = getComputedStyle(active);
+            return {
+              focusable: active.matches(selector),
+              visible: rect.width > 0 && rect.height > 0 && styles.visibility !== "hidden" && styles.display !== "none",
+              target: `${active.tagName.toLowerCase()}${active.id ? `#${active.id}` : ""}`,
+            };
+          }, focusableSelector);
+          check(
+            `${label} keyboard Tab reaches visible focusable target`,
+            focusState.focusable && focusState.visible,
+            focusState.target,
+          );
+          if (operator.role) {
+            const roleMarker = roleLabels[operator.role] ?? operator.role;
+            const normalizedBody = bodyText.toLocaleLowerCase("vi");
+            check(
+              `${label} expected role`,
+              normalizedBody.includes(operator.role.toLocaleLowerCase("vi")) || normalizedBody.includes(roleMarker.toLocaleLowerCase("vi")),
+              roleMarker,
+            );
+          }
+
+          if (matrixMode && operator.role && route.path === "/admin") {
+            const actualNavigationRoutes = await page.locator('nav[aria-label="Các khu vực quản trị"] a[href^="/admin"]').evaluateAll((links) => (
+              links.map((link) => link.getAttribute("href")).filter(Boolean)
+            ));
+            check(
+              `${operator.role} ${viewport.name} ${motionMode.name} navigation route matrix`,
+              JSON.stringify(actualNavigationRoutes) === JSON.stringify(roleNavigationRoutes[operator.role]),
+              `expected=${roleNavigationRoutes[operator.role].join(",")} actual=${actualNavigationRoutes.join(",")}`,
+            );
+          }
         }
 
-        if (matrixMode && operator.role && route.path === "/admin") {
-          const actualNavigationRoutes = await page.locator('nav[aria-label="Các khu vực quản trị"] a[href^="/admin"]').evaluateAll((links) => (
-            links.map((link) => link.getAttribute("href")).filter(Boolean)
-          ));
-          check(
-            `${operator.role} ${viewport.name} navigation route matrix`,
-            JSON.stringify(actualNavigationRoutes) === JSON.stringify(roleNavigationRoutes[operator.role]),
-            `expected=${roleNavigationRoutes[operator.role].join(",")} actual=${actualNavigationRoutes.join(",")}`,
-          );
-        }
+        check(`${operator.role ?? "admin"} ${viewport.name} ${motionMode.name} admin console clean`, pageIssues.length === 0, pageIssues.join(" | "));
+        await context.close();
       }
-
-      check(`${operator.role ?? "admin"} ${viewport.name} admin console clean`, pageIssues.length === 0, pageIssues.join(" | "));
-      await context.close();
     }
   }
 } finally {
