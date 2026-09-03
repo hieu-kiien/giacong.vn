@@ -10,7 +10,9 @@ Tài liệu này là nguồn bám theo cho việc biến admin hiện tại thà
 hiển thị, nhưng vẫn giữ trung tâm vận hành đầy đủ cho nghiệp vụ phức tạp và xử
 lý hàng loạt.
 
-**Checkpoint authoritative — 2026-09-03:** `master` đang ở commit `0adb917a`;
+**Checkpoint authoritative — 2026-09-03:** checkout `master` đang ở commit
+`f14d7ec5` (đồng bộ tài liệu; code behavior baseline đã deploy là
+`0adb917a`);
 bulk product import đã được harden theo bind-budget D1, retry audit exact-match
 và role-matrix QA runner đã fail-closed cho đủ năm identity. Source gate mới
 nhất `npm run check` đạt admin `215/215`, contact `104/104`, catalog `5/5`,

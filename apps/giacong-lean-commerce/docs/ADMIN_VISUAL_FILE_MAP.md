@@ -14,7 +14,8 @@ Mục tiêu của file này là trả lời nhanh bốn câu hỏi trước khi 
 Không thêm file mới vào map chỉ vì đã nghĩ ra tên. File chỉ được đánh dấu “đã có”
 khi tồn tại trong checkout; file “dự kiến” phải được tạo trong phase tương ứng.
 
-**Checkpoint 2026-09-03:** master hiện ở commit `0adb917a`. P1 host-gated admin context, P2 settings write
+**Checkpoint 2026-09-03:** checkout hiện ở commit `f14d7ec5` (đồng bộ tài liệu;
+code behavior baseline đã deploy là `0adb917a`). P1 host-gated admin context, P2 settings write
 contract (per-setting + bulk publish), contextual editor MVP, P3 contextual
 news-detail hand-off, P4 managed-page hand-off, P5 product bulk import UI và
 product/service/category bulk archive contract đã có trong `master`. Bản
@@ -28,7 +29,8 @@ bootstrap vào D1 staging với role `owner` cấp cao nhất. `/admin/thanh-vie
 được browser xác nhận hiển thị tài khoản hiện tại, khóa self-demotion/self-
 deactivation và mở được luồng `Thêm tài khoản quản trị`.
 
-**Checkpoint QA mới nhất — 2026-09-03:** Source head `0adb917a`; QA-only
+**Checkpoint QA mới nhất — 2026-09-03:** Checkout head `f14d7ec5`; code behavior
+baseline `0adb917a`; QA-only
 commit `0b1986bf` sửa false-positive của admin matcher, sau đó role-matrix
 runner được harden để yêu cầu đủ năm storage state phân biệt. Staging runtime
 `a3d82449-4dee-4b3f-a001-0b97e70e21e4` đang ở 100%, rollback point gần nhất là
