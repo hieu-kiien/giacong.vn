@@ -39,6 +39,7 @@ export class AdminMemberWriteValidationError extends Error {
 }
 
 interface MemberMutationRow {
+  actor_subject: string;
   action: "create" | "update";
   entity_key: string;
   entity_type: "admin_member";
@@ -53,6 +54,22 @@ interface D1BatchResultLike {
 
 interface D1DatabaseWithBatch extends D1DatabaseLike {
   batch(statements: D1PreparedStatementLike[]): Promise<D1BatchResultLike[]>;
+}
+
+interface MemberMutationPostcondition {
+  actorSubject: string;
+  action: "create" | "update";
+  expectedRevision: number;
+  id: string;
+  input: {
+    accessSubject: string;
+    displayName: string;
+    email: string | null;
+    isActive: boolean;
+    role: AdminRole;
+  };
+  payloadSha256: string;
+  requestId: string;
 }
 
 export async function createAdminMemberAtomically(
@@ -70,15 +87,28 @@ export async function createAdminMemberAtomically(
     input: canonicalMemberInput(input),
     operation: "create",
   });
+  const postcondition: MemberMutationPostcondition = {
+    action: "create",
+    actorSubject: normalizedActor,
+    expectedRevision: 0,
+    id: "",
+    input: canonicalMemberInput(input),
+    payloadSha256,
+    requestId: normalizedRequestId,
+  };
   await requireMemberAuditTables(database);
 
   const existingMutation = await findMutation(database, normalizedRequestId);
   if (existingMutation) {
     assertMatchingMutation(existingMutation, "create", undefined, payloadSha256);
+    postcondition.actorSubject = existingMutation.actor_subject;
+    postcondition.id = existingMutation.entity_key;
+    await ensureMemberMutationComplete(database, postcondition);
     return readMutationMember(database, existingMutation);
   }
 
   const id = crypto.randomUUID();
+  postcondition.id = id;
   const databaseWithBatch = requireBatch(database);
   const statements = [
     buildMemberInsert(database, id, input, normalizedRequestId),
@@ -86,22 +116,26 @@ export async function createAdminMemberAtomically(
     buildLegacyAudit(database, normalizedActor, "admin_member.created", id, payloadSha256),
   ];
   try {
-    const results = await databaseWithBatch.batch(statements);
-    assertRows(results[0], "Không ghi được thành viên admin.");
-    assertRows(results[1], "Không ghi được audit thành viên admin.");
-    assertRows(results[2], "Không ghi được lịch sử thành viên admin.");
+    await databaseWithBatch.batch([
+      ...statements,
+      buildMemberPostcondition(database, postcondition),
+    ]);
   } catch (error) {
     const racedMutation = await findMutation(database, normalizedRequestId);
     if (racedMutation) {
       assertMatchingMutation(racedMutation, "create", undefined, payloadSha256);
+      postcondition.actorSubject = racedMutation.actor_subject;
+      postcondition.id = racedMutation.entity_key;
+      await ensureMemberMutationComplete(database, postcondition);
       return readMutationMember(database, racedMutation);
     }
-    throw error;
+    throw normalizeMemberWriteError(error);
   }
 
   const mutation = await findMutation(database, normalizedRequestId);
   if (!mutation) throw new AdminMemberWriteStorageError("Không đọc lại được audit thành viên vừa tạo.");
   assertMatchingMutation(mutation, "create", id, payloadSha256);
+  await ensureMemberMutationComplete(database, postcondition);
   return readMutationMember(database, mutation);
 }
 
@@ -128,11 +162,22 @@ export async function updateAdminMemberAtomically(
     input: canonicalMemberInput(input),
     operation: "update",
   });
+  const postcondition: MemberMutationPostcondition = {
+    action: "update",
+    actorSubject: normalizedActor,
+    expectedRevision,
+    id: normalizedId,
+    input: canonicalMemberInput(input),
+    payloadSha256,
+    requestId: normalizedRequestId,
+  };
   await requireMemberAuditTables(database);
 
   const existingMutation = await findMutation(database, normalizedRequestId);
   if (existingMutation) {
     assertMatchingMutation(existingMutation, "update", normalizedId, payloadSha256);
+    postcondition.actorSubject = existingMutation.actor_subject;
+    await ensureMemberMutationComplete(database, postcondition);
     return readMutationMember(database, existingMutation);
   }
 
@@ -151,26 +196,30 @@ export async function updateAdminMemberAtomically(
     buildLegacyAudit(database, normalizedActor, "admin_member.updated", normalizedId, payloadSha256, expectedRevision, normalizedRequestId),
   ];
   try {
-    const results = await databaseWithBatch.batch(statements);
-    if (!hasRows(results[0])) return resolveMemberConflict(database, normalizedRequestId, normalizedId, payloadSha256);
-    assertRows(results[1], "Không ghi được audit thành viên admin.");
-    assertRows(results[2], "Không ghi được lịch sử thành viên admin.");
+    await databaseWithBatch.batch([
+      ...statements,
+      buildMemberPostcondition(database, postcondition),
+    ]);
   } catch (error) {
     const racedMutation = await findMutation(database, normalizedRequestId);
     if (racedMutation) {
       assertMatchingMutation(racedMutation, "update", normalizedId, payloadSha256);
+      postcondition.actorSubject = racedMutation.actor_subject;
+      await ensureMemberMutationComplete(database, postcondition);
       return readMutationMember(database, racedMutation);
     }
-    throw error;
+    const latest = await getAdminMemberRecord(database, normalizedId);
+    if (latest && latest.revision !== expectedRevision) {
+      throw new AdminMemberWriteConflictError("Thành viên đã thay đổi ở phiên khác. Hãy tải lại trước khi lưu.");
+    }
+    throw normalizeMemberWriteError(error);
   }
 
-  return readMutationMember(database, {
-    action: "update",
-    entity_key: normalizedId,
-    entity_type: "admin_member",
-    payload_sha256: payloadSha256,
-    request_id: normalizedRequestId,
-  });
+  const mutation = await findMutation(database, normalizedRequestId);
+  if (!mutation) return resolveMemberConflict(database, normalizedRequestId, normalizedId, payloadSha256);
+  assertMatchingMutation(mutation, "update", normalizedId, payloadSha256);
+  await ensureMemberMutationComplete(database, postcondition);
+  return readMutationMember(database, mutation);
 }
 
 async function requireMemberAuditTables(database: D1DatabaseLike): Promise<void> {
@@ -185,11 +234,135 @@ async function requireMemberAuditTables(database: D1DatabaseLike): Promise<void>
 
 async function findMutation(database: D1DatabaseLike, requestId: string): Promise<MemberMutationRow | null> {
   return database.prepare(`
-    SELECT action, entity_key, entity_type, payload_sha256, request_id
+    SELECT actor_subject, action, entity_key, entity_type, payload_sha256, request_id
     FROM admin_member_audit
     WHERE request_id = ?
     LIMIT 1
   `).bind(requestId).first<MemberMutationRow>();
+}
+
+async function ensureMemberMutationComplete(
+  database: D1DatabaseLike,
+  postcondition: MemberMutationPostcondition,
+): Promise<void> {
+  const row = await database.prepare(`
+    /* admin-write-postcondition-read */
+    SELECT CASE WHEN (
+      EXISTS (
+        SELECT 1
+        FROM admin_member_audit marker
+        JOIN admin_members member_row ON member_row.id = marker.entity_key
+        WHERE marker.request_id = ?
+          AND marker.actor_subject = ?
+          AND marker.action = ?
+          AND marker.entity_type = 'admin_member'
+          AND marker.entity_key = ?
+          AND marker.previous_revision IS ?
+          AND marker.resulting_revision = ?
+          AND marker.payload_sha256 = ?
+          AND member_row.revision = ?
+          AND member_row.last_request_id = ?
+          AND member_row.access_subject = ?
+          AND member_row.email IS ?
+          AND member_row.display_name = ?
+          AND member_row.role = ?
+          AND member_row.is_active = ?
+      )
+      AND EXISTS (
+        SELECT 1
+        FROM audit_logs legacy
+        WHERE legacy.actor_subject = ?
+          AND legacy.action = ?
+          AND legacy.entity_type = 'admin_member'
+          AND legacy.entity_id = ?
+      )
+    ) THEN 1 ELSE 0 END AS complete
+  `).bind(
+    postcondition.requestId,
+    postcondition.actorSubject,
+    postcondition.action,
+    postcondition.id,
+    postcondition.action === "create" ? null : postcondition.expectedRevision,
+    postcondition.expectedRevision + 1,
+    postcondition.payloadSha256,
+    postcondition.expectedRevision + 1,
+    postcondition.requestId,
+    postcondition.input.accessSubject,
+    postcondition.input.email,
+    postcondition.input.displayName,
+    postcondition.input.role,
+    postcondition.input.isActive ? 1 : 0,
+    postcondition.actorSubject,
+    postcondition.action === "create" ? "admin_member.created" : "admin_member.updated",
+    postcondition.id,
+  ).first<{ complete?: unknown }>();
+  if (Number(row?.complete) !== 1) {
+    throw new AdminMemberWriteStorageError(
+      "Không thể xác nhận đầy đủ trạng thái thành viên và audit; thao tác bị khóa để tránh báo thành công sai.",
+    );
+  }
+}
+
+function buildMemberPostcondition(
+  database: D1DatabaseLike,
+  postcondition: MemberMutationPostcondition,
+): D1PreparedStatementLike {
+  return database.prepare(`
+    /* admin-write-postcondition */
+    INSERT INTO admin_member_audit (
+      request_id, actor_subject, entity_key, payload_sha256,
+      action, entity_type, previous_revision, resulting_revision
+    )
+    SELECT NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL
+    WHERE NOT (
+      EXISTS (
+        SELECT 1
+        FROM admin_member_audit marker
+        JOIN admin_members member_row ON member_row.id = marker.entity_key
+        WHERE marker.request_id = ?
+          AND marker.actor_subject = ?
+          AND marker.action = ?
+          AND marker.entity_type = 'admin_member'
+          AND marker.entity_key = ?
+          AND marker.previous_revision IS ?
+          AND marker.resulting_revision = ?
+          AND marker.payload_sha256 = ?
+          AND member_row.revision = ?
+          AND member_row.last_request_id = ?
+          AND member_row.access_subject = ?
+          AND member_row.email IS ?
+          AND member_row.display_name = ?
+          AND member_row.role = ?
+          AND member_row.is_active = ?
+      )
+      AND EXISTS (
+        SELECT 1
+        FROM audit_logs legacy
+        WHERE legacy.actor_subject = ?
+          AND legacy.action = ?
+          AND legacy.entity_type = 'admin_member'
+          AND legacy.entity_id = ?
+      )
+    )
+  `).bind(
+    postcondition.requestId,
+    postcondition.actorSubject,
+    postcondition.action,
+    postcondition.id,
+    postcondition.action === "create" ? null : postcondition.expectedRevision,
+    postcondition.expectedRevision + 1,
+    postcondition.payloadSha256,
+    postcondition.expectedRevision + 1,
+    postcondition.requestId,
+    postcondition.input.accessSubject,
+    postcondition.input.email,
+    postcondition.input.displayName,
+    postcondition.input.role,
+    postcondition.input.isActive ? 1 : 0,
+    postcondition.actorSubject,
+    postcondition.action === "create" ? "admin_member.created" : "admin_member.updated",
+    postcondition.id,
+  );
 }
 
 async function readMutationMember(database: D1DatabaseLike, mutation: MemberMutationRow): Promise<AdminMemberRecord> {
@@ -390,6 +563,19 @@ function hasRows(result: unknown): boolean {
   if (Array.isArray(record.results)) return record.results.length > 0;
   const changes = record.meta?.changes;
   return changes !== undefined && Number(changes) > 0;
+}
+
+function normalizeMemberWriteError(error: unknown): unknown {
+  const message = error instanceof Error ? error.message : String(error);
+  const normalized = message.toLowerCase();
+  if (message.includes("admin-write-postcondition")
+    || (normalized.includes("admin_member_audit") && normalized.includes("constraint"))
+    || (normalized.includes("audit_logs") && normalized.includes("constraint"))) {
+    return new AdminMemberWriteStorageError(
+      "Không ghi đồng bộ được thành viên và audit; hệ thống đã rollback để tránh báo thành công sai.",
+    );
+  }
+  return error;
 }
 
 function validateMemberInput(input: AdminMemberInput): void {

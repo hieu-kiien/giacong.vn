@@ -6,6 +6,7 @@ import type { D1DatabaseLike, D1PreparedStatementLike } from "../src/lib/admin-d
 import {
   AdminMemberWriteConflictError,
   AdminMemberWriteIdempotencyConflictError,
+  AdminMemberWriteStorageError,
   createAdminMemberAtomically,
   updateAdminMemberAtomically,
 } from "../src/lib/admin-member-write.ts";
@@ -13,6 +14,7 @@ import { parseAdminMemberCreateCommand, parseAdminMemberUpdateCommand } from "..
 import {
   AdminLeadWriteConflictError,
   AdminLeadWriteIdempotencyConflictError,
+  AdminLeadWriteStorageError,
   updateAdminLeadStatusAtomically,
 } from "../src/lib/admin-lead-write.ts";
 import { parseAdminLeadStatusCommand } from "../src/lib/admin-lead-command.ts";
@@ -86,11 +88,16 @@ type LeadState = {
 };
 
 type MutationState = {
+  actor_subject: string;
   action: string;
   entity_key: string;
   entity_type: string;
+  previous_revision?: number;
+  previous_status?: string;
   payload_sha256: string;
   request_id: string;
+  resulting_revision?: number;
+  status?: string;
 };
 
 class FakeDatabase implements D1DatabaseLike {
@@ -103,6 +110,8 @@ class FakeDatabase implements D1DatabaseLike {
   batchCalls = 0;
   failAudit = false;
   failEvent = false;
+  omitBatchResults = false;
+  failPostcondition = false;
   simulateOwnerRace = false;
 
   constructor() {
@@ -136,7 +145,7 @@ class FakeDatabase implements D1DatabaseLike {
     try {
       const results: unknown[] = [];
       for (const statement of statements) results.push(await statement.run());
-      return results;
+      return this.omitBatchResults ? [] : results;
     } catch (error) {
       this.restore(snapshot);
       throw error;
@@ -144,6 +153,9 @@ class FakeDatabase implements D1DatabaseLike {
   }
 
   first<T>(query: string, values: unknown[]): T | null {
+    if (query.includes("admin-write-postcondition-read")) {
+      return { complete: this.failPostcondition ? 0 : 1 } as T;
+    }
     if (query.includes("sqlite_master")) {
       const table = String(values[0]);
       return (["admin_audit_log", "audit_logs", "admin_member_audit", "admin_lead_audit"].includes(table)
@@ -167,6 +179,10 @@ class FakeDatabase implements D1DatabaseLike {
   }
 
   execute(query: string, values: unknown[]): { meta: { changes: number }; results?: unknown[] } {
+    if (query.includes("admin-write-postcondition")) {
+      if (this.failPostcondition) throw new Error("admin-write-postcondition failed");
+      return this.changed([{ complete: 1 }]);
+    }
     if (query.includes("INSERT INTO admin_members")) {
       const [id, accessSubject, email, displayName, role, isActive, lastRequestId] = values;
       this.members.set(String(id), {
@@ -211,6 +227,7 @@ class FakeDatabase implements D1DatabaseLike {
       const entityKey = String(values[2]);
       const action = query.includes("'create'") ? "create" : "update";
       this.memberAudits.set(requestId, {
+        actor_subject: String(values[1]),
         action,
         entity_key: entityKey,
         entity_type: "admin_member",
@@ -239,11 +256,16 @@ class FakeDatabase implements D1DatabaseLike {
       }
       const entityKey = String(values[2]);
       this.leadAudits.set(requestId, {
+        actor_subject: String(values[1]),
         action: "update",
         entity_key: entityKey,
         entity_type: "lead",
+        previous_revision: Number(values[6]),
+        previous_status: String(values[3]),
         payload_sha256: String(values[5]),
         request_id: requestId,
+        resulting_revision: Number(values[7]),
+        status: String(values[4]),
       });
       return this.changed([{ request_id: requestId }]);
     }
@@ -429,6 +451,62 @@ test("lead event failure rolls back the status, revision and audit", async () =>
     /lead event failure/,
   );
   assert.equal(database.leads.get("11111111-1111-4111-8111-111111111111")?.status, "new");
+  assert.equal(database.leads.get("11111111-1111-4111-8111-111111111111")?.revision, 1);
+  assert.equal(database.leadAudits.size, 0);
+  assert.equal(database.leadEvents.length, 0);
+});
+
+test("member and lead writes succeed when D1 omits batch result rows", async () => {
+  const database = new FakeDatabase();
+  database.omitBatchResults = true;
+
+  const member = await createAdminMemberAtomically(database, memberFields, actor, memberCreateRequest);
+  const updatedMember = await updateAdminMemberAtomically(
+    database,
+    member.id,
+    { ...memberFields, displayName: "Operator mới" },
+    1,
+    actor,
+    "owner-1",
+    memberUpdateRequest,
+  );
+  const leadId = await updateAdminLeadStatusAtomically(
+    database,
+    "11111111-1111-4111-8111-111111111111",
+    "qualified",
+    1,
+    actor,
+    leadUpdateRequest,
+  );
+
+  assert.equal(updatedMember.revision, 2);
+  assert.equal(leadId, "11111111-1111-4111-8111-111111111111");
+  assert.equal(database.memberAudits.size, 2);
+  assert.equal(database.leadAudits.size, 1);
+});
+
+test("member and lead writes roll back when their postcondition is missing", async () => {
+  const database = new FakeDatabase();
+  database.failPostcondition = true;
+
+  await assert.rejects(
+    () => createAdminMemberAtomically(database, memberFields, actor, memberCreateRequest),
+    AdminMemberWriteStorageError,
+  );
+  await assert.rejects(
+    () => updateAdminLeadStatusAtomically(
+      database,
+      "11111111-1111-4111-8111-111111111111",
+      "qualified",
+      1,
+      actor,
+      leadUpdateRequest,
+    ),
+    AdminLeadWriteStorageError,
+  );
+
+  assert.equal(database.members.size, 1);
+  assert.equal(database.memberAudits.size, 0);
   assert.equal(database.leads.get("11111111-1111-4111-8111-111111111111")?.revision, 1);
   assert.equal(database.leadAudits.size, 0);
   assert.equal(database.leadEvents.length, 0);

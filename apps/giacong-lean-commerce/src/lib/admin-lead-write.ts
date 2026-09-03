@@ -31,11 +31,16 @@ export class AdminLeadWriteValidationError extends Error {
 }
 
 interface LeadMutationRow {
+  actor_subject: string;
   action: "update";
   entity_key: string;
   entity_type: "lead";
+  previous_revision: number;
+  previous_status: LeadStatus;
   payload_sha256: string;
   request_id: string;
+  resulting_revision: number;
+  status: LeadStatus;
 }
 
 interface LeadRevisionRow {
@@ -51,6 +56,16 @@ interface D1BatchResultLike {
 
 interface D1DatabaseWithBatch extends D1DatabaseLike {
   batch(statements: D1PreparedStatementLike[]): Promise<D1BatchResultLike[]>;
+}
+
+interface LeadMutationPostcondition {
+  actorSubject: string;
+  expectedRevision: number;
+  fromStatus: LeadStatus;
+  leadId: string;
+  payloadSha256: string;
+  requestId: string;
+  toStatus: LeadStatus;
 }
 
 const leadStatuses = new Set<LeadStatus>([
@@ -91,6 +106,15 @@ export async function updateAdminLeadStatusAtomically(
   const existingMutation = await findMutation(database, normalizedRequestId);
   if (existingMutation) {
     assertMatchingMutation(existingMutation, normalizedLeadId, payloadSha256);
+    await ensureLeadMutationComplete(database, {
+      actorSubject: existingMutation.actor_subject,
+      expectedRevision: existingMutation.previous_revision,
+      fromStatus: existingMutation.previous_status,
+      leadId: existingMutation.entity_key,
+      payloadSha256,
+      requestId: normalizedRequestId,
+      toStatus: existingMutation.status,
+    });
     return existingMutation.entity_key;
   }
 
@@ -101,6 +125,16 @@ export async function updateAdminLeadStatusAtomically(
   }
   if (current.status === normalizedStatus) return normalizedLeadId;
 
+  const postcondition: LeadMutationPostcondition = {
+    actorSubject: normalizedActor,
+    expectedRevision,
+    fromStatus: current.status,
+    leadId: normalizedLeadId,
+    payloadSha256,
+    requestId: normalizedRequestId,
+    toStatus: normalizedStatus,
+  };
+
   const databaseWithBatch = requireBatch(database);
   const statements = [
     buildLeadUpdate(database, normalizedLeadId, normalizedStatus, expectedRevision, normalizedRequestId),
@@ -109,20 +143,36 @@ export async function updateAdminLeadStatusAtomically(
     buildLegacyAudit(database, normalizedActor, normalizedLeadId, current.status, normalizedStatus, payloadSha256, expectedRevision, normalizedRequestId),
   ];
   try {
-    const results = await databaseWithBatch.batch(statements);
-    if (!hasRows(results[0])) return resolveLeadConflict(database, normalizedRequestId, normalizedLeadId, payloadSha256);
-    assertRows(results[1], "Không ghi được sự kiện trạng thái lead.");
-    assertRows(results[2], "Không ghi được audit lead.");
-    assertRows(results[3], "Không ghi được lịch sử lead.");
+    await databaseWithBatch.batch([
+      ...statements,
+      buildLeadPostcondition(database, postcondition),
+    ]);
   } catch (error) {
     const racedMutation = await findMutation(database, normalizedRequestId);
     if (racedMutation) {
       assertMatchingMutation(racedMutation, normalizedLeadId, payloadSha256);
+      await ensureLeadMutationComplete(database, {
+        actorSubject: racedMutation.actor_subject,
+        expectedRevision: racedMutation.previous_revision,
+        fromStatus: racedMutation.previous_status,
+        leadId: racedMutation.entity_key,
+        payloadSha256,
+        requestId: normalizedRequestId,
+        toStatus: racedMutation.status,
+      });
       return racedMutation.entity_key;
     }
-    throw error;
+    const latest = await readLeadRevision(database, normalizedLeadId);
+    if (latest && latest.revision !== expectedRevision) {
+      throw new AdminLeadWriteConflictError("Lead đã thay đổi ở phiên khác. Hãy tải lại trước khi lưu.");
+    }
+    throw normalizeLeadWriteError(error);
   }
-  return normalizedLeadId;
+  const mutation = await findMutation(database, normalizedRequestId);
+  if (!mutation) return resolveLeadConflict(database, normalizedRequestId, normalizedLeadId, payloadSha256);
+  assertMatchingMutation(mutation, normalizedLeadId, payloadSha256);
+  await ensureLeadMutationComplete(database, postcondition);
+  return mutation.entity_key;
 }
 
 export async function readAdminLeadForWrite(database: D1DatabaseLike, leadId: string): Promise<AdminLead | null> {
@@ -148,11 +198,161 @@ async function requireLeadAuditTables(database: D1DatabaseLike): Promise<void> {
 
 async function findMutation(database: D1DatabaseLike, requestId: string): Promise<LeadMutationRow | null> {
   return database.prepare(`
-    SELECT action, entity_key, entity_type, payload_sha256, request_id
+    SELECT actor_subject, action, entity_key, entity_type,
+      previous_revision, previous_status, payload_sha256, request_id,
+      resulting_revision, status
     FROM admin_lead_audit
     WHERE request_id = ?
     LIMIT 1
   `).bind(requestId).first<LeadMutationRow>();
+}
+
+async function ensureLeadMutationComplete(
+  database: D1DatabaseLike,
+  postcondition: LeadMutationPostcondition,
+): Promise<void> {
+  const eventMessage = JSON.stringify({ from: postcondition.fromStatus, to: postcondition.toStatus });
+  const legacyMetadata = JSON.stringify({
+    expectedRevision: postcondition.expectedRevision,
+    from: postcondition.fromStatus,
+    payloadSha256: postcondition.payloadSha256,
+    to: postcondition.toStatus,
+  });
+  const row = await database.prepare(`
+    /* admin-write-postcondition-read */
+    SELECT CASE WHEN (
+      EXISTS (
+        SELECT 1
+        FROM admin_lead_audit marker
+        JOIN leads lead_row ON lead_row.id = marker.entity_key
+        WHERE marker.request_id = ?
+          AND marker.actor_subject = ?
+          AND marker.action = 'update'
+          AND marker.entity_type = 'lead'
+          AND marker.entity_key = ?
+          AND marker.previous_status = ?
+          AND marker.status = ?
+          AND marker.previous_revision = ?
+          AND marker.resulting_revision = ?
+          AND marker.payload_sha256 = ?
+          AND lead_row.revision = ?
+          AND lead_row.last_request_id = ?
+          AND lead_row.status = ?
+      )
+      AND EXISTS (
+        SELECT 1 FROM lead_events event
+        WHERE event.lead_id = ?
+          AND event.actor_subject = ?
+          AND event.event_type = 'status_changed'
+          AND event.message = ?
+      )
+      AND EXISTS (
+        SELECT 1 FROM audit_logs legacy
+        WHERE legacy.actor_subject = ?
+          AND legacy.action = 'lead.status_updated'
+          AND legacy.entity_type = 'lead'
+          AND legacy.entity_id = ?
+          AND legacy.metadata_json = ?
+      )
+    ) THEN 1 ELSE 0 END AS complete
+  `).bind(
+    postcondition.requestId,
+    postcondition.actorSubject,
+    postcondition.leadId,
+    postcondition.fromStatus,
+    postcondition.toStatus,
+    postcondition.expectedRevision,
+    postcondition.expectedRevision + 1,
+    postcondition.payloadSha256,
+    postcondition.expectedRevision + 1,
+    postcondition.requestId,
+    postcondition.toStatus,
+    postcondition.leadId,
+    postcondition.actorSubject,
+    eventMessage,
+    postcondition.actorSubject,
+    postcondition.leadId,
+    legacyMetadata,
+  ).first<{ complete?: unknown }>();
+  if (Number(row?.complete) !== 1) {
+    throw new AdminLeadWriteStorageError(
+      "Không thể xác nhận đầy đủ trạng thái lead, sự kiện và audit; thao tác bị khóa để tránh báo thành công sai.",
+    );
+  }
+}
+
+function buildLeadPostcondition(
+  database: D1DatabaseLike,
+  postcondition: LeadMutationPostcondition,
+): D1PreparedStatementLike {
+  const eventMessage = JSON.stringify({ from: postcondition.fromStatus, to: postcondition.toStatus });
+  const legacyMetadata = JSON.stringify({
+    expectedRevision: postcondition.expectedRevision,
+    from: postcondition.fromStatus,
+    payloadSha256: postcondition.payloadSha256,
+    to: postcondition.toStatus,
+  });
+  return database.prepare(`
+    /* admin-write-postcondition */
+    INSERT INTO admin_lead_audit (
+      request_id, actor_subject, entity_key, previous_status, status,
+      payload_sha256, action, entity_type, previous_revision, resulting_revision
+    )
+    SELECT NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL
+    WHERE NOT (
+      EXISTS (
+        SELECT 1
+        FROM admin_lead_audit marker
+        JOIN leads lead_row ON lead_row.id = marker.entity_key
+        WHERE marker.request_id = ?
+          AND marker.actor_subject = ?
+          AND marker.action = 'update'
+          AND marker.entity_type = 'lead'
+          AND marker.entity_key = ?
+          AND marker.previous_status = ?
+          AND marker.status = ?
+          AND marker.previous_revision = ?
+          AND marker.resulting_revision = ?
+          AND marker.payload_sha256 = ?
+          AND lead_row.revision = ?
+          AND lead_row.last_request_id = ?
+          AND lead_row.status = ?
+      )
+      AND EXISTS (
+        SELECT 1 FROM lead_events event
+        WHERE event.lead_id = ?
+          AND event.actor_subject = ?
+          AND event.event_type = 'status_changed'
+          AND event.message = ?
+      )
+      AND EXISTS (
+        SELECT 1 FROM audit_logs legacy
+        WHERE legacy.actor_subject = ?
+          AND legacy.action = 'lead.status_updated'
+          AND legacy.entity_type = 'lead'
+          AND legacy.entity_id = ?
+          AND legacy.metadata_json = ?
+      )
+    )
+  `).bind(
+    postcondition.requestId,
+    postcondition.actorSubject,
+    postcondition.leadId,
+    postcondition.fromStatus,
+    postcondition.toStatus,
+    postcondition.expectedRevision,
+    postcondition.expectedRevision + 1,
+    postcondition.payloadSha256,
+    postcondition.expectedRevision + 1,
+    postcondition.requestId,
+    postcondition.toStatus,
+    postcondition.leadId,
+    postcondition.actorSubject,
+    eventMessage,
+    postcondition.actorSubject,
+    postcondition.leadId,
+    legacyMetadata,
+  );
 }
 
 async function readLeadRevision(database: D1DatabaseLike, leadId: string): Promise<LeadRevisionRow | null> {
@@ -286,6 +486,20 @@ function hasRows(result: unknown): boolean {
   if (Array.isArray(record.results)) return record.results.length > 0;
   const changes = record.meta?.changes;
   return changes !== undefined && Number(changes) > 0;
+}
+
+function normalizeLeadWriteError(error: unknown): unknown {
+  const message = error instanceof Error ? error.message : String(error);
+  const normalized = message.toLowerCase();
+  if (message.includes("admin-write-postcondition")
+    || (normalized.includes("admin_lead_audit") && normalized.includes("constraint"))
+    || (normalized.includes("lead_events") && normalized.includes("constraint"))
+    || (normalized.includes("audit_logs") && normalized.includes("constraint"))) {
+    return new AdminLeadWriteStorageError(
+      "Không ghi đồng bộ được lead, sự kiện và audit; hệ thống đã rollback để tránh báo thành công sai.",
+    );
+  }
+  return error;
 }
 
 function normalizeLeadId(value: string): string {
