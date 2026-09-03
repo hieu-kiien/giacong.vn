@@ -7,12 +7,13 @@ Hồ sơ này ghi bằng chứng runtime đã xác minh trong quá trình chuy�
 - Staging Worker `giacong-vn-staging` đang chạy version
   `a3d82449-4dee-4b3f-a001-0b97e70e21e4` ở 100%; rollback point gần nhất là
   `e50223de-208f-45d8-bd4f-27ecc32b37ea`.
-- Checkout head hiện tại là `f14d7ec5`; code behavior baseline `0adb917a` đã
-  được deploy lên staging. QA-only commit `0b1986bf` đã sửa false-positive của
+- Checkout head hiện tại là `7ef8b216`; QA-only selector correction đã được
+  kiểm thử ở source. Staging runtime vẫn ở version nêu trên; commit
+  `0b1986bf` trước đó đã sửa false-positive của
   admin matcher. Role-matrix runner hiện yêu cầu đủ năm
   storage state phân biệt và không thực hiện mutation. Full `npm run check`
   hiện đạt admin `215/215`, contact `104/104`, catalog `5/5`, purchase UI
-  `1/1`, service `3/3`, commerce `68/68`, listing `4/4`, detail `29/29`,
+  `1/1`, service `3/3`, commerce `69/69`, listing `4/4`, detail `29/29`,
   build static `27/27`, lint và typecheck; deep QA responsive và Chrome owner
   route smoke sau deploy đều pass read-only, không có thay đổi D1/R2 trong
   deploy. Incident 1102 khi điều hướng dồn và lượt recheck có kiểm soát được

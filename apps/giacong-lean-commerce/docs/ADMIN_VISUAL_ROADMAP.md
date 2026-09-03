@@ -11,12 +11,12 @@ hiển thị, nhưng vẫn giữ trung tâm vận hành đầy đủ cho nghiệ
 lý hàng loạt.
 
 **Checkpoint authoritative — 2026-09-03:** checkout `master` đang ở commit
-`f14d7ec5` (đồng bộ tài liệu; code behavior baseline đã deploy là
-`0adb917a`);
+`7ef8b216` (đã sửa selector menu của QA bằng identity ổn định; staging runtime
+vẫn được định danh bằng version bên dưới);
 bulk product import đã được harden theo bind-budget D1, retry audit exact-match
 và role-matrix QA runner đã fail-closed cho đủ năm identity. Source gate mới
-nhất `npm run check` đạt admin `215/215`, contact `104/104`, catalog `5/5`,
-purchase UI `1/1`, service `3/3`, commerce `68/68`, listing `4/4`, detail
+nhất đạt admin `215/215`, contact `104/104`, catalog `5/5`, purchase UI `1/1`,
+service `3/3`, commerce `69/69`, listing `4/4`, detail
 `29/29`, lint, typecheck và build `27/27`; `npm audit --omit=dev` báo `0`
 vulnerability. Source commit này đã được deploy lên staging version
 `a3d82449-4dee-4b3f-a001-0b97e70e21e4` ở 100%, rollback point gần nhất là
