@@ -80,7 +80,7 @@ export async function archiveAdminCategoriesAtomically(
   const existingMutation = await findCategoryBatchMutation(database, requestId);
   if (existingMutation) {
     assertMatchingMutation(existingMutation, requestId, payloadSha256);
-    return readCategoryBatchReplay(database, requestId, existingMutation, items.length);
+    return readCategoryBatchReplay(database, requestId, existingMutation, items);
   }
 
   const snapshots = await listAdminCategoryBatchSnapshots(database, items.map((item) => item.id));
@@ -116,24 +116,24 @@ export async function archiveAdminCategoriesAtomically(
     statements.push(buildArchiveUpdate(database, item));
     statements.push(buildArchiveGuard(database, input.actorSubject, requestId, envelopeId, payloadSha256, item));
     statements.push(buildCategoryAudit(database, input.actorSubject, requestId, item));
+    statements.push(buildCategoryBatchItemPostcondition(database, requestId, envelopeId, payloadSha256, item));
   }
   statements.push(buildBatchAuditEnvelope(database, input.actorSubject, envelopeId, result));
+  statements.push(buildCategoryBatchEnvelopePostcondition(database, requestId, envelopeId, payloadSha256));
 
-  let batchResults: D1BatchResultLike[];
   try {
-    batchResults = await databaseWithBatch.batch(statements);
+    await databaseWithBatch.batch(statements);
   } catch (error) {
     const racedMutation = await findCategoryBatchMutation(database, requestId);
     if (racedMutation) {
       assertMatchingMutation(racedMutation, requestId, payloadSha256);
-      return readCategoryBatchReplay(database, requestId, racedMutation, items.length);
+      return readCategoryBatchReplay(database, requestId, racedMutation, items);
     }
     if (isCategoryBatchStaleConstraint(error)) {
       throw new AdminCategoryBatchConflictError("Danh mục đã thay đổi ở phiên khác. Hãy tải lại rồi thử lại.");
     }
-    throw error;
+    throw normalizeCategoryBatchError(error);
   }
-  assertBatchResults(batchResults, statements.length, eligible.length);
   return result;
 }
 
@@ -218,7 +218,7 @@ async function readCategoryBatchReplay(
   database: D1DatabaseLike,
   requestId: string,
   mutation: CategoryBatchMutationRow,
-  selectedCount: number,
+  items: readonly AdminCategoryBatchItem[],
 ): Promise<AdminCategoryBatchResult> {
   const envelope = await database.prepare(`
     SELECT metadata_json
@@ -236,8 +236,25 @@ async function readCategoryBatchReplay(
   }
   if (!isReplayMetadata(metadata)
     || metadata.requestId !== requestId
-    || metadata.selectedCount !== selectedCount) {
+    || metadata.selectedCount !== items.length) {
     throw new AdminCategoryBatchStorageError("Audit ẩn danh mục hàng loạt không khớp request.");
+  }
+  const skippedIds = new Set(metadata.skipped.map((entry) => entry.id));
+  const childIds = items
+    .filter((item) => !skippedIds.has(item.id))
+    .map((item) => `${mutation.entity_key}:${item.id}`);
+  if (childIds.length > 0) {
+    const childAudits = await database.prepare(`
+      SELECT id
+      FROM audit_logs
+      WHERE id IN (${childIds.map(() => "?").join(", ")})
+        AND action = 'category.bulk_archived'
+        AND entity_type = 'category'
+    `).bind(...childIds).all<{ id: string }>();
+    if (childAudits.results.length !== childIds.length
+      || new Set(childAudits.results.map((row) => row.id)).size !== childIds.length) {
+      throw new AdminCategoryBatchStorageError("Audit ẩn danh mục hàng loạt chưa đủ dữ liệu để replay.");
+    }
   }
   return {
     changedCount: metadata.changedCount,
@@ -346,26 +363,83 @@ function buildBatchAuditEnvelope(
   `).bind(entityKey, actorSubject, JSON.stringify(metadata));
 }
 
-function assertBatchResults(results: D1BatchResultLike[], expectedLength: number, eligibleCount: number): void {
-  if (results.length !== expectedLength || resultRowCount(results[0]) !== 1) {
-    throw new AdminCategoryBatchStorageError("Không ghi được audit idempotency danh mục.");
-  }
-  let index = 1;
-  for (let item = 0; item < eligibleCount; item += 1) {
-    if (resultRowCount(results[index++]) !== 1 || resultRowCount(results[index++]) !== 0) {
-      throw new AdminCategoryBatchConflictError("Danh mục đã thay đổi ở phiên khác. Hãy tải lại rồi thử lại.");
-    }
-    if (resultRowCount(results[index++]) !== 1) {
-      throw new AdminCategoryBatchStorageError("Không ghi đủ audit danh mục.");
-    }
-  }
-  if (resultRowCount(results[index]) !== 1) {
-    throw new AdminCategoryBatchStorageError("Không ghi được audit envelope danh mục.");
-  }
+function buildCategoryBatchItemPostcondition(
+  database: D1DatabaseLike,
+  requestId: string,
+  entityKey: string,
+  hash: string,
+  item: AdminCategoryBatchItem,
+): D1PreparedStatementLike {
+  const childId = `${entityKey}:${item.id}`;
+  return database.prepare(`
+    /* category batch postcondition */
+    INSERT INTO admin_audit_log (
+      request_id, actor_subject, action, entity_type, entity_key,
+      previous_revision, resulting_revision, payload_sha256
+    )
+    SELECT NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL
+    WHERE NOT (
+      EXISTS (
+        SELECT 1 FROM admin_audit_log
+        WHERE request_id = ?
+          AND action = 'delete'
+          AND entity_type = 'category'
+          AND entity_key = ?
+          AND payload_sha256 = ?
+      )
+      AND EXISTS (
+        SELECT 1 FROM categories
+        WHERE id = ? AND revision = ? AND is_active = 0
+      )
+      AND EXISTS (
+        SELECT 1 FROM audit_logs
+        WHERE id = ?
+          AND action = 'category.bulk_archived'
+          AND entity_type = 'category'
+          AND entity_id = ?
+      )
+    )
+  `).bind(
+    requestId,
+    entityKey,
+    hash,
+    item.id,
+    item.expectedRevision + 1,
+    childId,
+    String(item.id),
+  );
 }
 
-function resultRowCount(result: D1BatchResultLike | undefined): number {
-  return Array.isArray(result?.results) ? result.results.length : 0;
+function buildCategoryBatchEnvelopePostcondition(
+  database: D1DatabaseLike,
+  requestId: string,
+  entityKey: string,
+  hash: string,
+): D1PreparedStatementLike {
+  return database.prepare(`
+    /* category batch postcondition */
+    INSERT INTO admin_audit_log (
+      request_id, actor_subject, action, entity_type, entity_key,
+      previous_revision, resulting_revision, payload_sha256
+    )
+    SELECT NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL
+    WHERE NOT (
+      EXISTS (
+        SELECT 1 FROM admin_audit_log
+        WHERE request_id = ?
+          AND action = 'delete'
+          AND entity_type = 'category'
+          AND entity_key = ?
+          AND payload_sha256 = ?
+      )
+      AND EXISTS (
+        SELECT 1 FROM audit_logs
+        WHERE id = ?
+          AND action = 'category.bulk_archived_batch'
+          AND entity_type = 'category'
+      )
+    )
+  `).bind(requestId, entityKey, hash, entityKey);
 }
 
 async function tableExists(database: D1DatabaseLike, tableName: string): Promise<boolean> {
@@ -385,6 +459,15 @@ function categoryBatchEntityKey(requestId: string): string {
 
 function isCategoryBatchStaleConstraint(error: unknown): boolean {
   return error instanceof Error && /UNIQUE constraint failed:\s*admin_audit_log\.request_id/i.test(error.message);
+}
+
+function normalizeCategoryBatchError(error: unknown): unknown {
+  const message = error instanceof Error ? error.message : String(error);
+  if (message.includes("category batch postcondition")
+    || (message.includes("admin_audit_log") && message.toLowerCase().includes("constraint failed"))) {
+    return new AdminCategoryBatchStorageError("Không ghi đồng bộ được danh mục và audit; hệ thống đã rollback để tránh trạng thái dở dang.");
+  }
+  return error;
 }
 
 function isReplayMetadata(value: unknown): value is CategoryBatchReplayMetadata {

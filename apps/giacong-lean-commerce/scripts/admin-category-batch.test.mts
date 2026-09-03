@@ -1,10 +1,12 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
+import { DatabaseSync } from "node:sqlite";
 import test from "node:test";
 
 import {
   AdminCategoryBatchConflictError,
   AdminCategoryBatchIdempotencyConflictError,
+  AdminCategoryBatchStorageError,
   archiveAdminCategoriesAtomically,
   parseAdminCategoryBatchItems,
 } from "../src/lib/admin-category-batch.ts";
@@ -30,6 +32,13 @@ class FakeCategoryBatchDatabase implements D1DatabaseLike {
   batchCalls = 0;
   raceAfterSnapshotId: number | null = null;
   private lastChanges = 0;
+  private readonly omitBatchResults: boolean;
+  private readonly skipAudit: boolean;
+
+  constructor(options: { omitBatchResults?: boolean; skipAudit?: boolean } = {}) {
+    this.omitBatchResults = options.omitBatchResults ?? false;
+    this.skipAudit = options.skipAudit ?? false;
+  }
 
   prepare(query: string): D1PreparedStatementLike {
     return new FakeCategoryBatchStatement(this, query);
@@ -51,6 +60,12 @@ class FakeCategoryBatchDatabase implements D1DatabaseLike {
   }
 
   async all<T>(query: string, values: unknown[]): Promise<{ results: T[] }> {
+    if (query.includes("FROM audit_logs")) {
+      const ids = new Set(values.map(String));
+      return {
+        results: [...this.childAudits].filter((id) => ids.has(id)).map((id) => ({ id })) as T[],
+      };
+    }
     if (!query.includes("FROM categories")) return { results: [] };
     const ids = new Set(values.map(Number));
     const results = [...this.rows.values()]
@@ -73,6 +88,7 @@ class FakeCategoryBatchDatabase implements D1DatabaseLike {
     const lastChangesBefore = this.lastChanges;
     const results: Array<{ results?: unknown[] }> = [];
     try {
+      if (this.omitBatchResults) return statements.map(() => ({}));
       for (const statement of statements) {
         const current = statement as FakeCategoryBatchStatement;
         results.push(this.execute(current.query, current.values));
@@ -93,6 +109,10 @@ class FakeCategoryBatchDatabase implements D1DatabaseLike {
   }
 
   private execute(query: string, values: unknown[]): { results?: unknown[] } {
+    if (query.includes("category batch postcondition")) {
+      if (this.skipAudit) throw new Error("NOT NULL constraint failed: admin_audit_log.request_id");
+      return { results: [{ ok: 1 }] };
+    }
     if (query.includes("WHERE NOT EXISTS")) {
       const id = Number(values[6]);
       const expectedRevision = Number(values[7]);
@@ -217,6 +237,50 @@ test("category batch archives active rows, reports skips, and replays idempotent
   );
 });
 
+test("a complete category batch remains successful when D1 omits returned rows", async () => {
+  const database = new FakeCategoryBatchDatabase({ omitBatchResults: true });
+  const result = await archiveAdminCategoriesAtomically(database, {
+    actorSubject: "owner@example.com",
+    items: [{ expectedRevision: 1, id: 1 }],
+    requestId: "55555555-5555-4555-8555-555555555555",
+  });
+
+  assert.equal(result.changedCount, 1);
+  assert.equal(database.batchCalls, 1);
+});
+
+test("an incomplete category batch rolls back when its child audit is missing", async () => {
+  const database = new FakeCategoryBatchDatabase({ skipAudit: true });
+  await assert.rejects(
+    () => archiveAdminCategoriesAtomically(database, {
+      actorSubject: "owner@example.com",
+      items: [{ expectedRevision: 1, id: 1 }],
+      requestId: "55555555-5555-4555-8555-555555555555",
+    }),
+    AdminCategoryBatchStorageError,
+  );
+  assert.deepEqual(database.rows.get(1), { id: 1, is_active: 1, revision: 1 });
+  assert.equal(database.markers.size, 0);
+  assert.equal(database.envelopes.size, 0);
+  assert.equal(database.childAudits.size, 0);
+});
+
+test("category batch replay rejects when a child audit is missing", async () => {
+  const database = new FakeCategoryBatchDatabase();
+  const input = {
+    actorSubject: "owner@example.com",
+    items: [{ expectedRevision: 1, id: 1 }],
+    requestId: "55555555-5555-4555-8555-555555555555",
+  };
+  await archiveAdminCategoriesAtomically(database, input);
+  database.childAudits.clear();
+
+  await assert.rejects(
+    () => archiveAdminCategoriesAtomically(database, input),
+    AdminCategoryBatchStorageError,
+  );
+});
+
 test("category batch maps a concurrent revision race to stale write and rolls back", async () => {
   const database = new FakeCategoryBatchDatabase();
   database.raceAfterSnapshotId = 1;
@@ -233,6 +297,54 @@ test("category batch maps a concurrent revision race to stale write and rolls ba
   assert.equal(database.markers.size, 0);
   assert.equal(database.envelopes.size, 0);
   assert.equal(database.childAudits.size, 0);
+});
+
+test("SQLite category batch postconditions are atomic when results are omitted", async () => {
+  const database = createSqliteCategoryBatchDatabase({ omitBatchResults: true });
+  try {
+    database.sqlite.prepare("INSERT INTO categories (name, slug, description, sort_order, is_active, revision) VALUES (?, ?, ?, 0, 1, 1)").run(
+      "Danh mục",
+      "danh-muc",
+      "",
+    );
+    const input = {
+      actorSubject: "owner@example.com",
+      items: [{ expectedRevision: 1, id: 1 }],
+      requestId: "55555555-5555-4555-8555-555555555555",
+    };
+    const result = await archiveAdminCategoriesAtomically(database, input);
+    assert.equal(result.changedCount, 1);
+    const archived = database.sqlite.prepare("SELECT is_active, revision FROM categories WHERE id = 1").get() as { is_active: number; revision: number };
+    assert.equal(archived.is_active, 0);
+    assert.equal(archived.revision, 2);
+    assert.equal((await archiveAdminCategoriesAtomically(database, input)).replayed, true);
+  } finally {
+    database.sqlite.close();
+  }
+});
+
+test("SQLite category batch postconditions rollback a missing child audit", async () => {
+  const database = createSqliteCategoryBatchDatabase({ skipQuery: /INSERT INTO audit_logs/ });
+  try {
+    database.sqlite.prepare("INSERT INTO categories (name, slug, description, sort_order, is_active, revision) VALUES (?, ?, ?, 0, 1, 1)").run(
+      "Danh mục",
+      "danh-muc",
+      "",
+    );
+    await assert.rejects(
+      () => archiveAdminCategoriesAtomically(database, {
+        actorSubject: "owner@example.com",
+        items: [{ expectedRevision: 1, id: 1 }],
+        requestId: "55555555-5555-4555-8555-555555555555",
+      }),
+      AdminCategoryBatchStorageError,
+    );
+    const active = database.sqlite.prepare("SELECT is_active, revision FROM categories WHERE id = 1").get() as { is_active: number; revision: number };
+    assert.equal(active.is_active, 1);
+    assert.equal(active.revision, 1);
+  } finally {
+    database.sqlite.close();
+  }
 });
 
 test("category batch route and UI stay bounded, authorized, revision-aware and deactivation-only", async () => {
@@ -264,3 +376,102 @@ test("category batch route and UI stay bounded, authorized, revision-aware and d
   assert.doesNotMatch(panel, /method: "DELETE"/);
   assert.match(packageJson, /scripts\/admin-category-batch\.test\.mts/);
 });
+
+class SqliteCategoryBatchStatement implements D1PreparedStatementLike {
+  readonly query: string;
+  private values: unknown[] = [];
+  private readonly statement: ReturnType<DatabaseSync["prepare"]>;
+
+  constructor(query: string, statement: ReturnType<DatabaseSync["prepare"]>) {
+    this.query = query;
+    this.statement = statement;
+  }
+
+  bind(...values: unknown[]) {
+    this.values = values;
+    return this;
+  }
+
+  async all<T>() {
+    return { results: this.statement.all(...(this.values as never[])) as T[] };
+  }
+
+  async first<T>() {
+    return (this.statement.get(...(this.values as never[])) as T | undefined) ?? null;
+  }
+
+  async run() {
+    this.statement.run(...(this.values as never[]));
+    return {};
+  }
+}
+
+class SqliteCategoryBatchDatabase implements D1DatabaseLike {
+  readonly sqlite: DatabaseSync;
+  private readonly omitBatchResults: boolean;
+  private readonly skipQuery?: RegExp;
+
+  constructor(sqlite: DatabaseSync, options: { omitBatchResults?: boolean; skipQuery?: RegExp } = {}) {
+    this.sqlite = sqlite;
+    this.omitBatchResults = options.omitBatchResults ?? false;
+    this.skipQuery = options.skipQuery;
+  }
+
+  prepare(query: string) {
+    return new SqliteCategoryBatchStatement(query, this.sqlite.prepare(query));
+  }
+
+  async batch(statements: SqliteCategoryBatchStatement[]) {
+    this.sqlite.exec("BEGIN");
+    try {
+      const results = [];
+      for (const statement of statements) {
+        if (this.skipQuery?.test(statement.query)) results.push({ results: [] });
+        else results.push(await statement.all());
+      }
+      this.sqlite.exec("COMMIT");
+      return this.omitBatchResults ? results.map(() => ({})) : results;
+    } catch (error) {
+      this.sqlite.exec("ROLLBACK");
+      throw error;
+    }
+  }
+}
+
+function createSqliteCategoryBatchDatabase(options: { omitBatchResults?: boolean; skipQuery?: RegExp } = {}) {
+  const sqlite = new DatabaseSync(":memory:");
+  sqlite.exec(`
+    CREATE TABLE categories (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      slug TEXT NOT NULL UNIQUE,
+      description TEXT NOT NULL,
+      sort_order INTEGER NOT NULL,
+      is_active INTEGER NOT NULL,
+      revision INTEGER NOT NULL DEFAULT 1,
+      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE TABLE admin_audit_log (
+      id TEXT PRIMARY KEY DEFAULT 'marker-id',
+      request_id TEXT NOT NULL UNIQUE,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      actor_subject TEXT NOT NULL,
+      action TEXT NOT NULL,
+      entity_type TEXT NOT NULL,
+      entity_key TEXT NOT NULL,
+      previous_revision INTEGER,
+      resulting_revision INTEGER,
+      payload_sha256 TEXT NOT NULL
+    );
+    CREATE TABLE audit_logs (
+      id TEXT PRIMARY KEY NOT NULL,
+      actor_subject TEXT NOT NULL,
+      action TEXT NOT NULL,
+      entity_type TEXT NOT NULL,
+      entity_id TEXT,
+      metadata_json TEXT,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+  `);
+  return new SqliteCategoryBatchDatabase(sqlite, options);
+}
