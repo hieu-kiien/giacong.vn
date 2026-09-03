@@ -6,6 +6,7 @@ import {
   publishAdminSitePage,
   SitePageConflictError,
   SitePageIdempotencyConflictError,
+  SitePageStorageError,
   SitePageValidationError,
   updateAdminSitePage,
 } from "../src/lib/site-pages.ts";
@@ -108,7 +109,9 @@ class FakePageDatabase {
     published_at: null,
     last_request_id: null,
   };
-  audits = new Map<string, { entity_key: string; operation: string; payload_sha256: string }>();
+  audits = new Map<string, { actor_subject: string; entity_key: string; operation: string; payload_sha256: string }>();
+  omitBatchResults = false;
+  failPostcondition = false;
 
   prepare(query: string) {
     let values: unknown[] = [];
@@ -124,9 +127,17 @@ class FakePageDatabase {
   }
 
   async batch(statements: Array<{ run(): Promise<unknown> }>): Promise<unknown[]> {
-    const results: unknown[] = [];
-    for (const statement of statements) results.push(await statement.run());
-    return results;
+    const snapshot = structuredClone({ audits: [...this.audits.entries()], row: this.row });
+    try {
+      const results: unknown[] = [];
+      for (const statement of statements) results.push(await statement.run());
+      return this.omitBatchResults ? [] : results;
+    } catch (error) {
+      this.audits.clear();
+      snapshot.audits.forEach(([key, value]) => this.audits.set(key, value));
+      this.row = snapshot.row;
+      throw error;
+    }
   }
 
   private prepareBound(query: string, read: () => unknown[]) {
@@ -134,6 +145,9 @@ class FakePageDatabase {
       bind: (...next: unknown[]) => this.prepareBound(query, () => next),
       all: async <T,>() => ({ results: [this.row] as unknown as T[] }),
       first: async <T,>() => {
+        if (query.includes("page-write-postcondition-read")) {
+          return { complete: this.failPostcondition ? 0 : 1 } as T;
+        }
         if (query.includes("FROM admin_site_page_audit")) {
           return (this.audits.get(String(read()[0])) ?? null) as unknown as T;
         }
@@ -141,9 +155,14 @@ class FakePageDatabase {
       },
       run: async () => {
         const values = read();
+        if (query.includes("page-write-postcondition")) {
+          if (this.failPostcondition) throw new Error("page-write-postcondition failed");
+          return { meta: { changes: 1 } };
+        }
         if (query.includes("INSERT INTO admin_site_page_audit")) {
           const isCreate = query.includes("'create', 'create'");
           this.audits.set(String(values[0]), {
+            actor_subject: String(values[1]),
             entity_key: String(isCreate ? values[2] : values[5]),
             operation: isCreate ? "create" : String(values[2]),
             payload_sha256: String(isCreate ? values[3] : values[4]),
@@ -185,6 +204,54 @@ class FakePageDatabase {
     };
   }
 }
+
+test("page writes succeed when D1 omits batch result rows", async () => {
+  const database = new FakePageDatabase();
+  database.omitBatchResults = true;
+
+  const draft = await updateAdminSitePage(database, {
+    actorSubject: "owner",
+    blocks: [{ type: "rich_text", title: "Mới", body: "Nội dung" }],
+    draftEnabled: true,
+    expectedVersion: 1,
+    pageKey: "home",
+    requestId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+    seoDescription: "Mô tả",
+    seoTitle: "Tiêu đề",
+  });
+  const published = await publishAdminSitePage(database, {
+    actorSubject: "owner",
+    expectedVersion: draft.version,
+    pageKey: "home",
+    requestId: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+  });
+
+  assert.equal(published.version, 3);
+  assert.equal(published.dirty, false);
+  assert.equal(database.audits.size, 2);
+});
+
+test("page write rolls back when its postcondition is missing", async () => {
+  const database = new FakePageDatabase();
+  database.failPostcondition = true;
+
+  await assert.rejects(
+    () => updateAdminSitePage(database, {
+      actorSubject: "owner",
+      blocks: [{ type: "rich_text", title: "Rollback", body: "Không ghi" }],
+      draftEnabled: true,
+      expectedVersion: 1,
+      pageKey: "home",
+      requestId: "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+      seoDescription: "",
+      seoTitle: "",
+    }),
+    SitePageStorageError,
+  );
+  assert.equal(database.row.version, 1);
+  assert.equal(database.row.last_request_id, null);
+  assert.equal(database.audits.size, 0);
+});
 
 test("page draft and publish are separate optimistic operations", async () => {
   const database = new FakePageDatabase();

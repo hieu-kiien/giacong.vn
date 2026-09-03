@@ -117,10 +117,21 @@ export async function createAdminSitePage(
   const title = normalizeText(input.title, "title", 240, true);
   const requestId = normalizePageRequestId(input.requestId);
   const payloadSha256 = await fingerprintPageMutation({ operation: "create", pageKey, routePath, title });
+  const postcondition: SitePageMutationPostcondition = {
+    actorSubject: input.actorSubject,
+    expectedVersion: 0,
+    operation: "create",
+    pageKey,
+    payloadSha256,
+    requestId,
+    routePath,
+    title,
+  };
   const existingMutation = await findPageMutation(database, requestId);
   if (existingMutation) {
     assertMatchingPageMutation(existingMutation, "create", payloadSha256);
-    return readPageMutationResult(database, existingMutation);
+    postcondition.actorSubject = existingMutation.actor_subject;
+    return readPageMutationResult(database, existingMutation, postcondition);
   }
   const idempotentInsert = database.prepare(`
     INSERT INTO site_pages (
@@ -139,19 +150,24 @@ export async function createAdminSitePage(
     ) VALUES (?, ?, 'create', 'create', 'page', ?, NULL, 1, ?)
   `).bind(requestId, input.actorSubject, pageKey, payloadSha256);
   try {
-    const changed = await applyAtomicPageMutation(database, idempotentInsert, audit);
-    if (!changed) throw new SitePageStorageError("Không ghi được page mới.");
+    await applyAtomicPageMutation(
+      database,
+      idempotentInsert,
+      audit,
+      buildPagePostconditionAssertion(database, postcondition),
+    );
   } catch (error) {
     const racedMutation = await findPageMutation(database, requestId);
     if (racedMutation) {
       assertMatchingPageMutation(racedMutation, "create", payloadSha256);
-      return readPageMutationResult(database, racedMutation);
+      postcondition.actorSubject = racedMutation.actor_subject;
+      return readPageMutationResult(database, racedMutation, postcondition);
     }
-    throw error;
+    throw normalizePageWriteError(error);
   }
   const mutation = await findPageMutation(database, requestId);
   if (!mutation) throw new SitePageStorageError("Không đọc được audit page vừa tạo.");
-  return readPageMutationResult(database, mutation);
+  return readPageMutationResult(database, mutation, postcondition);
 }
 
 export async function updateAdminSitePage(
@@ -192,10 +208,23 @@ export async function updateAdminSitePage(
     seoDescription,
     seoTitle,
   });
+  const postcondition: SitePageMutationPostcondition = {
+    actorSubject: input.actorSubject,
+    draftBlocksJson: serializePageBlocks(blocks),
+    draftEnabled: input.draftEnabled,
+    draftSeoDescription: seoDescription,
+    draftSeoTitle: seoTitle,
+    expectedVersion: input.expectedVersion,
+    operation: "draft",
+    pageKey,
+    payloadSha256,
+    requestId,
+  };
   const existingMutation = await findPageMutation(database, requestId);
   if (existingMutation) {
     assertMatchingPageMutation(existingMutation, "draft", payloadSha256);
-    return readPageMutationResult(database, existingMutation);
+    postcondition.actorSubject = existingMutation.actor_subject;
+    return readPageMutationResult(database, existingMutation, postcondition);
   }
 
   const current = await getAdminSitePage(database, pageKey);
@@ -230,19 +259,29 @@ export async function updateAdminSitePage(
     requestId,
   });
   try {
-    const changed = await applyAtomicPageMutation(database, update, audit);
-    if (!changed) throw new SitePageConflictError("Page đã thay đổi ở phiên khác. Hãy tải lại trước khi lưu.");
+    await applyAtomicPageMutation(
+      database,
+      update,
+      audit,
+      buildPagePostconditionAssertion(database, postcondition),
+    );
   } catch (error) {
     const racedMutation = await findPageMutation(database, requestId);
     if (racedMutation) {
       assertMatchingPageMutation(racedMutation, "draft", payloadSha256);
-      return readPageMutationResult(database, racedMutation);
+      postcondition.actorSubject = racedMutation.actor_subject;
+      return readPageMutationResult(database, racedMutation, postcondition);
     }
-    throw error;
+    const latest = await getAdminSitePage(database, pageKey);
+    if (latest && latest.version !== input.expectedVersion) {
+      throw new SitePageConflictError("Page đã thay đổi ở phiên khác. Hãy tải lại trước khi lưu.");
+    }
+    throw normalizePageWriteError(error);
   }
-  const updated = await getAdminSitePage(database, pageKey);
-  if (!updated) throw new SitePageNotFoundError("Không thể đọc page vừa cập nhật.");
-  return updated;
+  const mutation = await findPageMutation(database, requestId);
+  if (!mutation) throw new SitePageConflictError("Page đã thay đổi ở phiên khác. Hãy tải lại trước khi lưu.");
+  assertMatchingPageMutation(mutation, "draft", payloadSha256);
+  return readPageMutationResult(database, mutation, postcondition);
 }
 
 export async function publishAdminSitePage(
@@ -259,10 +298,19 @@ export async function publishAdminSitePage(
     operation: "publish",
     pageKey,
   });
+  const postcondition: SitePageMutationPostcondition = {
+    actorSubject: input.actorSubject,
+    expectedVersion: input.expectedVersion,
+    operation: "publish",
+    pageKey,
+    payloadSha256,
+    requestId,
+  };
   const existingMutation = await findPageMutation(database, requestId);
   if (existingMutation) {
     assertMatchingPageMutation(existingMutation, "publish", payloadSha256);
-    return readPageMutationResult(database, existingMutation);
+    postcondition.actorSubject = existingMutation.actor_subject;
+    return readPageMutationResult(database, existingMutation, postcondition);
   }
   const current = await getAdminSitePage(database, pageKey);
   if (!current) throw new SitePageNotFoundError("Không tìm thấy page cần phát hành.");
@@ -297,19 +345,29 @@ export async function publishAdminSitePage(
     requestId,
   });
   try {
-    const changed = await applyAtomicPageMutation(database, update, audit);
-    if (!changed) throw new SitePageConflictError("Page đã thay đổi ở phiên khác. Hãy tải lại trước khi phát hành.");
+    await applyAtomicPageMutation(
+      database,
+      update,
+      audit,
+      buildPagePostconditionAssertion(database, postcondition),
+    );
   } catch (error) {
     const racedMutation = await findPageMutation(database, requestId);
     if (racedMutation) {
       assertMatchingPageMutation(racedMutation, "publish", payloadSha256);
-      return readPageMutationResult(database, racedMutation);
+      postcondition.actorSubject = racedMutation.actor_subject;
+      return readPageMutationResult(database, racedMutation, postcondition);
     }
-    throw error;
+    const latest = await getAdminSitePage(database, pageKey);
+    if (latest && latest.version !== input.expectedVersion) {
+      throw new SitePageConflictError("Page đã thay đổi ở phiên khác. Hãy tải lại trước khi phát hành.");
+    }
+    throw normalizePageWriteError(error);
   }
-  const published = await getAdminSitePage(database, pageKey);
-  if (!published) throw new SitePageNotFoundError("Không thể đọc page vừa phát hành.");
-  return published;
+  const mutation = await findPageMutation(database, requestId);
+  if (!mutation) throw new SitePageConflictError("Page đã thay đổi ở phiên khác. Hãy tải lại trước khi phát hành.");
+  assertMatchingPageMutation(mutation, "publish", payloadSha256);
+  return readPageMutationResult(database, mutation, postcondition);
 }
 
 export async function getPublishedSitePage(routePath: string): Promise<PublishedSitePage | null> {
@@ -442,7 +500,23 @@ interface D1DatabaseWithBatch extends D1DatabaseLike {
 
 type SitePageMutationOperation = "create" | "draft" | "publish";
 
+interface SitePageMutationPostcondition {
+  actorSubject: string;
+  draftBlocksJson?: string;
+  draftEnabled?: boolean;
+  draftSeoDescription?: string;
+  draftSeoTitle?: string;
+  expectedVersion: number;
+  operation: SitePageMutationOperation;
+  pageKey: string;
+  payloadSha256: string;
+  requestId: string;
+  routePath?: string;
+  title?: string;
+}
+
 interface SitePageMutationRow {
+  actor_subject: string;
   entity_key: string;
   operation: SitePageMutationOperation;
   payload_sha256: string;
@@ -461,19 +535,156 @@ async function applyAtomicPageMutation(
   database: D1DatabaseLike,
   mutation: D1PreparedStatementLike,
   audit: D1PreparedStatementLike,
-): Promise<boolean> {
+  postcondition: D1PreparedStatementLike,
+): Promise<void> {
   const databaseWithBatch = database as D1DatabaseWithBatch;
   if (typeof databaseWithBatch.batch !== "function") {
     throw new SitePageStorageError("D1 atomic batch chưa sẵn sàng cho thay đổi page.");
   }
-  const results = await databaseWithBatch.batch([mutation, audit]);
-  if (results.length !== 2) throw new SitePageStorageError("D1 page mutation trả về kết quả không hợp lệ.");
-  const mutationChanged = hasChanged(results[0]);
-  const auditChanged = hasChanged(results[1]);
-  if (mutationChanged !== auditChanged) {
-    throw new SitePageStorageError("Thay đổi page chưa ghép được với audit.");
+  try {
+    await databaseWithBatch.batch([mutation, audit, postcondition]);
+  } catch (error) {
+    throw normalizePageWriteError(error);
   }
-  return mutationChanged;
+}
+
+async function ensurePageMutationComplete(
+  database: D1DatabaseLike,
+  postcondition: SitePageMutationPostcondition,
+): Promise<void> {
+  const { expression, values } = buildPageMutationPostconditionExpression(postcondition);
+  const row = await database.prepare(`
+    /* page-write-postcondition-read */
+    SELECT CASE WHEN (${expression}) THEN 1 ELSE 0 END AS complete
+  `).bind(...values).first<{ complete?: unknown }>();
+  if (Number(row?.complete) !== 1) {
+    throw new SitePageStorageError(
+      "Không thể xác nhận đầy đủ trạng thái page và audit; thao tác bị khóa để tránh báo thành công sai.",
+    );
+  }
+}
+
+function buildPagePostconditionAssertion(
+  database: D1DatabaseLike,
+  postcondition: SitePageMutationPostcondition,
+): D1PreparedStatementLike {
+  const { expression, values } = buildPageMutationPostconditionExpression(postcondition);
+  return database.prepare(`
+    /* page-write-postcondition */
+    INSERT INTO admin_site_page_audit (
+      request_id, actor_subject, action, operation, entity_type, entity_key,
+      previous_revision, resulting_revision, payload_sha256
+    )
+    SELECT NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL
+    WHERE NOT (${expression})
+  `).bind(...values);
+}
+
+function buildPageMutationPostconditionExpression(
+  postcondition: SitePageMutationPostcondition,
+): { expression: string; values: unknown[] } {
+  if (postcondition.operation === "create") {
+    return {
+      expression: `
+        EXISTS (
+          SELECT 1
+          FROM admin_site_page_audit marker
+          JOIN site_pages page_row ON page_row.page_key = marker.entity_key
+          WHERE marker.request_id = ?
+            AND marker.actor_subject = ?
+            AND marker.action = 'create'
+            AND marker.operation = 'create'
+            AND marker.entity_type = 'page'
+            AND marker.entity_key = ?
+            AND marker.previous_revision IS NULL
+            AND marker.resulting_revision = 1
+            AND marker.payload_sha256 = ?
+            AND page_row.page_key = ?
+            AND page_row.route_path = ?
+            AND page_row.title = ?
+            AND page_row.version = 1
+            AND page_row.updated_by = ?
+            AND page_row.last_request_id = ?
+            AND page_row.draft_enabled = 0
+            AND page_row.published_enabled = 0
+            AND page_row.draft_blocks_json = '[]'
+            AND page_row.published_blocks_json = '[]'
+            AND page_row.draft_seo_title = ''
+            AND page_row.published_seo_title = ''
+            AND page_row.draft_seo_description = ''
+            AND page_row.published_seo_description = ''
+        )
+      `,
+      values: [
+        postcondition.requestId,
+        postcondition.actorSubject,
+        postcondition.pageKey,
+        postcondition.payloadSha256,
+        postcondition.pageKey,
+        postcondition.routePath ?? "",
+        postcondition.title ?? "",
+        postcondition.actorSubject,
+        postcondition.requestId,
+      ],
+    };
+  }
+
+  const contentCheck = postcondition.operation === "draft"
+    ? `
+          AND page_row.draft_blocks_json = ?
+          AND page_row.draft_enabled = ?
+          AND page_row.draft_seo_title = ?
+          AND page_row.draft_seo_description = ?
+      `
+    : `
+          AND page_row.published_blocks_json = page_row.draft_blocks_json
+          AND page_row.published_enabled = page_row.draft_enabled
+          AND page_row.published_seo_title = page_row.draft_seo_title
+          AND page_row.published_seo_description = page_row.draft_seo_description
+          AND page_row.published_by = ?
+          AND page_row.published_at IS NOT NULL
+      `;
+  const contentValues = postcondition.operation === "draft"
+    ? [
+      postcondition.draftBlocksJson ?? "[]",
+      postcondition.draftEnabled ? 1 : 0,
+      postcondition.draftSeoTitle ?? "",
+      postcondition.draftSeoDescription ?? "",
+    ]
+    : [postcondition.actorSubject];
+  return {
+    expression: `
+      EXISTS (
+        SELECT 1
+        FROM admin_site_page_audit marker
+        JOIN site_pages page_row ON page_row.page_key = marker.entity_key
+        WHERE marker.request_id = ?
+          AND marker.actor_subject = ?
+          AND marker.action = 'update'
+          AND marker.operation = ?
+          AND marker.entity_type = 'page'
+          AND marker.entity_key = ?
+          AND marker.previous_revision = ?
+          AND marker.resulting_revision = ?
+          AND marker.payload_sha256 = ?
+          AND page_row.version = ?
+          AND page_row.last_request_id = ?
+          ${contentCheck}
+      )
+    `,
+    values: [
+      postcondition.requestId,
+      postcondition.actorSubject,
+      postcondition.operation,
+      postcondition.pageKey,
+      postcondition.expectedVersion,
+      postcondition.expectedVersion + 1,
+      postcondition.payloadSha256,
+      postcondition.expectedVersion + 1,
+      postcondition.requestId,
+      ...contentValues,
+    ],
+  };
 }
 
 function buildPageAuditStatement(
@@ -505,7 +716,7 @@ async function findPageMutation(
   requestId: string,
 ): Promise<SitePageMutationRow | null> {
   return database.prepare(`
-    SELECT entity_key, operation, payload_sha256
+    SELECT actor_subject, entity_key, operation, payload_sha256
     FROM admin_site_page_audit
     WHERE request_id = ?
     LIMIT 1
@@ -525,9 +736,14 @@ function assertMatchingPageMutation(
 async function readPageMutationResult(
   database: D1DatabaseLike,
   mutation: SitePageMutationRow,
+  postcondition: SitePageMutationPostcondition,
 ): Promise<AdminSitePage> {
+  await ensurePageMutationComplete(database, postcondition);
   const page = await getAdminSitePage(database, mutation.entity_key);
   if (!page) throw new SitePageStorageError("Không đọc được page từ audit request.");
+  if (page.version !== postcondition.expectedVersion + 1) {
+    throw new SitePageStorageError("Revision page không khớp sau khi ghi.");
+  }
   return page;
 }
 
@@ -549,6 +765,18 @@ function hasChanged(result: unknown): boolean {
   if (Array.isArray(record.results)) return record.results.length > 0;
   const changes = record.meta?.changes;
   return changes !== undefined && Number(changes) > 0;
+}
+
+function normalizePageWriteError(error: unknown): unknown {
+  const message = error instanceof Error ? error.message : String(error);
+  const normalized = message.toLowerCase();
+  if (message.includes("page-write-postcondition")
+    || (normalized.includes("admin_site_page_audit") && normalized.includes("constraint"))) {
+    return new SitePageStorageError(
+      "Không ghi đồng bộ được page và audit; hệ thống đã rollback để tránh báo thành công sai.",
+    );
+  }
+  return error;
 }
 
 export { PageBuilderValidationError };
