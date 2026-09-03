@@ -121,8 +121,10 @@ Bản staging hiện **đủ điều kiện để tiếp tục nghiệm thu kỹ
   pass. Chrome owner staging xác nhận direct editor mở thật, Escape đóng và
   focus quay lại đúng target, không console error/warning.
 - Production vẫn chỉ có read-only evidence; Wrangler xác nhận còn đúng 11
-  migration `0009–0019`. Các gate dữ liệu thật, nhiều Access identity,
-  write/read-back toàn domain, restore/rollback và observability 24 giờ vẫn mở.
+  migration `0009–0019`. Backup fresh và restore-drill local đã được xác minh
+  bằng SHA-256 ở mục bằng chứng; các gate dữ liệu thật, nhiều Access identity,
+  write/read-back toàn domain, migration/rollback window và observability 24 giờ
+  vẫn mở.
 
 ## Audit skills.sh
 

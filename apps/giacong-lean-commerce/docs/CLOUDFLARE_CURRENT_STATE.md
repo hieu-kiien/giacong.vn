@@ -2,6 +2,31 @@
 
 Hồ sơ này ghi bằng chứng runtime đã xác minh trong quá trình chuyển Lean V1 sang Cloudflare-native.
 
+## Snapshot hiện hành — 2026-09-02
+
+- Staging Worker `giacong-vn-staging` đang chạy version
+  `eff0d7fa-c5e2-4641-911b-b3b324ac0284` ở 100%; rollback point gần nhất là
+  `a709e5a4-c457-43ab-9d77-2d5d20ac0b7b`.
+- Commit hardening tương ứng là `e1936cfb`. `npm run check` exit `0`: admin
+  `198/198`, contact `104/104`, catalog `5/5`, purchase UI `1/1`, service
+  `3/3`, commerce `68/68`, listing `4/4`, detail `29/29`, lint, typecheck và
+  build đều pass. Deep QA responsive và Chrome owner direct-editor smoke test
+  cũng pass, không có console error/warning.
+- Production Worker/D1/R2/DNS chưa bị mutate. Read-only Wrangler ngày này còn
+  xác nhận 11 migration pending `0009–0019` trên D1 production.
+- Export production D1 fresh đã được tạo bằng Wrangler tại
+  `.runtime/production-d1-backup-20260902-pre-release.sql` (69,233 bytes,
+  SHA-256 `583BE2FBFFC2C6D8F0C77E7D97C3786E838EDBFD228E024AD7A8F078A147ABFD`).
+  Restore-drill SQLite độc lập đạt `integrity_check=ok`, foreign-key violations
+  `0`, với 19 bảng, 13 migration, 9 product, 17 variant và 0 lead.
+- Production promotion vẫn **NO-GO** cho tới khi hoàn tất role × route/action
+  với nhiều Access identity, full write/read-back/audit, duyệt dữ liệu thật,
+  migration window/rollback, và observability 24 giờ. Backup/restore artifact
+  hiện đã có nhưng phải export lại ngay trước migration nếu dữ liệu thay đổi.
+
+Các version và kết quả bên dưới là evidence lịch sử; khi mâu thuẫn với
+snapshot này, snapshot này phản ánh trạng thái runtime mới nhất.
+
 ## Direct edit trên storefront thật — 2026-09-02
 
 - `AdminVisualEditor` đã chuyển từ draft preview mô phỏng sang registry an toàn
