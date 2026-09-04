@@ -1,6 +1,6 @@
 # Mô hình team subagent cho Giacong.vn
 
-> Trạng thái: operating model đề xuất, dùng cùng [ADMIN_VISUAL_ROADMAP.md](./ADMIN_VISUAL_ROADMAP.md) và [ADMIN_VISUAL_FILE_MAP.md](./ADMIN_VISUAL_FILE_MAP.md).
+> Trạng thái: operating model đang áp dụng cho checkpoint 2026-09-04, dùng cùng [ADMIN_VISUAL_ROADMAP.md](./ADMIN_VISUAL_ROADMAP.md) và [ADMIN_VISUAL_FILE_MAP.md](./ADMIN_VISUAL_FILE_MAP.md).
 >
 > Mục đích: tổ chức nhiều agent như một đội phát triển chuyên nghiệp để hoàn thành Lean V1 và Visual Admin theo từng lát nhỏ, có ownership, bàn giao, review và bằng chứng chấp nhận rõ ràng.
 
@@ -8,9 +8,12 @@
 
 Đây không phải dự án xanh hoàn toàn. Nền tảng hiện tại đã có storefront, catalog,
 request cart, admin control plane, Cloudflare Access, D1/R2, draft/publish, host-
-gated visual context, contextual settings editor, product bulk import và
-product/service archive batch. Phần còn thiếu là staging/admin evidence, visual
-renderer parity, các batch domain còn lại và hardening/release.
+gated visual context, direct storefront editor, contextual hand-off, product bulk
+import, service/product archive batch và postcondition read-back cho toàn bộ admin
+write domain. Phần source/local và staging deploy hiện đã qua gate; phần còn mở
+là bằng chứng authenticated runtime sau lần deploy mới, role matrix đủ identity,
+write/read-back có chủ ý trên staging, performance/observability và production
+acceptance.
 
 Mô hình phù hợp nhất là:
 
@@ -57,10 +60,10 @@ Nếu hai tài liệu hoặc branch mâu thuẫn, Control Tower phải dừng l�
 
 ### 2.2 Bức tranh kỹ thuật đã xác minh
 
-GitNexus hiện lập chỉ mục repo `giacong.vn` với khoảng 532 file, 3.630 symbol,
-9.209 quan hệ và 257 execution flow; index phải được refresh sau mỗi lát merge.
-Đây là codebase đủ lớn để cần phân vai và call-graph review, nhưng chưa lớn đến
-mức cần một bộ máy nhiều tầng nặng nề.
+GitNexus hiện lập chỉ mục repo `giacong.vn` với 5.117 symbol, 17.362 quan hệ và
+300 execution flow theo project instructions; index phải được kiểm tra độ mới
+trước mỗi lát có thay đổi code. Đây là codebase đủ lớn để cần phân vai và
+call-graph review, nhưng chưa lớn đến mức cần một bộ máy nhiều tầng nặng nề.
 
 Các trục chính:
 
@@ -448,33 +451,31 @@ Một phase chỉ được đánh dấu đạt khi có bảng evidence, không d
 
 ## 13. Kế hoạch kích hoạt thực tế tiếp theo
 
-Các lát P1, P2, contextual news hand-off của P3, managed-page hand-off của P4,
-product import và service archive batch của P5, cùng accessibility hardening cho
-dialog dùng chung của P6 đã được thực hiện trên `master`. Từ checkpoint này,
-Control Tower chỉ mở agent khi có đầu ra độc lập rõ ràng; tối đa 4 task đồng
-thời, chế độ thường, và tuyệt đối không đụng worktree frontend motion đang dirty
-của người dùng.
+Các lát P1–P6 chính đã được thực hiện trên `master`, gồm visual context/direct
+edit, control plane, news/media, page/navigation, member/lead, bulk và
+accessibility hardening. Từ checkpoint này, Control Tower chỉ mở agent khi có
+đầu ra độc lập rõ ràng; tối đa 4 task đồng thời, dùng `gpt-5.6-luna` với
+reasoning theo yêu cầu hiện hành, và tuyệt đối không đụng worktree frontend
+motion đang dirty của người dùng.
 
 Trình tự còn lại:
 
-1. Release/QA chạy lại lint, typecheck, build và full check sau khi dừng các dev
-   server; lưu output/exit code thật.
-2. Browser QA chạy staging public/admin bằng Cloudflare Access: public không có
-   control, admin owner/content manager có context/editor, role khác bị giới
-   hạn; chụp evidence desktop/mobile/keyboard/focus.
-3. Backend/Data áp migration staging nếu thiếu và read-back draft → publish,
-   product import atomic/replay, audit và stale behavior; không gọi mutation
-   production.
-4. Experience owner xử lý worktree motion riêng, commit/rebase trên baseline
-   hiện tại rồi mới tạo change card để review; Control Tower không tự stage hay
-   cherry-pick file dirty đó.
-5. Sau khi các gate trên xanh, mở P3/P4/P5 còn thiếu theo từng vertical slice:
-   admin news/media runtime acceptance, footer/navigation evidence và batch domain
-   khác; service archive batch đã có code/contract nhưng chưa đóng phase vì thiếu
-   browser Access read-back. Contextual news/page hand-off cũng chưa đóng phase vì
-   cùng blocker. Mỗi slice cập nhật file map/roadmap/evidence trước khi chuyển tiếp.
-6. Chỉ khi staging acceptance, rollback note, production checklist và người
-   quyết định nội dung đã duyệt thì mới xem xét production promotion.
+1. Owner re-auth Cloudflare Access trên staging, sau đó chạy
+   `qa:admin-staging` read-only với viewport, reduced-motion, keyboard và
+   console/network evidence trên version `6c5789e8…`.
+2. Chủ dự án cấp bốn identity Access thật còn thiếu; QA chạy role × route/action
+   và xác nhận sidebar/capability server-side, không dùng placeholder.
+3. Với dữ liệu test được phê duyệt, chạy write/read-back/audit từng domain trên
+   staging, xác nhận idempotency/stale/rollback và dọn dữ liệu thử; tuyệt đối
+   không gọi mutation production ở bước này.
+4. Release/Security chạy controlled stress recheck và thiết lập evidence
+   observability phân biệt `exceededCpu`/`exceededMemory` cho incident 1102.
+5. Data/Release export backup production mới, restore-drill, review migration
+   `0009–0019`, chốt cửa sổ rollback và production data/content đã duyệt.
+6. Chỉ sau khi toàn bộ checklist xanh và người quyết định phê duyệt mới upload,
+   smoke, promote production; ghi rollback point và theo dõi observability 24 giờ.
+7. Experience owner vẫn tự quản lý worktree frontend motion riêng; Control Tower
+   không tự stage hoặc cherry-pick file dirty đó.
 
 Đây là mô hình ưu tiên kết quả nhưng vẫn kiểm soát ngữ cảnh: agent chỉ nhận lát
 nhỏ, độc lập, có artifact bàn giao; dependency chain luôn có một owner, một
