@@ -19,6 +19,16 @@ Hồ sơ này ghi bằng chứng runtime đã xác minh trong quá trình chuy�
   tục **NO-GO** cho tới khi đủ role matrix, runtime write/read-back, duyệt dữ
   liệu, backup/restore/rollback và observability.
 
+- Production D1 read-only preflight ngày 2026-09-04: lịch sử
+  `d1_migrations` mới có 13 bản ghi cũ, chưa có `0009–0019`; bảng
+  `site_pages` và `site_navigation_items` chưa tồn tại, nên không được bỏ qua
+  thứ tự migration hoặc suy diễn rằng production đã sẵn sàng cho admin mới.
+  Snapshot không ghi dữ liệu (`changed_db=false`, `rows_written=0`); các bảng
+  hiện có gồm 4 category, 9 product, 17 variant, 51 tier price, 1 service,
+  1 news post, 0 media asset, 1 site media asset, 25 site setting, 1 admin
+  member và 0 lead. Đây là dữ liệu cần chủ dự án duyệt, không phải dữ liệu để
+  tự động đồng bộ từ staging.
+
 ## Snapshot đối chiếu lịch sử — 2026-09-03
 
 - Staging Worker `giacong-vn-staging` đã chạy version
