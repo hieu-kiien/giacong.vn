@@ -4,7 +4,8 @@ Tài liệu dành cho người vận hành (khách + chủ dự án). Quyết đ
 
 ## Checkpoint bàn giao mới nhất
 
-Source head `bb2690bb` đã qua local gate toàn bộ; staging đang chạy runtime version
+Code gate reference `bb2690bb` đã qua local gate toàn bộ; GitHub handoff merge
+`53162218`; staging đang chạy runtime version
 `6c5789e8-0b84-401e-b3c4-6fc3cff5bcf4` ở 100%. D1 staging không còn migration
 pending; public smoke `/` và `/san-pham` trả `200`. Owner đã re-auth Cloudflare
 Access và smoke read-only đủ 10/10 route admin canonical ở desktop và mobile

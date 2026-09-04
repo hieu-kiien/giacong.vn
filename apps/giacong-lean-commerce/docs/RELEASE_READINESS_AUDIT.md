@@ -2,7 +2,8 @@
 
 ## Release checkpoint mới nhất — 2026-09-04
 
-- Source head `bb2690bb` đã hoàn tất local gate: admin `285/285`, contact
+- Code gate reference `bb2690bb` đã hoàn tất local gate; GitHub handoff merge
+  `53162218`; admin `285/285`, contact
   `104/104`, catalog `5/5`, purchase UI `1/1`, service `3/3`, commerce `69/69`,
   listing `4/4`, detail `29/29`, lint, typecheck exit `0` và build exit `0`
   với `27/27` static pages.

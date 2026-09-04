@@ -10,7 +10,8 @@ Tài liệu này là nguồn bám theo cho việc biến admin hiện tại thà
 hiển thị, nhưng vẫn giữ trung tâm vận hành đầy đủ cho nghiệp vụ phức tạp và xử
 lý hàng loạt.
 
-**Release checkpoint — 2026-09-04:** Source head là `bb2690bb`; toàn bộ write
+**Release checkpoint — 2026-09-04:** Code gate reference là `bb2690bb`, GitHub
+handoff merge là `53162218`; toàn bộ write
 contract admin đã có postcondition read-back/rollback, gồm product, service,
 category, news, media, settings, navigation, page, member và lead. Local gate
 đạt admin `285/285`, contact `104/104`, catalog `5/5`, purchase UI `1/1`,

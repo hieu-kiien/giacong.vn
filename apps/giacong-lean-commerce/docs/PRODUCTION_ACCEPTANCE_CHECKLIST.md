@@ -4,7 +4,8 @@ Trạng thái chốt hạ trước promotion `giacong-vn` production. Nguồn y�
 
 ## Checkpoint hiện tại — 2026-09-04
 
-- Source head `bb2690bb` đã pass local gate: admin `285/285`, contact `104/104`,
+- Code gate reference `bb2690bb` đã pass local gate; GitHub handoff merge
+  `53162218`; admin `285/285`, contact `104/104`,
   catalog `5/5`, purchase UI `1/1`, service `3/3`, commerce `69/69`, listing
   `4/4`, detail `29/29`, lint, typecheck và build `27/27`.
 - Staging đang chạy version `6c5789e8-0b84-401e-b3c4-6fc3cff5bcf4` ở 100%;
