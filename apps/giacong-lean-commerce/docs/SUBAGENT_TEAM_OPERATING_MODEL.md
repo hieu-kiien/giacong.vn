@@ -171,24 +171,24 @@ Không cần chạy 15 agent liên tục. Với codebase này, cấu hình hiệ
 - 1 Release agent chỉ mở khi đã có staging evidence (có thể thay QA/reviewer);
 - không mở thêm agent nếu task không độc lập hoặc đang có worktree người dùng sửa.
 
-Chỉ **một write lane cho một dependency chain**. Các task mới phải dùng chế độ
-thường, không ưu tiên nhanh; nếu tạo agent thì dùng gpt-5.6-luna và chọn
-reasoning theo độ khó, không tự đổi model.
+Chỉ **một write lane cho một dependency chain**. Theo yêu cầu hiện hành của
+mục tiêu này, mọi subagent được tạo đều dùng `gpt-5.6-luna` với
+`reasoning_effort=max`, service tier/chế độ thường, không fast/priority. Không
+được mở quá 4 phiên đồng thời.
 
 ### 4.2 Gợi ý model tier
 
-Policy hiện hành khi Control Tower tạo agent:
+Policy cố định cho mục tiêu hiện hành khi Control Tower tạo agent:
 
 | Công việc | Model | Reasoning |
 | --- | --- | --- |
-| Architecture, security, migration, release decision | gpt-5.6-luna | high |
-| Backend/renderer integration | gpt-5.6-luna | medium hoặc high |
-| UI mechanical work, inventory, test harness nhỏ | gpt-5.6-luna | low hoặc medium |
-| Independent review | gpt-5.6-luna | medium/high, ưu tiên task độc lập |
+| Architecture, security, migration, release decision | gpt-5.6-luna | max |
+| Backend/renderer integration | gpt-5.6-luna | max |
+| UI mechanical work, inventory, test harness nhỏ | gpt-5.6-luna | max |
+| Independent review | gpt-5.6-luna | max |
 
-Service tier luôn là chế độ thường; không dùng fast/priority cho agent. Không
-chọn reasoning thấp cho scope, auth boundary, migration hoặc production gate chỉ
-vì task trông ngắn.
+Nếu agent chạy quá lâu hoặc không có output, Control Tower phải dừng/đóng phiên
+đó và tiếp tục bằng lane khác; không để phiên treo chiếm WIP.
 
 ### 4.3 Quy tắc worktree và file lock
 
