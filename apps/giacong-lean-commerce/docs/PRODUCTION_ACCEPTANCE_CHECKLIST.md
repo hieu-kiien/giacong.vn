@@ -12,6 +12,8 @@ Trạng thái chốt hạ trước promotion `giacong-vn` production. Nguồn y�
   kiểm tra đều trả HTTP `200`.
 - Admin staging sau deploy đang chờ owner re-auth Cloudflare Access; production
   chưa deploy/migrate/ghi dữ liệu và read-only còn 11 migration `0009–0019`.
+- Controlled stress runner `qa:admin-stress` đã có trong source và đã pass
+  contract/lint; chưa có runtime result vì thiếu Access storage state.
 - Các gate role matrix nhiều identity, write/read-back/audit runtime đầy đủ,
   production data approval, migration/rollback window và observability 24 giờ
   vẫn mở.

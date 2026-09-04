@@ -89,6 +89,21 @@ npm run qa:admin-staging
 Mỗi storage state phải thuộc một identity được chủ dự án cấp phép; runner
 không tạo tài khoản, không submit form và không tự đóng write/read-back gate.
 
+Controlled 1102 stress recheck chỉ dành cho admin staging, không thực hiện
+mutation và tự chặn mọi hostname khác:
+
+```powershell
+$env:QA_ADMIN_STORAGE_STATE = './.runtime/access-owner.storage.json'
+$env:QA_ADMIN_STRESS_CONCURRENCY = '2'
+$env:QA_ADMIN_STRESS_ROUNDS = '2'
+npm run qa:admin-stress
+```
+
+Runner đi qua 10 route admin với concurrency hữu hạn, kiểm tra HTTP/render,
+1102/resource-limit, console và mọi request `POST/PUT/PATCH/DELETE`; thiếu
+storage state hoặc dùng URL không phải `https://admin-staging.kienhieu.id.vn`
+sẽ fail-closed.
+
 Rollback: `npx wrangler versions deploy <VERSION_CŨ> --name giacong-vn` (mỗi lần promote đều ghi rõ rollback point trong checklist). Rollback D1: chỉ dùng backup `.sql` đã re-export, checksum và thử restore — chỉ khi có chủ ý, kèm audit trước/sau.
 
 ## 5. Giám sát
