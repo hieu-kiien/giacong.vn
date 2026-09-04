@@ -10,10 +10,10 @@
 request cart, admin control plane, Cloudflare Access, D1/R2, draft/publish, host-
 gated visual context, direct storefront editor, contextual hand-off, product bulk
 import, service/product archive batch và postcondition read-back cho toàn bộ admin
-write domain. Phần source/local và staging deploy hiện đã qua gate; phần còn mở
-là bằng chứng authenticated runtime sau lần deploy mới, role matrix đủ identity,
-write/read-back có chủ ý trên staging, performance/observability và production
-acceptance.
+write domain. Phần source/local, staging deploy, owner read-only smoke `10/10` và
+controlled browser stress `40/40` đã có bằng chứng; phần còn mở là role matrix
+đủ identity, write/read-back có chủ ý trên staging, CLI/runtime observability và
+production acceptance.
 
 Mô hình phù hợp nhất là:
 
@@ -454,22 +454,24 @@ Một phase chỉ được đánh dấu đạt khi có bảng evidence, không d
 Các lát P1–P6 chính đã được thực hiện trên `master`, gồm visual context/direct
 edit, control plane, news/media, page/navigation, member/lead, bulk và
 accessibility hardening. Từ checkpoint này, Control Tower chỉ mở agent khi có
-đầu ra độc lập rõ ràng; tối đa 4 task đồng thời, dùng `gpt-5.6-luna` với
-reasoning theo yêu cầu hiện hành, và tuyệt đối không đụng worktree frontend
-motion đang dirty của người dùng.
+đầu ra độc lập rõ ràng; tối đa 4 task đồng thời, mọi agent dùng
+`gpt-5.6-luna` với `reasoning_effort=max` ở chế độ/service thường, và tuyệt đối
+không đụng worktree frontend motion đang dirty của người dùng.
 
 Trình tự còn lại:
 
-1. Owner re-auth Cloudflare Access trên staging, sau đó chạy
-   `qa:admin-staging` read-only với viewport, reduced-motion, keyboard và
-   console/network evidence trên version `6c5789e8…`.
+1. Owner smoke đã đạt `10/10` route ở desktop/mobile; phiên Access hiện hết hạn,
+   nên re-auth lại khi cần tạo storage state và chạy `qa:admin-staging` CLI với
+   viewport, reduced-motion, keyboard và console/network evidence trên version
+   `6c5789e8…`.
 2. Chủ dự án cấp bốn identity Access thật còn thiếu; QA chạy role × route/action
    và xác nhận sidebar/capability server-side, không dùng placeholder.
 3. Với dữ liệu test được phê duyệt, chạy write/read-back/audit từng domain trên
    staging, xác nhận idempotency/stale/rollback và dọn dữ liệu thử; tuyệt đối
    không gọi mutation production ở bước này.
-4. Release/Security chạy controlled stress recheck và thiết lập evidence
-   observability phân biệt `exceededCpu`/`exceededMemory` cho incident 1102.
+4. Controlled browser stress owner đã đạt `40/40` ở concurrency `2`; Release/
+   Security vẫn phải thu evidence observability phân biệt
+   `exceededCpu`/`exceededMemory` cho incident 1102 và production.
 5. Data/Release export backup production mới, restore-drill, review migration
    `0009–0019`, chốt cửa sổ rollback và production data/content đã duyệt.
 6. Chỉ sau khi toàn bộ checklist xanh và người quyết định phê duyệt mới upload,
