@@ -21,8 +21,8 @@
 
 Bản staging hiện **đủ điều kiện để tiếp tục nghiệm thu kỹ thuật**, nhưng chưa
 đủ điều kiện để gọi là bàn giao production hoàn hảo. Staging đang chạy
-`b8b344ca-07c3-4449-bfca-d5acad685931` ở 100%, rollback point gần nhất là
-`e50223de-208f-45d8-bd4f-27ecc32b37ea`; production vẫn giữ nguyên và đang
+`6c5789e8-0b84-401e-b3c4-6fc3cff5bcf4` ở 100%, rollback point gần nhất là
+`b8b344ca-07c3-4449-bfca-d5acad685931`; production vẫn giữ nguyên và đang
 **NO-GO** cho migration hoặc promotion.
 
 ## Giảm burst prefetch admin — 2026-09-03
@@ -167,9 +167,9 @@ Bản staging hiện **đủ điều kiện để tiếp tục nghiệm thu kỹ
   quyền)`. Bản ghi owner hiện tại hiển thị đúng và khóa tự đổi role/tự vô hiệu
   hóa. Form chỉ được mở để kiểm tra UI; không submit và không ghi D1.
 
-## Bằng chứng hiện có
+## Bằng chứng nền và đối chiếu lịch sử
 
-- Source head hiện tại là `0adb917a`; latest admin suite đạt `215/215`,
+- Ở checkpoint trước (`0adb917a`), latest admin suite đạt `215/215`,
   focused bulk-import đạt `19/19`, full build isolated đạt `27/27`,
   lint/typecheck pass và `npm audit --omit=dev --audit-level=high` báo
   `0 vulnerabilities`. Các full-suite counts lịch sử vẫn được giữ ở các mục
