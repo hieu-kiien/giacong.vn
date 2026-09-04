@@ -10,10 +10,12 @@ Trạng thái chốt hạ trước promotion `giacong-vn` production. Nguồn y�
 - Staging đang chạy version `6c5789e8-0b84-401e-b3c4-6fc3cff5bcf4` ở 100%;
   D1 staging báo `No migrations to apply!`; 5 public route chính vừa read-only
   kiểm tra đều trả HTTP `200`.
-- Admin staging sau deploy đang chờ owner re-auth Cloudflare Access; production
-  chưa deploy/migrate/ghi dữ liệu và read-only còn 11 migration `0009–0019`.
+- Owner authenticated read-only smoke đã đi đủ 10/10 route admin ở desktop và
+  mobile viewport `390×844`, không lỗi render/1102/5xx, overflow hoặc console;
+  controlled browser stress 2 tab × 2 vòng đạt `40/40`. Phiên Access hiện đã
+  hết hạn sau lượt kiểm tra và cần re-auth cho lượt kế tiếp.
 - Controlled stress runner `qa:admin-stress` đã có trong source và đã pass
-  contract/lint; chưa có runtime result vì thiếu Access storage state.
+  contract/lint; CLI runner chưa có runtime result vì thiếu Access storage state.
 - Các gate role matrix nhiều identity, write/read-back/audit runtime đầy đủ,
   production data approval, migration/rollback window và observability 24 giờ
   vẫn mở.
