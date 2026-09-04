@@ -19,10 +19,12 @@ Hồ sơ này ghi bằng chứng runtime đã xác minh trong quá trình chuy�
   tục **NO-GO** cho tới khi đủ role matrix, runtime write/read-back, duyệt dữ
   liệu, backup/restore/rollback và observability.
 
-- Staging Worker `giacong-vn-staging` đang chạy version
+## Snapshot đối chiếu lịch sử — 2026-09-03
+
+- Staging Worker `giacong-vn-staging` đã chạy version
   `b8b344ca-07c3-4449-bfca-d5acad685931` ở 100%; rollback point gần nhất là
   `e50223de-208f-45d8-bd4f-27ecc32b37ea`.
-- Checkout head hiện tại là `222ec6c4`; bản sửa giảm burst prefetch protected
+- Checkout tại checkpoint đó là `222ec6c4`; bản sửa giảm burst prefetch protected
   admin đã được deploy lên staging và QA owner sau deploy đã đọc dashboard
   thành công. QA-only selector correction trước đó đã được
   kiểm thử ở source. Staging runtime vẫn ở version nêu trên; commit
