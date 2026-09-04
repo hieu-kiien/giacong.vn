@@ -1,17 +1,17 @@
 // Controlled, authenticated, read-only staging stress check for the admin
 // navigation/resource-limit incident. It deliberately refuses non-staging
-// hosts and rejects every mutating browser request.
+// hosts and rejects every app mutation request while allowing platform telemetry.
 import process from "node:process";
 import { access } from "node:fs/promises";
 import { resolve } from "node:path";
 import { chromium } from "playwright";
 import { hasRenderedAdminFailure } from "./qa-admin-staging-helpers.mjs";
+import { isUnexpectedMutationRequest } from "./qa-admin-stress-helpers.mjs";
 
 const MAX_CONCURRENCY = 4;
 const MAX_ROUNDS = 10;
 const DEFAULT_CONCURRENCY = 2;
 const DEFAULT_ROUNDS = 2;
-const MUTATING_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 const ADMIN_ROUTES = [
   "/admin",
   "/admin/noi-dung",
@@ -79,7 +79,7 @@ async function runWorker(browser, round, worker) {
     const pageIssues = [];
     page.on("pageerror", (error) => pageIssues.push(`pageerror: ${error.message}`));
     page.on("request", (request) => {
-      if (MUTATING_METHODS.has(request.method())) {
+      if (isUnexpectedMutationRequest(request.method(), request.url(), baseUrl)) {
         pageIssues.push(`unexpected mutation request: ${request.method()} ${request.url()}`);
       }
     });
