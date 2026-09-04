@@ -1,6 +1,15 @@
 # Bàn giao vận hành — giacong.vn trên kienhieu.id.vn
 
-Tài liệu dành cho người vận hành (khách + chủ dự án). Quyết định kiến trúc xem [CLOUDFLARE_DEPLOYMENT.md](./CLOUDFLARE_DEPLOYMENT.md); checklist nghiệm thu xem [PRODUCTION_ACCEPTANCE_CHECKLIST.md](./PRODUCTION_ACCEPTANCE_CHECKLIST.md). Cập nhật 2026-09-03.
+Tài liệu dành cho người vận hành (khách + chủ dự án). Quyết định kiến trúc xem [CLOUDFLARE_DEPLOYMENT.md](./CLOUDFLARE_DEPLOYMENT.md); checklist nghiệm thu xem [PRODUCTION_ACCEPTANCE_CHECKLIST.md](./PRODUCTION_ACCEPTANCE_CHECKLIST.md). Cập nhật 2026-09-04.
+
+## Checkpoint bàn giao mới nhất
+
+Source head `a72ee4e6` đã qua local gate toàn bộ và staging đang chạy version
+`6c5789e8-0b84-401e-b3c4-6fc3cff5bcf4` ở 100%. D1 staging không còn migration
+pending; public smoke `/` và `/san-pham` trả `200`. Admin staging vẫn cần
+Cloudflare Access re-auth trên tab owner sau deploy. Production chưa deploy,
+migrate hay ghi dữ liệu; production vẫn NO-GO cho đến khi checklist nghiệm thu
+được chủ dự án phê duyệt và chạy chủ ý.
 
 ## 1. Bản đồ hệ thống
 
@@ -8,7 +17,7 @@ Tài liệu dành cho người vận hành (khách + chủ dự án). Quyết đ
 | --- | --- | --- |
 | Storefront production | https://kienhieu.id.vn | Cloudflare Worker `giacong-vn` @100% |
 | Admin production | https://admin.kienhieu.id.vn/admin | Sau Cloudflare Access — fail-closed |
-| Storefront staging | https://staging.kienhieu.id.vn | Worker `giacong-vn-staging`, public demo; version `a3d82449-4dee-4b3f-a001-0b97e70e21e4`; rollback `e50223de-208f-45d8-bd4f-27ecc32b37ea` |
+| Storefront staging | https://staging.kienhieu.id.vn | Worker `giacong-vn-staging`, public demo; version `6c5789e8-0b84-401e-b3c4-6fc3cff5bcf4` ở 100%; rollback point trước deploy là `b8b344ca-07c3-4449-bfca-d5acad685931` |
 | Admin staging | https://admin-staging.kienhieu.id.vn/admin | Cloudflare Access thật; storefront staging mới public; không có identity thì fail-closed |
 | D1 production | `giacong-vn-catalog` | Catalog, leads, media metadata, CMS |
 | R2 production | `giacong-vn-product-media` | Ảnh product/variant/service qua `/media/*` |
@@ -110,12 +119,11 @@ role cũng đã được kiểm tra read-only; role matrix nhiều identity, wri
 restore/rollback drill vẫn cần chủ dự án phê duyệt và thực hiện chủ ý. Không
 dùng dữ liệu demo staging làm dữ liệu production.
 
-Release hardening source mới nhất: commit `0adb917a` bổ sung chunk-safe bulk
-product import, idempotency audit exact-match và role-matrix QA fail-closed.
-Staging đang ở `a3d82449` 100%; source
-`npm run check` đạt admin `215/215`, contact `104/104`, catalog `5/5`, purchase
-UI `1/1`, service `3/3`, commerce `68/68`, listing `4/4`, detail `29/29`,
-lint, typecheck và build `27/27`; dependency audit không có vulnerability.
-Deep QA public và owner admin read-only trước deploy đều pass; smoke owner sau
-deploy đang chờ Access re-auth. Role matrix nhiều identity,
-write/read-back đầy đủ và production gate vẫn cần nghiệm thu có chủ ý.
+Release hardening source mới nhất: commit `a72ee4e6` đã khóa postcondition
+read-back/rollback cho các write path admin và sửa strict typecheck harnesses.
+Staging đang ở `6c5789e8` 100%; local gate đạt admin `282/282`, contact
+`104/104`, catalog `5/5`, purchase UI `1/1`, service `3/3`, commerce `69/69`,
+listing `4/4`, detail `29/29`, lint, typecheck và build `27/27`; dependency
+audit không có vulnerability. Public smoke sau deploy pass; smoke owner sau
+deploy đang chờ Access re-auth. Role matrix nhiều identity, write/read-back
+runtime đầy đủ và production gate vẫn cần nghiệm thu có chủ ý.

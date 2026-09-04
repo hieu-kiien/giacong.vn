@@ -1,8 +1,23 @@
-# Cloudflare current state — 2026-09-03
+# Cloudflare current state — 2026-09-04
 
 Hồ sơ này ghi bằng chứng runtime đã xác minh trong quá trình chuyển Lean V1 sang Cloudflare-native.
 
-## Snapshot hiện hành — 2026-09-03
+## Snapshot hiện hành — 2026-09-04
+
+- Source head `a72ee4e6` đã deploy thành công lên staging version
+  `6c5789e8-0b84-401e-b3c4-6fc3cff5bcf4` ở 100%. OpenNext build, TypeScript và
+  route generation hoàn tất; các binding staging vẫn trỏ đúng D1/R2/queue.
+- Local verification mới nhất: admin `282/282`, contact `104/104`, catalog
+  `5/5`, purchase UI `1/1`, service `3/3`, commerce `69/69`, listing `4/4`,
+  detail `29/29`, lint pass, `tsc --noEmit` exit `0`, build exit `0` và static
+  pages `27/27`.
+- `wrangler d1 migrations list giacong-vn-catalog-staging --remote --env=staging`
+  trả `No migrations to apply!`; public staging `/` và `/san-pham` trả HTTP
+  `200`. Admin staging vẫn yêu cầu Access re-auth trên tab owner sau deploy.
+- Production kiểm tra chỉ đọc còn pending `0009–0019`; không upload, deploy,
+  migrate hoặc ghi D1/R2 production trong lượt này. Production promotion tiếp
+  tục **NO-GO** cho tới khi đủ role matrix, runtime write/read-back, duyệt dữ
+  liệu, backup/restore/rollback và observability.
 
 - Staging Worker `giacong-vn-staging` đang chạy version
   `b8b344ca-07c3-4449-bfca-d5acad685931` ở 100%; rollback point gần nhất là

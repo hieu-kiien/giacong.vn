@@ -1,4 +1,21 @@
-# Audit sẵn sàng bàn giao — 2026-09-03
+# Audit sẵn sàng bàn giao — 2026-09-04
+
+## Release checkpoint mới nhất — 2026-09-04
+
+- Source head `a72ee4e6` đã hoàn tất local gate: admin `282/282`, contact
+  `104/104`, catalog `5/5`, purchase UI `1/1`, service `3/3`, commerce `69/69`,
+  listing `4/4`, detail `29/29`, lint, typecheck exit `0` và build exit `0`
+  với `27/27` static pages.
+- Staging deploy thành công với version
+  `6c5789e8-0b84-401e-b3c4-6fc3cff5bcf4` ở 100%. D1 staging báo không còn
+  migration pending; public `/` và `/san-pham` trả `200`.
+- Sau deploy, tab owner bị chuyển về Cloudflare Access login khi mở route mới;
+  cần owner re-auth bằng email/OTP để hoàn tất smoke admin authenticated. Không
+  tự động nhập OTP và không tạo dữ liệu quyền hạn mới.
+- Production read-only vẫn liệt kê 11 migration `0009–0019` cần áp dụng. Không
+  thực hiện migration/deploy/ghi dữ liệu production; các gate role matrix,
+  write/read-back runtime, data approval, backup/restore, rollback và
+  observability vẫn mở.
 
 ## Kết luận
 

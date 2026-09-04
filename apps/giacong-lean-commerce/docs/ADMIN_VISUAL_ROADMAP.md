@@ -1,7 +1,7 @@
 # Lộ trình Giacong Visual Admin
 
 **Trạng thái:** kế hoạch thực thi chính
-**Cập nhật:** 2026-09-03
+**Cập nhật:** 2026-09-04
 **Phạm vi:** apps/giacong-lean-commerce
 **Bản đồ đi kèm:** ADMIN_VISUAL_FILE_MAP.md
 
@@ -9,6 +9,18 @@ Tài liệu này là nguồn bám theo cho việc biến admin hiện tại thà
 **storefront-first hybrid admin**: chỉnh sửa theo ngữ cảnh ở nơi nội dung được
 hiển thị, nhưng vẫn giữ trung tâm vận hành đầy đủ cho nghiệp vụ phức tạp và xử
 lý hàng loạt.
+
+**Release checkpoint — 2026-09-04:** Source head là `a72ee4e6`; toàn bộ write
+contract admin đã có postcondition read-back/rollback, gồm product, service,
+category, news, media, settings, navigation, page, member và lead. Local gate
+đạt admin `282/282`, contact `104/104`, catalog `5/5`, purchase UI `1/1`,
+service `3/3`, commerce `69/69`, listing `4/4`, detail `29/29`, lint, typecheck
+exit `0` và build exit `0` (`27/27` static pages). Staging đã deploy version
+`6c5789e8-0b84-401e-b3c4-6fc3cff5bcf4` ở 100%; D1 staging không còn migration
+pending; public `/` và `/san-pham` trả HTTP `200`. Admin staging sau deploy
+đang cần Access re-auth. Production vẫn **NO-GO**: read-only còn 11 migration
+`0009–0019`, role matrix năm identity, runtime write/read-back, dữ liệu thật,
+backup/rollback và observability 24 giờ chưa đóng.
 
 **Checkpoint authoritative — 2026-09-03:** checkout `master` đang ở commit
 `222ec6c4` (đã giảm burst prefetch protected admin sidebar và sửa selector menu
