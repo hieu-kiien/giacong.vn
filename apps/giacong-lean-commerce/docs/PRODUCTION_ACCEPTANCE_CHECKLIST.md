@@ -1,6 +1,20 @@
 # Production acceptance checklist
 
-Trạng thái chốt hạ trước promotion `giacong-vn` production. Nguồn yêu cầu gốc: [CLOUDFLARE_NATIVE_V1_PLAN.md](CLOUDFLARE_NATIVE_V1_PLAN.md) mục 7–8. Cập nhật 2026-09-03 sau owner/RBAC hardening, staging revalidation và controlled 1102 recheck.
+Trạng thái chốt hạ trước promotion `giacong-vn` production. Nguồn yêu cầu gốc: [CLOUDFLARE_NATIVE_V1_PLAN.md](CLOUDFLARE_NATIVE_V1_PLAN.md) mục 7–8. Cập nhật 2026-09-04 sau source hardening, staging deploy và read-only release recheck.
+
+## Checkpoint hiện tại — 2026-09-04
+
+- Source head `a72ee4e6` đã pass local gate: admin `282/282`, contact `104/104`,
+  catalog `5/5`, purchase UI `1/1`, service `3/3`, commerce `69/69`, listing
+  `4/4`, detail `29/29`, lint, typecheck và build `27/27`.
+- Staging đang chạy version `6c5789e8-0b84-401e-b3c4-6fc3cff5bcf4` ở 100%;
+  D1 staging báo `No migrations to apply!`; 5 public route chính vừa read-only
+  kiểm tra đều trả HTTP `200`.
+- Admin staging sau deploy đang chờ owner re-auth Cloudflare Access; production
+  chưa deploy/migrate/ghi dữ liệu và read-only còn 11 migration `0009–0019`.
+- Các gate role matrix nhiều identity, write/read-back/audit runtime đầy đủ,
+  production data approval, migration/rollback window và observability 24 giờ
+  vẫn mở.
 
 > Lưu ý trạng thái: các checkbox dưới đây giữ evidence lịch sử của đợt nghiệm thu
 > trước. Chúng không tự đóng các acceptance mới trong `ADMIN_VISUAL_ROADMAP.md`.
