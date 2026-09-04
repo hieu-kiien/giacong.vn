@@ -4,7 +4,7 @@ Trạng thái chốt hạ trước promotion `giacong-vn` production. Nguồn y�
 
 ## Checkpoint hiện tại — 2026-09-04
 
-- Source head `a72ee4e6` đã pass local gate: admin `282/282`, contact `104/104`,
+- Source head `1002dc50` đã pass local gate: admin `284/284`, contact `104/104`,
   catalog `5/5`, purchase UI `1/1`, service `3/3`, commerce `69/69`, listing
   `4/4`, detail `29/29`, lint, typecheck và build `27/27`.
 - Staging đang chạy version `6c5789e8-0b84-401e-b3c4-6fc3cff5bcf4` ở 100%;

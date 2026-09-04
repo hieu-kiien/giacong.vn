@@ -4,7 +4,7 @@ Tài liệu dành cho người vận hành (khách + chủ dự án). Quyết đ
 
 ## Checkpoint bàn giao mới nhất
 
-Source head `a72ee4e6` đã qua local gate toàn bộ và staging đang chạy version
+Source head `1002dc50` đã qua local gate toàn bộ; staging đang chạy runtime version
 `6c5789e8-0b84-401e-b3c4-6fc3cff5bcf4` ở 100%. D1 staging không còn migration
 pending; public smoke `/` và `/san-pham` trả `200`. Admin staging vẫn cần
 Cloudflare Access re-auth trên tab owner sau deploy. Production chưa deploy,
@@ -120,8 +120,9 @@ restore/rollback drill vẫn cần chủ dự án phê duyệt và thực hiện
 dùng dữ liệu demo staging làm dữ liệu production.
 
 Release hardening source mới nhất: commit `a72ee4e6` đã khóa postcondition
-read-back/rollback cho các write path admin và sửa strict typecheck harnesses.
-Staging đang ở `6c5789e8` 100%; local gate đạt admin `282/282`, contact
+read-back/rollback cho các write path admin và sửa strict typecheck harnesses;
+commit `1002dc50` bổ sung controlled read-only stress runner cho incident 1102.
+Staging đang ở `6c5789e8` 100%; local gate đạt admin `284/284`, contact
 `104/104`, catalog `5/5`, purchase UI `1/1`, service `3/3`, commerce `69/69`,
 listing `4/4`, detail `29/29`, lint, typecheck và build `27/27`; dependency
 audit không có vulnerability. Public smoke sau deploy pass; smoke owner sau

@@ -2,7 +2,7 @@
 
 ## Release checkpoint mới nhất — 2026-09-04
 
-- Source head `a72ee4e6` đã hoàn tất local gate: admin `282/282`, contact
+- Source head `1002dc50` đã hoàn tất local gate: admin `284/284`, contact
   `104/104`, catalog `5/5`, purchase UI `1/1`, service `3/3`, commerce `69/69`,
   listing `4/4`, detail `29/29`, lint, typecheck exit `0` và build exit `0`
   với `27/27` static pages.

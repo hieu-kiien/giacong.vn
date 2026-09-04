@@ -4,10 +4,11 @@ Hồ sơ này ghi bằng chứng runtime đã xác minh trong quá trình chuy�
 
 ## Snapshot hiện hành — 2026-09-04
 
-- Source head `a72ee4e6` đã deploy thành công lên staging version
-  `6c5789e8-0b84-401e-b3c4-6fc3cff5bcf4` ở 100%. OpenNext build, TypeScript và
-  route generation hoàn tất; các binding staging vẫn trỏ đúng D1/R2/queue.
-- Local verification mới nhất: admin `282/282`, contact `104/104`, catalog
+- Source head `1002dc50` đã qua local gate; staging Worker vẫn đang chạy runtime
+  version `6c5789e8-0b84-401e-b3c4-6fc3cff5bcf4` ở 100% từ lần deploy trước.
+  OpenNext build, TypeScript và route generation hoàn tất; các binding staging
+  vẫn trỏ đúng D1/R2/queue. Commit mới chỉ thêm test-only stress runner.
+- Local verification mới nhất: admin `284/284`, contact `104/104`, catalog
   `5/5`, purchase UI `1/1`, service `3/3`, commerce `69/69`, listing `4/4`,
   detail `29/29`, lint pass, `tsc --noEmit` exit `0`, build exit `0` và static
   pages `27/27`.

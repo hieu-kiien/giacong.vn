@@ -14,13 +14,15 @@ Mục tiêu của file này là trả lời nhanh bốn câu hỏi trước khi 
 Không thêm file mới vào map chỉ vì đã nghĩ ra tên. File chỉ được đánh dấu “đã có”
 khi tồn tại trong checkout; file “dự kiến” phải được tạo trong phase tương ứng.
 
-**Current release checkpoint — 2026-09-04:** Checkout head `a72ee4e6` đã qua
-admin `282/282`, các suite storefront/contact, lint, typecheck và build
+**Current release checkpoint — 2026-09-04:** Checkout head `1002dc50` đã qua
+admin `284/284`, các suite storefront/contact, lint, typecheck và build
 `27/27`; staging đang chạy version
 `6c5789e8-0b84-401e-b3c4-6fc3cff5bcf4` ở 100% và D1 staging không còn migration
 pending. Các write path admin đã xác nhận postcondition thật trong cùng batch,
 rollback khi thiếu marker/audit và không phụ thuộc batch result rows. Admin
-browser smoke mới sau deploy chờ Access re-auth; production chưa deploy/migrate.
+browser smoke mới sau deploy chờ Access re-auth; runner `qa:admin-stress` là
+read-only/test-only và chưa chạy vì thiếu Access storage state; production chưa
+deploy/migrate.
 
 **Checkpoint 2026-09-03:** checkout hiện ở commit `222ec6c4` (đã giảm burst
 prefetch protected admin sidebar; QA selector menu
