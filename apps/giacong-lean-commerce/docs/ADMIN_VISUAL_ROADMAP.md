@@ -10,10 +10,10 @@ Tài liệu này là nguồn bám theo cho việc biến admin hiện tại thà
 hiển thị, nhưng vẫn giữ trung tâm vận hành đầy đủ cho nghiệp vụ phức tạp và xử
 lý hàng loạt.
 
-**Release checkpoint — 2026-09-04:** Source head là `1002dc50`; toàn bộ write
+**Release checkpoint — 2026-09-04:** Source head là `bb2690bb`; toàn bộ write
 contract admin đã có postcondition read-back/rollback, gồm product, service,
 category, news, media, settings, navigation, page, member và lead. Local gate
-đạt admin `284/284`, contact `104/104`, catalog `5/5`, purchase UI `1/1`,
+đạt admin `285/285`, contact `104/104`, catalog `5/5`, purchase UI `1/1`,
 service `3/3`, commerce `69/69`, listing `4/4`, detail `29/29`, lint, typecheck
 exit `0` và build exit `0` (`27/27` static pages). Staging đã deploy version
 `6c5789e8-0b84-401e-b3c4-6fc3cff5bcf4` ở 100%; D1 staging không còn migration

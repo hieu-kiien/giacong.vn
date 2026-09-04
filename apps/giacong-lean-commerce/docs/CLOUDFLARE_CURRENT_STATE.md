@@ -4,20 +4,26 @@ Hồ sơ này ghi bằng chứng runtime đã xác minh trong quá trình chuy�
 
 ## Snapshot hiện hành — 2026-09-04
 
-- Source head `1002dc50` đã qua local gate; staging Worker vẫn đang chạy runtime
+- Source head `bb2690bb` đã qua local gate; staging Worker vẫn đang chạy runtime
   version `6c5789e8-0b84-401e-b3c4-6fc3cff5bcf4` ở 100% từ lần deploy trước.
   OpenNext build, TypeScript và route generation hoàn tất; các binding staging
-  vẫn trỏ đúng D1/R2/queue. Commit mới chỉ thêm test-only stress runner.
-- Local verification mới nhất: admin `284/284`, contact `104/104`, catalog
+  vẫn trỏ đúng D1/R2/queue. Source head chỉ thay đổi test-only stress runner:
+  telemetry RUM được loại khỏi cảnh báo mutation giả, còn mutation app vẫn bị
+  chặn.
+- Local verification mới nhất: admin `285/285`, contact `104/104`, catalog
   `5/5`, purchase UI `1/1`, service `3/3`, commerce `69/69`, listing `4/4`,
   detail `29/29`, lint pass, `tsc --noEmit` exit `0`, build exit `0` và static
   pages `27/27`.
 - `wrangler d1 migrations list giacong-vn-catalog-staging --remote --env=staging`
   trả `No migrations to apply!`; public staging `/` và `/san-pham` trả HTTP
-  `200`. Owner đã re-auth Access và đọc đủ 10/10 route admin canonical; heading
-  đúng, không render lỗi/1102/5xx, không overflow và console error/warning rỗng.
-  Đây là owner desktop smoke, chưa phải role matrix nhiều identity hay stress
-  evidence.
+  `200`. Owner đã re-auth Access và đọc đủ 10/10 route admin canonical ở desktop
+  và mobile viewport mô phỏng `390×844`; heading đúng, không render lỗi/1102/5xx,
+  không overflow và console error/warning rỗng. Đây là owner read-only smoke,
+  chưa phải role matrix nhiều identity hay stress evidence.
+- Controlled owner browser stress ngày 2026-09-04 chạy 2 tab, 2 vòng qua 10
+  route (`40/40`), không có rendered failure, overflow, console error/warning
+  hoặc app mutation. Có `POST /cdn-cgi/rum` telemetry nền; CLI runner đã được
+  sửa để không coi endpoint platform này là mutation nghiệp vụ.
 - Production kiểm tra chỉ đọc còn pending `0009–0019`; không upload, deploy,
   migrate hoặc ghi D1/R2 production trong lượt này. Production promotion tiếp
   tục **NO-GO** cho tới khi đủ role matrix, runtime write/read-back, duyệt dữ

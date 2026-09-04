@@ -4,11 +4,12 @@ Tài liệu dành cho người vận hành (khách + chủ dự án). Quyết đ
 
 ## Checkpoint bàn giao mới nhất
 
-Source head `1002dc50` đã qua local gate toàn bộ; staging đang chạy runtime version
+Source head `bb2690bb` đã qua local gate toàn bộ; staging đang chạy runtime version
 `6c5789e8-0b84-401e-b3c4-6fc3cff5bcf4` ở 100%. D1 staging không còn migration
 pending; public smoke `/` và `/san-pham` trả `200`. Owner đã re-auth Cloudflare
-Access và smoke read-only đủ 10/10 route admin canonical trên desktop, không
-render lỗi/1102/5xx, không overflow, console error/warning rỗng. Production chưa deploy,
+Access và smoke read-only đủ 10/10 route admin canonical ở desktop và mobile
+viewport mô phỏng `390×844`, không render lỗi/1102/5xx, không overflow, console
+error/warning rỗng; hai màn hình editor handoff tới storefront thật. Production chưa deploy,
 migrate hay ghi dữ liệu; production vẫn NO-GO cho đến khi checklist nghiệm thu
 được chủ dự án phê duyệt và chạy chủ ý.
 
@@ -137,10 +138,11 @@ dùng dữ liệu demo staging làm dữ liệu production.
 
 Release hardening source mới nhất: commit `a72ee4e6` đã khóa postcondition
 read-back/rollback cho các write path admin và sửa strict typecheck harnesses;
-commit `1002dc50` bổ sung controlled read-only stress runner cho incident 1102.
-Staging đang ở `6c5789e8` 100%; local gate đạt admin `284/284`, contact
-`104/104`, catalog `5/5`, purchase UI `1/1`, service `3/3`, commerce `69/69`,
+commit `1002dc50` bổ sung controlled read-only stress runner; `bb2690bb` đã loại
+telemetry RUM khỏi cảnh báo mutation giả nhưng vẫn chặn mutation app. Staging
+đang ở `6c5789e8` 100%; local gate đạt admin `285/285`, contact `104/104`, catalog
+`5/5`, purchase UI `1/1`, service `3/3`, commerce `69/69`,
 listing `4/4`, detail `29/29`, lint, typecheck và build `27/27`; dependency
 audit không có vulnerability. Public smoke sau deploy pass; smoke owner sau
-deploy đang chờ Access re-auth. Role matrix nhiều identity, write/read-back
+deploy đã pass desktop/mobile read-only. Role matrix nhiều identity, write/read-back
 runtime đầy đủ và production gate vẫn cần nghiệm thu có chủ ý.

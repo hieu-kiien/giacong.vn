@@ -2,7 +2,7 @@
 
 ## Release checkpoint mới nhất — 2026-09-04
 
-- Source head `1002dc50` đã hoàn tất local gate: admin `284/284`, contact
+- Source head `bb2690bb` đã hoàn tất local gate: admin `285/285`, contact
   `104/104`, catalog `5/5`, purchase UI `1/1`, service `3/3`, commerce `69/69`,
   listing `4/4`, detail `29/29`, lint, typecheck exit `0` và build exit `0`
   với `27/27` static pages.
@@ -10,10 +10,25 @@
   `6c5789e8-0b84-401e-b3c4-6fc3cff5bcf4` ở 100%. D1 staging báo không còn
   migration pending; public `/` và `/san-pham` trả `200`.
 - Owner đã re-auth Cloudflare Access và smoke authenticated read-only đủ 10/10
-  route canonical trên tab Chrome: heading đúng, không render lỗi/1102/5xx,
-  không overflow và console error/warning rỗng. Đây mới là bằng chứng owner ở
-  desktop; không thay thế role matrix nhiều identity, write/read-back hoặc stress
-  runner. Không tự động nhập OTP và không tạo dữ liệu quyền hạn mới.
+  route canonical trên tab Chrome ở desktop và mobile viewport mô phỏng
+  `390×844`: heading đúng, không render lỗi/1102/5xx, không overflow và console
+  error/warning rỗng. Hai màn hình nội dung/page đều handoff tới storefront thật,
+  có luồng lưu/phát hành và không còn preview draft mô phỏng. Đây mới là bằng
+  chứng owner read-only; không thay thế role matrix nhiều identity,
+  write/read-back hoặc stress runner. Không tự động nhập OTP và không tạo dữ
+  liệu quyền hạn mới.
+
+## Controlled owner browser stress — 2026-09-04
+
+- Hai tab owner authenticated chạy song song ở concurrency `2`, mỗi tab `2`
+  vòng qua 10 route admin: `40/40` đạt; không có rendered failure, overflow,
+  console error/warning hoặc app mutation.
+- Network chỉ ghi nhận `POST /cdn-cgi/rum` telemetry nền. Đây không phải mutation
+  nghiệp vụ; runner CLI đã được harden để bỏ qua đúng endpoint platform này và
+  vẫn fail khi app gọi `POST/PUT/PATCH/DELETE`.
+- Bằng chứng này đóng controlled browser recheck cho owner, chưa đóng stress/
+  observability production vì chưa có CLI storage-state run và chưa có phân loại
+  `exceededCpu`/`exceededMemory` trên production.
 - Production read-only vẫn liệt kê 11 migration `0009–0019` cần áp dụng. Không
   thực hiện migration/deploy/ghi dữ liệu production; các gate role matrix,
   write/read-back runtime, data approval, backup/restore, rollback và
