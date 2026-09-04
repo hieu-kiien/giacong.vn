@@ -4,8 +4,8 @@ Hồ sơ này ghi bằng chứng runtime đã xác minh trong quá trình chuy�
 
 ## Snapshot hiện hành — 2026-09-04
 
-- Code gate reference `bb2690bb` đã qua local gate; GitHub handoff merge là
-  `53162218`; staging Worker vẫn đang chạy runtime
+- Code gate reference `bb2690bb` đã qua local gate; GitHub handoff head là
+  `5976970e` (source merge `53162218`); staging Worker vẫn đang chạy runtime
   version `6c5789e8-0b84-401e-b3c4-6fc3cff5bcf4` ở 100% từ lần deploy trước.
   OpenNext build, TypeScript và route generation hoàn tất; các binding staging
   vẫn trỏ đúng D1/R2/queue. Source head chỉ thay đổi test-only stress runner:

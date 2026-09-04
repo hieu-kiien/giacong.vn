@@ -15,7 +15,8 @@ Không thêm file mới vào map chỉ vì đã nghĩ ra tên. File chỉ đư�
 khi tồn tại trong checkout; file “dự kiến” phải được tạo trong phase tương ứng.
 
 **Current release checkpoint — 2026-09-04:** Code gate reference `bb2690bb` đã qua;
-GitHub handoff merge là `53162218`. Checkout head `bb2690bb` đã qua
+GitHub handoff head là `5976970e` (source merge `53162218`). Checkout code head
+`bb2690bb` đã qua
 admin `285/285`, các suite storefront/contact, lint, typecheck và build
 `27/27`; staging đang chạy version
 `6c5789e8-0b84-401e-b3c4-6fc3cff5bcf4` ở 100% và D1 staging không còn migration

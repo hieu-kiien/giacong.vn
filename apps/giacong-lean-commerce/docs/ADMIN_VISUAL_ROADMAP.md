@@ -11,7 +11,7 @@ hiển thị, nhưng vẫn giữ trung tâm vận hành đầy đủ cho nghiệ
 lý hàng loạt.
 
 **Release checkpoint — 2026-09-04:** Code gate reference là `bb2690bb`, GitHub
-handoff merge là `53162218`; toàn bộ write
+handoff head là `5976970e` (source merge `53162218`); toàn bộ write
 contract admin đã có postcondition read-back/rollback, gồm product, service,
 category, news, media, settings, navigation, page, member và lead. Local gate
 đạt admin `285/285`, contact `104/104`, catalog `5/5`, purchase UI `1/1`,
