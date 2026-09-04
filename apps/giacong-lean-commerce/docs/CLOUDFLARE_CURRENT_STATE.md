@@ -14,7 +14,10 @@ Hồ sơ này ghi bằng chứng runtime đã xác minh trong quá trình chuy�
   pages `27/27`.
 - `wrangler d1 migrations list giacong-vn-catalog-staging --remote --env=staging`
   trả `No migrations to apply!`; public staging `/` và `/san-pham` trả HTTP
-  `200`. Admin staging vẫn yêu cầu Access re-auth trên tab owner sau deploy.
+  `200`. Owner đã re-auth Access và đọc đủ 10/10 route admin canonical; heading
+  đúng, không render lỗi/1102/5xx, không overflow và console error/warning rỗng.
+  Đây là owner desktop smoke, chưa phải role matrix nhiều identity hay stress
+  evidence.
 - Production kiểm tra chỉ đọc còn pending `0009–0019`; không upload, deploy,
   migrate hoặc ghi D1/R2 production trong lượt này. Production promotion tiếp
   tục **NO-GO** cho tới khi đủ role matrix, runtime write/read-back, duyệt dữ

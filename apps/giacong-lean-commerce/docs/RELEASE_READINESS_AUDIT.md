@@ -9,9 +9,11 @@
 - Staging deploy thành công với version
   `6c5789e8-0b84-401e-b3c4-6fc3cff5bcf4` ở 100%. D1 staging báo không còn
   migration pending; public `/` và `/san-pham` trả `200`.
-- Sau deploy, tab owner bị chuyển về Cloudflare Access login khi mở route mới;
-  cần owner re-auth bằng email/OTP để hoàn tất smoke admin authenticated. Không
-  tự động nhập OTP và không tạo dữ liệu quyền hạn mới.
+- Owner đã re-auth Cloudflare Access và smoke authenticated read-only đủ 10/10
+  route canonical trên tab Chrome: heading đúng, không render lỗi/1102/5xx,
+  không overflow và console error/warning rỗng. Đây mới là bằng chứng owner ở
+  desktop; không thay thế role matrix nhiều identity, write/read-back hoặc stress
+  runner. Không tự động nhập OTP và không tạo dữ liệu quyền hạn mới.
 - Production read-only vẫn liệt kê 11 migration `0009–0019` cần áp dụng. Không
   thực hiện migration/deploy/ghi dữ liệu production; các gate role matrix,
   write/read-back runtime, data approval, backup/restore, rollback và

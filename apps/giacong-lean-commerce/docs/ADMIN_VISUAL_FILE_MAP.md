@@ -18,11 +18,12 @@ khi tồn tại trong checkout; file “dự kiến” phải được tạo tro
 admin `284/284`, các suite storefront/contact, lint, typecheck và build
 `27/27`; staging đang chạy version
 `6c5789e8-0b84-401e-b3c4-6fc3cff5bcf4` ở 100% và D1 staging không còn migration
-pending. Các write path admin đã xác nhận postcondition thật trong cùng batch,
-rollback khi thiếu marker/audit và không phụ thuộc batch result rows. Admin
-browser smoke mới sau deploy chờ Access re-auth; runner `qa:admin-stress` là
-read-only/test-only và chưa chạy vì thiếu Access storage state; production chưa
-deploy/migrate.
+  pending. Các write path admin đã xác nhận postcondition thật trong cùng batch,
+  rollback khi thiếu marker/audit và không phụ thuộc batch result rows. Owner
+  browser smoke sau deploy đã đọc đủ 10/10 route canonical ở desktop, heading
+  đúng, không render lỗi/1102/5xx, không overflow và console error/warning rỗng.
+  Runner `qa:admin-stress` vẫn là read-only/test-only và chưa chạy vì chưa có
+  Access storage state; production chưa deploy/migrate.
 
 **Checkpoint 2026-09-03:** checkout hiện ở commit `222ec6c4` (đã giảm burst
 prefetch protected admin sidebar; QA selector menu

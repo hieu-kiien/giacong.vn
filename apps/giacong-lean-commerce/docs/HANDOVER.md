@@ -6,8 +6,9 @@ Tài liệu dành cho người vận hành (khách + chủ dự án). Quyết đ
 
 Source head `1002dc50` đã qua local gate toàn bộ; staging đang chạy runtime version
 `6c5789e8-0b84-401e-b3c4-6fc3cff5bcf4` ở 100%. D1 staging không còn migration
-pending; public smoke `/` và `/san-pham` trả `200`. Admin staging vẫn cần
-Cloudflare Access re-auth trên tab owner sau deploy. Production chưa deploy,
+pending; public smoke `/` và `/san-pham` trả `200`. Owner đã re-auth Cloudflare
+Access và smoke read-only đủ 10/10 route admin canonical trên desktop, không
+render lỗi/1102/5xx, không overflow, console error/warning rỗng. Production chưa deploy,
 migrate hay ghi dữ liệu; production vẫn NO-GO cho đến khi checklist nghiệm thu
 được chủ dự án phê duyệt và chạy chủ ý.
 
