@@ -69,6 +69,7 @@ export function AdminPageBuilder() {
   const [notice, setNotice] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
   const [pendingRemove, setPendingRemove] = useState<{ index: number; type: BuilderBlockType } | null>(null);
+  const [pendingPage, setPendingPage] = useState<AdminPageRecord | null>(null);
   const [createForm, setCreateForm] = useState({ pageKey: "", routePath: "/", title: "" });
   const saveRequest = useRef<PendingPageRequest | null>(null);
   const publishRequest = useRef<PendingPageRequest | null>(null);
@@ -120,6 +121,21 @@ export function AdminPageBuilder() {
   function selectPage(page: AdminPageRecord) {
     setSelectedKey(page.pageKey);
     hydratePage(page);
+  }
+
+  function requestSelectPage(page: AdminPageRecord) {
+    if (page.pageKey === selectedKey) return;
+    if (blocksChanged()) {
+      setPendingPage(page);
+      return;
+    }
+    selectPage(page);
+  }
+
+  function confirmSelectPage() {
+    if (!pendingPage) return;
+    selectPage(pendingPage);
+    setPendingPage(null);
   }
 
   function updateBlock(index: number, block: PageBlock) {
@@ -254,7 +270,7 @@ export function AdminPageBuilder() {
               aria-selected={page.pageKey === selectedKey}
               className={`admin-builder-page-tab${page.pageKey === selectedKey ? " is-selected" : ""}`}
               key={page.pageKey}
-              onClick={() => selectPage(page)}
+              onClick={() => requestSelectPage(page)}
               role="tab"
               type="button"
             >
@@ -331,6 +347,15 @@ export function AdminPageBuilder() {
               onConfirm={confirmRemoveBlock}
               onDismiss={() => setPendingRemove(null)}
               title="Xóa section khỏi bản nháp?"
+            />
+          ) : null}
+          {pendingPage ? (
+            <AdminConfirmDialog
+              confirmLabel="Vẫn chuyển"
+              message="Còn thay đổi chưa lưu. Chuyển trang sẽ mất. Vẫn chuyển?"
+              onConfirm={confirmSelectPage}
+              onDismiss={() => setPendingPage(null)}
+              title="Chuyển trang sẽ mất bản nháp?"
             />
           ) : null}
           <LivePageHandoff routePath={selectedPage.routePath} />
