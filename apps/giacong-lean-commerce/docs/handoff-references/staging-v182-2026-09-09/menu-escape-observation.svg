@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="780" viewBox="0 0 1440 780" role="img" aria-labelledby="title desc">
+  <title id="title">Staging v182 dropdown Escape observation</title>
+  <desc id="desc">Runtime DOM and computed-style samples for product and service menus on staging version 182.</desc>
+  <rect width="1440" height="780" fill="#f6f8f4"/>
+  <rect x="34" y="28" width="1372" height="724" rx="22" fill="#ffffff" stroke="#d8e4d4" stroke-width="2"/>
+  <text x="72" y="86" font-family="Segoe UI, Arial, sans-serif" font-size="31" font-weight="700" fill="#234d25">Staging v182 · Escape khi con trỏ vẫn ở trigger</text>
+  <text x="72" y="121" font-family="Segoe UI, Arial, sans-serif" font-size="17" fill="#5b6b5c">53ab71f4-d211-4e24-a8c4-981172bd095b · runtime observation card</text>
+
+  <g transform="translate(72,170)">
+    <rect width="1296" height="236" rx="16" fill="#f0f8e8" stroke="#bde875" stroke-width="2"/>
+    <text x="28" y="42" font-family="Segoe UI, Arial, sans-serif" font-size="24" font-weight="700" fill="#234d25">Sản phẩm · #menu-item-1742</text>
+    <text x="28" y="78" font-family="Consolas, monospace" font-size="17" fill="#304933">Before: marker=null · opacity=1 · visible · pointer-events=auto</text>
+    <text x="28" y="114" font-family="Consolas, monospace" font-size="17" fill="#304933">Escape t0: marker=true · opacity=1 · pointer-events=none</text>
+    <text x="28" y="150" font-family="Consolas, monospace" font-size="17" fill="#304933">Transition: t+50ms opacity=0.423663 · visibility=visible</text>
+    <text x="28" y="186" font-family="Consolas, monospace" font-size="17" fill="#304933">t+400ms: opacity=0 · visibility=hidden · pointer-events=none</text>
+    <text x="28" y="222" font-family="Consolas, monospace" font-size="17" fill="#1d6b3a">Exit → re-entry: marker=null · opacity=1 · visible · auto</text>
+  </g>
+
+  <g transform="translate(72,438)">
+    <rect width="1296" height="236" rx="16" fill="#eef4fb" stroke="#b7d0ee" stroke-width="2"/>
+    <text x="28" y="42" font-family="Segoe UI, Arial, sans-serif" font-size="24" font-weight="700" fill="#1e456e">Dịch vụ · #menu-item-5166</text>
+    <text x="28" y="78" font-family="Consolas, monospace" font-size="17" fill="#30465d">Before: marker=null · opacity=0.885137 · visible · pointer-events=auto</text>
+    <text x="28" y="114" font-family="Consolas, monospace" font-size="17" fill="#30465d">Escape t0: marker=true · opacity=0.872384 · pointer-events=none</text>
+    <text x="28" y="150" font-family="Consolas, monospace" font-size="17" fill="#30465d">Transition: t+50ms opacity=0.349694 · visibility=visible</text>
+    <text x="28" y="186" font-family="Consolas, monospace" font-size="17" fill="#30465d">t+400ms: opacity=0 · visibility=hidden · pointer-events=none</text>
+    <text x="28" y="222" font-family="Consolas, monospace" font-size="17" fill="#1b5b83">Exit → re-entry: marker=null · opacity=1 · visible · auto</text>
+  </g>
+
+  <text x="72" y="716" font-family="Segoe UI, Arial, sans-serif" font-size="15" fill="#6b756b">Generated from sanitized CUA DOM/computed-style samples; this SVG is an observation card, not a raw raster screenshot.</text>
+</svg>

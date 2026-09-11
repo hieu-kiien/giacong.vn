@@ -3,7 +3,8 @@
 import { ArrowDown, ArrowUp, Eye, ExternalLink, Plus, Save, Send, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useRegisterAdminUnsaved } from "@/components/admin/AdminUnsavedGuard";
 
 import { AdminConfirmDialog } from "@/components/admin/AdminDialog";
 import { AdminErrorState, AdminPageHeading, AdminStatusBadge } from "@/components/admin/AdminPrimitives";
@@ -43,7 +44,7 @@ interface PendingPageRequest {
 type BuilderBlockType = PageBlock["type"];
 
 const blockLabels: Record<BuilderBlockType, string> = {
-  hero: "Hero",
+  hero: "Ảnh bìa đầu trang",
   rich_text: "Văn bản",
   image: "Ảnh",
   feature_grid: "Lưới điểm nổi bật",
@@ -82,6 +83,11 @@ export function AdminPageBuilder() {
   const selectedPage = data?.pages.find((page) => page.pageKey === selectedKey) ?? null;
   const canEdit = data?.canEdit ?? false;
   const canPublish = data?.canPublish ?? false;
+  const isDirty = useCallback(() => Boolean(
+    (selectedPage && (JSON.stringify(blocks) !== JSON.stringify(selectedPage.draftBlocks) || draftEnabled !== selectedPage.draftEnabled || seoTitle !== selectedPage.draftSeoTitle || seoDescription !== selectedPage.draftSeoDescription))
+    || createForm.pageKey || createForm.title || createForm.routePath !== "/"
+  ), [blocks, createForm, draftEnabled, selectedPage, seoDescription, seoTitle]);
+  useRegisterAdminUnsaved(isDirty, saving || publishing || creating);
 
   async function loadPages() {
     setLoading(true);
@@ -192,7 +198,7 @@ export function AdminPageBuilder() {
   }
 
   async function publishPage() {
-    if (!selectedPage || !canPublish || selectedPage.dirty || blocksChanged() || publishInFlight.current) return;
+    if (!selectedPage || !canPublish || !selectedPage.dirty || blocksChanged() || publishInFlight.current) return;
     const payload = { expectedVersion: selectedPage.version, pageKey: selectedPage.pageKey };
     const requestId = getPageRequestId(publishRequest, JSON.stringify(payload));
     publishInFlight.current = true;
@@ -258,13 +264,13 @@ export function AdminPageBuilder() {
   return (
     <div className="admin-content">
       <AdminPageHeading
-        kicker="CMS / layout"
-        title="Thiết kế page"
-        subtitle="Sắp xếp section, chỉnh nội dung và phát hành theo phiên bản. Page builder chỉ nhận schema an toàn, không chạy HTML/CSS/JavaScript tùy ý."
-        stamp="SAFE PAGE BUILDER"
+        kicker="Quản lý trang / bố cục"
+        title="Thiết kế trang"
+        subtitle="Sắp xếp khối nội dung, chỉnh nội dung và đăng theo phiên bản. Công cụ dựng trang chỉ nhận mẫu an toàn, không chạy mã web tùy ý."
+        stamp="CÔNG CỤ DỰNG TRANG"
       />
       <div className="admin-builder-toolbar">
-        <div className="admin-builder-page-tabs" role="tablist" aria-label="Các page có thể chỉnh sửa">
+        <div className="admin-builder-page-tabs" role="tablist" aria-label="Các trang có thể sửa">
           {data?.pages.map((page) => (
             <button
               aria-selected={page.pageKey === selectedKey}
@@ -279,23 +285,23 @@ export function AdminPageBuilder() {
             </button>
           ))}
         </div>
-        {canEdit ? <button className="admin-button admin-button-quiet" onClick={() => setShowCreate((value) => !value)} type="button"><Plus size={14} /> Tạo page</button> : null}
+        {canEdit ? <button className="admin-button admin-button-quiet" onClick={() => setShowCreate((value) => !value)} type="button"><Plus size={14} /> Tạo trang</button> : null}
       </div>
       {showCreate ? (
-        <section className="admin-panel admin-builder-create" aria-labelledby="builder-create-title">
-          <div className="admin-panel-heading"><div><h2 className="admin-panel-title" id="builder-create-title">Tạo page mới</h2><p className="admin-panel-caption">Chỉ dùng route nội bộ; page mới bắt đầu ở trạng thái tắt.</p></div></div>
+        <section className="admin-panel admin-builder-create" aria-labelledby="builder-create-heading">
+          <div className="admin-panel-heading"><div><h2 className="admin-panel-title" id="builder-create-heading">Tạo trang mới</h2><p className="admin-panel-caption">Chỉ dùng đường dẫn nội bộ; trang mới bắt đầu ở trạng thái tắt.</p></div></div>
           <div className="admin-editor-grid">
-            <AdminField id="builder-create-key" label="pageKey" hint="Ví dụ: gioi-thieu-moi">
+            <AdminField id="builder-create-key" label="Mã trang" hint="Viết liền không dấu. Ví dụ: gioi-thieu-moi">
               <input className="admin-input" disabled={!canEdit} id="builder-create-key" onChange={(event) => setCreateForm((current) => ({ ...current, pageKey: event.target.value }))} value={createForm.pageKey} />
             </AdminField>
-            <AdminField id="builder-create-title" label="Tên page">
+            <AdminField id="builder-create-title" label="Tên trang">
               <input className="admin-input" disabled={!canEdit} id="builder-create-title" onChange={(event) => setCreateForm((current) => ({ ...current, title: event.target.value }))} value={createForm.title} />
             </AdminField>
             <AdminField id="builder-create-route" label="Đường dẫn">
               <input className="admin-input" disabled={!canEdit} id="builder-create-route" onChange={(event) => setCreateForm((current) => ({ ...current, routePath: event.target.value }))} value={createForm.routePath} />
             </AdminField>
           </div>
-          <div className="admin-editor-actions"><button className="admin-button admin-button-primary" disabled={!createForm.pageKey || !createForm.title || !canEdit || creating} onClick={() => void createPage()} type="button"><Plus size={14} /> {creating ? "Đang tạo" : "Tạo page"}</button></div>
+          <div className="admin-editor-actions"><button className="admin-button admin-button-primary" disabled={!createForm.pageKey || !createForm.title || !canEdit || creating} onClick={() => void createPage()} type="button"><Plus size={14} /> {creating ? "Đang tạo" : "Tạo trang"}</button></div>
         </section>
       ) : null}
       {notice ? <div className="admin-content-notice" role="status">{notice}</div> : null}
@@ -308,16 +314,16 @@ export function AdminPageBuilder() {
               <AdminStatusBadge kind={selectedPage.draftEnabled ? "green" : "neutral"} value={selectedPage.draftEnabled ? "Đang bật" : "Đang tắt"} />
             </div>
             <div className="admin-builder-meta">
-              <AdminField id="builder-seo-title" label="SEO title" optional>
+              <AdminField id="builder-seo-title" label="Tiêu đề tìm kiếm Google" optional>
                 <input className="admin-input" disabled={!canEdit} id="builder-seo-title" onChange={(event) => setSeoTitle(event.target.value)} value={seoTitle} />
               </AdminField>
-              <AdminField id="builder-seo-description" label="SEO description" optional>
+              <AdminField id="builder-seo-description" label="Mô tả tìm kiếm Google" optional>
                 <textarea className="admin-textarea" disabled={!canEdit} id="builder-seo-description" onChange={(event) => setSeoDescription(event.target.value)} rows={3} value={seoDescription} />
               </AdminField>
             </div>
-            <div className="admin-builder-section-heading"><div><h3>Sections</h3><p>Kéo thứ tự bằng nút lên/xuống; storefront chỉ đọc bản published.</p></div><BlockTypeMenu disabled={!canEdit} onAdd={(type) => setBlocks((current) => [...current, createDefaultBlock(type)])} /></div>
+            <div className="admin-builder-section-heading"><div><h3>Các khối nội dung</h3><p>Kéo thứ tự bằng nút lên/xuống; trang web chỉ đọc bản đã đăng.</p></div><BlockTypeMenu disabled={!canEdit} onAdd={(type) => setBlocks((current) => [...current, createDefaultBlock(type)])} /></div>
             <div className="admin-builder-blocks">
-              {blocks.length === 0 ? <div className="admin-table-empty"><Eye size={24} /><strong>Page chưa có section</strong><p>Chọn loại section ở nút “Thêm section” để bắt đầu.</p></div> : blocks.map((block, index) => (
+              {blocks.length === 0 ? <div className="admin-table-empty"><Eye size={24} /><strong>Trang chưa có khối</strong><p>Chọn loại khối ở nút “Thêm khối” để bắt đầu.</p></div> : blocks.map((block, index) => (
                 <AdminPageBlockEditor
                   block={block}
                   disabled={!canEdit}
@@ -332,21 +338,21 @@ export function AdminPageBuilder() {
             <div className="admin-editor-footer">
               <label className={`admin-check${canEdit ? "" : " is-disabled"}`}>
                 <input checked={draftEnabled} disabled={!canEdit} onChange={(event) => setDraftEnabled(event.target.checked)} type="checkbox" />
-                <span><strong>Cho phép page này thay thế captured fallback</strong><small>Chỉ có hiệu lực sau khi page có section và được publish.</small></span>
+                <span><strong>Cho phép trang này thay bản cũ đã lưu sẵn</strong><small>Chỉ có hiệu lực sau khi trang có khối nội dung và được đăng.</small></span>
               </label>
               <div className="admin-editor-actions">
-                <button className="admin-button admin-button-quiet" disabled={!canEdit || saving || !blocksChanged()} onClick={() => void saveDraft()} type="button"><Save size={14} /> {saving ? "Đang lưu" : "Lưu draft"}</button>
-                <button className="admin-button admin-button-primary" disabled={!canPublish || publishing || blocksChanged() || !selectedPage.dirty} onClick={() => void publishPage()} type="button"><Send size={14} /> {publishing ? "Đang phát hành" : "Publish"}</button>
+                <button className="admin-button admin-button-quiet" disabled={!canEdit || saving || !blocksChanged()} onClick={() => void saveDraft()} type="button"><Save size={14} /> {saving ? "Đang lưu" : "Lưu bản nháp"}</button>
+                <button className="admin-button admin-button-primary" disabled={!canPublish || publishing || blocksChanged() || !selectedPage.dirty} onClick={() => void publishPage()} type="button"><Send size={14} /> {publishing ? "Đang phát hành" : "Đăng lên web"}</button>
               </div>
             </div>
           </section>
           {pendingRemove ? (
             <AdminConfirmDialog
-              confirmLabel="Xóa section"
-              message={`Xóa section “${blockLabels[pendingRemove.type]}” khỏi bản nháp? Bạn có thể hủy trước khi lưu draft.`}
+              confirmLabel="Xóa khối"
+              message={`Xóa khối “${blockLabels[pendingRemove.type]}” khỏi bản nháp? Bạn có thể hủy trước khi lưu bản nháp.`}
               onConfirm={confirmRemoveBlock}
               onDismiss={() => setPendingRemove(null)}
-              title="Xóa section khỏi bản nháp?"
+              title="Xóa khối khỏi bản nháp?"
             />
           ) : null}
           {pendingPage ? (
@@ -360,28 +366,28 @@ export function AdminPageBuilder() {
           ) : null}
           <LivePageHandoff routePath={selectedPage.routePath} />
         </div>
-      ) : <div className="admin-state"><div><h2>Chưa có page</h2><p>Chạy migration control plane rồi tải lại để tạo page đầu tiên.</p></div></div>}
+      ) : <div className="admin-state"><div><h2>Chưa có trang</h2><p>Chưa tải được dữ liệu trang. Hãy tải lại, nếu vẫn trống thì báo người quản trị hệ thống.</p></div></div>}
     </div>
   );
 }
 
 function LivePageHandoff({ routePath }: { routePath: string }) {
   return (
-    <aside className="admin-live-storefront-card" aria-label={`Mở page thật ${routePath}`}>
+    <aside className="admin-live-storefront-card" aria-label={`Mở trang thật ${routePath}`}>
       <div className="admin-live-storefront-card-heading">
-        <div><div className="admin-kicker">STOREFRONT THẬT</div><h2>Xem page đang phục vụ</h2></div>
+        <div><div className="admin-kicker">TRANG WEB THẬT</div><h2>Xem trang đang chạy</h2></div>
         <ExternalLink aria-hidden="true" size={17} />
       </div>
       <div className="admin-live-storefront-card-body">
-        <p>Page builder chỉ quản lý section, SEO và trạng thái publish. Mình không dựng lại page trong một khung mô phỏng.</p>
-        <p>Hãy lưu và phát hành bản nháp, sau đó mở đúng đường dẫn bên dưới để kiểm tra kết quả trên renderer thật.</p>
+        <p>Công cụ dựng trang chỉ quản lý khối nội dung, tìm kiếm Google và trạng thái đăng. Mình không dựng lại page trong một khung mô phỏng.</p>
+        <p>Hãy lưu và phát hành bản nháp, sau đó mở đúng đường dẫn bên dưới để kiểm tra kết quả trên trang thật.</p>
         <code className="admin-live-storefront-route">{routePath}</code>
       </div>
       <Link className="admin-button admin-button-primary admin-live-storefront-card-action" data-testid="link-open-live-page" href={routePath} rel="noreferrer" target="_blank">
-        Mở page thật
+        Mở trang thật
         <ExternalLink aria-hidden="true" size={14} />
       </Link>
-      <p className="admin-live-storefront-card-note">Storefront chỉ đọc bản published; thay đổi chưa publish sẽ không xuất hiện ở tab mới.</p>
+      <p className="admin-live-storefront-card-note">Trang web chỉ đọc bản đã đăng; thay đổi chưa đăng sẽ không xuất hiện ở tab mới.</p>
     </aside>
   );
 }
@@ -402,8 +408,8 @@ function BlockTypeMenu({ disabled, onAdd }: { disabled: boolean; onAdd: (type: B
   return (
     <label className="admin-builder-add-select">
       <Plus size={14} />
-      <span>Thêm section</span>
-      <select aria-label="Chọn loại section" disabled={disabled} onChange={(event) => { if (event.target.value) onAdd(event.target.value as BuilderBlockType); event.currentTarget.value = ""; }} value="">
+      <span>Thêm khối</span>
+      <select aria-label="Chọn loại khối" disabled={disabled} onChange={(event) => { if (event.target.value) onAdd(event.target.value as BuilderBlockType); event.currentTarget.value = ""; }} value="">
         <option value="">Chọn loại</option>
         {Object.entries(blockLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
       </select>
@@ -414,7 +420,7 @@ function BlockTypeMenu({ disabled, onAdd }: { disabled: boolean; onAdd: (type: B
 function AdminPageBlockEditor({ block, disabled, index, onChange, onMove, onRemove }: { block: PageBlock; disabled: boolean; index: number; onChange: (block: PageBlock) => void; onMove: (direction: -1 | 1) => void; onRemove: () => void }) {
   return (
     <article className="admin-builder-block">
-      <header className="admin-builder-block-header"><div><span className="admin-builder-block-index">{String(index + 1).padStart(2, "0")}</span><strong>{blockLabels[block.type]}</strong></div><div className="admin-table-actions"><button aria-label="Đưa section lên" className="admin-button admin-button-quiet" disabled={disabled || index === 0} onClick={() => onMove(-1)} type="button"><ArrowUp size={13} /></button><button aria-label="Đưa section xuống" className="admin-button admin-button-quiet" disabled={disabled} onClick={() => onMove(1)} type="button"><ArrowDown size={13} /></button><button aria-label="Xóa section khỏi draft" className="admin-button admin-button-danger" disabled={disabled} onClick={onRemove} type="button"><Trash2 size={13} /></button></div></header>
+      <header className="admin-builder-block-header"><div><span className="admin-builder-block-index">{String(index + 1).padStart(2, "0")}</span><strong>{blockLabels[block.type]}</strong></div><div className="admin-table-actions"><button aria-label="Đưa khối lên" className="admin-button admin-button-quiet" disabled={disabled || index === 0} onClick={() => onMove(-1)} type="button"><ArrowUp size={13} /></button><button aria-label="Đưa khối xuống" className="admin-button admin-button-quiet" disabled={disabled} onClick={() => onMove(1)} type="button"><ArrowDown size={13} /></button><button aria-label="Xóa khối khỏi bản nháp" className="admin-button admin-button-danger" disabled={disabled} onClick={onRemove} type="button"><Trash2 size={13} /></button></div></header>
       <BlockFields block={block} disabled={disabled} index={index} onChange={onChange} />
     </article>
   );
@@ -426,11 +432,11 @@ function BlockFields({ block, disabled, index, onChange }: { block: PageBlock; d
   const area = (id: string, label: string, value: string, key: string, optional = false) => { const uniqueId = fieldId(id); return <AdminField id={uniqueId} label={label} optional={optional}><textarea className="admin-textarea" disabled={disabled} id={uniqueId} onChange={(event) => onChange({ ...block, [key]: event.target.value } as PageBlock)} rows={4} value={value} /></AdminField>; };
   switch (block.type) {
     case "hero":
-      return <div className="admin-editor-grid">{text("hero-eyebrow", "Eyebrow", block.eyebrow, "eyebrow", true)}{text("hero-title", "Tiêu đề", block.title, "title")}{area("hero-description", "Mô tả", block.description, "description")} {text("hero-image", "Ảnh URL", block.imageUrl ?? "", "imageUrl", true)}<CtaFields block={block} disabled={disabled} fieldId={fieldId} kind="primary" onChange={onChange} /><CtaFields block={block} disabled={disabled} fieldId={fieldId} kind="secondary" onChange={onChange} /></div>;
+      return <div className="admin-editor-grid">{text("hero-eyebrow", "Dòng chữ nhỏ trên tiêu đề", block.eyebrow, "eyebrow", true)}{text("hero-title", "Tiêu đề", block.title, "title")}{area("hero-description", "Mô tả", block.description, "description")} {text("hero-image", "Đường dẫn ảnh", block.imageUrl ?? "", "imageUrl", true)}<CtaFields block={block} disabled={disabled} fieldId={fieldId} kind="primary" onChange={onChange} /><CtaFields block={block} disabled={disabled} fieldId={fieldId} kind="secondary" onChange={onChange} /></div>;
     case "rich_text":
       return <div className="admin-editor-grid">{text("rich-title", "Tiêu đề", block.title, "title", true)}{area("rich-body", "Nội dung", block.body, "body")}</div>;
     case "image":
-      return <div className="admin-editor-grid">{text("image-url", "Ảnh URL", block.imageUrl, "imageUrl")}{text("image-alt", "Alt text", block.alt, "alt")}{text("image-caption", "Chú thích", block.caption, "caption", true)}</div>;
+      return <div className="admin-editor-grid">{text("image-url", "Đường dẫn ảnh", block.imageUrl, "imageUrl")}{text("image-alt", "Mô tả ảnh", block.alt, "alt")}{text("image-caption", "Chú thích", block.caption, "caption", true)}</div>;
     case "feature_grid":
       return <div className="admin-builder-feature-fields">{text("feature-title", "Tiêu đề", block.title, "title", true)}<div className="admin-builder-feature-list">{block.items.map((item, index) => <div className="admin-builder-feature-item" key={`${index}-${item.title}`}><strong>Mục {index + 1}</strong><input aria-label={`Tiêu đề mục ${index + 1}`} className="admin-input" disabled={disabled} onChange={(event) => onChange({ ...block, items: block.items.map((current, itemIndex) => itemIndex === index ? { ...current, title: event.target.value } : current) })} value={item.title} /><textarea aria-label={`Mô tả mục ${index + 1}`} className="admin-textarea" disabled={disabled} onChange={(event) => onChange({ ...block, items: block.items.map((current, itemIndex) => itemIndex === index ? { ...current, description: event.target.value } : current) })} rows={2} value={item.description} /></div>)}</div><button className="admin-button admin-button-quiet" disabled={disabled || block.items.length >= 12} onClick={() => onChange({ ...block, items: [...block.items, { title: "Mục mới", description: "Mô tả mục mới" }] })} type="button"><Plus size={13} /> Thêm mục</button></div>;
     case "cta":
@@ -448,13 +454,13 @@ function CtaFields({ block, disabled, fieldId, kind, onChange }: { block: Extrac
     const next = { ...(cta ?? { label: "", href: "" }), [field]: value };
     onChange({ ...block, [`${kind}Cta`]: next.label || next.href ? next : null });
   };
-  return <div className="admin-builder-cta-fields"><div className="admin-builder-subheading">CTA {kind === "primary" ? "chính" : "phụ"}</div><AdminField id={labelId} label="Nhãn" optional><input className="admin-input" disabled={disabled} id={labelId} onChange={(event) => update("label", event.target.value)} value={cta?.label ?? ""} /></AdminField><AdminField id={hrefId} label="Đường dẫn" optional><input className="admin-input" disabled={disabled} id={hrefId} onChange={(event) => update("href", event.target.value)} value={cta?.href ?? ""} /></AdminField></div>;
+  return <div className="admin-builder-cta-fields"><div className="admin-builder-subheading">Nút bấm {kind === "primary" ? "chính" : "phụ"}</div><AdminField id={labelId} label="Nhãn" optional><input className="admin-input" disabled={disabled} id={labelId} onChange={(event) => update("label", event.target.value)} value={cta?.label ?? ""} /></AdminField><AdminField id={hrefId} label="Đường dẫn" optional><input className="admin-input" disabled={disabled} id={hrefId} onChange={(event) => update("href", event.target.value)} value={cta?.href ?? ""} /></AdminField></div>;
 }
 
 function createDefaultBlock(type: BuilderBlockType): PageBlock {
   switch (type) {
-    case "hero": return { type, eyebrow: "", title: "Tiêu đề hero", description: "Mô tả hero", imageUrl: null, primaryCta: null, secondaryCta: null };
-    case "rich_text": return { type, title: "", body: "Nội dung section" };
+    case "hero": return { type, eyebrow: "", title: "Tiêu đề ảnh bìa", description: "Mô tả ảnh bìa", imageUrl: null, primaryCta: null, secondaryCta: null };
+    case "rich_text": return { type, title: "", body: "Nội dung khối" };
     case "image": return { type, imageUrl: "/images/home-hero/hero-1.png", alt: "Ảnh minh họa", caption: "" };
     case "feature_grid": return { type, title: "Điểm nổi bật", items: [{ title: "Mục mới", description: "Mô tả mục mới" }] };
     case "cta": return { type, title: "Sẵn sàng bắt đầu?", body: "", label: "Liên hệ", href: "/lien-he/" };

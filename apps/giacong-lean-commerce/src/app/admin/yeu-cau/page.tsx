@@ -10,9 +10,20 @@ import { AdminClientError, fetchAdmin, formatAdminDate, mutateAdmin, type AdminL
 import { canManageLeads } from "@/lib/admin-permissions.ts";
 
 interface LeadResponse {
-  leads: AdminLead[];
+  leads: LeadListItem[];
   total: number;
   pagination?: { currentPage: number; lastPage: number; pageSize: number; total: number };
+}
+
+// API tra them 5 truong giao hang (publicReference, webhookReference,
+// deliveryError, deliveryAttempts, deliveredAt) — khop voi AdminLead
+// trong src/lib/admin-client.ts.
+interface LeadListItem extends AdminLead {
+  publicReference?: string | null;
+  webhookReference?: string | null;
+  deliveryError?: string | null;
+  deliveryAttempts?: number;
+  deliveredAt?: string | null;
 }
 
 const statusOptions: Array<{ value: LeadStatus | ""; label: string }> = [
@@ -25,10 +36,16 @@ const statusOptions: Array<{ value: LeadStatus | ""; label: string }> = [
   { value: "negotiation", label: "Đàm phán" },
   { value: "won", label: "Đã chốt" },
   { value: "lost", label: "Không tiếp tục" },
-  { value: "spam", label: "Spam" },
+  { value: "spam", label: "Rác" },
 ];
 
 const statusLabels = Object.fromEntries(statusOptions.map(({ value, label }) => [value, label]));
+const deliveryLabels: Record<AdminLead["deliveryStatus"], string> = {
+  pending: "Đang chờ",
+  queued: "Đang gửi đi",
+  delivered: "Đã gửi xong",
+  failed: "Gửi lỗi",
+};
 const pipelineStatusOptions = statusOptions.filter((option): option is { value: LeadStatus; label: string } => Boolean(option.value));
 
 function statusKind(status: LeadStatus): "green" | "amber" | "red" | "blue" | "neutral" {
@@ -45,15 +62,50 @@ function deliveryKind(status: AdminLead["deliveryStatus"]): "green" | "amber" | 
   return "neutral";
 }
 
+// Ma don hien cho khach hang: uu tien ma Google tra ve (YC-...),
+// neu chua co thi hien ma don noi bo (LEAD-...).
+function orderReference(lead: LeadListItem): string {
+  return lead.webhookReference || lead.publicReference || "Chưa có mã đơn";
+}
+
+// Chi hien chu tieng Viet don gian, khong bao gio in nguyen van
+// ma loi tho tu kho du lieu (co the chua ma ky thuat/UUID) ra giao dien.
+function deliveryErrorText(error: string | null | undefined): string | null {
+  if (!error) return null;
+  const httpError = /secondary_sink_http_(\d{3})/.exec(error);
+  if (httpError) return `Google không nhận (mã ${httpError[1]})`;
+  if (/timeout|quá chậm|timed out/i.test(error)) return "Google phản hồi quá chậm";
+  if (/secondary_sink|queue_enqueue|enqueue|network|fetch|connect|kết nối/i.test(error)) return "Lỗi kết nối tới Google";
+  return null;
+}
+
+function deliveryAttemptsText(attempts: number | null | undefined): string {
+  const count = typeof attempts === "number" && Number.isFinite(attempts) && attempts > 0
+    ? Math.trunc(attempts)
+    : 0;
+  return count > 0 ? `đã thử ${count} lần` : "chưa thử gửi lần nào";
+}
+
+// Dong giai thich duoi huy hieu trang thai gui. Don da gui xong thi khong can.
+function deliveryDetailText(lead: LeadListItem): string | null {
+  if (lead.deliveryStatus === "delivered") return null;
+  const parts: string[] = [];
+  const reason = deliveryErrorText(lead.deliveryError);
+  if (reason) parts.push(reason);
+  else if (lead.deliveryStatus === "failed") parts.push("Gửi chưa thành công, hệ thống sẽ thử lại");
+  parts.push(deliveryAttemptsText(lead.deliveryAttempts));
+  return parts.join(" · ");
+}
+
 export default function AdminLeadsPage() {
   const session = useAdminSession();
   const { showToast } = useAdminToast();
   const canManage = canManageLeads(session.role);
-  const [leads, setLeads] = useState<AdminLead[]>([]);
+  const [leads, setLeads] = useState<LeadListItem[]>([]);
   const [status, setStatus] = useState<LeadStatus | "">("");
   const [query, setQuery] = useState("");
   const [inputQuery, setInputQuery] = useState("");
-  const [detailLead, setDetailLead] = useState<AdminLead | null>(null);
+  const [detailLead, setDetailLead] = useState<LeadListItem | null>(null);
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [lastPage, setLastPage] = useState(1);
@@ -95,7 +147,7 @@ export default function AdminLeadsPage() {
     setQuery(inputQuery.trim());
   }
 
-  async function updateLeadStatus(lead: AdminLead, nextStatus: LeadStatus) {
+  async function updateLeadStatus(lead: LeadListItem, nextStatus: LeadStatus) {
     if (!canManageLeads(session.role) || lead.status === nextStatus) return;
     setUpdatingId(lead.id);
     setMutationError(null);
@@ -117,15 +169,15 @@ export default function AdminLeadsPage() {
 
   return (
     <div className="admin-content">
-      <AdminPageHeading kicker="Kinh doanh / intake" title="Yêu cầu báo giá" subtitle="Inbox tập trung cho các yêu cầu private-label gửi về từ storefront và các kênh tiếp nhận." stamp="HỘP YÊU CẦU" />
+      <AdminPageHeading kicker="Bán hàng / tiếp nhận" title="Yêu cầu báo giá" subtitle="Hộp thư chung cho các yêu cầu đặt hàng riêng gửi về từ trang web và các kênh liên hệ." stamp="HỘP YÊU CẦU" />
       {mutationError ? <p className="admin-editor-error" role="alert">{mutationError.code ? `${mutationError.code} · ` : ""}{mutationError.message}</p> : null}
       <div className="admin-toolbar">
-        <form className="admin-search-wrap" onSubmit={submitSearch}>
+        <form className="admin-search-wrap" id="lead-search-form" onSubmit={submitSearch}>
           <label className="admin-label" htmlFor="lead-search">Tìm theo tên, công ty, email, SĐT</label>
           <Search aria-hidden="true" />
           <input className="admin-input has-icon" data-testid="input-lead-search" id="lead-search" onChange={(event) => setInputQuery(event.target.value)} placeholder="Ví dụ: Nguyễn, công ty ABC, gmail..." value={inputQuery} />
         </form>
-        <button className="admin-button admin-button-primary" data-testid="button-lead-search" type="submit">Tìm</button>
+        <button className="admin-button admin-button-primary" data-testid="button-lead-search" form="lead-search-form" type="submit">Tìm</button>
         {query ? (
           <button
             className="admin-button admin-button-quiet"
@@ -146,18 +198,20 @@ export default function AdminLeadsPage() {
             {statusOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
           </select>
         </div>
-        <span className="admin-count"><Filter size={13} style={{ verticalAlign: "middle" }} /> {status ? statusLabels[status] : "Toàn bộ inbox"} · {total} yêu cầu</span>
+        <span className="admin-count"><Filter size={13} style={{ verticalAlign: "middle" }} /> {status ? statusLabels[status] : "Toàn bộ hộp thư"} · {total} yêu cầu</span>
       </div>
       {error ? <AdminErrorState error={error} onRetry={() => setAttempt((value) => value + 1)} /> : loading ? <AdminLoadingTable /> : (
         <section className="admin-panel admin-table-panel" aria-labelledby="lead-table-heading">
-          <div className="admin-panel-heading" style={{ padding: "21px 21px 0" }}><div><h2 className="admin-panel-title" id="lead-table-heading">Danh sách yêu cầu</h2><p className="admin-panel-caption">Mới nhất hiển thị trước · dữ liệu nguyên bản từ API</p></div><ClipboardList aria-hidden="true" color="#6e8c42" size={19} /></div>
-          {leads.length === 0 ? <AdminEmptyState title={status ? "Không có yêu cầu ở trạng thái này" : "Inbox chưa có yêu cầu"} description={status ? "Chọn một trạng thái khác để tiếp tục theo dõi pipeline." : "Chưa có lead nào được API trả về. Không hiển thị dữ liệu mẫu."} /> : (
+          <div className="admin-panel-heading" style={{ padding: "21px 21px 0" }}><div><h2 className="admin-panel-title" id="lead-table-heading">Danh sách yêu cầu</h2><p className="admin-panel-caption">Mới nhất hiển thị trước</p></div><ClipboardList aria-hidden="true" color="#6e8c42" size={19} /></div>
+          {leads.length === 0 ? <AdminEmptyState title={status ? "Không có yêu cầu ở trạng thái này" : "Hộp thư chưa có yêu cầu"} description={status ? "Chọn một trạng thái khác." : "Chưa có yêu cầu nào. Không hiển thị dữ liệu mẫu."} /> : (
             <>
               <div className="admin-table-scroll">
                 <table className="admin-table">
-                  <thead><tr><th scope="col">Người liên hệ</th><th scope="col">Liên lạc</th><th scope="col">Nhu cầu</th><th scope="col">Trạng thái</th><th scope="col">Gửi dữ liệu</th><th scope="col">Tiếp nhận</th></tr></thead>
+                  <thead><tr><th scope="col">Người liên hệ</th><th scope="col">Liên lạc</th><th scope="col">Nhu cầu</th><th scope="col">Mã đơn</th><th scope="col">Trạng thái</th><th scope="col">Gửi dữ liệu</th><th scope="col">Tiếp nhận</th></tr></thead>
                   <tbody>
-                    {leads.map((lead) => (
+                    {leads.map((lead) => {
+                      const deliveryDetail = deliveryDetailText(lead);
+                      return (
                       <tr data-testid={`row-lead-${lead.id}`} key={lead.id}>
                         <td>
                           <button
@@ -173,6 +227,7 @@ export default function AdminLeadsPage() {
                         </td>
                         <td><div className="admin-lead-person">{lead.email ? <span><Mail size={12} style={{ verticalAlign: "middle" }} /> {lead.email}</span> : null}{lead.phone ? <span><Phone size={12} style={{ verticalAlign: "middle" }} /> {lead.phone}</span> : null}{!lead.email && !lead.phone ? <span>Chưa có thông tin</span> : null}</div></td>
                         <td><div className="admin-message" title={lead.message ?? undefined}>{lead.message || "Không có nội dung"}</div><div className="admin-item-meta">{lead.source}</div></td>
+                        <td className="admin-mono" data-testid={`text-lead-reference-${lead.id}`}>{orderReference(lead)}</td>
                         <td>
                           <AdminStatusBadge kind={statusKind(lead.status)} value={statusLabels[lead.status] ?? lead.status} />
                           {canManage ? (
@@ -189,10 +244,14 @@ export default function AdminLeadsPage() {
                             </select>
                           ) : <span className="admin-item-meta">Chỉ xem</span>}
                         </td>
-                        <td><AdminStatusBadge kind={deliveryKind(lead.deliveryStatus)} value={lead.deliveryStatus} /></td>
+                        <td>
+                          <AdminStatusBadge kind={deliveryKind(lead.deliveryStatus)} value={deliveryLabels[lead.deliveryStatus]} />
+                          {deliveryDetail ? <div className="admin-item-meta" data-testid={`text-lead-delivery-${lead.id}`}>{deliveryDetail}</div> : null}
+                        </td>
                         <td className="admin-mono">{formatAdminDate(lead.createdAt)}</td>
                       </tr>
-                    ))}
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -214,7 +273,9 @@ export default function AdminLeadsPage() {
                 ["Nguồn", detailLead.source],
                 ["Tiếp nhận", formatAdminDate(detailLead.createdAt)],
                 ["Cập nhật", formatAdminDate(detailLead.updatedAt)],
-                ["Gửi dữ liệu", detailLead.deliveryStatus],
+                ["Mã đơn", orderReference(detailLead)],
+                ["Gửi dữ liệu", deliveryLabels[detailLead.deliveryStatus]],
+                ["Chi tiết gửi", deliveryDetailText(detailLead) ?? "—"],
               ].map(([label, value]) => (
                 <div key={label} style={{ display: "grid", gridTemplateColumns: "130px 1fr", gap: 8 }}>
                   <dt style={{ color: "var(--admin-ink-muted)", fontWeight: 600 }}>{label}</dt>

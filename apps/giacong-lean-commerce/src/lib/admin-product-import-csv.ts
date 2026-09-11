@@ -84,7 +84,11 @@ export function parseProductImportCsv(text: string): ProductImportCsvResult {
   const seen = new Set<string>();
 
   for (const header of headers) {
-    if (!expected.has(header)) errors.push(`Cột “${header || "trống"}” không được hỗ trợ.`);
+    if (!expected.has(header)) {
+      errors.push(
+        `Cột “${header || "trống"}” không được hỗ trợ. File nhập chỉ nhận sản phẩm, không nhận cột variant_*; hãy tạo biến thể ở màn hình sản phẩm sau khi nhập.`,
+      );
+    }
     if (seen.has(header)) errors.push(`Cột “${header}” bị lặp.`);
     seen.add(header);
   }

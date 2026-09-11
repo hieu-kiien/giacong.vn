@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState, type ChangeEvent } from "react";
 import { AdminConfirmDialog } from "@/components/admin/AdminDialog";
+import { useRegisterAdminUnsaved } from "@/components/admin/AdminUnsavedGuard";
 import { AdminClientError, fetchAdmin, mutateAdmin, type AdminProductVariant } from "@/lib/admin-client";
 
 interface MediaAsset {
@@ -40,6 +41,12 @@ export function AdminMediaPanel({ productId, serviceId, title }: AdminMediaPanel
   const [pendingRemove, setPendingRemove] = useState<MediaAsset | null>(null);
   const [settingMainId, setSettingMainId] = useState<string | null>(null);
   const [error, setError] = useState<AdminClientError | null>(null);
+  const isUnsavedDirty = useCallback(() => {
+    if (variantId || altText || file) return true;
+    return media.some((asset) => (altDrafts[asset.id] ?? "") !== (asset.altText ?? ""));
+  }, [altDrafts, altText, file, media, variantId]);
+  const mediaSaving = uploading || savingAltId !== null || settingMainId !== null;
+  useRegisterAdminUnsaved(isUnsavedDirty, mediaSaving);
 
   const loadMedia = useCallback(async () => {
     setLoading(true);
@@ -229,25 +236,25 @@ export function AdminMediaPanel({ productId, serviceId, title }: AdminMediaPanel
     <section className="admin-editor" aria-labelledby="media-editor-heading" style={{ marginTop: 18 }}>
       <div className="admin-editor-heading">
         <div>
-          <div className="admin-kicker">Catalog / R2 media</div>
-          <h3 className="admin-panel-title" id="media-editor-heading">{title ?? (productId ? "Ảnh sản phẩm và variant" : "Ảnh dịch vụ")}</h3>
-          <p className="admin-panel-caption">Upload đi qua Worker vào R2, metadata và checksum SHA-256 được lưu trong D1. Chỉ nhận JPEG, PNG hoặc WebP tối đa 8 MiB.</p>
+          <div className="admin-kicker">Hàng hóa / Ảnh</div>
+          <h3 className="admin-panel-title" id="media-editor-heading">{title ?? (productId ? "Ảnh sản phẩm và biến thể" : "Ảnh dịch vụ")}</h3>
+          <p className="admin-panel-caption">Ảnh được tải lên kho qua máy chủ, thông tin file được lưu lại. Chỉ nhận JPEG, PNG hoặc WebP tối đa 8 MB.</p>
         </div>
-        <span className="admin-stamp">{loading ? "ĐANG TẢI" : `${media.length} ASSETS`}</span>
+        <span className="admin-stamp">{loading ? "ĐANG TẢI" : `${media.length} ẢNH`}</span>
       </div>
       {error ? <p className="admin-editor-error" role="alert">{error.code ? `${error.code} · ` : ""}{error.message}</p> : null}
       <div className="admin-editor-grid">
-        <label className="admin-field admin-field-wide"><span>File ảnh</span><input accept="image/jpeg,image/png,image/webp" className="admin-input" onChange={chooseFile} type="file" /></label>
-        {productId ? <label className="admin-field"><span>Gắn vào variant</span><select className="admin-select" onChange={(event) => setVariantId(event.target.value)} value={variantId}><option value="">Sản phẩm</option>{variants.map((variant) => <option key={variant.id} value={variant.id}>{variant.name} · {variant.sku}</option>)}</select></label> : <div className="admin-field"><span>Namespace</span><div className="admin-input">Dịch vụ</div></div>}
-        <label className="admin-field"><span>Alt text</span><input className="admin-input" maxLength={300} onChange={(event) => setAltText(event.target.value)} placeholder="Mô tả ảnh cho accessibility" value={altText} /></label>
+        <label className="admin-field admin-field-wide"><span>File ảnh</span><input accept="image/jpeg,image/png,image/webp" aria-label="Chọn file ảnh để tải lên" className="admin-input" onChange={chooseFile} type="file" /></label>
+        {productId ? <label className="admin-field"><span>Gắn vào biến thể</span><select className="admin-select" onChange={(event) => setVariantId(event.target.value)} value={variantId}><option value="">Sản phẩm</option>{variants.map((variant) => <option key={variant.id} value={variant.id}>{variant.name} · {variant.sku}</option>)}</select></label> : <div className="admin-field"><span>Nhóm</span><div className="admin-input">Dịch vụ</div></div>}
+        <label className="admin-field"><span>Mô tả ảnh</span><input className="admin-input" maxLength={300} onChange={(event) => setAltText(event.target.value)} placeholder="Mô tả ngắn về nội dung ảnh" value={altText} /></label>
       </div>
       <div className="admin-editor-footer">
         <span className="admin-item-meta">{file ? `${file.name} · ${(file.size / 1024 / 1024).toFixed(2)} MB` : "Chưa chọn file"}</span>
-        <button className="admin-button admin-button-primary" disabled={!file || uploading} onClick={() => void upload()} type="button">{uploading ? "Đang upload..." : "Upload vào R2"}</button>
+        <button className="admin-button admin-button-primary" disabled={!file || uploading} onClick={() => void upload()} type="button">{uploading ? "Đang tải..." : "Tải ảnh lên"}</button>
       </div>
       <div className="admin-table-scroll" style={{ marginTop: 18 }}>
         <table className="admin-table">
-          <thead><tr><th>Preview</th><th>Asset</th><th>Gắn vào</th><th>Checksum / size</th><th /></tr></thead>
+          <thead><tr><th>Xem trước</th><th>File</th><th>Gắn vào</th><th>Dung lượng</th><th /></tr></thead>
           <tbody>
             {media.map((asset) => <tr key={asset.id}>
               <td>
@@ -256,12 +263,12 @@ export function AdminMediaPanel({ productId, serviceId, title }: AdminMediaPanel
                 <img alt={asset.altText ?? ""} src={asset.publicUrl} style={{ borderRadius: 8, height: 52, objectFit: "cover", width: 72 }} />
               </td>
               <td><strong>{asset.originalFilename}</strong><div className="admin-item-meta">{asset.contentType}{asset.altText ? ` · ${asset.altText}` : ""}</div></td>
-              <td>{asset.serviceId ? "Dịch vụ" : asset.variantId ? variants.find((variant) => variant.id === asset.variantId)?.name ?? `Variant #${asset.variantId}` : "Sản phẩm"}</td>
+              <td>{asset.serviceId ? "Dịch vụ" : asset.variantId ? variants.find((variant) => variant.id === asset.variantId)?.name ?? `Biến thể #${asset.variantId}` : "Sản phẩm"}</td>
               <td className="admin-mono"><div>{formatBytes(asset.byteSize)}</div><div className="admin-item-meta">{asset.id.slice(0, 8)}…</div></td>
               <td>
                 <div className="admin-table-actions">
                   <input
-                    aria-label={`Alt text cho ${asset.originalFilename}`}
+                    aria-label={`Mô tả ảnh cho ${asset.originalFilename}`}
                     className="admin-input"
                     maxLength={300}
                     onChange={(event) => setAltDrafts((current) => ({ ...current, [asset.id]: event.target.value }))}
@@ -294,17 +301,17 @@ export function AdminMediaPanel({ productId, serviceId, title }: AdminMediaPanel
                 </div>
               </td>
             </tr>)}
-            {!loading && media.length === 0 ? <tr><td colSpan={5}>Chưa có media. Asset sẽ được lưu theo namespace product hoặc variant.</td></tr> : null}
+            {!loading && media.length === 0 ? <tr><td colSpan={5}>Chưa có ảnh. Ảnh sẽ được lưu theo nhóm sản phẩm hoặc biến thể.</td></tr> : null}
           </tbody>
         </table>
       </div>
           {pendingRemove ? (
         <AdminConfirmDialog
-          confirmLabel="Xóa media"
-          message={`Xóa asset “${pendingRemove.originalFilename}”? Dữ liệu metadata sẽ giữ lại ở trạng thái deleted.`}
+          confirmLabel="Xóa ảnh"
+          message={`Xóa ảnh “${pendingRemove.originalFilename}”? Thông tin file vẫn được giữ lại ở trạng thái đã xóa.`}
           onConfirm={() => void remove(pendingRemove)}
           onDismiss={() => setPendingRemove(null)}
-          title="Xóa media asset?"
+          title="Xóa ảnh?"
         />
       ) : null}
 </section>

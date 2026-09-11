@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { AdminConfirmDialog } from "@/components/admin/AdminDialog";
+import { useRegisterAdminUnsaved } from "@/components/admin/AdminUnsavedGuard";
 import { AdminClientError, fetchAdmin, mutateAdmin, type AdminProductVariant, type AdminTierPrice } from "@/lib/admin-client";
 
 interface VariantResponse {
@@ -53,6 +54,9 @@ export function AdminVariantPanel({ productId }: { productId: number }) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<AdminClientError | null>(null);
+  const [draftSnapshot, setDraftSnapshot] = useState<VariantDraft>(blankDraft);
+  const isUnsavedDirty = useCallback(() => JSON.stringify(draft) !== JSON.stringify(draftSnapshot), [draft, draftSnapshot]);
+  useRegisterAdminUnsaved(isUnsavedDirty, saving);
 
   const loadVariants = useCallback(async () => {
     setLoading(true);
@@ -75,14 +79,18 @@ export function AdminVariantPanel({ productId }: { productId: number }) {
   }, [loadVariants]);
 
   function editVariant(variant: AdminProductVariant) {
+    const nextDraft = toDraft(variant);
     setEditingId(variant.id);
-    setDraft(toDraft(variant));
+    setDraft(nextDraft);
+    setDraftSnapshot(nextDraft);
     setError(null);
   }
 
   function resetDraft() {
+    const nextDraft = { ...blankDraft, tierPrices: [{ ...blankDraft.tierPrices[0] }] };
     setEditingId(null);
-    setDraft({ ...blankDraft, tierPrices: [{ ...blankDraft.tierPrices[0] }] });
+    setDraft(nextDraft);
+    setDraftSnapshot(nextDraft);
     setError(null);
   }
 
@@ -150,16 +158,16 @@ export function AdminVariantPanel({ productId }: { productId: number }) {
     <section className="admin-editor" aria-labelledby="variant-editor-heading" style={{ marginTop: 18 }}>
       <div className="admin-editor-heading">
         <div>
-          <div className="admin-kicker">Catalog / variants</div>
-          <h3 className="admin-panel-title" id="variant-editor-heading">Biến thể, MOQ và bảng giá</h3>
-          <p className="admin-panel-caption">Các bậc giá phải bắt đầu tại MOQ, tăng theo quantity step và nằm trước ngưỡng chuyển sang yêu cầu báo giá.</p>
+          <div className="admin-kicker">Hàng hóa / biến thể</div>
+          <h3 className="admin-panel-title" id="variant-editor-heading">Biến thể, số lượng tối thiểu và bảng giá</h3>
+          <p className="admin-panel-caption">Các bậc giá phải bắt đầu tại số lượng tối thiểu, tăng theo bước số lượng và nằm trước ngưỡng chuyển sang yêu cầu báo giá.</p>
         </div>
-        <span className="admin-stamp">{loading ? "ĐANG TẢI" : `${variants.length} VARIANTS`}</span>
+        <span className="admin-stamp">{loading ? "ĐANG TẢI" : `${variants.length} BIẾN THỂ`}</span>
       </div>
       {error ? <p className="admin-editor-error" role="alert">{error.code ? `${error.code} · ` : ""}{error.message}</p> : null}
       <div className="admin-table-scroll">
         <table className="admin-table">
-          <thead><tr><th>Variant</th><th>MOQ / bước</th><th>Ngưỡng liên hệ</th><th>Bảng giá</th><th>Trạng thái</th><th /></tr></thead>
+          <thead><tr><th>Biến thể</th><th>Tối thiểu / bước</th><th>Ngưỡng liên hệ</th><th>Bảng giá</th><th>Trạng thái</th><th /></tr></thead>
           <tbody>
             {variants.map((variant) => (
               <tr key={variant.id}>
@@ -176,30 +184,30 @@ export function AdminVariantPanel({ productId }: { productId: number }) {
                 </td>
               </tr>
             ))}
-            {!loading && variants.length === 0 ? <tr><td colSpan={6}>Chưa có variant. Tạo variant đầu tiên bên dưới.</td></tr> : null}
+            {!loading && variants.length === 0 ? <tr><td colSpan={6}>Chưa có biến thể. Tạo biến thể đầu tiên bên dưới.</td></tr> : null}
           </tbody>
         </table>
       </div>
       <form onSubmit={saveVariant} style={{ marginTop: 18 }}>
         <div className="admin-editor-heading" style={{ padding: 0, marginBottom: 12 }}>
-          <div><strong>{editingId ? `Sửa variant #${editingId}` : "Thêm variant"}</strong><div className="admin-item-meta">SKU phải duy nhất trên toàn catalog.</div></div>
+          <div><strong>{editingId ? `Sửa biến thể #${editingId}` : "Thêm biến thể"}</strong><div className="admin-item-meta">Mã hàng phải duy nhất trong toàn bộ sản phẩm.</div></div>
           {editingId ? <button className="admin-button admin-button-quiet" onClick={resetDraft} type="button">Tạo mới</button> : null}
         </div>
         <div className="admin-editor-grid">
-          <Field label="Tên variant" value={draft.name} onChange={(value) => updateDraft("name", value)} required />
-          <Field label="SKU" mono value={draft.sku} onChange={(value) => updateDraft("sku", value)} required />
+          <Field label="Tên biến thể" value={draft.name} onChange={(value) => updateDraft("name", value)} required />
+          <Field label="Mã hàng (SKU)" mono value={draft.sku} onChange={(value) => updateDraft("sku", value)} required />
           <Field label="Nhãn lựa chọn" value={draft.optionLabel} onChange={(value) => updateDraft("optionLabel", value)} required />
           <Field label="Đơn vị" value={draft.unit} onChange={(value) => updateDraft("unit", value)} required />
-          <Field label="MOQ" mono type="number" min="1" value={draft.moq} onChange={(value) => updateDraft("moq", value)} required />
+          <Field label="Số lượng tối thiểu (MOQ)" mono type="number" min="1" value={draft.moq} onChange={(value) => updateDraft("moq", value)} required />
           <Field label="Bước số lượng" mono type="number" min="1" value={draft.quantityStep} onChange={(value) => updateDraft("quantityStep", value)} required />
           <Field label="Ngưỡng liên hệ" mono type="number" min="2" value={draft.contactFromQuantity} onChange={(value) => updateDraft("contactFromQuantity", value)} required />
           <Field label="Thứ tự" mono type="number" min="0" value={draft.sortOrder} onChange={(value) => updateDraft("sortOrder", value)} required />
-          <Field label="Attribute ID" mono type="number" min="1" value={draft.attributeId} onChange={(value) => updateDraft("attributeId", value)} required />
-          <Field label="Attribute code" mono value={draft.attributeCode} onChange={(value) => updateDraft("attributeCode", value)} required />
+          <Field label="Mã nhóm (số)" mono type="number" min="1" value={draft.attributeId} onChange={(value) => updateDraft("attributeId", value)} required />
+          <Field label="Mã nhóm (chữ)" mono value={draft.attributeCode} onChange={(value) => updateDraft("attributeCode", value)} required />
           <Field label="Tên nhóm lựa chọn" value={draft.attributeLabel} onChange={(value) => updateDraft("attributeLabel", value)} required />
-          <Field label="Option ID" mono type="number" min="1" value={draft.optionId} onChange={(value) => updateDraft("optionId", value)} required />
+          <Field label="Mã lựa chọn (số)" mono type="number" min="1" value={draft.optionId} onChange={(value) => updateDraft("optionId", value)} required />
           <label className="admin-field admin-field-wide">
-            <span>Ảnh variant</span>
+            <span>Ảnh biến thể</span>
             <input className="admin-input" onChange={(event) => updateDraft("imageUrl", event.target.value)} placeholder="/media/products/... hoặc https://..." value={draft.imageUrl} />
           </label>
         </div>
@@ -219,18 +227,18 @@ export function AdminVariantPanel({ productId }: { productId: number }) {
           </table>
         </div>
         <div className="admin-editor-footer">
-          <label className="admin-check"><input checked={draft.isAvailable} onChange={(event) => updateDraft("isAvailable", event.target.checked)} type="checkbox" /><span><strong>Cho phép chọn trên storefront</strong><small>Ẩn tạm không xóa dữ liệu bậc giá.</small></span></label>
-          <div className="admin-editor-actions"><button className="admin-button admin-button-quiet" onClick={resetDraft} type="button">Hủy</button><button className="admin-button admin-button-primary" disabled={saving} type="submit">{saving ? "Đang lưu..." : "Lưu variant"}</button></div>
+          <label className="admin-check"><input checked={draft.isAvailable} onChange={(event) => updateDraft("isAvailable", event.target.checked)} type="checkbox" /><span><strong>Cho phép khách chọn trên trang web</strong><small>Ẩn tạm không xóa dữ liệu bậc giá.</small></span></label>
+          <div className="admin-editor-actions"><button className="admin-button admin-button-quiet" onClick={resetDraft} type="button">Hủy</button><button className="admin-button admin-button-primary" disabled={saving} type="submit">{saving ? "Đang lưu..." : "Lưu biến thể"}</button></div>
         </div>
       </form>
     
       {pendingArchive ? (
         <AdminConfirmDialog
-          confirmLabel="Ẩn variant"
-          message={`Ẩn variant “${pendingArchive.name}” khỏi lựa chọn public? Dữ liệu tier price vẫn được giữ.`}
+          confirmLabel="Ẩn biến thể"
+          message={`Ẩn biến thể “${pendingArchive.name}” khỏi trang web? Bảng giá vẫn được giữ.`}
           onConfirm={() => void archiveVariant(pendingArchive)}
           onDismiss={() => setPendingArchive(null)}
-          title="Ẩn variant?"
+          title="Ẩn biến thể?"
         />
       ) : null}
 </section>

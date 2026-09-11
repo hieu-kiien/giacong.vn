@@ -3,11 +3,11 @@
 import { ClipboardList, ExternalLink, History, LayoutDashboard, LayoutTemplate, Menu, Newspaper, Package, PanelTop, PenLine, Settings2, UsersRound, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { createContext, useCallback, useContext, useEffect, useRef, useState, useSyncExternalStore, type MouseEvent as ReactMouseEvent, type ReactNode } from "react";
+import { Fragment, createContext, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type MouseEvent as ReactMouseEvent, type ReactNode } from "react";
 import { AdminClientError, fetchAdmin, getInitials, type AdminSession } from "@/lib/admin-client";
-import { isAdminNavItemActive } from "@/lib/admin-navigation";
+import { isAdminNavItemActive, isStagingAdminHost } from "@/lib/admin-navigation";
 import { AdminConfirmDialog } from "@/components/admin/AdminDialog";
-import { AdminUnsavedContext, shouldBlockUnsavedNavigation, shouldBypassUnsavedClick } from "@/components/admin/AdminUnsavedGuard";
+import { AdminUnsavedContext, type AdminUnsavedState, shouldBlockUnsavedNavigation, shouldBypassUnsavedClick } from "@/components/admin/AdminUnsavedGuard";
 import { AdminToastProvider } from "@/components/admin/AdminToast";
 import { canManage, type AdminCapability } from "@/lib/admin-permissions";
 
@@ -38,14 +38,18 @@ interface AdminNavGroup {
 
 const navGroups: ReadonlyArray<AdminNavGroup> = [
   {
+    label: "Vận hành",
+    items: [{ href: "/admin", label: "Tổng quan", icon: LayoutDashboard, readCapability: "dashboard.read" }],
+  },
+  {
     label: "Chỉnh sửa website",
     items: [
       { href: "/admin/noi-dung", label: "Nội dung & thương hiệu", icon: PenLine, readCapability: "content.read" },
-      { href: "/admin/thiet-ke", label: "Thiết kế page", icon: LayoutTemplate, readCapability: "pages.read" },
+      { href: "/admin/thiet-ke", label: "Thiết kế trang", icon: LayoutTemplate, readCapability: "pages.read" },
     ],
   },
   {
-    label: "Catalog",
+    label: "Hàng hóa",
     items: [
       { href: "/admin/san-pham", label: "Sản phẩm", icon: Package, readCapability: "catalog.read" },
       { href: "/admin/dich-vu", label: "Dịch vụ gia công", icon: Settings2, readCapability: "services.read" },
@@ -55,7 +59,7 @@ const navGroups: ReadonlyArray<AdminNavGroup> = [
     label: "Nội dung",
     items: [
       { href: "/admin/tin-tuc", label: "Tin tức", icon: Newspaper, readCapability: "news.read" },
-      { href: "/admin/dieu-huong", label: "Điều hướng", icon: PanelTop, readCapability: "navigation.read" },
+      { href: "/admin/dieu-huong", label: "Menu", icon: PanelTop, readCapability: "navigation.read" },
     ],
   },
   {
@@ -63,43 +67,69 @@ const navGroups: ReadonlyArray<AdminNavGroup> = [
     items: [{ href: "/admin/yeu-cau", label: "Yêu cầu báo giá", icon: ClipboardList, readCapability: "leads.read" }],
   },
   {
-    label: "Cài đặt",
-    items: [{ href: "/admin", label: "Tổng quan", icon: LayoutDashboard, readCapability: "dashboard.read" }],
-  },
-  {
     label: "Tài khoản & quyền",
     items: [
-      { href: "/admin/thanh-vien", label: "Thành viên & quyền", icon: UsersRound, readCapability: "members.read" },
+      { href: "/admin/thanh-vien", label: "Tài khoản quản trị & quyền", icon: UsersRound, readCapability: "members.read" },
       { href: "/admin/audit", label: "Lịch sử thay đổi", icon: History, readCapability: "members.read", ownerOnly: true },
     ],
   },
 ];
 
 const roleLabels: Record<string, string> = {
-  catalog_manager: "Quản lý catalog",
-  content_manager: "Quản lý nội dung",
-  owner: "Chủ sở hữu",
-  sales_manager: "Quản lý yêu cầu",
-  viewer: "Người xem",
+  owner: "Admin toàn quyền",
 };
 
+const subscribeToBrowserLocation = () => () => undefined;
+const getStagingHostSnapshot = () => isStagingAdminHost(window.location.hostname);
+const getServerStagingHostSnapshot = () => false;
 
 // Fix1.1: theo doi href day du (pathname+search+hash) ma khong can useSearchParams
 // (tranh missing-suspense khi prerender). Patch push/replace de bat Next App Router
 // navigations (pushState khong tu fire popstate), + popstate/hashchange cho Back/Forward/hash.
+// Patch cung gan mot thu tu noi bo cho moi history entry. Thu tu nay chi dung de
+// tinh huong/delta cua popstate; cac state noi bo cua Next duoc giu nguyen.
+export const ADMIN_HISTORY_POSITION_KEY = "__adminHistoryPosition";
+
+function isHistoryStateRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+export function readAdminHistoryPosition(state: unknown): number | null {
+  if (!isHistoryStateRecord(state)) return null;
+  const position = state[ADMIN_HISTORY_POSITION_KEY];
+  return typeof position === "number" && Number.isSafeInteger(position) ? position : null;
+}
+
+function withAdminHistoryPosition(state: unknown, position: number): Record<string, unknown> {
+  const next = isHistoryStateRecord(state) ? { ...state } : {};
+  next[ADMIN_HISTORY_POSITION_KEY] = position;
+  return next;
+}
+
+function nextAdminHistoryPosition(state: unknown): number {
+  return (readAdminHistoryPosition(state) ?? 0) + 1;
+}
+
 function subscribeToFullHref(onChange: () => void) {
-  window.addEventListener("popstate", onChange);
-  window.addEventListener("hashchange", onChange);
   const origPush = window.history.pushState;
   const origReplace = window.history.replaceState;
+  if (readAdminHistoryPosition(window.history.state) === null) {
+    origReplace.call(window.history, withAdminHistoryPosition(window.history.state, 0), "", window.location.href);
+  }
+  window.addEventListener("popstate", onChange);
+  window.addEventListener("hashchange", onChange);
   function patchedPush(this: History, ...args: Parameters<History["pushState"]>) {
-    const result = origPush.apply(this, args);
-    onChange();
+    const [state, unused, url] = args;
+    const result = origPush.call(this, withAdminHistoryPosition(state, nextAdminHistoryPosition(this.state)), unused, url);
+    // Next may write history during useInsertionEffect; notify after its commit.
+    queueMicrotask(onChange);
     return result;
   }
   function patchedReplace(this: History, ...args: Parameters<History["replaceState"]>) {
-    const result = origReplace.apply(this, args);
-    onChange();
+    const [state, unused, url] = args;
+    const currentPosition = readAdminHistoryPosition(this.state) ?? readAdminHistoryPosition(state) ?? 0;
+    const result = origReplace.call(this, withAdminHistoryPosition(state, currentPosition), unused, url);
+    queueMicrotask(onChange);
     return result;
   }
   window.history.pushState = patchedPush as typeof window.history.pushState;
@@ -107,12 +137,34 @@ function subscribeToFullHref(onChange: () => void) {
   return () => {
     window.removeEventListener("popstate", onChange);
     window.removeEventListener("hashchange", onChange);
-    window.history.pushState = origPush;
-    window.history.replaceState = origReplace;
+    if (window.history.pushState === patchedPush) window.history.pushState = origPush;
+    if (window.history.replaceState === patchedReplace) window.history.replaceState = origReplace;
   };
 }
+
 const getFullHrefSnapshot = () => window.location.href;
 const getFullHrefServerSnapshot = () => "";
+
+export type AdminHistoryPopDirection = "back" | "forward";
+export interface AdminHistoryPopTransition {
+  direction: AdminHistoryPopDirection;
+  delta: number;
+}
+
+export function getAdminHistoryPopTransition(currentState: unknown, destinationState: unknown): AdminHistoryPopTransition {
+  const currentPosition = readAdminHistoryPosition(currentState);
+  const destinationPosition = readAdminHistoryPosition(destinationState);
+  const delta = currentPosition !== null && destinationPosition !== null && destinationPosition !== currentPosition
+    ? destinationPosition - currentPosition
+    : -1;
+  return { direction: delta < 0 ? "back" : "forward", delta };
+}
+
+interface AdminHistoryRecovery {
+  delta: number;
+  direction: AdminHistoryPopDirection;
+  showHistoryDialog: boolean;
+}
 
 export function AdminShell({ children }: AdminShellProps) {
   const pathname = usePathname();
@@ -122,32 +174,90 @@ export function AdminShell({ children }: AdminShellProps) {
   const [status, setStatus] = useState<"loading" | "ready" | "blocked" | "unavailable">("loading");
   const [error, setError] = useState<AdminClientError | null>(null);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const sidebarRef = useRef<HTMLElement>(null);
+  const menuTriggerRef = useRef<HTMLButtonElement>(null);
   const [attempt, setAttempt] = useState(0);
+  const isStagingHost = useSyncExternalStore(subscribeToBrowserLocation, getStagingHostSnapshot, getServerStagingHostSnapshot);
   const [pendingNav, setPendingNav] = useState<{ href: string } | { history: true } | null>(null);
+  const [historyDiscardKey, setHistoryDiscardKey] = useState(0);
   const [unsavedSaving, setUnsavedSaving] = useState(false);
+  const [unsavedRevision, setUnsavedRevision] = useState(0);
+  const unsavedRegistrationsRef = useRef(new Map<string, AdminUnsavedState>());
   const unsavedIsDirtyRef = useRef<() => boolean>(() => false);
   const unsavedSavingRef = useRef(false);
-  const pathnameRef = useRef<string | null>(null);
   const currentHrefRef = useRef<string | null>(null);
-  const currentHistoryStateRef = useRef<unknown>(null);
+  const currentHistoryStateRef = useRef<Record<string, unknown> | null>(null);
   const pendingRef = useRef<{ href: string } | { history: true } | null>(null);
+  const pendingHistoryRef = useRef<{ delta: number; direction: AdminHistoryPopDirection } | null>(null);
   const allowPopRef = useRef(false);
+  const historyDiscardRef = useRef<string | null>(null);
+  const historyRecoveryRef = useRef<AdminHistoryRecovery | null>(null);
 
   useEffect(() => {
+    if (!mobileOpen) return;
+    const sidebar = sidebarRef.current;
+    const trigger = menuTriggerRef.current;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    sidebar?.querySelector<HTMLButtonElement>("button")?.focus();
+    const desktop = window.matchMedia("(min-width: 761px)");
+    const closeOnDesktop = () => { if (desktop.matches) setMobileOpen(false); };
+    function onMenuKeyDown(event: KeyboardEvent) {
+      // An unsaved-changes confirmation owns focus while it is open.
+      if (document.querySelector('[role="dialog"]')) return;
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setMobileOpen(false);
+      } else if (event.key === "Tab" && sidebar) {
+        const links = Array.from(sidebar.querySelectorAll<HTMLElement>('button, a[href]')).filter((el) => el.getClientRects().length > 0);
+        const first = links[0];
+        const last = links.at(-1);
+        if (event.shiftKey && document.activeElement === first) {
+          event.preventDefault();
+          last?.focus();
+        } else if (!event.shiftKey && document.activeElement === last) {
+          event.preventDefault();
+          first?.focus();
+        }
+      }
+    }
+    closeOnDesktop();
+    desktop.addEventListener("change", closeOnDesktop);
+    document.addEventListener("keydown", onMenuKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      desktop.removeEventListener("change", closeOnDesktop);
+      document.removeEventListener("keydown", onMenuKeyDown);
+      if (trigger?.isConnected) trigger.focus();
+    };
+  }, [mobileOpen]);
+
+  useLayoutEffect(() => {
     currentHrefRef.current = window.location.href;
     currentHistoryStateRef.current = window.history.state;
-    pathnameRef.current = window.location.href;
   }, [pathname, fullHref]);
 
   useEffect(() => {
     pendingRef.current = pendingNav;
   }, [pendingNav]);
 
-  const registerUnsaved = useCallback((next: { isDirty: () => boolean; saving: boolean }) => {
-    unsavedIsDirtyRef.current = next.isDirty;
-    unsavedSavingRef.current = next.saving;
-    setUnsavedSaving(next.saving);
+  const updateUnsavedState = useCallback(() => {
+    unsavedIsDirtyRef.current = () => [...unsavedRegistrationsRef.current.values()].some((registration) => registration.isDirty());
+    const saving = [...unsavedRegistrationsRef.current.values()].some((registration) => registration.saving);
+    unsavedSavingRef.current = saving;
+    setUnsavedSaving(saving);
+    setUnsavedRevision((value) => value + 1);
   }, []);
+
+  const registerUnsaved = useCallback((id: string, next: AdminUnsavedState) => {
+    unsavedRegistrationsRef.current.set(id, next);
+    updateUnsavedState();
+  }, [updateUnsavedState]);
+
+  const unregisterUnsaved = useCallback((id: string) => {
+    unsavedRegistrationsRef.current.delete(id);
+    updateUnsavedState();
+  }, [updateUnsavedState]);
 
   function handleSidebarClickCapture(event: ReactMouseEvent<HTMLElement>) {
     if (event.defaultPrevented) return;
@@ -194,67 +304,96 @@ export function AdminShell({ children }: AdminShellProps) {
     const saving = unsavedSavingRef.current;
     if (!shouldBlockUnsavedNavigation({ isDirty: dirty, saving, hasPending: pendingRef.current !== null })) return;
     event.preventDefault();
-    setPendingNav({ href: `${url.pathname}${url.search}${url.hash}` });
+    const nextPending = { href: `${url.pathname}${url.search}${url.hash}` } as const;
+    pendingRef.current = nextPending;
+    setPendingNav(nextPending);
   }
 
-  useEffect(() => {
-    function onPopState() {
+  useLayoutEffect(() => {
+    function onPopState(event: PopStateEvent) {
+      const recovery = historyRecoveryRef.current;
+      if (recovery) {
+        // Capture phase runs before Next Router and before the full-href subscriber.
+        // Consume only the compensating pop used to restore the source entry.
+        event.stopImmediatePropagation();
+        historyRecoveryRef.current = null;
+        if (recovery.showHistoryDialog) {
+          const pendingHistory = { delta: recovery.delta, direction: recovery.direction } as const;
+          pendingHistoryRef.current = pendingHistory;
+          const nextPending = { history: true } as const;
+          pendingRef.current = nextPending;
+          setPendingNav((current) => current ?? nextPending);
+        }
+        return;
+      }
       if (allowPopRef.current) {
         allowPopRef.current = false;
+        const sourcePathname = historyDiscardRef.current;
+        historyDiscardRef.current = null;
+        if (sourcePathname === window.location.pathname) setHistoryDiscardKey((value) => value + 1);
         return;
       }
-      const hasSnapshot = currentHrefRef.current !== null;
-      const snapshotHref = currentHrefRef.current ?? pathnameRef.current ?? window.location.href;
-      const snapshotState = hasSnapshot ? currentHistoryStateRef.current : window.history.state;
-      if (pendingRef.current) {
-        try {
-          window.history.pushState(snapshotState, "", snapshotHref);
-        } catch {
-          // ignore restore failure; dialog stays open (single-flight)
-        }
-        return;
-      }
-      if (typeof document !== "undefined" && document.querySelector('[role="dialog"]')) {
-        try {
-          window.history.pushState(snapshotState, "", snapshotHref);
-        } catch {
-          // ignore
-        }
-        return;
-      }
+
       let dirty = false;
       try {
         dirty = unsavedIsDirtyRef.current();
       } catch {
         dirty = false;
       }
+      const hasPending = pendingRef.current !== null;
       const saving = unsavedSavingRef.current;
-      if (!shouldBlockUnsavedNavigation({ isDirty: dirty, saving, hasPending: false })) return;
+      const domDialogOpen = typeof document !== "undefined" && document.querySelector('[role="dialog"]') !== null;
+      if (!shouldBlockUnsavedNavigation({ isDirty: dirty, saving, hasPending: false }) && !hasPending && !domDialogOpen) return;
+
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      const snapshotHref = currentHrefRef.current ?? window.location.href;
+      const snapshotState = currentHistoryStateRef.current ?? window.history.state;
+      const transition = getAdminHistoryPopTransition(snapshotState, window.history.state);
+      historyRecoveryRef.current = {
+        delta: transition.delta,
+        direction: transition.direction,
+        showHistoryDialog: !hasPending && !domDialogOpen,
+      };
+      pendingHistoryRef.current = { delta: transition.delta, direction: transition.direction };
       try {
-        window.history.pushState(snapshotState, "", snapshotHref);
+        window.history.go(-transition.delta);
       } catch {
-        // ignore
+        historyRecoveryRef.current = null;
+        pendingHistoryRef.current = null;
+        historyDiscardRef.current = null;
+        try {
+          window.history.replaceState(snapshotState, "", snapshotHref);
+        } catch {
+          // Keep the dialog state if browser history restoration is unavailable.
+        }
       }
-      setPendingNav({ history: true });
     }
-    window.addEventListener("popstate", onPopState);
-    return () => window.removeEventListener("popstate", onPopState);
+    window.addEventListener("popstate", onPopState, true);
+    return () => window.removeEventListener("popstate", onPopState, true);
   }, []);
 
   function dismissPendingNav() {
+    pendingHistoryRef.current = null;
+    pendingRef.current = null;
     setPendingNav(null);
   }
 
   function confirmPendingNav() {
     const pending = pendingNav;
     setPendingNav(null);
+    pendingRef.current = null;
     if (!pending) return;
     setMobileOpen(false);
     if ("history" in pending) {
+      const pendingHistory = pendingHistoryRef.current;
+      pendingHistoryRef.current = null;
+      historyDiscardRef.current = window.location.pathname;
       allowPopRef.current = true;
-      window.history.back();
+      window.history.go(pendingHistory?.delta ?? -1);
       return;
     }
+    pendingHistoryRef.current = null;
     router.push(pending.href);
   }
 
@@ -298,13 +437,15 @@ export function AdminShell({ children }: AdminShellProps) {
   return (
     <SessionContext.Provider value={{ session }}>
       <AdminUnsavedContext.Provider
-        value={{ isDirty: () => unsavedIsDirtyRef.current(), saving: unsavedSaving, register: registerUnsaved }}
+        value={{ isDirty: () => unsavedIsDirtyRef.current(), revision: unsavedRevision, saving: unsavedSaving, register: registerUnsaved, unregister: unregisterUnsaved }}
       >
       <AdminToastProvider>
         <div className="admin-app">
         <div className="admin-shell">
-          <aside className={`admin-sidebar${mobileOpen ? " is-open" : ""}`} aria-label="Điều hướng admin" onClickCapture={handleSidebarClickCapture}>
-            <Link className="admin-brand" href="/admin" onClick={() => setMobileOpen(false)}>
+          {mobileOpen ? <button aria-label="Đóng điều hướng" className="admin-nav-backdrop" data-testid="admin-nav-backdrop" onClick={() => setMobileOpen(false)} tabIndex={-1} type="button" /> : null}
+          <aside className={`admin-sidebar${mobileOpen ? " is-open" : ""}`} aria-label="Điều hướng admin" id="admin-navigation" onClickCapture={handleSidebarClickCapture} ref={sidebarRef}>
+            <button aria-label="Đóng điều hướng" className="admin-nav-close" data-testid="button-close-admin-nav" onClick={() => setMobileOpen(false)} type="button"><X aria-hidden="true" size={20} /></button>
+            <Link className="admin-brand" href="/admin" onClick={() => setMobileOpen(false)} prefetch={false}>
               <span className="admin-brand-mark" aria-hidden="true">g.</span>
               <span className="admin-brand-copy"><strong>Giacong.vn</strong><span>Khu vực vận hành</span></span>
             </Link>
@@ -335,32 +476,35 @@ export function AdminShell({ children }: AdminShellProps) {
               Dữ liệu hiển thị trực tiếp từ hệ thống. Các thay đổi nội dung được quản lý qua quy trình phát hành.
             </div>
           </aside>
-          <main className="admin-main">
+          <main className="admin-main" inert={mobileOpen}>
             <header className="admin-topbar">
               <div className="admin-crumb">
                 <button
                   aria-expanded={mobileOpen}
+                  aria-controls="admin-navigation"
                   aria-label={mobileOpen ? "Đóng điều hướng" : "Mở điều hướng"}
                   className="admin-mobile-menu"
                   data-testid="button-toggle-admin-nav"
                   onClick={() => setMobileOpen((value) => !value)}
+                  ref={menuTriggerRef}
                   type="button"
                 >
                   {mobileOpen ? <X aria-hidden="true" /> : <Menu aria-hidden="true" />}
                 </button>
-                <span>Giacong.vn / <strong>{currentNavItem?.label ?? "Admin"}</strong></span>
+                <span>Giacong.vn / <strong>{currentNavItem?.label ?? "Quản trị"}</strong></span>
               </div>
               <div className="admin-topbar-meta">
                 <Link className="admin-storefront-link" href="/" rel="noreferrer" target="_blank">
-                  Xem storefront
+                  Xem trang web
                   <ExternalLink aria-hidden="true" size={14} />
                 </Link>
+                {isStagingHost ? <span className="admin-environment-badge" data-testid="badge-admin-environment">BẢN THỬ</span> : null}
                 <span className="admin-live-dot">Kết nối trực tiếp</span>
                 <span className="admin-role-label">Vai trò: {roleLabels[session.role] ?? "Tài khoản được cấp quyền"}</span>
                 <span aria-label={`Tài khoản ${session.subject}`} className="admin-avatar" title={session.subject}>{getInitials(session.subject)}</span>
               </div>
             </header>
-            {children}
+            <Fragment key={historyDiscardKey}>{children}</Fragment>
           </main>
         </div>
         </div>
@@ -409,10 +553,10 @@ function AdminAccessScreen({ status, error, onRetry }: { status: "blocked" | "un
           <h1 id="admin-access-title">{isBlocked ? "Khu vực này cần Cloudflare Access" : "Admin chưa sẵn sàng"}</h1>
           <p>
             {isBlocked
-              ? "Hãy chọn nút “Đăng nhập Cloudflare Access” bên dưới, hoàn tất xác minh, rồi quay lại trang này. Host preview hoặc storefront không có phiên truy cập nội bộ."
+              ? "Hãy chọn nút “Đăng nhập Cloudflare Access” bên dưới, hoàn tất xác minh, rồi quay lại trang này. Đường xem thử hoặc trang web không có phiên truy cập nội bộ."
               : error?.code === "NETWORK_ERROR"
                 ? "Nếu bạn chưa đăng nhập, hãy chọn nút “Đăng nhập Cloudflare Access”. Nếu đã đăng nhập, hãy thử kiểm tra lại phiên."
-                : "Không thể kết nối tới phiên admin lúc này. Kiểm tra hostname, binding runtime và thử lại."}
+                : "Không thể kết nối tới phiên admin lúc này. Kiểm tra lại kết nối mạng và thử lại."}
           </p>
           <div className="admin-access-detail">
             {error?.code ? `${error.code} · ` : ""}{error?.message ?? "Không nhận được phản hồi từ API session."}

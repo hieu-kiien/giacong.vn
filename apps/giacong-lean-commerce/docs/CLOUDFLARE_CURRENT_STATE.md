@@ -1,4 +1,69 @@
-# Cloudflare current state — 2026-09-04
+# Cloudflare current state — 2026-09-07
+
+## Admin commerce recovery P0 — 2026-09-07 (read-only, chưa sửa source)
+
+- Điều phối thật 4 đội theo đợt (probe Task OK). Baseline: branch
+  `codex/admin-quality-completion`, HEAD `426ee6ad`, M=64/??=24, stash rỗng;
+  staging `83384ce2-c68a-43a9-b15c-ec784ec13158`, rollback `3ea32ef4-…`.
+  Không reset/clean/commit/push; không mutation D1/R2; production chỉ đọc.
+- P0 mapping khóa có điều kiện tại
+  `.runtime/admin-commerce-recovery/p0-mapping-2026-09-07.md`; chi tiết ở
+  `docs/ADMIN_COMMERCE_RECOVERY_HANDOFF.md` §7.
+- Runtime staging do Đội D đo độc lập: `/gia-cong-sot-cham/` HTTP 200
+  (breadcrumb SSR `Trang chủ » Gia Công Sốt Chấm`), `/thue-gia-cong/gia-cong-sot-cham`
+  HTTP 200 (crumb `Trang chủ / Thuê gia công`); trailing-slash 308; submenu SSR
+  Thuê gia công href thật; 9 `href="#…"` còn lại là skip/search/footer placeholder.
+- Impact cảnh báo trước sửa code: `applyNavigationToMarkup` CRITICAL,
+  `CapturedStorefrontShell` CRITICAL, `getStorefrontNavigationForPath` HIGH,
+  `resolveRequestCart` CRITICAL.
+- Mở: đo browser che nút 390/768/1440 (thiếu browser thật), proof click Mua hàng
+  Playwright, D1 read-only (wrangler auth blocked — cần credential owner).
+
+## Admin toàn quyền — 2026-09-07
+
+Staging hiện chạy 100% version `83384ce2-c68a-43a9-b15c-ec784ec13158`;
+rollback là `3ea32ef4-ee73-4bb4-9e4d-2a59de72e5e7`. Deploy exit 0. Bản này
+chỉ cho phép `owner` (Admin toàn quyền), chặn role cũ tại admission/capability,
+giữ Access và bảo vệ admin cuối cùng; sửa banner che thanh chỉnh sửa storefront.
+
+Local gate: 561/561 test (admin 342), lint/typecheck/Next build 27/27;
+17/17 ca admin browser và 18/18 ca inline. OpenNext build, dry-run, upload và
+preview homepage/catalog/cart/service đạt. Windows build từng bị khóa thư mục
+`.open-next`; dừng máy chủ QA thuộc lượt này và build lại thành công.
+
+Sau promotion, owner Access thật đọc 10 route × 1440/390px: heading đúng,
+không overflow/alert có nội dung, không Runtime.exceptionThrown/Log.entryAdded
+trong cửa sổ CDP. Trang thành viên xác nhận một tài khoản hiện tại đang active,
+role Admin toàn quyền, không combobox chọn role; không sửa dữ liệu tài khoản.
+Inline hero mở đúng popover; banner bottom 66px, toolbar top 74px, không đè nhau.
+Không đổi production hoặc push. Xem điều kiện dữ liệu trước rollout khác trong
+[PRODUCTION_ACCEPTANCE_CHECKLIST.md](PRODUCTION_ACCEPTANCE_CHECKLIST.md).
+
+Artifact có thể tái tạo: `.runtime/admin-visual/single-role-*.log`,
+`.runtime/admin-visual/results.json`, `.runtime/admin-quality/results.json`.
+
+## Checkpoint admin quality / inline editor — 2026-09-06
+
+Checkpoint lịch sử: staging chạy 100% version `3ea32ef4-ee73-4bb4-9e4d-2a59de72e5e7`,
+promotion lúc 13:00 UTC; rollback version trước là
+`0c4ee5bb-594f-45da-8744-4fa6ae8cf477`. OpenNext build/dry-run và preview
+homepage/catalog/detail/cart/service đạt; public staging deep QA đạt.
+Owner đọc đủ 10 route admin ở desktop và 390×844/reduced-motion: heading đúng,
+không overflow/rendered alert, không exception/log event trong cửa sổ CDP.
+Menu mobile Escape đóng và trả focus. Local inline fixture đạt 18/18 ca.
+
+Owner đã thử hero_image_url: version 5 rỗng → draft v6 hero-2 → publish v7;
+public giữ hero-1 trước publish và dùng hero-2 sau publish. Hoàn nguyên draft
+qua API v8, sau đó guarded SQL hoàn nguyên published về rỗng v9. Public đã
+đọc lại hero-1, không admin control. SQL rollback không tạo admin audit event;
+evidence `.runtime/admin-visual/settings-*.json`, `settings-restore.log` và
+`public-*.json` là artifact cục bộ, không chứa credential. Không đổi production.
+
+Danh sách thành viên staging hiện chỉ có 1 owner. Quyết định 2026-09-07 chỉ giữ
+Admin toàn quyền (`owner`) đã thay thế mô hình năm role; không còn yêu cầu bốn
+identity cho role cũ. Các gate production còn mở theo
+`PRODUCTION_ACCEPTANCE_CHECKLIST.md`. Chi tiết kiểm chứng ở
+[ADMIN_QUALITY_REVIEW.md](ADMIN_QUALITY_REVIEW.md).
 
 Hồ sơ này ghi bằng chứng runtime đã xác minh trong quá trình chuyển Lean V1 sang Cloudflare-native.
 
@@ -390,7 +455,9 @@ snapshot này, snapshot này phản ánh trạng thái runtime mới nhất.
 - Production domain: `kienhieu.id.vn`.
 - Worker production: `giacong-vn`.
 - Worker staging: `giacong-vn-staging`.
-- Turnstile helper Worker: `turnstile-siteverify-kienhieu`.
+- Turnstile helper Worker: `turnstile-siteverify-kienhieu` (helper/binding hạ
+  tầng tồn tại; theo snapshot hiện tại, form liên hệ chưa gửi token để
+  enforce siteverify — xem thêm `CLOUDFLARE_DEPLOYMENT.md`).
 - Staging D1 `GIACONG_VN_CATALOG` → `giacong-vn-catalog-staging` (`981b5d5e-bba9-4f7e-9e1e-a15e379cd095`).
 - Staging R2 `GIACONG_VN_PRODUCT_MEDIA` → `giacong-vn-product-media-staging`.
 - Staging R2 `NEXT_INC_CACHE_R2_BUCKET` → `giacong-vn-next-cache-staging`.
@@ -482,7 +549,11 @@ OpenNext version `173773bb-ed45-412f-aef4-d9ec78f3a8cd` được upload trước
 - cart revalidation cho `B2B-DEMO-BGL-05`, quantity `25` trả submittable, unit price `78.000` và subtotal `1.950.000`
 - R2 media `/media/products/c5be4fe1-3daa-40ad-b9df-54717ec5c863.jpg` → HTTP 200, object size `1.979.346` bytes
 
-Preview cũng xác minh version mới giữ các bindings cũ cần thiết: `ADMIN_HOSTNAME`, `NEXT_PUBLIC_TURNSTILE_SITE_KEY`, `TURNSTILE_SITEVERIFY_URL`, D1 catalog và hai R2 buckets.
+Preview cũng xác minh version mới giữ các bindings cũ cần thiết:
+`ADMIN_HOSTNAME`, `NEXT_PUBLIC_TURNSTILE_SITE_KEY`, `TURNSTILE_SITEVERIFY_URL`,
+D1 catalog và hai R2 buckets. Sự tồn tại của binding/helper không tự chứng minh
+form liên hệ đã tích hợp Turnstile; deployment addendum là nguồn hiện hành cho
+trạng thái wiring này.
 
 ## Staging promotion đã hoàn thành
 
@@ -1096,3 +1167,34 @@ runtime trước khi đóng gate hiệu năng/ổn định.
   action, revision và request ID, không hiển thị payload nội dung.
 - Đây là bằng chứng audit cho các phép thử owner staging vừa thực hiện, không
   thay thế consistency audit/write-read-back của mọi domain hoặc role matrix.
+
+## Nested navigation hard-bound và staging runtime — 2026-09-10
+
+- Bản sửa giữ `LIMIT 100` cho admin navigation list; bulk result đọc theo
+  đúng ID đã audit và kiểm tra parent draft/published trong postcondition.
+- Worker staging `giacong-vn-staging` đang phục vụ 100% version
+  `bda9eb54-7cb0-41ee-9a70-fe9862f3d670`; rollback point là
+  `40fddaba-9880-4efd-b7f6-066a6aaa2206`. Migration `0021` đã apply, không
+  còn pending.
+- Sau deploy: captured `3/3`, catalog `2/2`, cart `1/1`, deep QA pass.
+  Owner Chrome đã kiểm tra parent selector và publish/read-back nested child
+  dưới `Sản Phẩm`; fixture được khôi phục inactive. D1 xác nhận cả hai
+  fixture nested giữ parent draft/published và `is_active = 0`.
+- Production Worker, route và data không bị đụng tới. Staging acceptance vẫn
+  conditional cho các gate production được ghi trong handoff.
+
+## Product/news UI round-trip — 2026-09-10
+
+- Chrome owner đã chạy E2E có kiểm soát trên fixture product `id=14` và news
+  `id=2`: draft save, admin reload, publish, public read-back, rồi khôi phục
+  qua UI.
+- Sau hoàn nguyên, D1 product giữ nội dung gốc với `is_active=0`,
+  `status=archived`; news giữ draft/published content fields gốc với
+  `is_published=0`. Audit và revision tăng liên tục, không có record mới.
+  `published_at` của news giữ timestamp lần publish QA gần nhất vì UI không
+  hỗ trợ khôi phục timestamp; không dùng raw D1 để che lịch sử.
+- Public read-back sau hoàn nguyên: product `200` nhưng không còn marker, news
+  detail `404`, news listing `200` không còn marker.
+- Negative validation với name/title rỗng chưa cho bằng chứng field-level ổn
+  định; request vẫn tạo revision nhưng giữ giá trị cũ. Đây là gate cần sửa/test
+  riêng trước production, không đánh dấu PASS.

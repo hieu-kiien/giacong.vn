@@ -24,10 +24,10 @@ interface AdminProductImportPanelProps {
   role: string;
 }
 
-const sampleCsv = "name,slug,sku,category_slug,short_description,description,image_url,lead_time_days";
+const sampleCsv = "name,slug,sku,category_slug,short_description,description,image_url,lead_time_days\nBột mẫu,bot-mau,B2B-SAMPLE-01,,Mô tả ngắn dùng thử,,,7";
 
 export function AdminProductImportPanel({ categories, onImported, role }: AdminProductImportPanelProps) {
-  const canImport = role === "owner" || role === "catalog_manager";
+  const canImport = role === "owner";
   const [rows, setRows] = useState<AdminProductImportRow[]>([]);
   const [validRows, setValidRows] = useState<AdminProductImportRow[]>([]);
   const [errors, setErrors] = useState<AdminProductImportError[]>([]);
@@ -96,6 +96,18 @@ export function AdminProductImportPanel({ categories, onImported, role }: AdminP
     }
   }
 
+  function downloadSampleCsv() {
+    const content = `${sampleCsv}\n`;
+    const blob = new Blob([content], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = "product-import-sample.csv";
+    document.body.append(anchor);
+    anchor.click();
+    setTimeout(() => { anchor.remove(); URL.revokeObjectURL(url); }, 1000);
+  }
+
   return (
     <section aria-busy={loading} aria-labelledby="product-import-heading" className="admin-panel admin-import-panel">
       <div className="admin-panel-heading">
@@ -106,10 +118,11 @@ export function AdminProductImportPanel({ categories, onImported, role }: AdminP
         </div>
         <FileSpreadsheet aria-hidden="true" size={21} />
       </div>
-      {!canImport ? <p className="admin-field-hint" role="note">Bạn đang ở quyền chỉ xem hoặc không thuộc nhóm quản lý catalog. Chỉ owner và catalog manager được nhập sản phẩm.</p> : null}
+      {!canImport ? <p className="admin-field-hint" role="note">Bạn đang ở quyền chỉ xem. Chỉ Admin toàn quyền được nhập sản phẩm.</p> : null}
+      <button className="admin-button admin-button-quiet" data-testid="button-product-import-sample" onClick={downloadSampleCsv} type="button">Tải file mẫu</button>
       <div className="admin-import-instructions">
         <strong>Định dạng CSV</strong>
-        <p>Dòng bắt buộc: <code>name</code>, <code>slug</code>, <code>sku</code>. Các cột khác có thể để trống; danh mục dùng slug, tối đa 50 dòng.</p>
+        <p>Dòng bắt buộc: <code>name</code>, <code>slug</code>, <code>sku</code>. Các cột khác có thể để trống; danh mục dùng slug, tối đa 50 dòng. Batch tuân quy tắc nhập hết một lần: máy chủ xử lý nguyên tử và từ chối kết quả không nhất quán.</p>
         <code className="admin-import-sample">{sampleCsv}</code>
       </div>
       <button className="admin-button admin-button-quiet admin-import-file-label" disabled={!canImport || loading} onClick={() => inputRef.current?.click()} type="button"><Upload aria-hidden="true" size={15} /> Chọn file CSV</button>

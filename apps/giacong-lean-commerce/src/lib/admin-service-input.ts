@@ -1,6 +1,16 @@
+import { serviceFamilies } from "../data/service-families.ts";
 import type { AdminPublishStatus, AdminServiceInput } from "./admin-data";
 
 const statuses = new Set<AdminPublishStatus>(["draft", "review", "published", "archived"]);
+
+/**
+ * The thirteen slugs `/thue-gia-cong/[family]` serves statically. A managed
+ * row with any other slug is invisible on the storefront (the static gate
+ * falls back to `notFound()`), so new writes outside this list are rejected
+ * instead of creating orphan rows. Existing orphan rows are left untouched —
+ * they can still be archived, never silently revived.
+ */
+const knownServiceFamilySlugs: Set<string> = new Set(serviceFamilies.map((family) => family.slug));
 
 export function parseAdminServicePayload(
   payload: unknown,
@@ -22,6 +32,9 @@ export function parseAdminServicePayload(
 
   if (slug && !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)) {
     fieldErrors.slug = "Slug chỉ gồm chữ thường, số và dấu gạch ngang.";
+  }
+  if (slug && !fieldErrors.slug && !knownServiceFamilySlugs.has(slug)) {
+    fieldErrors.slug = "Slug không thuộc 13 nhóm dịch vụ của /thue-gia-cong; hãy chọn slug trong danh mục cho phép.";
   }
   if (status === "published" && !requestedActive) {
     fieldErrors.isActive = "Dịch vụ published phải được bật hiển thị.";

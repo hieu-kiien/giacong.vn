@@ -1,7 +1,9 @@
 "use client";
 
 import { ExternalLink, RefreshCw, Save, Send, SendHorizonal, ShieldCheck, Upload } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useRegisterAdminUnsaved } from "@/components/admin/AdminUnsavedGuard";
+import { AdminConfirmDialog } from "@/components/admin/AdminDialog";
 import { AdminErrorState, AdminPageHeading, AdminStatusBadge } from "@/components/admin/AdminPrimitives";
 import { useAdminSession } from "@/components/admin/AdminShell";
 import {
@@ -20,11 +22,11 @@ interface SiteSettingsResponse {
 }
 
 const groupLabels: Record<AdminSiteSettingGroup, { label: string; description: string }> = {
-  brand: { label: "Brand & nhận diện", description: "Logo, màu chủ đạo và các điểm nhận diện dùng chung." },
-  seo: { label: "SEO & chia sẻ", description: "Tiêu đề và mô tả mặc định của website." },
-  home: { label: "Trang chủ", description: "Hero, CTA và phần giới thiệu trên trang chủ." },
+  brand: { label: "Thương hiệu & nhận diện", description: "Logo, màu chủ đạo và các điểm nhận diện dùng chung." },
+  seo: { label: "Tìm kiếm Google & chia sẻ", description: "Tiêu đề và mô tả mặc định của website." },
+  home: { label: "Trang chủ", description: "Ảnh bìa, nút bấm và phần giới thiệu trên trang chủ." },
   contact: { label: "Liên hệ", description: "Hotline, email, Zalo, Messenger và địa chỉ." },
-  footer: { label: "Footer", description: "Nội dung giới thiệu và bản quyền cuối trang." },
+  footer: { label: "Cuối trang", description: "Nội dung giới thiệu và bản quyền cuối trang." },
 };
 
 const groupOrder: AdminSiteSettingGroup[] = ["brand", "seo", "home", "contact", "footer"];
@@ -41,8 +43,11 @@ export default function AdminContentPage() {
   const [unsavedKeys, setUnsavedKeys] = useState<Set<string>>(new Set());
   const [notice, setNotice] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
+  const [showReloadConfirm, setShowReloadConfirm] = useState(false);
   const [publishingAll, setPublishingAll] = useState(false);
   const publishAllRequestId = useRef<{ key: string; requestId: string } | null>(null);
+  const isDirty = useCallback(() => unsavedKeys.size > 0, [unsavedKeys]);
+  useRegisterAdminUnsaved(isDirty, Boolean(savingKey || uploadingKey || publishingKey || publishingAll));
 
   useEffect(() => {
     const controller = new AbortController();
@@ -56,7 +61,7 @@ export default function AdminContentPage() {
         setUnsavedKeys(new Set());
       } catch (reason: unknown) {
         if (!(reason instanceof DOMException && reason.name === "AbortError")) {
-          setError(reason instanceof AdminClientError ? reason : new AdminClientError("Không thể tải CMS website.", 0));
+          setError(reason instanceof AdminClientError ? reason : new AdminClientError("Không thể tải nội dung website.", 0));
         }
       } finally {
         if (!controller.signal.aborted) setLoading(false);
@@ -128,7 +133,7 @@ export default function AdminContentPage() {
         next.delete(setting.key);
         return next;
       });
-      setNotice(`Đã upload ảnh và lưu draft cho “${setting.label}”.`);
+      setNotice(`Đã tải ảnh lên và lưu bản nháp cho “${setting.label}”.`);
     } catch (reason: unknown) {
       setError(reason instanceof AdminClientError ? reason : new AdminClientError("Không thể upload ảnh thương hiệu.", 0));
     } finally {
@@ -180,7 +185,7 @@ export default function AdminContentPage() {
       if (result.count === 0) {
         setNotice("Không có bản nháp nào cần phát hành.");
       } else {
-        setNotice(`Đã phát hành ${result.count} thay đổi ra storefront.${result.skipped > 0 ? ` (${result.skipped} bị bỏ qua do xung đột)` : ""}`);
+        setNotice(`Đã phát hành ${result.count} thay đổi ra trang web.${result.skipped > 0 ? ` (${result.skipped} bị bỏ qua do trùng sửa)` : ""}`);
       }
       if (publishAllRequestId.current?.key === dirtyKey) publishAllRequestId.current = null;
     } catch (reason: unknown) {
@@ -196,22 +201,34 @@ export default function AdminContentPage() {
     }
   }
 
+  function requestReload() {
+    if (unsavedKeys.size > 0) {
+      setShowReloadConfirm(true);
+      return;
+    }
+    setAttempt((value) => value + 1);
+  }
+
+  function confirmReload() {
+    setAttempt((value) => value + 1);
+  }
+
   return (
     <div className="admin-content">
       <AdminPageHeading
-        kicker="CMS / website"
+        kicker="Quản lý nội dung / trang web"
         title="Nội dung & thương hiệu"
-        subtitle="Chỉnh sửa theo cấu trúc an toàn, lưu bản nháp trước rồi phát hành từng thay đổi ra storefront."
-        stamp="CONTENT CONTROL"
+        subtitle="Sửa theo mẫu an toàn, lưu bản nháp trước rồi đăng từng thay đổi ra trang web."
+        stamp="QUẢN LÝ NỘI DUNG"
       />
       <div className="admin-content-toolbar">
         <div>
-          <div className="admin-content-toolbar-title"><ShieldCheck size={16} /> Quy trình publish an toàn</div>
-          <p>Public chỉ đọc bản đã phát hành. Mỗi thay đổi dùng version để tránh ghi đè khi có nhiều người cùng chỉnh sửa.</p>
+          <div className="admin-content-toolbar-title"><ShieldCheck size={16} /> Quy trình đăng an toàn</div>
+          <p>Trang web chỉ hiện bản đã đăng. Mỗi thay đổi có số phiên bản để tránh đè nhau khi nhiều người cùng sửa.</p>
         </div>
         <div className="admin-content-toolbar-actions">
           <AdminStatusBadge kind={canEdit ? "green" : "neutral"} value={canEdit ? "Có quyền chỉnh sửa" : "Chỉ xem"} />
-          <button className="admin-button admin-button-quiet" data-testid="button-content-refresh" onClick={() => setAttempt((value) => value + 1)} type="button"><RefreshCw size={14} /> Tải lại</button>
+          <button className="admin-button admin-button-quiet" data-testid="button-content-refresh" onClick={requestReload} type="button"><RefreshCw size={14} /> Tải lại</button>
           {canEdit ? (
             <button
               className="admin-button admin-button-primary"
@@ -227,8 +244,17 @@ export default function AdminContentPage() {
         </div>
       </div>
       {notice ? <div className="admin-content-notice" role="status">{notice}</div> : null}
+      {showReloadConfirm ? (
+        <AdminConfirmDialog
+          confirmLabel="Vẫn tải lại"
+          message={`Còn ${unsavedKeys.size} chỗ chưa lưu. Tải lại sẽ mất. Vẫn tải lại?`}
+          onConfirm={confirmReload}
+          onDismiss={() => setShowReloadConfirm(false)}
+          title="Tải lại sẽ mất bản nháp?"
+        />
+      ) : null}
       {error ? <AdminErrorState error={error} onRetry={() => { setError(null); setAttempt((value) => value + 1); }} /> : null}
-      {loading ? <div className="admin-skeleton admin-content-skeleton" aria-label="Đang tải CMS" /> : (
+      {loading ? <div className="admin-skeleton admin-content-skeleton" aria-label="Đang tải nội dung" /> : (
         <div className="admin-content-layout">
           <div className="admin-content-sections">
             {groupedSettings.map(({ group, label, description, items }) => (
@@ -288,6 +314,9 @@ function SettingEditor({
   onImageUpload: (file: File) => void;
 }) {
   const isMultiline = setting.type === "multiline";
+  const imagePreview = setting.type === "image"
+    ? setting.draftValue.trim() || setting.effectiveValue.trim()
+    : "";
   return (
     <div className={`admin-setting-card${setting.dirty ? " is-dirty" : ""}`} data-testid={`setting-card-${setting.key}`}>
       <div className="admin-setting-card-heading">
@@ -295,8 +324,8 @@ function SettingEditor({
         {hasUnsavedChanges
           ? <AdminStatusBadge kind="amber" value="Chưa lưu" />
           : setting.dirty
-            ? <AdminStatusBadge kind="blue" value="Draft" />
-            : <AdminStatusBadge kind="green" value="Published" />}
+            ? <AdminStatusBadge kind="blue" value="Bản nháp" />
+            : <AdminStatusBadge kind="green" value="Đã đăng" />}
       </div>
       <div className={`admin-setting-input-wrap${setting.type === "color" ? " is-color" : ""}`}>
         {setting.type === "color" ? <input aria-label={`${setting.label} preview`} className="admin-color-input" disabled={!canEdit} onChange={(event) => onChange(setting.key, event.target.value)} type="color" value={/^#[0-9a-f]{6}$/i.test(setting.draftValue) ? setting.draftValue : "#6cbe45"} /> : null}
@@ -306,11 +335,25 @@ function SettingEditor({
           <input className={`admin-input${setting.type === "color" ? " admin-input-color-value" : ""}`} data-testid={`input-setting-${setting.key}`} disabled={!canEdit} id={`setting-${setting.key}`} onChange={(event) => onChange(setting.key, event.target.value)} type={setting.type === "url" ? "url" : "text"} value={setting.draftValue} />
         )}
       </div>
+      {imagePreview ? (
+        <div className={`admin-setting-image-preview-wrap${setting.key === "favicon_url" ? " is-favicon" : ""}`}>
+          <span className="admin-setting-preview-label">Xem trước {setting.key === "favicon_url" ? "favicon" : "logo"}</span>
+          {/* Preview can point at an R2 or operator-provided URL; Next Image cannot know its loader/host. */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            alt={`Xem trước ${setting.label}`}
+            className="admin-setting-image-preview"
+            data-testid={`setting-preview-${setting.key}`}
+            src={imagePreview}
+          />
+        </div>
+      ) : null}
       {setting.type === "image" ? (
         <label className="admin-setting-upload">
-          <span><Upload size={13} /> Upload ảnh vào R2</span>
+          <span><Upload size={13} /> Tải ảnh lên</span>
           <input
             accept="image/jpeg,image/png,image/webp"
+            aria-label={`Tải ảnh lên cho ${setting.label}`}
             disabled={!canEdit || uploading}
             onChange={(event) => {
               const file = event.target.files?.[0];
@@ -319,11 +362,12 @@ function SettingEditor({
             }}
             type="file"
           />
-          <small>{uploading ? "Đang upload và lưu draft..." : "Tối đa 8 MiB · JPEG, PNG, WebP"}</small>
+          <small>{uploading ? "Đang tải và lưu bản nháp..." : "Tối đa 8 MB · JPEG, PNG, WebP"}</small>
         </label>
       ) : null}
       <div className="admin-setting-meta">
-        <span>v{setting.version} · Cập nhật {formatAdminDate(setting.updatedAt)}</span>
+        <span>bản {setting.version} · Cập nhật {formatAdminDate(setting.updatedAt)}</span>
+        {setting.draftValue.trim() === "" ? <small>Ô đang trống — ngoài web đang hiện: {setting.effectiveValue || "—"}{setting.isDefaultValue ? " (giá trị mặc định)" : ""}</small> : null}
         <div className="admin-setting-actions">
           <button className="admin-button admin-button-quiet" data-testid={`button-setting-save-${setting.key}`} disabled={!canEdit || !hasUnsavedChanges || saving} onClick={onSave} type="button"><Save size={13} /> {saving ? "Đang lưu" : "Lưu nháp"}</button>
           <button className="admin-button admin-button-primary" data-testid={`button-setting-publish-${setting.key}`} disabled={!canEdit || hasUnsavedChanges || !setting.dirty || publishing} onClick={onPublish} type="button"><Send size={13} /> {publishing ? "Đang phát hành" : "Phát hành"}</button>
@@ -335,20 +379,20 @@ function SettingEditor({
 
 function LiveStorefrontHandoff() {
   return (
-    <aside className="admin-live-storefront-card" aria-label="Chỉnh sửa trên storefront thật">
+    <aside className="admin-live-storefront-card" aria-label="Chỉnh sửa trên trang web thật">
       <div className="admin-live-storefront-card-heading">
-        <div><div className="admin-kicker">STOREFRONT THẬT</div><h2>Chỉnh sửa tại nơi hiển thị</h2></div>
+        <div><div className="admin-kicker">TRANG WEB THẬT</div><h2>Chỉnh sửa tại nơi hiển thị</h2></div>
         <ExternalLink aria-hidden="true" size={17} />
       </div>
       <div className="admin-live-storefront-card-body">
-        <p>Trang này quản lý dữ liệu, bản nháp và phát hành. Không dựng một bản xem trước riêng có thể khác với website thật.</p>
-        <p>Muốn thấy đúng layout, menu, ảnh và animation, hãy mở storefront thật rồi bấm nút <strong>Sửa</strong> cạnh vùng nội dung khi phiên của bạn có quyền.</p>
+        <p>Trang này quản lý dữ liệu, bản nháp và đăng bài. Không dựng một bản xem trước riêng có thể khác với website thật.</p>
+        <p>Muốn thấy đúng bố cục, menu, ảnh và hiệu ứng, hãy mở trang web thật rồi bấm nút <strong>Sửa</strong> cạnh vùng nội dung khi tài khoản của bạn có quyền.</p>
       </div>
       <a className="admin-button admin-button-primary admin-live-storefront-card-action" data-testid="link-open-live-storefront" href="/" rel="noreferrer" target="_blank">
-        Mở storefront thật
+        Mở trang web thật
         <ExternalLink aria-hidden="true" size={14} />
       </a>
-      <p className="admin-live-storefront-card-note">Bản nháp chỉ nằm trong trung tâm quản trị. Storefront public chỉ đổi sau khi bạn lưu và phát hành.</p>
+      <p className="admin-live-storefront-card-note">Bản nháp chỉ nằm trong trang quản trị. Trang web công khai chỉ đổi sau khi bạn lưu và đăng.</p>
     </aside>
   );
 }

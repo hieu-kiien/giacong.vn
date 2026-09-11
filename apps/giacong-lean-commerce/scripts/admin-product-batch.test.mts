@@ -320,9 +320,9 @@ test("product batch route and UI expose bounded revision-aware archive controls"
   assert.match(page, /\/api\/admin\/products\/batch/);
   assert.match(page, /canManageCatalog/);
   assert.match(page, /canManage \? <th scope="col"><label className="admin-check"><input aria-label="Chọn tất cả sản phẩm/);
-  assert.match(page, /canManage \? <td><input aria-label=\{`Chọn sản phẩm/);
+  assert.match(page, /canManage \? <td(?: className="[^"]*")?><input aria-label=\{`Chọn sản phẩm/);
   assert.match(page, /canManage \? <button className="admin-button admin-button-primary" data-testid="button-product-create"/);
-  assert.match(page, /canManage \? <td>[\s\S]*admin-table-actions/);
+  assert.match(page, /canManage \? <td(?: className="[^"]*")?>[\s\S]*admin-table-actions/);
   assert.match(page, /expectedRevision: revisions\.get\(id\) \?\? 1/);
   assert.match(page, /selectedCount: number/);
   assert.match(page, /pendingBatch/);

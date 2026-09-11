@@ -87,12 +87,10 @@
     display: flex;
     gap: 14px;
     justify-content: space-between;
-    left: auto;
-    max-width: min(calc(100vw - 32px), 440px);
+    margin: 8px 16px;
+    max-width: none;
     padding: 10px 12px 10px 14px;
-    position: fixed;
-    right: 16px;
-    top: 16px;
+    position: relative;
     z-index: 2147483000;
   }
 
@@ -297,9 +295,14 @@
     z-index: 20;
   }
 
-  .archive #header #menu-item-1541 > a {
+  .archive.category-tin-tuc #header #menu-item-1541 > a {
     border-bottom: 2px solid currentColor;
     color: #fff;
+  }
+
+  .menu-san-pham h4 > span {
+    color: #333;
+    font-size: 16px;
   }
 
   .giacong-page-hero {
@@ -1210,6 +1213,12 @@ body.clone-menu-active {
       transform: translateX(-50%) !important;
       width: min(1240px, calc(100% - 30px)) !important;
     }
+
+  #header li.has-dropdown[data-dropdown-dismissed="true"] > .nav-dropdown {
+    opacity: 0 !important;
+    pointer-events: none !important;
+    visibility: hidden !important;
+  }
 
 }
 

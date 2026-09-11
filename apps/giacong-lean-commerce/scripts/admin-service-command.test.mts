@@ -16,7 +16,7 @@ const serviceFields = {
   leadTimeDays: 14,
   moqSummary: "Từ 500 kg / mẻ",
   name: "Gia công thử nghiệm",
-  slug: "gia-cong-thu-nghiem",
+  slug: "gia-cong-tra",
   status: "draft" as const,
   summary: "Tóm tắt dịch vụ",
 };

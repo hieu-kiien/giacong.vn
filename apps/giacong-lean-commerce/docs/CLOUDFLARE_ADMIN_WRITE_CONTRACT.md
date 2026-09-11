@@ -35,7 +35,7 @@ Required checks:
 
 Wrong-host requests to `/api/admin/**` should be hidden with `404`. Invalid/missing Access identity on the correct admin host is rejected with a safe `401` or `403` response. Do not return JWT/JWKS details, claims, stack traces or internal configuration values.
 
-Lean V1 has no customer identity or customer team management. Internal administration uses the D1-backed roles `owner`, `content_manager`, `catalog_manager`, `sales_manager` and `viewer`. `owner` has full administrative access, while the other roles are limited to their documented capabilities and `viewer` is read-only. Cloudflare Access authenticates the operator; the `admin_members` record authorizes the operation. Any member or role change must be owner-only, same-origin, audited and fail closed.
+Lean V1 has no customer identity or customer team management. As approved by the user on 2026-09-07, the sole active role is **Admin toàn quyền**, persisted as `owner`. Retired roles fail both admission and capability checks; they are never promoted implicitly. Cloudflare Access authenticates the operator; the `admin_members` record authorizes the operation. Member changes remain owner-only, same-origin, audited and fail closed, with last-active-owner protections preserved.
 
 ## 3. HTTP and JSON contract
 
@@ -299,7 +299,7 @@ requires `Content-Type: application/json`, one valid UUID v4 in
 `Idempotency-Key` or `X-Request-Id` (both may be sent only when identical), a
 streamed body no larger than 64 KiB, and at most 50 rows. The body is exactly
 `{ rows }`; each row uses the reviewed import fields and category references are
-resolved server-side by slug. Only `owner` and `catalog_manager` may call it.
+resolved server-side by slug. Only `owner` may call it.
 
 The server validates every row before any write. A successful import always
 creates inactive `draft` products, and returns `{ createdCount, productIds,
@@ -311,9 +311,12 @@ writing again. Reusing it for another payload returns
 `409 IDEMPOTENCY_CONFLICT`. Category/row validation is returned as `422`,
 uniqueness as `409 UNIQUE_CONFLICT`, and unsupported content type as `415`.
 
-This slice intentionally exposes no CSV upload UI yet: the parser/helper and
-server JSON contract are ready for the P5 admin surface, while browser and
-staging evidence remain release gates.
+The JSON boundary remains canonical. The current admin surface also exposes a
+CSV file picker and sample download in
+`src/components/admin/AdminProductImportPanel.tsx`; the client parses the CSV
+before sending the reviewed rows to the JSON endpoint. This UI is therefore an
+active contract surface and must stay schema-compatible with the server parser
+and row validator. Browser and staging evidence remain release gates.
 
 ## 9. Variant contract
 

@@ -6,8 +6,10 @@ const localCtaRoutes: Record<string, string> = {
 // Decision: D1 site_navigation_items owns top-level parent labels and hrefs.
 // Child choices are source-owned capture data; the mobile product accordion
 // clones the desktop menu after published navigation has been applied. Legacy
-// child hrefs that cannot be mapped to a public page fall back to their parent
-// route so no hash, home-root or malformed URL is emitted publicly.
+// child hrefs that cannot be mapped to a public page render as plain text —
+// never as hash, home-root or parent-fallback links — so the menu cannot lead
+// to a 404 or to an unrelated hub. Group headers use an empty href for the
+// same header-only treatment when their hub page does not exist.
 const legacyMegaMenuHrefFallbacks: Readonly<Record<string, "parent">> = {
   "#": "parent",
   "/": "parent",
@@ -42,14 +44,21 @@ export function layerCapturedStyles(pageStyles: string): string {
   return `@layer captured {\n${pageStyles}\n}`;
 }
 
-export function normalizeCapturedMarkup(markup: string) {
+export function normalizeCapturedMarkup(markup: string, activeCapturedMenuId?: string | null) {
   const normalized = markup
+    // Captured pages are static marketing HTML rendered through
+    // dangerouslySetInnerHTML. Executable elements must never reach the
+    // document even if a capture artifact is poisoned upstream; React would
+    // not run them either, so stripping changes no legitimate rendering.
+    .replace(/<script\b[^>]*>[\s\S]*?<\/script\s*>/gi, "")
+    .replace(/<script\b[^>]*>/gi, "")
+    .replace(/<\/script\s*>/gi, "")
     // Captured HTML must start unrevealed so the client observer has a real
     // initial frame to animate from. Older generated page JSON baked this
     // attribute in, so strip it here as a backwards-compatible safeguard.
     .replace(/\sdata-animated=(["'])[^"']*\1/gi, "")
-    .replace(/Sản Phẩm(?=<i class="icon-angle-down"><\/i>)/g, "Mua hàng")
-    .replace(/Dịch vụ(?=<i class="icon-angle-down"><\/i>)/g, "Thuê gia công")
+    .replace(/Sản Phẩm(?=<i\b[^>]*\bclass=(["'])icon-angle-down\1[^>]*>\s*<\/i>)/g, "Mua hàng")
+    .replace(/Dịch vụ(?=<i\b[^>]*\bclass=(["'])icon-angle-down\1[^>]*>\s*<\/i>)/g, "Thuê gia công")
     .replace(/Dịch Vụ Gia Công(?=<\/a>)/g, "Thuê gia công")
     .replace(
     /<a\b([^>]*?)href=(["'])#\2([^>]*)>([\s\S]*?)<\/a>/gi,
@@ -60,20 +69,147 @@ export function normalizeCapturedMarkup(markup: string) {
     },
     );
 
-  return addCapturedImageLoadingHints(
-    normalizeCapturedFooterHeadings(
-      normalizeCapturedFrames(
-        normalizeCapturedContactHeadings(
+  return applyCapturedActiveNav(
+    addCapturedImageLoadingHints(
+      normalizeCapturedFooterHeadings(
+        normalizeCapturedFrames(
+          normalizeCapturedContactHeadings(
             normalizeCapturedMainLandmark(
               normalizeHomeMenuItems(
-              replaceCapturedMenus(
-                normalizeCapturedMenuRoutes(normalizeCapturedInternalLinks(normalized)),
+                replaceCapturedMenus(
+                  normalizeCapturedMenuRoutes(normalizeCapturedInternalLinks(normalized)),
+                ),
               ),
             ),
           ),
         ),
       ),
     ),
+    activeCapturedMenuId,
+  );
+}
+
+/**
+ * Maps a captured route path to the desktop menu item that owns its section.
+ * Mirrors the section intent of the published navigation without consulting
+ * D1: captured pages render source-owned markup, so the active tab has to be
+ * derived from the route itself. Returns null when no tab owns the route.
+ */
+export function resolveCapturedActiveMenuId(routePath: string): string | null {
+  const slug = routePath.split("/").filter(Boolean)[0] ?? "";
+  if (!slug) return null;
+  if (slug === "gioi-thieu-ve-gia-cong") return "menu-item-5498";
+  if (slug === "lien-he") return "menu-item-1542";
+  if (slug === "tin-tuc" || slug.startsWith("tin-tuc-")) return "menu-item-1541";
+  if (slug === "san-pham" || slug.startsWith("san-pham-")) return "menu-item-1742";
+  if (
+    slug === "thue-gia-cong" ||
+    slug === "bot-gia-vi" ||
+    slug.startsWith("bot-gia-vi-") ||
+    slug.startsWith("gia-cong-") ||
+    slug.startsWith("dich-vu-") ||
+    slug.startsWith("say-") ||
+    slug.startsWith("thuc-pham-")
+  ) {
+    return "menu-item-5166";
+  }
+  return null;
+}
+
+// Local mirror of capturedNavigationAliases in site-navigation.ts (that
+// module owns the D1-driven menu; captured pages stay source-owned, so the
+// alias list is duplicated here instead of coupling the two).
+const capturedActiveNavAliases: Readonly<Record<string, readonly string[]>> = {
+  "menu-item-4618": ["menu-item-5465"],
+  "menu-item-5498": ["menu-item-5496"],
+  "menu-item-1742": [],
+  "menu-item-5166": ["menu-item-5466"],
+  "menu-item-1541": ["menu-item-5477"],
+  "menu-item-1542": ["menu-item-5478"],
+};
+
+const capturedActiveLiTokens: readonly string[] = [
+  "current-menu-item",
+  "current_page_item",
+  "current-menu-parent",
+  "active",
+];
+
+/**
+ * Replaces the upstream active tab with the one owning this route. Only
+ * `li#menu-item-*` opening tags and their own top-link anchor are touched —
+ * the captured footer owns no menu-item ids and pagination `aria-current`
+ * lives on `span.page-number`, so both survive byte-identical. An `undefined`
+ * active id keeps legacy output for callers that manage navigation themselves
+ * (homepage, storefront shell); `null` strips upstream markers and sets none.
+ */
+function applyCapturedActiveNav(markup: string, activeMenuId: string | null | undefined): string {
+  if (activeMenuId === undefined) return markup;
+  const liPattern = /<li\b[^>]*\bid=(["'])(menu-item-\d+)\1[^>]*>/gi;
+  const items: { index: number; length: number; id: string; tag: string }[] = [];
+  let found: RegExpExecArray | null;
+  while ((found = liPattern.exec(markup))) {
+    items.push({ index: found.index, length: found[0].length, id: found[2], tag: found[0] });
+  }
+  const activeTargets = new Map<string, readonly string[]>();
+  if (activeMenuId) {
+    activeTargets.set(activeMenuId, ["active", "current-menu-item"]);
+    for (const alias of capturedActiveNavAliases[activeMenuId] ?? []) {
+      activeTargets.set(alias, ["current-menu-item"]);
+    }
+  }
+  let result = markup;
+  for (let cursor = items.length - 1; cursor >= 0; cursor -= 1) {
+    const item = items[cursor];
+    const stripped = stripCapturedActiveLiTag(item.tag);
+    const tokens = activeTargets.get(item.id);
+    const nextTag = tokens ? addCapturedClassTokens(stripped, tokens) : stripped;
+    result = `${result.slice(0, item.index)}${nextTag}${result.slice(item.index + item.length)}`;
+    // The first anchor after the li opening tag is the item's own top link;
+    // nested dropdown links always come later, pagination is never inside a
+    // menu-item li, so only this anchor may lose or gain aria-current.
+    const anchorStart = result.indexOf("<a", item.index + nextTag.length);
+    if (anchorStart < 0) continue;
+    const anchorEnd = result.indexOf(">", anchorStart);
+    if (anchorEnd < 0) continue;
+    const anchor = result.slice(anchorStart, anchorEnd);
+    if (tokens) {
+      if (!/\baria-current=/i.test(anchor)) {
+        result = `${result.slice(0, anchorStart + 2)} aria-current="page"${result.slice(anchorStart + 2)}`;
+      }
+    } else {
+      const cleaned = anchor.replace(/\saria-current=(["'])page\1/i, "");
+      if (cleaned !== anchor) {
+        result = `${result.slice(0, anchorStart)}<a${cleaned.slice(2)}${result.slice(anchorEnd)}`;
+      }
+    }
+  }
+  return result;
+}
+
+function stripCapturedActiveLiTag(tag: string): string {
+  return tag
+    .replace(
+      /class=(["'])([^"']*)\1/i,
+      (_match, quote: string, classes: string) =>
+        `class=${quote}${classes
+          .split(/\s+/)
+          .filter((token) => token && !capturedActiveLiTokens.includes(token))
+          .join(" ")}${quote}`,
+    )
+    .replace(/\saria-current=(["'])page\1/i, "");
+}
+
+function addCapturedClassTokens(tag: string, tokens: readonly string[]): string {
+  return tag.replace(
+    /class=(["'])([^"']*)\1/i,
+    (_match, quote: string, classes: string) => {
+      const next = classes.split(/\s+/).filter(Boolean);
+      for (const token of tokens) {
+        if (!next.includes(token)) next.push(token);
+      }
+      return `class=${quote}${next.join(" ")}${quote}`;
+    },
   );
 }
 
@@ -194,7 +330,6 @@ const productMegaMenuColumns: readonly MegaMenuColumn[] = [
     { href: "/gia-cong-sot-cham/", label: "Gia công sốt chấm" },
     { href: "/gia-cong-do-uong/", label: "Gia công đồ uống" },
     { href: "/gia-cong-bot-pha-che/", label: "Gia công bột pha chế" },
-    { href: "/gia-cong-do-uong/", label: "Gia công đồ uống" },
     { href: "/gia-cong-duoc-lieu/", label: "Gia công dược liệu" },
     { href: "/gia-cong-thuc-pham/", label: "Gia công thực phẩm" },
     { href: "/gia-cong-my-pham/", label: "Gia công mỹ phẩm" },
@@ -223,7 +358,7 @@ const productMegaMenuColumns: readonly MegaMenuColumn[] = [
       ],
     },
     {
-      href: "/nuoc-trai-cay/",
+      href: "",
       label: "Nước trái cây",
       links: [
         { href: "#", label: "Nước ép chanh leo" },
@@ -234,7 +369,7 @@ const productMegaMenuColumns: readonly MegaMenuColumn[] = [
   ],
   [
     {
-      href: "/thuc-pham-say/",
+      href: "",
       label: "Thực phẩm sấy",
       links: [
         { href: "/", label: "Bột phô mai tách muối" },
@@ -296,7 +431,7 @@ const serviceMegaMenuColumns: readonly MegaMenuColumn[] = [
       ],
     },
     {
-      href: "/dich-vu-dong-goi/",
+      href: "",
       label: "Dịch vụ đóng gói",
       links: [
         { href: "#", label: "Mit sấy" },
@@ -305,7 +440,7 @@ const serviceMegaMenuColumns: readonly MegaMenuColumn[] = [
       ],
     },
     {
-      href: "/dich-vu-thiet-ke/",
+      href: "",
       label: "Dịch vụ thiết kế",
       links: [
         { href: "#", label: "Nước ép chanh leo" },
@@ -316,7 +451,7 @@ const serviceMegaMenuColumns: readonly MegaMenuColumn[] = [
   ],
   [
     {
-      href: "/dich-vu-phap-ly/",
+      href: "",
       label: "Dịch vụ pháp lý",
       links: [
         { href: "/", label: "Bột phô mai tách muối" },
@@ -331,7 +466,7 @@ const serviceMegaMenuColumns: readonly MegaMenuColumn[] = [
   ],
   [
     {
-      href: "/dich-vu-marketing/",
+      href: "",
       label: "Dịch vụ marketing",
       links: [
         { href: "/", label: "Bột gừng" },
@@ -383,14 +518,21 @@ function renderMegaMenu(columns: readonly MegaMenuColumn[], menuClass: string): 
 }
 
 function renderMegaMenuGroup(group: MegaMenuGroup): string {
-  const links = group.links?.map((link) => (
-    `<div class="ux-menu-link flex menu-item"><a class="ux-menu-link__link flex" href="${escapeAttribute(resolveMegaMenuHref(link.href, group.href))}"><i class="ux-menu-link__icon text-center icon-angle-right"></i><span class="ux-menu-link__text">${escapeHtml(link.label)}</span></a></div>`
-  )).join("\n");
+  const links = group.links?.map((link) => {
+    const content = `<i class="ux-menu-link__icon text-center icon-angle-right"></i><span class="ux-menu-link__text">${escapeHtml(link.label)}</span>`;
+    const inner = legacyMegaMenuHrefFallbacks[link.href] === "parent"
+      ? `<span class="ux-menu-link__link flex">${content}</span>`
+      : `<a class="ux-menu-link__link flex" href="${escapeAttribute(link.href)}">${content}</a>`;
+    return `<div class="ux-menu-link flex menu-item">${inner}</div>`;
+  }).join("\n");
   const linkMenu = links === undefined
     ? ""
     : `<div class="ux-menu stack stack-col justify-start ux-menu--divider-solid">${links}</div>`;
+  const heading = group.href
+    ? `<h4><a href="${escapeAttribute(group.href)}">${escapeHtml(group.label)}</a></h4>`
+    : `<h4><span>${escapeHtml(group.label)}</span></h4>`;
 
-  return `<h4><a href="${escapeAttribute(group.href)}">${escapeHtml(group.label)}</a></h4>${linkMenu}`;
+  return `${heading}${linkMenu}`;
 }
 
 function resolveMegaMenuHref(href: string, parentHref: string): string {

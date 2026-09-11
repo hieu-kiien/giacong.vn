@@ -1,0 +1,214 @@
+{
+  "capturedAt": "2026-09-09",
+  "deployment": {
+    "environment": "staging",
+    "worker": "giacong-vn-staging",
+    "version": 182,
+    "versionId": "53ab71f4-d211-4e24-a8c4-981172bd095b",
+    "publicUrl": "https://staging.kienhieu.id.vn/",
+    "adminUrl": "https://admin-staging.kienhieu.id.vn/"
+  },
+  "scope": {
+    "mode": "browser-session evidence only",
+    "writes": 0,
+    "deployments": 0,
+    "productionTouched": false,
+    "secretsExported": false,
+    "storageStateExported": false
+  },
+  "publicMenuEscape": {
+    "product": {
+      "selector": "#menu-item-1742",
+      "before": {
+        "marker": null,
+        "opacity": "1",
+        "visibility": "visible",
+        "pointerEvents": "auto",
+        "transitionProperty": "opacity, visibility",
+        "transitionDuration": "0.25s, 0.25s",
+        "focusWithin": false
+      },
+      "escapeT0": {
+        "marker": "true",
+        "opacity": "1",
+        "visibility": "visible",
+        "pointerEvents": "none",
+        "focusWithin": false
+      },
+      "escapeT50ms": {
+        "marker": "true",
+        "opacity": "0.423663",
+        "visibility": "visible",
+        "pointerEvents": "none"
+      },
+      "escapeT400ms": {
+        "marker": "true",
+        "opacity": "0",
+        "visibility": "hidden",
+        "pointerEvents": "none"
+      },
+      "pointerExitThenReentry": {
+        "marker": null,
+        "opacity": "1",
+        "visibility": "visible",
+        "pointerEvents": "auto",
+        "hover": true
+      }
+    },
+    "service": {
+      "selector": "#menu-item-5166",
+      "before": {
+        "marker": null,
+        "opacity": "0.885137",
+        "visibility": "visible",
+        "pointerEvents": "auto",
+        "transitionProperty": "opacity, visibility",
+        "transitionDuration": "0.25s, 0.25s",
+        "hover": true
+      },
+      "escapeT0": {
+        "marker": "true",
+        "opacity": "0.872384",
+        "visibility": "visible",
+        "pointerEvents": "none"
+      },
+      "escapeT50ms": {
+        "marker": "true",
+        "opacity": "0.349694",
+        "visibility": "visible",
+        "pointerEvents": "none"
+      },
+      "escapeT400ms": {
+        "marker": "true",
+        "opacity": "0",
+        "visibility": "hidden",
+        "pointerEvents": "none"
+      },
+      "pointerExitThenReentry": {
+        "marker": null,
+        "opacity": "1",
+        "visibility": "visible",
+        "pointerEvents": "auto",
+        "hover": true
+      }
+    }
+  },
+  "publicRuntime": {
+    "consoleWarnErrorCount": 0,
+    "networkEvents": 51,
+    "networkResponses": 50,
+    "httpStatusAtLeast400": [],
+    "loadingFailures": [
+      {
+        "canceled": true,
+        "error": "net::ERR_ABORTED",
+        "type": "Fetch"
+      }
+    ]
+  },
+  "adminR1": {
+    "sidebar": {
+      "dirtyUrl": "https://admin-staging.kienhieu.id.vn/admin/noi-dung",
+      "dialogTitle": "Bỏ thay đổi chưa lưu?",
+      "dialogFocus": "button Đóng",
+      "stay": {
+        "urlUnchanged": true,
+        "syntheticDraftRetained": true,
+        "modalClosed": true
+      },
+      "discard": {
+        "url": "https://admin-staging.kienhieu.id.vn/admin/tin-tuc",
+        "editorUnmounted": true,
+        "syntheticDraftAbsent": true
+      }
+    },
+    "history": {
+      "forwardGuard": {
+        "dialog": true,
+        "urlStayedOnEditor": true,
+        "syntheticDraftRetained": true,
+        "dialogFocus": "button Đóng"
+      },
+      "backGuard": {
+        "dialog": true,
+        "urlStayedOnEditor": true,
+        "syntheticDraftRetained": true,
+        "dialogFocus": "button Đóng"
+      },
+      "discard": {
+        "url": "https://admin-staging.kienhieu.id.vn/admin/tin-tuc",
+        "editorUnmounted": true,
+        "syntheticDraftAbsent": true
+      }
+    },
+    "queryHash": {
+      "before": "https://admin-staging.kienhieu.id.vn/admin/noi-dung?tab=a#alpha",
+      "currentAfterPush": "https://admin-staging.kienhieu.id.vn/admin/noi-dung?tab=b#beta",
+      "backGuard": {
+        "dialog": true,
+        "urlStayedAtCurrent": true,
+        "syntheticDraftRetained": true,
+        "dialogFocus": "button Đóng"
+      },
+      "stay": {
+        "urlStayedAtCurrent": true,
+        "syntheticDraftRetained": true
+      },
+      "discardObserved": {
+        "url": "https://admin-staging.kienhieu.id.vn/admin/noi-dung?tab=a#alpha",
+        "editorPresent": true,
+        "syntheticDraftStillPresent": true,
+        "statusText": "Chưa lưu",
+        "classification": "LIMITATION / follow-up; not claimed as pass"
+      }
+    },
+    "nestedVariant": {
+      "parentEditor": "QA STAGING CRUD 20260824 updated",
+      "dirtyField": "Tên biến thể",
+      "parentCancelGuard": true,
+      "dialogFocus": "button Đóng",
+      "discard": {
+        "listReturned": true,
+        "editorUnmounted": true,
+        "syntheticDraftAbsent": true
+      }
+    },
+    "nestedMedia": {
+      "parentEditor": "QA STAGING CRUD 20260824 updated",
+      "dirtyField": "Mô tả ảnh",
+      "parentCancelGuard": true,
+      "dialogFocus": "button Đóng",
+      "discard": {
+        "listReturned": true,
+        "editorUnmounted": true,
+        "syntheticDraftAbsent": true
+      }
+    }
+  },
+  "adminRuntime": {
+    "url": "https://admin-staging.kienhieu.id.vn/admin/tin-tuc",
+    "consoleWarnErrorCount": 1,
+    "consoleEntries": [
+      {
+        "level": "error",
+        "message": "AbortError: Transition was skipped"
+      }
+    ],
+    "networkEvents": 29,
+    "networkResponses": 27,
+    "httpStatusAtLeast400": [],
+    "loadingFailures": [
+      {
+        "canceled": true,
+        "error": "net::ERR_ABORTED",
+        "type": "Fetch"
+      },
+      {
+        "canceled": true,
+        "error": "net::ERR_ABORTED",
+        "type": "Fetch"
+      }
+    ]
+  },
+  "visualArtifactNote": "The CUA session displayed a live clipped storefront screenshot during capture. The checked-in SVG is an observation card generated from the same DOM/computed-style samples; it is not a replacement claim for a raw raster screenshot."
+}

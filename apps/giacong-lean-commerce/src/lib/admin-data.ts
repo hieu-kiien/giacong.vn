@@ -4,7 +4,9 @@ import { getCloudflareContext } from "@opennextjs/cloudflare";
 
 import type { AdminCategoryInput } from "./admin-category-input";
 import type { AdminNewsDraftInput } from "./admin-news-input";
+import { isAdminRole } from "./admin-permissions.ts";
 
+// Retired values remain readable in historical records; only owner passes admission.
 export type AdminRole = "owner" | "content_manager" | "catalog_manager" | "sales_manager" | "viewer";
 export type AdminPublishStatus = "draft" | "review" | "published" | "archived";
 export type LeadStatus =
@@ -169,6 +171,13 @@ export interface AdminLead {
   assignedTo: string | null;
   createdAt: string;
   updatedAt: string;
+  // Giao hang sang Google (migration 0002). Optional de giu hop dong cu:
+  // nguoi doc cu khong can biet cac truong nay van bien dich duoc.
+  publicReference?: string | null;
+  webhookReference?: string | null;
+  deliveryError?: string | null;
+  deliveryAttempts?: number;
+  deliveredAt?: string | null;
 }
 
 export class AdminDataError extends Error {
@@ -211,7 +220,7 @@ export async function findAdminMember(
     display_name: string;
     role: AdminRole;
   }>();
-  if (exactRow) return toAdminMember(exactRow);
+  if (exactRow) return isAdminRole(exactRow.role) ? toAdminMember(exactRow) : null;
 
   const normalizedEmail = email?.trim().toLowerCase() ?? "";
   if (!normalizedEmail) return null;
@@ -230,7 +239,7 @@ export async function findAdminMember(
     display_name: string;
     role: AdminRole;
   }>();
-  if (emailRows.results.length !== 1) return null;
+  if (emailRows.results.length !== 1 || !isAdminRole(emailRows.results[0].role)) return null;
   return toAdminMember(emailRows.results[0]);
 }
 
@@ -951,7 +960,8 @@ export async function listAdminLeads(
   `).bind(...params).first<{ total: number }>();
   const rows = await database.prepare(`
     SELECT id, status, full_name, company_name, email, phone, country, message,
-      source, delivery_status, assigned_to, revision, created_at, updated_at
+      source, delivery_status, assigned_to, revision, created_at, updated_at,
+      public_reference, webhook_reference, delivery_error, delivered_at, delivery_attempts
     FROM leads
     ${where}
     ORDER BY created_at DESC
@@ -971,6 +981,11 @@ export async function listAdminLeads(
     revision: number;
     created_at: string;
     updated_at: string;
+    public_reference: string | null;
+    webhook_reference: string | null;
+    delivery_error: string | null;
+    delivered_at: string | null;
+    delivery_attempts: number | null;
   }>();
 
   return {
@@ -979,16 +994,21 @@ export async function listAdminLeads(
       companyName: row.company_name,
       country: row.country,
       createdAt: row.created_at,
+      deliveredAt: row.delivered_at ?? null,
+      deliveryAttempts: toDeliveryAttempts(row.delivery_attempts),
+      deliveryError: row.delivery_error ?? null,
       deliveryStatus: row.delivery_status,
       email: row.email,
       fullName: row.full_name,
       id: row.id,
       message: row.message,
       phone: row.phone,
+      publicReference: toPublicReference(row.id, row.public_reference),
       revision: row.revision,
       source: row.source,
       status: row.status,
       updatedAt: row.updated_at,
+      webhookReference: row.webhook_reference ?? null,
     })),
     total: integer(count?.total ?? 0),
   };
@@ -1021,7 +1041,8 @@ export async function updateAdminLeadStatus(
 export async function readAdminLead(database: D1DatabaseLike, leadId: string): Promise<AdminLead | null> {
   const row = await database.prepare(`
     SELECT id, status, full_name, company_name, email, phone, country, message,
-      source, delivery_status, assigned_to, revision, created_at, updated_at
+      source, delivery_status, assigned_to, revision, created_at, updated_at,
+      public_reference, webhook_reference, delivery_error, delivered_at, delivery_attempts
     FROM leads
     WHERE id = ?
     LIMIT 1
@@ -1061,6 +1082,11 @@ type AdminLeadRow = {
   revision: number;
   created_at: string;
   updated_at: string;
+  public_reference: string | null;
+  webhook_reference: string | null;
+  delivery_error: string | null;
+  delivered_at: string | null;
+  delivery_attempts: number | null;
 };
 
 type ServiceRow = {
@@ -1259,17 +1285,33 @@ function toAdminLead(row: AdminLeadRow): AdminLead {
     companyName: row.company_name,
     country: row.country,
     createdAt: row.created_at,
+    deliveredAt: row.delivered_at ?? null,
+    deliveryAttempts: toDeliveryAttempts(row.delivery_attempts),
+    deliveryError: row.delivery_error ?? null,
     deliveryStatus: row.delivery_status,
     email: row.email,
     fullName: row.full_name,
     id: row.id,
     message: row.message,
     phone: row.phone,
+    publicReference: toPublicReference(row.id, row.public_reference),
     revision: row.revision,
     source: row.source,
     status: row.status,
     updatedAt: row.updated_at,
+    webhookReference: row.webhook_reference ?? null,
   };
+}
+
+function toPublicReference(leadId: string, stored: string | null): string {
+  if (stored) return stored;
+  return `LEAD-${leadId.replaceAll("-", "").slice(0, 10).toUpperCase()}`;
+}
+
+function toDeliveryAttempts(value: number | null): number {
+  return typeof value === "number" && Number.isFinite(value) && value >= 0
+    ? Math.trunc(value)
+    : 0;
 }
 
 async function countRows(

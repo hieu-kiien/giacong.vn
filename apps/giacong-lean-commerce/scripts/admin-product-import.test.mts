@@ -612,7 +612,7 @@ test("a request ID owned by another mutation is not treated as an import replay"
 
 test("catalog import uses the canonical matrix and does not grant content_manager catalog.write", () => {
   assert.equal(canManageCatalog("owner"), true);
-  assert.equal(canManageCatalog("catalog_manager"), true);
+  assert.equal(canManageCatalog("catalog_manager"), false);
   assert.equal(canManageCatalog("content_manager"), false);
   assert.equal(canManageCatalog("viewer"), false);
 });

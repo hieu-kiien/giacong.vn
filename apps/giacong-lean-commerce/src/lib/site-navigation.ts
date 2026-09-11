@@ -7,6 +7,7 @@ export type NavigationMenuKey = "primary" | "footer";
 export interface PublishedNavigationItem {
   id: string;
   capturedMenuId: string | null;
+  parentId?: string | null;
   href: string;
   isActive: boolean;
   label: string;
@@ -17,11 +18,13 @@ export interface PublishedNavigationItem {
 export interface AdminNavigationItem {
   id: string;
   capturedMenuId: string | null;
+  draftParentId?: string | null;
   draftHref: string;
   draftIsActive: boolean;
   draftLabel: string;
   draftSortOrder: number;
   publishedHref: string;
+  publishedParentId?: string | null;
   publishedIsActive: boolean;
   publishedLabel: string;
   publishedSortOrder: number;
@@ -35,6 +38,7 @@ export interface AdminNavigationItem {
 }
 
 export const MAX_NAVIGATION_BULK_ITEMS = 100;
+const MAX_NAVIGATION_RENDER_DEPTH = 64;
 
 export type AdminNavigationBulkSkipReason = "stale";
 
@@ -72,12 +76,12 @@ export class SiteNavigationNotFoundError extends Error {
 }
 
 export const defaultPrimaryNavigation: readonly PublishedNavigationItem[] = [
-  { id: "home", capturedMenuId: "menu-item-4618", href: "/", isActive: true, label: "Home", menuKey: "primary", sortOrder: 10 },
-  { id: "about", capturedMenuId: "menu-item-5498", href: "/gioi-thieu-ve-gia-cong/", isActive: true, label: "Về Giacong.vn", menuKey: "primary", sortOrder: 20 },
-  { id: "products", capturedMenuId: "menu-item-1742", href: "/san-pham/", isActive: true, label: "Mua hàng", menuKey: "primary", sortOrder: 30 },
-  { id: "services", capturedMenuId: "menu-item-5166", href: "/thue-gia-cong/", isActive: true, label: "Thuê gia công", menuKey: "primary", sortOrder: 40 },
-  { id: "news", capturedMenuId: "menu-item-1541", href: "/tin-tuc/", isActive: true, label: "Tin tức", menuKey: "primary", sortOrder: 50 },
-  { id: "contact", capturedMenuId: "menu-item-1542", href: "/lien-he/", isActive: true, label: "Liên hệ", menuKey: "primary", sortOrder: 60 },
+  { id: "home", capturedMenuId: "menu-item-4618", href: "/", isActive: true, label: "Home", menuKey: "primary", parentId: null, sortOrder: 10 },
+  { id: "about", capturedMenuId: "menu-item-5498", href: "/gioi-thieu-ve-gia-cong/", isActive: true, label: "Về Giacong.vn", menuKey: "primary", parentId: null, sortOrder: 20 },
+  { id: "products", capturedMenuId: "menu-item-1742", href: "/san-pham/", isActive: true, label: "Mua hàng", menuKey: "primary", parentId: null, sortOrder: 30 },
+  { id: "services", capturedMenuId: "menu-item-5166", href: "/thue-gia-cong/", isActive: true, label: "Thuê gia công", menuKey: "primary", parentId: null, sortOrder: 40 },
+  { id: "news", capturedMenuId: "menu-item-1541", href: "/tin-tuc/", isActive: true, label: "Tin tức", menuKey: "primary", parentId: null, sortOrder: 50 },
+  { id: "contact", capturedMenuId: "menu-item-1542", href: "/lien-he/", isActive: true, label: "Liên hệ", menuKey: "primary", parentId: null, sortOrder: 60 },
 ];
 
 const capturedNavigationAliases: Readonly<Record<string, readonly string[]>> = {
@@ -92,11 +96,47 @@ export async function listAdminSiteNavigation(database: D1DatabaseLike): Promise
   const rows = await database.prepare(`
     SELECT id, menu_key, captured_menu_id,
       draft_label, draft_href, draft_sort_order, draft_is_active,
+      draft_parent_id,
       published_label, published_href, published_sort_order, published_is_active,
+      published_parent_id,
       version, updated_by, updated_at, published_by, published_at, last_request_id
     FROM site_navigation_items
     ORDER BY menu_key ASC, draft_sort_order ASC, id ASC
     LIMIT 100
+  `).all<SiteNavigationRow>();
+  return rows.results.map(toAdminNavigationItem);
+}
+
+async function listAdminSiteNavigationByIds(
+  database: D1DatabaseLike,
+  ids: readonly string[],
+): Promise<AdminNavigationItem[]> {
+  if (ids.length === 0) return [];
+  const placeholders = ids.map(() => "?").join(", ");
+  const rows = await database.prepare(`
+    SELECT id, menu_key, captured_menu_id,
+      draft_label, draft_href, draft_sort_order, draft_is_active,
+      draft_parent_id,
+      published_label, published_href, published_sort_order, published_is_active,
+      published_parent_id,
+      version, updated_by, updated_at, published_by, published_at, last_request_id
+    FROM site_navigation_items
+    WHERE id IN (${placeholders})
+    ORDER BY menu_key ASC, draft_sort_order ASC, id ASC
+    LIMIT ${MAX_NAVIGATION_BULK_ITEMS}
+  `).bind(...ids).all<SiteNavigationRow>();
+  return rows.results.map(toAdminNavigationItem);
+}
+
+async function listAdminSiteNavigationGraph(database: D1DatabaseLike): Promise<AdminNavigationItem[]> {
+  const rows = await database.prepare(`
+    SELECT id, menu_key, captured_menu_id,
+      draft_label, draft_href, draft_sort_order, draft_is_active,
+      draft_parent_id,
+      published_label, published_href, published_sort_order, published_is_active,
+      published_parent_id,
+      version, updated_by, updated_at, published_by, published_at, last_request_id
+    FROM site_navigation_items
   `).all<SiteNavigationRow>();
   return rows.results.map(toAdminNavigationItem);
 }
@@ -109,7 +149,9 @@ export async function getAdminSiteNavigation(
   const row = await database.prepare(`
     SELECT id, menu_key, captured_menu_id,
       draft_label, draft_href, draft_sort_order, draft_is_active,
+      draft_parent_id,
       published_label, published_href, published_sort_order, published_is_active,
+      published_parent_id,
       version, updated_by, updated_at, published_by, published_at, last_request_id
     FROM site_navigation_items
     WHERE id = ?
@@ -127,6 +169,7 @@ export async function createAdminSiteNavigation(
     isActive?: unknown;
     label: unknown;
     menuKey: unknown;
+    parentId?: unknown;
     requestId: string;
     sortOrder?: unknown;
   },
@@ -135,8 +178,10 @@ export async function createAdminSiteNavigation(
   const label = normalizeText(input.label, "label", 120);
   const href = normalizeHref(input.href);
   const capturedMenuId = normalizeCapturedMenuId(input.capturedMenuId);
+  const parentId = normalizeOptionalNavigationId(input.parentId);
   const sortOrder = normalizeSortOrder(input.sortOrder);
   const isActive = normalizeBoolean(input.isActive, true);
+  assertNavigationParentSemantics({ capturedMenuId, menuKey, parentId });
   const requestId = normalizeNavigationRequestId(input.requestId);
   const payloadSha256 = await fingerprintNavigationMutation({
     capturedMenuId,
@@ -144,6 +189,7 @@ export async function createAdminSiteNavigation(
     isActive,
     label,
     menuKey,
+    parentId,
     operation: "create",
     sortOrder,
   });
@@ -155,6 +201,7 @@ export async function createAdminSiteNavigation(
     isActive,
     label,
     menuKey,
+    parentId,
     payloadSha256,
     requestId,
     sortOrder,
@@ -167,14 +214,23 @@ export async function createAdminSiteNavigation(
   }
   const id = crypto.randomUUID();
   postcondition.entityId = id;
+  await assertNavigationDraftTree(database, {
+    id,
+    parentId,
+    menuKey,
+    label,
+    href,
+    isActive,
+    sortOrder,
+  });
 
   const insert = database.prepare(`
     INSERT INTO site_navigation_items (
       id, menu_key, captured_menu_id,
       draft_label, draft_href, draft_sort_order, draft_is_active,
       published_label, published_href, published_sort_order, published_is_active,
-      updated_by, last_request_id
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      updated_by, last_request_id, draft_parent_id, published_parent_id
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).bind(
     id,
     menuKey,
@@ -186,9 +242,11 @@ export async function createAdminSiteNavigation(
     label,
     href,
     sortOrder,
-    isActive ? 1 : 0,
+    0,
     input.actorSubject,
     requestId,
+    parentId,
+    null,
   );
   const audit = database.prepare(`
     INSERT INTO admin_navigation_create_audit (
@@ -201,6 +259,7 @@ export async function createAdminSiteNavigation(
       database,
       insert,
       audit,
+      buildNavigationGraphPostcondition(database, "draft"),
       buildNavigationCreatePostcondition(database, postcondition),
     );
   } catch (error) {
@@ -226,6 +285,7 @@ export async function updateAdminSiteNavigation(
     id: string;
     isActive: unknown;
     label: unknown;
+    parentId?: unknown;
     requestId: string;
     sortOrder: unknown;
   },
@@ -234,6 +294,7 @@ export async function updateAdminSiteNavigation(
   const label = normalizeText(input.label, "label", 120);
   const href = normalizeHref(input.href);
   const sortOrder = normalizeSortOrder(input.sortOrder);
+  const parentId = normalizeOptionalNavigationId(input.parentId);
   const isActive = normalizeBoolean(input.isActive);
   if (!Number.isInteger(input.expectedVersion) || input.expectedVersion < 1) {
     throw new SiteNavigationValidationError("expectedVersion không hợp lệ.");
@@ -245,6 +306,7 @@ export async function updateAdminSiteNavigation(
     id,
     isActive,
     label,
+    parentId,
     operation: "draft",
     sortOrder,
   });
@@ -253,6 +315,7 @@ export async function updateAdminSiteNavigation(
     draftHref: href,
     draftIsActive: isActive,
     draftLabel: label,
+    draftParentId: parentId,
     draftSortOrder: sortOrder,
     entityId: id,
     expectedVersion: input.expectedVersion,
@@ -270,10 +333,20 @@ export async function updateAdminSiteNavigation(
   if (current.version !== input.expectedVersion) {
     throw new SiteNavigationConflictError("Mục điều hướng đã thay đổi ở phiên khác. Hãy tải lại trước khi lưu.");
   }
+  assertNavigationParentSemantics({ capturedMenuId: current.capturedMenuId, menuKey: current.menuKey, parentId });
+  await assertNavigationDraftTree(database, {
+    id,
+    parentId,
+    menuKey: current.menuKey,
+    label,
+    href,
+    isActive,
+    sortOrder,
+  });
 
   const update = database.prepare(`
     UPDATE site_navigation_items
-    SET draft_label = ?, draft_href = ?, draft_sort_order = ?, draft_is_active = ?,
+    SET draft_label = ?, draft_href = ?, draft_sort_order = ?, draft_is_active = ?, draft_parent_id = ?,
       version = version + 1, updated_by = ?, updated_at = CURRENT_TIMESTAMP,
       last_request_id = ?
     WHERE id = ? AND version = ?
@@ -282,6 +355,7 @@ export async function updateAdminSiteNavigation(
     href,
     sortOrder,
     isActive ? 1 : 0,
+    parentId,
     input.actorSubject,
     requestId,
     id,
@@ -300,6 +374,7 @@ export async function updateAdminSiteNavigation(
       database,
       update,
       audit,
+      buildNavigationGraphPostcondition(database, "draft"),
       buildNavigationPostconditionAssertion(database, postcondition),
     );
   } catch (error) {
@@ -357,6 +432,7 @@ export async function publishAdminSiteNavigation(
     UPDATE site_navigation_items
     SET published_label = draft_label, published_href = draft_href,
       published_sort_order = draft_sort_order, published_is_active = draft_is_active,
+      published_parent_id = draft_parent_id,
       version = version + 1,
       published_by = ?, published_at = CURRENT_TIMESTAMP,
       updated_by = ?, updated_at = CURRENT_TIMESTAMP,
@@ -376,6 +452,7 @@ export async function publishAdminSiteNavigation(
       database,
       update,
       audit,
+      buildNavigationGraphPostcondition(database, "published"),
       buildNavigationPostconditionAssertion(database, postcondition),
     );
   } catch (error) {
@@ -411,13 +488,16 @@ export async function publishAllAdminSiteNavigation(
   const rows = await database.prepare(`
     SELECT id, menu_key, captured_menu_id,
       draft_label, draft_href, draft_sort_order, draft_is_active,
+      draft_parent_id,
       published_label, published_href, published_sort_order, published_is_active,
+      published_parent_id,
       version, updated_by, updated_at, published_by, published_at, last_request_id
     FROM site_navigation_items
     WHERE draft_label <> published_label
       OR draft_href <> published_href
       OR draft_sort_order <> published_sort_order
       OR draft_is_active <> published_is_active
+      OR draft_parent_id IS NOT published_parent_id
     ORDER BY menu_key ASC, draft_sort_order ASC, id ASC
     LIMIT 101
   `).all<SiteNavigationRow>();
@@ -444,6 +524,7 @@ export async function publishAllAdminSiteNavigation(
       UPDATE site_navigation_items
         SET published_label = draft_label, published_href = draft_href,
           published_sort_order = draft_sort_order, published_is_active = draft_is_active,
+          published_parent_id = draft_parent_id,
           version = version + 1,
           published_by = ?, published_at = CURRENT_TIMESTAMP,
           updated_by = ?, updated_at = CURRENT_TIMESTAMP,
@@ -487,6 +568,7 @@ export async function publishAllAdminSiteNavigation(
     )
     WHERE request_id = ?
   `).bind(requestId, requestId));
+  statements.push(buildNavigationGraphPostcondition(database, "published"));
   statements.push(buildNavigationBulkEnvelopePostcondition(database, {
     actorSubject: input.actorSubject,
     operation: "publish_all",
@@ -540,6 +622,7 @@ interface NavigationMutationPostcondition {
   draftHref?: string;
   draftIsActive?: boolean;
   draftLabel?: string;
+  draftParentId?: string | null;
   draftSortOrder?: number;
   entityId: string;
   expectedVersion: number;
@@ -556,9 +639,84 @@ interface NavigationCreatePostcondition {
   isActive: boolean;
   label: string;
   menuKey: NavigationMenuKey;
+  parentId: string | null;
   payloadSha256: string;
   requestId: string;
   sortOrder: number;
+}
+
+export interface NavigationTreeItem {
+  id: string;
+  parentId: string | null;
+  menuKey: NavigationMenuKey;
+  label: string;
+  href: string;
+  isActive: boolean;
+  sortOrder: number;
+}
+
+/** Validates and flattens the canonical parent/child model without changing legacy readers. */
+export function validateNavigationTree(items: readonly NavigationTreeItem[]): NavigationTreeItem[] {
+  const byId = new Map<string, NavigationTreeItem>();
+  for (const item of items) {
+    const id = normalizeNavigationId(item.id);
+    if (byId.has(id)) throw new SiteNavigationValidationError("id điều hướng bị trùng.");
+    const normalized = {
+      ...item,
+      id,
+      parentId: item.parentId === null ? null : normalizeNavigationId(item.parentId),
+      menuKey: normalizeMenuKey(item.menuKey),
+      label: normalizeText(item.label, "label", 120),
+      href: normalizeHref(item.href),
+      sortOrder: normalizeSortOrder(item.sortOrder),
+    };
+    byId.set(id, normalized);
+  }
+  for (const item of byId.values()) {
+    if (item.parentId === null) continue;
+    const parent = byId.get(item.parentId);
+    if (!parent) throw new SiteNavigationValidationError("Mục cha không tồn tại.");
+    if (parent.menuKey !== item.menuKey) throw new SiteNavigationValidationError("Mục cha phải cùng vị trí menu.");
+  }
+  const visiting = new Set<string>();
+  const visited = new Set<string>();
+  function visit(item: NavigationTreeItem): void {
+    if (visiting.has(item.id)) throw new SiteNavigationValidationError("Cây menu có cycle.");
+    if (visited.has(item.id)) return;
+    visiting.add(item.id);
+    if (item.parentId) visit(byId.get(item.parentId)!);
+    visiting.delete(item.id);
+    visited.add(item.id);
+  }
+  for (const item of byId.values()) visit(item);
+  const children = new Map<string | null, NavigationTreeItem[]>();
+  for (const item of byId.values()) children.set(item.parentId, [...(children.get(item.parentId) ?? []), item]);
+  for (const siblings of children.values()) siblings.sort((a, b) => a.sortOrder - b.sortOrder || a.id.localeCompare(b.id));
+  const flattened: NavigationTreeItem[] = [];
+  function append(parentId: string | null): void {
+    for (const item of children.get(parentId) ?? []) { flattened.push(item); append(item.id); }
+  }
+  append(null);
+  return flattened;
+}
+
+async function assertNavigationDraftTree(
+  database: D1DatabaseLike,
+  candidate: NavigationTreeItem,
+): Promise<void> {
+  const current = await listAdminSiteNavigationGraph(database);
+  const next = current
+    .filter((item) => item.id !== candidate.id)
+    .map((item) => ({
+      id: item.id,
+      parentId: item.draftParentId ?? null,
+      menuKey: item.menuKey,
+      label: item.draftLabel,
+      href: item.draftHref,
+      isActive: item.draftIsActive,
+      sortOrder: item.draftSortOrder,
+    }));
+  validateNavigationTree([...next, candidate]);
 }
 
 interface NavigationBulkItemPostcondition extends NavigationMutationPostcondition {
@@ -619,10 +777,49 @@ function buildNavigationAuditStatement(
   );
 }
 
+function buildNavigationGraphPostcondition(
+  database: D1DatabaseLike,
+  revision: "draft" | "published",
+): D1PreparedStatementLike {
+  const parentColumn = revision === "draft" ? "draft_parent_id" : "published_parent_id";
+  return database.prepare(`
+    /* navigation-${revision}-graph-postcondition */
+    WITH RECURSIVE parent_chain(id, ancestor, path, cycle) AS (
+      SELECT id, ${parentColumn}, '|' || id || '|', 0
+      FROM site_navigation_items
+      UNION ALL
+      SELECT chain.id, parent.${parentColumn}, chain.path || parent.id || '|',
+        CASE WHEN instr(chain.path, '|' || parent.id || '|') > 0 THEN 1 ELSE 0 END
+      FROM parent_chain chain
+      JOIN site_navigation_items parent ON parent.id = chain.ancestor
+      WHERE chain.cycle = 0
+    )
+    INSERT INTO admin_navigation_audit (
+      request_id, actor_subject, action, operation, entity_type, entity_key,
+      previous_revision, resulting_revision, payload_sha256, bulk_request_id
+    )
+    SELECT NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL
+    WHERE EXISTS (
+      SELECT 1
+      FROM site_navigation_items child
+      LEFT JOIN site_navigation_items parent ON parent.id = child.${parentColumn}
+      WHERE child.${parentColumn} IS NOT NULL
+        AND (
+          parent.id IS NULL
+          OR parent.menu_key <> child.menu_key
+          OR child.captured_menu_id IS NOT NULL
+          OR child.menu_key = 'footer'
+        )
+    )
+    OR EXISTS (SELECT 1 FROM parent_chain WHERE cycle = 1)
+  `);
+}
+
 async function applyAtomicNavigationMutation(
   database: D1DatabaseLike,
   update: D1PreparedStatementLike,
   audit: D1PreparedStatementLike,
+  graphPostcondition: D1PreparedStatementLike,
   postcondition: D1PreparedStatementLike,
 ): Promise<void> {
   const databaseWithBatch = database as D1DatabaseWithBatch;
@@ -630,7 +827,7 @@ async function applyAtomicNavigationMutation(
     throw new SiteNavigationStorageError("D1 atomic batch chưa sẵn sàng cho thay đổi điều hướng.");
   }
   try {
-    await databaseWithBatch.batch([update, audit, postcondition]);
+    await databaseWithBatch.batch([update, audit, graphPostcondition, postcondition]);
   } catch (error) {
     throw normalizeNavigationWriteError(error);
   }
@@ -732,6 +929,7 @@ function buildNavigationBulkItemPostcondition(
           AND navigation_row.published_href = navigation_row.draft_href
           AND navigation_row.published_sort_order = navigation_row.draft_sort_order
           AND navigation_row.published_is_active = navigation_row.draft_is_active
+          AND navigation_row.published_parent_id IS navigation_row.draft_parent_id
           AND navigation_row.published_by = ?
           AND navigation_row.published_at IS NOT NULL
       )
@@ -845,12 +1043,14 @@ function buildNavigationMutationPostconditionExpression(
           AND navigation_row.draft_href = ?
           AND navigation_row.draft_sort_order = ?
           AND navigation_row.draft_is_active = ?
+          AND navigation_row.draft_parent_id IS ?
       `
     : `
           AND navigation_row.published_label = navigation_row.draft_label
           AND navigation_row.published_href = navigation_row.draft_href
           AND navigation_row.published_sort_order = navigation_row.draft_sort_order
           AND navigation_row.published_is_active = navigation_row.draft_is_active
+          AND navigation_row.published_parent_id IS navigation_row.draft_parent_id
           AND navigation_row.published_by = ?
           AND navigation_row.published_at IS NOT NULL
       `;
@@ -860,6 +1060,7 @@ function buildNavigationMutationPostconditionExpression(
       postcondition.draftHref ?? "",
       postcondition.draftSortOrder ?? 0,
       postcondition.draftIsActive ? 1 : 0,
+      postcondition.draftParentId ?? null,
     ]
     : [postcondition.actorSubject];
   return {
@@ -926,10 +1127,12 @@ function buildNavigationCreatePostconditionExpression(
           AND navigation_row.draft_href = ?
           AND navigation_row.draft_sort_order = ?
           AND navigation_row.draft_is_active = ?
+          AND navigation_row.draft_parent_id IS ?
           AND navigation_row.published_label = navigation_row.draft_label
           AND navigation_row.published_href = navigation_row.draft_href
           AND navigation_row.published_sort_order = navigation_row.draft_sort_order
-          AND navigation_row.published_is_active = navigation_row.draft_is_active
+          AND navigation_row.published_is_active = 0
+          AND navigation_row.published_parent_id IS NULL
       )
     `,
     values: [
@@ -946,6 +1149,7 @@ function buildNavigationCreatePostconditionExpression(
       postcondition.href,
       postcondition.sortOrder,
       postcondition.isActive ? 1 : 0,
+      postcondition.parentId,
     ],
   };
 }
@@ -1015,7 +1219,8 @@ async function readNavigationCreateMutationResult(
   await ensureNavigationCreateMutationComplete(database, postcondition);
   const item = await getAdminSiteNavigation(database, mutation.entity_key);
   if (!item) throw new SiteNavigationStorageError("Không đọc được mục điều hướng sau khi replay.");
-  if (item.version !== 1 || item.dirty) {
+  const shouldBeDirty = postcondition.isActive || postcondition.parentId !== null;
+  if (item.version !== 1 || item.publishedIsActive || item.publishedParentId !== null || item.dirty !== shouldBeDirty) {
     throw new SiteNavigationStorageError("Trạng thái mục điều hướng mới tạo không khớp sau khi ghi.");
   }
   return item;
@@ -1042,10 +1247,12 @@ interface NavigationBulkAuditItemRow {
   draft_href: string;
   draft_sort_order: number;
   draft_is_active: number;
+  draft_parent_id: string | null;
   published_label: string;
   published_href: string;
   published_sort_order: number;
   published_is_active: number;
+  published_parent_id: string | null;
   published_by: string | null;
   published_at: string | null;
 }
@@ -1082,8 +1289,10 @@ async function readBulkNavigationResult(
       navigation_row.version, navigation_row.last_request_id,
       navigation_row.draft_label, navigation_row.draft_href,
       navigation_row.draft_sort_order, navigation_row.draft_is_active,
+      navigation_row.draft_parent_id,
       navigation_row.published_label, navigation_row.published_href,
       navigation_row.published_sort_order, navigation_row.published_is_active,
+      navigation_row.published_parent_id,
       navigation_row.published_by, navigation_row.published_at
     FROM admin_navigation_audit audit
     JOIN site_navigation_items navigation_row ON navigation_row.id = audit.entity_key
@@ -1107,6 +1316,7 @@ async function readBulkNavigationResult(
     || row.draft_href !== row.published_href
     || row.draft_sort_order !== row.published_sort_order
     || row.draft_is_active !== row.published_is_active
+    || row.draft_parent_id !== row.published_parent_id
     || row.published_by !== mutation.actor_subject
     || row.published_at === null
   ));
@@ -1115,7 +1325,10 @@ async function readBulkNavigationResult(
   }
 
   const selectedIds = parseNavigationBulkSelectedIds(mutation.selected_ids_json, mutation.selected_count);
-  const navigationItems = await listAdminSiteNavigation(database);
+  const navigationItems = await listAdminSiteNavigationByIds(
+    database,
+    auditRows.results.map((row) => row.navigation_id),
+  );
   const navigationById = new Map(navigationItems.map((item) => [item.id, item]));
   const published = auditRows.results.map((row) => navigationById.get(row.navigation_id) ?? null);
   if (published.some((item): item is null => item === null)) {
@@ -1197,19 +1410,33 @@ export async function getPublishedSiteNavigation(): Promise<PublishedNavigationI
     const database = await getSiteDatabase();
     const rows = await database.prepare(`
       SELECT id, captured_menu_id, published_href, published_is_active,
-        published_label, published_sort_order, menu_key
+        published_label, published_sort_order, published_parent_id, menu_key
       FROM site_navigation_items
       ORDER BY menu_key ASC, published_sort_order ASC, id ASC
     `).all<PublishedNavigationRow>();
-    return rows.results.map((row) => ({
+    const navigationItems = rows.results.map((row) => ({
       capturedMenuId: row.captured_menu_id,
       href: row.published_href,
       id: row.id,
       isActive: row.published_is_active === 1,
       label: row.published_label,
       menuKey: normalizeMenuKey(row.menu_key),
+      parentId: row.published_parent_id ?? null,
       sortOrder: row.published_sort_order,
     }));
+    for (const item of navigationItems) {
+      assertNavigationParentSemantics({ capturedMenuId: item.capturedMenuId, menuKey: item.menuKey, parentId: item.parentId ?? null });
+    }
+    validateNavigationTree(navigationItems.map((item) => ({
+      id: item.id,
+      parentId: item.parentId ?? null,
+      menuKey: item.menuKey,
+      label: item.label,
+      href: item.href,
+      isActive: item.isActive,
+      sortOrder: item.sortOrder,
+    })));
+    return navigationItems;
   } catch (error) {
     console.warn("Published site navigation unavailable; using committed defaults.", error);
     return [...defaultPrimaryNavigation];
@@ -1268,14 +1495,76 @@ export function applyNavigationToMarkup(
   }
 
   const customItems = primaryItems.filter((item) => item.isActive && !item.capturedMenuId);
-  if (customItems.length > 0) {
-    const customMarkup = customItems.map((item) => (
-      `<li class="menu-item menu-item-design-default managed-navigation-item"><a href="${escapeAttribute(item.href)}" class="nav-top-link">${escapeHtml(item.label)}</a></li>`
-    )).join("\n");
+  const nestedItems = customItems.filter((item) => item.parentId);
+  if (nestedItems.length > 0) result = appendNestedCustomNavigation(result, primaryItems, nestedItems);
+  const topLevelCustomItems = customItems.filter((item) => !item.parentId);
+  if (topLevelCustomItems.length > 0) {
+    const customChildren = new Map<string, PublishedNavigationItem[]>();
+    for (const item of nestedItems) {
+      if (!item.parentId) continue;
+      customChildren.set(item.parentId, [...(customChildren.get(item.parentId) ?? []), item]);
+    }
+    for (const children of customChildren.values()) children.sort((left, right) => left.sortOrder - right.sortOrder || left.id.localeCompare(right.id));
+    const renderCustom = (item: PublishedNavigationItem, ancestors = new Set<string>(), depth = 0): string => {
+      if (depth >= MAX_NAVIGATION_RENDER_DEPTH || ancestors.has(item.id)) return "";
+      const nextAncestors = new Set(ancestors).add(item.id);
+      const children = customChildren.get(item.id) ?? [];
+      const childMarkup = children.length > 0
+        ? `<ul class="sub-nav nested-navigation-children">${children.map((child) => renderCustom(child, nextAncestors, depth + 1)).join("")}</ul>`
+        : "";
+      return `<li class="menu-item menu-item-design-default managed-navigation-item"><a href="${escapeAttribute(item.href)}" class="nav-top-link">${escapeHtml(item.label)}</a>${childMarkup}</li>`;
+    };
+    const customMarkup = topLevelCustomItems.map((item) => renderCustom(item)).join("\n");
     result = result.replace(/(<ul\b[^>]*class=["'][^"']*header-nav-main[^"']*["'][^>]*>)([\s\S]*?)(<\/ul>)/i, `$1$2${customMarkup}$3`);
     result = result.replace(/(<ul\b[^>]*class=["'][^"']*\bnav-sidebar\b[^"']*["'][^>]*>)([\s\S]*?)(<\/ul>)/i, `$1$2${customMarkup}$3`);
   }
   return reorderManagedNavigationLists(result, primaryItems);
+}
+
+function appendNestedCustomNavigation(
+  markup: string,
+  allItems: readonly PublishedNavigationItem[],
+  nestedItems: readonly PublishedNavigationItem[],
+): string {
+  const children = new Map<string, PublishedNavigationItem[]>();
+  for (const item of nestedItems) {
+    if (!item.parentId) continue;
+    children.set(item.parentId, [...(children.get(item.parentId) ?? []), item]);
+  }
+  for (const values of children.values()) values.sort((left, right) => left.sortOrder - right.sortOrder || left.id.localeCompare(right.id));
+  const render = (parentId: string, ancestors = new Set<string>(), depth = 0): string => {
+    if (depth >= MAX_NAVIGATION_RENDER_DEPTH || ancestors.has(parentId)) return "";
+    const nextAncestors = new Set(ancestors).add(parentId);
+    return (children.get(parentId) ?? []).map((item) => {
+      const childMarkup = render(item.id, nextAncestors, depth + 1);
+      return `<li class="menu-item menu-item-design-default managed-navigation-item nested-navigation-child"><a href="${escapeAttribute(item.href)}" class="nav-top-link">${escapeHtml(item.label)}</a>${childMarkup ? `<ul class="sub-nav">${childMarkup}</ul>` : ""}</li>`;
+    }).join("");
+  };
+  let result = markup;
+  for (const parent of allItems.filter((item) => item.capturedMenuId && children.has(item.id))) {
+    const capturedIds = [parent.capturedMenuId as string, ...(capturedNavigationAliases[parent.capturedMenuId as string] ?? [])];
+    for (const capturedId of capturedIds) {
+      const match = findMatchingListItem(result, capturedId);
+      if (!match) continue;
+      const nestedMarkup = `<ul class="sub-nav nested-navigation-children">${render(parent.id, new Set(), 0)}</ul>`;
+      result = `${result.slice(0, match.closeStart)}${nestedMarkup}${result.slice(match.closeStart)}`;
+    }
+  }
+  return result;
+}
+
+function findMatchingListItem(markup: string, capturedId: string): { closeStart: number } | null {
+  const opening = new RegExp(`<li\\b[^>]*\\bid=["']${escapeRegExp(capturedId)}["'][^>]*>`, "i").exec(markup);
+  if (!opening) return null;
+  const tagPattern = /<\/?li\b[^>]*>/gi;
+  tagPattern.lastIndex = opening.index;
+  let depth = 0;
+  let match: RegExpExecArray | null;
+  while ((match = tagPattern.exec(markup))) {
+    if (/^<li\b/i.test(match[0])) depth++;
+    else if (--depth === 0) return { closeStart: match.index };
+  }
+  return null;
 }
 
 /**
@@ -1405,10 +1694,12 @@ function toAdminNavigationItem(row: SiteNavigationRow): AdminNavigationItem {
     dirty: row.draft_label !== row.published_label
       || row.draft_href !== row.published_href
       || row.draft_sort_order !== row.published_sort_order
-      || row.draft_is_active !== row.published_is_active,
+      || row.draft_is_active !== row.published_is_active
+      || (row.draft_parent_id ?? null) !== (row.published_parent_id ?? null),
     draftHref: row.draft_href,
     draftIsActive: row.draft_is_active === 1,
     draftLabel: row.draft_label,
+    draftParentId: row.draft_parent_id ?? null,
     draftSortOrder: row.draft_sort_order,
     id: row.id,
     menuKey: normalizeMenuKey(row.menu_key),
@@ -1417,6 +1708,7 @@ function toAdminNavigationItem(row: SiteNavigationRow): AdminNavigationItem {
     publishedHref: row.published_href,
     publishedIsActive: row.published_is_active === 1,
     publishedLabel: row.published_label,
+    publishedParentId: row.published_parent_id ?? null,
     publishedSortOrder: row.published_sort_order,
     updatedAt: row.updated_at,
     updatedBy: row.updated_by,
@@ -1513,16 +1805,37 @@ interface SiteNavigationRow {
   draft_href: string;
   draft_sort_order: number;
   draft_is_active: number;
+  draft_parent_id: string | null;
   published_label: string;
   published_href: string;
   published_sort_order: number;
   published_is_active: number;
+  published_parent_id: string | null;
   version: number;
   updated_by: string | null;
   updated_at: string;
   published_by: string | null;
   published_at: string | null;
   last_request_id: string | null;
+}
+
+function normalizeOptionalNavigationId(value: unknown): string | null {
+  if (value === undefined || value === null || value === "") return null;
+  return normalizeNavigationId(value as string);
+}
+
+function assertNavigationParentSemantics(input: {
+  capturedMenuId: string | null;
+  menuKey: NavigationMenuKey;
+  parentId: string | null;
+}): void {
+  if (!input.parentId) return;
+  if (input.capturedMenuId) {
+    throw new SiteNavigationValidationError("Mục menu cũ phải ở cấp cao nhất; chỉ mục mới có thể làm mục con.");
+  }
+  if (input.menuKey === "footer") {
+    throw new SiteNavigationValidationError("Mục cuối trang phải ở cấp cao nhất.");
+  }
 }
 
 interface PublishedNavigationRow {
@@ -1533,6 +1846,7 @@ interface PublishedNavigationRow {
   published_href: string;
   published_sort_order: number;
   published_is_active: number;
+  published_parent_id: string | null;
 }
 
 function preserveNavigationIcons(inner: string): string {

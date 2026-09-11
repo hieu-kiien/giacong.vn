@@ -208,7 +208,7 @@ test("rejects malformed colors and unsafe URLs", async () => {
 
 test("only owner and content manager can edit or publish site content", () => {
   assert.equal(canManageSiteContent("owner"), true);
-  assert.equal(canManageSiteContent("content_manager"), true);
+  assert.equal(canManageSiteContent("content_manager"), false);
   assert.equal(canManageSiteContent("catalog_manager"), false);
   assert.equal(canPublishSiteContent("sales_manager"), false);
   assert.equal(canPublishSiteContent("viewer"), false);

@@ -40,7 +40,13 @@ test("news route has its own source-aligned page frame and active navigation", (
 });
 
 test("news route highlights its captured source menu item without changing shared navigation", () => {
-  assert.match(globals, /\.archive #header #menu-item-1541 > a/);
+  assert.match(globals, /\.archive\.category-tin-tuc #header #menu-item-1541 > a/);
+  assert.doesNotMatch(globals, /\.archive #header #menu-item-1541/);
+});
+
+test("header-only mega menu groups reuse the linked heading style", () => {
+  assert.match(globals, /\.menu-san-pham h4 > span[\s\S]*color:\s*#333/);
+  assert.match(globals, /\.menu-san-pham h4 > span[\s\S]*font-size:\s*16px/);
 });
 
 test("captured mobile navigation has local fallbacks for primary pages", () => {

@@ -11,13 +11,13 @@ export function AdminPageHeading({ kicker, title, subtitle, stamp }: { kicker: s
 }
 
 export function AdminLoadingTable() {
-  return <div aria-label="Đang tải dữ liệu" className="admin-skeleton admin-skeleton-table" data-testid="status-table-loading" />;
+  return <div aria-label="Đang tải dữ liệu" aria-busy="true" role="status" className="admin-skeleton admin-skeleton-table" data-testid="status-table-loading" />;
 }
 
 export function AdminErrorState({ error, onRetry }: { error: AdminClientError; onRetry: () => void }) {
   const isMigration = error.code === "INTERNAL_ERROR" || /D1|bảng|table|migration|binding/i.test(error.message);
   return (
-    <section className="admin-state" data-testid="status-admin-error">
+    <section className="admin-state" data-testid="status-admin-error" role="alert">
       <div className="admin-state-icon is-error"><AlertTriangle aria-hidden="true" size={19} /></div>
       <div>
         <h2>{isMigration ? "Dữ liệu chưa sẵn sàng" : "Không thể tải dữ liệu"}</h2>

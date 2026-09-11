@@ -2,31 +2,32 @@ import { getCloudflareContext } from "@opennextjs/cloudflare";
 import type { D1DatabaseLike, D1PreparedStatementLike } from "./admin-data";
 
 export const siteSettingDefinitions = [
-  { key: "brand_name", group: "brand", label: "Tên thương hiệu", description: "Tên hiển thị ở logo, tiêu đề và các điểm nhận diện.", type: "text" },
-  { key: "brand_tagline", group: "brand", label: "Khẩu hiệu thương hiệu", description: "Dòng mô tả ngắn đi cùng logo.", type: "text" },
-  { key: "logo_url", group: "brand", label: "Logo sáng", description: "URL ảnh logo PNG/SVG an toàn.", type: "image" },
-  { key: "favicon_url", group: "brand", label: "Favicon", description: "URL favicon của website.", type: "image" },
-  { key: "primary_color", group: "brand", label: "Màu chủ đạo", description: "Màu hex dùng cho các điểm nhấn chính.", type: "color" },
-  { key: "accent_color", group: "brand", label: "Màu nhấn", description: "Màu hex dùng cho nền sáng, hover và nút phụ.", type: "color" },
-  { key: "site_title", group: "seo", label: "SEO title", description: "Tiêu đề mặc định của website.", type: "text" },
-  { key: "site_description", group: "seo", label: "SEO description", description: "Mô tả mặc định cho công cụ tìm kiếm và chia sẻ.", type: "multiline" },
-  { key: "contact_phone", group: "contact", label: "Hotline", description: "Số điện thoại hiển thị ở các điểm liên hệ.", type: "text" },
-  { key: "contact_email", group: "contact", label: "Email tư vấn", description: "Email hiển thị ở footer và form liên hệ.", type: "text" },
-  { key: "contact_zalo_url", group: "contact", label: "Link Zalo", description: "Đường dẫn Zalo đầy đủ.", type: "url" },
-  { key: "contact_messenger_url", group: "contact", label: "Link Messenger", description: "Đường dẫn Messenger đầy đủ.", type: "url" },
-  { key: "contact_address", group: "contact", label: "Địa chỉ", description: "Địa chỉ văn phòng hiển thị ở footer.", type: "multiline" },
-  { key: "hero_eyebrow", group: "home", label: "Hero eyebrow", description: "Dòng nhỏ phía trên tiêu đề trang chủ.", type: "text" },
-  { key: "hero_title", group: "home", label: "Hero title", description: "Tiêu đề lớn nhất ở trang chủ.", type: "text" },
-  { key: "hero_description", group: "home", label: "Hero description", description: "Đoạn giới thiệu chính ở trang chủ.", type: "multiline" },
-  { key: "hero_primary_cta_label", group: "home", label: "Nhãn nút chính", description: "Nhãn nút kêu gọi hành động đầu tiên.", type: "text" },
-  { key: "hero_primary_cta_url", group: "home", label: "Link nút chính", description: "URL nút kêu gọi hành động đầu tiên.", type: "url" },
-  { key: "hero_secondary_cta_label", group: "home", label: "Nhãn nút phụ", description: "Nhãn nút kêu gọi hành động thứ hai.", type: "text" },
-  { key: "hero_secondary_cta_url", group: "home", label: "Link nút phụ", description: "URL nút kêu gọi hành động thứ hai.", type: "url" },
-  { key: "hero_image_url", group: "home", label: "Ảnh hero", description: "URL ảnh hero.", type: "image" },
-  { key: "about_title", group: "home", label: "Tiêu đề giới thiệu", description: "Tiêu đề phần giới thiệu trên trang chủ.", type: "text" },
-  { key: "about_description", group: "home", label: "Mô tả giới thiệu", description: "Đoạn mô tả phần giới thiệu trên trang chủ.", type: "multiline" },
-  { key: "footer_description", group: "footer", label: "Mô tả footer", description: "Đoạn giới thiệu ngắn ở footer.", type: "multiline" },
-  { key: "footer_copyright", group: "footer", label: "Bản quyền footer", description: "Dòng bản quyền cuối trang.", type: "text" },
+  { key: "brand_name", group: "brand", label: "Tên thương hiệu", description: "Tên hiển thị ở logo, tiêu đề và các điểm nhận diện. Hiện ở: cạnh logo, đầu mọi trang.", type: "text" },
+  { key: "brand_tagline", group: "brand", label: "Khẩu hiệu thương hiệu", description: "Dòng mô tả ngắn đi cùng logo. Hiện ở: dưới tên thương hiệu, đầu mọi trang.", type: "text" },
+  { key: "logo_url", group: "brand", label: "Logo sáng", description: "Ảnh logo PNG/JPEG/WebP an toàn, dùng ở header sáng và logo footer.", type: "image" },
+  { key: "logo_dark_url", group: "brand", label: "Logo tối", description: "Ảnh logo PNG/JPEG/WebP an toàn, dùng ở header tối. Để trống để dùng Logo sáng.", type: "image" },
+  { key: "favicon_url", group: "brand", label: "Favicon", description: "URL favicon của website. Hiện ở: biểu tượng nhỏ trên thẻ trình duyệt.", type: "image" },
+  { key: "primary_color", group: "brand", label: "Màu chủ đạo", description: "Màu hex dùng cho các điểm nhấn chính. Hiện ở: nút bấm và chữ nổi bật khắp trang.", type: "color" },
+  { key: "accent_color", group: "brand", label: "Màu nhấn", description: "Màu hex dùng cho nền sáng, hover và nút phụ. Hiện ở: nền nhạt và nút phụ khắp trang.", type: "color" },
+  { key: "site_title", group: "seo", label: "Tiêu đề tìm kiếm Google", description: "Tiêu đề mặc định của website. Hiện ở: chữ trên thẻ trình duyệt.", type: "text" },
+  { key: "site_description", group: "seo", label: "Mô tả tìm kiếm Google", description: "Mô tả mặc định cho công cụ tìm kiếm và chia sẻ. Hiện ở: dòng mô tả khi tìm trên Google và khi chia sẻ link.", type: "multiline" },
+  { key: "contact_phone", group: "contact", label: "Hotline", description: "Số điện thoại hiển thị ở các điểm liên hệ. Hiện ở: chân trang và nút gọi.", type: "text" },
+  { key: "contact_email", group: "contact", label: "Email tư vấn", description: "Email hiển thị ở chân trang và form liên hệ. Hiện ở: chân trang và trang liên hệ.", type: "text" },
+  { key: "contact_zalo_url", group: "contact", label: "Link Zalo", description: "Đường dẫn Zalo đầy đủ. Hiện ở: nút Zalo trong thanh liên hệ nhanh bên phải và trang liên hệ.", type: "url" },
+  { key: "contact_messenger_url", group: "contact", label: "Link Messenger", description: "Đường dẫn Messenger đầy đủ. Hiện ở: nút Messenger trong thanh liên hệ nhanh bên phải và trang liên hệ.", type: "url" },
+  { key: "contact_address", group: "contact", label: "Địa chỉ", description: "Địa chỉ văn phòng hiển thị ở cuối trang. Hiện ở: chân trang và trang liên hệ.", type: "multiline" },
+  { key: "hero_eyebrow", group: "home", label: "Dòng chữ nhỏ trên tiêu đề", description: "Dòng nhỏ phía trên tiêu đề trang chủ. Hiện ở: dòng nhỏ trên đầu trang chủ.", type: "text" },
+  { key: "hero_title", group: "home", label: "Tiêu đề ảnh bìa", description: "Tiêu đề lớn nhất ở trang chủ. Hiện ở: chữ lớn nhất giữa trang chủ.", type: "text" },
+  { key: "hero_description", group: "home", label: "Mô tả ảnh bìa", description: "Đoạn giới thiệu chính ở trang chủ. Hiện ở: đoạn chữ dưới tiêu đề lớn trang chủ.", type: "multiline" },
+  { key: "hero_primary_cta_label", group: "home", label: "Nhãn nút chính", description: "Nhãn nút kêu gọi hành động đầu tiên. Hiện ở: nút lớn bên trái dưới đầu trang chủ.", type: "text" },
+  { key: "hero_primary_cta_url", group: "home", label: "Link nút chính", description: "URL nút kêu gọi hành động đầu tiên. Hiện ở: link của nút lớn bên trái trang chủ.", type: "url" },
+  { key: "hero_secondary_cta_label", group: "home", label: "Nhãn nút phụ", description: "Nhãn nút kêu gọi hành động thứ hai. Hiện ở: nút bên phải dưới đầu trang chủ.", type: "text" },
+  { key: "hero_secondary_cta_url", group: "home", label: "Link nút phụ", description: "URL nút kêu gọi hành động thứ hai. Hiện ở: link của nút bên phải trang chủ.", type: "url" },
+  { key: "hero_image_url", group: "home", label: "Ảnh bìa đầu trang", description: "URL ảnh bìa. Hiện ở: ảnh lớn bên phải đầu trang chủ.", type: "image" },
+  { key: "about_title", group: "home", label: "Tiêu đề giới thiệu", description: "Tiêu đề phần giới thiệu trên trang chủ. Hiện ở: tiêu đề khối giới thiệu giữa trang chủ.", type: "text" },
+  { key: "about_description", group: "home", label: "Mô tả giới thiệu", description: "Đoạn mô tả phần giới thiệu trên trang chủ. Hiện ở: đoạn chữ khối giới thiệu giữa trang chủ.", type: "multiline" },
+  { key: "footer_description", group: "footer", label: "Mô tả cuối trang", description: "Đoạn giới thiệu ngắn ở cuối trang. Hiện ở: khối chữ bên trái chân trang.", type: "multiline" },
+  { key: "footer_copyright", group: "footer", label: "Bản quyền cuối trang", description: "Dòng bản quyền cuối trang. Hiện ở: dòng cuối cùng của chân trang.", type: "text" },
 ] as const;
 
 export type SiteSettingKey = (typeof siteSettingDefinitions)[number]["key"];
@@ -41,6 +42,10 @@ export interface AdminSiteSetting {
   type: SiteSettingType;
   draftValue: string;
   publishedValue: string;
+  /** Value the storefront actually renders: published value, or the built-in default when empty. */
+  effectiveValue: string;
+  /** True when the storefront is showing the built-in default, not saved content. */
+  isDefaultValue: boolean;
   version: number;
   updatedBy: string | null;
   updatedAt: string;
@@ -55,6 +60,7 @@ export const siteSettingDefaults: PublishedSiteSettings = {
   brand_name: "Giacong.vn",
   brand_tagline: "Giải pháp gia công toàn diện",
   logo_url: "",
+  logo_dark_url: "",
   favicon_url: "",
   primary_color: "#6cbe45",
   accent_color: "#bde875",
@@ -872,12 +878,21 @@ interface SiteSettingRow {
 }
 
 function toAdminSiteSetting(row: SiteSettingRow): AdminSiteSetting {
+  // Display copy (label/description/group/type) comes from the code
+  // definitions so wording fixes apply without a data migration. Values,
+  // versions and audit metadata always come from the database row.
+  const definition = siteSettingDefinitions.find((item) => item.key === row.setting_key);
+  const publishedValue = row.published_value;
+  const fallbackValue = definition ? siteSettingDefaults[definition.key] : row.published_value;
+  const effectiveValue = publishedValue.trim() ? publishedValue : fallbackValue;
   return {
     key: row.setting_key,
-    group: row.group_name,
-    label: row.label,
-    description: row.description,
-    type: row.value_type,
+    group: definition?.group ?? row.group_name,
+    label: definition?.label ?? row.label,
+    description: definition?.description ?? row.description,
+    type: definition?.type ?? row.value_type,
+    effectiveValue,
+    isDefaultValue: !publishedValue.trim(),
     draftValue: row.draft_value,
     publishedValue: row.published_value,
     version: row.version,

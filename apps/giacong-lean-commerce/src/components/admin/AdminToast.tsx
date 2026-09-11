@@ -34,7 +34,7 @@ export function AdminToastProvider({ children }: { children: ReactNode }) {
 
   const showToast = useCallback((kind: AdminToast["kind"], message: string) => {
     const id = nextId.current++;
-    setToasts((current) => [...current.slice(-3), { id, kind, message }]);
+    setToasts((current) => [...current.slice(-2), { id, kind, message }]);
     setTimeout(() => dismiss(id), AUTO_DISMISS_MS);
   }, [dismiss]);
 

@@ -34,7 +34,7 @@ const memberFields = {
   displayName: "Operator",
   email: "operator@example.com",
   isActive: true,
-  role: "viewer" as const,
+  role: "owner" as const,
 };
 
 class FakeStatement implements D1PreparedStatementLike {
@@ -382,7 +382,7 @@ test("member audit failure rolls back the member row and specialized audit", asy
 test("member writer protects the last active owner and the current actor", async () => {
   const database = new FakeDatabase();
   await assert.rejects(
-    () => updateAdminMemberAtomically(database, "owner-1", { ...memberFields, role: "viewer" }, 1, actor, "owner-1", memberUpdateRequest),
+    () => updateAdminMemberAtomically(database, "owner-1", { ...memberFields, role: "owner", isActive: false }, 1, actor, "owner-1", memberUpdateRequest),
     /không thể tự hạ quyền|đổi accessSubject|Phải giữ lại/i,
   );
   await assert.rejects(
@@ -407,7 +407,7 @@ test("member owner guard remains atomic when the last-owner count races", async 
     () => updateAdminMemberAtomically(
       database,
       "owner-1",
-      { ...memberFields, accessSubject: actor, role: "viewer" },
+      { ...memberFields, accessSubject: actor, role: "owner", isActive: false },
       1,
       "second-owner@example.com",
       "owner-2",

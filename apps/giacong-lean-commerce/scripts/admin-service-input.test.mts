@@ -5,7 +5,7 @@ import { parseAdminServicePayload } from "../src/lib/admin-service-input.ts";
 function basePayload() {
   return {
     name: "QA-STAGING dịch vụ",
-    slug: "qa-staging-dich-vu",
+    slug: "gia-cong-sua",
     summary: "Tóm tắt QA",
     description: "Mô tả QA",
     status: "draft",

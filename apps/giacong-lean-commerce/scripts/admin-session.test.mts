@@ -2,6 +2,18 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { handleAdminSession } from "../src/lib/admin-session.ts";
 
+test("single admin session refuses every retired role", async () => {
+  for (const role of ["content_manager", "catalog_manager", "sales_manager", "viewer"]) {
+    const response = await handleAdminSession(new Request("https://admin.example.test/api/admin/session"), {
+      admit: async () => ({ actor: { subject: "retired-actor" }, ok: true }),
+      requestId: () => "retired-session",
+      resolveRole: async () => ({memberId:"retired-member",role}),
+    });
+    assert.equal(response.status,403,role);
+    assert.equal((await response.json()).ok,false);
+  }
+});
+
 test("returns an authenticated session carrying the operator role", async () => {
   const response = await handleAdminSession(new Request("https://admin.example.test/api/admin/session"), {
     admit: async () => ({ actor: { subject: "demo-actor" }, ok: true }),

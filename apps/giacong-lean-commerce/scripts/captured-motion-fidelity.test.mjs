@@ -62,15 +62,15 @@ test("keeps the captured mega menus while normalizing their local navigation", (
   assert.match(productMenu, /Gia công sốt chấm/);
   assert.match(productMenu, /Bột phô mai tách muối/);
   assert.match(productMenu, /href="\/gia-cong-sot-cham\/"/);
-  assert.match(productMenu, /href="\/nuoc-trai-cay\/">Nước trái cây/);
-  assert.match(productMenu, /href="\/thuc-pham-say\/">Thực phẩm sấy/);
+  assert.match(productMenu, /<h4><span>Nước trái cây<\/span><\/h4>/);
+  assert.match(productMenu, /<h4><span>Thực phẩm sấy<\/span><\/h4>/);
   assert.doesNotMatch(productMenu, /Bột và nguyên liệu khô/);
   assert.doesNotMatch(productMenu, /Bột đậu nành rang/);
   assert.match(serviceMenu, /id="menu-item-5166"[\s\S]*?href="\/thue-gia-cong\/"/);
   assert.match(serviceMenu, /Gia công sữa hạt/);
   assert.match(serviceMenu, /Sấy hồng ngoại/);
   assert.match(serviceMenu, /Dịch vụ pháp lý/);
-  assert.match(serviceMenu, /href="\/dich-vu-dong-goi\/"[\s\S]*?>Hồng sấy/);
+  assert.match(serviceMenu, /<h4><span>Dịch vụ đóng gói<\/span><\/h4>[\s\S]*?<span class="ux-menu-link__text">Hồng sấy<\/span>/);
   assert.match(serviceMenu, /Dịch vụ sấy/);
   assert.match(result, /id="menu-item-5466"[\s\S]*?href="\/thue-gia-cong\/"/);
 });
@@ -105,9 +105,19 @@ test("maps legacy mega-menu hrefs to safe parent routes", () => {
 
   assert.doesNotMatch(productMenu, /href="(?:#|\/|\/Hoa quả sấy)"/);
   assert.doesNotMatch(serviceMenu, /href="(?:#|\/|\/Hoa quả sấy)"/);
-  assert.match(productMenu, /href="\/nuoc-trai-cay\/"[^>]*>[\s\S]*?Nước ép chanh leo/);
-  assert.match(productMenu, /href="\/thuc-pham-say\/"[^>]*>[\s\S]*?Bột phô mai tách muối/);
-  assert.match(serviceMenu, /href="\/dich-vu-dong-goi\/"[^>]*>[\s\S]*?Hồng sấy/);
+  assert.match(productMenu, /<span class="ux-menu-link__text">Nước ép chanh leo<\/span>/);
+  assert.match(productMenu, /<span class="ux-menu-link__text">Bột phô mai tách muối<\/span>/);
+  assert.match(serviceMenu, /<span class="ux-menu-link__text">Hồng sấy<\/span>/);
+});
+
+test("renames legacy menu labels even when the dropdown icon carries extra attributes", () => {
+  const variantMenu = desktopAndMobileMenu
+    .replaceAll('<i class="icon-angle-down"></i>', '<i class="icon-angle-down" aria-hidden="true" ></i>');
+  const result = normalizeCapturedMarkup(variantMenu);
+
+  assert.match(result, /Mua hàng/);
+  assert.match(result, /Thuê gia công/);
+  assert.doesNotMatch(result, /Sản Phẩm<i/);
 });
 
 test("keeps one top-level main landmark, names captured frames and gives footer headings a valid level", () => {
@@ -323,4 +333,14 @@ test("matches the source mobile interaction contract", () => {
   assert.match(globals, /\.clone-menu-backdrop[\s\S]*width: 100vw/);
   assert.match(globals, /clone-submenu-open > \.sub-menu[\s\S]*max-height: 390px/);
   assert.match(globals, /prefers-reduced-motion: reduce[\s\S]*clone-menu-open[\s\S]*transition: none/);
+});
+
+test("strips script elements from normalized captured markup", () => {
+  const hostile =
+    '<div><p>Giới thiệu</p><script>alert("xss")</script><SCRIPT src="https://evil.example/x.js"></SCRIPT></div>';
+  const result = normalizeCapturedMarkup(hostile);
+
+  assert.doesNotMatch(result, /<script/i);
+  assert.doesNotMatch(result, /evil\.example/);
+  assert.match(result, /Giới thiệu/);
 });

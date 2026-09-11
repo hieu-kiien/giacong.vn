@@ -6,7 +6,6 @@
 import { EyeOff, Pencil, Plus } from "lucide-react";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { AdminConfirmDialog } from "@/components/admin/AdminDialog";
-import { AdminMediaPickerModal } from "@/components/admin/AdminMediaPickerModal";
 import { AdminField } from "@/components/admin/AdminField";
 import { useAdminSession } from "@/components/admin/AdminShell";
 import { useAdminToast } from "@/components/admin/AdminToast";
@@ -78,7 +77,6 @@ export function AdminCategoryPanel({ onChanged }: { onChanged: () => void }) {
   const [batchArchiving, setBatchArchiving] = useState(false);
   const [confirmBatchArchive, setConfirmBatchArchive] = useState(false);
   const [pendingBatch, setPendingBatch] = useState<PendingCategoryBatch | null>(null);
-  const [pickerOpen, setPickerOpen] = useState(false);
 
   const activeCategories = categories.filter((category) => category.isActive);
   const allVisibleSelected = canManage && activeCategories.length > 0 && activeCategories.every((category) => selectedIds.has(category.id));
@@ -432,15 +430,6 @@ export function AdminCategoryPanel({ onChanged }: { onChanged: () => void }) {
           onConfirm={() => void archiveSelectedCategories()}
           onDismiss={() => { setConfirmBatchArchive(false); setPendingBatch(null); }}
           title="Ẩn danh mục đã chọn?"
-        />
-      ) : null}
-          {pickerOpen ? (
-        <AdminMediaPickerModal
-          onClose={() => setPickerOpen(false)}
-          onSelect={(publicUrl) => {
-            setEditor((current) => (current ? { ...current, imageUrl: publicUrl } : current));
-            setPickerOpen(false);
-          }}
         />
       ) : null}
 </div>

@@ -23,7 +23,7 @@ test("contextual news action consumes AdminVisualMode context and only allows co
 
   assert.match(source, /useAdminVisualContext/);
   assert.match(source, /owner/);
-  assert.match(source, /content_manager/);
+  assert.match(source, /const editableRoles = new Set\(\["owner"\]\)/);
   assert.match(source, /status\s*!==\s*["']ready["']/);
   assert.match(source, /\/admin\/tin-tuc\?edit=/);
   assert.doesNotMatch(source, /fetchAdmin|\/api\/admin\/session/);

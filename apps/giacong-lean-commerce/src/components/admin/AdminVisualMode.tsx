@@ -150,11 +150,7 @@ function getStatusCopy(status: AdminVisualStatus, role?: string) {
 
 function getRoleLabel(role?: string): string {
   const labels: Record<string, string> = {
-    catalog_manager: "quản lý catalog",
-    content_manager: "quản lý nội dung",
-    owner: "chủ sở hữu",
-    sales_manager: "quản lý yêu cầu",
-    viewer: "người xem",
+    owner: "Admin toàn quyền",
   };
   return labels[role ?? ""] ?? "tài khoản được cấp quyền";
 }

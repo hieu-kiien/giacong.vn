@@ -205,7 +205,7 @@ function resolveLine(
   const base: ResolvedRequestCartLine = {
     adjustments: [],
     contactFromQuantity: variant.contactFromQuantity,
-    imageUrl: product.imageUrl,
+    imageUrl: variant.imageUrl || product.imageUrl,
     isAvailable: variant.isAvailable,
     isSubmittable: true,
     lineTotal: null,

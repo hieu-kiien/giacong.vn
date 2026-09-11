@@ -48,12 +48,13 @@ export async function PATCH(request: Request, context: RouteContext): Promise<Re
   if (
     !isRecord(body)
     || !isAdminRequestId(body.requestId)
-    || !hasOnlyKeys(body, ["requestId", "expectedVersion", "label", "href", "sortOrder", "isActive"])
+    || !hasOnlyKeys(body, ["requestId", "expectedVersion", "label", "href", "parentId", "sortOrder", "isActive"])
     || typeof body.expectedVersion !== "number"
     || !Number.isSafeInteger(body.expectedVersion)
     || body.expectedVersion < 1
     || typeof body.label !== "string"
     || typeof body.href !== "string"
+    || (body.parentId !== undefined && body.parentId !== null && typeof body.parentId !== "string")
     || typeof body.sortOrder !== "number"
     || !Number.isInteger(body.sortOrder)
     || typeof body.isActive !== "boolean"
@@ -68,6 +69,7 @@ export async function PATCH(request: Request, context: RouteContext): Promise<Re
       id: (await context.params).id,
       isActive: body.isActive,
       label: body.label,
+      parentId: body.parentId,
       requestId,
       sortOrder: body.sortOrder,
     });

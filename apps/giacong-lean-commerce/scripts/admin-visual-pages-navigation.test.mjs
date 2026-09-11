@@ -27,7 +27,7 @@ test("page contextual action is host-gated by the shared visual context and role
   assert.match(action, /useAdminVisualContext/);
   assert.match(action, /status\s*!==\s*["']ready["']/);
   assert.match(action, /owner/);
-  assert.match(action, /content_manager/);
+  assert.match(action, /const editableRoles = new Set\(\["owner"\]\)/);
   assert.doesNotMatch(action, /fetchAdmin|\/api\/admin\/session/);
 });
 
@@ -39,11 +39,11 @@ test("content and page editors hand off to the real storefront instead of recons
   ]);
 
   assert.doesNotMatch(content, /ContentPreview|admin-preview-page|Live draft preview|Preview dùng bản nháp/);
-  assert.match(content, /Mở storefront thật/);
+  assert.match(content, /Mở trang web thật/);
   assert.match(content, /href="\/"/);
   assert.doesNotMatch(builder, /PageBlocks|admin-builder-preview-frame|Live draft preview|Preview dùng draft/);
   assert.match(builder, /selectedPage\.routePath/);
-  assert.match(builder, /Mở page thật/);
+  assert.match(builder, /Mở trang thật/);
   assert.doesNotMatch(styles, /admin-preview-|admin-content-preview|admin-builder-preview/);
   assert.match(styles, /admin-live-storefront-card/);
 });
@@ -76,7 +76,8 @@ test("managed page contextual control stays out of captured fallback paths", asy
   assert.match(source, /if \(managedPage\?\.blocks\.length\)/);
   assert.match(source, /<PageBlocks blocks=\{managedPage\.blocks\} pageKey=\{managedPage\.pageKey\} \/>/);
   assert.match(source, /const data = await readCapturedPath\(routePath\)/);
-  assert.match(source, /return <CapturedPage/);
+  assert.match(source, /return \(\s*<CapturedPage/);
+  assert.match(source, /activeCapturedMenuId=\{resolveCapturedActiveMenuId\(routePath\)\}/);
 });
 
 test("page contextual action has keyboard and responsive affordances", async () => {
@@ -92,6 +93,6 @@ test("page builder confirms section removal before changing the draft", async ()
 
   assert.match(source, /AdminConfirmDialog/);
   assert.match(source, /pendingRemove/);
-  assert.match(source, /Xóa section khỏi bản nháp/);
-  assert.match(source, /Bạn có thể hủy trước khi lưu draft/);
+  assert.match(source, /Xóa khối khỏi bản nháp/);
+  assert.match(source, /Bạn có thể hủy trước khi lưu bản nháp/);
 });

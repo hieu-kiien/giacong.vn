@@ -1,5 +1,5 @@
 export interface AdminVisualDirectTarget {
-  inputType: "multiline" | "text";
+  inputType: "multiline" | "text" | "image" | "url";
   key: string;
   label: string;
   selector: string;
@@ -21,7 +21,7 @@ export const homepageDirectTargets = [
     inputType: "text",
     key: "hero_eyebrow",
     label: "Dòng giới thiệu nhỏ",
-    selector: "#section_250108065 h3",
+    selector: "#section_250108065 h3.entry-title, #section_250108065 h2.entry-title",
   },
   {
     inputType: "text",
@@ -46,6 +46,30 @@ export const homepageDirectTargets = [
     key: "hero_secondary_cta_label",
     label: "Nhãn nút phụ",
     selector: "#section_250108065 a.nut-xem-them2 > span",
+  },
+  {
+    inputType: "image",
+    key: "hero_image_url",
+    label: "Ảnh bìa đầu trang",
+    selector: '#section_250108065 [data-gallery-image="1"], #section_250108065 img[alt="gia cong thuc pham"]',
+  },
+  {
+    inputType: "image",
+    key: "logo_url",
+    label: "Logo thương hiệu",
+    selector: "#logo img.header_logo",
+  },
+  {
+    inputType: "url",
+    key: "hero_primary_cta_url",
+    label: "Đường dẫn nút chính",
+    selector: "#section_250108065 a.nut-xem-them1",
+  },
+  {
+    inputType: "url",
+    key: "hero_secondary_cta_url",
+    label: "Đường dẫn nút phụ",
+    selector: "#section_250108065 a.nut-xem-them2",
   },
   {
     inputType: "text",

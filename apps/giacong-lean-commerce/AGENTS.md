@@ -1,7 +1,11 @@
 <!-- BEGIN:nextjs-agent-rules -->
+
 # This is NOT the Next.js you know
 
-This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
 <!-- END:nextjs-agent-rules -->
 
 # Lean V1 project rules
@@ -53,7 +57,7 @@ Do not revive Bagisto as a runtime boundary. `bagisto/`, Bagisto-era adapters/te
 - Do not add rating, review or favorite.
 - Google Sheet + Apps Script remains the request queue until a separate decision changes it.
 - A Cloudflare-native admin is now in scope, but only behind an audited admin authentication boundary and only after server-side D1/R2 write contracts and tests are locked. Do not expose admin writes on the public storefront as an unauthenticated shortcut.
-- The V1 admin has no customer identity. Internal admin roles are `owner`, `content_manager`, `catalog_manager`, `sales_manager`, `viewer` (approved 2026-08-23, superseding the earlier "single operator / no granular RBAC" clause).
+- The V1 admin has no customer identity. The sole active role is “Admin toàn quyền”, persisted as `owner` (user decision 2026-09-07, superseding the five-role decision of 2026-08-23). Retired roles must fail admission and capability checks; never promote them implicitly. Preserve Access authentication, last-owner protections and audit history.
 - `admin-staging.kienhieu.id.vn` is the staging admin hostname target. `admin.kienhieu.id.vn` is production-only and must not be activated before the production acceptance gate.
 - Production Worker/data/routes stay untouched until all gates in the Cloudflare-native plan are satisfied.
 - Do not create demo production data implicitly; staging demo data is not production seed data.

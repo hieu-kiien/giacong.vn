@@ -11,8 +11,17 @@ test("navigation publish is enabled for a saved draft but not for unsaved local 
   assert.match(source, /hasUnsavedChanges/);
   assert.match(source, /menuKey: "primary"/);
   assert.match(source, /value="footer"/);
-  assert.match(source, /Mục footer sẽ xuất hiện/);
+  assert.match(source, /Mục cuối trang sẽ xuất hiện/);
   assert.match(source, /dirtyCount === 0 \|\| hasUnsavedChanges/);
   assert.match(source, /disabled=\{!canEdit \|\| !item\.localDirty \|\| saving\}/);
   assert.match(source, /disabled=\{!canPublish \|\| !item\.dirty \|\| item\.localDirty \|\| publishing\}/);
+});
+
+test("admin toast stack leaves the mobile toolbar unobstructed", async () => {
+  const css = await readFile(new URL("../src/styles/admin.css", import.meta.url), "utf8");
+  const source = await readFile(new URL("../src/components/admin/AdminToast.tsx", import.meta.url), "utf8");
+  assert.match(css, /@media\s*\(max-width:\s*640px\)[\s\S]*\.admin-toast-stack[\s\S]*bottom:/);
+  assert.match(css, /@media\s*\(max-width:\s*640px\)[\s\S]*\.admin-toast-stack[\s\S]*top:\s*auto/);
+  assert.match(source, /current\.slice\(-2\)/);
+  assert.match(source, /aria-label="Đóng thông báo"/);
 });

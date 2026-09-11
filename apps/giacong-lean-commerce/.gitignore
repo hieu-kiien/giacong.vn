@@ -56,6 +56,7 @@ next-env.d.ts
 temp/
 .tmp-*.png
 .codex-*.log
+*.superseded.*
 
 # Regeneratable browser-audit captures
 docs/design-references/audit-*.png

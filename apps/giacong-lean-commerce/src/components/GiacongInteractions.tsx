@@ -5,6 +5,10 @@ import { useEffect } from "react";
 import { connectContactForms } from "@/components/contact-form";
 import { connectCapturedMotion } from "@/components/captured-motion";
 import {
+  resolveDesktopDropdownEscapeTarget,
+  type EscapeActiveElement,
+} from "@/lib/desktop-dropdown-escape";
+import {
   addMobileAccordionToggles,
   createMobileProductItem,
   handleMobileAccordion,
@@ -66,6 +70,16 @@ export function GiacongInteractions({
       "input[type='search']",
     );
     let menuReturnFocus = trigger;
+    const desktopDropdownItems = Array.from(
+      document.querySelectorAll<HTMLElement>("#header ul.header-nav-main > li.has-dropdown"),
+    );
+    const clearDesktopDropdownDismissal = (event: Event) => {
+      (event.currentTarget as HTMLElement | null)?.removeAttribute("data-dropdown-dismissed");
+    };
+    desktopDropdownItems.forEach((item) => {
+      item.addEventListener("pointerover", clearDesktopDropdownDismissal);
+      item.addEventListener("focusin", clearDesktopDropdownDismissal);
+    });
 
     headerSearchTrigger?.setAttribute("aria-controls", "main-menu");
     headerSearchTrigger?.setAttribute("aria-expanded", "false");
@@ -130,6 +144,31 @@ export function GiacongInteractions({
     };
     const handleMenuKeydown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
+        if (!menu?.classList.contains("clone-menu-open")) {
+          const outcome = resolveDesktopDropdownEscapeTarget(
+            document.activeElement as unknown as EscapeActiveElement | null,
+            (dropdown) =>
+              window.getComputedStyle(dropdown as unknown as Element).visibility === "visible",
+          );
+          if (outcome.action === "focus") {
+            outcome.element.focus();
+            queueMicrotask(() => {
+              (outcome.element as unknown as HTMLElement)
+                .closest<HTMLElement>("ul.header-nav-main > li")
+                ?.setAttribute("data-dropdown-dismissed", "true");
+            });
+            return;
+          }
+          if (outcome.action === "blur") {
+            outcome.element.blur();
+            queueMicrotask(() => {
+              (outcome.element as unknown as HTMLElement)
+                .closest<HTMLElement>("ul.header-nav-main > li")
+                ?.setAttribute("data-dropdown-dismissed", "true");
+            });
+            return;
+          }
+        }
         closeMenu();
         return;
       }
@@ -195,6 +234,11 @@ export function GiacongInteractions({
       taxonomyLess?.remove();
       taxonomy?.style.removeProperty("height");
       headerWrapper?.classList.remove("stuck");
+      desktopDropdownItems.forEach((item) => {
+        item.removeEventListener("pointerover", clearDesktopDropdownDismissal);
+        item.removeEventListener("focusin", clearDesktopDropdownDismissal);
+        item.removeAttribute("data-dropdown-dismissed");
+      });
       setMenuClosed(false);
       menuBackdrop.remove();
       menuClose.remove();

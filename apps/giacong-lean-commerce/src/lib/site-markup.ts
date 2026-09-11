@@ -1,7 +1,7 @@
 import type { PublishedSiteSettings } from "./site-settings";
 
 export function applySiteSettingsToMarkup(markup: string, settings: PublishedSiteSettings): string {
-  let result = markup;
+  let   result = markup;
   const brandName = escapeHtml(settings.brand_name);
   const email = escapeHtml(settings.contact_email);
   const phone = escapeHtml(settings.contact_phone);
@@ -9,18 +9,25 @@ export function applySiteSettingsToMarkup(markup: string, settings: PublishedSit
   const zalo = escapeAttr(settings.contact_zalo_url);
   const messenger = escapeAttr(settings.contact_messenger_url);
 
-  result = result.replace(/Giacong\.vn/g, brandName);
-  result = result.replace(/info@giacong\.vn/gi, email);
-  result = result.replace(/href=(["'])mailto:[^"']*\1/gi, `href="${
-    escapeAttr(`mailto:${settings.contact_email}`)
-  }"`);
-  result = result.replace(/href=(["'])tel:[^"']*\1/gi, `href="${phoneHref}"`);
-  result = result.replace(/0947142999/g, phone);
+  // Empty settings never erase captured content; the sanitizer falls back to
+  // defaults, but an explicitly cleared value must still keep the old text.
+  if (brandName) result = result.replace(/Giacong\.vn/g, brandName);
+  if (email) {
+    result = result.replace(/info@giacong\.vn/gi, email);
+    result = result.replace(/href=(["'])mailto:[^"']*\1/gi, `href="${
+      escapeAttr(`mailto:${settings.contact_email}`)
+    }"`);
+  }
+  if (phone) {
+    result = result.replace(/href=(["'])tel:[^"']*\1/gi, `href="${phoneHref}"`);
+    result = result.replace(/0947142999/g, phone);
+  }
   if (settings.contact_zalo_url) result = result.replace(/https:\/\/zalo\.me\/[^"' ]+/gi, zalo);
   if (settings.contact_messenger_url) result = result.replace(/https:\/\/m\.me\/[^"' ]+/gi, messenger);
   result = replaceFooterDescription(result, settings.footer_description);
   result = replaceFooterAddress(result, settings.contact_address);
   result = replaceFooterCopyright(result, settings.footer_copyright);
+  result = replaceContactInfo(result, settings);
 
   result = replaceFirstElementText(result, /<h1\b[^>]*class=(["'])[^"']*\bentry-title\b[^"']*\1[^>]*>[\s\S]*?<\/h1>/i, settings.hero_title);
   result = replaceFirstElementText(result, /<h3\b[^>]*class=(["'])[^"']*\bentry-title\b[^"']*\1[^>]*>[\s\S]*?<\/h3>/i, settings.hero_eyebrow);
@@ -29,7 +36,7 @@ export function applySiteSettingsToMarkup(markup: string, settings: PublishedSit
   // outline never skips a level (h1 → h3). First entry-title h3 only.
   result = promoteHeroEyebrowAfterHeroTitle(result);
   result = replaceHeroImage(result, settings.hero_image_url);
-  result = replaceLogo(result, settings.logo_url);
+  result = replaceLogo(result, settings.logo_url, settings.logo_dark_url);
   result = replaceBrandTagline(result, settings.brand_tagline);
   result = replaceHeroCta(result, "nut-xem-them1", settings.hero_primary_cta_label, settings.hero_primary_cta_url);
   result = replaceHeroCta(result, "nut-xem-them2", settings.hero_secondary_cta_label, settings.hero_secondary_cta_url);
@@ -159,14 +166,33 @@ function replaceHeroImage(markup: string, imageUrl: string): string {
   return `${markup.slice(0, match.index)}${updated}${markup.slice(match.index + match[0].length)}`;
 }
 
-function replaceLogo(markup: string, logoUrl: string): string {
-  if (!logoUrl) return markup;
-  const safe = escapeAttr(logoUrl);
-  return markup
-    .replace(/(<img\b[^>]*class=(["'])[^"']*header_logo[^"']*\2[^>]*\s)src=(["'])[^"']*\3/gi, `$1src="${
-      safe
-    }"`)
-    .replace(/\ssrcset=(["'])https:\/\/giacong\.vn\/[^"']*\1/gi, ` srcset="${safe}"`);
+function replaceLogo(markup: string, logoUrl: string, darkLogoUrl: string): string {
+  const light = typeof logoUrl === "string" ? logoUrl.trim() : "";
+  const dark = (typeof darkLogoUrl === "string" ? darkLogoUrl.trim() : "") || light;
+  if (!light && !dark) return markup;
+  let result = markup;
+  if (light) {
+    result = result.replace(/<img\b[^>]*class=(['"])[^"']*\bheader_logo\b[^"']*\1[^>]*>/gi, (image) => replaceManagedImageSource(image, escapeAttr(light)));
+  }
+  if (dark) {
+    result = result.replace(/<img\b[^>]*class=(['"])[^"']*\bheader-logo-dark\b[^"']*\1[^>]*>/gi, (image) => replaceManagedImageSource(image, escapeAttr(dark)));
+  }
+
+  // The captured footer has a dedicated logo image inside `.icon-box-img`,
+  // separate from the header's light/dark pair. Keep it on the same canonical
+  // logo setting so desktop, mobile, header and footer cannot drift apart.
+  return light ? result.replace(
+    /(<footer\b[\s\S]*?<[^>]*class=(['"])[^"']*\bfooter-section\b[^"']*\2[\s\S]*?<[^>]*class=(['"])[^"']*\bicon-box\b[^"']*\3[\s\S]*?<[^>]*class=(['"])[^"']*\bicon-box-img\b[^"']*\4[\s\S]*?)(<img\b[^>]*>)/i,
+    (_match, before: string, _footerQuote: string, _iconQuote: string, _imageBoxQuote: string, image: string) => `${before}${replaceManagedImageSource(image, escapeAttr(light))}`,
+  ) : result;
+}
+
+function replaceManagedImageSource(image: string, safeUrl: string): string {
+  let result = image
+    .replace(/\s(?:srcset|sizes)=(['"])[^"']*\1/gi, "")
+    .replace(/\ssrc=(['"])[^"']*\1/i, ` src="${safeUrl}"`);
+  if (!/\ssrc=/i.test(result)) result = result.replace(/<img\b/i, `<img src="${safeUrl}"`);
+  return result;
 }
 
 function replaceFooterDescription(markup: string, value: string): string {
@@ -187,6 +213,27 @@ function replaceFooterCopyright(markup: string, value: string): string {
   if (!value) return markup;
   const pattern = /(<div\b[^>]*class=["'][^"']*\bcopyright-footer\b[^"']*["'][^>]*>)[\s\S]*?(<\/div>)/i;
   return markup.replace(pattern, (_match, opening: string, closing: string) => `${opening}${escapeHtml(value)}${closing}`);
+}
+
+/**
+ * Applies the managed contact address/phone to legacy company-info blocks
+ * (e.g. the lien-he "Thông tin công ty" section) that live outside <footer>.
+ * The old captured strings exist only in the legacy capture, so pages without
+ * them are returned byte-identical. Empty settings never erase content.
+ */
+function replaceContactInfo(markup: string, settings: PublishedSiteSettings): string {
+  let result = markup;
+  const address = typeof settings.contact_address === "string"
+    ? settings.contact_address.replace(/^\s*VP\s*Hà\s*Nội\s*:\s*/i, "").trim()
+    : "";
+  if (address) {
+    result = result.split("108 Lê Duẩn – Đống Đa – Hà Nội").join(escapeHtml(address));
+  }
+  const phone = typeof settings.contact_phone === "string" ? settings.contact_phone.trim() : "";
+  if (phone) {
+    result = result.split("0938.591.444").join(escapeHtml(phone));
+  }
+  return result;
 }
 
 function escapeTextWithBreaks(value: string): string {

@@ -42,6 +42,7 @@ export async function CapturedHomePage({
       applyNavigationToMarkup(normalizedMarkup, navigation, "menu-item-4618"),
       navigation,
     ),
+    settings.hero_image_url,
   );
 
   return (
@@ -58,12 +59,13 @@ export async function CapturedHomePage({
   );
 }
 
-function replaceCompositeHeroWithGallery(markup: string): string {
+function replaceCompositeHeroWithGallery(markup: string, heroImageUrl: string): string {
   const compositeHeroPattern = /<div\b(?=[^>]*\bid=["']image_[^"']+["'])(?=[^>]*\bclass=["'][^"']*\bimg\b[^"']*["'])[^>]*>[\s\S]*?<img\b(?=[^>]*\balt=["']gia cong thuc pham["'])[^>]*\/?>(?:[\s\S]*?)<\/div>\s*(?:<style\b[\s\S]*?<\/style>\s*)?<\/div>/i;
-  return markup.replace(compositeHeroPattern, homeHeroGalleryMarkup());
+  return markup.replace(compositeHeroPattern, homeHeroGalleryMarkup(heroImageUrl));
 }
 
-function homeHeroGalleryMarkup(): string {
+function homeHeroGalleryMarkup(heroImageUrl: string): string {
+  const safeHeroImageUrl = heroImageUrl.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
   const items = HOME_HERO_GALLERY.map((image, index) => `
     <figure class="giacong-home-gallery__item giacong-home-gallery__item--${index + 1}">
       <img
@@ -72,7 +74,7 @@ function homeHeroGalleryMarkup(): string {
         decoding="async"
         height="202"
         loading="eager"
-        src="${image.src}"
+        src="${index === 0 && safeHeroImageUrl ? safeHeroImageUrl : image.src}"
         width="341"
       />
     </figure>`).join("");

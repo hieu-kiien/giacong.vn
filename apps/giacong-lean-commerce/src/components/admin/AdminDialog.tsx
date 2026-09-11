@@ -80,7 +80,7 @@ export function AdminModal({ children, describedBy, labelledBy, onClose, title, 
   }, []);
 
   return (
-    <div className="admin-modal-overlay" onClick={onClose}>
+    <div className="admin-modal-overlay admin-app" onClick={onClose}>
       <div
         aria-describedby={describedBy}
         aria-labelledby={labelledBy}

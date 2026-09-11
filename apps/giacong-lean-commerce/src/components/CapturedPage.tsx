@@ -8,7 +8,7 @@ import type { CapturedPageData } from "@/types/captured-page";
 type CapturedPageProps = Pick<
   CapturedPageData,
   "markup" | "pageStyles" | "bodyClasses" | "htmlClasses"
->;
+> & { activeCapturedMenuId?: string | null };
 
 export function CapturedPage({
   markup,
@@ -16,9 +16,13 @@ export function CapturedPage({
   bodyClasses,
   htmlClasses,
   siteSettings,
+  activeCapturedMenuId,
 }: CapturedPageProps & { siteSettings?: PublishedSiteSettings }) {
   const settings = siteSettings ?? siteSettingDefaults;
-  const normalizedMarkup = applySiteSettingsToMarkup(normalizeCapturedMarkup(markup), settings);
+  const normalizedMarkup = applySiteSettingsToMarkup(
+    normalizeCapturedMarkup(markup, activeCapturedMenuId),
+    settings,
+  );
 
   return (
     <>

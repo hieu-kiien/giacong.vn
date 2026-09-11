@@ -30,6 +30,12 @@ test("destructive actions route through the confirm dialog, never window.confirm
   assert.doesNotMatch(dialog, /window\.confirm/);
 });
 
+test("modal overlays retain the admin design-token and button scope", async () => {
+  const dialog = await readSource("components", "admin", "AdminDialog.tsx");
+
+  assert.match(dialog, /className="admin-modal-overlay admin-app"/);
+});
+
 test("form fields keep label, hint and error wiring consistent", async () => {
   const field = await readSource("components", "admin", "AdminField.tsx");
 
@@ -55,22 +61,20 @@ test("the admin control plane exposes page, navigation and member management sur
   assert.match(shell, /\/admin\/audit/);
   assert.match(shell, /ownerOnly/);
   assert.match(builder, /\/api\/admin\/pages/);
-  assert.match(builder, /Page builder chỉ nhận schema an toàn/);
+  assert.match(builder, /Công cụ dựng trang chỉ nhận mẫu an toàn/);
   assert.doesNotMatch(builder, /dangerouslySetInnerHTML/);
   assert.match(navigation, /\/api\/admin\/navigation/);
   assert.match(navigation, /Phát hành tất cả/);
   assert.match(members, /\/api\/admin\/members/);
-  assert.match(members, /Tài khoản quản trị & quyền/);
+  assert.match(members, /title="Tài khoản quản trị"/);
   assert.match(members, /Thêm tài khoản quản trị/);
   assert.match(members, /Tài khoản đăng nhập Cloudflare Access/);
   assert.match(members, /Quản lý tài khoản quản trị/);
   assert.match(members, /currentMemberId=\{session\.memberId\}/);
   assert.match(members, /member\.id === currentMemberId/);
-  assert.match(members, /label: "Chủ sở hữu \(toàn quyền\)"/);
-  assert.match(members, /label: "Quản lý nội dung"/);
-  assert.match(members, /label: "Quản lý catalog"/);
-  assert.match(members, /label: "Quản lý yêu cầu"/);
-  assert.match(members, /label: "Người xem"/);
+  assert.match(members, /label: "Admin toàn quyền"/);
+  assert.doesNotMatch(members, /label: "(?:Quản lý nội dung|Quản lý hàng hóa|Quản lý yêu cầu|Người xem)"/);
+  assert.match(members, /readOnly value="Admin toàn quyền"/);
   assert.match(members, /Vai trò quản trị/);
   assert.match(members, /Tài khoản hiện tại không thể tự hạ quyền hoặc vô hiệu hóa/);
   assert.match(members, /createFieldErrors/);
@@ -84,17 +88,18 @@ test("the shell groups routes in plain-language control-plane sections", async (
 
   for (const label of [
     "Chỉnh sửa website",
-    "Catalog",
+    "Hàng hóa",
     "Nội dung",
     "Yêu cầu khách hàng",
-    "Cài đặt",
+    "Vận hành",
     "Tài khoản & quyền",
   ]) {
     assert.match(shell, new RegExp(label.replace(/[&]/g, "\\&")));
   }
   assert.match(shell, /Vai trò/);
-  assert.match(shell, /Xem storefront/);
-  assert.match(shell, /aria-current=\{pathname === href \|\| pathname\.startsWith\(\`\$\{href\}\/\`\)/);
+  assert.match(shell, /Xem trang web/);
+  assert.match(shell, /isAdminNavItemActive/);
+  assert.match(shell, /badge-admin-environment/);
   assert.match(shell, /Lịch sử thay đổi/);
 });
 
@@ -176,7 +181,8 @@ test("read-only roles do not receive lead/news mutation affordances or private d
   assert.match(leads, /!canManageLeads\(session\.role\)/);
   assert.match(news, /canManageNews\(session\.role\)/);
   assert.match(news, /if \(!canManage\)/);
-  assert.match(dashboard, /canManageLeads\(session\.role\)/);
-  assert.match(dashboard, /canManageServices\(session\.role\)/);
+  assert.match(dashboard, /canManage\(session\.role, "leads\.read"\)/);
+  assert.match(dashboard, /canManage\(session\.role, "services\.read"\)/);
+  assert.match(dashboard, /canManage\(session\.role, "catalog\.read"\)/);
   assert.match(dashboardApi, /includeRecentLeads/);
 });

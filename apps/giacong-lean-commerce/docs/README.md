@@ -1,5 +1,11 @@
 # Chỉ mục tài liệu
 
+**Bắt đầu công việc tiếp theo tại
+[ADMIN_COMMERCE_RECOVERY_HANDOFF.md](./ADMIN_COMMERCE_RECOVERY_HANDOFF.md)**:
+yêu cầu 2026-09-07, ảnh lỗi, ưu tiên admin sản phẩm/dịch vụ/tin tức, menu và luồng
+Mua hàng / Thuê gia công; kế hoạch chia đội và dọn tài liệu. Hiện mới lập kế hoạch,
+chưa sửa các lỗi người dùng vừa phản ánh.
+
 ## Tài liệu hiện hành
 
 | Tài liệu | Vai trò |
@@ -12,9 +18,12 @@
 | [PRODUCTION_ACCEPTANCE_CHECKLIST.md](./PRODUCTION_ACCEPTANCE_CHECKLIST.md) | Checklist cổng production acceptance: staging, admin CRUD, Google Sheet live, dữ liệu thật, rollback/promotion |
 | [RELEASE_READINESS_AUDIT.md](./RELEASE_READINESS_AUDIT.md) | Kết luận audit release, skills.sh, bằng chứng hiện có và các gate còn mở |
 | [AI_ADMIN_SKILL_GUIDE.md](./AI_ADMIN_SKILL_GUIDE.md) | Hợp đồng sử dụng skill repo-scoped `giacong-admin` để xây dựng và kiểm duyệt admin |
-| [ADMIN_VISUAL_ROADMAP.md](./ADMIN_VISUAL_ROADMAP.md) | Lộ trình triển khai admin storefront-first từ nền tảng, MVP nhỏ đến bản đầy đủ; gồm gate, test và Definition of Done |
+| [ADMIN_QUALITY_REVIEW.md](./ADMIN_QUALITY_REVIEW.md) | Đợt sửa trải nghiệm admin, bảo vệ bản nháp, bằng chứng browser cục bộ và các gate còn lại trước phát hành |
+| [ADMIN_VISUAL_ROADMAP.md](./ADMIN_VISUAL_ROADMAP.md) | Roadmap visual trước đây; thứ tự ưu tiên đã được thay bằng brief recovery ngày 2026-09-07 |
 | [ADMIN_VISUAL_FILE_MAP.md](./ADMIN_VISUAL_FILE_MAP.md) | Bản đồ file, route, data source, quyền, test ownership và vùng editable của admin visual |
-| [SUBAGENT_TEAM_OPERATING_MODEL.md](./SUBAGENT_TEAM_OPERATING_MODEL.md) | Mô hình Control Tower, các team subagent, ownership, handoff, parallelism policy và quality gates để thực thi roadmap |
+| [SUBAGENT_TEAM_OPERATING_MODEL.md](./SUBAGENT_TEAM_OPERATING_MODEL.md) | Quy trình tham khảo cũ; phân đội và phạm vi đợt tiếp theo theo brief recovery |
+| [ASTRA_AUDIT_HANDOFF.md](./ASTRA_AUDIT_HANDOFF.md) | Hồ sơ audit/snapshot lịch sử để tra cứu; không phải cửa vào thực thi hoặc thứ tự ưu tiên mới |
+| `npm run qa:astra-preflight` (`scripts/astra-audit-preflight.mjs`) | Preflight read-only: kiểm tra repo dirty/staged, engine/dependency, tài liệu/lệnh bắt buộc, generated artifacts và dấu hiệu `.env` trước khi review |
 | [google-apps-script-contact-webhook.gs](./google-apps-script-contact-webhook.gs) | Mã Apps Script được kiểm thử; chỉnh cùng hướng dẫn webhook |
 | [HANDOVER.md](./HANDOVER.md) | Tài liệu bàn giao vận hành: bản đồ hệ thống, admin, Google Sheet, triển khai/rollback, giám sát |
 

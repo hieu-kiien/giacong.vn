@@ -16,6 +16,8 @@ export interface AdminSiteSetting {
   type: AdminSiteSettingType;
   draftValue: string;
   publishedValue: string;
+  effectiveValue: string;
+  isDefaultValue: boolean;
   version: number;
   updatedBy: string | null;
   updatedAt: string;
@@ -118,6 +120,11 @@ export interface AdminLead {
   assignedTo: string | null;
   createdAt: string;
   updatedAt: string;
+  publicReference?: string | null;
+  webhookReference?: string | null;
+  deliveryError?: string | null;
+  deliveryAttempts?: number;
+  deliveredAt?: string | null;
 }
 
 export class AdminClientError extends Error {

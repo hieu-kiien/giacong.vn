@@ -17,6 +17,7 @@ Tài liệu này khóa kiến trúc triển khai production cho Lean V1. Khi tà
 - Vercel không thuộc đường production.
 - Mọi thay đổi application phải đi **staging trước**, production chỉ promotion sau acceptance.
 - Google Apps Script + Google Sheet hiện vẫn là intake/hàng đợi vận hành theo phạm vi Lean V1; việc có chuyển intake hoàn toàn sang D1 là quyết định riêng, không chặn migration catalog hiện tại.
+- Mã chống robot (Turnstile) ở form liên hệ hiện chưa đấu nối vào code; form đang dùng giới hạn số lần gửi (5 lần/phút). Việc đấu nối là việc riêng, không chặn lên production.
 
 ## Kiến trúc đích
 

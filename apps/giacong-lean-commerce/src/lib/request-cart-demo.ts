@@ -13,6 +13,7 @@ export function toRequestCartProductResolution(
     slug: product.slug,
     variants: product.variants.map((variant) => ({
       contactFromQuantity: variant.contactFromQuantity,
+      imageUrl: variant.imageUrl ?? null,
       isAvailable: variant.isAvailable,
       label: variant.name,
       minimumOrderQuantity: variant.minimumOrderQuantity,

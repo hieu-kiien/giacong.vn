@@ -25,7 +25,7 @@ test("admin storefront mode accepts only an exact configured admin hostname", ()
 
 test("admin mode requires an authenticated session with a known role", () => {
   assert.equal(isAdminSessionReady({ authenticated: true, role: "owner" }), true);
-  assert.equal(isAdminSessionReady({ authenticated: true, role: "viewer" }), true);
+  assert.equal(isAdminSessionReady({ authenticated: true, role: "viewer" }), false);
   assert.equal(isAdminSessionReady({ authenticated: true, role: "unknown" }), false);
   assert.equal(isAdminSessionReady({ authenticated: true, role: null }), false);
   assert.equal(isAdminSessionReady({ authenticated: false, role: "owner" }), false);
@@ -124,22 +124,22 @@ test("direct editing targets the rendered storefront nodes and keeps draft chang
     assert.match(targets, new RegExp(`key: [\"']${key}[\"']`), `direct target should expose ${key}`);
   }
   assert.match(source, /findAdminVisualTarget\(document/);
-  assert.match(targets, /selector: ["']#section_250108065 h3["']/);
+  assert.match(targets, /#section_250108065 h3\.entry-title/);
   assert.match(source, /addEventListener\("click"/);
   assert.match(source, /event\.preventDefault\(\)/);
   assert.match(source, /applyDirectSettingValue/);
   assert.match(source, /setSelectedKey/);
-  assert.match(source, /Lưu draft/);
+  assert.match(source, /Lưu bản nháp/);
   assert.match(source, /Xuất bản/);
 });
 
 test("contextual editor hides edit affordances for read-only roles", async () => {
   const source = await readSource("../src/components/admin/AdminVisualEditor.tsx");
 
-  assert.match(source, /const editableRoles = new Set\(\["owner",\s*"content_manager"\]\)/);
+  assert.match(source, /const editableRoles = new Set\(\["owner"\]\)/);
   assert.match(source, /if \(!editableRoles\.has\(session\.role\)\) return null/);
-  assert.match(source, /if \(!canEdit \|\| changed\.length === 0\) return;/);
-  assert.match(source, /if \(!canEdit \|\| hasLocalChanges \|\| !hasDraft\) return;/);
+  assert.match(source, /if \(!canEdit \|\| changed\.length === 0 \|\| busyRef\.current\) return;/);
+  assert.match(source, /if \(!canEdit \|\| hasLocalChanges \|\| !hasDraft \|\| busyRef\.current\) return;/);
 });
 
 test("contextual editor traps focus and restores the opener on every close path", async () => {
@@ -170,9 +170,9 @@ test("inline direct editing closes on Escape and restores focus on mobile-safe c
 
   assert.match(globalStyles, /\.admin-visual-mode-banner[\s\S]*?position: static/);
   assert.match(editorStyles, /\.regionToolbar[\s\S]*?position: static/);
-  assert.match(editorStyles, /\.directActionBar[\s\S]*?position: static/);
-  assert.match(editorStyles, /\.inlineEditor[\s\S]*?bottom: 10px/);
-  assert.match(editorStyles, /max-height: min\(62dvh, 440px\)/);
+  assert.match(editorStyles, /\.directActionBar[\s\S]*?position: fixed/);
+  assert.match(editorStyles, /\.inlineEditor[\s\S]*?bottom: calc\(var\(--admin-visual-action-height/);
+  assert.match(editorStyles, /max-height: calc\(100dvh/);
 });
 
 test("contextual editor exposes explicit dialog and tab relationships", async () => {

@@ -6,6 +6,25 @@ import { findAdminMember } from "../src/lib/admin-data.ts";
 import { parseAdminMemberPayload } from "../src/lib/admin-members-input.ts";
 import { ADMIN_CAPABILITIES, canManage, canManageMembers, canManageNavigation, canManagePages } from "../src/lib/admin-permissions.ts";
 
+test("single admin role rejects retired permissions and member payloads", () => {
+  for (const role of ["content_manager", "catalog_manager", "sales_manager", "viewer"]) {
+    for (const capability of ADMIN_CAPABILITIES) assert.equal(canManage(role, capability), false, `${role}: ${capability}`);
+    const parsed = parseAdminMemberPayload({ accessSubject: "retired-actor", displayName: "Retired", email: "retired@example.test", role, isActive: true });
+    assert.equal(parsed.input, null);
+    assert.ok(parsed.fieldErrors.role);
+  }
+  for (const capability of ADMIN_CAPABILITIES) assert.equal(canManage("owner", capability), true);
+});
+
+test("single admin admission rejects retired exact and email matches without promoting them", async () => {
+  for (const role of ["content_manager", "catalog_manager", "sales_manager", "viewer"] as const) {
+    const retired: LookupRow = {id:"retired", access_subject:"retired-subject", email:"retired@example.test", display_name:"Retired",role};
+    const owner: LookupRow = {...retired,id:"owner",access_subject:"owner-subject",role:"owner"};
+    assert.equal(await findAdminMember(new LookupDatabase(retired, [owner]), "retired-subject", retired.email!), null);
+    assert.equal(await findAdminMember(new LookupDatabase(null, [retired]), "unknown-subject", retired.email!), null);
+  }
+});
+
 interface LookupRow {
   access_subject: string;
   display_name: string;
@@ -64,7 +83,7 @@ test("member payloads normalize identity fields and role", () => {
     displayName: "  Người vận hành  ",
     email: " ADMIN@EXAMPLE.COM ",
     isActive: true,
-    role: "content_manager",
+    role: "owner",
   });
   assert.deepEqual(parsed.fieldErrors, {});
   assert.deepEqual(parsed.input, {
@@ -72,7 +91,7 @@ test("member payloads normalize identity fields and role", () => {
     displayName: "Người vận hành",
     email: "admin@example.com",
     isActive: true,
-    role: "content_manager",
+    role: "owner",
   });
 });
 
@@ -88,14 +107,14 @@ test("member payloads reject unsafe identity values and unknown roles", () => {
   assert.ok(Object.keys(parsed.fieldErrors).length >= 4);
 });
 
-test("admin capabilities separate owner, content, catalog, sales and viewer access", () => {
+test("admin capabilities admit only the full administrator", () => {
   assert.equal(canManageMembers("owner"), true);
   assert.equal(canManageMembers("content_manager"), false);
-  assert.equal(canManagePages("content_manager"), true);
-  assert.equal(canManageNavigation("content_manager"), true);
-  assert.equal(canManage("catalog_manager", "catalog.write"), true);
-  assert.equal(canManage("sales_manager", "leads.write"), true);
-  assert.equal(canManage("viewer", "catalog.read"), true);
+  assert.equal(canManagePages("content_manager"), false);
+  assert.equal(canManageNavigation("content_manager"), false);
+  assert.equal(canManage("catalog_manager", "catalog.write"), false);
+  assert.equal(canManage("sales_manager", "leads.write"), false);
+  assert.equal(canManage("viewer", "catalog.read"), false);
   assert.equal(canManage("viewer", "members.read"), false);
   assert.equal(canManage("administrator", "pages.write"), false);
 });
@@ -103,38 +122,10 @@ test("admin capabilities separate owner, content, catalog, sales and viewer acce
 test("admin capability matrix is explicit for every supported role", () => {
   const expected: Record<string, readonly string[]> = {
     owner: [...ADMIN_CAPABILITIES],
-    content_manager: [
-      "dashboard.read",
-      "catalog.read",
-      "content.read",
-      "content.write",
-      "content.publish",
-      "navigation.read",
-      "navigation.write",
-      "navigation.publish",
-      "pages.read",
-      "pages.write",
-      "pages.publish",
-      "media.read",
-      "media.write",
-      "news.read",
-      "news.write",
-      "services.read",
-      "services.write",
-    ],
-    catalog_manager: ["dashboard.read", "catalog.read", "catalog.write", "media.read", "media.write"],
-    sales_manager: ["dashboard.read", "leads.read", "leads.write"],
-    viewer: [
-      "dashboard.read",
-      "catalog.read",
-      "content.read",
-      "navigation.read",
-      "pages.read",
-      "media.read",
-      "news.read",
-      "services.read",
-      "leads.read",
-    ],
+    content_manager: [],
+    catalog_manager: [],
+    sales_manager: [],
+    viewer: [],
   };
 
   for (const [role, capabilities] of Object.entries(expected)) {

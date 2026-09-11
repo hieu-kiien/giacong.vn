@@ -1,7 +1,8 @@
 "use client";
 
 import { Search } from "lucide-react";
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
+import { useAdminUnsaved, useRegisterAdminUnsaved } from "@/components/admin/AdminUnsavedGuard";
 import { AdminMediaPanel } from "@/components/admin/AdminMediaPanel";
 import { AdminEmptyState, AdminErrorState, AdminLoadingTable, AdminPageHeading, AdminPagination, AdminStatusBadge } from "@/components/admin/AdminPrimitives";
 import { useAdminSession } from "@/components/admin/AdminShell";
@@ -79,6 +80,8 @@ export default function AdminServicesPage() {
   const [error, setError] = useState<AdminClientError | null>(null);
   const [attempt, setAttempt] = useState(0);
   const [editor, setEditor] = useState<ServiceFormState | null>(null);
+  const [editorSnapshot, setEditorSnapshot] = useState<ServiceFormState | null>(null);
+  const [pendingEditor, setPendingEditor] = useState<{ form: ServiceFormState | null } | null>(null);
   const [saveError, setSaveError] = useState<AdminClientError | null>(null);
   const [saving, setSaving] = useState(false);
   const [archivingId, setArchivingId] = useState<number | null>(null);
@@ -86,6 +89,21 @@ export default function AdminServicesPage() {
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const serviceBatchRequest = useRef<PendingServiceBatch | null>(null);
   const serviceBatchInFlight = useRef(false);
+  const { isDirty: hasUnsavedChanges, saving: nestedSaving } = useAdminUnsaved();
+  const isDirty = useCallback(() => editor !== null && JSON.stringify(editor) !== JSON.stringify(editorSnapshot), [editor, editorSnapshot]);
+  useRegisterAdminUnsaved(isDirty, saving);
+
+  function applyServiceEditor(form: ServiceFormState | null) {
+    setEditor(form);
+    setEditorSnapshot(form);
+    setSaveError(null);
+  }
+
+  function requestServiceEditor(form: ServiceFormState | null) {
+    if (saving || nestedSaving) return;
+    if (isDirty() || hasUnsavedChanges()) { setPendingEditor({ form }); return; }
+    applyServiceEditor(form);
+  }
 
   useEffect(() => {
     const controller = new AbortController();
@@ -151,13 +169,11 @@ export default function AdminServicesPage() {
   }
 
   function openCreate() {
-    setSaveError(null);
-    setEditor({ ...emptyServiceForm });
+    requestServiceEditor({ ...emptyServiceForm });
   }
 
   function openEdit(service: AdminServiceWithRevision) {
-    setSaveError(null);
-    setEditor({
+    requestServiceEditor({
       description: service.description,
       id: service.id,
       imageUrl: service.imageUrl ?? "",
@@ -297,14 +313,22 @@ export default function AdminServicesPage() {
     });
   }
 
+const serviceStatusLabels: Record<string, string> = {
+  draft: "Bản nháp",
+  review: "Chờ duyệt",
+  published: "Đã đăng",
+  archived: "Lưu trữ",
+};
+
   return (
     <div className="admin-content">
-      <AdminPageHeading kicker="Năng lực sản xuất" title="Dịch vụ gia công" subtitle="Quản lý danh mục năng lực sản xuất, MOQ và thời gian lead time đang công bố." stamp="DANH MỤC DỊCH VỤ" />
-      {editor ? <ServiceEditor error={saveError} form={editor} onChange={setEditor} onCancel={() => { setEditor(null); setSaveError(null); }} onSubmit={submitService} saving={saving} /> : null}
+      <AdminPageHeading kicker="Năng lực sản xuất" title="Dịch vụ gia công" subtitle="Quản lý danh mục năng lực sản xuất, số lượng tối thiểu và thời gian làm hàng đang công bố." stamp="DANH MỤC DỊCH VỤ" />
+      {editor ? <ServiceEditor error={saveError} form={editor} onChange={setEditor} onCancel={() => requestServiceEditor(null)} onSubmit={submitService} saving={saving} /> : null}
+      {pendingEditor ? <AdminConfirmDialog cancelLabel="Ở lại" confirmLabel="Bỏ thay đổi" message="Dịch vụ có thay đổi chưa lưu. Bỏ các thay đổi này?" onConfirm={() => applyServiceEditor(pendingEditor.form)} onDismiss={() => setPendingEditor(null)} title="Bỏ thay đổi chưa lưu?" /> : null}
       {editor?.id ? <AdminMediaPanel serviceId={editor.id} title="Ảnh dịch vụ và hồ sơ năng lực" /> : null}
       <form className="admin-toolbar" onSubmit={submitSearch}>
         <div className="admin-search-wrap">
-          <label className="admin-label" htmlFor="service-search">Tìm theo tên, slug hoặc nội dung</label>
+          <label className="admin-label" htmlFor="service-search">Tìm theo tên, đường dẫn hoặc nội dung</label>
           <Search aria-hidden="true" />
           <input className="admin-input has-icon" data-testid="input-service-search" id="service-search" onChange={(event) => setInputQuery(event.target.value)} placeholder="Ví dụ: đóng gói, trà, viên nang..." value={inputQuery} />
         </div>
@@ -321,18 +345,18 @@ export default function AdminServicesPage() {
       {error ? <AdminErrorState error={error} onRetry={() => setAttempt((value) => value + 1)} /> : loading ? <AdminLoadingTable /> : (
         <section className="admin-panel admin-table-panel" aria-labelledby="service-table-heading">
           <div className="admin-panel-heading" style={{ padding: "21px 21px 0" }}><div><h2 className="admin-panel-title" id="service-table-heading">Danh mục dịch vụ</h2><p className="admin-panel-caption">{query ? `Kết quả cho “${query}”` : "Sắp xếp theo ID tăng dần"}</p></div><span className="admin-count">{total} bản ghi</span></div>
-          {services.length === 0 ? <AdminEmptyState title={query ? "Không tìm thấy dịch vụ phù hợp" : "Chưa có dịch vụ trong catalog"} description={query ? "Thử một từ khóa khác. Không có dữ liệu mẫu được đưa vào danh sách." : "Bạn có thể tạo dịch vụ mới từ nút Thêm dịch vụ."} /> : (
+          {services.length === 0 ? <AdminEmptyState title={query ? "Không tìm thấy dịch vụ phù hợp" : "Chưa có dịch vụ"} description={query ? "Thử một từ khóa khác. Không có dữ liệu mẫu được đưa vào danh sách." : "Bạn có thể tạo dịch vụ mới từ nút Thêm dịch vụ."} /> : (
             <>
               <div className="admin-table-scroll">
                 <table className="admin-table">
-                  <thead><tr>{canManage ? <th scope="col"><input aria-label="Chọn tất cả dịch vụ trong trang" checked={services.some((service) => service.isActive) && services.filter((service) => service.isActive).every((service) => selectedIds.has(service.id))} disabled={batchArchiving} onChange={toggleAllVisible} type="checkbox" /></th> : null}<th scope="col">Dịch vụ</th><th scope="col">Tóm tắt</th><th scope="col">Trạng thái</th><th scope="col">MOQ</th><th scope="col">Lead time</th><th scope="col">Cập nhật</th>{canManage ? <th scope="col">Thao tác</th> : null}</tr></thead>
+                  <thead><tr>{canManage ? <th scope="col"><input aria-label="Chọn tất cả dịch vụ trong trang" checked={services.some((service) => service.isActive) && services.filter((service) => service.isActive).every((service) => selectedIds.has(service.id))} disabled={batchArchiving} onChange={toggleAllVisible} type="checkbox" /></th> : null}<th scope="col">Dịch vụ</th><th scope="col">Tóm tắt</th><th scope="col">Trạng thái</th><th scope="col">Tối thiểu</th><th scope="col">Thời gian làm hàng</th><th scope="col">Cập nhật</th>{canManage ? <th scope="col">Thao tác</th> : null}</tr></thead>
                   <tbody>
                     {services.map((service) => (
                       <tr data-testid={`row-service-${service.id}`} key={service.id}>
                         {canManage ? <td><input aria-label={`Chọn dịch vụ ${service.name}`} checked={selectedIds.has(service.id)} disabled={!service.isActive || batchArchiving} onChange={() => toggleSelected(service.id)} type="checkbox" /></td> : null}
                         <td><div className="admin-item-name">{service.name}<div className="admin-item-meta">{service.slug}</div></div></td>
                         <td><div className="admin-description">{service.summary || service.description || "Chưa có tóm tắt"}</div></td>
-                        <td><AdminStatusBadge kind={service.isActive && service.status === "published" ? "green" : service.status === "draft" || service.status === "review" ? "amber" : "neutral"} value={service.isActive ? service.status : "Tạm ẩn"} /></td>
+                        <td><AdminStatusBadge kind={service.isActive && service.status === "published" ? "green" : service.status === "draft" || service.status === "review" ? "amber" : "neutral"} value={service.isActive ? serviceStatusLabels[service.status] ?? service.status : "Tạm ẩn"} /></td>
                         <td className="admin-description">{service.moqSummary || "Chưa có"}</td>
                         <td className="admin-mono">{service.leadTimeDays !== null ? `${service.leadTimeDays} ngày` : "Chưa có"}</td>
                         <td className="admin-mono">{formatAdminDate(service.updatedAt)}</td>
@@ -350,7 +374,7 @@ export default function AdminServicesPage() {
       {confirmArchive ? (
         <AdminConfirmDialog
           confirmLabel="Ẩn dịch vụ"
-          message={`Ẩn dịch vụ “${confirmArchive.name}” khỏi storefront? Dữ liệu vẫn được giữ và có thể bật lại.`}
+          message={`Ẩn dịch vụ “${confirmArchive.name}” khỏi trang web? Dữ liệu vẫn được giữ và có thể bật lại.`}
           onConfirm={() => void archiveService(confirmArchive)}
           onDismiss={() => setConfirmArchive(null)}
           title="Ẩn dịch vụ?"
@@ -359,7 +383,7 @@ export default function AdminServicesPage() {
       {confirmBatchArchive.length > 0 ? (
         <AdminConfirmDialog
           confirmLabel="Ẩn các dịch vụ"
-          message={`Ẩn ${confirmBatchArchive.length} dịch vụ khỏi storefront? Dữ liệu vẫn được giữ và có thể bật lại.`}
+          message={`Ẩn ${confirmBatchArchive.length} dịch vụ khỏi trang web? Dữ liệu vẫn được giữ và có thể bật lại.`}
           onConfirm={() => void archiveSelectedServices()}
           onDismiss={() => setConfirmBatchArchive([])}
           title="Ẩn các dịch vụ đã chọn?"
@@ -389,7 +413,7 @@ function ServiceEditor({ error, form, onCancel, onChange, onSubmit, saving }: Se
         <div>
           <div className="admin-kicker">Năng lực / chỉnh sửa</div>
           <h2 className="admin-panel-title" id="service-editor-heading">{form.id ? "Cập nhật dịch vụ" : "Tạo dịch vụ mới"}</h2>
-          <p className="admin-panel-caption">Lưu dưới dạng draft trước; chỉ dịch vụ published và bật hiển thị mới được public read phục vụ storefront.</p>
+          <p className="admin-panel-caption">Lưu dưới dạng bản nháp trước; chỉ dịch vụ đã đăng và bật hiển thị mới hiện ra trang web.</p>
         </div>
         <span className="admin-stamp">{form.id ? `ID ${form.id}` : "BẢN GHI MỚI"}</span>
       </div>
@@ -397,10 +421,10 @@ function ServiceEditor({ error, form, onCancel, onChange, onSubmit, saving }: Se
       <form onSubmit={onSubmit}>
         <div className="admin-editor-grid">
           <label className="admin-field"><span>Tên dịch vụ <b aria-hidden="true">*</b></span><input className="admin-input" data-testid="input-service-name" onChange={(event) => update("name", event.target.value)} required value={form.name} /></label>
-          <label className="admin-field"><span>Slug <b aria-hidden="true">*</b></span><input className="admin-input admin-mono" data-testid="input-service-slug" onChange={(event) => update("slug", event.target.value)} required value={form.slug} /></label>
+          <label className="admin-field"><span>Đường dẫn (slug) <b aria-hidden="true">*</b></span><input className="admin-input admin-mono" data-testid="input-service-slug" onChange={(event) => update("slug", event.target.value)} required value={form.slug} /></label>
           <label className="admin-field"><span>Trạng thái phát hành</span><select className="admin-select" data-testid="select-service-status" onChange={(event) => { const status = event.target.value as ServiceFormState["status"]; onChange({ ...form, isActive: status === "published" ? form.isActive : false, status }); }} value={form.status}><option value="draft">Bản nháp</option><option value="review">Chờ duyệt</option><option value="published">Đã xuất bản</option><option value="archived">Lưu trữ</option></select></label>
-          <label className="admin-field"><span>Lead time (ngày)</span><input className="admin-input admin-mono" data-testid="input-service-lead-time" inputMode="numeric" min="0" onChange={(event) => update("leadTimeDays", event.target.value)} type="number" value={form.leadTimeDays} /></label>
-          <label className="admin-field admin-field-wide"><span>MOQ / quy mô tối thiểu</span><input className="admin-input" data-testid="input-service-moq" onChange={(event) => update("moqSummary", event.target.value)} placeholder="Ví dụ: từ 500 kg / mẻ" value={form.moqSummary} /></label>
+          <label className="admin-field"><span>Thời gian làm hàng (ngày)</span><input className="admin-input admin-mono" data-testid="input-service-lead-time" inputMode="numeric" min="0" onChange={(event) => update("leadTimeDays", event.target.value)} type="number" value={form.leadTimeDays} /></label>
+          <label className="admin-field admin-field-wide"><span>Số lượng tối thiểu</span><input className="admin-input" data-testid="input-service-moq" onChange={(event) => update("moqSummary", event.target.value)} placeholder="Ví dụ: từ 500 kg / mẻ" value={form.moqSummary} /></label>
           <label className="admin-field admin-field-wide"><span>Tóm tắt</span><textarea className="admin-textarea" data-testid="input-service-summary" onChange={(event) => update("summary", event.target.value)} rows={2} value={form.summary} /></label>
           <div className="admin-field admin-field-wide">
             <span>Ảnh chính</span>

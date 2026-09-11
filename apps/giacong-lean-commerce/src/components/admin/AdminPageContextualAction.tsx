@@ -6,7 +6,7 @@ import { useAdminVisualContext } from "./AdminVisualMode";
 
 import styles from "./AdminNewsContextualAction.module.css";
 
-const editableRoles = new Set(["owner", "content_manager"]);
+const editableRoles = new Set(["owner"]);
 
 export function AdminPageContextualAction({ pageKey }: { pageKey: string }) {
   const { session, status } = useAdminVisualContext();

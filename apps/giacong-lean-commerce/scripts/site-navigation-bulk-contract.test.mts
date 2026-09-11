@@ -41,7 +41,7 @@ test("navigation bulk publish has a request-scoped audit contract", async () => 
   assert.match(source, /findNavigationCreateMutation/);
   assert.match(source, /admin_navigation_create_audit/);
   assert.match(bulkRoute, /readBoundedAdminJson/);
-  assert.match(createRoute, /hasOnlyKeys\(body, \["requestId", "menuKey", "label", "href", "capturedMenuId", "sortOrder", "isActive"\]\)/);
+  assert.match(createRoute, /hasOnlyKeys\(body, \["requestId", "menuKey", "label", "href", "capturedMenuId", "parentId", "sortOrder", "isActive"\]\)/);
   assert.match(createRoute, /isAdminRequestId\(body\.requestId\)/);
   assert.match(createRoute, /SiteNavigationIdempotencyConflictError/);
   assert.match(bulkRoute, /hasOnlyKeys\(body, \["requestId"\]\)/);
@@ -56,7 +56,7 @@ test("navigation bulk publish has a request-scoped audit contract", async () => 
   assert.match(manager, /permissionsReady && canEdit/);
   assert.match(manager, /async function createItem[\s\S]*?body: \{[\s\S]*?requestId/);
   assert.match(manager, /result\.skipped\.map/);
-  assert.match(detailRoute, /hasOnlyKeys\(body, \["requestId", "expectedVersion", "label", "href", "sortOrder", "isActive"\]\)/);
+  assert.match(detailRoute, /hasOnlyKeys\(body, \["requestId", "expectedVersion", "label", "href", "parentId", "sortOrder", "isActive"\]\)/);
   assert.match(detailRoute, /requestId/);
   assert.match(publishRoute, /hasOnlyKeys\(body, \["requestId", "expectedVersion"\]\)/);
   assert.match(publishRoute, /requestId/);
@@ -78,7 +78,8 @@ test("navigation create is atomic, request-scoped and replayable", async () => {
 
   const created = await createAdminSiteNavigation(database, input);
   assert.equal(created.version, 1);
-  assert.equal(created.dirty, false);
+  assert.equal(created.dirty, true);
+  assert.equal(created.publishedIsActive, false);
   assert.equal(database.rows.length, 1);
   assert.equal(database.createAudits.size, 1);
   assert.equal(database.batchCalls, 1);
@@ -95,6 +96,34 @@ test("navigation create is atomic, request-scoped and replayable", async () => {
   );
   assert.equal(database.rows.length, 1);
   assert.equal(database.batchCalls, 1);
+});
+
+test("navigation create persists a same-menu parent and rejects a cycle", async () => {
+  const database = new FakeNavigationDatabase([navigationRow({ id: "parent", capturedMenuId: null })]);
+  const created = await createAdminSiteNavigation(database, {
+    actorSubject: "qtu1053@gmail.com",
+    href: "/child/",
+    label: "Child",
+    menuKey: "primary",
+    parentId: "parent",
+    requestId: "12121212-1212-4212-8212-121212121212",
+  });
+  assert.equal(created.draftParentId, "parent");
+  assert.equal(database.rows.at(-1)?.draft_parent_id, "parent");
+  await assert.rejects(
+    () => updateAdminSiteNavigation(database, {
+      actorSubject: "qtu1053@gmail.com",
+      expectedVersion: 1,
+      href: "/parent/",
+      id: "parent",
+      isActive: true,
+      label: "Parent",
+      parentId: created.id,
+      requestId: "13131313-1313-4313-8313-131313131313",
+      sortOrder: 10,
+    }),
+    /cycle/i,
+  );
 });
 
 test("navigation create rolls back the item when specialized audit fails", async () => {
@@ -376,19 +405,21 @@ test("navigation bulk publish rolls back when a postcondition is missing", async
   assert.equal(database.audits.size, 0);
 });
 
-function navigationRow(input: { draftLabel?: string; id: string; menuKey?: "primary" | "footer" }): NavigationRow {
+function navigationRow(input: { capturedMenuId?: string | null; draftLabel?: string; id: string; menuKey?: "primary" | "footer" }): NavigationRow {
   return {
     id: input.id,
     menu_key: input.menuKey ?? "primary",
-    captured_menu_id: `menu-${input.id}`,
+    captured_menu_id: input.capturedMenuId === undefined ? `menu-${input.id}` : input.capturedMenuId,
     draft_label: input.draftLabel ?? "Nhãn hiện tại",
     draft_href: "/",
     draft_sort_order: 10,
     draft_is_active: 1,
+    draft_parent_id: null,
     published_label: input.draftLabel ? "Nhãn cũ" : "Nhãn hiện tại",
     published_href: "/",
     published_sort_order: 10,
     published_is_active: 1,
+    published_parent_id: null,
     version: 1,
     updated_by: null,
     updated_at: "2026-09-01T00:00:00.000Z",
@@ -406,10 +437,12 @@ interface NavigationRow {
   draft_href: string;
   draft_sort_order: number;
   draft_is_active: number;
+  draft_parent_id: string | null;
   published_label: string;
   published_href: string;
   published_sort_order: number;
   published_is_active: number;
+  published_parent_id: string | null;
   version: number;
   updated_by: string | null;
   updated_at: string;
@@ -528,6 +561,8 @@ class FakeNavigationStatement implements D1PreparedStatementLike {
               published_href: row?.published_href,
               published_sort_order: row?.published_sort_order,
               published_is_active: row?.published_is_active,
+              draft_parent_id: row?.draft_parent_id ?? null,
+              published_parent_id: row?.published_parent_id ?? null,
               published_by: row?.published_by ?? null,
               published_at: row?.published_at ?? null,
             } as T;
@@ -540,7 +575,8 @@ class FakeNavigationStatement implements D1PreparedStatementLike {
           .filter((row) => row.draft_label !== row.published_label
             || row.draft_href !== row.published_href
             || row.draft_sort_order !== row.published_sort_order
-            || row.draft_is_active !== row.published_is_active)
+            || row.draft_is_active !== row.published_is_active
+            || row.draft_parent_id !== row.published_parent_id)
           .slice()
           .sort((left, right) => left.menu_key.localeCompare(right.menu_key)
             || left.draft_sort_order - right.draft_sort_order
@@ -583,6 +619,9 @@ class FakeNavigationStatement implements D1PreparedStatementLike {
     if (this.database.failOnQuery && this.query.includes(this.database.failOnQuery)) {
       throw new Error("forced fake D1 failure");
     }
+    if (this.query.includes("navigation-draft-graph-postcondition") || this.query.includes("navigation-published-graph-postcondition")) {
+      return { meta: { changes: 0 } };
+    }
     if (this.query.includes("navigation-write-postcondition") || this.query.includes("navigation-bulk-postcondition")) {
       if (this.database.failPostcondition) throw new Error("navigation-write-postcondition failed");
       return { meta: { changes: 1 } };
@@ -601,6 +640,8 @@ class FakeNavigationStatement implements D1PreparedStatementLike {
         published_href: String(publishedHref),
         published_sort_order: Number(publishedSortOrder),
         published_is_active: Number(publishedIsActive),
+        draft_parent_id: (this.values[13] as string | null) ?? null,
+        published_parent_id: (this.values[14] as string | null) ?? null,
         version: 1,
         updated_by: String(updatedBy),
         updated_at: "2026-09-01T00:00:00.000Z",
@@ -662,14 +703,15 @@ class FakeNavigationStatement implements D1PreparedStatementLike {
       return { meta: { changes: 1 } };
     }
     if (this.query.includes("UPDATE site_navigation_items")) {
-      if (this.values.length === 8) {
-        const [draftLabel, draftHref, draftSortOrder, draftIsActive, actorSubject, requestId, navigationId, expectedVersion] = this.values;
+      if (this.values.length === 9) {
+        const [draftLabel, draftHref, draftSortOrder, draftIsActive, parentId, actorSubject, requestId, navigationId, expectedVersion] = this.values;
         const row = this.database.rows.find((candidate) => candidate.id === String(navigationId));
         if (!row || this.database.skipUpdateIds.has(row.id) || row.version !== Number(expectedVersion)) return { meta: { changes: 0 } };
         row.draft_label = String(draftLabel);
         row.draft_href = String(draftHref);
         row.draft_sort_order = Number(draftSortOrder);
         row.draft_is_active = Number(draftIsActive);
+        row.draft_parent_id = (parentId as string | null) ?? null;
         row.version += 1;
         row.updated_by = String(actorSubject);
         row.last_request_id = String(requestId);
@@ -682,6 +724,7 @@ class FakeNavigationStatement implements D1PreparedStatementLike {
       row.published_href = row.draft_href;
       row.published_sort_order = row.draft_sort_order;
       row.published_is_active = row.draft_is_active;
+      row.published_parent_id = row.draft_parent_id;
       row.published_by = String(this.values[0]);
       row.published_at = "2026-09-01T00:00:00.000Z";
       row.version += 1;

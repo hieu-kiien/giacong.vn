@@ -1,9 +1,11 @@
 "use client";
 
 import { Plus, RefreshCw, Save, ShieldCheck, UserRound } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { useRegisterAdminUnsaved } from "@/components/admin/AdminUnsavedGuard";
 
 import { AdminField } from "@/components/admin/AdminField";
+import { AdminConfirmDialog } from "@/components/admin/AdminDialog";
 import { AdminErrorState, AdminPageHeading, AdminStatusBadge } from "@/components/admin/AdminPrimitives";
 import { useAdminSession } from "@/components/admin/AdminShell";
 import { useAdminToast } from "@/components/admin/AdminToast";
@@ -44,11 +46,7 @@ interface NewMemberForm {
 }
 
 const roleOptions: Array<{ value: AdminRole; label: string; description: string }> = [
-  { value: "owner", label: "Chủ sở hữu (toàn quyền)", description: "Toàn quyền, bao gồm thành viên và quyền." },
-  { value: "content_manager", label: "Quản lý nội dung", description: "Nội dung, page, menu, media, tin tức, dịch vụ." },
-  { value: "catalog_manager", label: "Quản lý catalog", description: "Sản phẩm, danh mục, biến thể và media catalog." },
-  { value: "sales_manager", label: "Quản lý yêu cầu", description: "Yêu cầu báo giá và luồng lead." },
-  { value: "viewer", label: "Người xem", description: "Chỉ xem dữ liệu được cấp quyền đọc." },
+  { value: "owner", label: "Admin toàn quyền", description: "Toàn quyền quản lý website và tài khoản quản trị." },
 ];
 
 const emptyMember: NewMemberForm = {
@@ -56,7 +54,7 @@ const emptyMember: NewMemberForm = {
   displayName: "",
   email: "",
   isActive: true,
-  role: "viewer",
+  role: "owner",
 };
 
 export function AdminMembersManager() {
@@ -72,9 +70,18 @@ export function AdminMembersManager() {
   const [savingId, setSavingId] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
+  const [confirmReload, setConfirmReload] = useState(false);
   const [newMember, setNewMember] = useState<NewMemberForm>(emptyMember);
 
   const canEdit = canManageMembers(session.role);
+  const isDirty = useCallback(() => members.some((member) => member.draftDisplayName !== member.displayName || member.draftEmail !== (member.email ?? "") || member.draftRole !== member.role || member.draftIsActive !== member.isActive) || JSON.stringify(newMember) !== JSON.stringify(emptyMember), [members, newMember]);
+  useRegisterAdminUnsaved(isDirty, Boolean(savingId || creating));
+
+  function requestReload() {
+    if (savingId || creating) return;
+    if (isDirty()) { setConfirmReload(true); return; }
+    setAttempt((value) => value + 1);
+  }
 
   function updateNewMember(patch: Partial<NewMemberForm>) {
     setNewMember((current) => ({ ...current, ...patch }));
@@ -184,27 +191,27 @@ export function AdminMembersManager() {
   return (
     <div className="admin-content">
       <AdminPageHeading
-        kicker="Access / RBAC"
-        title="Tài khoản quản trị & quyền"
-        subtitle="Quyền ứng dụng được lưu trong D1 và kiểm tra ở từng API. Cloudflare Access vẫn là lớp xác thực đầu vào bắt buộc."
-        stamp="OWNER CONTROL"
+        kicker="Tài khoản quản trị"
+        title="Tài khoản quản trị"
+        subtitle="Website sử dụng một vai trò duy nhất: Admin toàn quyền. Đăng nhập bảo mật Cloudflare Access vẫn bắt buộc trước khi vào."
+        stamp="ADMIN TOÀN QUYỀN"
       />
       <div className="admin-content-toolbar">
         <div>
           <div className="admin-content-toolbar-title"><ShieldCheck size={16} /> Quản lý tài khoản quản trị</div>
-          <p>Chủ sở hữu quản lý tài khoản quản trị và vai trò; các vai trò còn lại chỉ thấy màn hình đúng quyền được cấp. Không dùng một tài khoản administrator chung.</p>
+          <p>Mỗi tài khoản được cấp quyền có thể quản lý toàn bộ website. Chỉ thêm người bạn muốn giao toàn quyền quản trị.</p>
         </div>
         <div className="admin-content-toolbar-actions">
-          <AdminStatusBadge kind={canEdit ? "green" : "neutral"} value={canEdit ? "Owner · có quyền" : "Chỉ xem"} />
-          <button className="admin-button admin-button-quiet" onClick={() => setAttempt((value) => value + 1)} type="button"><RefreshCw size={14} /> Tải lại</button>
+          <AdminStatusBadge kind={canEdit ? "green" : "neutral"} value={canEdit ? "Admin toàn quyền" : "Không có quyền"} />
+          <button className="admin-button admin-button-quiet" onClick={requestReload} type="button"><RefreshCw size={14} /> Tải lại</button>
           {canEdit ? <button className="admin-button admin-button-primary" onClick={() => setShowCreate((value) => !value)} type="button"><Plus size={14} /> Thêm tài khoản quản trị</button> : null}
         </div>
       </div>
       {showCreate && canEdit ? (
         <section className="admin-panel admin-member-create" aria-labelledby="member-create-title">
-          <div className="admin-panel-heading"><div><h2 className="admin-panel-title" id="member-create-title">Thêm tài khoản quản trị</h2><p className="admin-panel-caption">Chọn người được phép đăng nhập bằng Cloudflare Access, rồi cấp đúng vai trò cần dùng.</p></div></div>
+          <div className="admin-panel-heading"><div><h2 className="admin-panel-title" id="member-create-title">Thêm tài khoản quản trị</h2><p className="admin-panel-caption">Cấp quyền quản trị toàn bộ website cho người đã được duyệt đăng nhập Cloudflare Access.</p></div></div>
           <div className="admin-editor-grid">
-            <AdminField error={createFieldErrors.accessSubject} id="member-new-subject" hint="Nhập email hoặc subject ID đúng với chính sách Cloudflare Access." label="Tài khoản đăng nhập Cloudflare Access">
+            <AdminField error={createFieldErrors.accessSubject} id="member-new-subject" hint="Nhập email đúng với tài khoản đăng nhập Cloudflare Access đã duyệt." label="Tài khoản đăng nhập Cloudflare Access">
               <input aria-describedby={createFieldErrors.accessSubject ? "member-new-subject-hint member-new-subject-error" : "member-new-subject-hint"} aria-invalid={Boolean(createFieldErrors.accessSubject)} className="admin-input" id="member-new-subject" onChange={(event) => updateNewMember({ accessSubject: event.target.value })} value={newMember.accessSubject} />
             </AdminField>
             <AdminField error={createFieldErrors.displayName} id="member-new-name" label="Tên hiển thị">
@@ -216,17 +223,18 @@ export function AdminMembersManager() {
             <RoleField error={createFieldErrors.role} id="member-new-role" onChange={(role) => updateNewMember({ role })} value={newMember.role} />
           </div>
           <div className="admin-member-create-footer">
-            <label className="admin-check"><input aria-invalid={Boolean(createFieldErrors.isActive)} checked={newMember.isActive} onChange={(event) => updateNewMember({ isActive: event.target.checked })} type="checkbox" /><span><strong>Kích hoạt ngay</strong><small>Có thể tắt sau mà không xóa lịch sử audit.</small></span></label>
+            <label className="admin-check"><input aria-invalid={Boolean(createFieldErrors.isActive)} checked={newMember.isActive} onChange={(event) => updateNewMember({ isActive: event.target.checked })} type="checkbox" /><span><strong>Kích hoạt ngay</strong><small>Có thể tắt sau mà không xóa lịch sử thay đổi.</small></span></label>
             <button className="admin-button admin-button-primary" disabled={creating || !newMember.accessSubject || !newMember.displayName} onClick={() => void createMember()} type="button"><Plus size={14} /> {creating ? "Đang thêm..." : "Thêm tài khoản quản trị"}</button>
           </div>
         </section>
       ) : null}
       {notice ? <div className="admin-content-notice" role="status">{notice}</div> : null}
-      {error ? <AdminErrorState error={error} onRetry={() => { setError(null); setAttempt((value) => value + 1); }} /> : null}
+      {error ? <AdminErrorState error={error} onRetry={requestReload} /> : null}
+      {confirmReload ? <AdminConfirmDialog cancelLabel="Ở lại" confirmLabel="Tải lại" message="Tải lại sẽ bỏ các thay đổi tài khoản chưa lưu. Bạn có muốn tiếp tục?" onConfirm={() => setAttempt((value) => value + 1)} onDismiss={() => setConfirmReload(false)} title="Bỏ thay đổi và tải lại?" /> : null}
       {loading ? <div className="admin-skeleton admin-content-skeleton" aria-label="Đang tải thành viên" /> : (
         <section className="admin-panel" aria-labelledby="member-list-title">
-          <div className="admin-panel-heading"><div><h2 className="admin-panel-title" id="member-list-title">Danh sách tài khoản quản trị</h2><p className="admin-panel-caption">{members.length} tài khoản · thay đổi quyền có optimistic revision và audit log</p></div><UserRound size={17} /></div>
-          {members.length === 0 ? <div className="admin-table-empty"><strong>Chưa có tài khoản quản trị</strong><p>Chạy migration control plane hoặc thêm chủ sở hữu đầu tiên trong D1.</p></div> : <div className="admin-member-list">{members.map((member) => <MemberEditor canEdit={canEdit} currentMemberId={session.memberId} currentSubject={session.subject} fieldErrors={memberFieldErrors[member.id] ?? {}} key={member.id} member={member} onChange={updateDraft} onSave={(next) => void saveMember(next)} saving={savingId === member.id} />)}</div>}
+          <div className="admin-panel-heading"><div><h2 className="admin-panel-title" id="member-list-title">Danh sách tài khoản quản trị</h2><p className="admin-panel-caption">{members.length} tài khoản · thay đổi quyền được kiểm tra phiên bản và ghi lịch sử</p></div><UserRound size={17} /></div>
+          {members.length === 0 ? <div className="admin-table-empty"><strong>Chưa có tài khoản quản trị</strong><p>Thêm chủ sở hữu đầu tiên để bắt đầu.</p></div> : <div className="admin-member-list">{members.map((member) => <MemberEditor canEdit={canEdit} currentMemberId={session.memberId} currentSubject={session.subject} fieldErrors={memberFieldErrors[member.id] ?? {}} key={member.id} member={member} onChange={updateDraft} onSave={(next) => void saveMember(next)} saving={savingId === member.id} />)}</div>}
         </section>
       )}
     </div>
@@ -256,11 +264,8 @@ function MemberEditor({ canEdit, currentMemberId, currentSubject, fieldErrors, m
   );
 }
 
-function RoleField({ disabled = false, error, id, onChange, value }: { disabled?: boolean; error?: string; id: string; onChange: (role: AdminRole) => void; value: AdminRole }) {
-  const hintId = `${id}-hint`;
-  const errorId = `${id}-error`;
-  const describedBy = error ? `${hintId} ${errorId}` : hintId;
-  return <AdminField error={error} hint={roleOptions.find((option) => option.value === value)?.description} id={id} label="Vai trò quản trị"><select aria-describedby={describedBy} aria-invalid={Boolean(error)} className="admin-input" disabled={disabled} id={id} onChange={(event) => onChange(event.target.value as AdminRole)} value={value}>{roleOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></AdminField>;
+function RoleField({ error, id }: { disabled?: boolean; error?: string; id: string; onChange: (role: AdminRole) => void; value: AdminRole }) {
+  return <AdminField error={error} hint="Toàn quyền quản lý website và tài khoản quản trị." id={id} label="Vai trò quản trị"><input aria-describedby={`${id}-hint${error ? ` ${id}-error` : ""}`} aria-invalid={Boolean(error)} className="admin-input" id={id} readOnly value="Admin toàn quyền" /></AdminField>;
 }
 
 function toEditableMember(member: AdminMemberRecord): EditableMember {

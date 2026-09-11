@@ -1,9 +1,11 @@
 "use client";
 
 import { Eye, Plus, RefreshCw, Save, Send, ShieldCheck } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useRegisterAdminUnsaved } from "@/components/admin/AdminUnsavedGuard";
 
 import { AdminField } from "@/components/admin/AdminField";
+import { AdminConfirmDialog } from "@/components/admin/AdminDialog";
 import { AdminErrorState, AdminPageHeading, AdminStatusBadge } from "@/components/admin/AdminPrimitives";
 import { useAdminSession } from "@/components/admin/AdminShell";
 import { useAdminToast } from "@/components/admin/AdminToast";
@@ -12,11 +14,13 @@ import { AdminClientError, fetchAdmin, mutateAdmin } from "@/lib/admin-client";
 interface AdminNavigationItem {
   id: string;
   capturedMenuId: string | null;
+  draftParentId: string | null;
   draftHref: string;
   draftIsActive: boolean;
   draftLabel: string;
   draftSortOrder: number;
   publishedHref: string;
+  publishedParentId: string | null;
   publishedIsActive: boolean;
   publishedLabel: string;
   publishedSortOrder: number;
@@ -44,6 +48,7 @@ interface NewNavigationForm {
   href: string;
   label: string;
   menuKey: "primary" | "footer";
+  parentId: string;
   sortOrder: string;
 }
 
@@ -64,9 +69,18 @@ export function AdminNavigationManager() {
   const [publishAllRequestId, setPublishAllRequestId] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
-  const [newItem, setNewItem] = useState<NewNavigationForm>({ href: "/", label: "", menuKey: "primary", sortOrder: "" });
+  const [confirmReload, setConfirmReload] = useState(false);
+  const [newItem, setNewItem] = useState<NewNavigationForm>({ href: "/", label: "", menuKey: "primary", parentId: "", sortOrder: "" });
   const mutationRequestIds = useRef(new Map<string, string>());
   const createRequestId = useRef<string | null>(null);
+  const isDirty = useCallback(() => items.some((item) => item.localDirty) || Boolean(newItem.label || newItem.sortOrder || newItem.href !== "/" || newItem.menuKey !== "primary" || newItem.parentId), [items, newItem]);
+  useRegisterAdminUnsaved(isDirty, Boolean(savingId || publishingId || publishingAll || creating));
+
+  function requestReload() {
+    if (savingId || publishingId || publishingAll || creating) return;
+    if (isDirty()) { setConfirmReload(true); return; }
+    setAttempt((value) => value + 1);
+  }
 
   useEffect(() => {
     const controller = new AbortController();
@@ -133,6 +147,7 @@ export function AdminNavigationManager() {
           href: item.draftHref,
           isActive: item.draftIsActive,
           label: item.draftLabel,
+          parentId: item.draftParentId,
           requestId,
           sortOrder: item.draftSortOrder,
         },
@@ -226,19 +241,20 @@ export function AdminNavigationManager() {
           isActive: true,
           label: newItem.label,
           menuKey: newItem.menuKey,
+          parentId: newItem.parentId || null,
           requestId,
           sortOrder: newItem.sortOrder === "" ? Math.max(0, ...targetItems.map((item) => item.draftSortOrder)) + 10 : Number(newItem.sortOrder),
         },
         method: "POST",
       });
       setItems((current) => [...current, result.item]);
-      setNewItem({ href: "/", label: "", menuKey: "primary", sortOrder: "" });
+      setNewItem({ href: "/", label: "", menuKey: "primary", parentId: "", sortOrder: "" });
       setShowCreate(false);
       createRequestId.current = null;
       setNotice("Đã thêm mục điều hướng. Hãy lưu và publish khi sẵn sàng.");
       showToast("success", "Đã thêm mục điều hướng mới.");
     } catch (reason: unknown) {
-      const clientError = reason instanceof AdminClientError ? reason : new AdminClientError("Không thể thêm mục điều hướng.", 0);
+      const clientError = reason instanceof AdminClientError ? reason : new AdminClientError("Không thể thêm mục menu.", 0);
       if (clientError.status >= 400 && clientError.status < 500) createRequestId.current = null;
       setError(clientError);
       showToast("error", clientError.message);
@@ -250,26 +266,26 @@ export function AdminNavigationManager() {
   return (
     <div className="admin-content">
       <AdminPageHeading
-        kicker="CMS / navigation"
-        title="Điều hướng website"
-        subtitle="Đổi nhãn, đường dẫn, thứ tự và trạng thái hiển thị của menu. Storefront chỉ nhận bản đã publish."
-        stamp="NAVIGATION CONTROL"
+        kicker="Quản lý menu"
+        title="Menu website"
+        subtitle="Đổi tên, đường dẫn, thứ tự và trạng thái hiển thị của menu. Trang web chỉ nhận bản đã đăng."
+        stamp="QUẢN LÝ MENU"
       />
       <div className="admin-content-toolbar">
         <div>
           <div className="admin-content-toolbar-title"><ShieldCheck size={16} /> Kiểm soát thay đổi menu</div>
-          <p>Menu captured cũ được nhận diện bằng ID; mục mới được thêm bằng schema an toàn, không chèn HTML tùy ý.</p>
+          <p>Menu cũ được nhận diện bằng mã; mục mới thêm theo mẫu an toàn, không chèn mã web lạ.</p>
         </div>
         <div className="admin-content-toolbar-actions">
           <AdminStatusBadge kind={permissionsReady && canEdit ? "green" : "neutral"} value={!permissionsReady ? (error ? "Chưa xác định quyền" : "Đang kiểm tra quyền…") : canEdit ? "Có quyền chỉnh sửa" : "Chỉ xem"} />
-          <button className="admin-button admin-button-quiet" onClick={() => setAttempt((value) => value + 1)} type="button"><RefreshCw size={14} /> Tải lại</button>
+          <button className="admin-button admin-button-quiet" onClick={requestReload} type="button"><RefreshCw size={14} /> Tải lại</button>
           {permissionsReady && canEdit ? <button className="admin-button admin-button-quiet" onClick={() => setShowCreate((value) => !value)} type="button"><Plus size={14} /> Thêm mục</button> : null}
           {permissionsReady && canPublish ? <button className="admin-button admin-button-primary" disabled={publishingAll || dirtyCount === 0 || hasUnsavedChanges} onClick={() => void publishAll()} type="button"><Send size={14} /> {publishingAll ? "Đang phát hành..." : "Phát hành tất cả"}</button> : null}
         </div>
       </div>
       {showCreate && permissionsReady && canEdit ? (
         <section className="admin-panel admin-navigation-create" aria-labelledby="navigation-create-title">
-          <div className="admin-panel-heading"><div><h2 className="admin-panel-title" id="navigation-create-title">Thêm mục điều hướng</h2><p className="admin-panel-caption">Dùng đường dẫn nội bộ như <code>/gioi-thieu/</code> hoặc URL https:// an toàn. Mục footer sẽ xuất hiện trong khu vực liên kết cuối trang sau khi publish.</p></div></div>
+          <div className="admin-panel-heading"><div><h2 className="admin-panel-title" id="navigation-create-title">Thêm mục menu</h2><p className="admin-panel-caption">Dùng đường dẫn nội bộ như <code>/gioi-thieu/</code> hoặc URL https:// an toàn. Mục cuối trang sẽ xuất hiện trong khu vực liên kết cuối trang sau khi đăng.</p></div></div>
           <div className="admin-editor-grid">
             <AdminField id="navigation-new-label" label="Nhãn">
               <input className="admin-input" disabled={!canEdit} id="navigation-new-label" onChange={(event) => { createRequestId.current = null; setNewItem((current) => ({ ...current, label: event.target.value })); }} value={newItem.label} />
@@ -278,7 +294,7 @@ export function AdminNavigationManager() {
               <input className="admin-input" disabled={!canEdit} id="navigation-new-href" onChange={(event) => { createRequestId.current = null; setNewItem((current) => ({ ...current, href: event.target.value })); }} value={newItem.href} />
             </AdminField>
             <AdminField id="navigation-new-menu-key" label="Vị trí">
-              <select className="admin-input" disabled={!canEdit} id="navigation-new-menu-key" onChange={(event) => { createRequestId.current = null; setNewItem((current) => ({ ...current, menuKey: event.target.value as NewNavigationForm["menuKey"] })); }} value={newItem.menuKey}>
+              <select className="admin-input" disabled={!canEdit} id="navigation-new-menu-key" onChange={(event) => { createRequestId.current = null; const menuKey = event.target.value as NewNavigationForm["menuKey"]; setNewItem((current) => ({ ...current, menuKey, parentId: menuKey === "footer" ? "" : current.parentId })); }} value={newItem.menuKey}>
                 <option value="primary">Menu chính</option>
                 <option value="footer">Liên kết cuối trang</option>
               </select>
@@ -286,13 +302,26 @@ export function AdminNavigationManager() {
             <AdminField id="navigation-new-order" hint="Để trống để đặt sau mục hiện có." label="Thứ tự" optional>
               <input className="admin-input" disabled={!canEdit} id="navigation-new-order" min="0" onChange={(event) => { createRequestId.current = null; setNewItem((current) => ({ ...current, sortOrder: event.target.value })); }} type="number" value={newItem.sortOrder} />
             </AdminField>
+            {newItem.menuKey === "primary" ? (
+              <AdminField id="navigation-new-parent" hint="Để trống nếu là mục cấp cao nhất." label="Mục cha" optional>
+                <select className="admin-input" disabled={!canEdit} id="navigation-new-parent" onChange={(event) => { createRequestId.current = null; setNewItem((current) => ({ ...current, parentId: event.target.value })); }} value={newItem.parentId}>
+                  <option value="">Cấp cao nhất</option>
+                  {primaryItems.map((item) => <option key={item.id} value={item.id}>{item.draftLabel}</option>)}
+                </select>
+              </AdminField>
+            ) : (
+              <AdminField id="navigation-new-parent" hint="Liên kết cuối trang luôn ở cấp cao nhất." label="Mục cha" optional>
+                <select className="admin-input" disabled id="navigation-new-parent" value=""><option value="">Cấp cao nhất</option></select>
+              </AdminField>
+            )}
           </div>
           <div className="admin-editor-actions"><button className="admin-button admin-button-primary" disabled={!canEdit || creating || !newItem.label || !newItem.href} onClick={() => void createItem()} type="button"><Plus size={14} /> {creating ? "Đang thêm..." : "Thêm mục"}</button></div>
         </section>
       ) : null}
       {notice ? <div className="admin-content-notice" role="status">{notice}</div> : null}
-      {error ? <AdminErrorState error={error} onRetry={() => { setError(null); setAttempt((value) => value + 1); }} /> : null}
-      {loading ? <div className="admin-skeleton admin-content-skeleton" aria-label="Đang tải điều hướng" /> : (
+      {error ? <AdminErrorState error={error} onRetry={requestReload} /> : null}
+      {confirmReload ? <AdminConfirmDialog cancelLabel="Ở lại" confirmLabel="Tải lại" message="Tải lại sẽ bỏ các thay đổi menu chưa lưu. Bạn có muốn tiếp tục?" onConfirm={() => setAttempt((value) => value + 1)} onDismiss={() => setConfirmReload(false)} title="Bỏ thay đổi và tải lại?" /> : null}
+      {loading ? <div className="admin-skeleton admin-content-skeleton" aria-label="Đang tải menu" /> : (
         <div className="admin-navigation-groups">
           <NavigationGroup
             canEdit={permissionsReady && canEdit}
@@ -303,9 +332,9 @@ export function AdminNavigationManager() {
             onSave={(item) => void saveItem(item)}
             publishingId={publishingId}
             savingId={savingId}
-            title="Primary menu"
+            title="Menu chính"
           />
-          {footerItems.length > 0 ? <NavigationGroup canEdit={permissionsReady && canEdit} canPublish={permissionsReady && canPublish} items={footerItems} onChange={updateDraft} onPublish={(item) => void publishItem(item)} onSave={(item) => void saveItem(item)} publishingId={publishingId} savingId={savingId} title="Footer menu" /> : null}
+          {footerItems.length > 0 ? <NavigationGroup canEdit={permissionsReady && canEdit} canPublish={permissionsReady && canPublish} items={footerItems} onChange={updateDraft} onPublish={(item) => void publishItem(item)} onSave={(item) => void saveItem(item)} publishingId={publishingId} savingId={savingId} title="Menu cuối trang" /> : null}
         </div>
       )}
     </div>
@@ -325,23 +354,24 @@ function NavigationGroup({ canEdit, canPublish, items, onChange, onPublish, onSa
 }) {
   return (
     <section className="admin-panel" aria-labelledby={`navigation-group-${title.replace(/\W/g, "-")}`}>
-      <div className="admin-panel-heading"><div><h2 className="admin-panel-title" id={`navigation-group-${title.replace(/\W/g, "-")}`}>{title}</h2><p className="admin-panel-caption">{items.length} mục · giá trị màu xanh là bản public hiện tại</p></div><Eye size={17} /></div>
-      {items.length === 0 ? <div className="admin-table-empty"><strong>Chưa có mục menu</strong><p>Thêm mục mới để bắt đầu xây dựng điều hướng.</p></div> : (
+      <div className="admin-panel-heading"><div><h2 className="admin-panel-title" id={`navigation-group-${title.replace(/\W/g, "-")}`}>{title}</h2><p className="admin-panel-caption">{items.length} mục · giá trị màu xanh là bản khách đang thấy</p></div><Eye size={17} /></div>
+      {items.length === 0 ? <div className="admin-table-empty"><strong>Chưa có mục menu</strong><p>Thêm mục mới để bắt đầu tạo menu.</p></div> : (
         <div className="admin-navigation-list">
-          {items.map((item) => <NavigationEditor canEdit={canEdit} canPublish={canPublish} item={item} key={item.id} onChange={onChange} onPublish={onPublish} onSave={onSave} publishing={publishingId === item.id} saving={savingId === item.id} />)}
+          {items.map((item) => <NavigationEditor canEdit={canEdit} canPublish={canPublish} item={item} key={item.id} onChange={onChange} onPublish={onPublish} onSave={onSave} parentOptions={items} publishing={publishingId === item.id} saving={savingId === item.id} />)}
         </div>
       )}
     </section>
   );
 }
 
-function NavigationEditor({ canEdit, canPublish, item, onChange, onPublish, onSave, publishing, saving }: {
+function NavigationEditor({ canEdit, canPublish, item, onChange, onPublish, onSave, parentOptions, publishing, saving }: {
   canEdit: boolean;
   canPublish: boolean;
   item: AdminNavigationItem;
   onChange: (id: string, patch: Partial<AdminNavigationItem>) => void;
   onPublish: (item: AdminNavigationItem) => void;
   onSave: (item: AdminNavigationItem) => void;
+  parentOptions: AdminNavigationItem[];
   publishing: boolean;
   saving: boolean;
 }) {
@@ -349,8 +379,8 @@ function NavigationEditor({ canEdit, canPublish, item, onChange, onPublish, onSa
   return (
     <article className={`admin-navigation-card${item.dirty ? " is-dirty" : ""}`}>
       <div className="admin-navigation-card-heading">
-        <div><strong>{item.draftLabel}</strong><span>{item.capturedMenuId ? `Captured ID: ${item.capturedMenuId}` : "Mục mới"}</span></div>
-        <div className="admin-table-actions"><AdminStatusBadge kind={item.dirty ? "amber" : "green"} value={item.dirty ? "Có draft" : "Published"} /><AdminStatusBadge kind={item.draftIsActive ? "blue" : "neutral"} value={item.draftIsActive ? "Đang hiện" : "Đang ẩn"} /></div>
+        <div><strong>{item.draftLabel}</strong><span>{item.capturedMenuId ? `Mã menu cũ: ${item.capturedMenuId}` : "Mục mới"}</span></div>
+        <div className="admin-table-actions"><AdminStatusBadge kind={item.dirty ? "amber" : "green"} value={item.dirty ? "Có bản nháp" : "Đã đăng"} /><AdminStatusBadge kind={item.draftIsActive ? "blue" : "neutral"} value={item.draftIsActive ? "Đang hiện" : "Đang ẩn"} /></div>
       </div>
       <div className="admin-editor-grid">
         <AdminField id={`${fieldPrefix}-label`} label="Nhãn">
@@ -362,11 +392,23 @@ function NavigationEditor({ canEdit, canPublish, item, onChange, onPublish, onSa
         <AdminField id={`${fieldPrefix}-order`} label="Thứ tự">
           <input className="admin-input" disabled={!canEdit} id={`${fieldPrefix}-order`} min="0" onChange={(event) => onChange(item.id, { draftSortOrder: Number(event.target.value) })} type="number" value={item.draftSortOrder} />
         </AdminField>
+        {item.menuKey === "primary" && !item.capturedMenuId ? (
+          <AdminField id={`${fieldPrefix}-parent`} hint="Để trống nếu là mục cấp cao nhất." label="Mục cha" optional>
+            <select className="admin-input" disabled={!canEdit} id={`${fieldPrefix}-parent`} onChange={(event) => onChange(item.id, { draftParentId: event.target.value || null })} value={item.draftParentId ?? ""}>
+              <option value="">Cấp cao nhất</option>
+              {parentOptions.filter((candidate) => candidate.id !== item.id).map((candidate) => <option key={candidate.id} value={candidate.id}>{candidate.draftLabel}</option>)}
+            </select>
+          </AdminField>
+        ) : (
+          <AdminField id={`${fieldPrefix}-parent`} hint={item.capturedMenuId ? "Mục menu cũ được giữ ở cấp cao nhất." : "Mục cuối trang luôn ở cấp cao nhất."} label="Mục cha" optional>
+            <select className="admin-input" disabled value=""><option value="">Cấp cao nhất</option></select>
+          </AdminField>
+        )}
       </div>
       <div className="admin-navigation-card-footer">
         <label className={`admin-check${canEdit ? "" : " is-disabled"}`}>
           <input checked={item.draftIsActive} disabled={!canEdit} onChange={(event) => onChange(item.id, { draftIsActive: event.target.checked })} type="checkbox" />
-          <span><strong>Hiển thị mục này</strong><small>Public: {item.publishedIsActive ? "đang hiện" : "đang ẩn"} · v{item.version}</small></span>
+          <span><strong>Hiển thị mục này</strong><small>Ngoài web: {item.publishedIsActive ? "đang hiện" : "đang ẩn"} · bản {item.version}</small></span>
         </label>
         <div className="admin-setting-actions">
           <button className="admin-button admin-button-quiet" disabled={!canEdit || !item.localDirty || saving} onClick={() => onSave(item)} type="button"><Save size={13} /> {saving ? "Đang lưu" : "Lưu nháp"}</button>

@@ -32,9 +32,9 @@ const entityOptions = [
   ["news_post", "Tin tức"],
   ["site_setting", "Thiết lập website"],
   ["page", "Trang"],
-  ["site_navigation", "Điều hướng"],
+  ["site_navigation", "Menu"],
   ["category", "Danh mục"],
-  ["media", "Media"],
+  ["media", "Ảnh & file"],
   ["lead", "Yêu cầu"],
   ["member", "Thành viên"],
 ] as const;
@@ -104,7 +104,7 @@ export default function AdminAuditPage() {
   if (session.role !== "owner") {
     return (
       <div className="admin-content">
-        <AdminPageHeading kicker="Vận hành / kiểm soát" title="Lịch sử thay đổi" subtitle="Lịch sử hệ thống chỉ dành cho chủ sở hữu để kiểm tra nguồn gốc và phiên bản dữ liệu." stamp="OWNER ONLY" />
+        <AdminPageHeading kicker="Vận hành / kiểm soát" title="Lịch sử thay đổi" subtitle="Lịch sử hệ thống chỉ dành cho chủ sở hữu để kiểm tra nguồn gốc và phiên bản dữ liệu." stamp="CHỈ CHỦ SỞ HỮU" />
         <section className="admin-panel" aria-labelledby="audit-owner-only-heading">
           <div className="admin-panel-heading">
             <div>
@@ -120,12 +120,12 @@ export default function AdminAuditPage() {
 
   return (
     <div className="admin-content">
-      <AdminPageHeading kicker="Vận hành / kiểm soát" title="Lịch sử thay đổi" subtitle="Kiểm tra ai đã thay đổi gì, khi nào và phiên bản nào. Trang này chỉ đọc, không sửa dữ liệu." stamp="OWNER · READ ONLY" />
+      <AdminPageHeading kicker="Vận hành / kiểm soát" title="Lịch sử thay đổi" subtitle="Kiểm tra ai đã thay đổi gì, khi nào và phiên bản nào. Trang này chỉ đọc, không sửa dữ liệu." stamp="CHỈ CHỦ · CHỈ XEM" />
       <form className="admin-toolbar" onSubmit={submitSearch}>
         <div className="admin-search-wrap">
           <label className="admin-label" htmlFor="audit-search">Tìm người, hành động hoặc đối tượng</label>
           <Search aria-hidden="true" />
-          <input className="admin-input has-icon" data-testid="input-audit-search" id="audit-search" onChange={(event) => setInputQuery(event.target.value)} placeholder="Ví dụ: owner, product, publish..." value={inputQuery} />
+          <input className="admin-input has-icon" data-testid="input-audit-search" id="audit-search" onChange={(event) => setInputQuery(event.target.value)} placeholder="Ví dụ: tên món, thêm mới, đăng bài..." value={inputQuery} />
         </div>
         <button className="admin-button admin-button-primary" data-testid="button-audit-search" type="submit"><Search aria-hidden="true" size={15} /> Tìm</button>
         <div className="admin-filter-field">
@@ -134,17 +134,17 @@ export default function AdminAuditPage() {
             {entityOptions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
           </select>
         </div>
-        <span aria-live="polite" className="admin-count"><Filter aria-hidden="true" size={13} style={{ verticalAlign: "middle" }} /> {data?.total ?? 0} sự kiện</span>
+        <span aria-live="polite" className="admin-count"><Filter aria-hidden="true" size={13} style={{ verticalAlign: "middle" }} /> {loading ? "Đang tải…" : `${data?.total ?? 0} sự kiện`}</span>
       </form>
       {error ? <AdminErrorState error={error} onRetry={() => setAttempt((value) => value + 1)} /> : loading ? <AdminLoadingTable /> : data?.entries.length === 0 ? <AdminEmptyState title="Chưa có lịch sử phù hợp" description="Không có sự kiện nào khớp bộ lọc hiện tại." /> : data ? (
         <section className="admin-panel admin-table-panel" aria-labelledby="audit-table-heading">
           <div className="admin-panel-heading" style={{ padding: "21px 21px 0" }}>
-            <div><h2 className="admin-panel-title" id="audit-table-heading">Dòng thời gian vận hành</h2><p className="admin-panel-caption">Dữ liệu tổng hợp từ các audit table hiện có · không hiển thị payload nội dung.</p></div>
+            <div><h2 className="admin-panel-title" id="audit-table-heading">Dòng thời gian vận hành</h2><p className="admin-panel-caption">Dữ liệu tổng hợp từ các bảng lịch sử hiện có · không hiện nội dung chi tiết.</p></div>
             <History aria-hidden="true" color="#6e8c42" size={20} />
           </div>
           <div className="admin-table-scroll">
             <table className="admin-table">
-              <thead><tr><th scope="col">Thời gian</th><th scope="col">Người thực hiện</th><th scope="col">Thao tác</th><th scope="col">Đối tượng</th><th scope="col">Revision</th><th scope="col">Request ID</th></tr></thead>
+              <thead><tr><th scope="col">Thời gian</th><th scope="col">Người thực hiện</th><th scope="col">Thao tác</th><th scope="col">Đối tượng</th><th scope="col">Bản lưu</th><th scope="col">Mã yêu cầu</th></tr></thead>
               <tbody>
                 {data.entries.map((entry, index) => (
                   <tr key={entry.source + entry.createdAt + entry.requestId + String(index)}>

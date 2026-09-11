@@ -9,7 +9,9 @@ import { AdminMediaPickerModal } from "@/components/admin/AdminMediaPickerModal"
 import { AdminEmptyState, AdminErrorState, AdminLoadingTable, AdminPageHeading, AdminPagination, AdminStatusBadge } from "@/components/admin/AdminPrimitives";
 import { useAdminSession } from "@/components/admin/AdminShell";
 import { useAdminToast } from "@/components/admin/AdminToast";
+import { useRegisterAdminUnsaved } from "@/components/admin/AdminUnsavedGuard";
 import { AdminClientError, fetchAdmin, formatAdminDate, mutateAdmin } from "@/lib/admin-client";
+import { parseAdminNewsPayload } from "@/lib/admin-news-input";
 import { canManageNews } from "@/lib/admin-permissions.ts";
 
 interface AdminNewsListItem {
@@ -73,6 +75,8 @@ export default function AdminNewsPage() {
   const [error, setError] = useState<AdminClientError | null>(null);
   const [attempt, setAttempt] = useState(0);
   const [editor, setEditor] = useState<NewsFormState | null>(null);
+  const [editorSnapshot, setEditorSnapshot] = useState<NewsFormState | null>(null);
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -84,6 +88,12 @@ export default function AdminNewsPage() {
   const newsBatchRequest = useRef<PendingNewsBatch | null>(null);
   const newsBatchInFlight = useRef(false);
   const publicationInFlight = useRef(false);
+  const isDirty = useCallback(() => editor !== null && JSON.stringify(editor) !== JSON.stringify(editorSnapshot), [editor, editorSnapshot]);
+  useRegisterAdminUnsaved(isDirty, saving);
+  const applyNewsEditor = useCallback((form: NewsFormState) => {
+    setEditor(form);
+    setEditorSnapshot(form);
+  }, []);
 
   const openEditById = useCallback(async (id: number) => {
     if (!canManage) {
@@ -94,7 +104,7 @@ export default function AdminNewsPage() {
     setFormError(null);
     try {
       const result = await fetchAdmin<{ post: NewsFormState & { coverImageUrl: string | null } }>(`/api/admin/news/${id}`);
-      setEditor({
+      applyNewsEditor({
         content: result.post.content,
         coverImageUrl: result.post.coverImageUrl ?? "",
         excerpt: result.post.excerpt,
@@ -106,7 +116,7 @@ export default function AdminNewsPage() {
     } catch (reason: unknown) {
       showToast("error", reason instanceof AdminClientError ? reason.message : "Không thể tải bài viết được yêu cầu.");
     }
-  }, [canManage, showToast]);
+  }, [applyNewsEditor, canManage, showToast]);
 
   const editQuery = searchParams.get("edit");
   useEffect(() => {
@@ -145,18 +155,24 @@ export default function AdminNewsPage() {
   async function submitPost(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!editor || !canManage) return;
-    setSaving(true);
+    const body: Record<string, unknown> = {
+      content: editor.content,
+      coverImageUrl: editor.coverImageUrl || null,
+      excerpt: editor.excerpt,
+      requestId: crypto.randomUUID(),
+      slug: editor.slug,
+      title: editor.title,
+    };
+    const parsed = parseAdminNewsPayload(body);
     setFieldErrors({});
     setFormError(null);
+    if (!parsed.input) {
+      setFieldErrors(parsed.fieldErrors);
+      showToast("error", "Dữ liệu bài viết chưa hợp lệ.");
+      return;
+    }
+    setSaving(true);
     try {
-      const body: Record<string, unknown> = {
-        content: editor.content,
-        coverImageUrl: editor.coverImageUrl || null,
-        excerpt: editor.excerpt,
-        requestId: crypto.randomUUID(),
-        slug: editor.slug,
-        title: editor.title,
-      };
       if (editor.id && editor.revision) body.revision = editor.revision;
       await mutateAdmin(
         editor.id ? `/api/admin/news/${editor.id}` : "/api/admin/news",
@@ -290,24 +306,25 @@ export default function AdminNewsPage() {
 
   return (
     <div className="admin-content">
-      <AdminPageHeading kicker="Nội dung / tin tức" title="Viết và xuất bản tin tức" subtitle="Bài viết xuất bản hiển thị tại /tin-tuc trên storefront. Bản nháp chỉ nhìn thấy trong admin." stamp="TIN TỨC" />
+      <AdminPageHeading kicker="Nội dung / tin tức" title="Viết và xuất bản tin tức" subtitle="Bài viết xuất bản hiển thị tại /tin-tuc trên trang web. Bản nháp chỉ nhìn thấy trong admin." stamp="TIN TỨC" />
       {editor ? (
         <section className="admin-editor" aria-labelledby="news-editor-heading">
           <div className="admin-editor-heading">
             <div>
               <div className="admin-kicker">Nội dung / chỉnh sửa</div>
               <h2 className="admin-panel-title" id="news-editor-heading">{editor.id ? "Cập nhật bài viết" : "Bài viết mới"}</h2>
-              <p className="admin-panel-caption">Nội dung xuống dòng sẽ hiển thị thành đoạn văn trên storefront.</p>
+              <p className="admin-panel-caption">Nội dung xuống dòng sẽ hiển thị thành đoạn văn trên trang web.</p>
             </div>
             <span className="admin-stamp">{editor.id ? `Mã ${editor.id}` : "BẢN GHI MỚI"}</span>
           </div>
           {formError ? <p className="admin-editor-error" role="alert">{formError}</p> : null}
-          <form onSubmit={submitPost}>
+          <form noValidate onSubmit={submitPost}>
+            <fieldset className="admin-fieldset" disabled={saving}>
             <div className="admin-editor-grid">
               <AdminField error={fieldErrors.title} id="news-title" label="Tiêu đề">
                 <input className="admin-input" data-testid="input-news-title" id="news-title" onChange={(event) => setEditor({ ...editor, title: event.target.value })} value={editor.title} />
               </AdminField>
-              <AdminField error={fieldErrors.slug} hint="Chữ thường, số và gạch ngang — dùng trong URL bài viết." id="news-slug" label="Slug">
+              <AdminField error={fieldErrors.slug} hint="Viết liền không dấu — dùng trong đường dẫn bài viết." id="news-slug" label="Đường dẫn (slug)">
                 <input className="admin-input admin-mono" data-testid="input-news-slug" id="news-slug" onChange={(event) => setEditor({ ...editor, slug: event.target.value })} value={editor.slug} />
               </AdminField>
               <div className="admin-field admin-field-wide">
@@ -340,10 +357,11 @@ export default function AdminNewsPage() {
                 Lưu lần này chỉ cập nhật bản nháp. Muốn đưa nội dung lên website, hãy bấm “Phát hành” sau khi kiểm tra.
               </span>
               <div className="admin-editor-actions">
-                <button className="admin-button admin-button-quiet" data-testid="button-news-cancel" onClick={() => { setEditor(null); setFormError(null); setFieldErrors({}); }} type="button">Hủy</button>
+                <button className="admin-button admin-button-quiet" data-testid="button-news-cancel" onClick={() => { if (isDirty()) { setConfirmDiscard(true); return; } setEditor(null); setFormError(null); setFieldErrors({}); }} type="button">Hủy</button>
                 <button className="admin-button admin-button-primary" data-testid="button-news-save" disabled={saving} type="submit">{saving ? "Đang lưu..." : "Lưu bài viết"}</button>
               </div>
             </div>
+            </fieldset>
           </form>
           {pickerOpen ? (
             <AdminMediaPickerModal
@@ -374,7 +392,7 @@ export default function AdminNewsPage() {
                   onClick={() => {
                     setFieldErrors({});
                     setFormError(null);
-                    setEditor({ ...emptyForm });
+                    applyNewsEditor({ ...emptyForm });
                   }}
                   type="button"
                 >
@@ -390,7 +408,7 @@ export default function AdminNewsPage() {
                 <>
                   <div className="admin-table-scroll">
                     <table className="admin-table">
-                      <thead><tr>{canManage ? <th scope="col"><input aria-label="Chọn tất cả bài viết trong trang" checked={posts.length > 0 && posts.every((post) => selectedIds.has(post.id))} disabled={batchAction !== null} onChange={toggleAllVisible} type="checkbox" /></th> : null}<th scope="col">Bài viết</th><th scope="col">Trạng thái</th><th scope="col">Xuất bản</th><th scope="col">Cập nhật</th>{canManage ? <th scope="col">Thao tác</th> : null}</tr></thead>
+                      <thead><tr>{canManage ? <th scope="col"><input aria-label="Chọn tất cả bài viết trong trang" checked={posts.length > 0 && posts.every((post) => selectedIds.has(post.id))} disabled={batchAction !== null} onChange={toggleAllVisible} type="checkbox" /></th> : null}<th scope="col">Bài viết</th><th scope="col">Trạng thái</th><th scope="col">Ngày đăng</th><th scope="col">Cập nhật</th>{canManage ? <th scope="col">Thao tác</th> : null}</tr></thead>
                       <tbody>
                         {posts.map((post) => (
                           <tr data-testid={`row-news-${post.id}`} key={post.id}>
@@ -400,7 +418,7 @@ export default function AdminNewsPage() {
                               <div className="admin-item-meta">{post.slug}</div>
                               <div className="admin-item-desc">{post.excerpt || "Chưa có tóm tắt"}</div>
                             </td>
-                            <td><AdminStatusBadge kind={post.isPublished ? "green" : "amber"} value={post.isPublished ? "Đã xuất bản" : "Bản nháp"} /></td>
+                            <td><AdminStatusBadge kind={post.isPublished ? "green" : "amber"} value={post.isPublished ? "Đã đăng" : "Bản nháp"} /></td>
                             <td className="admin-mono">{formatAdminDate(post.publishedAt)}</td>
                             <td className="admin-mono">{formatAdminDate(post.updatedAt)}</td>
                             {canManage ? (
@@ -412,7 +430,7 @@ export default function AdminNewsPage() {
                                     onClick={() => void openEdit(post)}
                                     type="button"
                                   >
-                                    <Pencil size={13} /> Sửa nháp
+                                    <Pencil size={13} /> Sửa bản nháp
                                   </button>
                                   <button className="admin-button admin-button-quiet" data-testid={`button-news-publish-${post.id}`} disabled={publicationId !== null || batchAction !== null} onClick={() => void togglePublication(post)} type="button">
                                     {publicationId === post.id ? "Đang xử lý..." : <>{post.isPublished ? <EyeOff size={13} /> : <Eye size={13} />} {post.isPublished ? "Ẩn khỏi web" : "Phát hành"}</>}
@@ -433,6 +451,7 @@ export default function AdminNewsPage() {
           )}
         </>
       )}
+      {confirmDiscard ? <AdminConfirmDialog cancelLabel="Ở lại" confirmLabel="Bỏ thay đổi" message="Bài viết có thay đổi chưa lưu. Bỏ các thay đổi này?" onConfirm={() => { setEditor(null); setFormError(null); setFieldErrors({}); }} onDismiss={() => setConfirmDiscard(false)} title="Bỏ thay đổi chưa lưu?" /> : null}
       {pendingDelete ? (
         <AdminConfirmDialog
           confirmLabel="Xóa bài viết"

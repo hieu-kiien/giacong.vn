@@ -32,7 +32,7 @@ import {
 
 export const dynamic = "force-dynamic";
 
-const imageSettingKeys = new Set(["logo_url", "favicon_url", "hero_image_url"]);
+const imageSettingKeys = new Set(["logo_url", "logo_dark_url", "favicon_url", "hero_image_url"]);
 
 export async function POST(request: Request): Promise<Response> {
   const guard = await requireAdmin(request);

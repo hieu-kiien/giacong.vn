@@ -123,3 +123,29 @@ test("keeps the hero heading hierarchy without misapplying the about title", () 
   assert.match(sourceOrderResult, /<h2 class="entry-title">Giới thiệu<\/h2>/);
   assert.doesNotMatch(sourceOrderResult, /<h2 class="entry-title">Eyebrow<\/h2>/);
 });
+
+test("applies managed contact address and phone to the legacy company-info block", () => {
+  const contactMarkup = '<h3>Thông tin công ty</h3><ul><li>Địa chỉ: 108 Lê Duẩn – Đống Đa – Hà Nội</li><li>Điện thoại: 0938.591.444</li><li>Email: info@giacong.vn</li></ul>';
+  const result = applySiteSettingsToMarkup(contactMarkup, {
+    ...settings(""),
+    contact_address: "VP Hà Nội: 108 Trần Hưng Đạo - Hoàn Kiếm - Hà Nội",
+    contact_phone: "0900000001",
+  });
+
+  assert.doesNotMatch(result, /Lê Duẩn/);
+  assert.doesNotMatch(result, /0938\.591\.444/);
+  assert.match(result, /Địa chỉ: 108 Trần Hưng Đạo - Hoàn Kiếm - Hà Nội/);
+  assert.match(result, /Điện thoại: 0900000001/);
+});
+
+test("keeps legacy company-info block untouched when contact settings are empty", () => {
+  const contactMarkup = '<h3>Thông tin công ty</h3><ul><li>Địa chỉ: 108 Lê Duẩn – Đống Đa – Hà Nội</li><li>Điện thoại: 0938.591.444</li></ul>';
+  const result = applySiteSettingsToMarkup(contactMarkup, {
+    ...settings(""),
+    contact_address: "",
+    contact_phone: "",
+  });
+
+  assert.match(result, /Lê Duẩn/);
+  assert.match(result, /0938\.591\.444/);
+});

@@ -65,6 +65,8 @@ export interface ResolvedRequestCart {
 /** Catalog projection the server needs to price and validate a cart line. */
 export interface RequestCartVariantResolution {
   contactFromQuantity: number;
+  /** Variant-owned photo; null/undefined means the line reuses the parent product image. */
+  imageUrl?: string | null;
   isAvailable: boolean;
   label: string;
   minimumOrderQuantity: number;

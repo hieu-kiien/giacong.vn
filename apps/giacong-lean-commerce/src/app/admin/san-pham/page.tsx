@@ -1,9 +1,10 @@
 "use client";
 
-import { ImageOff, RefreshCw, Search } from "lucide-react";
-import { useEffect, useState, type FormEvent } from "react";
+import { Search } from "lucide-react";
+import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { AdminCategoryPanel } from "@/components/admin/AdminCategoryPanel";
 import { AdminConfirmDialog } from "@/components/admin/AdminDialog";
+import { useAdminUnsaved, useRegisterAdminUnsaved } from "@/components/admin/AdminUnsavedGuard";
 import { AdminMediaPickerModal } from "@/components/admin/AdminMediaPickerModal";
 import { AdminEmptyState, AdminErrorState, AdminLoadingTable, AdminPageHeading, AdminPagination, AdminStatusBadge } from "@/components/admin/AdminPrimitives";
 import { AdminMediaPanel } from "@/components/admin/AdminMediaPanel";
@@ -14,6 +15,8 @@ import { useAdminSession } from "@/components/admin/AdminShell";
 import { useAdminToast } from "@/components/admin/AdminToast";
 import { AdminClientError, fetchAdmin, formatAdminDate, getInitials, mutateAdmin, type AdminCategory, type AdminProduct } from "@/lib/admin-client";
 import { canManageCatalog } from "@/lib/admin-permissions";
+import { buildAdminProductPayload } from "@/lib/admin-product-form";
+import { parseAdminProductPayload } from "@/lib/admin-product-input";
 
 interface ProductResponse {
   categories?: AdminCategory[];
@@ -76,6 +79,41 @@ const statusLabelsVN: Record<ProductFormState["status"], string> = {
   review: "Chờ duyệt",
 };
 
+function isProductEditorDirty(editor: ProductFormState | null, snapshot: ProductFormState | null): boolean {
+  if (!editor) return false;
+  if (!snapshot) return true;
+  return (
+    editor.categoryId !== snapshot.categoryId ||
+    editor.description !== snapshot.description ||
+    editor.id !== snapshot.id ||
+    editor.imageUrl !== snapshot.imageUrl ||
+    editor.isActive !== snapshot.isActive ||
+    editor.leadTimeDays !== snapshot.leadTimeDays ||
+    editor.name !== snapshot.name ||
+    editor.shortDescription !== snapshot.shortDescription ||
+    editor.sku !== snapshot.sku ||
+    editor.slug !== snapshot.slug ||
+    editor.status !== snapshot.status
+  );
+}
+
+function toProductForm(product: AdminProduct): ProductFormState {
+  return {
+    categoryId: product.categoryId ? String(product.categoryId) : "",
+    description: product.description,
+    id: product.id,
+    imageUrl: product.imageUrl ?? "",
+    isActive: product.isActive,
+    leadTimeDays: product.leadTimeDays === null ? "" : String(product.leadTimeDays),
+    name: product.name,
+    revision: product.revision,
+    shortDescription: product.shortDescription,
+    sku: product.sku,
+    slug: product.slug,
+    status: product.status as ProductFormState["status"],
+  };
+}
+
 export default function AdminProductsPage() {
   const session = useAdminSession();
   const { showToast } = useAdminToast();
@@ -90,6 +128,11 @@ export default function AdminProductsPage() {
   const [attempt, setAttempt] = useState(0);
   const [categories, setCategories] = useState<AdminCategory[]>([]);
   const [editor, setEditor] = useState<ProductFormState | null>(null);
+  const [editorSnapshot, setEditorSnapshot] = useState<ProductFormState | null>(null);
+  const [pendingRequest, setPendingRequest] = useState<{ form: ProductFormState | null } | null>(null);
+  const saveInFlightRef = useRef(false);
+  const productRequestRef = useRef<{ key: string; requestId: string } | null>(null);
+  const editorGenerationRef = useRef(0);
   const [saveError, setSaveError] = useState<AdminClientError | null>(null);
   const [saving, setSaving] = useState(false);
   const [archivingId, setArchivingId] = useState<number | null>(null);
@@ -103,6 +146,17 @@ export default function AdminProductsPage() {
   const canManage = canManageCatalog(session.role);
   const activeProducts = products.filter((product) => product.isActive);
   const allVisibleSelected = canManage && activeProducts.length > 0 && activeProducts.every((product) => selectedIds.has(product.id));
+  const { isDirty: aggregateIsDirty, revision: unsavedRevision } = useAdminUnsaved();
+  const isUnsavedDirty = useCallback(() => isProductEditorDirty(editor, editorSnapshot), [editor, editorSnapshot]);
+  const hasUnsavedChanges = useCallback(() => {
+    if (isProductEditorDirty(editor, editorSnapshot)) return true;
+    try {
+      return aggregateIsDirty();
+    } catch {
+      return false;
+    }
+  }, [aggregateIsDirty, editor, editorSnapshot]);
+  useRegisterAdminUnsaved(isUnsavedDirty, saving);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -132,6 +186,57 @@ export default function AdminProductsPage() {
     return () => controller.abort();
   }, [session.subject, page, query, attempt]);
 
+  useEffect(() => {
+    if (!hasUnsavedChanges()) return;
+    function onBeforeUnload(event: BeforeUnloadEvent) {
+      event.preventDefault();
+    }
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, [hasUnsavedChanges, unsavedRevision]);
+
+  function applyEditorForm(form: ProductFormState | null) {
+    editorGenerationRef.current += 1;
+    productRequestRef.current = null;
+    setEditor(form ? { ...form } : null);
+    setEditorSnapshot(form ? { ...form } : null);
+    setSaveError(null);
+    setPendingRequest(null);
+  }
+
+  function handleEditorChange(form: ProductFormState) {
+    productRequestRef.current = null;
+    setEditor(form);
+  }
+
+  function requestOpenEditor(form: ProductFormState) {
+    if (saving || saveInFlightRef.current) return;
+    if (hasUnsavedChanges()) {
+      setPendingRequest({ form: { ...form } });
+      return;
+    }
+    applyEditorForm(form);
+  }
+
+  function requestCloseEditor() {
+    if (saving || saveInFlightRef.current) return;
+    if (hasUnsavedChanges()) {
+      setPendingRequest({ form: null });
+      return;
+    }
+    applyEditorForm(null);
+  }
+
+  function confirmPendingEditor() {
+    const pending = pendingRequest;
+    if (!pending) return;
+    applyEditorForm(pending.form);
+  }
+
+  function cancelPendingEditor() {
+    setPendingRequest(null);
+  }
+
   function submitSearch(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setPage(1);
@@ -145,60 +250,58 @@ export default function AdminProductsPage() {
   }
 
   function openCreate() {
-    setSaveError(null);
-    setEditor({ ...emptyProductForm });
+    requestOpenEditor({ ...emptyProductForm });
   }
 
   function openEdit(product: AdminProduct) {
-    setSaveError(null);
-    setEditor({
-      categoryId: product.categoryId ? String(product.categoryId) : "",
-      description: product.description,
-      id: product.id,
-      imageUrl: product.imageUrl ?? "",
-      isActive: product.isActive,
-      leadTimeDays: product.leadTimeDays === null ? "" : String(product.leadTimeDays),
-      name: product.name,
-      revision: product.revision,
-      shortDescription: product.shortDescription,
-      sku: product.sku,
-      slug: product.slug,
-      status: product.status as ProductFormState["status"],
-    });
+    requestOpenEditor(toProductForm(product));
   }
 
   async function submitProduct(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!editor) return;
-    setSaving(true);
-    setSaveError(null);
+    if (!editor || saving || saveInFlightRef.current) return;
+    const generationAtSubmit = editorGenerationRef.current;
+    const requestId = crypto.randomUUID();
     const payload = {
       ...(editor.id ? { revision: editor.revision } : {}),
-      categoryId: editor.categoryId || null,
-      description: editor.description,
-      imageUrl: editor.imageUrl || null,
-      isActive: editor.isActive,
-      leadTimeDays: editor.leadTimeDays === "" ? null : Number(editor.leadTimeDays),
-      name: editor.name,
-      shortDescription: editor.shortDescription,
-      sku: editor.sku,
-      slug: editor.slug,
-      status: editor.status,
-      requestId: crypto.randomUUID(),
+      ...buildAdminProductPayload(editor, requestId),
     };
+    const parsed = parseAdminProductPayload(payload);
+    if (!parsed.input) {
+      const validationError = new AdminClientError("Dữ liệu sản phẩm chưa hợp lệ.", 422, "VALIDATION_ERROR", parsed.fieldErrors);
+      setSaveError(validationError);
+      showToast("error", validationError.message);
+      return;
+    }
+    saveInFlightRef.current = true;
+    setSaving(true);
+    setSaveError(null);
+    const requestKey = JSON.stringify({ editor, method: editor.id ? "PATCH" : "POST" });
+    const effectiveRequestId = productRequestRef.current?.key === requestKey
+      ? productRequestRef.current.requestId
+      : requestId;
+    productRequestRef.current = { key: requestKey, requestId: effectiveRequestId };
+    const mutationPayload = { ...payload, requestId: effectiveRequestId };
     try {
       await mutateAdmin<{ product: AdminProduct }>(
         editor.id ? `/api/admin/products/${editor.id}` : "/api/admin/products",
-        { body: payload, method: editor.id ? "PATCH" : "POST" },
+        { body: mutationPayload, method: editor.id ? "PATCH" : "POST" },
       );
+      if (editorGenerationRef.current !== generationAtSubmit) return;
+      productRequestRef.current = null;
       setEditor(null);
+      setEditorSnapshot(null);
+      setPendingRequest(null);
       setAttempt((value) => value + 1);
       showToast("success", editor.id ? "Đã lưu thay đổi sản phẩm." : "Đã tạo sản phẩm mới (draft).");
     } catch (reason: unknown) {
+      if (editorGenerationRef.current !== generationAtSubmit) return;
       setSaveError(reason instanceof AdminClientError ? reason : new AdminClientError("Không thể lưu sản phẩm.", 0));
       showToast("error", reason instanceof AdminClientError ? reason.message : "Không thể lưu sản phẩm.");
     } finally {
-      setSaving(false);
+      saveInFlightRef.current = false;
+      if (editorGenerationRef.current === generationAtSubmit) setSaving(false);
+      else setSaving(false);
     }
   }
 
@@ -211,7 +314,13 @@ export default function AdminProductsPage() {
         body: { requestId: crypto.randomUUID(), revision: product.revision },
         method: "DELETE",
       });
-      if (editor?.id === product.id) setEditor(null);
+      if (editor?.id === product.id) {
+        editorGenerationRef.current += 1;
+        productRequestRef.current = null;
+        setEditor(null);
+        setEditorSnapshot(null);
+        setPendingRequest(null);
+      }
       setAttempt((value) => value + 1);
       showToast("success", `Đã ẩn sản phẩm “${product.name}”.`);
     } catch (reason: unknown) {
@@ -286,18 +395,17 @@ export default function AdminProductsPage() {
 
   return (
     <div className="admin-content">
-      <AdminPageHeading kicker="Danh mục / sản phẩm" title="Quản lý sản phẩm" subtitle="Tìm và kiểm tra trạng thái các sản phẩm private-label đang được quản lý trong catalog." stamp="DANH MỤC SẢN PHẨM" />
-      <AdminProductImportPanel categories={categories} onImported={() => setAttempt((value) => value + 1)} role={session.role} />
-      {editor ? <ProductEditor categories={categories} error={saveError} form={editor} onChange={setEditor} onCancel={() => { setEditor(null); setSaveError(null); }} onSubmit={submitProduct} saving={saving} /> : null}
+      <AdminPageHeading kicker="Hàng hóa / sản phẩm" title="Quản lý sản phẩm" subtitle="Quản lý thông tin, quy cách, giá và trạng thái hiển thị trên website." />
+      {editor ? <ProductEditor categories={categories} error={saveError} form={editor} onChange={handleEditorChange} onCancel={requestCloseEditor} onSubmit={submitProduct} saving={saving} /> : null}
       <form className="admin-toolbar" onSubmit={submitSearch}>
         <div className="admin-search-wrap">
-          <label className="admin-label" htmlFor="product-search">Tìm theo tên, SKU hoặc slug</label>
+          <label className="admin-label" htmlFor="product-search">Tìm theo tên, mã hàng hoặc đường dẫn</label>
           <Search aria-hidden="true" />
-          <input className="admin-input has-icon" data-testid="input-product-search" id="product-search" onChange={(event) => setInputQuery(event.target.value)} placeholder="Ví dụ: bột ngũ cốc, SKU, slug..." value={inputQuery} />
+          <input className="admin-input has-icon" data-testid="input-product-search" id="product-search" onChange={(event) => setInputQuery(event.target.value)} placeholder="Ví dụ: bột ngũ cốc, mã hàng, đường dẫn..." value={inputQuery} />
         </div>
         <button className="admin-button admin-button-primary" data-testid="button-product-search" type="submit"><Search size={15} /> Tìm sản phẩm</button>
         {query ? <button className="admin-button admin-button-quiet" data-testid="button-product-clear-search" onClick={clearSearch} type="button">Xóa tìm kiếm</button> : null}
-        {canManage ? <button className="admin-button admin-button-primary" data-testid="button-product-create" onClick={openCreate} type="button">Thêm sản phẩm</button> : null}
+        {canManage ? <button className="admin-button admin-button-primary" data-testid="button-product-create" disabled={saving} onClick={openCreate} type="button">Thêm sản phẩm</button> : null}
         <button
           className="admin-button admin-button-quiet"
           data-testid="button-open-category-panel"
@@ -308,19 +416,23 @@ export default function AdminProductsPage() {
         </button>
         {canManage && selectedIds.size > 0 ? <><span aria-live="polite" className="admin-item-meta" data-testid="product-selection-count">Đã chọn {selectedIds.size}</span><button className="admin-button admin-button-danger" data-testid="button-product-batch-archive" disabled={batchArchiving} onClick={() => setConfirmBatchArchive(true)} type="button">{batchArchiving ? "Đang ẩn…" : "Ẩn đã chọn"}</button></> : null}
       </form>
+      {canManage ? <details className="admin-import-disclosure">
+        <summary>Nhập sản phẩm từ CSV</summary>
+        <AdminProductImportPanel categories={categories} onImported={() => setAttempt((value) => value + 1)} role={session.role} />
+      </details> : null}
       {error ? <AdminErrorState error={error} onRetry={() => setAttempt((value) => value + 1)} /> : loading ? <AdminLoadingTable /> : (
         <section className="admin-panel admin-table-panel" aria-labelledby="product-table-heading">
           <div className="admin-panel-heading" style={{ padding: "21px 21px 0" }}><div><h2 className="admin-panel-title" id="product-table-heading">Danh mục sản phẩm</h2><p className="admin-panel-caption">{query ? `Kết quả cho “${query}”` : "Sắp xếp theo cập nhật gần nhất"}</p></div><span className="admin-count">{total} bản ghi</span></div>
-          {products.length === 0 ? <AdminEmptyState title={query ? "Không tìm thấy sản phẩm phù hợp" : "Chưa có sản phẩm trong catalog"} description={query ? "Thử một tên, SKU hoặc slug khác. Không có dữ liệu thay thế được hiển thị." : "API chưa trả về sản phẩm nào từ D1 catalog."} /> : (
+          {products.length === 0 ? <AdminEmptyState title={query ? "Không tìm thấy sản phẩm phù hợp" : "Chưa có sản phẩm"} description={query ? "Thử một tên, mã hàng hoặc đường dẫn khác." : "Máy chủ chưa trả về sản phẩm nào."} /> : (
             <>
               <div className="admin-table-scroll">
-                <table className="admin-table">
-                   <thead><tr>{canManage ? <th scope="col"><label className="admin-check"><input aria-label="Chọn tất cả sản phẩm trong trang" checked={allVisibleSelected} onChange={(event) => toggleAllVisible(event.target.checked)} type="checkbox" /><span>Chọn</span></label></th> : null}<th scope="col">Sản phẩm</th><th scope="col">Danh mục / SKU</th><th scope="col">Quy cách</th><th scope="col">MOQ / Giá từ</th><th scope="col">Trạng thái</th><th scope="col">Lead time</th><th scope="col">Cập nhật</th>{canManage ? <th scope="col">Thao tác</th> : null}</tr></thead>
+                <table className="admin-table admin-product-table">
+                   <thead><tr>{canManage ? <th scope="col"><label className="admin-check"><input aria-label="Chọn tất cả sản phẩm trong trang" checked={allVisibleSelected} onChange={(event) => toggleAllVisible(event.target.checked)} type="checkbox" /><span>Chọn</span></label></th> : null}<th scope="col">Sản phẩm</th><th scope="col">Danh mục / Mã hàng</th><th scope="col">Quy cách</th><th scope="col">Tối thiểu / Giá từ</th><th scope="col">Trạng thái</th><th scope="col">Thời gian làm hàng</th><th scope="col">Cập nhật</th>{canManage ? <th scope="col">Thao tác</th> : null}</tr></thead>
                   <tbody>
                     {products.map((product) => (
                       <tr data-testid={`row-product-${product.id}`} key={product.id}>
-                        {canManage ? <td><input aria-label={`Chọn sản phẩm ${product.name}`} checked={selectedIds.has(product.id)} disabled={!product.isActive || batchArchiving} onChange={(event) => toggleProduct(product.id, event.target.checked)} type="checkbox" /></td> : null}
-                        <td>
+                        {canManage ? <td className="admin-product-select"><input aria-label={`Chọn sản phẩm ${product.name}`} checked={selectedIds.has(product.id)} disabled={!product.isActive || batchArchiving} onChange={(event) => toggleProduct(product.id, event.target.checked)} type="checkbox" /></td> : null}
+                        <td className="admin-product-summary">
                           <div className="admin-product-cell">
                             <span className="admin-thumb">
                               {product.imageUrl ? (
@@ -334,16 +446,16 @@ export default function AdminProductsPage() {
                         </td>
                         <td><div>{product.categoryName || "Chưa phân loại"}</div><div className="admin-item-meta">SKU: {product.sku || "chưa có"}</div></td>
                         <td className="admin-mono">{product.variantCount ?? 0} quy cách</td>
-                        <td>
-                          <div>{product.minimumOrderQuantity ? `MOQ ${product.minimumOrderQuantity}` : "—"}</div>
+                        <td className="admin-product-price">
+                          <div>{product.minimumOrderQuantity ? `Tối thiểu ${product.minimumOrderQuantity}` : "—"}</div>
                           <div className="admin-item-meta">{product.startingPrice ? `từ ${new Intl.NumberFormat("vi-VN").format(product.startingPrice)}đ` : "Chưa có giá"}</div>
                         </td>
-                        <td><AdminStatusBadge kind={product.isActive && product.status === "published" ? "green" : product.status === "draft" || product.status === "review" ? "amber" : "neutral"} value={product.isActive ? statusLabelsVN[product.status as ProductFormState["status"]] ?? product.status : "Tạm ẩn"} /></td>
+                        <td className="admin-product-state"><AdminStatusBadge kind={product.isActive && product.status === "published" ? "green" : product.status === "draft" || product.status === "review" ? "amber" : "neutral"} value={product.isActive ? statusLabelsVN[product.status as ProductFormState["status"]] ?? product.status : "Tạm ẩn"} /></td>
                         <td className="admin-mono">{product.leadTimeDays ? `${product.leadTimeDays} ngày` : "Chưa có"}</td>
                          <td className="admin-mono">{formatAdminDate(product.updatedAt)}</td>
-                         {canManage ? <td>
-                           <div className="admin-table-actions">
-                             <button className="admin-button admin-button-quiet" data-testid={`button-product-edit-${product.id}`} onClick={() => openEdit(product)} type="button">Sửa</button>
+                          {canManage ? <td className="admin-sticky-actions">
+                            <div className="admin-table-actions">
+                              <button className="admin-button admin-button-quiet" data-testid={`button-product-edit-${product.id}`} disabled={saving} onClick={() => openEdit(product)} type="button">Sửa</button>
                              {product.isActive ? <button className="admin-button admin-button-danger" data-testid={`button-product-archive-${product.id}`} disabled={archivingId === product.id} onClick={() => setConfirmArchive(product)} type="button">{archivingId === product.id ? "Đang ẩn" : "Ẩn"}</button> : null}
                            </div>
                          </td> : null}
@@ -357,17 +469,26 @@ export default function AdminProductsPage() {
           )}
         </section>
       )}
-      {!loading && !error && products.length > 0 ? <p className="admin-stamp" style={{ marginTop: 15 }}><ImageOff size={12} style={{ verticalAlign: "middle" }} /> Ảnh không có sẽ được giữ dưới dạng chữ viết tắt · <RefreshCw size={11} style={{ verticalAlign: "middle" }} /> đọc mới từ API mỗi lần lọc</p> : null}
       {confirmArchive ? (
         <AdminConfirmDialog
-          message={`Ẩn sản phẩm “${confirmArchive.name}” khỏi storefront? Sản phẩm vẫn giữ nguyên dữ liệu và có thể bật hiển thị lại sau.`}
+          message={`Ẩn sản phẩm “${confirmArchive.name}” khỏi trang web? Sản phẩm vẫn giữ nguyên dữ liệu và có thể bật hiển thị lại sau.`}
           confirmLabel="Ẩn sản phẩm"
           onConfirm={() => void archiveProduct(confirmArchive)}
           onDismiss={() => setConfirmArchive(null)}
           title="Ẩn sản phẩm?"
         />
       ) : null}
-      {confirmBatchArchive ? <AdminConfirmDialog message={`Ẩn ${selectedIds.size} sản phẩm đã chọn khỏi storefront? Dữ liệu vẫn được giữ lại.`} confirmLabel="Ẩn sản phẩm đã chọn" onConfirm={() => void archiveSelectedProducts()} onDismiss={() => setConfirmBatchArchive(false)} title="Ẩn sản phẩm đã chọn?" /> : null}
+      {confirmBatchArchive ? <AdminConfirmDialog message={`Ẩn ${selectedIds.size} sản phẩm đã chọn khỏi trang web? Dữ liệu vẫn được giữ lại.`} confirmLabel="Ẩn sản phẩm đã chọn" onConfirm={() => void archiveSelectedProducts()} onDismiss={() => setConfirmBatchArchive(false)} title="Ẩn sản phẩm đã chọn?" /> : null}
+      {pendingRequest ? (
+        <AdminConfirmDialog
+          cancelLabel="Ở lại"
+          confirmLabel="Bỏ thay đổi"
+          message="Còn thay đổi chưa lưu. Chuyển bản ghi sẽ mất thay đổi? Chuyển bản ghi sẽ mất. Vẫn chuyển?"
+          onConfirm={confirmPendingEditor}
+          onDismiss={cancelPendingEditor}
+          title="Bỏ thay đổi chưa lưu?"
+        />
+      ) : null}
       {categoryPanelOpen ? (
         <AdminModal labelledBy="admin-category-panel-title" onClose={() => setCategoryPanelOpen(false)} title="Quản lý danh mục" width="wide">
           <h2 hidden id="admin-category-panel-title">Quản lý danh mục</h2>
@@ -407,37 +528,44 @@ function ProductEditor({
     <section className="admin-editor" aria-labelledby="product-editor-heading">
       <div className="admin-editor-heading">
         <div>
-          <div className="admin-kicker">Catalog / chỉnh sửa</div>
+          <div className="admin-kicker">Hàng hóa / chỉnh sửa</div>
           <h2 className="admin-panel-title" id="product-editor-heading">{form.id ? "Cập nhật sản phẩm" : "Tạo sản phẩm mới"}</h2>
-          <p className="admin-panel-caption">Lưu dưới dạng draft trước; chỉ sản phẩm published và bật hiển thị mới được public read phục vụ storefront.</p>
+          <p className="admin-panel-caption">Lưu dưới dạng bản nháp trước; chỉ món đã đăng và bật hiển thị mới hiện ra trang web.</p>
         </div>
         <span className="admin-stamp">{form.id ? `Mã ${form.id}` : "BẢN GHI MỚI"}</span>
       </div>
       {error ? <p className="admin-editor-error" role="alert">{error.code ? `${error.code} · ` : ""}{error.message}</p> : null}
-      <form onSubmit={onSubmit}>
+      {error?.fieldErrors && Object.keys(error.fieldErrors).length > 0 ? (
+        <ul className="admin-editor-error-list" data-testid="product-form-field-errors">
+          {Object.entries(error.fieldErrors).map(([field, message]) => (
+            <li key={field}>{field}: {message}</li>
+          ))}
+        </ul>
+      ) : null}
+      <form noValidate onSubmit={onSubmit}>
         <div className="admin-editor-grid">
           <label className="admin-field">
             <span>Tên sản phẩm <b aria-hidden="true">*</b></span>
-            <input className="admin-input" data-testid="input-product-name" onChange={(event) => update("name", event.target.value)} required value={form.name} />
+            <input className="admin-input" data-testid="input-product-name" disabled={saving} onChange={(event) => update("name", event.target.value)} required value={form.name} />
           </label>
           <label className="admin-field">
-            <span>Slug <b aria-hidden="true">*</b></span>
-            <input className="admin-input admin-mono" data-testid="input-product-slug" onChange={(event) => update("slug", event.target.value)} required value={form.slug} />
+            <span>Đường dẫn (slug) <b aria-hidden="true">*</b></span>
+            <input className="admin-input admin-mono" data-testid="input-product-slug" disabled={saving} onChange={(event) => update("slug", event.target.value)} required value={form.slug} />
           </label>
           <label className="admin-field">
-            <span>SKU <b aria-hidden="true">*</b></span>
-            <input className="admin-input admin-mono" data-testid="input-product-sku" onChange={(event) => update("sku", event.target.value)} required value={form.sku} />
+            <span>Mã hàng (SKU) <b aria-hidden="true">*</b></span>
+            <input className="admin-input admin-mono" data-testid="input-product-sku" disabled={saving} onChange={(event) => update("sku", event.target.value)} required value={form.sku} />
           </label>
           <label className="admin-field">
             <span>Danh mục</span>
-            <select className="admin-select" data-testid="select-product-category" onChange={(event) => update("categoryId", event.target.value)} value={form.categoryId}>
+            <select className="admin-select" data-testid="select-product-category" disabled={saving} onChange={(event) => update("categoryId", event.target.value)} value={form.categoryId}>
               <option value="">Chưa phân loại</option>
               {categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
             </select>
           </label>
           <label className="admin-field">
             <span>Trạng thái phát hành</span>
-            <select className="admin-select" data-testid="select-product-status" onChange={(event) => {
+            <select className="admin-select" data-testid="select-product-status" disabled={saving} onChange={(event) => {
               const status = event.target.value as ProductFormState["status"];
               onChange({ ...form, isActive: status === "published" ? form.isActive : false, status });
             }} value={form.status}>
@@ -448,14 +576,14 @@ function ProductEditor({
             </select>
           </label>
           <label className="admin-field">
-            <span>Lead time (ngày)</span>
-            <input className="admin-input admin-mono" data-testid="input-product-lead-time" inputMode="numeric" min="0" onChange={(event) => update("leadTimeDays", event.target.value)} type="number" value={form.leadTimeDays} />
+            <span>Thời gian làm hàng (ngày)</span>
+            <input className="admin-input admin-mono" data-testid="input-product-lead-time" disabled={saving} inputMode="numeric" min="0" onChange={(event) => update("leadTimeDays", event.target.value)} type="number" value={form.leadTimeDays} />
           </label>
           <label className="admin-field admin-field-wide">
             <span>Ảnh sản phẩm</span>
             <div className="admin-input-actions">
-              <input className="admin-input" data-testid="input-product-image" onChange={(event) => update("imageUrl", event.target.value)} placeholder="/media/products/... hoặc https://..." value={form.imageUrl} />
-              <button className="admin-button admin-button-quiet" onClick={() => setPickerOpen(true)} type="button">Chọn từ thư viện</button>
+              <input className="admin-input" data-testid="input-product-image" disabled={saving} onChange={(event) => update("imageUrl", event.target.value)} placeholder="/media/products/... hoặc https://..." value={form.imageUrl} />
+              <button className="admin-button admin-button-quiet" disabled={saving} onClick={() => setPickerOpen(true)} type="button">Chọn từ thư viện</button>
             </div>
             <span className="admin-image-preview">
               {form.imageUrl
@@ -475,20 +603,20 @@ function ProductEditor({
           </label>
           <label className="admin-field admin-field-wide">
             <span>Mô tả ngắn</span>
-            <textarea className="admin-textarea" data-testid="input-product-short-description" onChange={(event) => update("shortDescription", event.target.value)} rows={2} value={form.shortDescription} />
+            <textarea className="admin-textarea" data-testid="input-product-short-description" disabled={saving} onChange={(event) => update("shortDescription", event.target.value)} rows={2} value={form.shortDescription} />
           </label>
           <label className="admin-field admin-field-wide">
             <span>Mô tả chi tiết</span>
-            <textarea className="admin-textarea" data-testid="input-product-description" onChange={(event) => update("description", event.target.value)} rows={5} value={form.description} />
+            <textarea className="admin-textarea" data-testid="input-product-description" disabled={saving} onChange={(event) => update("description", event.target.value)} rows={5} value={form.description} />
           </label>
         </div>
         <div className="admin-editor-footer">
           <label className={`admin-check${form.status !== "published" ? " is-disabled" : ""}`}>
-            <input checked={form.isActive} data-testid="checkbox-product-active" disabled={form.status !== "published"} onChange={(event) => update("isActive", event.target.checked)} type="checkbox" />
-            <span><strong>Hiển thị trên storefront</strong><small>{form.status === "published" ? "Public product read sẽ thấy sản phẩm này." : "Chỉ published mới có thể hiển thị."}</small></span>
+            <input checked={form.isActive} data-testid="checkbox-product-active" disabled={saving || form.status !== "published"} onChange={(event) => update("isActive", event.target.checked)} type="checkbox" />
+            <span><strong>Hiển thị trên trang web</strong><small>{form.status === "published" ? "Khách vào trang web sẽ thấy món này." : "Chỉ món đã đăng mới có thể hiển thị."}</small></span>
           </label>
           <div className="admin-editor-actions">
-            <button className="admin-button admin-button-quiet" data-testid="button-product-cancel" onClick={onCancel} type="button">Hủy</button>
+            <button className="admin-button admin-button-quiet" data-testid="button-product-cancel" disabled={saving} onClick={onCancel} type="button">Hủy</button>
             <button className="admin-button admin-button-primary" data-testid="button-product-save" disabled={saving} type="submit">{saving ? "Đang lưu..." : "Lưu sản phẩm"}</button>
           </div>
         </div>

@@ -1,5 +1,10 @@
 # Mô hình team subagent cho Giacong.vn
 
+> **Đợt tiếp theo theo quyết định 2026-09-07:** dùng phân đội, giới hạn phạm vi
+> và trình tự ở [brief recovery](./ADMIN_COMMERCE_RECOVERY_HANDOFF.md).
+> Operating model dưới đây là tham khảo lịch sử; không tự khởi chạy đội,
+> không ưu tiên mở rộng homepage hoặc khôi phục năm role.
+
 > Trạng thái: operating model đang áp dụng cho checkpoint 2026-09-04, dùng cùng [ADMIN_VISUAL_ROADMAP.md](./ADMIN_VISUAL_ROADMAP.md) và [ADMIN_VISUAL_FILE_MAP.md](./ADMIN_VISUAL_FILE_MAP.md).
 >
 > Mục đích: tổ chức nhiều agent như một đội phát triển chuyên nghiệp để hoàn thành Lean V1 và Visual Admin theo từng lát nhỏ, có ownership, bàn giao, review và bằng chứng chấp nhận rõ ràng.

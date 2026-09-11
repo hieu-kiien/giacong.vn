@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect } from "react";
+import { createContext, useContext, useEffect, useId } from "react";
 
 export interface AdminUnsavedState {
   isDirty: () => boolean;
@@ -8,13 +8,17 @@ export interface AdminUnsavedState {
 }
 
 export interface AdminUnsavedContextValue extends AdminUnsavedState {
-  register: (next: AdminUnsavedState) => void;
+  revision: number;
+  register: (id: string, next: AdminUnsavedState) => void;
+  unregister: (id: string) => void;
 }
 
 export const AdminUnsavedContext = createContext<AdminUnsavedContextValue>({
   isDirty: () => false,
   saving: false,
+  revision: 0,
   register: () => undefined,
+  unregister: () => undefined,
 });
 
 export function useAdminUnsaved(): AdminUnsavedContextValue {
@@ -22,13 +26,19 @@ export function useAdminUnsaved(): AdminUnsavedContextValue {
 }
 
 export function useRegisterAdminUnsaved(isDirty: () => boolean, saving: boolean): void {
-  const { register } = useContext(AdminUnsavedContext);
+  const { register, unregister } = useContext(AdminUnsavedContext);
+  const id = useId();
   useEffect(() => {
-    register({ isDirty, saving });
-    return () => {
-      register({ isDirty: () => false, saving: false });
-    };
-  }, [isDirty, saving, register]);
+    register(id, { isDirty, saving });
+    return () => unregister(id);
+  }, [id, isDirty, saving, register, unregister]);
+  useEffect(() => {
+    function preventDraftLoss(event: BeforeUnloadEvent) {
+      if (isDirty() || saving) event.preventDefault();
+    }
+    window.addEventListener("beforeunload", preventDraftLoss);
+    return () => window.removeEventListener("beforeunload", preventDraftLoss);
+  }, [isDirty, saving]);
 }
 
 export interface UnsavedClickSignal {

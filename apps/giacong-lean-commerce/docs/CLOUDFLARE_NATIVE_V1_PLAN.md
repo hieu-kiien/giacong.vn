@@ -89,7 +89,17 @@ Bagisto Admin không còn là bề mặt quản trị đích. Admin mới phải
 
 ### 6.1 Phạm vi V1 admin
 
-Admin staging cần hỗ trợ theo thứ tự:
+**Ưu tiên được chủ dự án chốt lại ngày 2026-09-07:** hoàn thiện admin sản phẩm,
+dịch vụ, tin tức và luồng Mua hàng / Thuê gia công đã có. Trang chủ chủ yếu cần
+thay ảnh; giữ phần inline đã làm nhưng không mở rộng, xử lý mọi lớp che thao tác.
+Đối chiếu menu/href với bản đã làm trên `kienhieu.id.vn`; các mục gia công được
+chỉ ra phải vào luồng Thuê gia công, không rơi về phân loại bài viết cũ. Phân biệt
+SKU bán hàng với nội dung dịch vụ trước khi đổi link. Chi tiết thực thi và ảnh:
+[ADMIN_COMMERCE_RECOVERY_HANDOFF.md](./ADMIN_COMMERCE_RECOVERY_HANDOFF.md).
+Quyết định này thay thứ tự ưu tiên homepage/storefront-first trong roadmap cũ;
+không tự mở rộng mô hình thanh toán hoặc thay các ranh giới Lean V1 bên dưới.
+
+Các năng lực admin trong phạm vi hiện hành (thứ tự triển khai theo ưu tiên mới ở trên):
 
 1. categories: xem, tạo, sửa, active, sort order;
 2. products: xem, tạo, sửa, active, category, nội dung và image reference;
@@ -112,7 +122,7 @@ Request queue vẫn ở Google Sheet trong pha này; không xây request inbox a
 - Không dùng credential D1/R2 phía client.
 - Không log secret, token hoặc PII không cần thiết.
 - V1 không có customer identity.
-- Admin nội bộ dùng 5 role: `owner`, `content_manager`, `catalog_manager`, `sales_manager`, `viewer` (xem `AdminRole` trong `src/lib/admin-data.ts`). Quyết định này được chấp thuận ngày 2026-08-23 thay cho mệnh đề trước đây "một operator administrator, không granular RBAC" — permission matrix đã triển khai và được nhiều route sử dụng, nên được giữ lại làm mô hình vận hành chuẩn.
+- Admin nội bộ chỉ dùng một quyền **Admin toàn quyền**, lưu bằng khóa `owner` để giữ nguyên tài khoản và audit (quyết định trực tiếp của chủ dự án ngày 2026-09-07, thay thế mô hình năm role ngày 2026-08-23). Các role cũ không được đăng nhập, đọc hoặc ghi API; không tự nâng quyền tài khoản cũ. Giữ Cloudflare Access, kiểm tra quyền phía server và bảo vệ admin hoạt động cuối cùng. Staging đã có đúng một tài khoản owner nên không cần chuyển đổi dữ liệu tài khoản.
 
 Cloudflare Access là phương án bảo vệ staging admin. Cấu hình Access self-hosted, allow policy và identity-provider state cho `admin-staging.kienhieu.id.vn` đã được audit qua Cloudflare API; Worker route staging cũng đã được khai báo trong Wrangler. Việc triển khai write API vẫn phải tự fail closed nếu request không đạt admission contract, không chỉ dựa vào việc hostname đã có Access.
 

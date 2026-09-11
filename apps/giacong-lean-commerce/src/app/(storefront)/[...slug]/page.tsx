@@ -8,6 +8,7 @@ import { getStorefrontNavigationForPath } from "@/components/site/storefront-nav
 import { PageBlocks } from "@/components/site/PageBlocks";
 import aboutPage from "@/data/pages/gioi-thieu-ve-gia-cong.json";
 import contactPage from "@/data/pages/lien-he.json";
+import { resolveCapturedActiveMenuId } from "@/lib/captured-markup";
 import { getPublishedSitePage } from "@/lib/site-pages";
 import { getPublishedSiteSettings } from "@/lib/site-settings";
 import type { CapturedPageData } from "@/types/captured-page";
@@ -99,5 +100,11 @@ export default async function CapturedRoute({ params }: CapturedRouteProps) {
     );
   }
   const data = await readCapturedPath(routePath);
-  return <CapturedPage {...data} siteSettings={settings} />;
+  return (
+    <CapturedPage
+      {...data}
+      siteSettings={settings}
+      activeCapturedMenuId={resolveCapturedActiveMenuId(routePath)}
+    />
+  );
 }

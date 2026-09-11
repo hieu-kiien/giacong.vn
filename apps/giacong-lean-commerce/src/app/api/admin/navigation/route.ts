@@ -46,11 +46,12 @@ export async function POST(request: Request): Promise<Response> {
   if (
     !isRecord(body)
     || !isAdminRequestId(body.requestId)
-    || !hasOnlyKeys(body, ["requestId", "menuKey", "label", "href", "capturedMenuId", "sortOrder", "isActive"])
+    || !hasOnlyKeys(body, ["requestId", "menuKey", "label", "href", "capturedMenuId", "parentId", "sortOrder", "isActive"])
     || typeof body.menuKey !== "string"
     || typeof body.label !== "string"
     || typeof body.href !== "string"
     || (body.capturedMenuId !== undefined && body.capturedMenuId !== null && typeof body.capturedMenuId !== "string")
+    || (body.parentId !== undefined && body.parentId !== null && typeof body.parentId !== "string")
     || (body.sortOrder !== undefined && typeof body.sortOrder !== "number")
     || (body.isActive !== undefined && typeof body.isActive !== "boolean")
   ) {
@@ -64,6 +65,7 @@ export async function POST(request: Request): Promise<Response> {
       isActive: body.isActive,
       label: body.label,
       menuKey: body.menuKey,
+      parentId: body.parentId,
       requestId,
       sortOrder: body.sortOrder,
     });

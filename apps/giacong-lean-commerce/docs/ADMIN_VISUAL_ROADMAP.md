@@ -1,6 +1,9 @@
 # Lộ trình Giacong Visual Admin
 
-**Trạng thái:** kế hoạch thực thi chính
+**Trạng thái:** roadmap tham khảo; không còn là kế hoạch thực thi chính.
+Ưu tiên mới ngày 2026-09-07: admin sản phẩm/dịch vụ/tin tức và sửa menu/routing;
+trang chủ chỉ thay ảnh và khắc phục lớp che nút. Đọc
+[brief recovery](./ADMIN_COMMERCE_RECOVERY_HANDOFF.md) trước khi thực thi.
 **Cập nhật:** 2026-09-04
 **Phạm vi:** apps/giacong-lean-commerce
 **Bản đồ đi kèm:** ADMIN_VISUAL_FILE_MAP.md

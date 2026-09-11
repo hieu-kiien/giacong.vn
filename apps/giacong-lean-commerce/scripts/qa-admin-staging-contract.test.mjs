@@ -48,7 +48,8 @@ test("admin staging QA is authenticated, bounded and read-only", () => {
   assert.doesNotMatch(source, /method:\s*["'](?:POST|PUT|PATCH|DELETE)["']/i);
 });
 
-test("role matrix requires five distinct storage states and no ambiguous role override", () => {
+test("role map supports only the full administrator and no ambiguous role override", () => {
+  assert.match(source, /const supportedRoles = \["owner"\]/);
   assert.match(source, /const completeRoleStatePaths = supportedRoles\.map\(\(role\) => parsed\[role\]\)/);
   assert.match(source, /new Set\(completeRoleStatePaths\)\.size !== completeRoleStatePaths\.length/);
   assert.match(source, /QA_ADMIN_EXPECTED_ROLE cannot be used with QA_ADMIN_ROLE_STATES/);
@@ -75,7 +76,7 @@ test("runner fails closed before browser launch when no storage state is supplie
   assert.doesNotMatch(result.stdout, /ADMIN STAGING QA (?:PASSED|FAILED)/);
 });
 
-test("runner fails closed when two roles reuse one storage state", async () => {
+test("runner fails closed when a role map includes retired roles", async () => {
   const directory = await mkdtemp(join(tmpdir(), "qa-admin-staging-"));
   try {
     const mapPath = join(directory, "role-states.json");
@@ -95,7 +96,7 @@ test("runner fails closed when two roles reuse one storage state", async () => {
     });
 
     assert.equal(result.code, 2, result.stderr);
-    assert.match(result.stderr, /ADMIN QA BLOCKED: each supported role must use a distinct storage-state JSON file/);
+    assert.match(result.stderr, /ADMIN QA BLOCKED: role-state map must contain exactly owner/);
   } finally {
     await rm(directory, { recursive: true, force: true });
   }

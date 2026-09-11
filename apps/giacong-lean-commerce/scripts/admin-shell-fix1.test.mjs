@@ -105,10 +105,10 @@ test("FIX1-2 Back/Forward giữ query/hash + history.state (restore đầy đủ
   const popIndex = shell.indexOf("function onPopState");
   assert.ok(popIndex !== -1, "phải tìm thấy function onPopState");
   const popSlice = shell.slice(popIndex, popIndex + 4000);
-  assert.ok(popSlice.includes("pushState"), "popstate phải pushState khôi phục");
+  assert.ok(popSlice.includes("history.go"), "popstate phải khôi phục bằng history.go trước khi Next Router xử lý");
   assert.ok(
-    /pushState\(\s*(window\.history\.state|currentHistoryStateRef\.current|snapshotState)/.test(popSlice),
-    "pushState restore phải giữ history.state cũ (snapshot currentHistoryStateRef.current/snapshotState hoặc window.history.state) thay vì null",
+    popSlice.includes("snapshotState") && popSlice.includes("snapshotHref"),
+    "popstate phải chụp href/state của entry nguồn thay vì dùng destination post-pop",
   );
 
   // Hành vi thật: mô phỏng restore với URL có query/hash + state
@@ -141,38 +141,40 @@ test("FIX1-2 Back/Forward giữ query/hash + history.state (restore đầy đủ
 test("FIX1-2b Ở lại/Bỏ không loop (allowPopRef + single-flight + 1 dialog)", async () => {
   const shell = await readShell();
   assert.match(shell, /allowPopRef/, "phải giữ allowPopRef để không loop history");
-  assert.match(shell, /history\.back\(\)/, "Bỏ (history) phải history.back() programmatic");
+  assert.match(shell, /history\.go\(/, "Bỏ (history) phải history.go() đúng delta programmatic");
   assert.match(shell, /router\.push\(/, "Bỏ (link) phải router.push programmatic");
   const dialogs = shell.match(/<AdminConfirmDialog/g) ?? [];
   assert.equal(dialogs.length, 1, "chỉ 1 dialog (single-flight), không chồng dialog");
   assert.match(shell, /if \(.*pending/, "khi đã có pending phải chặn mở dialog thứ hai");
-  assert.match(shell, /addEventListener\("popstate"/, "phải addEventListener popstate");
-  assert.match(shell, /removeEventListener\("popstate"/, "phải cleanup popstate");
+  assert.match(shell, /addEventListener\("popstate", onPopState, true\)/, "guard phải bắt popstate ở capture phase trước Next Router");
+  assert.match(shell, /removeEventListener\("popstate", onPopState, true\)/, "phải cleanup capture listener popstate");
 
   // Hành vi thật: mô phỏng 2 lần Back liên tiếp khi dirty → chỉ 1 dialog, không loop push
   let pending = null;
   let allowPop = false;
-  const pushCalls = [];
+  const restoreCalls = [];
+  let recovery = null;
   function simulatedOnPopState({ dirty }) {
     if (allowPop) {
       allowPop = false;
       return "allowed-pop";
     }
-    if (pending) {
-      pushCalls.push("restore-while-pending");
-      return "restore-while-pending";
+    if (recovery) {
+      recovery = null;
+      return "recovered-while-pending";
     }
     if (dirty) {
-      pushCalls.push("restore");
+      restoreCalls.push("history.go(+1)");
+      recovery = { delta: -1 };
       pending = { history: true };
       return "blocked-show-dialog";
     }
     return "allow";
   }
   assert.equal(simulatedOnPopState({ dirty: true }), "blocked-show-dialog", "Back lần 1 khi dirty → chặn + hiện dialog");
-  assert.equal(simulatedOnPopState({ dirty: true }), "restore-while-pending", "Back lần 2 khi đã có dialog → chỉ restore, không mở dialog thứ hai");
+  assert.equal(simulatedOnPopState({ dirty: true }), "recovered-while-pending", "pop bù khi đã có dialog → chỉ hoàn tất recovery, không mở dialog thứ hai");
   assert.equal(pending !== null, true, "vẫn chỉ 1 pending (single-flight)");
-  assert.equal(pushCalls.length, 2, "mỗi pop chỉ 1 pushState, không loop");
+  assert.equal(restoreCalls.length, 1, "mỗi navigation chỉ có 1 history.go bù, không loop");
 
   // Ở lại: chỉ xóa pending, không navigate
   pending = null;
@@ -243,7 +245,7 @@ test("FIX1-6 query/hash doi cung pathname cap nhat snapshot (deps cover search/h
   assert.match(shell, /currentHistoryStateRef\.current\s*=\s*window\.history\.state/, "snapshot effect phai luu window.history.state");
   // Deps phai cover ca search/hash, khong chi [pathname]
   // Tim effect chua snapshot (gan currentHrefRef) va xet deps
-  const snapshotEffectMatch = shell.match(/useEffect\(\(\) => \{\s*[^}]*?currentHrefRef\.current[^}]*?\},\s*\[([^\]]*)\]\)/s);
+  const snapshotEffectMatch = shell.match(/use(?:Layout)?Effect\(\(\) => \{\s*[^}]*?currentHrefRef\.current[^}]*?\},\s*\[([^\]]*)\]\)/s);
   assert.ok(snapshotEffectMatch, "phai tim thay snapshot effect cap nhat currentHrefRef");
   const deps = snapshotEffectMatch[1];
   assert.ok(!/^\s*pathname\s*$/.test(deps), `snapshot deps khong duoc chi [pathname] (hien: [${deps}])`);
@@ -311,4 +313,63 @@ test("FIX1-3 PageBuilder confirm chuyển trang phải đóng dialog (setPending
   assert.equal(selectedKey, "gioi-thieu", "Vẫn chuyển phải đổi trang đã chọn");
   assert.equal(pendingPage, null, "dialog phải đóng sau Vẫn chuyển (pendingPage null)");
   assert.deepEqual(calls, ["select:gioi-thieu", "close-dialog"], "thứ tự: chuyển trang rồi đóng dialog");
+});
+
+// ---- FIX1.2 gate (capture-phase history recovery): không dùng sentinel entry ----
+function loadHistoryHelper(source, name) {
+  const stripTypes = (fnSource) => fnSource
+    .replace(/:\s*Record<string,\s*unknown>\s*\|\s*null\s*\|\s*undefined/g, "")
+    .replace(/:\s*Record<string,\s*unknown>/g, "")
+    .replace(/:\s*AdminHistoryPopTransition/g, "")
+    .replace(/:\s*AdminHistoryPopDirection/g, "")
+    .replace(/:\s*value\s+is\s+Record<string,\s*unknown>/g, "")
+    .replace(/:\s*unknown/g, "")
+    .replace(/:\s*number\s*\|\s*null/g, "")
+    .replace(/:\s*number/g, "")
+    .replace(/export\s+/, "");
+  const dependencies = ["isHistoryStateRecord", "readAdminHistoryPosition"]
+    .filter((dependency) => dependency !== name)
+    .map((dependency) => stripTypes(extractFunction(source, dependency)))
+    .join("\n");
+  return new Function(`const ADMIN_HISTORY_POSITION_KEY = "__adminHistoryPosition";\n${dependencies}\n${stripTypes(extractFunction(source, name))}; return ${name};`)();
+}
+
+test("FIX12-gate capture-phase guard giữ forward stack và single-flight", async () => {
+  const shell = await readShell();
+  assert.match(shell, /ADMIN_HISTORY_POSITION_KEY/, "phải đánh dấu position trên history state");
+  assert.match(shell, /function readAdminHistoryPosition/, "phải đọc position an toàn từ history.state");
+  assert.match(shell, /function getAdminHistoryPopTransition/, "phải tính delta Back/Forward từ state trước/sau");
+  assert.doesNotMatch(shell, /ADMIN_UNSAVED_SENTINEL_KEY|sentinelArmedRef|buildUnsavedSentinelState/, "không được arm sentinel cùng URL vì làm mất forward stack");
+  assert.match(shell, /addEventListener\("popstate", onPopState, true\)/, "guard phải chạy capture phase trước Next Router");
+  assert.match(shell, /event\.stopImmediatePropagation\(\)/, "pop bị chặn phải dừng Router trước khi route commit");
+  assert.match(shell, /historyRecoveryRef/, "phải có trạng thái recovery cho pop bù");
+  assert.match(shell, /pendingHistoryRef/, "phải giữ delta của pop bị chặn đến lúc người dùng chọn");
+  assert.match(shell, /history\.go\(-transition\.delta\)/, "phải đi ngược delta để khôi phục entry nguồn");
+  assert.match(shell, /history\.go\(pendingHistory\?\.delta \?\? -1\)/, "Bỏ phải đi đúng delta gốc, không đoán back/forward bằng sentinel");
+  const dialogs = shell.match(/<AdminConfirmDialog/g) ?? [];
+  assert.equal(dialogs.length, 1, "chỉ 1 dialog (single-flight)");
+});
+
+test("FIX12-gate transition table chạy thật từ source", async () => {
+  const shell = await readShell();
+  const readPosition = loadHistoryHelper(shell, "readAdminHistoryPosition");
+  const getTransition = loadHistoryHelper(shell, "getAdminHistoryPopTransition");
+  const key = "__adminHistoryPosition";
+  assert.equal(readPosition({ [key]: 2 }), 2, "đọc position hợp lệ");
+  assert.equal(readPosition({ [key]: 2.5 }), null, "bỏ position không phải số nguyên an toàn");
+  assert.deepEqual(
+    getTransition({ [key]: 2 }, { [key]: 1 }),
+    { direction: "back", delta: -1 },
+    "destination thấp hơn source -> Back một entry",
+  );
+  assert.deepEqual(
+    getTransition({ [key]: 2 }, { [key]: 3 }),
+    { direction: "forward", delta: 1 },
+    "destination cao hơn source -> Forward một entry",
+  );
+  assert.deepEqual(
+    getTransition({ [key]: 2 }, null),
+    { direction: "back", delta: -1 },
+    "state không có position -> fallback back một entry",
+  );
 });

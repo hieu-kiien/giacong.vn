@@ -89,7 +89,7 @@ export function createMobileProductItem(
   const desktopDropdown = desktopProductItem?.querySelector<HTMLElement>(
     ":scope > .nav-dropdown",
   );
-  if (!navigation || !serviceItem || !desktopLink || !desktopDropdown) return undefined;
+  if (!navigation || !serviceItem || !desktopProductItem || !desktopLink || !desktopDropdown) return undefined;
 
   const productItem = document.createElement("li");
   productItem.className = "menu-item menu-item-has-children has-icon-left clone-mobile-products";
@@ -118,6 +118,10 @@ export function createMobileProductItem(
       submenuItem.append(choice);
       submenu.append(submenuItem);
     });
+  desktopProductItem
+    .querySelector<HTMLElement>(":scope > .nested-navigation-children")
+    ?.querySelectorAll<HTMLElement>(":scope > li")
+    .forEach((nestedChild) => submenu.append(nestedChild.cloneNode(true)));
   if (submenu.childElementCount === 0) return undefined;
 
   productItem.append(productLink, submenu);

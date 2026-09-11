@@ -2,7 +2,26 @@
 
 Trạng thái chốt hạ trước promotion `giacong-vn` production. Nguồn yêu cầu gốc: [CLOUDFLARE_NATIVE_V1_PLAN.md](CLOUDFLARE_NATIVE_V1_PLAN.md) mục 7–8. Cập nhật 2026-09-04 sau source hardening, staging deploy và read-only release recheck.
 
-## Checkpoint hiện tại — 2026-09-04
+## Checkpoint mới nhất — 2026-09-06
+
+Admin quality/inline editor đã triển khai staging và kiểm tra owner 10 route
+desktop/mobile; save → publish → public read-back của hero image đã đạt và dữ
+liệu được hoàn nguyên. Version hiện hành và bằng chứng chi tiết nằm ở
+[CLOUDFLARE_CURRENT_STATE.md](CLOUDFLARE_CURRENT_STATE.md) và
+[ADMIN_QUALITY_REVIEW.md](ADMIN_QUALITY_REVIEW.md).
+
+Quyết định 2026-09-07: chỉ giữ **Admin toàn quyền** (`owner`), thay thế năm role;
+staging hiện có đúng một tài khoản owner. Gate bốn identity/role cũ được thay
+bằng owner Access runtime và kiểm tra từ chối role cũ. Còn write/audit runtime toàn bộ domain, migration
+production `0009–0019`, phê duyệt dữ liệu và cửa sổ backup/rollback/observability.
+Các checkbox lịch sử dưới đây không thay cho acceptance của bản mới.
+
+Trước rollout sang môi trường khác, kiểm tra `admin_members`: mọi row phải có
+role `owner`. Row role cũ bị chặn truy cập nhưng hiện cũng làm trình đọc danh
+sách thành viên từ chối dữ liệu; cần quyết định lưu trữ/vô hiệu hóa phù hợp
+trước rollout, không tự nâng quyền. Staging đã kiểm tra chỉ có một row owner.
+
+## Checkpoint lịch sử — 2026-09-04
 
 - Code gate reference `bb2690bb` đã pass local gate; GitHub handoff head
   `5976970e` (source merge `53162218`); admin `285/285`, contact `104/104`,

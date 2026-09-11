@@ -27,18 +27,24 @@ interface ServiceRow {
   summary: string;
 }
 
+export interface ManagedServiceFacts {
+  leadTimeDays: number | null;
+  moqSummary: string | null;
+}
+
 /**
  * Static service taxonomy remains the fallback while editable copy can live in D1.
  * This is deliberately additive: no service page becomes unavailable just because
  * managed content has not been migrated or a managed row is inactive.
  */
-export async function getManagedServiceFamily(slug: string): Promise<ServiceFamily | undefined> {
+export async function getManagedServiceFamily(slug: string): Promise<(ServiceFamily & ManagedServiceFacts) | undefined> {
   const fallback = getServiceFamily(slug);
   if (!fallback) return undefined;
+  const absent: ManagedServiceFacts = { leadTimeDays: null, moqSummary: null };
 
   try {
     const db = getCatalogDatabase();
-    if (!db) return fallback;
+    if (!db) return { ...fallback, ...absent };
     const row = await db.prepare(`
       SELECT slug, name, summary, description, is_active, image_url
       FROM services
@@ -46,16 +52,41 @@ export async function getManagedServiceFamily(slug: string): Promise<ServiceFami
       LIMIT 1
     `).bind(slug).first<ServiceRow>();
 
-    if (!row || row.is_active !== 1) return fallback;
-    return {
+    if (!row || row.is_active !== 1) return { ...fallback, ...absent };
+    const managed: ServiceFamily & ManagedServiceFacts = {
       ...fallback,
       name: textOrFallback(row.name, fallback.name),
       summary: textOrFallback(row.summary, fallback.summary),
       description: textOrFallback(row.description, fallback.description),
       imageUrl: textOrFallback(row.image_url, "") || null,
+      ...absent,
     };
+    // Meta lives in a separate table that older environments may lack: read it
+    // in its own fail-soft query so a missing table only drops the facts, never
+    // the managed copy above.
+    try {
+      const meta = await db.prepare(`
+        SELECT lead_time_days, moq_summary
+        FROM service_admin_meta
+        WHERE service_id = (SELECT id FROM services WHERE slug = ? LIMIT 1)
+        LIMIT 1
+      `).bind(slug).first<{ lead_time_days?: unknown; moq_summary?: unknown }>();
+      if (meta) {
+        managed.leadTimeDays = typeof meta.lead_time_days === "number"
+          && Number.isInteger(meta.lead_time_days)
+          && meta.lead_time_days >= 0
+          ? meta.lead_time_days
+          : null;
+        managed.moqSummary = typeof meta.moq_summary === "string" && meta.moq_summary.trim()
+          ? meta.moq_summary.trim()
+          : null;
+      }
+    } catch {
+      // Meta unreadable: facts stay absent, managed copy still applies.
+    }
+    return managed;
   } catch {
-    return fallback;
+    return { ...fallback, ...absent };
   }
 }
 

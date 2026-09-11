@@ -1,5 +1,6 @@
 import { adminFailure, adminSuccess } from "./admin-api.ts";
 import type { AdminAdmissionResult } from "./admin-access.ts";
+import { isAdminRole } from "./admin-permissions.ts";
 
 export interface AdminSessionDependencies {
   admit(request: Request): Promise<AdminAdmissionResult>;
@@ -30,7 +31,7 @@ export async function handleAdminSession(
 
   // The client gates write controls on this role, so it must always be present.
   // Public demo actors are owners by contract; Access actors must resolve to an active D1 member.
-  let role = "viewer";
+  let role = "owner";
   let memberId: string | undefined;
   if (admission.actor.publicAdmin) {
     role = "owner";
@@ -44,7 +45,7 @@ export async function handleAdminSession(
   } else {
     try {
       const resolved = await dependencies.resolveRole(admission.actor.subject, admission.actor.email ?? null);
-      if (!resolved) {
+      if (!resolved || !isAdminRole(resolved.role)) {
         return adminFailure(
           requestId,
           403,
