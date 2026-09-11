@@ -79,10 +79,17 @@ export default function AdminContentPage() {
   }, [settings]);
 
   function updateDraft(key: string, value: string) {
-    setSettings((current) => current.map((setting) => setting.key === key
-      ? { ...setting, draftValue: value, dirty: value !== setting.publishedValue }
-      : setting));
-    setUnsavedKeys((current) => new Set(current).add(key));
+    const setting = settings.find((item) => item.key === key);
+    if (!setting) return;
+    setSettings((current) => current.map((item) => item.key === key
+      ? { ...item, draftValue: value, dirty: value !== item.publishedValue }
+      : item));
+    setUnsavedKeys((unsaved) => {
+      const next = new Set(unsaved);
+      if (value === setting.draftValue) next.delete(key);
+      else next.add(key);
+      return next;
+    });
     setNotice(null);
   }
 

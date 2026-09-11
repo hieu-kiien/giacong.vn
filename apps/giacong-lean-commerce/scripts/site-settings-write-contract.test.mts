@@ -247,4 +247,5 @@ test("settings UI sends a fresh request id for draft saves and publishes", async
   const source = await readFile(new URL("../src/app/admin/noi-dung/page.tsx", import.meta.url), "utf8");
   assert.match(source, /const requestId = crypto\.randomUUID\(\);[\s\S]*?body: \{ requestId, key: setting\.key, value: setting\.draftValue, expectedVersion: setting\.version \}/);
   assert.match(source, /const requestId = crypto\.randomUUID\(\);[\s\S]*?body: \{ requestId, key: setting\.key, expectedVersion: setting\.version \}/);
+  assert.match(source, /if \(value === setting\.draftValue\) next\.delete\(key\);/);
 });
