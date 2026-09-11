@@ -208,7 +208,7 @@ export function demoCatalogList(filters: CatalogFilters): {
   const total = sorted.length;
   const perPage = filters.pageSize;
   const lastPage = Math.max(1, Math.ceil(total / perPage));
-  const currentPage = Math.min(Math.max(1, filters.page), Math.max(lastPage, filters.page));
+  const currentPage = Math.min(Math.max(1, filters.page), lastPage);
   const start = (currentPage - 1) * perPage;
 
   return {

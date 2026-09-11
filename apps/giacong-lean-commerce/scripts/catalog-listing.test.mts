@@ -29,6 +29,20 @@ test("demo listing applies the same category and pagination contract", () => {
   assert.equal(result.products.every((product) => product.category?.slug === "bot-nguyen-lieu-kho"), true);
 });
 
+test("demo listing clamps an out-of-range page to the last page", () => {
+  const result = demoCatalogList({
+    category: "",
+    direction: "asc",
+    page: 99,
+    pageSize: 4,
+    query: "",
+    sort: "name",
+  });
+
+  assert.equal(result.pagination.currentPage, result.pagination.lastPage);
+  assert.ok(result.products.length > 0, "the last demo page must not be empty");
+});
+
 test("detail and batch catalog reads include the product-level MOQ field", async () => {
   const source = await readFile(new URL("../src/lib/cloudflare-catalog.ts", import.meta.url), "utf8");
   const columns = source.match(/const PARENT_PRODUCT_COLUMNS = `([\s\S]*?)`;/)?.[1];
