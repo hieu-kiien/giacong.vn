@@ -27,7 +27,7 @@ const roleLabels = {
   owner: "Admin toàn quyền",
 };
 const roleNavigationRoutes = {
-  owner: ["/admin/noi-dung", "/admin/thiet-ke", "/admin/san-pham", "/admin/dich-vu", "/admin/tin-tuc", "/admin/dieu-huong", "/admin/yeu-cau", "/admin", "/admin/thanh-vien", "/admin/audit"],
+  owner: ["/admin/noi-dung", "/admin/thiet-ke", "/admin/san-pham", "/admin/dich-vu", "/admin/tin-tuc", "/admin/dieu-huong", "/admin", "/admin/thanh-vien", "/admin/audit"],
 };
 const adminRoutes = [
   { path: "/admin", heading: "Tổng quan vận hành" },
@@ -37,7 +37,6 @@ const adminRoutes = [
   { path: "/admin/dich-vu", heading: "Dịch vụ gia công" },
   { path: "/admin/tin-tuc", heading: "Viết và xuất bản tin tức" },
   { path: "/admin/dieu-huong", heading: "Menu website" },
-  { path: "/admin/yeu-cau", heading: "Yêu cầu báo giá" },
   { path: "/admin/thanh-vien", heading: "Tài khoản quản trị" },
   { path: "/admin/audit", heading: "Lịch sử thay đổi" },
 ];

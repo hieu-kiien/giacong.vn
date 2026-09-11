@@ -90,7 +90,6 @@ test("the shell groups routes in plain-language control-plane sections", async (
     "Chỉnh sửa website",
     "Hàng hóa",
     "Nội dung",
-    "Yêu cầu khách hàng",
     "Vận hành",
     "Tài khoản & quyền",
   ]) {
@@ -169,19 +168,21 @@ test("shared admin states explain readiness without infrastructure jargon", asyn
   assert.doesNotMatch(shell, /Dữ liệu hiển thị trực tiếp từ D1/);
 });
 
-test("read-only roles do not receive lead/news mutation affordances or private dashboard lead names", async () => {
-  const [leads, news, dashboard, dashboardApi] = await Promise.all([
-    readSource("app", "admin", "yeu-cau", "page.tsx"),
+test("request inbox stays out of the Lean V1 admin control plane", async () => {
+  const [shell, news, dashboard, dashboardApi] = await Promise.all([
+    readSource("components", "admin", "AdminShell.tsx"),
     readSource("app", "admin", "tin-tuc", "page.tsx"),
     readSource("app", "admin", "page.tsx"),
     readFile(new URL("../src/app/api/admin/dashboard/route.ts", import.meta.url), "utf8"),
   ]);
 
-  assert.match(leads, /canManageLeads\(session\.role\)/);
-  assert.match(leads, /!canManageLeads\(session\.role\)/);
+  assert.doesNotMatch(shell, /\/admin\/yeu-cau/);
+  assert.doesNotMatch(shell, /Yêu cầu báo giá/);
   assert.match(news, /canManageNews\(session\.role\)/);
   assert.match(news, /if \(!canManage\)/);
-  assert.match(dashboard, /canManage\(session\.role, "leads\.read"\)/);
+  assert.doesNotMatch(dashboard, /link-dashboard-leads/);
+  assert.doesNotMatch(dashboard, /recent-leads-heading/);
+  assert.doesNotMatch(dashboard, /metric-leads/);
   assert.match(dashboard, /canManage\(session\.role, "services\.read"\)/);
   assert.match(dashboard, /canManage\(session\.role, "catalog\.read"\)/);
   assert.match(dashboardApi, /includeRecentLeads/);

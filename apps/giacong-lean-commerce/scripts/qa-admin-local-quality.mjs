@@ -173,7 +173,7 @@ for (const [path, prepare, inputId] of [
 
 for (const width of [390, 1440]) {
   await run(`Ten admin routes at ${width}px: layout, labels, runtime`, async (page) => {
-    for (const path of ["/admin", "/admin/san-pham", "/admin/dich-vu", "/admin/tin-tuc", "/admin/noi-dung", "/admin/thiet-ke", "/admin/dieu-huong", "/admin/thanh-vien", "/admin/yeu-cau", "/admin/audit"]) {
+    for (const path of ["/admin", "/admin/san-pham", "/admin/dich-vu", "/admin/tin-tuc", "/admin/noi-dung", "/admin/thiet-ke", "/admin/dieu-huong", "/admin/thanh-vien", "/admin/audit"]) {
       await open(page, path);
       await expect(page.getByRole("heading", { level: 1 })).toHaveCount(1);
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), true, `${path}: no page overflow`);
