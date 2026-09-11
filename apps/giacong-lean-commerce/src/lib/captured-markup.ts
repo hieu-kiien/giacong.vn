@@ -61,12 +61,13 @@ function readLinkLabel(content: string) {
  * mobile-menu link colour comes from here, and `globals.css` is what makes it
  * white.
  *
- * Safe to wrap unconditionally: `@layer` may contain `@font-face`, `@media` and
- * `@keyframes`, which is everything the captured sheets use, and none of them
- * contain `@import` or `@charset` (which would have to stay at the top level).
+ * Safe to wrap after removing a capture's optional `@charset`: `@charset` is
+ * valid only at the stylesheet top level, while `@layer` may contain the
+ * remaining `@font-face`, `@media` and `@keyframes` rules.
  */
 export function layerCapturedStyles(pageStyles: string): string {
-  return `@layer captured {\n${pageStyles}\n}`;
+  const nestedStyles = pageStyles.replace(/@charset\s+(?:"[^"]*"|'[^']*')\s*;?/gi, "");
+  return `@layer captured {\n${nestedStyles}\n}`;
 }
 
 export function normalizeCapturedMarkup(markup: string, activeCapturedMenuId?: string | null) {

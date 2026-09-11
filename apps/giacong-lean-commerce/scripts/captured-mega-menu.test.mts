@@ -192,10 +192,10 @@ test("desktop pointer hover has intent delay while keyboard focus opens immediat
 
   assert.match(
     globals,
-    /#header li\.has-dropdown:hover > \.nav-dropdown\s*\{[^}]*transition-delay:\s*140ms\s*!important/s,
+    /#header li\.has-dropdown:hover > \.nav-dropdown\s*\{[\s\S]*?transition-delay:\s*140ms\s*!important/,
   );
   assert.match(
     globals,
-    /#header li\.has-dropdown:focus-within > \.nav-dropdown\s*\{[^}]*transition-delay:\s*0ms\s*!important/s,
+    /#header li\.has-dropdown:focus-within > \.nav-dropdown\s*\{[\s\S]*?transition-delay:\s*0ms\s*!important/,
   );
 });

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-const { normalizeCapturedMarkup } = await import("../src/lib/captured-markup" + ".ts");
+const { layerCapturedStyles, normalizeCapturedMarkup } = await import("../src/lib/captured-markup" + ".ts");
 const { transformPage } = await import("./capture-giacong.mjs");
 const { applySiteSettingsToMarkup } = await import("../src/lib/site-markup" + ".ts");
 const { applyNavigationToMarkup } = await import("../src/lib/site-navigation" + ".ts");
@@ -73,6 +73,14 @@ test("keeps the captured mega menus while normalizing their local navigation", (
   assert.match(serviceMenu, /<h4><span>Dịch vụ đóng gói<\/span><\/h4>[\s\S]*?<span class="ux-menu-link__text">Hồng sấy<\/span>/);
   assert.match(serviceMenu, /Dịch vụ sấy/);
   assert.match(result, /id="menu-item-5466"[\s\S]*?href="\/thue-gia-cong\/"/);
+});
+
+test("removes top-level charset declarations before captured CSS enters a layer", () => {
+  const result = layerCapturedStyles('@charset "UTF-8"; .captured { color: green; }');
+
+  assert.doesNotMatch(result, /@charset/i);
+  assert.match(result, /@layer captured/);
+  assert.match(result, /\.captured \{ color: green; \}/);
 });
 
 test("creates mobile Mua hàng as an accordion from the desktop mega-menu", () => {
