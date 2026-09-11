@@ -2,13 +2,21 @@ import { GiacongInteractions } from "@/components/GiacongInteractions";
 import { CapturedRequestCartButton } from "@/components/request-cart/CapturedRequestCartButton";
 import { layerCapturedStyles, normalizeCapturedMarkup } from "@/lib/captured-markup";
 import { applySiteSettingsToMarkup, siteBrandStyles } from "@/lib/site-markup";
+import {
+  applyFooterNavigationToMarkup,
+  applyNavigationToMarkup,
+  type PublishedNavigationItem,
+} from "@/lib/site-navigation";
 import { siteSettingDefaults, type PublishedSiteSettings } from "@/lib/site-settings";
 import type { CapturedPageData } from "@/types/captured-page";
 
 type CapturedPageProps = Pick<
   CapturedPageData,
   "markup" | "pageStyles" | "bodyClasses" | "htmlClasses"
-> & { activeCapturedMenuId?: string | null };
+> & {
+  activeCapturedMenuId?: string | null;
+  navigation?: readonly PublishedNavigationItem[];
+};
 
 export function CapturedPage({
   markup,
@@ -17,10 +25,18 @@ export function CapturedPage({
   htmlClasses,
   siteSettings,
   activeCapturedMenuId,
+  navigation = [],
 }: CapturedPageProps & { siteSettings?: PublishedSiteSettings }) {
   const settings = siteSettings ?? siteSettingDefaults;
   const normalizedMarkup = applySiteSettingsToMarkup(
-    normalizeCapturedMarkup(markup, activeCapturedMenuId),
+    applyFooterNavigationToMarkup(
+      applyNavigationToMarkup(
+        normalizeCapturedMarkup(markup, activeCapturedMenuId),
+        navigation,
+        activeCapturedMenuId ?? undefined,
+      ),
+      navigation,
+    ),
     settings,
   );
 

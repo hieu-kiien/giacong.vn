@@ -17,6 +17,18 @@ test("captured routes read page data through the Cloudflare static assets bindin
   assert.match(routeSource, /\.fetch\(/);
 });
 
+test("legacy captured routes receive the published navigation used by managed storefront pages", async () => {
+  const capturedPageSource = await readFile(
+    new URL("../src/components/CapturedPage.tsx", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(routeSource, /getPublishedSiteNavigation/);
+  assert.match(routeSource, /<CapturedPage[\s\S]*navigation=\{navigation\}/);
+  assert.match(capturedPageSource, /applyNavigationToMarkup/);
+  assert.match(capturedPageSource, /applyFooterNavigationToMarkup/);
+});
+
 test("capture JSON is prepared as a generated public asset before runtime", async () => {
   const prepareScript = await readFile(
     new URL("../scripts/prepare-captured-assets.mjs", import.meta.url),

@@ -1214,12 +1214,28 @@ body.clone-menu-active {
       width: min(1240px, calc(100% - 30px)) !important;
     }
 
+  #header li.has-dropdown:hover > .nav-dropdown {
+    transition-delay: 140ms !important;
+  }
+
+  #header li.has-dropdown:focus-within > .nav-dropdown {
+    transition-delay: 0ms !important;
+  }
+
   #header li.has-dropdown[data-dropdown-dismissed="true"] > .nav-dropdown {
     opacity: 0 !important;
     pointer-events: none !important;
     visibility: hidden !important;
   }
 
+}
+
+@media (max-width: 549px) {
+  /* A missing captured testimonial image must not stretch its flex column. */
+  #main .section07 .icon-box .icon-box-img img {
+    max-height: 100px !important;
+    object-fit: cover;
+  }
 }
 
 #main-menu .nav-sidebar > li.menu-item-has-children > .sub-menu {

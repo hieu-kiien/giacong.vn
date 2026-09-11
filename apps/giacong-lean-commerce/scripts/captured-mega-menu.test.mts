@@ -183,3 +183,19 @@ test("desktop Escape dismissal wins over hover until pointer or focus re-enters"
     /#header li\.has-dropdown\[data-dropdown-dismissed="true"\] > \.nav-dropdown/,
   );
 });
+
+test("desktop pointer hover has intent delay while keyboard focus opens immediately", async () => {
+  const globals = await readFile(
+    new URL("../src/app/globals.css", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(
+    globals,
+    /#header li\.has-dropdown:hover > \.nav-dropdown\s*\{[^}]*transition-delay:\s*140ms\s*!important/s,
+  );
+  assert.match(
+    globals,
+    /#header li\.has-dropdown:focus-within > \.nav-dropdown\s*\{[^}]*transition-delay:\s*0ms\s*!important/s,
+  );
+});

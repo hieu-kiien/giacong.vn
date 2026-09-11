@@ -9,6 +9,7 @@ import { PageBlocks } from "@/components/site/PageBlocks";
 import aboutPage from "@/data/pages/gioi-thieu-ve-gia-cong.json";
 import contactPage from "@/data/pages/lien-he.json";
 import { resolveCapturedActiveMenuId } from "@/lib/captured-markup";
+import { getPublishedSiteNavigation } from "@/lib/site-navigation";
 import { getPublishedSitePage } from "@/lib/site-pages";
 import { getPublishedSiteSettings } from "@/lib/site-settings";
 import type { CapturedPageData } from "@/types/captured-page";
@@ -99,12 +100,16 @@ export default async function CapturedRoute({ params }: CapturedRouteProps) {
       </CapturedStorefrontShell>
     );
   }
-  const data = await readCapturedPath(routePath);
+  const [data, navigation] = await Promise.all([
+    readCapturedPath(routePath),
+    getPublishedSiteNavigation(),
+  ]);
   return (
     <CapturedPage
       {...data}
       siteSettings={settings}
       activeCapturedMenuId={resolveCapturedActiveMenuId(routePath)}
+      navigation={navigation}
     />
   );
 }

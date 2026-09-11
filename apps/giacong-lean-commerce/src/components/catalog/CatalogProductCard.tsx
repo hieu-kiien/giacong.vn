@@ -103,7 +103,7 @@ export function CatalogProductCard({ card }: CatalogProductCardProps) {
         <div className="mt-auto w-full pt-2" data-catalog-action-tray>
           <Link
             aria-label={`Xem chi tiết ${card.name}`}
-            className="flex min-h-11 w-full items-center justify-center rounded-commerce-control bg-commerce-brand px-3 text-[13px] font-bold text-white transition-colors hover:bg-commerce-brand-dark focus-visible:commerce-focus-ring min-[520px]:min-h-8 min-[520px]:text-[11px]"
+            className="flex min-h-11 w-full items-center justify-center rounded-commerce-control bg-commerce-brand-dark px-3 text-[13px] font-bold text-white transition-colors hover:brightness-90 focus-visible:commerce-focus-ring min-[520px]:min-h-8 min-[520px]:text-[11px]"
             data-catalog-detail-action
             href={card.detailHref}
             prefetch={false}

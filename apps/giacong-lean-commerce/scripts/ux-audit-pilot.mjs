@@ -453,6 +453,7 @@ async function auditCatalogMobile(page, result) {
   }
   await page.goto(absoluteUrl("/san-pham"), { waitUntil: "domcontentloaded", timeout: 20_000 });
   await waitForSettled(page);
+  const catalogCardCount = await page.locator("[data-catalog-card]").count();
   const cardLink = page.locator('[data-catalog-detail-action="true"][href^="/"]').first();
   if (await isVisible(cardLink)) {
     const href = await cardLink.getAttribute("href");
@@ -477,12 +478,13 @@ async function auditCatalogMobile(page, result) {
     }
   } else {
     await capture(page, result, "detail-unavailable");
+    const emptyStateCount = await page.locator('div[role="status"]').count();
     await recordAction(result, {
       id: "open-product-detail",
       type: "open modal/detail",
-      expected: "Danh mục có card sản phẩm để mở chi tiết.",
-      observed: "catalog card link not visible",
-      pass: false,
+      expected: "Nếu danh mục trống, empty state phải hiện rõ; nếu có card thì mở được chi tiết.",
+      observed: { cardCount: catalogCardCount, emptyStateCount, url: page.url() },
+      pass: catalogCardCount === 0 && emptyStateCount > 0,
     });
   }
 }
@@ -699,4 +701,3 @@ console.log(JSON.stringify({
   hardGates: audit.hardGates,
 }, null, 2));
 setTimeout(() => process.exit(0), 100);
-

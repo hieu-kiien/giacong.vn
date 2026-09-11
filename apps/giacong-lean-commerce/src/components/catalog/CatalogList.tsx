@@ -205,7 +205,7 @@ export function CatalogList({
               </span>
               <button
                 aria-label="Tìm sản phẩm"
-                className="!m-0 !p-0 flex min-h-11 w-11 shrink-0 items-center justify-center rounded-r-[5px] bg-commerce-brand text-white hover:bg-commerce-brand-dark focus-visible:commerce-focus-ring disabled:opacity-45"
+                className="!m-0 !p-0 flex min-h-11 w-11 shrink-0 items-center justify-center rounded-r-[5px] bg-commerce-brand-dark text-white hover:brightness-90 focus-visible:commerce-focus-ring disabled:opacity-45"
                 data-catalog-search-submit
                 disabled={isPending}
                 type="submit"
@@ -235,7 +235,7 @@ export function CatalogList({
                 <button
                   aria-label="Hiển thị dạng lưới"
                   aria-pressed={viewMode === "grid"}
-                  className={`!m-0 !p-0 flex min-h-11 min-w-11 flex-1 items-center justify-center focus-visible:commerce-focus-ring ${viewMode === "grid" ? "bg-commerce-brand text-white" : "bg-white text-commerce-secondary hover:text-commerce-brand-dark"}`}
+                  className={`!m-0 !p-0 flex min-h-11 min-w-11 flex-1 items-center justify-center focus-visible:commerce-focus-ring ${viewMode === "grid" ? "bg-commerce-brand-dark text-white" : "bg-white text-commerce-secondary hover:text-commerce-brand-dark"}`}
                   onClick={() => setViewMode("grid")}
                   type="button"
                 >
@@ -244,7 +244,7 @@ export function CatalogList({
                 <button
                   aria-label="Hiển thị dạng danh sách"
                   aria-pressed={viewMode === "list"}
-                  className={`!m-0 !p-0 flex min-h-11 min-w-11 flex-1 items-center justify-center border-l border-commerce-border focus-visible:commerce-focus-ring ${viewMode === "list" ? "bg-commerce-brand text-white" : "bg-white text-commerce-secondary hover:text-commerce-brand-dark"}`}
+                  className={`!m-0 !p-0 flex min-h-11 min-w-11 flex-1 items-center justify-center border-l border-commerce-border focus-visible:commerce-focus-ring ${viewMode === "list" ? "bg-commerce-brand-dark text-white" : "bg-white text-commerce-secondary hover:text-commerce-brand-dark"}`}
                   onClick={() => setViewMode("list")}
                   type="button"
                 >
@@ -308,7 +308,7 @@ export function CatalogList({
                 Thử một từ khóa khác hoặc xem lại toàn bộ danh mục.
               </p>
               <button
-                className="mt-4 min-h-11 rounded-commerce-control bg-commerce-brand px-5 text-sm font-bold text-white hover:bg-commerce-brand-dark focus-visible:commerce-focus-ring"
+                className="mt-4 min-h-11 rounded-commerce-control bg-commerce-brand-dark px-5 text-sm font-bold text-white hover:brightness-90 focus-visible:commerce-focus-ring"
                 onClick={clearFilters}
                 type="button"
               >
@@ -324,7 +324,7 @@ export function CatalogList({
                   aria-current={page === pagination.currentPage ? "page" : undefined}
                   className={`flex min-h-11 min-w-11 items-center justify-center rounded-commerce-control border px-3 text-sm font-semibold focus-visible:commerce-focus-ring ${
                     page === pagination.currentPage
-                      ? "border-commerce-brand bg-commerce-brand text-white"
+                      ? "border-commerce-brand-dark bg-commerce-brand-dark text-white"
                       : "border-commerce-border text-commerce-body hover:border-commerce-brand hover:text-commerce-brand-dark"
                   }`}
                   href={catalogHref({ ...filters, page })}
@@ -371,7 +371,7 @@ function CategoryChip({
       aria-pressed={isActive}
       className={`!m-0 !px-4 !py-0 min-h-11 shrink-0 whitespace-nowrap rounded-full border text-sm font-semibold disabled:opacity-45 focus-visible:commerce-focus-ring ${
         isActive
-          ? "border-commerce-brand bg-commerce-brand text-white"
+          ? "border-commerce-brand-dark bg-commerce-brand-dark text-white"
           : "border-commerce-border bg-white text-commerce-body hover:border-commerce-brand hover:text-commerce-brand-dark"
       }`}
       disabled={isPending}
