@@ -34,7 +34,7 @@ test("demo listing clamps an out-of-range page to the last page", () => {
     category: "",
     direction: "asc",
     page: 99,
-    pageSize: 4,
+    pageSize: 12,
     query: "",
     sort: "name",
   });
