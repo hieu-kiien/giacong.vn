@@ -100,6 +100,9 @@ test("the shell groups routes in plain-language control-plane sections", async (
   assert.match(shell, /isAdminNavItemActive/);
   assert.match(shell, /badge-admin-environment/);
   assert.match(shell, /Lịch sử thay đổi/);
+
+  const websiteGroup = shell.slice(shell.indexOf('label: "Chỉnh sửa website"'), shell.indexOf('label: "Hàng hóa"'));
+  assert.match(websiteGroup, /\/admin\/dieu-huong/, "Menu belongs beside the other website editors");
 });
 
 test("protected sidebar links do not prefetch every admin route on first paint", async () => {

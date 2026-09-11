@@ -30,6 +30,14 @@ test("guard publishPage chan khi KHONG dirty, mo khi dirty (dong nhat nut Dang l
   assert.match(guard, /publishInFlight\.current/, "guard phải giữ chống double-click publishInFlight");
 });
 
+test("trang mới nằm trong khu vực tùy chọn nâng cao", async () => {
+  const source = await readFile(builderPath, "utf8");
+
+  assert.match(source, /<details className="admin-builder-advanced"/);
+  assert.match(source, /Tùy chọn nâng cao/);
+  assert.match(source, /Tạo trang mới/);
+});
+
 test("nut Dang len web chi bat khi dirty va khong blocksChanged (guard phai dong nhat)", async () => {
   const source = await readFile(builderPath, "utf8");
   const guard = extractPublishGuard(source);

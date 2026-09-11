@@ -46,6 +46,7 @@ const navGroups: ReadonlyArray<AdminNavGroup> = [
     items: [
       { href: "/admin/noi-dung", label: "Nội dung & thương hiệu", icon: PenLine, readCapability: "content.read" },
       { href: "/admin/thiet-ke", label: "Thiết kế trang", icon: LayoutTemplate, readCapability: "pages.read" },
+      { href: "/admin/dieu-huong", label: "Menu", icon: PanelTop, readCapability: "navigation.read" },
     ],
   },
   {
@@ -59,7 +60,6 @@ const navGroups: ReadonlyArray<AdminNavGroup> = [
     label: "Nội dung",
     items: [
       { href: "/admin/tin-tuc", label: "Tin tức", icon: Newspaper, readCapability: "news.read" },
-      { href: "/admin/dieu-huong", label: "Menu", icon: PanelTop, readCapability: "navigation.read" },
     ],
   },
   {

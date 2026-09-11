@@ -285,24 +285,26 @@ export function AdminPageBuilder() {
             </button>
           ))}
         </div>
-        {canEdit ? <button className="admin-button admin-button-quiet" onClick={() => setShowCreate((value) => !value)} type="button"><Plus size={14} /> Tạo trang</button> : null}
       </div>
-      {showCreate ? (
-        <section className="admin-panel admin-builder-create" aria-labelledby="builder-create-heading">
-          <div className="admin-panel-heading"><div><h2 className="admin-panel-title" id="builder-create-heading">Tạo trang mới</h2><p className="admin-panel-caption">Chỉ dùng đường dẫn nội bộ; trang mới bắt đầu ở trạng thái tắt.</p></div></div>
-          <div className="admin-editor-grid">
-            <AdminField id="builder-create-key" label="Mã trang" hint="Viết liền không dấu. Ví dụ: gioi-thieu-moi">
-              <input className="admin-input" disabled={!canEdit} id="builder-create-key" onChange={(event) => setCreateForm((current) => ({ ...current, pageKey: event.target.value }))} value={createForm.pageKey} />
-            </AdminField>
-            <AdminField id="builder-create-title" label="Tên trang">
-              <input className="admin-input" disabled={!canEdit} id="builder-create-title" onChange={(event) => setCreateForm((current) => ({ ...current, title: event.target.value }))} value={createForm.title} />
-            </AdminField>
-            <AdminField id="builder-create-route" label="Đường dẫn">
-              <input className="admin-input" disabled={!canEdit} id="builder-create-route" onChange={(event) => setCreateForm((current) => ({ ...current, routePath: event.target.value }))} value={createForm.routePath} />
-            </AdminField>
-          </div>
-          <div className="admin-editor-actions"><button className="admin-button admin-button-primary" disabled={!createForm.pageKey || !createForm.title || !canEdit || creating} onClick={() => void createPage()} type="button"><Plus size={14} /> {creating ? "Đang tạo" : "Tạo trang"}</button></div>
-        </section>
+      {canEdit ? (
+        <details className="admin-builder-advanced" onToggle={(event) => setShowCreate(event.currentTarget.open)} open={showCreate}>
+          <summary className="admin-builder-advanced-summary"><span><Plus aria-hidden="true" size={14} /> Tùy chọn nâng cao</span><small>Tạo trang mới</small></summary>
+          <section className="admin-panel admin-builder-create" aria-labelledby="builder-create-heading">
+            <div className="admin-panel-heading"><div><h2 className="admin-panel-title" id="builder-create-heading">Tạo trang mới</h2><p className="admin-panel-caption">Chỉ dùng đường dẫn nội bộ; trang mới bắt đầu ở trạng thái tắt.</p></div></div>
+            <div className="admin-editor-grid">
+              <AdminField id="builder-create-key" label="Mã trang" hint="Viết liền không dấu. Ví dụ: gioi-thieu-moi">
+                <input className="admin-input" disabled={!canEdit} id="builder-create-key" onChange={(event) => setCreateForm((current) => ({ ...current, pageKey: event.target.value }))} value={createForm.pageKey} />
+              </AdminField>
+              <AdminField id="builder-create-title" label="Tên trang">
+                <input className="admin-input" disabled={!canEdit} id="builder-create-title" onChange={(event) => setCreateForm((current) => ({ ...current, title: event.target.value }))} value={createForm.title} />
+              </AdminField>
+              <AdminField id="builder-create-route" label="Đường dẫn">
+                <input className="admin-input" disabled={!canEdit} id="builder-create-route" onChange={(event) => setCreateForm((current) => ({ ...current, routePath: event.target.value }))} value={createForm.routePath} />
+              </AdminField>
+            </div>
+            <div className="admin-editor-actions"><button className="admin-button admin-button-primary" disabled={!createForm.pageKey || !createForm.title || !canEdit || creating} onClick={() => void createPage()} type="button"><Plus size={14} /> {creating ? "Đang tạo" : "Tạo trang"}</button></div>
+          </section>
+        </details>
       ) : null}
       {notice ? <div className="admin-content-notice" role="status">{notice}</div> : null}
       {error ? <AdminErrorState error={error} onRetry={() => { setError(null); void loadPages(); }} /> : null}

@@ -659,6 +659,14 @@
 .admin-builder-page-tab { background: var(--admin-surface); border: 1px solid var(--admin-border); border-radius: 8px; color: var(--admin-ink); cursor: pointer; display: grid; gap: 3px; padding: 9px 12px; text-align: left; }
 .admin-builder-page-tab small { color: var(--admin-ink-muted); font-family: "Geist Mono", ui-monospace, monospace; font-size: 10px; }
 .admin-builder-page-tab.is-selected { background: var(--admin-green-wash); border-color: #aac28d; box-shadow: inset 3px 0 var(--admin-green); }
+.admin-builder-advanced { margin-bottom: 18px; }
+.admin-builder-advanced-summary { align-items: center; background: var(--admin-surface); border: 1px solid var(--admin-border); border-radius: 8px; color: var(--admin-ink); cursor: pointer; display: flex; font-size: 11px; font-weight: 700; justify-content: space-between; list-style: none; max-width: 360px; padding: 9px 12px; }
+.admin-builder-advanced-summary::-webkit-details-marker { display: none; }
+.admin-builder-advanced-summary::after { color: var(--admin-ink-muted); content: "+"; font-size: 17px; font-weight: 400; line-height: 1; }
+.admin-builder-advanced[open] .admin-builder-advanced-summary::after { content: "−"; }
+.admin-builder-advanced-summary > span { align-items: center; display: inline-flex; gap: 7px; }
+.admin-builder-advanced-summary small { color: var(--admin-ink-muted); font-size: 10px; font-weight: 600; }
+.admin-builder-advanced-summary:focus-visible { outline: 3px solid rgb(108 190 69 / 35%); outline-offset: 2px; }
 .admin-builder-create { margin-bottom: 18px; }
 .admin-builder-layout { align-items: start; display: grid; gap: 18px; grid-template-columns: minmax(0, 1fr) minmax(300px, .48fr); }
 .admin-builder-editor { min-width: 0; }
@@ -709,6 +717,7 @@
   .admin-builder-toolbar > .admin-button { width: 100%; }
   .admin-builder-page-tabs { width: 100%; }
   .admin-builder-page-tab { flex: 1; }
+  .admin-builder-advanced-summary { max-width: none; width: 100%; }
   .admin-builder-meta, .admin-builder-cta-fields { grid-template-columns: 1fr; }
   .admin-builder-section-heading { align-items: stretch; flex-direction: column; }
   .admin-builder-add-select { justify-content: space-between; }
