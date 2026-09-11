@@ -126,6 +126,7 @@ export function ProductPurchasePanel({ editingCartVariantSku, initialVariantSku,
                 key={choice.sku}
               >
                 <input
+                  aria-label={choice.label}
                   checked={choice.sku === selected.sku}
                   disabled={!choice.isAvailable}
                   name="product-detail-variant"

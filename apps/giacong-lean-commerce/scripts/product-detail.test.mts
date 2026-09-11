@@ -283,6 +283,15 @@ test("the detail surface keeps production messaging and request actions unambigu
   assert.doesNotMatch(panel, /Mua ngay/, "direct payment language is outside the request-only flow");
 });
 
+test("detail choices and related links remain keyboard discoverable", async () => {
+  const panel = await readSource("src", "components", "catalog", "ProductPurchasePanel.tsx");
+  const related = await readSource("src", "components", "catalog", "RelatedProductCard.tsx");
+
+  assert.match(panel, /aria-label=\{choice\.label\}/, "each variant radio needs an explicit accessible name");
+  assert.ok(related.includes("aria-label={`Xem ${card.name}`}"), "the related image link needs a useful accessible name");
+  assert.doesNotMatch(related, /tabIndex=\{-1\}/, "the related image link must remain reachable by keyboard");
+});
+
 test("related products are compact cards with no social proof and no invented variant", () => {
   const product = multiVariantProduct();
   const related = demoCatalog.demoCatalogProductsByCategory("bot-nguyen-lieu-kho")

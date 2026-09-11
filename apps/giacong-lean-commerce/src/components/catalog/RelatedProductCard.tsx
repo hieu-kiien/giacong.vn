@@ -22,7 +22,7 @@ interface RelatedProductCardProps {
 export function RelatedProductCard({ card }: RelatedProductCardProps) {
   return (
     <article className={styles.relatedCard}>
-      <Link className={styles.relatedImage} href={card.detailHref} prefetch={false} tabIndex={-1}>
+      <Link aria-label={`Xem ${card.name}`} className={styles.relatedImage} href={card.detailHref} prefetch={false}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img alt={card.name} loading="lazy" src={card.imageUrl} />
       </Link>
