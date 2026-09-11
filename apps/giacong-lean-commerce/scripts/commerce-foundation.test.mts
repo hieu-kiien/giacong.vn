@@ -256,7 +256,7 @@ test("demo catalog data is flagged as demo and spans several groups", () => {
 
   assert.equal(IS_DEMO_CATALOG_DATA, true, "demo data must announce itself as demo data");
   assert.ok(DEMO_CATALOG_CATEGORIES.length >= 3, "demo data needs several product groups");
-  assert.ok(DEMO_CATALOG_PRODUCTS.length >= 8, "demo data needs enough products to fill a grid");
+  assert.ok(DEMO_CATALOG_PRODUCTS.length >= 16, "demo data needs enough products to exercise pagination");
 
   const categorySlugs = new Set(DEMO_CATALOG_CATEGORIES.map((category: { slug: string }) => category.slug));
   assert.equal(categorySlugs.size, DEMO_CATALOG_CATEGORIES.length, "category slugs must be unique");
