@@ -15,6 +15,9 @@ test("navigation publish is enabled for a saved draft but not for unsaved local 
   assert.match(source, /dirtyCount === 0 \|\| hasUnsavedChanges/);
   assert.match(source, /disabled=\{!canEdit \|\| !item\.localDirty \|\| saving\}/);
   assert.match(source, /disabled=\{!canPublish \|\| !item\.dirty \|\| item\.localDirty \|\| publishing\}/);
+  assert.match(source, /renderNavigationTree/);
+  assert.match(source, /data-depth=\{depth\}/);
+  assert.match(source, /mục con được thụt vào/);
 });
 
 test("admin toast stack leaves the mobile toolbar unobstructed", async () => {

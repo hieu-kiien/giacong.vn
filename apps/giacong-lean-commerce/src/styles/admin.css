@@ -683,6 +683,11 @@
 .admin-navigation-groups { display: grid; gap: 18px; }
 .admin-navigation-create, .admin-member-create { margin-bottom: 18px; }
 .admin-navigation-list, .admin-member-list { display: grid; gap: 11px; }
+.admin-navigation-tree-node { display: grid; gap: 11px; }
+.admin-navigation-tree-node[data-depth="1"], .admin-navigation-tree-node[data-depth="2"], .admin-navigation-tree-node[data-depth="3"] { margin-left: 26px; position: relative; }
+.admin-navigation-tree-node[data-depth="1"]::before, .admin-navigation-tree-node[data-depth="2"]::before, .admin-navigation-tree-node[data-depth="3"]::before { border-left: 2px solid #d8e5d3; border-bottom: 2px solid #d8e5d3; border-bottom-left-radius: 8px; content: ""; height: 18px; left: -15px; position: absolute; top: -11px; width: 10px; }
+.admin-navigation-tree-node[data-depth="2"], .admin-navigation-tree-node[data-depth="3"] { margin-left: 52px; }
+.admin-navigation-tree-node[data-depth="3"] { margin-left: 78px; }
 .admin-navigation-card, .admin-member-card { background: #fbfcf9; border: 1px solid #e1e9df; border-radius: 8px; padding: 14px; }
 .admin-navigation-card.is-dirty, .admin-member-card.is-dirty { border-color: #d7b56c; box-shadow: inset 3px 0 #d7a043; }
 .admin-navigation-card-heading, .admin-member-card-heading { align-items: flex-start; display: flex; gap: 12px; justify-content: space-between; margin-bottom: 13px; }
@@ -713,6 +718,8 @@
   .admin-content-toolbar-actions { flex-wrap: wrap; }
   .admin-navigation-card-heading, .admin-member-card-heading { flex-direction: column; }
   .admin-navigation-card-heading .admin-table-actions, .admin-member-card-heading .admin-table-actions { width: 100%; }
+  .admin-navigation-tree-node[data-depth="1"], .admin-navigation-tree-node[data-depth="2"], .admin-navigation-tree-node[data-depth="3"] { margin-left: 0; }
+  .admin-navigation-tree-node[data-depth="1"]::before, .admin-navigation-tree-node[data-depth="2"]::before, .admin-navigation-tree-node[data-depth="3"]::before { display: none; }
 }
 .admin-setting-image-preview-wrap {
   align-items: center;

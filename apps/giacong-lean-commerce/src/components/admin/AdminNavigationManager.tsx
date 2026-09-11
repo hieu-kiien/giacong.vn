@@ -1,7 +1,7 @@
 "use client";
 
 import { Eye, Plus, RefreshCw, Save, Send, ShieldCheck } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useRegisterAdminUnsaved } from "@/components/admin/AdminUnsavedGuard";
 
 import { AdminField } from "@/components/admin/AdminField";
@@ -285,7 +285,7 @@ export function AdminNavigationManager() {
       </div>
       {showCreate && permissionsReady && canEdit ? (
         <section className="admin-panel admin-navigation-create" aria-labelledby="navigation-create-title">
-          <div className="admin-panel-heading"><div><h2 className="admin-panel-title" id="navigation-create-title">Thêm mục menu</h2><p className="admin-panel-caption">Dùng đường dẫn nội bộ như <code>/gioi-thieu/</code> hoặc URL https:// an toàn. Mục cuối trang sẽ xuất hiện trong khu vực liên kết cuối trang sau khi đăng.</p></div></div>
+          <div className="admin-panel-heading"><div><h2 className="admin-panel-title" id="navigation-create-title">Thêm mục menu</h2><p className="admin-panel-caption">Dùng đường dẫn nội bộ như <code>/gioi-thieu/</code> hoặc URL https:// an toàn. Muốn bổ sung dropdown Sản phẩm hoặc Dịch vụ, chọn Menu chính rồi chọn mục cha tương ứng. Mục cuối trang sẽ xuất hiện trong khu vực liên kết cuối trang sau khi đăng.</p></div></div>
           <div className="admin-editor-grid">
             <AdminField id="navigation-new-label" label="Nhãn">
               <input className="admin-input" disabled={!canEdit} id="navigation-new-label" onChange={(event) => { createRequestId.current = null; setNewItem((current) => ({ ...current, label: event.target.value })); }} value={newItem.label} />
@@ -354,14 +354,47 @@ function NavigationGroup({ canEdit, canPublish, items, onChange, onPublish, onSa
 }) {
   return (
     <section className="admin-panel" aria-labelledby={`navigation-group-${title.replace(/\W/g, "-")}`}>
-      <div className="admin-panel-heading"><div><h2 className="admin-panel-title" id={`navigation-group-${title.replace(/\W/g, "-")}`}>{title}</h2><p className="admin-panel-caption">{items.length} mục · giá trị màu xanh là bản khách đang thấy</p></div><Eye size={17} /></div>
+      <div className="admin-panel-heading"><div><h2 className="admin-panel-title" id={`navigation-group-${title.replace(/\W/g, "-")}`}>{title}</h2><p className="admin-panel-caption">{items.length} mục · mục con được thụt vào · giá trị màu xanh là bản khách đang thấy</p></div><Eye size={17} /></div>
       {items.length === 0 ? <div className="admin-table-empty"><strong>Chưa có mục menu</strong><p>Thêm mục mới để bắt đầu tạo menu.</p></div> : (
         <div className="admin-navigation-list">
-          {items.map((item) => <NavigationEditor canEdit={canEdit} canPublish={canPublish} item={item} key={item.id} onChange={onChange} onPublish={onPublish} onSave={onSave} parentOptions={items} publishing={publishingId === item.id} saving={savingId === item.id} />)}
+          {renderNavigationTree(items, (item) => <NavigationEditor canEdit={canEdit} canPublish={canPublish} item={item} key={item.id} onChange={onChange} onPublish={onPublish} onSave={onSave} parentOptions={items} publishing={publishingId === item.id} saving={savingId === item.id} />)}
         </div>
       )}
     </section>
   );
+}
+
+function renderNavigationTree(
+  items: AdminNavigationItem[],
+  renderEditor: (item: AdminNavigationItem) => ReactNode,
+) {
+  const itemIds = new Set(items.map((item) => item.id));
+  const childrenByParent = new Map<string, AdminNavigationItem[]>();
+  const rendered = new Set<string>();
+  items.forEach((item) => {
+    if (!item.draftParentId || !itemIds.has(item.draftParentId)) return;
+    const children = childrenByParent.get(item.draftParentId) ?? [];
+    children.push(item);
+    childrenByParent.set(item.draftParentId, children);
+  });
+
+  function renderItem(item: AdminNavigationItem, depth: number, trail: Set<string>): ReactNode {
+    if (trail.has(item.id)) return null;
+    rendered.add(item.id);
+    const nextTrail = new Set(trail).add(item.id);
+    const children = childrenByParent.get(item.id) ?? [];
+    return (
+      <div className="admin-navigation-tree-node" data-depth={depth} key={item.id}>
+        {renderEditor(item)}
+        {children.map((child) => renderItem(child, depth + 1, nextTrail))}
+      </div>
+    );
+  }
+
+  const roots = items
+    .filter((item) => !item.draftParentId || !itemIds.has(item.draftParentId))
+    .map((item) => renderItem(item, 0, new Set()));
+  return roots.concat(items.filter((item) => !rendered.has(item.id)).map((item) => renderItem(item, 0, new Set())));
 }
 
 function NavigationEditor({ canEdit, canPublish, item, onChange, onPublish, onSave, parentOptions, publishing, saving }: {
