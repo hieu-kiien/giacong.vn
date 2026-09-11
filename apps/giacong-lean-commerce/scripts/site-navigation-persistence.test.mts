@@ -2,10 +2,12 @@ import assert from "node:assert/strict";
 import { DatabaseSync } from "node:sqlite";
 import test from "node:test";
 
+import { legacyMegaMenuItems } from "../src/data/legacy-mega-menu.ts";
 import type { D1DatabaseLike, D1PreparedStatementLike } from "../src/lib/admin-data.ts";
 import {
   SiteNavigationValidationError,
   createAdminSiteNavigation,
+  listAdminSiteNavigation,
   publishAllAdminSiteNavigation,
   publishAdminSiteNavigation,
   updateAdminSiteNavigation,
@@ -147,6 +149,54 @@ test("navigation rejects captured children and nested footer items at the persis
     SiteNavigationValidationError,
   );
   assert.equal(database.scalar("SELECT COUNT(*) FROM site_navigation_items"), 2);
+  database.close();
+});
+
+test("navigation allows a known legacy mega-menu child under its managed parent", async () => {
+  const database = new SqliteNavigationDatabase();
+  const sourceItem = legacyMegaMenuItems.find((item) => item.owner === "products" && item.href === "/gia-cong-sua-bot/");
+  assert.ok(sourceItem);
+  database.insertRow("products", "Mua hàng", "primary", "menu-item-1742");
+
+  const created = await createAdminSiteNavigation(database, {
+    actorSubject,
+    capturedMenuId: sourceItem.id,
+    href: "/demo-sua-bot/",
+    isActive: true,
+    label: "Sữa bột demo",
+    menuKey: "primary",
+    parentId: "products",
+    requestId: "77777777-7777-4777-8777-777777777777",
+    sortOrder: sourceItem.sortOrder,
+  });
+
+  assert.equal(created.capturedMenuId, sourceItem.id);
+  assert.equal(created.draftParentId, "products");
+  assert.equal(created.dirty, true);
+  const published = await publishAdminSiteNavigation(database, {
+    actorSubject,
+    expectedVersion: created.version,
+    id: created.id,
+    requestId: "88888888-8888-4888-8888-888888888888",
+  });
+  assert.equal(published.publishedParentId, "products");
+  assert.equal(published.publishedIsActive, true);
+  database.close();
+});
+
+test("navigation admin list exposes source dropdown children until they are persisted", async () => {
+  const database = new SqliteNavigationDatabase();
+  database.insertRow("products", "Mua hàng", "primary", "menu-item-1742");
+  database.insertRow("services", "Thuê gia công", "primary", "menu-item-5166");
+
+  const items = await listAdminSiteNavigation(database);
+  const managedSource = legacyMegaMenuItems.find((item) => item.owner === "products" && item.href === "/gia-cong-sua-bot/");
+  const inactiveSource = legacyMegaMenuItems.find((item) => item.owner === "services" && item.isPlaceholder);
+  assert.ok(managedSource);
+  assert.ok(inactiveSource);
+  assert.equal(items.find((item) => item.capturedMenuId === managedSource.id)?.virtual, true);
+  assert.equal(items.find((item) => item.capturedMenuId === inactiveSource.id)?.draftIsActive, false);
+  assert.equal(items.find((item) => item.id === "products")?.virtual, undefined);
   database.close();
 });
 

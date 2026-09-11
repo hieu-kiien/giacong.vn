@@ -11,6 +11,12 @@ await mkdir(output, { recursive: true });
 const browser = await chromium.launch({ headless: true });
 const results = [];
 const product = { id: 1, name: "Túi vải canvas in logo theo yêu cầu", slug: "tui-canvas", sku: "QA-001", categoryId: 1, categoryName: "Quà tặng", description: "Sản xuất theo thiết kế", shortDescription: "In thương hiệu theo yêu cầu", imageUrl: null, isActive: true, status: "published", leadTimeDays: 7, minimumOrderQuantity: 100, revision: 1, startingPrice: 25000, variantCount: 0, updatedAt: "2026-09-06T00:00:00Z" };
+const navigationItems = [
+  { id: "products", capturedMenuId: "menu-item-1742", draftParentId: null, draftHref: "/san-pham/", draftIsActive: true, draftLabel: "Mua hàng", draftSortOrder: 30, publishedParentId: null, publishedHref: "/san-pham/", publishedIsActive: true, publishedLabel: "Mua hàng", publishedSortOrder: 30, menuKey: "primary", version: 1, dirty: false, virtual: false },
+  { id: "services", capturedMenuId: "menu-item-5166", draftParentId: null, draftHref: "/thue-gia-cong/", draftIsActive: true, draftLabel: "Thuê gia công", draftSortOrder: 40, publishedParentId: null, publishedHref: "/thue-gia-cong/", publishedIsActive: true, publishedLabel: "Thuê gia công", publishedSortOrder: 40, menuKey: "primary", version: 1, dirty: false, virtual: false },
+  { id: "legacy-products-gia-cong-sua-bot", capturedMenuId: "products-gia-cong-sua-bot", draftParentId: "products", draftHref: "/gia-cong-sua-bot/", draftIsActive: true, draftLabel: "Gia công sữa bột", draftSortOrder: 10, publishedParentId: "products", publishedHref: "/gia-cong-sua-bot/", publishedIsActive: true, publishedLabel: "Gia công sữa bột", publishedSortOrder: 10, menuKey: "primary", version: 0, dirty: false, virtual: true },
+  { id: "legacy-services-mit-say", capturedMenuId: "services-mit-say", draftParentId: "services", draftHref: "#", draftIsActive: false, draftLabel: "Mit sấy", draftSortOrder: 160, publishedParentId: "services", publishedHref: "#", publishedIsActive: false, publishedLabel: "Mit sấy", publishedSortOrder: 160, menuKey: "primary", version: 0, dirty: false, virtual: true },
+];
 
 async function run(name, check, role = "owner", width = 1440) {
   const context = await browser.newContext({ viewport: { width, height: 900 }, reducedMotion: "reduce" });
@@ -35,7 +41,7 @@ async function run(name, check, role = "owner", width = 1440) {
       : path.endsWith("/leads") ? { leads: [], total: 0 }
       : path.endsWith("/audit") ? { entries: [], total: 0, pagination: { currentPage: 1, lastPage: 1, pageSize: 20, total: 0 } }
       : path.endsWith("/members") ? { members: [], role }
-      : path.endsWith("/navigation") ? { items: [], canEdit: true, canPublish: true }
+      : path.endsWith("/navigation") ? { items: navigationItems, canEdit: true, canPublish: true }
       : path.endsWith("/site-settings") ? { canEdit: true, settings: [{ key: "brand.name", group: "brand", label: "Tên thương hiệu", description: "Tên website", type: "text", draftValue: "Giacong.vn", publishedValue: "Giacong.vn", effectiveValue: "Giacong.vn", isDefaultValue: false, version: 1, dirty: false }] }
       : path.endsWith("/pages") ? { canEdit: true, canPublish: true, pages: [{ pageKey: "home", title: "Trang chủ", routePath: "/", draftEnabled: false, publishedEnabled: false, draftBlocks: [], publishedBlocks: [], draftSeoTitle: "Trang chủ", publishedSeoTitle: "Trang chủ", draftSeoDescription: "", publishedSeoDescription: "", dirty: false, version: 1 }] }
       : { media: [], assets: [], total: 0 };
@@ -135,6 +141,16 @@ await run("News draft survives sidebar navigation and cancelled discard", async 
   await expect(page.getByRole("dialog")).toBeVisible();
   await page.getByRole("button", { name: "Ở lại", exact: true }).click();
   await expect(page.getByTestId("input-news-title")).toHaveValue("Bản nháp cần giữ lại");
+});
+
+await run("Legacy dropdown children show source state before an operator adopts them", async (page) => {
+  await open(page, "/admin/dieu-huong");
+  const label = page.locator("#navigation-legacy-products-gia-cong-sua-bot-label");
+  const card = label.locator("xpath=ancestor::article[1]");
+  await expect(card.getByText("Gia công sữa bột", { exact: true })).toBeVisible();
+  await expect(card.getByText("Mục con nguồn cũ · chưa lưu bản quản lý", { exact: true })).toBeVisible();
+  await label.fill("Sữa bột demo");
+  await expect(card.getByRole("button", { name: "Bật quản lý", exact: true })).toBeEnabled();
 });
 
 for (const [path, prepare, inputId] of [

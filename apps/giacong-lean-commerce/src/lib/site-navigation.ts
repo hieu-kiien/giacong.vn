@@ -1,5 +1,6 @@
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 
+import { getLegacyMegaMenuItem, legacyMegaMenuItems } from "../data/legacy-mega-menu.ts";
 import type { D1DatabaseLike, D1PreparedStatementLike } from "./admin-data";
 
 export type NavigationMenuKey = "primary" | "footer";
@@ -35,10 +36,14 @@ export interface AdminNavigationItem {
   publishedBy: string | null;
   publishedAt: string | null;
   dirty: boolean;
+  virtual?: boolean;
 }
 
 export const MAX_NAVIGATION_BULK_ITEMS = 100;
 const MAX_NAVIGATION_RENDER_DEPTH = 64;
+const legacyMegaMenuSqlIds = legacyMegaMenuItems
+  .map((item) => `'${item.id.replace(/'/g, "''")}'`)
+  .join(", ");
 
 export type AdminNavigationBulkSkipReason = "stale";
 
@@ -104,7 +109,7 @@ export async function listAdminSiteNavigation(database: D1DatabaseLike): Promise
     ORDER BY menu_key ASC, draft_sort_order ASC, id ASC
     LIMIT 100
   `).all<SiteNavigationRow>();
-  return rows.results.map(toAdminNavigationItem);
+  return mergeLegacyMegaMenuItems(rows.results.map(toAdminNavigationItem));
 }
 
 async function listAdminSiteNavigationByIds(
@@ -181,7 +186,7 @@ export async function createAdminSiteNavigation(
   const parentId = normalizeOptionalNavigationId(input.parentId);
   const sortOrder = normalizeSortOrder(input.sortOrder);
   const isActive = normalizeBoolean(input.isActive, true);
-  assertNavigationParentSemantics({ capturedMenuId, menuKey, parentId });
+  assertNavigationParentSemantics({ capturedMenuId, href, isActive, menuKey, parentId });
   const requestId = normalizeNavigationRequestId(input.requestId);
   const payloadSha256 = await fingerprintNavigationMutation({
     capturedMenuId,
@@ -333,7 +338,7 @@ export async function updateAdminSiteNavigation(
   if (current.version !== input.expectedVersion) {
     throw new SiteNavigationConflictError("Mục điều hướng đã thay đổi ở phiên khác. Hãy tải lại trước khi lưu.");
   }
-  assertNavigationParentSemantics({ capturedMenuId: current.capturedMenuId, menuKey: current.menuKey, parentId });
+  assertNavigationParentSemantics({ capturedMenuId: current.capturedMenuId, href, isActive, menuKey: current.menuKey, parentId });
   await assertNavigationDraftTree(database, {
     id,
     parentId,
@@ -807,7 +812,14 @@ function buildNavigationGraphPostcondition(
         AND (
           parent.id IS NULL
           OR parent.menu_key <> child.menu_key
-          OR child.captured_menu_id IS NOT NULL
+          OR (
+            child.captured_menu_id IS NOT NULL
+            AND NOT (
+              child.menu_key = 'primary'
+              AND child.${parentColumn} IN ('products', 'services')
+              AND child.captured_menu_id IN (${legacyMegaMenuSqlIds})
+            )
+          )
           OR child.menu_key = 'footer'
         )
     )
@@ -1425,7 +1437,7 @@ export async function getPublishedSiteNavigation(): Promise<PublishedNavigationI
       sortOrder: row.published_sort_order,
     }));
     for (const item of navigationItems) {
-      assertNavigationParentSemantics({ capturedMenuId: item.capturedMenuId, menuKey: item.menuKey, parentId: item.parentId ?? null });
+      assertNavigationParentSemantics({ capturedMenuId: item.capturedMenuId, href: item.href, isActive: item.isActive, menuKey: item.menuKey, parentId: item.parentId ?? null });
     }
     validateNavigationTree(navigationItems.map((item) => ({
       id: item.id,
@@ -1494,6 +1506,13 @@ export function applyNavigationToMarkup(
     }
   }
 
+  const legacyMegaMenuItemsForMarkup = primaryItems.filter((item) => (
+    Boolean(item.capturedMenuId && item.parentId && getLegacyMegaMenuItem(item.capturedMenuId))
+  ));
+  if (legacyMegaMenuItemsForMarkup.length > 0) {
+    result = applyLegacyMegaMenuNavigation(result, legacyMegaMenuItemsForMarkup);
+  }
+
   const customItems = primaryItems.filter((item) => item.isActive && !item.capturedMenuId);
   const nestedItems = customItems.filter((item) => item.parentId);
   if (nestedItems.length > 0) result = appendNestedCustomNavigation(result, primaryItems, nestedItems);
@@ -1519,6 +1538,55 @@ export function applyNavigationToMarkup(
     result = result.replace(/(<ul\b[^>]*class=["'][^"']*\bnav-sidebar\b[^"']*["'][^>]*>)([\s\S]*?)(<\/ul>)/i, `$1$2${customMarkup}$3`);
   }
   return reorderManagedNavigationLists(result, primaryItems);
+}
+
+function applyLegacyMegaMenuNavigation(
+  markup: string,
+  items: readonly PublishedNavigationItem[],
+): string {
+  let result = markup;
+  for (const item of items) {
+    if (!item.capturedMenuId) continue;
+    const id = escapeRegExp(item.capturedMenuId);
+    const wrapperPattern = new RegExp(
+      `(<div\\b[^>]*\\bdata-navigation-id=["']${id}["'][^>]*)(>)([\\s\\S]*?)(</div>)`,
+      "gi",
+    );
+    result = result.replace(wrapperPattern, (_match, opening: string, close: string, inner: string, wrapperClose: string) => {
+      let nextOpening = updateClassTokens(opening, ["hidden"], item.isActive ? [] : ["hidden"]);
+      nextOpening = item.isActive
+        ? removeAttribute(nextOpening, "aria-hidden")
+        : replaceAttribute(nextOpening, "aria-hidden", "true");
+      let nextInner = replaceLegacyMegaMenuLabel(inner, item.label);
+      if (item.isActive) {
+        const anchorPattern = /<a\b([^>]*\bux-menu-link__link\b[^>]*)>([\s\S]*?)<\/a>/i;
+        if (anchorPattern.test(nextInner)) {
+          nextInner = nextInner.replace(anchorPattern, (_anchor, attributes: string, anchorInner: string) => (
+            `<a${replaceAttribute(attributes, "href", item.href)}>${anchorInner}</a>`
+          ));
+        } else {
+          nextInner = nextInner.replace(
+            /<span\b([^>]*\bux-menu-link__link\b[^>]*)>([\s\S]*?)<\/span>/i,
+            `<a$1 href="${escapeAttribute(item.href)}">$2</a>`,
+          );
+        }
+      } else {
+        nextInner = nextInner.replace(
+          /<a\b([^>]*\bux-menu-link__link\b[^>]*)>([\s\S]*?)<\/a>/i,
+          `<span$1>$2</span>`,
+        );
+      }
+      return `${nextOpening}${close}${nextInner}${wrapperClose}`;
+    });
+  }
+  return result;
+}
+
+function replaceLegacyMegaMenuLabel(markup: string, label: string): string {
+  return markup.replace(
+    /(<span\b[^>]*\bclass=(['"])[^'"]*\bux-menu-link__text\b[^'"]*\2[^>]*>)([\s\S]*?)(<\/span>)/i,
+    `$1${escapeHtml(label)}$4`,
+  );
 }
 
 function appendNestedCustomNavigation(
@@ -1716,6 +1784,43 @@ function toAdminNavigationItem(row: SiteNavigationRow): AdminNavigationItem {
   };
 }
 
+function mergeLegacyMegaMenuItems(items: AdminNavigationItem[]): AdminNavigationItem[] {
+  const persistedCapturedIds = new Set(
+    items
+      .map((item) => item.capturedMenuId)
+      .filter((capturedMenuId): capturedMenuId is string => Boolean(capturedMenuId)),
+  );
+  const virtualItems: AdminNavigationItem[] = legacyMegaMenuItems
+    .filter((sourceItem) => !persistedCapturedIds.has(sourceItem.id))
+    .map((sourceItem) => ({
+      capturedMenuId: sourceItem.id,
+      dirty: false,
+      draftHref: sourceItem.href,
+      draftIsActive: !sourceItem.isPlaceholder,
+      draftLabel: sourceItem.label,
+      draftParentId: sourceItem.owner,
+      draftSortOrder: sourceItem.sortOrder,
+      id: `legacy-${sourceItem.id}`,
+      menuKey: "primary" as const,
+      publishedAt: null,
+      publishedBy: null,
+      publishedHref: sourceItem.href,
+      publishedIsActive: !sourceItem.isPlaceholder,
+      publishedLabel: sourceItem.label,
+      publishedParentId: sourceItem.owner,
+      publishedSortOrder: sourceItem.sortOrder,
+      updatedAt: "",
+      updatedBy: null,
+      version: 0,
+      virtual: true,
+    }));
+  return [...items, ...virtualItems].sort((left, right) => (
+    left.menuKey.localeCompare(right.menuKey)
+    || left.draftSortOrder - right.draftSortOrder
+    || left.id.localeCompare(right.id)
+  ));
+}
+
 function normalizeNavigationId(value: string): string {
   if (typeof value !== "string" || !/^[a-z0-9][a-z0-9_-]{0,99}$/i.test(value)) {
     throw new SiteNavigationValidationError("id điều hướng không hợp lệ.");
@@ -1826,9 +1931,21 @@ function normalizeOptionalNavigationId(value: unknown): string | null {
 
 function assertNavigationParentSemantics(input: {
   capturedMenuId: string | null;
+  href?: string;
+  isActive?: boolean;
   menuKey: NavigationMenuKey;
   parentId: string | null;
 }): void {
+  const legacyItem = getLegacyMegaMenuItem(input.capturedMenuId);
+  if (legacyItem) {
+    if (input.menuKey !== "primary" || input.parentId !== legacyItem.owner) {
+      throw new SiteNavigationValidationError("Mục con Sản phẩm/Dịch vụ phải nằm dưới đúng menu nguồn.");
+    }
+    if (input.isActive && legacyItem.isPlaceholder && isLegacyMegaMenuPlaceholderHref(input.href)) {
+      throw new SiteNavigationValidationError("Mục con nguồn chưa có đường dẫn thật. Nhập đường dẫn trước khi bật hiển thị.");
+    }
+    return;
+  }
   if (!input.parentId) return;
   if (input.capturedMenuId) {
     throw new SiteNavigationValidationError("Mục menu cũ phải ở cấp cao nhất; chỉ mục mới có thể làm mục con.");
@@ -1836,6 +1953,10 @@ function assertNavigationParentSemantics(input: {
   if (input.menuKey === "footer") {
     throw new SiteNavigationValidationError("Mục cuối trang phải ở cấp cao nhất.");
   }
+}
+
+function isLegacyMegaMenuPlaceholderHref(value: string | undefined): boolean {
+  return value === "#" || value === "/" || value === "/Hoa quả sấy";
 }
 
 interface PublishedNavigationRow {
@@ -1863,6 +1984,10 @@ function replaceAttribute(attributes: string, name: string, value: string): stri
   return pattern.test(attributes)
     ? attributes.replace(pattern, ` ${name}="${escaped}"`)
     : `${attributes} ${name}="${escaped}"`;
+}
+
+function removeAttribute(attributes: string, name: string): string {
+  return attributes.replace(new RegExp(`\\s${name}=(['"])[^'"]*\\1`, "i"), "");
 }
 
 function updateClassTokens(attributes: string, remove: readonly string[], add: readonly string[]): string {

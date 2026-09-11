@@ -1,15 +1,16 @@
+import { getLegacyMegaMenuItemId, type LegacyMegaMenuOwner } from "../data/legacy-mega-menu.ts";
+
 const localCtaRoutes: Record<string, string> = {
   "Liên hệ ngay": "/lien-he/",
   "Về chúng tôi": "/gioi-thieu-ve-gia-cong/",
 };
 
 // Decision: D1 site_navigation_items owns top-level parent labels and hrefs.
-// Child choices are source-owned capture data; the mobile product accordion
-// clones the desktop menu after published navigation has been applied. Legacy
-// child hrefs that cannot be mapped to a public page render as plain text —
-// never as hash, home-root or parent-fallback links — so the menu cannot lead
-// to a 404 or to an unrelated hub. Group headers use an empty href for the
-// same header-only treatment when their hub page does not exist.
+// Child choices start from source-owned capture data and get stable markers so
+// D1 can override a selected child after an operator saves and publishes it.
+// The mobile product accordion clones the desktop menu after navigation has
+// been applied. Legacy child hrefs that cannot be mapped to a public page
+// render as plain text until an operator provides a real destination.
 const legacyMegaMenuHrefFallbacks: Readonly<Record<string, "parent">> = {
   "#": "parent",
   "/": "parent",
@@ -552,11 +553,11 @@ const mobileServiceMenuLinks: readonly MegaMenuLink[] = [
 ];
 
 function productMegaMenu(): string {
-  return renderMegaMenu(productMegaMenuColumns, "clone-product-menu");
+  return renderMegaMenu(productMegaMenuColumns, "clone-product-menu", "products");
 }
 
 function serviceMegaMenu(): string {
-  return renderMegaMenu(serviceMegaMenuColumns, "clone-service-menu");
+  return renderMegaMenu(serviceMegaMenuColumns, "clone-service-menu", "services");
 }
 
 function mobileServiceMenu(): string {
@@ -566,21 +567,23 @@ function mobileServiceMenu(): string {
   return `<li class="menu-item menu-item-type-custom menu-item-object-custom menu-item-has-children menu-item-5466 has-icon-left" id="menu-item-5466"><a href="/thue-gia-cong/">Thuê gia công</a><ul class="sub-menu nav-sidebar-ul children">${links}</ul></li>`;
 }
 
-function renderMegaMenu(columns: readonly MegaMenuColumn[], menuClass: string): string {
+function renderMegaMenu(columns: readonly MegaMenuColumn[], menuClass: string, owner: LegacyMegaMenuOwner): string {
   const markup = columns.map((column) => (
-    `<div class="col medium-3 small-6 large-3"><div class="col-inner">${column.map(renderMegaMenuGroup).join("\n")}</div></div>`
+    `<div class="col medium-3 small-6 large-3"><div class="col-inner">${column.map((group) => renderMegaMenuGroup(group, owner)).join("\n")}</div></div>`
   )).join("\n");
 
   return `<div class="sub-menu nav-dropdown"><div class="row row-small menu-san-pham ${menuClass}">${markup}</div></div>`;
 }
 
-function renderMegaMenuGroup(group: MegaMenuGroup): string {
+function renderMegaMenuGroup(group: MegaMenuGroup, owner: LegacyMegaMenuOwner): string {
   const links = group.links?.map((link) => {
     const content = `<i class="ux-menu-link__icon text-center icon-angle-right"></i><span class="ux-menu-link__text">${escapeHtml(link.label)}</span>`;
     const inner = legacyMegaMenuHrefFallbacks[link.href] === "parent"
       ? `<span class="ux-menu-link__link flex">${content}</span>`
       : `<a class="ux-menu-link__link flex" href="${escapeAttribute(link.href)}">${content}</a>`;
-    return `<div class="ux-menu-link flex menu-item">${inner}</div>`;
+    const navigationId = getLegacyMegaMenuItemId(owner, link.label, link.href);
+    const marker = navigationId ? ` data-navigation-id="${escapeAttribute(navigationId)}"` : "";
+    return `<div class="ux-menu-link flex menu-item"${marker}>${inner}</div>`;
   }).join("\n");
   const linkMenu = links === undefined
     ? ""

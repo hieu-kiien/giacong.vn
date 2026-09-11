@@ -29,6 +29,7 @@ interface AdminNavigationItem {
   updatedAt: string;
   dirty: boolean;
   localDirty?: boolean;
+  virtual?: boolean;
 }
 
 interface NavigationResponse {
@@ -117,8 +118,8 @@ export function AdminNavigationManager() {
     setNotice(null);
   }
 
-  function replaceItem(next: AdminNavigationItem) {
-    setItems((current) => current.map((item) => item.id === next.id ? { ...next, localDirty: false } : item));
+  function replaceItem(next: AdminNavigationItem, previousId = next.id) {
+    setItems((current) => current.map((item) => item.id === previousId || item.id === next.id ? { ...next, localDirty: false } : item));
   }
 
   function getMutationRequestId(operation: "draft" | "publish", id: string): string {
@@ -140,23 +141,38 @@ export function AdminNavigationManager() {
     setError(null);
     setNotice(null);
     const requestId = getMutationRequestId("draft", item.id);
+    const isVirtualItem = item.virtual || item.version === 0;
     try {
-      const result = await mutateAdmin<{ item: AdminNavigationItem }>(`/api/admin/navigation/${encodeURIComponent(item.id)}`, {
-        body: {
-          expectedVersion: item.version,
-          href: item.draftHref,
-          isActive: item.draftIsActive,
-          label: item.draftLabel,
-          parentId: item.draftParentId,
-          requestId,
-          sortOrder: item.draftSortOrder,
-        },
-        method: "PATCH",
-      });
-      replaceItem(result.item);
+      const result = isVirtualItem
+        ? await mutateAdmin<{ item: AdminNavigationItem }>("/api/admin/navigation", {
+          body: {
+            capturedMenuId: item.capturedMenuId,
+            href: item.draftHref,
+            isActive: item.draftIsActive,
+            label: item.draftLabel,
+            menuKey: item.menuKey,
+            parentId: item.draftParentId,
+            requestId,
+            sortOrder: item.draftSortOrder,
+          },
+          method: "POST",
+        })
+        : await mutateAdmin<{ item: AdminNavigationItem }>(`/api/admin/navigation/${encodeURIComponent(item.id)}`, {
+          body: {
+            expectedVersion: item.version,
+            href: item.draftHref,
+            isActive: item.draftIsActive,
+            label: item.draftLabel,
+            parentId: item.draftParentId,
+            requestId,
+            sortOrder: item.draftSortOrder,
+          },
+          method: "PATCH",
+        });
+      replaceItem(result.item, item.id);
       clearMutationRequestId("draft", item.id);
-      setNotice(`Đã lưu bản nháp “${item.draftLabel}”.`);
-      showToast("success", "Bản nháp điều hướng đã được lưu.");
+      setNotice(isVirtualItem ? `Đã tạo bản quản lý cho “${item.draftLabel}”. Hãy phát hành khi sẵn sàng.` : `Đã lưu bản nháp “${item.draftLabel}”.`);
+      showToast("success", isVirtualItem ? "Đã đưa mục menu cũ vào quản lý." : "Bản nháp điều hướng đã được lưu.");
     } catch (reason: unknown) {
       const clientError = reason instanceof AdminClientError ? reason : new AdminClientError("Không thể lưu điều hướng.", 0);
       if (clientError.code === "STALE_WRITE" || clientError.code === "VALIDATION_ERROR" || clientError.code === "IDEMPOTENCY_CONFLICT") {
@@ -208,7 +224,7 @@ export function AdminNavigationManager() {
         "/api/admin/navigation/publish-all",
         { body: { requestId }, method: "POST" },
       );
-      result.published.forEach(replaceItem);
+      result.published.forEach((item) => replaceItem(item));
       const skippedSummary = result.skipped.map((item) => `${item.id} (${item.reason})`).join(", ");
       setNotice(result.skipped.length > 0
         ? `Đã phát hành ${result.changedCount} / ${result.selectedCount} mục điều hướng. Chưa xử lý: ${skippedSummary}. Hãy tải lại trước khi thử lại.`
@@ -268,13 +284,13 @@ export function AdminNavigationManager() {
       <AdminPageHeading
         kicker="Quản lý menu"
         title="Menu website"
-        subtitle="Đổi tên, đường dẫn, thứ tự và trạng thái hiển thị của menu. Trang web chỉ nhận bản đã đăng."
+        subtitle="Đổi tên, đường dẫn, thứ tự và trạng thái hiển thị của menu chính, các mục con Sản phẩm/Dịch vụ và liên kết cuối trang. Trang web chỉ nhận bản đã đăng."
         stamp="QUẢN LÝ MENU"
       />
       <div className="admin-content-toolbar">
         <div>
           <div className="admin-content-toolbar-title"><ShieldCheck size={16} /> Kiểm soát thay đổi menu</div>
-          <p>Menu cũ được nhận diện bằng mã; mục mới thêm theo mẫu an toàn, không chèn mã web lạ.</p>
+          <p>Các mục con đang có trong dropdown được đưa vào danh sách nguồn hiện tại. Sửa một mục rồi bấm “Bật quản lý” để lưu bản nháp trước khi phát hành.</p>
         </div>
         <div className="admin-content-toolbar-actions">
           <AdminStatusBadge kind={permissionsReady && canEdit ? "green" : "neutral"} value={!permissionsReady ? (error ? "Chưa xác định quyền" : "Đang kiểm tra quyền…") : canEdit ? "Có quyền chỉnh sửa" : "Chỉ xem"} />
@@ -306,7 +322,7 @@ export function AdminNavigationManager() {
               <AdminField id="navigation-new-parent" hint="Để trống nếu là mục cấp cao nhất." label="Mục cha" optional>
                 <select className="admin-input" disabled={!canEdit} id="navigation-new-parent" onChange={(event) => { createRequestId.current = null; setNewItem((current) => ({ ...current, parentId: event.target.value })); }} value={newItem.parentId}>
                   <option value="">Cấp cao nhất</option>
-                  {primaryItems.map((item) => <option key={item.id} value={item.id}>{item.draftLabel}</option>)}
+                  {primaryItems.filter((item) => !item.virtual).map((item) => <option key={item.id} value={item.id}>{item.draftLabel}</option>)}
                 </select>
               </AdminField>
             ) : (
@@ -352,9 +368,10 @@ function NavigationGroup({ canEdit, canPublish, items, onChange, onPublish, onSa
   savingId: string | null;
   title: string;
 }) {
+  const sourceItemCount = items.filter((item) => item.virtual).length;
   return (
     <section className="admin-panel" aria-labelledby={`navigation-group-${title.replace(/\W/g, "-")}`}>
-      <div className="admin-panel-heading"><div><h2 className="admin-panel-title" id={`navigation-group-${title.replace(/\W/g, "-")}`}>{title}</h2><p className="admin-panel-caption">{items.length} mục · mục con được thụt vào · giá trị màu xanh là bản khách đang thấy</p></div><Eye size={17} /></div>
+      <div className="admin-panel-heading"><div><h2 className="admin-panel-title" id={`navigation-group-${title.replace(/\W/g, "-")}`}>{title}</h2><p className="admin-panel-caption">{items.length} mục · mục con được thụt vào · giá trị màu xanh là bản khách đang thấy{sourceItemCount > 0 ? ` · ${sourceItemCount} mục dropdown nguồn có thể đưa vào quản lý` : ""}</p></div><Eye size={17} /></div>
       {items.length === 0 ? <div className="admin-table-empty"><strong>Chưa có mục menu</strong><p>Thêm mục mới để bắt đầu tạo menu.</p></div> : (
         <div className="admin-navigation-list">
           {renderNavigationTree(items, (item) => <NavigationEditor canEdit={canEdit} canPublish={canPublish} item={item} key={item.id} onChange={onChange} onPublish={onPublish} onSave={onSave} parentOptions={items} publishing={publishingId === item.id} saving={savingId === item.id} />)}
@@ -409,11 +426,14 @@ function NavigationEditor({ canEdit, canPublish, item, onChange, onPublish, onSa
   saving: boolean;
 }) {
   const fieldPrefix = `navigation-${item.id}`;
+  const parentLabel = item.draftParentId
+    ? parentOptions.find((candidate) => candidate.id === item.draftParentId)?.draftLabel ?? (item.draftParentId === "products" ? "Mua hàng" : item.draftParentId === "services" ? "Thuê gia công" : "Mục cha hiện tại")
+    : "Cấp cao nhất";
   return (
     <article className={`admin-navigation-card${item.dirty ? " is-dirty" : ""}`}>
       <div className="admin-navigation-card-heading">
-        <div><strong>{item.draftLabel}</strong><span>{item.capturedMenuId ? `Mã menu cũ: ${item.capturedMenuId}` : "Mục mới"}</span></div>
-        <div className="admin-table-actions"><AdminStatusBadge kind={item.dirty ? "amber" : "green"} value={item.dirty ? "Có bản nháp" : "Đã đăng"} /><AdminStatusBadge kind={item.draftIsActive ? "blue" : "neutral"} value={item.draftIsActive ? "Đang hiện" : "Đang ẩn"} /></div>
+        <div><strong>{item.draftLabel}</strong><span>{item.virtual ? "Mục con nguồn cũ · chưa lưu bản quản lý" : item.capturedMenuId ? `Mã menu cũ: ${item.capturedMenuId}` : "Mục mới"}</span></div>
+        <div className="admin-table-actions"><AdminStatusBadge kind={item.dirty ? "amber" : item.virtual ? "blue" : "green"} value={item.dirty ? "Có bản nháp" : item.virtual ? "Nguồn hiện tại" : "Đã đăng"} /><AdminStatusBadge kind={item.draftIsActive ? "blue" : "neutral"} value={item.draftIsActive ? "Đang hiện" : "Đang ẩn"} /></div>
       </div>
       <div className="admin-editor-grid">
         <AdminField id={`${fieldPrefix}-label`} label="Nhãn">
@@ -429,12 +449,12 @@ function NavigationEditor({ canEdit, canPublish, item, onChange, onPublish, onSa
           <AdminField id={`${fieldPrefix}-parent`} hint="Để trống nếu là mục cấp cao nhất." label="Mục cha" optional>
             <select className="admin-input" disabled={!canEdit} id={`${fieldPrefix}-parent`} onChange={(event) => onChange(item.id, { draftParentId: event.target.value || null })} value={item.draftParentId ?? ""}>
               <option value="">Cấp cao nhất</option>
-              {parentOptions.filter((candidate) => candidate.id !== item.id).map((candidate) => <option key={candidate.id} value={candidate.id}>{candidate.draftLabel}</option>)}
+              {parentOptions.filter((candidate) => candidate.id !== item.id && !candidate.virtual).map((candidate) => <option key={candidate.id} value={candidate.id}>{candidate.draftLabel}</option>)}
             </select>
           </AdminField>
         ) : (
-          <AdminField id={`${fieldPrefix}-parent`} hint={item.capturedMenuId ? "Mục menu cũ được giữ ở cấp cao nhất." : "Mục cuối trang luôn ở cấp cao nhất."} label="Mục cha" optional>
-            <select className="admin-input" disabled value=""><option value="">Cấp cao nhất</option></select>
+          <AdminField id={`${fieldPrefix}-parent`} hint={item.virtual ? "Mục dropdown nguồn giữ đúng vị trí hiện tại. Sửa nhãn hoặc đường dẫn rồi bấm Bật quản lý." : item.capturedMenuId ? "Mục con nguồn cũ được giữ dưới đúng menu Sản phẩm hoặc Dịch vụ." : "Mục cuối trang luôn ở cấp cao nhất."} label="Mục cha" optional>
+            <select className="admin-input" disabled id={`${fieldPrefix}-parent`} value={item.draftParentId ?? ""}><option value={item.draftParentId ?? ""}>{parentLabel}</option></select>
           </AdminField>
         )}
       </div>
@@ -444,7 +464,7 @@ function NavigationEditor({ canEdit, canPublish, item, onChange, onPublish, onSa
           <span><strong>Hiển thị mục này</strong><small>Ngoài web: {item.publishedIsActive ? "đang hiện" : "đang ẩn"} · bản {item.version}</small></span>
         </label>
         <div className="admin-setting-actions">
-          <button className="admin-button admin-button-quiet" disabled={!canEdit || !item.localDirty || saving} onClick={() => onSave(item)} type="button"><Save size={13} /> {saving ? "Đang lưu" : "Lưu nháp"}</button>
+          <button className="admin-button admin-button-quiet" disabled={!canEdit || !item.localDirty || saving} onClick={() => onSave(item)} type="button"><Save size={13} /> {saving ? "Đang lưu" : item.virtual ? "Bật quản lý" : "Lưu nháp"}</button>
           <button className="admin-button admin-button-primary" disabled={!canPublish || !item.dirty || item.localDirty || publishing} onClick={() => onPublish(item)} type="button"><Send size={13} /> {publishing ? "Đang phát hành" : "Phát hành"}</button>
         </div>
       </div>

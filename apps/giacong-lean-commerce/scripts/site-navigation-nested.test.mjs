@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import { legacyMegaMenuItems } from "../src/data/legacy-mega-menu.ts";
 import { applyNavigationToMarkup, validateNavigationTree } from "../src/lib/site-navigation.ts";
 
 const item = (id, parentId = null, sortOrder = 10) => ({ id, parentId, menuKey: "primary", label: id, href: `/${id}`, isActive: true, sortOrder });
@@ -39,6 +40,43 @@ test("custom parent and child render as one ordered tree", () => {
     { id: "parent", capturedMenuId: null, parentId: null, href: "/parent", isActive: true, label: "Parent", menuKey: "primary", sortOrder: 10 },
   ]);
   assert.match(result, /Parent[\s\S]*nested-navigation-children[\s\S]*Child/);
+});
+
+test("published legacy mega-menu child overrides its captured label and destination", () => {
+  const sourceItem = legacyMegaMenuItems.find((item) => item.owner === "products" && item.href === "/gia-cong-sua-bot/");
+  assert.ok(sourceItem);
+  const markup = `<div class="sub-menu nav-dropdown"><div class="ux-menu-link flex menu-item" data-navigation-id="${sourceItem.id}"><a class="ux-menu-link__link flex" href="${sourceItem.href}"><span class="ux-menu-link__text">${sourceItem.label}</span></a></div></div>`;
+  const result = applyNavigationToMarkup(markup, [{
+    id: "managed-child",
+    capturedMenuId: sourceItem.id,
+    parentId: "products",
+    href: "/demo-sua-bot/",
+    isActive: true,
+    label: "Sữa bột demo",
+    menuKey: "primary",
+    sortOrder: 10,
+  }]);
+  assert.match(result, /data-navigation-id="products-gia-cong-sua-bot"/);
+  assert.match(result, /href="\/demo-sua-bot\/"/);
+  assert.match(result, />Sữa bột demo<\/span>/);
+});
+
+test("inactive legacy mega-menu child is hidden without leaking a dead link", () => {
+  const sourceItem = legacyMegaMenuItems.find((item) => item.owner === "services" && item.isPlaceholder);
+  assert.ok(sourceItem);
+  const markup = `<div class="ux-menu-link flex menu-item" data-navigation-id="${sourceItem.id}"><span class="ux-menu-link__link flex"><span class="ux-menu-link__text">${sourceItem.label}</span></span></div>`;
+  const result = applyNavigationToMarkup(markup, [{
+    id: "managed-placeholder",
+    capturedMenuId: sourceItem.id,
+    parentId: "services",
+    href: sourceItem.href,
+    isActive: false,
+    label: sourceItem.label,
+    menuKey: "primary",
+    sortOrder: 10,
+  }]);
+  assert.match(result, /class="[^"]*hidden[^"]*"[^>]*data-navigation-id="services-[^"]+"/);
+  assert.doesNotMatch(result, /<a\b/);
 });
 
 test("an inactive parent does not expose an active child", () => {

@@ -182,8 +182,9 @@ test("published primary navigation updates both parents without replacing shared
   assert.match(result, /Dịch Vụ Gia Công Sữa/);
 });
 
-test("published navigation owns parents while captured child choices stay source-owned", () => {
+test("published navigation owns parents while source child choices can be adopted into management", () => {
   assert.match(capturedMarkupSource, /D1 site_navigation_items owns top-level parent labels and hrefs/);
+  assert.match(capturedMarkupSource, /data-navigation-id/);
   assert.match(capturedMarkupSource, /const productMegaMenuColumns/);
   assert.match(capturedMarkupSource, /const serviceMegaMenuColumns/);
   assert.match(capturedMarkupSource, /const mobileServiceMenuLinks/);

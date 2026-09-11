@@ -18,6 +18,10 @@ test("navigation publish is enabled for a saved draft but not for unsaved local 
   assert.match(source, /renderNavigationTree/);
   assert.match(source, /data-depth=\{depth\}/);
   assert.match(source, /mục con được thụt vào/);
+  assert.match(source, /item\.virtual \|\| item\.version === 0/);
+  assert.match(source, /capturedMenuId: item\.capturedMenuId/);
+  assert.match(source, /Mục con nguồn cũ/);
+  assert.match(source, /!candidate\.virtual/);
 });
 
 test("admin toast stack leaves the mobile toolbar unobstructed", async () => {
