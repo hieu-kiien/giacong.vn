@@ -61,6 +61,33 @@ test("published legacy mega-menu child overrides its captured label and destinat
   assert.match(result, />Sữa bột demo<\/span>/);
 });
 
+test("managed service mega-menu children are also exposed in the mobile service menu", () => {
+  const sourceItem = legacyMegaMenuItems.find((item) => item.owner === "services" && item.href === "/say-thang-hoa/");
+  assert.ok(sourceItem);
+  const markup = [
+    '<ul class="header-nav-main"><li id="menu-item-5166"><a href="/thue-gia-cong/">Thuê gia công</a><div class="nav-dropdown"><div class="ux-menu-link flex menu-item" data-navigation-id="',
+    sourceItem.id,
+    '"><a class="ux-menu-link__link flex" href="',
+    sourceItem.href,
+    '"><span class="ux-menu-link__text">',
+    sourceItem.label,
+    '</span></a></div></div></li></ul>',
+    '<ul class="nav-sidebar"><li id="menu-item-5466"><a href="/thue-gia-cong/">Thuê gia công</a><ul class="sub-menu nav-sidebar-ul children"><li><a href="/dich-vu-say/">Dịch Vụ Sấy</a></li></ul></li></ul>',
+  ].join("");
+  const result = applyNavigationToMarkup(markup, [{
+    id: "managed-service-child",
+    capturedMenuId: sourceItem.id,
+    parentId: "services",
+    href: "/demo-say-thang-hoa/",
+    isActive: true,
+    label: "Sấy thăng hoa demo",
+    menuKey: "primary",
+    sortOrder: 10,
+  }]);
+
+  assert.match(result, /id="menu-item-5466"[\s\S]*managed-legacy-navigation-child[\s\S]*href="\/demo-say-thang-hoa\/"[\s\S]*Sấy thăng hoa demo/);
+});
+
 test("inactive legacy mega-menu child is hidden without leaking a dead link", () => {
   const sourceItem = legacyMegaMenuItems.find((item) => item.owner === "services" && item.isPlaceholder);
   assert.ok(sourceItem);

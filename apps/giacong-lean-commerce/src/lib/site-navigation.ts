@@ -1511,6 +1511,7 @@ export function applyNavigationToMarkup(
   ));
   if (legacyMegaMenuItemsForMarkup.length > 0) {
     result = applyLegacyMegaMenuNavigation(result, legacyMegaMenuItemsForMarkup);
+    result = appendManagedLegacyServiceChildren(result, legacyMegaMenuItemsForMarkup);
   }
 
   const customItems = primaryItems.filter((item) => item.isActive && !item.capturedMenuId);
@@ -1587,6 +1588,25 @@ function replaceLegacyMegaMenuLabel(markup: string, label: string): string {
     /(<span\b[^>]*\bclass=(['"])[^'"]*\bux-menu-link__text\b[^'"]*\2[^>]*>)([\s\S]*?)(<\/span>)/i,
     `$1${escapeHtml(label)}$4`,
   );
+}
+
+function appendManagedLegacyServiceChildren(
+  markup: string,
+  items: readonly PublishedNavigationItem[],
+): string {
+  const activeItems = items
+    .filter((item) => item.parentId === "services" && item.isActive && item.capturedMenuId && getLegacyMegaMenuItem(item.capturedMenuId)?.owner === "services")
+    .sort((left, right) => left.sortOrder - right.sortOrder || left.id.localeCompare(right.id));
+  if (activeItems.length === 0) return markup;
+
+  const mobileParentPattern = /(<li\b[^>]*\bid=["']menu-item-5466["'][^>]*>[\s\S]*?<ul\b[^>]*\bclass=["'][^"']*\bsub-menu\b[^"']*["'][^>]*>)([\s\S]*?)(<\/ul>)/i;
+  return markup.replace(mobileParentPattern, (_match, opening: string, body: string, closing: string) => {
+    const additions = activeItems
+      .filter((item) => item.capturedMenuId && !body.includes(`data-navigation-id="${item.capturedMenuId}"`))
+      .map((item) => `<li class="menu-item menu-item-type-custom menu-item-object-custom managed-legacy-navigation-child" data-navigation-id="${escapeAttribute(item.capturedMenuId as string)}"><a href="${escapeAttribute(item.href)}">${escapeHtml(item.label)}</a></li>`)
+      .join("\n");
+    return additions ? `${opening}${body}${additions}${closing}` : `${opening}${body}${closing}`;
+  });
 }
 
 function appendNestedCustomNavigation(
