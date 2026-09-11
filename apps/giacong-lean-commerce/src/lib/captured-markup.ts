@@ -99,12 +99,14 @@ export function normalizeCapturedMarkup(markup: string, activeCapturedMenuId?: s
     addCapturedImageLoadingHints(
       normalizeCapturedAssetSources(
         normalizeCapturedFooterHeadings(
-          normalizeCapturedFrames(
-            normalizeCapturedContactHeadings(
-              normalizeCapturedMainLandmark(
-                normalizeHomeMenuItems(
-                  replaceCapturedMenus(
-                    normalizeCapturedMenuRoutes(normalizeCapturedInternalLinks(normalized)),
+          normalizeCapturedFormControls(
+            normalizeCapturedFrames(
+              normalizeCapturedContactHeadings(
+                normalizeCapturedMainLandmark(
+                  normalizeHomeMenuItems(
+                    replaceCapturedMenus(
+                      normalizeCapturedMenuRoutes(normalizeCapturedInternalLinks(normalized)),
+                    ),
                   ),
                 ),
               ),
@@ -273,6 +275,26 @@ function normalizeCapturedFrames(markup: string): string {
       : "Nội dung nhúng Giacong.vn";
     return `<iframe${attributes} title="${title}">`;
   });
+}
+
+function normalizeCapturedFormControls(markup: string): string {
+  return markup.replace(/<input\b([^>]*)>/gi, (tag, attributes: string) => {
+    if (!/\btype\s*=\s*(["'])submit\1/i.test(attributes)) return tag;
+    if (/\b(?:aria-label|aria-labelledby|title|id)\s*=/i.test(attributes)) return tag;
+
+    const value = attributes.match(/\bvalue\s*=\s*(["'])([\s\S]*?)\1/i)?.[2]?.trim();
+    if (!value) return tag;
+    const label = escapeCapturedAttribute(value);
+    return tag.replace(/\s*(\/?)>$/, (_closing, slash: string) => ` aria-label="${label}"${slash}>`);
+  });
+}
+
+function escapeCapturedAttribute(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/"/g, "&quot;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
 }
 
 function normalizeCapturedFooterHeadings(markup: string): string {

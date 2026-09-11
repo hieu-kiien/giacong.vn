@@ -73,6 +73,19 @@ test("service items without a real destination render as text, real hubs stay li
   assert.match(region, /<a[^>]*href="\/gia-cong-do-uong\/"[^>]*>[\s\S]{0,60}Gia công đồ uống/);
 });
 
+test("captured submit controls expose an explicit accessible name", () => {
+  const normalized = normalizeCapturedMarkup(
+    '<form><input class="wpcf7-submit" type="submit" value="Gửi yêu cầu"></form>',
+  );
+  assert.match(normalized, /type="submit"[^>]*aria-label="Gửi yêu cầu"/);
+
+  const explicit = normalizeCapturedMarkup(
+    '<form><input type="submit" value="Gửi" aria-label="Gửi biểu mẫu"></form>',
+  );
+  assert.match(explicit, /aria-label="Gửi biểu mẫu"/);
+  assert.doesNotMatch(explicit, /aria-label="Gửi"/);
+});
+
 test("menu groups without a real page render as headers, not links", async () => {
   const { markup } = await readDataPage("tin-tuc.json");
   const region = serviceMenuRegion(normalizeCapturedMarkup(markup));
