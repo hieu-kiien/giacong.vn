@@ -204,6 +204,7 @@ async function collectPageInspection(page, result) {
       documentWidth: document.documentElement.scrollWidth,
       bodyWidth: document.body?.scrollWidth ?? null,
       horizontalOverflow: document.documentElement.scrollWidth > window.innerWidth + 1,
+      bodyOverflow: (document.body?.scrollWidth ?? 0) > window.innerWidth + 1,
       overflowers,
       headings,
       skippedHeadingLevels,
@@ -250,14 +251,24 @@ async function auditHomepageMobile(page, result) {
     await menuTrigger.click();
     await page.waitForTimeout(220);
     const menuState = await page.evaluate(() => {
-      const menu = document.querySelector("#main-menu");
-      const backdrop = document.querySelector(".clone-menu-backdrop");
+      const menus = [...document.querySelectorAll("#main-menu")];
+      const menu = menus.find((candidate) => candidate.classList.contains("clone-menu-open"))
+        ?? menus.find((candidate) => {
+          const style = getComputedStyle(candidate);
+          return style.display !== "none" && candidate.getBoundingClientRect().width > 0;
+        })
+        ?? menus[0];
+      const backdrop = document.querySelector(".clone-menu-backdrop, #main-menu-overlay, .mfp-bg");
       const menuStyle = menu ? getComputedStyle(menu) : null;
       const backdropStyle = backdrop ? getComputedStyle(backdrop) : null;
+      const menuRect = menu?.getBoundingClientRect();
       return {
         menuTransform: menuStyle?.transform ?? null,
         menuVisibility: menuStyle?.visibility ?? null,
         backdropOpacity: backdropStyle?.opacity ?? null,
+        menuClass: menu?.className ?? null,
+        menuWidth: menuRect?.width ?? 0,
+        open: Boolean(menu && menuRect && menuRect.width > 0 && menuStyle?.visibility !== "hidden"),
       };
     });
     await capture(page, result, "menu-open");
@@ -266,9 +277,9 @@ async function auditHomepageMobile(page, result) {
       type: "primary action",
       expected: "Menu mở, backdrop hiện, không có lỗi console mới.",
       observed: menuState,
-      pass: menuState.menuVisibility !== "hidden" && menuState.menuTransform !== "none",
+      pass: menuState.open,
     });
-    const productItem = page.locator("#main-menu li.clone-mobile-products").first();
+    const productItem = page.locator("#main-menu.clone-menu-open li.clone-mobile-products, #main-menu li.clone-mobile-products").first();
     const toggle = productItem.locator(":scope > button.toggle");
     if (await isVisible(productItem) && await isVisible(toggle)) {
       const childCount = await productItem.locator(":scope > .sub-menu a").count();
@@ -628,6 +639,7 @@ async function runResponsiveSweep() {
       viewport,
       status: null,
       horizontalOverflow: null,
+      bodyOverflow: null,
       documentWidth: null,
       bodyWidth: null,
       pageHeight: null,
@@ -643,6 +655,7 @@ async function runResponsiveSweep() {
       result.status = response;
       const metrics = await page.evaluate(() => ({
         horizontalOverflow: document.documentElement.scrollWidth > window.innerWidth + 1,
+        bodyOverflow: (document.body?.scrollWidth ?? 0) > window.innerWidth + 1,
         documentWidth: document.documentElement.scrollWidth,
         bodyWidth: document.body?.scrollWidth ?? null,
         pageHeight: Math.max(document.documentElement.scrollHeight, document.body?.scrollHeight ?? 0),

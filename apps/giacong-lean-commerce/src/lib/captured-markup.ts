@@ -16,6 +16,31 @@ const legacyMegaMenuHrefFallbacks: Readonly<Record<string, "parent">> = {
   "/Hoa quả sấy": "parent",
 };
 
+const capturedAssetAliases: Readonly<Record<string, string>> = {
+  // The capture kept WordPress thumbnail suffixes after the source thumbnails
+  // were removed. The original files are still public and preserve the same
+  // visual content without adding a dependency on the old thumbnail route.
+  "https://giacong.vn/wp-content/uploads/2024/10/img-sp-1-510x315.png":
+    "https://giacong.vn/wp-content/uploads/2024/10/img-sp-1.png",
+  "https://giacong.vn/wp-content/uploads/2024/09/IMG-510x433.png":
+    "https://giacong.vn/wp-content/uploads/2024/09/IMG.png",
+  "https://giacong.vn/wp-content/uploads/2024/09/Screenshot-2024-09-06-003821-100x100.png":
+    "https://giacong.vn/wp-content/uploads/2024/09/Screenshot-2024-09-06-003821.png",
+  "https://giacong.vn/wp-content/uploads/2024/09/Screenshot-2024-09-06-004009-100x100.png":
+    "https://giacong.vn/wp-content/uploads/2024/09/Screenshot-2024-09-06-004009.png",
+  // These decorative icon uploads now return a WordPress 404 HTML page. A
+  // local neutral asset keeps the captured layout stable and removes the
+  // browser's ORB failures from every route.
+  "https://giacong.vn/wp-content/uploads/2024/08/file-star-svgrepo-com.svg": "/images/captured-asset-placeholder.svg",
+  "https://giacong.vn/wp-content/uploads/2024/08/file-2-svgrepo-com.svg": "/images/captured-asset-placeholder.svg",
+  "https://giacong.vn/wp-content/uploads/2024/08/bulb-2-svgrepo-com.svg": "/images/captured-asset-placeholder.svg",
+  "https://giacong.vn/wp-content/uploads/2024/08/message-2-star-svgrepo-com.svg": "/images/captured-asset-placeholder.svg",
+  "https://giacong.vn/wp-content/uploads/2024/08/gift-card-150x150.png": "/images/captured-asset-placeholder.svg",
+  "https://giacong.vn/wp-content/uploads/2024/08/comment-info-150x150.png": "/images/captured-asset-placeholder.svg",
+  "https://giacong.vn/wp-content/uploads/2024/08/envelope-dot-150x150.png": "/images/captured-asset-placeholder.svg",
+  "https://giacong.vn/wp-content/uploads/2024/08/trang-chu-netfood.svg": "/images/captured-asset-placeholder.svg",
+};
+
 function readLinkLabel(content: string) {
   return content
     .replace(/<[^>]+>/g, " ")
@@ -71,13 +96,15 @@ export function normalizeCapturedMarkup(markup: string, activeCapturedMenuId?: s
 
   return applyCapturedActiveNav(
     addCapturedImageLoadingHints(
-      normalizeCapturedFooterHeadings(
-        normalizeCapturedFrames(
-          normalizeCapturedContactHeadings(
-            normalizeCapturedMainLandmark(
-              normalizeHomeMenuItems(
-                replaceCapturedMenus(
-                  normalizeCapturedMenuRoutes(normalizeCapturedInternalLinks(normalized)),
+      normalizeCapturedAssetSources(
+        normalizeCapturedFooterHeadings(
+          normalizeCapturedFrames(
+            normalizeCapturedContactHeadings(
+              normalizeCapturedMainLandmark(
+                normalizeHomeMenuItems(
+                  replaceCapturedMenus(
+                    normalizeCapturedMenuRoutes(normalizeCapturedInternalLinks(normalized)),
+                  ),
                 ),
               ),
             ),
@@ -86,6 +113,13 @@ export function normalizeCapturedMarkup(markup: string, activeCapturedMenuId?: s
       ),
     ),
     activeCapturedMenuId,
+  );
+}
+
+function normalizeCapturedAssetSources(markup: string): string {
+  return Object.entries(capturedAssetAliases).reduce(
+    (result, [source, replacement]) => result.split(source).join(replacement),
+    markup,
   );
 }
 
