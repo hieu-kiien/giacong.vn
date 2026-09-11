@@ -243,6 +243,10 @@ test("keeps slider pagination as a native list instead of an incomplete tablist"
   assert.match(capturedMotion, /dots\.setAttribute\("aria-label", "Chuyển nội dung"\)/);
 });
 
+test("clips translated slider slides so mobile pages cannot grow horizontally", () => {
+  assert.match(globals, /\.slider\.clone-slider-ready\s*\{[\s\S]*?overflow:\s*hidden\s*!important;/);
+});
+
 test("uses text-safe brand overrides for captured white surfaces", () => {
   assert.match(globals, /#main #content \.subtitle > span[\s\S]*color: #327600 !important/);
   assert.match(globals, /#main #content \.wpcf7-form \.wpcf7-submit[\s\S]*background-color: #327600 !important/);

@@ -930,7 +930,7 @@
 @layer captured {
 
 .slider.clone-slider-ready {
-  overflow: hidden;
+  overflow: hidden !important;
   touch-action: pan-y;
 }
 
