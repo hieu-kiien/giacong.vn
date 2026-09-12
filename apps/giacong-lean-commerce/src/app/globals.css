@@ -929,6 +929,14 @@
  */
 @layer captured {
 
+#main {
+  overflow-x: clip;
+}
+
+#main .section07 .icon-box-text.last-reset > p {
+  color: #5f6b61 !important;
+}
+
 .slider.clone-slider-ready {
   overflow: hidden !important;
   touch-action: pan-y;

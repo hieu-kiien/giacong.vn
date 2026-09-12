@@ -247,6 +247,17 @@ test("clips translated slider slides so mobile pages cannot grow horizontally", 
   assert.match(globals, /\.slider\.clone-slider-ready\s*\{[\s\S]*?overflow:\s*hidden\s*!important;/);
 });
 
+test("keeps captured storefront content inside the viewport during motion", () => {
+  assert.match(globals, /#main\s*\{[\s\S]*?overflow-x:\s*clip;/);
+});
+
+test("raises the captured testimonial metadata to a readable contrast", () => {
+  assert.match(
+    globals,
+    /#main \.section07 \.icon-box-text\.last-reset > p\s*\{[\s\S]*?color:\s*#5f6b61\s*!important;/,
+  );
+});
+
 test("uses text-safe brand overrides for captured white surfaces", () => {
   assert.match(globals, /#main #content \.subtitle > span[\s\S]*color: #327600 !important/);
   assert.match(globals, /#main #content \.wpcf7-form \.wpcf7-submit[\s\S]*background-color: #327600 !important/);
