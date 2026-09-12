@@ -7,6 +7,7 @@ import type {
   D1PreparedStatementLike,
 } from "./admin-data.ts";
 import { getAdminProduct, getAdminProductVariant, tableExists } from "./admin-data.ts";
+import { parseAdminProductPayload } from "./admin-product-input.ts";
 import { isAdminRequestId } from "./admin-request.ts";
 
 export class AdminCatalogWriteConflictError extends Error {}
@@ -43,6 +44,13 @@ interface DatabaseWithBatch extends D1DatabaseLike {
 
 type ProductVariantWriteInput = Omit<AdminProductVariantInput, "revision">;
 
+function assertValidProductInput(input: AdminProductInput): void {
+  const parsed = parseAdminProductPayload(input);
+  if (!parsed.input) {
+    throw new AdminCatalogWriteValidationError("Dữ liệu sản phẩm chưa hợp lệ.");
+  }
+}
+
 interface VariantMutationPostcondition {
   action: CatalogMutationRow["action"];
   expectedRevision?: number;
@@ -59,6 +67,7 @@ export async function createAdminProductAtomically(
   actorSubject: string,
   requestId: string,
 ): Promise<AdminProduct> {
+  assertValidProductInput(input);
   const normalizedRequestId = normalizeRequestId(requestId);
   const payloadSha256 = await fingerprint({ entityType: "product", input, operation: "create" });
   await requireAuditTable(database);
@@ -128,6 +137,7 @@ export async function updateAdminProductAtomically(
   actorSubject: string,
   requestId: string,
 ): Promise<AdminProduct | null> {
+  assertValidProductInput(input);
   const normalizedRequestId = normalizeRequestId(requestId);
   const payloadSha256 = await fingerprint({ entityType: "product", expectedRevision, id, input, operation: "update" });
   await requireAuditTable(database);

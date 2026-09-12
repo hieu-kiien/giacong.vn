@@ -6,6 +6,7 @@ import type { D1DatabaseLike, D1PreparedStatementLike } from "../src/lib/admin-d
 import {
   AdminNewsIdempotencyConflictError,
   AdminNewsStorageError,
+  AdminNewsValidationError,
   batchAdminNewsPublication,
   createAdminNewsPost,
   deleteAdminNewsPost,
@@ -406,6 +407,28 @@ test("news draft edits do not change published snapshot and publish is explicit"
   assert.equal(hidden?.isPublished, false);
   assert.equal(hidden?.published?.title, "Bài viết nháp mới");
   assert.equal(database.audits.length, 5);
+});
+
+test("news writer rejects a blank title before changing revision", async () => {
+  const database = new FakeNewsDatabase();
+  const created = await createAdminNewsPost(database, draftInput, "owner-1", "67676767-6767-4676-8676-676767676767");
+  const auditCount = database.audits.length;
+
+  await assert.rejects(
+    () => updateAdminNewsPost(
+      database,
+      created.id,
+      { ...draftInput, title: "   " },
+      created.revision,
+      "owner-1",
+      "68686868-6868-4686-8686-686868686868",
+    ),
+    AdminNewsValidationError,
+  );
+
+  assert.equal(database.row(created.id)?.title, draftInput.title);
+  assert.equal(database.row(created.id)?.revision, created.revision);
+  assert.equal(database.audits.length, auditCount);
 });
 
 test("news request ids replay without repeating the mutation and reject payload reuse", async () => {

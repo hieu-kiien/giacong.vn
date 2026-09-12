@@ -3,7 +3,7 @@ import "server-only";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 
 import type { AdminCategoryInput } from "./admin-category-input";
-import type { AdminNewsDraftInput } from "./admin-news-input";
+import { parseAdminNewsPayload, type AdminNewsDraftInput } from "./admin-news-input.ts";
 import { isAdminRole } from "./admin-permissions.ts";
 
 // Retired values remain readable in historical records; only owner passes admission.
@@ -1629,6 +1629,13 @@ export class AdminNewsValidationError extends Error {
   }
 }
 
+function assertValidNewsInput(input: AdminNewsDraftInput): void {
+  const parsed = parseAdminNewsPayload(input);
+  if (!parsed.input) {
+    throw new AdminNewsValidationError("Dữ liệu bài viết chưa hợp lệ.");
+  }
+}
+
 export async function getAdminNewsPost(database: D1DatabaseLike, id: number): Promise<AdminNewsPost | null> {
   const row = await database.prepare(`
     SELECT id, slug, title, excerpt, content, cover_image_url,
@@ -1677,6 +1684,7 @@ export async function createAdminNewsPost(
   actorSubject: string,
   requestId: string,
 ): Promise<AdminNewsPost> {
+  assertValidNewsInput(input);
   const normalizedRequestId = normalizeNewsRequestId(requestId);
   const payloadSha256 = await fingerprintNewsMutation({ input, operation: "draft" });
   const existingMutation = await findNewsMutation(database, normalizedRequestId);
@@ -1779,6 +1787,7 @@ export async function updateAdminNewsPost(
   actorSubject: string,
   requestId: string,
 ): Promise<AdminNewsPost | null> {
+  assertValidNewsInput(input);
   const normalizedRequestId = normalizeNewsRequestId(requestId);
   const payloadSha256 = await fingerprintNewsMutation({
     expectedRevision,

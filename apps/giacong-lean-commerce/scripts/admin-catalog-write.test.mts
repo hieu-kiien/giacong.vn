@@ -7,6 +7,7 @@ import {
   AdminCatalogWriteConflictError,
   AdminCatalogWriteIdempotencyConflictError,
   AdminCatalogWriteStorageError,
+  AdminCatalogWriteValidationError,
   archiveAdminProductVariantAtomically,
   archiveAdminProductAtomically,
   createAdminProductAtomically,
@@ -626,6 +627,28 @@ test("product create/update/archive use one atomic batch, revision guards and id
   const archived = await archiveAdminProductAtomically(database, created.id, 2, actor, "55555555-5555-4555-8555-555555555555");
   assert.equal(archived?.isActive, false);
   assert.equal(archived?.revision, 3);
+});
+
+test("product writer rejects a blank name before changing revision", async () => {
+  const database = new FakeCatalogDatabase();
+  const created = await createAdminProductAtomically(database, productFields, actor, productRequest);
+  const batchCalls = database.batchCalls;
+
+  await assert.rejects(
+    () => updateAdminProductAtomically(
+      database,
+      created.id,
+      { ...productFields, name: "   " },
+      created.revision,
+      actor,
+      "66666666-6666-4666-8666-666666666666",
+    ),
+    AdminCatalogWriteValidationError,
+  );
+
+  assert.equal(database.products.get(created.id)?.name, productFields.name);
+  assert.equal(database.products.get(created.id)?.revision, created.revision);
+  assert.equal(database.batchCalls, batchCalls);
 });
 
 test("a complete product batch remains successful when D1 omits returned rows", async () => {
