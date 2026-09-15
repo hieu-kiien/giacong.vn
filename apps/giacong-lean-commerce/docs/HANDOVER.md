@@ -4,9 +4,11 @@ Tài liệu dành cho người vận hành (khách + chủ dự án). Quyết đ
 
 ## Checkpoint bàn giao mới nhất
 
-Production **chưa được thay đổi trong đợt này**; source bàn giao là commit
-`8077cec1c953def8baf33e3e8d90566e973beac2` trên nhánh
-`codex/admin-quality-completion`. Không dùng version production cũ trong tài
+Production **chưa được thay đổi trong đợt này**; runtime source bàn giao là commit
+`8077cec1c953def8baf33e3e8d90566e973beac2`. HEAD repository hiện là
+`d3f06932bcf8135f54cde78b1473beff21c38913` trên nhánh
+`codex/admin-quality-completion`, chỉ cập nhật workflow/contract CI deep QA và
+chưa deploy. Không dùng version production cũ trong tài
 liệu này làm bằng chứng nghiệm thu mới. Staging đang chạy
 `giacong-vn-staging` version
 `8e115f49-9b4b-48a3-8eb9-85b9eddb70a0` trên
@@ -37,6 +39,10 @@ sitemap staging còn 223 URL và URL `/san-pham/test1` trả `404` với title r
 noindex, không canonical. Biến thể QA `SMOKE-VARIANT-20260816` (ID 28) đã
   được xóa khỏi D1 staging sau khi kiểm tra không có media/lead tham chiếu;
   2 tier bị cascade và 3 audit lịch sử được giữ.
+Quality/staging gate GitHub run `35001777778` xanh; deep-QA run `35004975567`
+đúng HEAD bị Cloudflare edge trả `403` ở bước catalog dù đã gửi Access
+service-token headers. Deep QA local/browser vẫn pass, nhưng pipeline GitHub
+chưa được coi là đạt cho đến khi owner xử lý allowlist/egress CI được phê duyệt.
 
 ## 1. Bản đồ hệ thống
 

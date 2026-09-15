@@ -7,10 +7,11 @@ Trạng thái chốt hạ trước promotion `giacong-vn` production. Nguồn y�
 Mục này là trạng thái hiện hành; mọi mục `Checkpoint` cũ bên dưới chỉ là bằng
 chứng lịch sử, không thay thế kiểm tra trên bản staging cuối.
 
-- [x] Source được đối chiếu tại commit
-  `8077cec1c953def8baf33e3e8d90566e973beac2` trên nhánh
-  `codex/admin-quality-completion`; staging build/deploy dùng đúng nội dung
-  của commit này.
+- [x] Runtime source được đối chiếu tại commit
+  `8077cec1c953def8baf33e3e8d90566e973beac2`; HEAD repository hiện là
+  `d3f06932bcf8135f54cde78b1473beff21c38913` trên nhánh
+  `codex/admin-quality-completion`, chỉ chứa workflow/contract CI deep QA và
+  chưa được deploy. Staging build/deploy dùng đúng runtime commit nêu trên.
 - [x] Staging Worker version
   `8e115f49-9b4b-48a3-8eb9-85b9eddb70a0` đang phục vụ đúng hai host staging;
   migration `0023_managed_service_taxonomy.sql` đến
@@ -36,9 +37,15 @@ chứng lịch sử, không thay thế kiểm tra trên bản staging cuối.
   lịch sử được giữ. Ba biến thể thật của sản phẩm ID 1 còn nguyên.
 - [x] `npm run check` đã chạy trên source cuối: admin `372/372`, contact
   `110/110`, catalog `6/6`, purchase UI `1/1`, service `28/28`, commerce
-  `100/100`, listing `6/6`, detail `33/33`; lint, typecheck và OpenNext build
+  `101/101`, listing `6/6`, detail `33/33`; lint, typecheck và OpenNext build
   compile pass, tạo `28/28` route. `npm audit --audit-level=high` báo
   `0 vulnerabilities`.
+- [x] GitHub quality/staging gate run `35001777778` xanh; [deep-QA run
+  `35004975567`](https://github.com/hieu-kiien/giacong.vn/actions/runs/35004975567)
+  chạy đúng HEAD nhưng bị HTTP `403` từ Cloudflare edge ở bước catalog dù đã
+  gửi Access service-token headers. Đây là blocker CI runner/edge cần owner
+  xử lý bằng allowlist hoặc egress được phê duyệt; không đánh dấu deep QA GitHub
+  đạt và không thay đổi quyền Access trong lượt này. Local/browser deep QA pass.
 - [x] Public staging đã kiểm tra service-context payload, noindex/canonical,
   sitemap/robots/404 và responsive 390/768/1440px trong phạm vi route chính;
   UX audit evidence `.runtime/ux-audit-final-20260916-r7` đúng version `8e115f49`
