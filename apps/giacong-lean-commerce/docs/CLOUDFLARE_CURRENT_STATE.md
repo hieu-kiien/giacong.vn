@@ -1,16 +1,16 @@
-# Cloudflare current state — 2026-09-15
+# Cloudflare current state — 2026-09-16
 
-## Current staging checkpoint — 2026-09-15
+## Current staging checkpoint — 2026-09-16
 
 Checkpoint này là trạng thái mới nhất; các checkpoint production/staging cũ
 ở phía dưới chỉ giữ làm lịch sử và không được dùng làm bằng chứng phát hành.
 
-- Source commit hiện hành `6059cca7cb4fa1ffa7a426d63adf76fdefcb16d3` trên nhánh
+- Source commit hiện hành `8077cec1c953def8baf33e3e8d90566e973beac2` trên nhánh
   `codex/admin-quality-completion`; đây là đúng nội dung đã build/deploy staging.
   Worker `giacong-vn-staging` version
-  `4c85039f-183c-4ba5-aed6-3e1fd82dea93` đang phục vụ
+  `8e115f49-9b4b-48a3-8eb9-85b9eddb70a0` đang phục vụ
   `staging.kienhieu.id.vn/*` và `admin-staging.kienhieu.id.vn/*`.
-- Deployment được Cloudflare ghi nhận lúc `2026-09-15 23:07:57 +07:00`; HTTP
+- Deployment được Cloudflare ghi nhận lúc `2026-09-16 00:15:11 +07:00`; HTTP
   smoke, deep QA và UX audit đều chạy lại sau deployment; production không bị
   chạm tới. Version này gồm điều kiện “giá từ” kèm MOQ/đơn vị, snapshot RFQ và
   trang tiếp nhận sau gửi, dữ liệu giao hàng có cấu trúc trong admin, sáu route
@@ -45,7 +45,7 @@ Checkpoint này là trạng thái mới nhất; các checkpoint production/stagi
   page/API trả `302` qua Access; chưa dùng các kết quả này để nghiệm thu staging
   và chưa thay đổi production.
 - Gate source cuối: admin `372/372`, contact `110/110`, catalog `6/6`, purchase
-  UI `1/1`, service `28/28`, commerce `100/100`, listing `6/6`, detail `32/32`;
+  UI `1/1`, service `28/28`, commerce `100/100`, listing `6/6`, detail `33/33`;
   lint, typecheck và OpenNext build compile pass, tạo `28/28` route. `npm audit
   --audit-level=high` báo `0 vulnerabilities`.
 - Access owner đã đọc lại trên đúng version `4c85039f`: sản phẩm, dịch vụ, tin
@@ -65,9 +65,13 @@ Checkpoint này là trạng thái mới nhất; các checkpoint production/stagi
 - Runtime cuối: sitemap có 223 URL, loại admin/draft/QA/redirect/test1 và sáu
   route policy owner-confirmation; staging có `X-Robots-Tag:
   noindex, nofollow, noarchive`; missing route trả `404`, title riêng, không
-  canonical. UX audit evidence `.runtime/ux-audit-final-20260915-r5` trên 5
+  canonical. UX audit evidence `.runtime/ux-audit-final-20260916-r7` trên 5
   route có 0 console error, 0 HTTP 4xx/5xx, axe 0 critical/serious, không
-  overflow; warning duy nhất là iframe Google Maps.
+  overflow; action menu mobile/desktop đều pass. Warning duy nhất là iframe
+  Google Maps. Live browser smoke sau deployment cũng xác nhận đổi sang
+  `B2B-DEMO-BGL-10` cập nhật facts MOQ từ `25` thành `10`, đổi số lượng `60`
+  áp dụng đúng đơn giá `143.500 ₫` và tạm tính `8.610.000 ₫`; giỏ 2 SKU vẫn
+  tồn tại sau tải lại.
 - Còn blocker phát hành: nội dung kinh doanh/ảnh thật và chính sách pháp lý chưa
   owner duyệt; staging còn fixture cũ/bản nháp QA được giữ để truy nguyên; đích
   nhận request chưa chốt, lead cũ có lỗi Google `502/504`; chưa gửi controlled

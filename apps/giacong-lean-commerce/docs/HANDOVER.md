@@ -1,17 +1,17 @@
 # Bàn giao vận hành — giacong.vn trên kienhieu.id.vn
 
-Tài liệu dành cho người vận hành (khách + chủ dự án). Quyết định kiến trúc xem [CLOUDFLARE_DEPLOYMENT.md](./CLOUDFLARE_DEPLOYMENT.md); checklist nghiệm thu xem [PRODUCTION_ACCEPTANCE_CHECKLIST.md](./PRODUCTION_ACCEPTANCE_CHECKLIST.md). Cập nhật 2026-09-15.
+Tài liệu dành cho người vận hành (khách + chủ dự án). Quyết định kiến trúc xem [CLOUDFLARE_DEPLOYMENT.md](./CLOUDFLARE_DEPLOYMENT.md); checklist nghiệm thu xem [PRODUCTION_ACCEPTANCE_CHECKLIST.md](./PRODUCTION_ACCEPTANCE_CHECKLIST.md). Cập nhật 2026-09-16.
 
 ## Checkpoint bàn giao mới nhất
 
 Production **chưa được thay đổi trong đợt này**; source bàn giao là commit
-`6059cca7cb4fa1ffa7a426d63adf76fdefcb16d3` trên nhánh
+`8077cec1c953def8baf33e3e8d90566e973beac2` trên nhánh
 `codex/admin-quality-completion`. Không dùng version production cũ trong tài
 liệu này làm bằng chứng nghiệm thu mới. Staging đang chạy
 `giacong-vn-staging` version
-`4c85039f-183c-4ba5-aed6-3e1fd82dea93` trên
+`8e115f49-9b4b-48a3-8eb9-85b9eddb70a0` trên
 `staging.kienhieu.id.vn` và `admin-staging.kienhieu.id.vn`, deploy lúc
-`2026-09-15 23:07:57 +07:00`.
+`2026-09-16 00:15:11 +07:00`.
 Read-only Wrangler đối chiếu production Worker `giacong-vn` đang ở version
 `7f98ed7b-0d9f-4d59-880c-ee364e02e610`; migration staging `0023–0026` chưa được
 áp dụng vào D1 production.
@@ -29,6 +29,8 @@ giao vì còn phải duyệt dataset/nội dung kinh doanh, xác nhận đích n
 và thực hiện UAT ghi/publish bằng tài khoản thật; tình huống hai tab stale
 revision đã đạt trên staging nhưng logout/expiry và audit đầy đủ còn mở. Lead staging cũ có cả trạng
 thái chuyển Google lỗi `502/504`, nên chưa gửi controlled request mới.
+Sau deploy mới, live browser đã xác nhận facts MOQ đổi theo SKU và giá tier/tạm
+tính cập nhật đúng khi đổi số lượng; giỏ nhiều SKU giữ nguyên sau tải lại.
 Sản phẩm QA `test 1` (ID 10) đã được ẩn mềm: D1 là `is_active=0`,
 `status=archived`, còn nguyên 1 biến thể/3 giá bậc; admin hiển thị `Tạm ẩn`,
 sitemap staging còn 223 URL và URL `/san-pham/test1` trả `404` với title riêng,
@@ -40,9 +42,9 @@ noindex, không canonical. Biến thể QA `SMOKE-VARIANT-20260816` (ID 28) đã
 
 | Thành phần | Địa chỉ | Ghi chú |
 | --- | --- | --- |
-| Storefront production | https://kienhieu.id.vn | Chưa deploy bản checkpoint 2026-09-15; chỉ phát hành sau duyệt |
+| Storefront production | https://kienhieu.id.vn | Chưa deploy bản checkpoint 2026-09-16; chỉ phát hành sau duyệt |
 | Admin production | https://admin.kienhieu.id.vn/admin | Sau Cloudflare Access — fail-closed |
-| Storefront staging | https://staging.kienhieu.id.vn | Worker `giacong-vn-staging`; version `4c85039f-183c-4ba5-aed6-3e1fd82dea93` |
+| Storefront staging | https://staging.kienhieu.id.vn | Worker `giacong-vn-staging`; version `8e115f49-9b4b-48a3-8eb9-85b9eddb70a0` |
 | Admin staging | https://admin-staging.kienhieu.id.vn/admin | Cloudflare Access thật; storefront staging mới public; không có identity thì fail-closed |
 | D1 production | `giacong-vn-catalog` | Catalog, leads, media metadata, CMS |
 | R2 production | `giacong-vn-product-media` | Ảnh product/variant/service qua `/media/*` |
@@ -151,10 +153,10 @@ npx wrangler queues info giacong-vn-leads-dlq      # hàng đợi lead thất b�
 Trạng thái bàn giao hiện tại: production storefront vẫn chạy 100% trên
 `kienhieu.id.vn` với version `7f98ed7b-0d9f-4d59-880c-ee364e02e610`; chưa được
 promotion bản mới. Staging đang chạy
-`4c85039f-183c-4ba5-aed6-3e1fd82dea93`. Local gate, HTTP smoke, deep QA,
+`8e115f49-9b4b-48a3-8eb9-85b9eddb70a0`. Local gate, HTTP smoke, deep QA,
 responsive CUA/Playwright, UX audit, menu dịch vụ và các luồng RFQ mock đã pass
 trên source/deployment cuối. UX evidence nằm tại
-`.runtime/ux-audit-final-20260915-r5`; một warning duy nhất là iframe Google
+`.runtime/ux-audit-final-20260916-r7`; một warning duy nhất là iframe Google
 Maps cross-origin. Cron mồ côi đã được gỡ; queue production còn đúng một
 producer và một consumer, DLQ tồn tại đúng theo cấu hình nhưng không có dấu
 hiệu phát sinh từ lượt kiểm tra này. Không dùng dữ liệu demo staging làm dữ liệu

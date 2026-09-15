@@ -1,7 +1,7 @@
 # Bản đồ file Giacong Visual Admin
 
 **Trạng thái:** bản đồ ownership và source-of-truth
-**Cập nhật:** 2026-09-15
+**Cập nhật:** 2026-09-16
 **Roadmap:** ADMIN_VISUAL_ROADMAP.md
 
 Mục tiêu của file này là trả lời nhanh bốn câu hỏi trước khi sửa code:
@@ -23,13 +23,13 @@ xuất bản ở `/admin/noi-dung`, `/admin/thiet-ke`, `/admin/san-pham`,
 gỡ; các page block tiếp tục thuộc page builder. File map bên dưới giữ lại một
 số mốc lịch sử, nhưng các file đã gỡ không còn là source hiện tại.
 
-**Current release checkpoint — 2026-09-15:** Source commit hiện hành là
-`6059cca7cb4fa1ffa7a426d63adf76fdefcb16d3` trên nhánh
+**Current release checkpoint — 2026-09-16:** Source commit hiện hành là
+`8077cec1c953def8baf33e3e8d90566e973beac2` trên nhánh
 `codex/admin-quality-completion`. Staging đang chạy version
-`4c85039f-183c-4ba5-aed6-3e1fd82dea93` ở 100%. Browser owner đã đọc lại
-shortcut sản phẩm/dịch vụ/tin tức/contact trên bản này; contact mở đúng form
+`8e115f49-9b4b-48a3-8eb9-85b9eddb70a0` ở 100%. Browser owner đã đọc lại
+shortcut sản phẩm/dịch vụ/tin tức/contact trên checkpoint trước; contact mở đúng form
 và public staging không lộ control. Local gate đạt admin `372/372`, contact
-`110/110`, service `28/28`, commerce `100/100`, listing `6/6`, detail `32/32`,
+`110/110`, service `28/28`, commerce `100/100`, listing `6/6`, detail `33/33`,
 catalog `6/6`, purchase UI `1/1`; lint/typecheck/build compile pass và tạo
 `28/28` route. Deep QA và UX audit đúng staging cũng pass trong phạm vi ghi
 nhận; captured proof widget/badge không có căn cứ cũng đã được loại khỏi public;

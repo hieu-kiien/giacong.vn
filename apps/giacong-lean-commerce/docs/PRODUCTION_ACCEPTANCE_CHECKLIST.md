@@ -1,18 +1,18 @@
 # Production acceptance checklist
 
-Trạng thái chốt hạ trước promotion `giacong-vn` production. Nguồn yêu cầu gốc: [CLOUDFLARE_NATIVE_V1_PLAN.md](CLOUDFLARE_NATIVE_V1_PLAN.md) mục 7–8. Cập nhật 2026-09-15.
+Trạng thái chốt hạ trước promotion `giacong-vn` production. Nguồn yêu cầu gốc: [CLOUDFLARE_NATIVE_V1_PLAN.md](CLOUDFLARE_NATIVE_V1_PLAN.md) mục 7–8. Cập nhật 2026-09-16.
 
-## Current acceptance checkpoint — 2026-09-15
+## Current acceptance checkpoint — 2026-09-16
 
 Mục này là trạng thái hiện hành; mọi mục `Checkpoint` cũ bên dưới chỉ là bằng
 chứng lịch sử, không thay thế kiểm tra trên bản staging cuối.
 
 - [x] Source được đối chiếu tại commit
-  `6059cca7cb4fa1ffa7a426d63adf76fdefcb16d3` trên nhánh
+  `8077cec1c953def8baf33e3e8d90566e973beac2` trên nhánh
   `codex/admin-quality-completion`; staging build/deploy dùng đúng nội dung
   của commit này.
 - [x] Staging Worker version
-  `4c85039f-183c-4ba5-aed6-3e1fd82dea93` đang phục vụ đúng hai host staging;
+  `8e115f49-9b4b-48a3-8eb9-85b9eddb70a0` đang phục vụ đúng hai host staging;
   migration `0023_managed_service_taxonomy.sql` đến
   `0026_service_slug_redirects.sql` đã apply trên D1 staging, không còn
   pending; snapshot mới nhất là `.runtime/staging-before-0025.sql` và
@@ -36,19 +36,22 @@ chứng lịch sử, không thay thế kiểm tra trên bản staging cuối.
   lịch sử được giữ. Ba biến thể thật của sản phẩm ID 1 còn nguyên.
 - [x] `npm run check` đã chạy trên source cuối: admin `372/372`, contact
   `110/110`, catalog `6/6`, purchase UI `1/1`, service `28/28`, commerce
-  `100/100`, listing `6/6`, detail `32/32`; lint, typecheck và OpenNext build
+  `100/100`, listing `6/6`, detail `33/33`; lint, typecheck và OpenNext build
   compile pass, tạo `28/28` route. `npm audit --audit-level=high` báo
   `0 vulnerabilities`.
 - [x] Public staging đã kiểm tra service-context payload, noindex/canonical,
   sitemap/robots/404 và responsive 390/768/1440px trong phạm vi route chính;
-  UX audit evidence `.runtime/ux-audit-final-20260915-r5` đúng version `4c85039f`
+  UX audit evidence `.runtime/ux-audit-final-20260916-r7` đúng version `8e115f49`
   trên 5 route ghi nhận 0 console error, 0
-  HTTP 4xx/5xx, axe không có critical/serious, không overflow. Có một warning
-  third-party từ iframe Google Maps.
+  HTTP 4xx/5xx, axe không có critical/serious, không overflow; action menu
+  mobile/desktop pass. Có một warning third-party từ iframe Google Maps.
 - [x] Hai tab cùng sửa một bài QA: stale revision bị từ chối, không ghi đè; dữ
   liệu kiểm thử đã được khôi phục và đọc lại.
 - [x] Footer staging sau deploy không còn các mục thanh toán/hoàn tiền/bản
   quyền phương tiện vô hiệu; liên kết chính sách bảo mật vẫn hoạt động.
+- [x] Browser smoke live trên detail sau deployment đã đổi SKU, kiểm tra facts
+  MOQ/bước số lượng, giá tier tại mốc `60`, sửa giỏ, tải lại giỏ và validation
+  RFQ thiếu trường; không gửi request thật ra ngoài.
 - [ ] Chưa gửi controlled request thật: đích nhận chưa được owner xác nhận và
   một số lead staging cũ có lỗi chuyển Google `502/504`; luồng persistence chỉ
   dùng mock `202`, không tạo lead thật.

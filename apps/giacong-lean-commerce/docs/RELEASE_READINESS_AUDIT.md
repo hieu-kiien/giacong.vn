@@ -1,6 +1,6 @@
-# Audit sẵn sàng bàn giao — 2026-09-15
+# Audit sẵn sàng bàn giao — 2026-09-16
 
-## Current acceptance checkpoint — 2026-09-15
+## Current acceptance checkpoint — 2026-09-16
 
 Đây là checkpoint mới nhất và **thay thế các kết luận nghiệm thu cũ bên dưới**.
 Kiểm tra được thực hiện trên đúng bản staging đang chạy, không suy ra từ URL
@@ -8,13 +8,13 @@ Kiểm tra được thực hiện trên đúng bản staging đang chạy, khôn
 
 ### Phiên bản và môi trường
 
-- Source commit: `6059cca7cb4fa1ffa7a426d63adf76fdefcb16d3` trên nhánh
+- Source commit: `8077cec1c953def8baf33e3e8d90566e973beac2` trên nhánh
   `codex/admin-quality-completion`; bản staging được build/deploy từ đúng
   nội dung của commit này.
 - Staging Worker `giacong-vn-staging`, version
-  `4c85039f-183c-4ba5-aed6-3e1fd82dea93`, phục vụ
+  `8e115f49-9b4b-48a3-8eb9-85b9eddb70a0`, phục vụ
   `staging.kienhieu.id.vn` và `admin-staging.kienhieu.id.vn`.
-- Deployment được Cloudflare ghi nhận lúc `2026-09-15 23:07:57 +07:00`; HTTP
+- Deployment được Cloudflare ghi nhận lúc `2026-09-16 00:15:11 +07:00`; HTTP
   smoke, deep QA và UX audit dưới đây đều chạy sau deployment này; không có
   thay đổi source sau lần deploy. Bản này cũng đã loại widget đánh giá và
   liên kết/badge DMCA không có căn cứ khỏi captured markup dùng trên public.
@@ -94,21 +94,27 @@ Kiểm tra được thực hiện trên đúng bản staging đang chạy, khôn
   phương tiện vô hiệu; liên kết chính sách bảo mật còn được giữ.
 - Public staging có 13 nhóm và 192 route nội dung dịch vụ; deep QA đã kiểm tra
   các route chính ở mobile 390px, tablet 768px và desktop 1440px không overflow.
-  UX audit evidence `.runtime/ux-audit-final-20260915-r5` đúng version `4c85039f`
+  UX audit evidence `.runtime/ux-audit-final-20260916-r7` đúng version `8e115f49`
   trên 5 route ghi nhận 0 console error, 0
-  HTTP 4xx/5xx, axe không có critical/serious; warning duy nhất là iframe
-  Google Maps cross-origin. Canonical runtime, `robots.txt`, 404 và
+  HTTP 4xx/5xx, axe không có critical/serious; action menu mobile/desktop pass.
+  Warning duy nhất là iframe Google Maps cross-origin. Canonical runtime,
+  `robots.txt`, 404 và
   `sitemap.xml` (223 URL) đã được kiểm tra; staging có
   `X-Robots-Tag: noindex, nofollow, noarchive`. Fixture sản phẩm `test 1` đã
   archive/ẩn mềm; URL `/san-pham/test1` trả `404` và không còn trong sitemap.
+- Lượt browser live sau deployment `8e115f49` đã kiểm tra detail theo hai SKU:
+  đổi sang `B2B-DEMO-BGL-10` cập nhật facts MOQ `10 bao` và số lượng `60`
+  áp dụng đúng đơn giá `143.500 ₫`, tạm tính `8.610.000 ₫`; giỏ giữ 2 SKU sau
+  tải lại. Submit thiếu thông tin bị chặn ở client; không gửi controlled request
+  thật vì nơi nhận vẫn chưa được owner xác nhận.
 
 ### Gate tự động trên bản cuối
 
 Các suite trên source cuối đạt: admin `372/372`, contact `110/110`, catalog
 `6/6`, purchase UI `1/1`, service `28/28`, commerce `100/100`, listing `6/6`,
-detail `32/32`; lint, typecheck và OpenNext build compile pass, tạo đủ
+  detail `33/33`; lint, typecheck và OpenNext build compile pass, tạo đủ
 `28/28` route. `npm audit --audit-level=high` báo `0 vulnerabilities`.
-Deployment staging `4c85039f` hoàn tất build/deploy; một số wrapper Windows
+Deployment staging `8e115f49` hoàn tất build/deploy; một số wrapper Windows
 được dừng sau khi output cuối đã pass, không dùng trạng thái wrapper để thay thế
 browser/runtime evidence.
 
@@ -116,11 +122,11 @@ browser/runtime evidence.
 
 | Phạm vi | Trạng thái | Vấn đề còn lại |
 |---|---|---|
-| Shortcut và quản trị inline | Đạt trên staging | Browser owner đã xác nhận trên `4c85039f`; còn cần UAT ghi/publish dữ liệu kinh doanh thật trước production |
+| Shortcut và quản trị inline | Đạt trên staging | Browser owner đã xác nhận trên checkpoint trước `4c85039f`; còn cần UAT ghi/publish dữ liệu kinh doanh thật trên phiên Access đang hoạt động trước production |
 | Nguồn dữ liệu dịch vụ, catalog, tin tức, liên hệ | Đạt kỹ thuật trên staging | Dataset, thương hiệu, nội dung và ảnh thật chưa được owner chốt |
 | Yêu cầu báo giá | Đạt kỹ thuật / chờ thông tin | Client/server snapshot, MOQ/tier validation, idempotency và success reload đã pass mock; chưa xác nhận đích thử, lead cũ còn lỗi Google 502/504 |
 | Quyền, xung đột hai tab, hết phiên, audit đầy đủ | Xung đột hai tab đạt; phần còn lại chưa đủ | Logout/expiry và audit đầy đủ vẫn cần owner thực hiện trong buổi UAT |
-| UI/SEO/technical gates | Đạt trong phạm vi đã đo | Sitemap 223 URL, 404/noindex/canonical và UX audit pass staging; vẫn cần rà nội dung thật và kiểm tra production sau khi được duyệt |
+| UI/SEO/technical gates | Đạt trong phạm vi đã đo | Sitemap 223 URL, 404/noindex/canonical và UX audit `r7` pass staging; vẫn cần rà nội dung thật và kiểm tra production sau khi được duyệt |
 | Production release | Chờ duyệt | Chưa được phép deploy; cần backup/restore plan, dataset, đích nhận và UAT ghi/publish đã chốt |
 
 ## Release checkpoint mới nhất — 2026-09-04

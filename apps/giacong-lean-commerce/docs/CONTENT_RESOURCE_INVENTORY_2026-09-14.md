@@ -9,12 +9,12 @@
 - `public/` có 287 file sau khi tạo captured assets; home runtime còn 28 ảnh legacy hỏng/không tải được trong probe.
 - 192 URL dịch vụ không phải toàn bộ tài nguyên: còn sản phẩm/biến thể, bài viết, D1 records, media/R2, navigation, chính sách và archive.
 
-## Revalidation trên bản staging cuối — 2026-09-15
+## Revalidation trên bản staging cuối — 2026-09-16
 
 Phần trên là snapshot inventory ngày 14-09; các dòng chi tiết giữ nguyên để
 truy nguyên nguồn, không phải kết quả của một crawl mới. Trên source commit
-`6059cca7cb4fa1ffa7a426d63adf76fdefcb16d3`, staging Worker
-`4c85039f-183c-4ba5-aed6-3e1fd82dea93` (deploy `2026-09-15 23:07:57 +07:00`),
+`8077cec1c953def8baf33e3e8d90566e973beac2`, staging Worker
+`8e115f49-9b4b-48a3-8eb9-85b9eddb70a0` (deploy `2026-09-16 00:15:11 +07:00`),
 đã xác minh thêm:
 
 - D1 có 16 record dịch vụ (13 record canonical đang hoạt động/công khai, 2
@@ -57,7 +57,7 @@ truy nguyên nguồn, không phải kết quả của một crawl mới. Trên s
   nằm trong sitemap. Không tạo Product schema/giá/review/chứng nhận giả; các
   proof section không có căn cứ trong nội dung gốc đã không được render ở
   homepage public.
-- UX audit đúng staging (evidence `.runtime/ux-audit-final-20260915-r5`)
+- UX audit đúng staging (evidence `.runtime/ux-audit-final-20260916-r7`)
   kiểm tra 5 route ở mobile/desktop: 0 console error, 0 HTTP 4xx/5xx, axe
   không có critical/serious và không overflow. Warning duy nhất đến từ iframe
   Google Maps cross-origin; không phải lỗi app. Sau checkpoint này, public
