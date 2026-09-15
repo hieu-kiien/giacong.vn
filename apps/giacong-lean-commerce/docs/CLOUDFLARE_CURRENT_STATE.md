@@ -5,8 +5,10 @@
 Checkpoint này là trạng thái mới nhất; các checkpoint production/staging cũ
 ở phía dưới chỉ giữ làm lịch sử và không được dùng làm bằng chứng phát hành.
 
-- Source base `495992c1`, worktree dirty; staging build dùng đúng worktree hiện
-  tại. Worker `giacong-vn-staging` version
+- Source commit hiện hành `fdefffb9a37532e92f4c0cd9501f47f3cedc6be0` trên nhánh
+  `codex/admin-quality-completion`; worktree đã sạch và nhánh đã push GitHub.
+  Staging build/deploy dùng đúng nội dung của commit này. Worker
+  `giacong-vn-staging` version
   `d11377e7-ea93-4dbb-89ea-d3d0d344b070` đang phục vụ
   `staging.kienhieu.id.vn/*` và `admin-staging.kienhieu.id.vn/*`.
 - Deployment version mới được Cloudflare ghi nhận lúc `2026-09-15 18:50:57 +07:00`; HTTP smoke và browser runtime đều đã đọc lại sau deployment; production không bị chạm tới. Version này chứa fix vùng bấm contact bị header che, nút `Phát hành cập nhật` cho bài đã xuất bản nhưng có bản nháp mới, mã `request_id` ổn định cho retry form liên hệ và chuẩn hóa HTTP `404` cho sản phẩm đã ẩn.

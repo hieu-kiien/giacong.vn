@@ -7,8 +7,10 @@ Trạng thái chốt hạ trước promotion `giacong-vn` production. Nguồn y�
 Mục này là trạng thái hiện hành; mọi mục `Checkpoint` cũ bên dưới chỉ là bằng
 chứng lịch sử, không thay thế kiểm tra trên bản staging cuối.
 
-- [x] Source được đối chiếu tại base `495992c1` với worktree dirty được ghi nhận;
-  staging build/deploy dùng đúng worktree hiện tại.
+- [x] Source được đối chiếu tại commit
+  `fdefffb9a37532e92f4c0cd9501f47f3cedc6be0` trên nhánh
+  `codex/admin-quality-completion`; worktree đã sạch và nhánh đã push GitHub.
+  Staging build/deploy dùng đúng nội dung của commit này.
 - [x] Staging Worker version
   `d11377e7-ea93-4dbb-89ea-d3d0d344b070` đang phục vụ đúng hai host staging;
   migration `0023_managed_service_taxonomy.sql` đến

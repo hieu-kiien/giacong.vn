@@ -8,14 +8,15 @@ Kiểm tra được thực hiện trên đúng bản staging đang chạy, khôn
 
 ### Phiên bản và môi trường
 
-- Source base: `495992c1`; worktree còn dirty do các thay đổi trong phạm vi
-  hoàn thiện. Bản staging được build/deploy từ đúng worktree này.
+- Source commit: `fdefffb9a37532e92f4c0cd9501f47f3cedc6be0` trên nhánh
+  `codex/admin-quality-completion`; worktree đã sạch sau khi push GitHub. Bản
+  staging được build/deploy từ đúng nội dung của commit này.
 - Staging Worker `giacong-vn-staging`, version
   `d11377e7-ea93-4dbb-89ea-d3d0d344b070`, phục vụ
   `staging.kienhieu.id.vn` và `admin-staging.kienhieu.id.vn`.
 - Deployment được Cloudflare ghi nhận lúc `2026-09-15 18:50:57 +07:00`; HTTP
-  smoke và browser QA dưới đây đều chạy sau deployment này. Source chưa tạo
-  commit mới và worktree vẫn dirty như đã ghi.
+  smoke và browser QA dưới đây đều chạy sau deployment này. Commit source hiện
+  tại đã được ghi nhận và push ở trên; không có thay đổi source sau lần QA đó.
 - Migration `0023_managed_service_taxonomy.sql` đến
   `0026_service_slug_redirects.sql` đã áp dụng trên D1 staging; không còn
   migration pending. Snapshot trước các thay đổi mới nhất:

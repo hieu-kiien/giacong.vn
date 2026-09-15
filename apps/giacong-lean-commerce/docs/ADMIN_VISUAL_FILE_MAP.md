@@ -23,8 +23,10 @@ xuất bản ở `/admin/noi-dung`, `/admin/thiet-ke`, `/admin/san-pham`,
 gỡ; các page block tiếp tục thuộc page builder. File map bên dưới giữ lại một
 số mốc lịch sử, nhưng các file đã gỡ không còn là source hiện tại.
 
-**Current release checkpoint — 2026-09-15:** Source base `495992c1` còn dirty;
-staging đang chạy version
+**Current release checkpoint — 2026-09-15:** Source commit hiện hành là
+`fdefffb9a37532e92f4c0cd9501f47f3cedc6be0` trên nhánh
+`codex/admin-quality-completion`; worktree đã sạch sau khi push GitHub.
+Staging đang chạy version
 `d11377e7-ea93-4dbb-89ea-d3d0d344b070` ở 100%. Browser owner đã đọc lại
 shortcut sản phẩm/dịch vụ/tin tức/contact trên bản này; contact mở đúng form
 và public staging không lộ control. Local gate đạt admin `372/372`, contact

@@ -4,7 +4,9 @@ Tài liệu dành cho người vận hành (khách + chủ dự án). Quyết đ
 
 ## Checkpoint bàn giao mới nhất
 
-Production **chưa được thay đổi trong đợt này**; không dùng version production
+Production **chưa được thay đổi trong đợt này**; source bàn giao là commit
+`fdefffb9a37532e92f4c0cd9501f47f3cedc6be0` trên nhánh
+`codex/admin-quality-completion` (worktree sạch, đã push GitHub). Không dùng version production
 cũ trong tài liệu này làm bằng chứng nghiệm thu mới. Staging đang chạy
 `giacong-vn-staging` version
   `d11377e7-ea93-4dbb-89ea-d3d0d344b070` trên
