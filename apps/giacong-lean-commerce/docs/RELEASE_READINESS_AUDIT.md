@@ -8,15 +8,15 @@ Kiểm tra được thực hiện trên đúng bản staging đang chạy, khôn
 
 ### Phiên bản và môi trường
 
-- Source commit: `fdefffb9a37532e92f4c0cd9501f47f3cedc6be0` trên nhánh
-  `codex/admin-quality-completion`; worktree đã sạch sau khi push GitHub. Bản
-  staging được build/deploy từ đúng nội dung của commit này.
+- Source commit: `b4e86b074c008c381511a341430fb317e0e1a517` trên nhánh
+  `codex/admin-quality-completion`; bản staging được build/deploy từ đúng
+  nội dung của commit này.
 - Staging Worker `giacong-vn-staging`, version
-  `d11377e7-ea93-4dbb-89ea-d3d0d344b070`, phục vụ
+  `5145694f-a141-4db1-bb9b-bc4158a64275`, phục vụ
   `staging.kienhieu.id.vn` và `admin-staging.kienhieu.id.vn`.
-- Deployment được Cloudflare ghi nhận lúc `2026-09-15 18:50:57 +07:00`; HTTP
-  smoke và browser QA dưới đây đều chạy sau deployment này. Commit source hiện
-  tại đã được ghi nhận và push ở trên; không có thay đổi source sau lần QA đó.
+- Deployment được Cloudflare ghi nhận lúc `2026-09-15 22:32:49 +07:00`; HTTP
+  smoke, deep QA và UX audit dưới đây đều chạy sau deployment này; không có
+  thay đổi source sau lần deploy.
 - Migration `0023_managed_service_taxonomy.sql` đến
   `0026_service_slug_redirects.sql` đã áp dụng trên D1 staging; không còn
   migration pending. Snapshot trước các thay đổi mới nhất:
@@ -37,7 +37,7 @@ Kiểm tra được thực hiện trên đúng bản staging đang chạy, khôn
 
 ### Bằng chứng đã kiểm tra
 
-- Trong lượt Access owner trên đúng version `d11377e7`, danh sách sản phẩm có
+- Trong lượt Access owner trên đúng version `5145694f`, danh sách sản phẩm có
   `Thêm sản phẩm` và `Sửa sản phẩm` trên 10 thẻ; chi tiết sản phẩm có `Sửa sản
   phẩm` và `Thêm vào giỏ yêu cầu`. Hub dịch vụ có `Thêm dịch vụ` và 13 nút
   `Sửa dịch vụ`; chi tiết `gia-cong-my-pham` mở đúng form mã 8, đúng slug và
@@ -63,18 +63,21 @@ Kiểm tra được thực hiện trên đúng bản staging đang chạy, khôn
   cũng là nháp. Public không còn bài QA.
 - Sản phẩm QA `test 1` (ID 10) đã được ẩn mềm sau khi xác nhận đúng bản ghi.
   D1 cuối xác nhận `is_active=0`, `status=archived`, còn 1 biến thể và 3 giá
-  bậc; admin tải lại hiển thị `Tạm ẩn`. Sitemap còn 224 URL, không còn
+  bậc; admin tải lại hiển thị `Tạm ẩn`. Sitemap còn 223 URL, không còn
   `/san-pham/test1/`; URL `/san-pham/test1` trả HTTP `404` và trang thông báo
-  không tìm thấy, không lộ shortcut quản trị.
+  không tìm thấy có title riêng, noindex, không canonical và không lộ shortcut
+  quản trị.
 - Kiểm thử hai tab trên cùng bài QA: tab 1 lưu trước, tab 2 bị chặn bởi stale
   revision với thông báo rõ, không ghi đè; tiêu đề gốc đã được lưu lại và đọc
   lại sau kiểm thử.
 - Sidebar admin đã có mục `Yêu cầu báo giá`; inbox đọc được 10 lead staging
   hiện có. Một số lead cũ vẫn có trạng thái chuyển Google lỗi `502/504`, nên
   độ tin cậy nơi nhận chưa đạt để thử gửi mới.
-- Giỏ hàng public được đọc lại sau hydrate với 1 dòng sản phẩm hiện có
-  (`Bột gạo lứt xay mịn`, số lượng 50); không sửa hoặc xóa vì không xác định đó
-  là dữ liệu QA của phiên nào, và chưa gửi yêu cầu mới.
+- Luồng RFQ trên staging được chạy bằng Playwright với dữ liệu phiên mới: thêm
+  `Bột gạo lứt xay mịn` đúng MOQ 25 → mở giỏ → điền form → nhận mã
+  `RFQ-QA-20260915-01` từ response mock `202` → cart được xóa sau tiếp nhận →
+  reload khôi phục trang xác nhận từ session snapshot. Không gửi lead thật vào
+  người nhận vì đích delivery chưa được owner chốt.
 - Contact query giữ đúng ngữ cảnh dịch vụ (`gia-cong-my-pham` và
   `gia-cong-ca-phe`) ở markup máy chủ và `data-service-context` /
   `data-service-url` sau hydration; client payload có fallback canonical và
@@ -84,32 +87,34 @@ Kiểm tra được thực hiện trên đúng bản staging đang chạy, khôn
   bền vững, giảm nguy cơ tạo lead trùng khi gặp lỗi mạng/504.
 - Footer public sau chuẩn hóa không còn các mục thanh toán/hoàn tiền/bản quyền
   phương tiện vô hiệu; liên kết chính sách bảo mật còn được giữ.
-- Public staging có 13 nhóm và 192 route nội dung dịch vụ; các route chính đã
-  kiểm tra ở mobile 390px, tablet 768px và desktop 1440px không có overflow
-  ngang. Canonical runtime, `robots.txt`, 404 và `sitemap.xml` (224 URL) đã
-  được kiểm tra; staging có `X-Robots-Tag: noindex, nofollow, noarchive`.
-  Fixture sản phẩm `test 1` đã được archive/ẩn mềm; URL `/san-pham/test1`
-  trả `404` và không còn nằm trong sitemap.
+- Public staging có 13 nhóm và 192 route nội dung dịch vụ; deep QA đã kiểm tra
+  các route chính ở mobile 390px, tablet 768px và desktop 1440px không overflow.
+  UX audit đúng version `5145694f` trên 5 route ghi nhận 0 console error, 0
+  HTTP 4xx/5xx, axe không có critical/serious; warning duy nhất là iframe
+  Google Maps cross-origin. Canonical runtime, `robots.txt`, 404 và
+  `sitemap.xml` (223 URL) đã được kiểm tra; staging có
+  `X-Robots-Tag: noindex, nofollow, noarchive`. Fixture sản phẩm `test 1` đã
+  archive/ẩn mềm; URL `/san-pham/test1` trả `404` và không còn trong sitemap.
 
 ### Gate tự động trên bản cuối
 
-Các suite trên source cuối đạt: admin `372/372`, contact `106/106`, catalog
-`6/6`, purchase UI `1/1`, service `28/28`, commerce `96/96`, listing `5/5`,
-detail `32/32`; focused navigation `10/10`; lint không báo lỗi. TypeScript và
-OpenNext build compile pass, tạo đủ `28/28` static pages; deployment staging
-`d11377e7` cũng hoàn tất build/deploy. Shell runner Windows giữ process sau
-output cuối nên đã dừng thủ công; không dùng mã thoát của wrapper để thay thế
+Các suite trên source cuối đạt: admin `372/372`, contact `110/110`, catalog
+`6/6`, purchase UI `1/1`, service `28/28`, commerce `98/98`, listing `6/6`,
+detail `32/32`; lint, typecheck và OpenNext build compile pass, tạo đủ
+`28/28` route. `npm audit --audit-level=high` báo `0 vulnerabilities`.
+Deployment staging `5145694f` hoàn tất build/deploy; một số wrapper Windows
+được dừng sau khi output cuối đã pass, không dùng trạng thái wrapper để thay thế
 browser/runtime evidence.
 
 ### Trạng thái chốt bàn giao
 
 | Phạm vi | Trạng thái | Vấn đề còn lại |
 |---|---|---|
-| Shortcut và quản trị inline | Đạt trên staging | Browser owner đã xác nhận trên `d11377e7`; còn cần UAT ghi/publish dữ liệu kinh doanh thật trước production |
+| Shortcut và quản trị inline | Đạt trên staging | Browser owner đã xác nhận trên `5145694f`; còn cần UAT ghi/publish dữ liệu kinh doanh thật trước production |
 | Nguồn dữ liệu dịch vụ, catalog, tin tức, liên hệ | Đạt kỹ thuật trên staging | Dataset, thương hiệu, nội dung và ảnh thật chưa được owner chốt |
-| Yêu cầu báo giá | Lỗi/chờ thông tin | Chưa xác nhận đích thử; Google hiện có lỗi chuyển tiếp 502/504 ở lead cũ; chưa gửi request mới |
+| Yêu cầu báo giá | Đạt kỹ thuật / chờ thông tin | Client/server snapshot, MOQ/tier validation, idempotency và success reload đã pass mock; chưa xác nhận đích thử, lead cũ còn lỗi Google 502/504 |
 | Quyền, xung đột hai tab, hết phiên, audit đầy đủ | Xung đột hai tab đạt; phần còn lại chưa đủ | Logout/expiry và audit đầy đủ vẫn cần owner thực hiện trong buổi UAT |
-| UI/SEO/technical gates | Đạt trong phạm vi đã đo | Sitemap staging đã loại fixture sản phẩm test và URL đó trả `404`; vẫn cần rà nội dung thật và kiểm tra production sau khi được duyệt |
+| UI/SEO/technical gates | Đạt trong phạm vi đã đo | Sitemap 223 URL, 404/noindex/canonical và UX audit pass staging; vẫn cần rà nội dung thật và kiểm tra production sau khi được duyệt |
 | Production release | Chờ duyệt | Chưa được phép deploy; cần backup/restore plan, dataset, đích nhận và UAT ghi/publish đã chốt |
 
 ## Release checkpoint mới nhất — 2026-09-04

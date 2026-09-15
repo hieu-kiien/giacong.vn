@@ -1,10 +1,14 @@
 # Chỉ mục tài liệu
 
-**Bắt đầu công việc tiếp theo tại
-[ADMIN_COMMERCE_RECOVERY_HANDOFF.md](./ADMIN_COMMERCE_RECOVERY_HANDOFF.md)**:
-yêu cầu 2026-09-07, ảnh lỗi, ưu tiên admin sản phẩm/dịch vụ/tin tức, menu và luồng
-Mua hàng / Thuê gia công; kế hoạch chia đội và dọn tài liệu. Hiện mới lập kế hoạch,
-chưa sửa các lỗi người dùng vừa phản ánh.
+**Điểm vào của đợt nghiệm thu hiện tại là
+[RELEASE_READINESS_AUDIT.md](./RELEASE_READINESS_AUDIT.md)**. Source B2B catalogue +
+RFQ đã được sửa và commit tại `b4e86b074c008c381511a341430fb317e0e1a517`, deploy
+trên staging Worker `5145694f-a141-4db1-bb9b-bc4158a64275` để kiểm tra đúng bản
+cuối. Production chưa được deploy, migrate, đổi DNS hoặc đổi quyền.
+
+Các tài liệu dưới đây phân biệt rõ bằng chứng staging hiện tại với checkpoint lịch
+sử. Không dùng test xanh, URL `200` hoặc dữ liệu QA staging để kết luận đã bàn giao
+production.
 
 ## Tài liệu hiện hành
 

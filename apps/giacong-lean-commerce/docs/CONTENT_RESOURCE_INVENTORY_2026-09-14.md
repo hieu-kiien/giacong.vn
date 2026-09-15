@@ -12,8 +12,10 @@
 ## Revalidation trên bản staging cuối — 2026-09-15
 
 Phần trên là snapshot inventory ngày 14-09; các dòng chi tiết giữ nguyên để
-truy nguyên nguồn, không phải kết quả của một crawl mới. Trên bản staging cuối
-Worker `d11377e7-ea93-4dbb-89ea-d3d0d344b070`, đã xác minh thêm:
+truy nguyên nguồn, không phải kết quả của một crawl mới. Trên source commit
+`b4e86b074c008c381511a341430fb317e0e1a517`, staging Worker
+`5145694f-a141-4db1-bb9b-bc4158a64275` (deploy `2026-09-15 22:32:49 +07:00`),
+đã xác minh thêm:
 
 - D1 có 16 record dịch vụ (13 record canonical đang hoạt động/công khai, 2
   record QA/cũ đã ẩn và 1 fixture QA động đang ở bản nháp); 13 record meta
@@ -23,10 +25,11 @@ Worker `d11377e7-ea93-4dbb-89ea-d3d0d344b070`, đã xác minh thêm:
   `status=archived`, còn 1 biến thể và 3 giá bậc.
   192 captured URL vẫn được lập chỉ mục theo 13 nhóm, không nhập máy móc
   thành 192 sản phẩm bán.
-- Runtime public đã có canonical; `sitemap.xml` trả 224 URL và loại admin,
+- Runtime public đã có canonical; `sitemap.xml` trả 223 URL và loại admin,
   draft, redirect cùng sản phẩm đã archive; không còn URL
   `/san-pham/test1/`. `robots.txt`/header staging chặn lập chỉ mục; URL
-  `/san-pham/test1` trả đúng HTTP `404`.
+  `/san-pham/test1` trả đúng HTTP `404`; route không tìm thấy có title riêng,
+  không canonical và `X-Robots-Tag: noindex, nofollow, noarchive`.
 - Admin staging có shortcut thêm/sửa đúng bản ghi cho sản phẩm, dịch vụ, tin
   tức và liên hệ; inbox `Yêu cầu báo giá` đã có lối vào sidebar. Source version
   mới còn đánh dấu bài đã xuất bản có draft khác bằng `Phát hành cập nhật`.
@@ -46,6 +49,15 @@ Worker `d11377e7-ea93-4dbb-89ea-d3d0d344b070`, đã xác minh thêm:
 - Footer public đã được rà lại sau bản cuối: các mục thanh toán/hoàn tiền/bản
   quyền phương tiện không có liên kết đã được loại khỏi markup; liên kết chính
   sách bảo mật có đích vẫn được giữ.
+- Bộ chính sách B2B đã có route kỹ thuật trả `200` nhưng đang là bản nháp chờ
+  chủ website điền/xác nhận thông tin pháp lý; các route này `noindex` và không
+  nằm trong sitemap. Không tạo Product schema/giá/review/chứng nhận giả; các
+  proof section không có căn cứ trong nội dung gốc đã không được render ở
+  homepage public.
+- UX audit đúng staging (evidence `.runtime/ux-audit-final-20260915-r3`)
+  kiểm tra 5 route ở mobile/desktop: 0 console error, 0 HTTP 4xx/5xx, axe
+  không có critical/serious và không overflow. Warning duy nhất đến từ iframe
+  Google Maps cross-origin; không phải lỗi app.
 
 ## Quy ước
 

@@ -5,13 +5,16 @@
 Checkpoint này là trạng thái mới nhất; các checkpoint production/staging cũ
 ở phía dưới chỉ giữ làm lịch sử và không được dùng làm bằng chứng phát hành.
 
-- Source commit hiện hành `fdefffb9a37532e92f4c0cd9501f47f3cedc6be0` trên nhánh
-  `codex/admin-quality-completion`; worktree đã sạch và nhánh đã push GitHub.
-  Staging build/deploy dùng đúng nội dung của commit này. Worker
-  `giacong-vn-staging` version
-  `d11377e7-ea93-4dbb-89ea-d3d0d344b070` đang phục vụ
+- Source commit hiện hành `b4e86b074c008c381511a341430fb317e0e1a517` trên nhánh
+  `codex/admin-quality-completion`; đây là đúng nội dung đã build/deploy staging.
+  Worker `giacong-vn-staging` version
+  `5145694f-a141-4db1-bb9b-bc4158a64275` đang phục vụ
   `staging.kienhieu.id.vn/*` và `admin-staging.kienhieu.id.vn/*`.
-- Deployment version mới được Cloudflare ghi nhận lúc `2026-09-15 18:50:57 +07:00`; HTTP smoke và browser runtime đều đã đọc lại sau deployment; production không bị chạm tới. Version này chứa fix vùng bấm contact bị header che, nút `Phát hành cập nhật` cho bài đã xuất bản nhưng có bản nháp mới, mã `request_id` ổn định cho retry form liên hệ và chuẩn hóa HTTP `404` cho sản phẩm đã ẩn.
+- Deployment được Cloudflare ghi nhận lúc `2026-09-15 22:32:49 +07:00`; HTTP
+  smoke, deep QA và UX audit đều chạy lại sau deployment; production không bị
+  chạm tới. Version này gồm điều kiện “giá từ” kèm MOQ/đơn vị, snapshot RFQ và
+  trang tiếp nhận sau gửi, dữ liệu giao hàng có cấu trúc trong admin, sáu route
+  chính sách B2B dạng owner-confirmation và metadata 404 noindex.
 - Staging D1 là `giacong-vn-catalog-staging` (ID cấu hình trong
   `wrangler.jsonc`). Migration `0023_managed_service_taxonomy.sql` đến
   `0026_service_slug_redirects.sql` đã áp dụng, không còn migration pending;
@@ -35,29 +38,33 @@ Checkpoint này là trạng thái mới nhất; các checkpoint production/stagi
 - Production read-only probe: `/` trả `200`, `/sitemap.xml` trả `404`, admin
   page/API trả `302` qua Access; chưa dùng các kết quả này để nghiệm thu staging
   và chưa thay đổi production.
-- `npm run check` đã chạy lại trong lượt source mới: admin `372/372`, contact
-  `106/106`, catalog `6/6`, purchase UI `1/1`,
-  service `28/28`, commerce `96/96`, listing `5/5`, detail `32/32`, lint,
-  typecheck và OpenNext build pass; build tạo `28/28` static pages. Lần chạy
-  trước sau resolver/sitemap đạt admin `368/368`; focused contact/service sau
-  gia cố hydration và request idempotency là `106/106`/`28/28`.
-- Access owner đã đọc lại trên đúng version `d11377e7`: sản phẩm có shortcut
-  thêm/sửa ở danh sách và sửa ở chi tiết; dịch vụ có thêm/sửa ở hub và chi tiết
-  mở đúng ID 8; tin tức có thêm và admin list đọc được hai bản nháp QA; contact
-  bấm thật mở form và hiển thị giá trị website đang dùng. Public staging không
-  có shortcut admin. UAT dịch vụ QA ID 16 và tin tức redirect QA đã được
-  khôi phục sạch; sidebar admin có `Yêu cầu báo giá`.
-- Form liên hệ public tạo lại cùng `request_id` khi retry lỗi; server/webhook
-  dùng mã đó để replay kết quả thay vì tạo thêm lead trong cùng lần gửi.
+- Gate source cuối: admin `372/372`, contact `110/110`, catalog `6/6`, purchase
+  UI `1/1`, service `28/28`, commerce `98/98`, listing `6/6`, detail `32/32`;
+  lint, typecheck và OpenNext build compile pass, tạo `28/28` route. `npm audit
+  --audit-level=high` báo `0 vulnerabilities`.
+- Access owner đã đọc lại trên đúng version `5145694f`: sản phẩm, dịch vụ, tin
+  tức và contact có shortcut/form đúng bản ghi; contact shortcut nằm trên
+  storefront host admin `/lien-he/`, còn màn hình quản trị tập trung là
+  `/admin/noi-dung`; `/admin/lien-he` không phải route của app. Public staging
+  không có shortcut admin.
+- RFQ client giữ `request_id`, server/webhook kiểm tra canonical product/variant,
+  MOQ, giá tier và snapshot trước khi chuyển tiếp; trang thành công lưu snapshot
+  session để reload không mất mã. QA persistence dùng mock `202`, không gửi
+  request thật vào người nhận.
 - Hai tab admin cùng sửa một bài QA đã được kiểm tra trên staging: stale
   revision bị từ chối, không ghi đè và dữ liệu gốc đã được khôi phục.
 - Footer public đã được kiểm tra sau deploy: các mục thanh toán/hoàn tiền/bản
   quyền phương tiện vô hiệu không còn hiển thị; liên kết bảo mật vẫn còn.
-- Còn blocker phát hành: nội dung kinh doanh/ảnh thật chưa owner duyệt; staging
-  còn các fixture cũ/bản nháp QA khác được giữ để truy nguyên; đích nhận request
-  chưa chốt; một số lead cũ
-  chuyển Google lỗi `502/504`; chưa chạy controlled request mới. QA news ID 4
-  hiện đã `is_published=0`, slug cũ được khôi phục và không còn redirect QA.
+- Runtime cuối: sitemap có 223 URL, loại admin/draft/QA/redirect/test1 và sáu
+  route policy owner-confirmation; staging có `X-Robots-Tag:
+  noindex, nofollow, noarchive`; missing route trả `404`, title riêng, không
+  canonical. UX audit 5 route có 0 console error, 0 HTTP 4xx/5xx, axe 0
+  critical/serious, không overflow; warning duy nhất là iframe Google Maps.
+- Còn blocker phát hành: nội dung kinh doanh/ảnh thật và chính sách pháp lý chưa
+  owner duyệt; staging còn fixture cũ/bản nháp QA được giữ để truy nguyên; đích
+  nhận request chưa chốt, lead cũ có lỗi Google `502/504`; chưa gửi controlled
+  request thật. QA news ID 4 hiện `is_published=0`, slug cũ được khôi phục và
+  không còn redirect QA.
 
 ## Storefront/admin follow-up — 2026-09-14
 

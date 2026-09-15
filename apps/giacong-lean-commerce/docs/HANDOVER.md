@@ -5,18 +5,19 @@ Tài liệu dành cho người vận hành (khách + chủ dự án). Quyết đ
 ## Checkpoint bàn giao mới nhất
 
 Production **chưa được thay đổi trong đợt này**; source bàn giao là commit
-`fdefffb9a37532e92f4c0cd9501f47f3cedc6be0` trên nhánh
-`codex/admin-quality-completion` (worktree sạch, đã push GitHub). Không dùng version production
-cũ trong tài liệu này làm bằng chứng nghiệm thu mới. Staging đang chạy
+`b4e86b074c008c381511a341430fb317e0e1a517` trên nhánh
+`codex/admin-quality-completion`. Không dùng version production cũ trong tài
+liệu này làm bằng chứng nghiệm thu mới. Staging đang chạy
 `giacong-vn-staging` version
-  `d11377e7-ea93-4dbb-89ea-d3d0d344b070` trên
-  `staging.kienhieu.id.vn` và `admin-staging.kienhieu.id.vn`.
+`5145694f-a141-4db1-bb9b-bc4158a64275` trên
+`staging.kienhieu.id.vn` và `admin-staging.kienhieu.id.vn`, deploy lúc
+`2026-09-15 22:32:49 +07:00`.
 Read-only Wrangler đối chiếu production Worker `giacong-vn` đang ở version
 `7f98ed7b-0d9f-4d59-880c-ee364e02e610`; migration staging `0023–0026` chưa được
 áp dụng vào D1 production.
 
 Access owner đã đọc lại các shortcut inline sản phẩm/dịch vụ/tin tức/liên hệ
-trên đúng version `d11377e7`; form dịch vụ mở đúng bản ghi ID 8, form contact
+trên đúng version `5145694f`; form dịch vụ mở đúng bản ghi ID 8, form contact
 mở và đọc đúng giá trị website đang dùng. UAT runtime dịch vụ QA
 (publish/đổi slug/redirect/khôi phục) và tin tức redirect QA đã đạt rồi khôi
 phục sạch. Các suite source và OpenNext build pass; shell runner Windows cần
@@ -30,7 +31,8 @@ revision đã đạt trên staging nhưng logout/expiry và audit đầy đủ c
 thái chuyển Google lỗi `502/504`, nên chưa gửi controlled request mới.
 Sản phẩm QA `test 1` (ID 10) đã được ẩn mềm: D1 là `is_active=0`,
 `status=archived`, còn nguyên 1 biến thể/3 giá bậc; admin hiển thị `Tạm ẩn`,
-sitemap staging còn 224 URL và URL `/san-pham/test1` trả `404`.
+sitemap staging còn 223 URL và URL `/san-pham/test1` trả `404` với title riêng,
+noindex, không canonical.
 
 ## 1. Bản đồ hệ thống
 
@@ -38,7 +40,7 @@ sitemap staging còn 224 URL và URL `/san-pham/test1` trả `404`.
 | --- | --- | --- |
 | Storefront production | https://kienhieu.id.vn | Chưa deploy bản checkpoint 2026-09-15; chỉ phát hành sau duyệt |
 | Admin production | https://admin.kienhieu.id.vn/admin | Sau Cloudflare Access — fail-closed |
-| Storefront staging | https://staging.kienhieu.id.vn | Worker `giacong-vn-staging`; version `d11377e7-ea93-4dbb-89ea-d3d0d344b070` |
+| Storefront staging | https://staging.kienhieu.id.vn | Worker `giacong-vn-staging`; version `5145694f-a141-4db1-bb9b-bc4158a64275` |
 | Admin staging | https://admin-staging.kienhieu.id.vn/admin | Cloudflare Access thật; storefront staging mới public; không có identity thì fail-closed |
 | D1 production | `giacong-vn-catalog` | Catalog, leads, media metadata, CMS |
 | R2 production | `giacong-vn-product-media` | Ảnh product/variant/service qua `/media/*` |
@@ -144,13 +146,17 @@ npx wrangler queues info giacong-vn-leads-dlq      # hàng đợi lead thất b�
 - Cần thêm trường mới trên form/Sheet (thay đổi contract — phải cập nhật cả Worker lẫn Apps Script + test).
 - Thêm admin viên trên staging: cấu hình email/identity trong chính sách Cloudflare Access, sau đó owner `qtu1053@gmail.com` dùng `/admin/thanh-vien` để tạo bản ghi `admin_members` và cấp đúng một trong năm role. Không ghi trực tiếp production khi chưa có backup/acceptance.
 
-Trạng thái bàn giao hiện tại: production storefront đang chạy 100% trên
-`kienhieu.id.vn` với version `7f98ed7b-0d9f-4d59-880c-ee364e02e610`; staging
-đang chạy `d11377e7-ea93-4dbb-89ea-d3d0d344b070`. Local gate, smoke route,
-responsive CUA, menu dịch vụ, ảnh local và error tail sau release đều đã pass.
-Cron mồ côi đã được gỡ; queue production còn đúng một producer và một consumer,
-DLQ tồn tại đúng theo cấu hình nhưng không có dấu hiệu phát sinh từ lượt kiểm tra
-này. Không dùng dữ liệu demo staging làm dữ liệu production.
+Trạng thái bàn giao hiện tại: production storefront vẫn chạy 100% trên
+`kienhieu.id.vn` với version `7f98ed7b-0d9f-4d59-880c-ee364e02e610`; chưa được
+promotion bản mới. Staging đang chạy
+`5145694f-a141-4db1-bb9b-bc4158a64275`. Local gate, HTTP smoke, deep QA,
+responsive CUA/Playwright, UX audit, menu dịch vụ và các luồng RFQ mock đã pass
+trên source/deployment cuối. UX evidence nằm tại
+`.runtime/ux-audit-final-20260915-r3`; một warning duy nhất là iframe Google
+Maps cross-origin. Cron mồ côi đã được gỡ; queue production còn đúng một
+producer và một consumer, DLQ tồn tại đúng theo cấu hình nhưng không có dấu
+hiệu phát sinh từ lượt kiểm tra này. Không dùng dữ liệu demo staging làm dữ liệu
+production.
 
 Các gate còn lại của bàn giao là theo dõi observability đủ 24 giờ, chủ dự án
 duyệt nội dung kinh doanh/catalog và quyết định redirect `giacong.vn` nếu có

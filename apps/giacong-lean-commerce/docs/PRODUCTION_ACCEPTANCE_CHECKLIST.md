@@ -8,11 +8,11 @@ Mục này là trạng thái hiện hành; mọi mục `Checkpoint` cũ bên dư
 chứng lịch sử, không thay thế kiểm tra trên bản staging cuối.
 
 - [x] Source được đối chiếu tại commit
-  `fdefffb9a37532e92f4c0cd9501f47f3cedc6be0` trên nhánh
-  `codex/admin-quality-completion`; worktree đã sạch và nhánh đã push GitHub.
-  Staging build/deploy dùng đúng nội dung của commit này.
+  `b4e86b074c008c381511a341430fb317e0e1a517` trên nhánh
+  `codex/admin-quality-completion`; staging build/deploy dùng đúng nội dung
+  của commit này.
 - [x] Staging Worker version
-  `d11377e7-ea93-4dbb-89ea-d3d0d344b070` đang phục vụ đúng hai host staging;
+  `5145694f-a141-4db1-bb9b-bc4158a64275` đang phục vụ đúng hai host staging;
   migration `0023_managed_service_taxonomy.sql` đến
   `0026_service_slug_redirects.sql` đã apply trên D1 staging, không còn
   pending; snapshot mới nhất là `.runtime/staging-before-0025.sql` và
@@ -25,26 +25,29 @@ chứng lịch sử, không thay thế kiểm tra trên bản staging cuối.
   nhưng `/sitemap.xml` hiện `404`; admin page/API vẫn `302` qua Access. Chỉ
   kiểm tra lại sau khi được duyệt promotion, không sửa production trong lượt này.
 - [x] Shortcut owner-only và form inline đã được Access owner đọc lại trên
-  đúng version `d11377e7`; sản phẩm/dịch vụ/tin tức/contact mở đúng control và
+  đúng version `5145694f`; sản phẩm/dịch vụ/tin tức/contact mở đúng control và
   form, sidebar có `Yêu cầu báo giá`. Public staging không lộ các control này.
 - [x] Fixture sản phẩm QA `test 1` (ID 10) đã được ẩn mềm sau khi xác nhận đúng
   bản ghi; D1 cuối là `is_active=0`, `status=archived`, còn 1 biến thể/3 giá
-  bậc; admin reload hiển thị `Tạm ẩn`, sitemap 224 URL không chứa slug này và
+  bậc; admin reload hiển thị `Tạm ẩn`, sitemap 223 URL không chứa slug này và
   `/san-pham/test1` trả HTTP `404`.
-- [x] `npm run check` đã chạy lại trong lượt source mới: admin `372/372`,
-  contact `106/106`, catalog `6/6`, purchase UI `1/1`,
-  service `28/28`, commerce `96/96`, listing `5/5`, detail `32/32`, lint,
-  typecheck và OpenNext build pass; build tạo `28/28` static pages. Focused
-  contact/service sau gia cố hydration và request idempotency là `106/106` và
-  `28/28`.
+- [x] `npm run check` đã chạy trên source cuối: admin `372/372`, contact
+  `110/110`, catalog `6/6`, purchase UI `1/1`, service `28/28`, commerce
+  `98/98`, listing `6/6`, detail `32/32`; lint, typecheck và OpenNext build
+  compile pass, tạo `28/28` route. `npm audit --audit-level=high` báo
+  `0 vulnerabilities`.
 - [x] Public staging đã kiểm tra service-context payload, noindex/canonical,
-  sitemap/robots/404 và responsive 390/768/1440px trong phạm vi route chính.
+  sitemap/robots/404 và responsive 390/768/1440px trong phạm vi route chính;
+  UX audit đúng version `5145694f` trên 5 route ghi nhận 0 console error, 0
+  HTTP 4xx/5xx, axe không có critical/serious, không overflow. Có một warning
+  third-party từ iframe Google Maps.
 - [x] Hai tab cùng sửa một bài QA: stale revision bị từ chối, không ghi đè; dữ
   liệu kiểm thử đã được khôi phục và đọc lại.
 - [x] Footer staging sau deploy không còn các mục thanh toán/hoàn tiền/bản
   quyền phương tiện vô hiệu; liên kết chính sách bảo mật vẫn hoạt động.
-- [ ] Chưa gửi controlled request mới: đích nhận chưa được owner xác nhận và
-  một số lead staging cũ có lỗi chuyển Google `502/504`.
+- [ ] Chưa gửi controlled request thật: đích nhận chưa được owner xác nhận và
+  một số lead staging cũ có lỗi chuyển Google `502/504`; luồng persistence chỉ
+  dùng mock `202`, không tạo lead thật.
 - [x] UAT runtime dịch vụ QA ID 16 đã lưu nháp/đọc lại, publish tạm, đổi slug,
   xác nhận redirect `307`, rồi khôi phục và kiểm tra public `404`/D1 baseline.
 - [ ] Chưa UAT đầy đủ các luồng ghi/publish còn lại, logout/expiry, audit và
@@ -52,8 +55,8 @@ chứng lịch sử, không thay thế kiểm tra trên bản staging cuối.
   chưa chốt. Luồng tin tức redirect QA đã được publish/đọc redirect/hoàn nguyên;
   QA news ID 4 hiện không xuất bản và không còn redirect QA.
 - [ ] Chưa được phép promotion production. Còn chờ owner duyệt dataset,
-  nội dung/ảnh/thương hiệu, nơi nhận request, backup/restore plan và cửa sổ
-  phát hành.
+  nội dung/ảnh/thương hiệu, chính sách pháp lý, nơi nhận request, backup/restore
+  plan, full UAT dữ liệu thật và cửa sổ phát hành.
 
 ## Follow-up storefront/admin — 2026-09-14
 
