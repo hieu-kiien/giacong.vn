@@ -24,15 +24,16 @@ gỡ; các page block tiếp tục thuộc page builder. File map bên dưới g
 số mốc lịch sử, nhưng các file đã gỡ không còn là source hiện tại.
 
 **Current release checkpoint — 2026-09-15:** Source commit hiện hành là
-`b4e86b074c008c381511a341430fb317e0e1a517` trên nhánh
+`6059cca7cb4fa1ffa7a426d63adf76fdefcb16d3` trên nhánh
 `codex/admin-quality-completion`. Staging đang chạy version
-`5145694f-a141-4db1-bb9b-bc4158a64275` ở 100%. Browser owner đã đọc lại
+`4c85039f-183c-4ba5-aed6-3e1fd82dea93` ở 100%. Browser owner đã đọc lại
 shortcut sản phẩm/dịch vụ/tin tức/contact trên bản này; contact mở đúng form
 và public staging không lộ control. Local gate đạt admin `372/372`, contact
-`110/110`, service `28/28`, commerce `98/98`, listing `6/6`, detail `32/32`,
+`110/110`, service `28/28`, commerce `100/100`, listing `6/6`, detail `32/32`,
 catalog `6/6`, purchase UI `1/1`; lint/typecheck/build compile pass và tạo
 `28/28` route. Deep QA và UX audit đúng staging cũng pass trong phạm vi ghi
-nhận; production chưa deploy/migrate.
+nhận; captured proof widget/badge không có căn cứ cũng đã được loại khỏi public;
+production chưa deploy/migrate.
 
 **Checkpoint 2026-09-03:** checkout hiện ở commit `222ec6c4` (đã giảm burst
 prefetch protected admin sidebar; QA selector menu

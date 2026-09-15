@@ -8,15 +8,16 @@ Kiểm tra được thực hiện trên đúng bản staging đang chạy, khôn
 
 ### Phiên bản và môi trường
 
-- Source commit: `b4e86b074c008c381511a341430fb317e0e1a517` trên nhánh
+- Source commit: `6059cca7cb4fa1ffa7a426d63adf76fdefcb16d3` trên nhánh
   `codex/admin-quality-completion`; bản staging được build/deploy từ đúng
   nội dung của commit này.
 - Staging Worker `giacong-vn-staging`, version
-  `5145694f-a141-4db1-bb9b-bc4158a64275`, phục vụ
+  `4c85039f-183c-4ba5-aed6-3e1fd82dea93`, phục vụ
   `staging.kienhieu.id.vn` và `admin-staging.kienhieu.id.vn`.
-- Deployment được Cloudflare ghi nhận lúc `2026-09-15 22:32:49 +07:00`; HTTP
+- Deployment được Cloudflare ghi nhận lúc `2026-09-15 23:07:57 +07:00`; HTTP
   smoke, deep QA và UX audit dưới đây đều chạy sau deployment này; không có
-  thay đổi source sau lần deploy.
+  thay đổi source sau lần deploy. Bản này cũng đã loại widget đánh giá và
+  liên kết/badge DMCA không có căn cứ khỏi captured markup dùng trên public.
 - Migration `0023_managed_service_taxonomy.sql` đến
   `0026_service_slug_redirects.sql` đã áp dụng trên D1 staging; không còn
   migration pending. Snapshot trước các thay đổi mới nhất:
@@ -37,12 +38,12 @@ Kiểm tra được thực hiện trên đúng bản staging đang chạy, khôn
 
 ### Bằng chứng đã kiểm tra
 
-- Trong lượt Access owner trên đúng version `5145694f`, danh sách sản phẩm có
-  `Thêm sản phẩm` và `Sửa sản phẩm` trên 10 thẻ; chi tiết sản phẩm có `Sửa sản
+- Trong lượt Access owner trên đúng version `4c85039f`, danh sách sản phẩm có
+  `Thêm sản phẩm` và `Sửa sản phẩm` trên 9 thẻ đang hoạt động; chi tiết sản phẩm có `Sửa sản
   phẩm` và `Thêm vào giỏ yêu cầu`. Hub dịch vụ có `Thêm dịch vụ` và 13 nút
   `Sửa dịch vụ`; chi tiết `gia-cong-my-pham` mở đúng form mã 8, đúng slug và
   trạng thái `Đã đăng`. Danh sách tin tức có `Thêm bài viết`; admin tin tức
-  đọc được hai bản nháp QA và nút sửa từng bản ghi. Contact có nút sửa ngay
+  đọc được hai bản nháp QA, không đưa chúng ra public. Contact có nút sửa ngay
   trên trang; sau khi sửa vùng tránh header, bấm thật đã mở form, đọc đúng
   hotline/Zalo/Messenger/địa chỉ và đóng lại không ghi dữ liệu.
 - Form inline dùng lại API/form hiện có, có validation, trạng thái lưu, hủy,
@@ -67,6 +68,10 @@ Kiểm tra được thực hiện trên đúng bản staging đang chạy, khôn
   `/san-pham/test1/`; URL `/san-pham/test1` trả HTTP `404` và trang thông báo
   không tìm thấy có title riêng, noindex, không canonical và không lộ shortcut
   quản trị.
+- Biến thể QA `SMOKE-VARIANT-20260816` (ID 28) đã được xóa khỏi D1 staging sau
+  khi xác nhận đúng bản ghi, không có media/lead tham chiếu; 2 tier bị cascade,
+  3 audit lịch sử còn giữ. Sản phẩm ID 1 còn nguyên 3 biến thể thật và public
+  detail chỉ còn `Bao 5 kg`, `Bao 10 kg`, `Bao 25 kg`.
 - Kiểm thử hai tab trên cùng bài QA: tab 1 lưu trước, tab 2 bị chặn bởi stale
   revision với thông báo rõ, không ghi đè; tiêu đề gốc đã được lưu lại và đọc
   lại sau kiểm thử.
@@ -89,7 +94,8 @@ Kiểm tra được thực hiện trên đúng bản staging đang chạy, khôn
   phương tiện vô hiệu; liên kết chính sách bảo mật còn được giữ.
 - Public staging có 13 nhóm và 192 route nội dung dịch vụ; deep QA đã kiểm tra
   các route chính ở mobile 390px, tablet 768px và desktop 1440px không overflow.
-  UX audit đúng version `5145694f` trên 5 route ghi nhận 0 console error, 0
+  UX audit evidence `.runtime/ux-audit-final-20260915-r5` đúng version `4c85039f`
+  trên 5 route ghi nhận 0 console error, 0
   HTTP 4xx/5xx, axe không có critical/serious; warning duy nhất là iframe
   Google Maps cross-origin. Canonical runtime, `robots.txt`, 404 và
   `sitemap.xml` (223 URL) đã được kiểm tra; staging có
@@ -99,10 +105,10 @@ Kiểm tra được thực hiện trên đúng bản staging đang chạy, khôn
 ### Gate tự động trên bản cuối
 
 Các suite trên source cuối đạt: admin `372/372`, contact `110/110`, catalog
-`6/6`, purchase UI `1/1`, service `28/28`, commerce `98/98`, listing `6/6`,
+`6/6`, purchase UI `1/1`, service `28/28`, commerce `100/100`, listing `6/6`,
 detail `32/32`; lint, typecheck và OpenNext build compile pass, tạo đủ
 `28/28` route. `npm audit --audit-level=high` báo `0 vulnerabilities`.
-Deployment staging `5145694f` hoàn tất build/deploy; một số wrapper Windows
+Deployment staging `4c85039f` hoàn tất build/deploy; một số wrapper Windows
 được dừng sau khi output cuối đã pass, không dùng trạng thái wrapper để thay thế
 browser/runtime evidence.
 
@@ -110,7 +116,7 @@ browser/runtime evidence.
 
 | Phạm vi | Trạng thái | Vấn đề còn lại |
 |---|---|---|
-| Shortcut và quản trị inline | Đạt trên staging | Browser owner đã xác nhận trên `5145694f`; còn cần UAT ghi/publish dữ liệu kinh doanh thật trước production |
+| Shortcut và quản trị inline | Đạt trên staging | Browser owner đã xác nhận trên `4c85039f`; còn cần UAT ghi/publish dữ liệu kinh doanh thật trước production |
 | Nguồn dữ liệu dịch vụ, catalog, tin tức, liên hệ | Đạt kỹ thuật trên staging | Dataset, thương hiệu, nội dung và ảnh thật chưa được owner chốt |
 | Yêu cầu báo giá | Đạt kỹ thuật / chờ thông tin | Client/server snapshot, MOQ/tier validation, idempotency và success reload đã pass mock; chưa xác nhận đích thử, lead cũ còn lỗi Google 502/504 |
 | Quyền, xung đột hai tab, hết phiên, audit đầy đủ | Xung đột hai tab đạt; phần còn lại chưa đủ | Logout/expiry và audit đầy đủ vẫn cần owner thực hiện trong buổi UAT |

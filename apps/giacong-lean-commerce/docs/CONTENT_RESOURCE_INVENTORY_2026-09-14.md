@@ -13,8 +13,8 @@
 
 Phần trên là snapshot inventory ngày 14-09; các dòng chi tiết giữ nguyên để
 truy nguyên nguồn, không phải kết quả của một crawl mới. Trên source commit
-`b4e86b074c008c381511a341430fb317e0e1a517`, staging Worker
-`5145694f-a141-4db1-bb9b-bc4158a64275` (deploy `2026-09-15 22:32:49 +07:00`),
+`6059cca7cb4fa1ffa7a426d63adf76fdefcb16d3`, staging Worker
+`4c85039f-183c-4ba5-aed6-3e1fd82dea93` (deploy `2026-09-15 23:07:57 +07:00`),
 đã xác minh thêm:
 
 - D1 có 16 record dịch vụ (13 record canonical đang hoạt động/công khai, 2
@@ -23,6 +23,9 @@ truy nguyên nguồn, không phải kết quả của một crawl mới. Trên s
   dòng. D1 catalog staging có 15 sản phẩm, trong đó 9 đang hoạt động và 6
   inactive; fixture `test 1` (ID 10) đã được ẩn mềm với `is_active=0`,
   `status=archived`, còn 1 biến thể và 3 giá bậc.
+  Biến thể QA `SMOKE-VARIANT-20260816` (ID 28) của sản phẩm ID 1 đã được xóa
+  sau khi kiểm tra không có media/lead tham chiếu; 2 tier bị cascade và 3 dòng
+  audit lịch sử vẫn được giữ. Ba biến thể thật của sản phẩm còn nguyên.
   192 captured URL vẫn được lập chỉ mục theo 13 nhóm, không nhập máy móc
   thành 192 sản phẩm bán.
 - Runtime public đã có canonical; `sitemap.xml` trả 223 URL và loại admin,
@@ -54,16 +57,19 @@ truy nguyên nguồn, không phải kết quả của một crawl mới. Trên s
   nằm trong sitemap. Không tạo Product schema/giá/review/chứng nhận giả; các
   proof section không có căn cứ trong nội dung gốc đã không được render ở
   homepage public.
-- UX audit đúng staging (evidence `.runtime/ux-audit-final-20260915-r3`)
+- UX audit đúng staging (evidence `.runtime/ux-audit-final-20260915-r5`)
   kiểm tra 5 route ở mobile/desktop: 0 console error, 0 HTTP 4xx/5xx, axe
   không có critical/serious và không overflow. Warning duy nhất đến từ iframe
-  Google Maps cross-origin; không phải lỗi app.
+  Google Maps cross-origin; không phải lỗi app. Sau checkpoint này, public
+  cũng không còn widget đánh giá hoặc liên kết/badge DMCA không có căn cứ.
 
 ## Quy ước
 
 - `URL` là route tương đối; probe route dùng `staging.kienhieu.id.vn`. Production phải đối chiếu riêng vì Worker/D1 hiện lệch staging.
 - `Đường dẫn tìm đến` là đường vào dự kiến trên UI; “cần duyệt” nghĩa là chưa đủ bằng chứng discoverability trực quan.
-- `Cách xử lý` là đề xuất; không có thao tác xóa/chuyển hướng nào được thực hiện trong đợt này.
+- `Cách xử lý` là đề xuất cho từng dòng; riêng biến thể smoke QA nêu trên đã
+  được xóa có kiểm soát khỏi D1 staging sau khi kiểm tra tham chiếu. Các fixture
+  còn lại chưa bị xóa để giữ khả năng truy nguyên.
 
 ## Dữ liệu quản trị
 
@@ -94,7 +100,7 @@ truy nguyên nguồn, không phải kết quả của một crawl mới. Trên s
 | Staging | /san-pham/mon-thu-cua-toi-qa-sua-0904/ · id 14 · QA-MON-THU-SUA-0904 | Món thử của tôi - QA sửa 0904 | Sản phẩm | inactive | Mua hàng > danh sách > thẻ > chi tiết | Dữ liệu test/QA còn trong D1 staging | Dọn fixture trước UAT; chỉ giữ record đã được duyệt |
 | Production | /admin/san-pham | Bột và nguyên liệu khô; Trà và thảo mộc sấy; Sốt và gia vị lỏng; Bao bì và đóng gói | Danh mục | 4/4 active | Mua hàng > bộ lọc danh mục | Dữ liệu seed, chưa có ảnh danh mục | Xác nhận phân loại từng sản phẩm và ảnh thật |
 | Production | /admin/san-pham | 17 biến thể; 16 available; 51 giá bậc | Biến thể/giá | Có dữ liệu | Sản phẩm > Sửa > biến thể | Chưa có bằng chứng UAT thật về MOQ/bước/tier và đổi giá trong giỏ | Test server re-check với dữ liệu được duyệt |
-| Staging | /admin/san-pham | 21 biến thể; 19 available; 58 giá bậc | Biến thể/giá | Có dữ liệu QA | Sản phẩm > Sửa > biến thể | Có biến thể smoke/QA; không dùng để bàn giao | Dọn fixture sau UAT có backup |
+| Staging | /admin/san-pham | 21 biến thể; 20 available; 57 giá bậc | Biến thể/giá | Có dữ liệu QA | Sản phẩm > Sửa > biến thể | Các variant thuộc sản phẩm inactive vẫn được giữ để truy nguyên; variant smoke đã xóa | Không dùng fixture cho bàn giao; chỉ dọn tiếp khi có backup và xác định rõ mục đích |
 | Production | /admin/dich-vu | test · /services/test | Dịch vụ quản trị | Active | Admin > Dịch vụ > bảng | Record test đang active; không phải danh mục dịch vụ đã duyệt | Xác nhận nội dung thật, rồi thay/disable có backup |
 | Staging | /admin/dich-vu | Agent test service updated · agent-service-20260816; QA-STAGING Dich vu anh · qa-staging-dich-vu-anh | Dịch vụ quản trị | 2 inactive | Admin > Dịch vụ > bảng | Fixture QA còn lưu | Dọn fixture sau nghiệm thu |
 | Production | /tin-tuc/adminkienhieuidvn/ | admin.kienhieu.id.vn | Bài viết | Published | Tin tức > thẻ > chi tiết | Bài test đang công khai, nội dung lặp domain admin | Gỡ xuất bản/xóa theo quy trình đã backup và ghi audit |

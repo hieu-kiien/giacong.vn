@@ -5,16 +5,18 @@
 Checkpoint này là trạng thái mới nhất; các checkpoint production/staging cũ
 ở phía dưới chỉ giữ làm lịch sử và không được dùng làm bằng chứng phát hành.
 
-- Source commit hiện hành `b4e86b074c008c381511a341430fb317e0e1a517` trên nhánh
+- Source commit hiện hành `6059cca7cb4fa1ffa7a426d63adf76fdefcb16d3` trên nhánh
   `codex/admin-quality-completion`; đây là đúng nội dung đã build/deploy staging.
   Worker `giacong-vn-staging` version
-  `5145694f-a141-4db1-bb9b-bc4158a64275` đang phục vụ
+  `4c85039f-183c-4ba5-aed6-3e1fd82dea93` đang phục vụ
   `staging.kienhieu.id.vn/*` và `admin-staging.kienhieu.id.vn/*`.
-- Deployment được Cloudflare ghi nhận lúc `2026-09-15 22:32:49 +07:00`; HTTP
+- Deployment được Cloudflare ghi nhận lúc `2026-09-15 23:07:57 +07:00`; HTTP
   smoke, deep QA và UX audit đều chạy lại sau deployment; production không bị
   chạm tới. Version này gồm điều kiện “giá từ” kèm MOQ/đơn vị, snapshot RFQ và
   trang tiếp nhận sau gửi, dữ liệu giao hàng có cấu trúc trong admin, sáu route
-  chính sách B2B dạng owner-confirmation và metadata 404 noindex.
+  chính sách B2B dạng owner-confirmation và metadata 404 noindex. Boundary
+  captured markup cũng đã loại bỏ widget đánh giá và liên kết/badge DMCA không
+  có căn cứ trong nội dung nguồn.
 - Staging D1 là `giacong-vn-catalog-staging` (ID cấu hình trong
   `wrangler.jsonc`). Migration `0023_managed_service_taxonomy.sql` đến
   `0026_service_slug_redirects.sql` đã áp dụng, không còn migration pending;
@@ -25,6 +27,10 @@ Checkpoint này là trạng thái mới nhất; các checkpoint production/stagi
 - Catalog staging có 15 sản phẩm: 9 active và 6 inactive; sản phẩm QA `test 1`
   (ID 10) đã được ẩn mềm với `is_active=0`, `status=archived`, vẫn giữ 1
   biến thể và 3 giá bậc để có thể khôi phục nếu cần.
+- Biến thể QA `SMOKE-VARIANT-20260816` (ID 28) của sản phẩm ID 1 đã được xóa
+  khỏi **D1 staging** sau khi đối chiếu đúng SKU/tên/trạng thái và xác nhận không
+  có media, lead item hay payload lead tham chiếu; 2 tier QA bị cascade, 3 dòng
+  audit lịch sử được giữ. Ba biến thể thật của sản phẩm vẫn còn nguyên.
 - Snapshot D1 trước migration mới nhất: `.runtime/staging-before-0025.sql`
   (231,589 bytes; SHA-256
   `7B8EC0090EE81EC728A1CB8633D3B42ECEEDC04A196E8631DF899E56D42E2059`) và
@@ -39,10 +45,10 @@ Checkpoint này là trạng thái mới nhất; các checkpoint production/stagi
   page/API trả `302` qua Access; chưa dùng các kết quả này để nghiệm thu staging
   và chưa thay đổi production.
 - Gate source cuối: admin `372/372`, contact `110/110`, catalog `6/6`, purchase
-  UI `1/1`, service `28/28`, commerce `98/98`, listing `6/6`, detail `32/32`;
+  UI `1/1`, service `28/28`, commerce `100/100`, listing `6/6`, detail `32/32`;
   lint, typecheck và OpenNext build compile pass, tạo `28/28` route. `npm audit
   --audit-level=high` báo `0 vulnerabilities`.
-- Access owner đã đọc lại trên đúng version `5145694f`: sản phẩm, dịch vụ, tin
+- Access owner đã đọc lại trên đúng version `4c85039f`: sản phẩm, dịch vụ, tin
   tức và contact có shortcut/form đúng bản ghi; contact shortcut nằm trên
   storefront host admin `/lien-he/`, còn màn hình quản trị tập trung là
   `/admin/noi-dung`; `/admin/lien-he` không phải route của app. Public staging
@@ -53,13 +59,15 @@ Checkpoint này là trạng thái mới nhất; các checkpoint production/stagi
   request thật vào người nhận.
 - Hai tab admin cùng sửa một bài QA đã được kiểm tra trên staging: stale
   revision bị từ chối, không ghi đè và dữ liệu gốc đã được khôi phục.
-- Footer public đã được kiểm tra sau deploy: các mục thanh toán/hoàn tiền/bản
-  quyền phương tiện vô hiệu không còn hiển thị; liên kết bảo mật vẫn còn.
+- Footer public đã được kiểm tra sau deploy: widget đánh giá/badge DMCA không còn;
+  các mục thanh toán/hoàn tiền/bản quyền phương tiện vô hiệu không còn hiển thị;
+  liên kết bảo mật vẫn còn.
 - Runtime cuối: sitemap có 223 URL, loại admin/draft/QA/redirect/test1 và sáu
   route policy owner-confirmation; staging có `X-Robots-Tag:
   noindex, nofollow, noarchive`; missing route trả `404`, title riêng, không
-  canonical. UX audit 5 route có 0 console error, 0 HTTP 4xx/5xx, axe 0
-  critical/serious, không overflow; warning duy nhất là iframe Google Maps.
+  canonical. UX audit evidence `.runtime/ux-audit-final-20260915-r5` trên 5
+  route có 0 console error, 0 HTTP 4xx/5xx, axe 0 critical/serious, không
+  overflow; warning duy nhất là iframe Google Maps.
 - Còn blocker phát hành: nội dung kinh doanh/ảnh thật và chính sách pháp lý chưa
   owner duyệt; staging còn fixture cũ/bản nháp QA được giữ để truy nguyên; đích
   nhận request chưa chốt, lead cũ có lỗi Google `502/504`; chưa gửi controlled

@@ -2,9 +2,9 @@
 
 **Điểm vào của đợt nghiệm thu hiện tại là
 [RELEASE_READINESS_AUDIT.md](./RELEASE_READINESS_AUDIT.md)**. Source B2B catalogue +
-RFQ đã được sửa và commit tại `b4e86b074c008c381511a341430fb317e0e1a517`, deploy
-trên staging Worker `5145694f-a141-4db1-bb9b-bc4158a64275` để kiểm tra đúng bản
-cuối. Production chưa được deploy, migrate, đổi DNS hoặc đổi quyền.
+RFQ đã được sửa và commit tại `6059cca7cb4fa1ffa7a426d63adf76fdefcb16d3`, deploy trên staging Worker
+`4c85039f-183c-4ba5-aed6-3e1fd82dea93` để kiểm tra đúng bản cuối. Production chưa
+được deploy, migrate, đổi DNS hoặc đổi quyền.
 
 Các tài liệu dưới đây phân biệt rõ bằng chứng staging hiện tại với checkpoint lịch
 sử. Không dùng test xanh, URL `200` hoặc dữ liệu QA staging để kết luận đã bàn giao

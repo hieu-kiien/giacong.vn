@@ -8,11 +8,11 @@ Mục này là trạng thái hiện hành; mọi mục `Checkpoint` cũ bên dư
 chứng lịch sử, không thay thế kiểm tra trên bản staging cuối.
 
 - [x] Source được đối chiếu tại commit
-  `b4e86b074c008c381511a341430fb317e0e1a517` trên nhánh
+  `6059cca7cb4fa1ffa7a426d63adf76fdefcb16d3` trên nhánh
   `codex/admin-quality-completion`; staging build/deploy dùng đúng nội dung
   của commit này.
 - [x] Staging Worker version
-  `5145694f-a141-4db1-bb9b-bc4158a64275` đang phục vụ đúng hai host staging;
+  `4c85039f-183c-4ba5-aed6-3e1fd82dea93` đang phục vụ đúng hai host staging;
   migration `0023_managed_service_taxonomy.sql` đến
   `0026_service_slug_redirects.sql` đã apply trên D1 staging, không còn
   pending; snapshot mới nhất là `.runtime/staging-before-0025.sql` và
@@ -25,20 +25,24 @@ chứng lịch sử, không thay thế kiểm tra trên bản staging cuối.
   nhưng `/sitemap.xml` hiện `404`; admin page/API vẫn `302` qua Access. Chỉ
   kiểm tra lại sau khi được duyệt promotion, không sửa production trong lượt này.
 - [x] Shortcut owner-only và form inline đã được Access owner đọc lại trên
-  đúng version `5145694f`; sản phẩm/dịch vụ/tin tức/contact mở đúng control và
+  đúng version `4c85039f`; sản phẩm/dịch vụ/tin tức/contact mở đúng control và
   form, sidebar có `Yêu cầu báo giá`. Public staging không lộ các control này.
 - [x] Fixture sản phẩm QA `test 1` (ID 10) đã được ẩn mềm sau khi xác nhận đúng
   bản ghi; D1 cuối là `is_active=0`, `status=archived`, còn 1 biến thể/3 giá
   bậc; admin reload hiển thị `Tạm ẩn`, sitemap 223 URL không chứa slug này và
   `/san-pham/test1` trả HTTP `404`.
+- [x] Biến thể QA `SMOKE-VARIANT-20260816` (ID 28) đã được xóa khỏi D1 staging
+  sau khi xác nhận không có media/lead tham chiếu; 2 tier bị cascade và audit
+  lịch sử được giữ. Ba biến thể thật của sản phẩm ID 1 còn nguyên.
 - [x] `npm run check` đã chạy trên source cuối: admin `372/372`, contact
   `110/110`, catalog `6/6`, purchase UI `1/1`, service `28/28`, commerce
-  `98/98`, listing `6/6`, detail `32/32`; lint, typecheck và OpenNext build
+  `100/100`, listing `6/6`, detail `32/32`; lint, typecheck và OpenNext build
   compile pass, tạo `28/28` route. `npm audit --audit-level=high` báo
   `0 vulnerabilities`.
 - [x] Public staging đã kiểm tra service-context payload, noindex/canonical,
   sitemap/robots/404 và responsive 390/768/1440px trong phạm vi route chính;
-  UX audit đúng version `5145694f` trên 5 route ghi nhận 0 console error, 0
+  UX audit evidence `.runtime/ux-audit-final-20260915-r5` đúng version `4c85039f`
+  trên 5 route ghi nhận 0 console error, 0
   HTTP 4xx/5xx, axe không có critical/serious, không overflow. Có một warning
   third-party từ iframe Google Maps.
 - [x] Hai tab cùng sửa một bài QA: stale revision bị từ chối, không ghi đè; dữ
