@@ -1,9 +1,8 @@
 import Link from "next/link";
 
 import { ProductGallery } from "@/components/catalog/ProductGallery";
-import { ProductPurchasePanel } from "@/components/catalog/ProductPurchasePanel";
+import { ProductDetailCommerce } from "@/components/catalog/ProductDetailCommerce";
 import { RelatedProductCard } from "@/components/catalog/RelatedProductCard";
-import { AdminCatalogContextualAction } from "@/components/admin/AdminCatalogContextualAction";
 import styles from "@/components/catalog/product-detail.module.css";
 import type { CatalogDetailSourceResult } from "@/lib/catalog-detail-source";
 import { buildProductDetailView } from "@/lib/product-detail-view";
@@ -53,50 +52,13 @@ export function ProductDetailPage({ editingCartVariantSku, initialVariantSku, so
 
         <div className={styles.hero}>
           <ProductGallery images={view.gallery} />
-
-          <div className={styles.commercial}>
-            {view.categoryLabel ? <p className={styles.category}>{view.categoryLabel}</p> : null}
-            <h1 className={styles.title}>{view.name}</h1>
-            <AdminCatalogContextualAction productId={source.product.id} />
-            <p className={styles.identity}>
-              <span>SKU: {view.sku}</span>
-              <span>{view.variantChoices.length} quy cách</span>
-            </p>
-            {view.shortDescription ? <p className={styles.lede}>{view.shortDescription}</p> : null}
-
-            <ProductPurchasePanel
-              editingCartVariantSku={editingCartVariantSku}
-              initialVariantSku={initialVariantSku}
-              variantQueryWarning={variantQueryWarning}
-              view={view}
-            />
-          </div>
-
-          <aside aria-label="Thông tin đặt hàng" className={styles.factsPanel}>
-            <h2 className={styles.factsTitle}>Thông tin đặt hàng</h2>
-            <dl className={styles.facts}>
-              {view.facts.map((fact) => (
-                <div key={fact.label}>
-                  <dt>{fact.label}</dt>
-                  <dd>{fact.value}</dd>
-                </div>
-              ))}
-            </dl>
-            <ul className={styles.assurances}>
-              <li>
-                <strong>Thông tin minh bạch</strong>
-                <span>Quy cách và điều kiện mua được hiển thị rõ ràng.</span>
-              </li>
-              <li>
-                <strong>Hỗ trợ đặt hàng</strong>
-                <span>Gửi yêu cầu để được tư vấn theo nhu cầu thực tế.</span>
-              </li>
-              <li>
-                <strong>Bảo mật thông tin</strong>
-                <span>Thông tin chỉ dùng để xử lý yêu cầu của bạn.</span>
-              </li>
-            </ul>
-          </aside>
+          <ProductDetailCommerce
+            editingCartVariantSku={editingCartVariantSku}
+            initialVariantSku={initialVariantSku}
+            productId={source.product.id}
+            variantQueryWarning={variantQueryWarning}
+            view={view}
+          />
         </div>
 
         {view.description ? (

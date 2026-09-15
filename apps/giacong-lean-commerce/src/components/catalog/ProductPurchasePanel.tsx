@@ -20,6 +20,7 @@ import {
 interface ProductPurchasePanelProps {
   editingCartVariantSku: string | null;
   initialVariantSku: string | null;
+  onVariantChange?: (sku: string) => void;
   variantQueryWarning: boolean;
   view: ProductDetailView;
 }
@@ -43,7 +44,7 @@ const INVALID_MESSAGE = "Không thêm được lựa chọn này. Vui lòng th�
  * server already sent. They are never submitted: the request route re-reads the
  * Cloudflare catalog and computes the canonical unit price and subtotal itself.
  */
-export function ProductPurchasePanel({ editingCartVariantSku, initialVariantSku, variantQueryWarning, view }: ProductPurchasePanelProps) {
+export function ProductPurchasePanel({ editingCartVariantSku, initialVariantSku, onVariantChange, variantQueryWarning, view }: ProductPurchasePanelProps) {
   const router = useRouter();
   const quantityFieldId = useId();
   const [selectedSku, setSelectedSku] = useState(initialVariantSku ?? view.defaultVariantSku);
@@ -61,6 +62,7 @@ export function ProductPurchasePanel({ editingCartVariantSku, initialVariantSku,
     const next = view.variants.find((variant) => variant.sku === sku);
     if (!next) return;
     setSelectedSku(sku);
+    onVariantChange?.(sku);
     setQuantity(next.minimumOrderQuantity);
     setAddState({ kind: "idle" });
   }

@@ -29,6 +29,7 @@ const SOCIAL_PROOF_PATTERN = /\b(star|stars|heart|hearts|ratingCount|reviewCount
 
 const DETAIL_SOURCES = [
   ["src", "components", "catalog", "ProductDetailPage.tsx"],
+  ["src", "components", "catalog", "ProductDetailCommerce.tsx"],
   ["src", "components", "catalog", "ProductGallery.tsx"],
   ["src", "components", "catalog", "ProductPurchasePanel.tsx"],
   ["src", "components", "catalog", "TierPriceTable.tsx"],
@@ -110,6 +111,16 @@ test("the view model carries the category, title, SKU and unit for the info colu
   assert.equal(view.unitLabel, "bao", "the unit comes from the variant, not from prose");
 });
 
+test("the ordering facts follow the selected variant", () => {
+  const view = buildView(multiVariantProduct());
+  const selected = view.variants.find((variant: { sku: string }) => variant.sku === "B2B-DEMO-BGL-10");
+  assert.ok(selected, "the fixture must expose the 10 kg variant");
+
+  const facts = detailView.buildProductDetailFacts(view, selected);
+  assert.equal(facts.find((fact: { label: string }) => fact.label === "Đặt tối thiểu")?.value, "10 bao");
+  assert.equal(facts.find((fact: { label: string }) => fact.label === "Bước số lượng")?.value, "5 bao");
+});
+
 test("the view model keeps the catalog starting price and MOQ condition for non-interactive contexts", () => {
   const view = buildView(multiVariantProduct());
 
@@ -121,10 +132,13 @@ test("the view model keeps the catalog starting price and MOQ condition for non-
 test("the purchase panel presents the unit price for the selected quantity, not the catalog starting price", async () => {
   const panel = await readSource("src", "components", "catalog", "ProductPurchasePanel.tsx");
   const shell = await readSource("src", "components", "catalog", "ProductDetailPage.tsx");
+  const commerce = await readSource("src", "components", "catalog", "ProductDetailCommerce.tsx");
 
   assert.match(panel, /Đơn giá hiện tại/, "the current-price label must sit beside the active selection");
   assert.match(panel, /pricing\.unitPriceLabel/, "the displayed price must follow the selected variant and quantity tier");
   assert.doesNotMatch(shell, /view\.priceLabel/, "the static lowest price must not appear above an active selection");
+  assert.match(panel, /onVariantChange/, "the active variant must be shared with the ordering facts");
+  assert.match(commerce, /buildProductDetailFacts\(view, selectedVariant\)/, "ordering facts must follow the active variant");
 });
 
 test("availability is derived from the variants, never hard-coded", () => {
@@ -274,10 +288,11 @@ test("the detail actions are add-to-request-cart plus the consultation request",
 
 test("the detail surface keeps production messaging and request actions unambiguous", async () => {
   const shell = await readSource("src", "components", "catalog", "ProductDetailPage.tsx");
+  const commerce = await readSource("src", "components", "catalog", "ProductDetailCommerce.tsx");
   const panel = await readSource("src", "components", "catalog", "ProductPurchasePanel.tsx");
   const view = await readSource("src", "lib", "product-detail-view.ts");
 
-  assert.match(shell, /Thông tin đặt hàng/, "the right rail describes ordering information");
+  assert.match(commerce, /Thông tin đặt hàng/, "the right rail describes ordering information");
   assert.match(view, /Danh mục/, "the right rail keeps category context");
   assert.doesNotMatch(shell, /Dữ liệu demo tạm thời|demoNotice/, "customer UI must not expose a demo banner");
   assert.match(panel, /view\.requestLabel/, "the direct request CTA is a quotation request");

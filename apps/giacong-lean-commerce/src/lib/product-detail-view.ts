@@ -94,6 +94,7 @@ export interface ProductDetailView {
   unitLabel: string;
   variantAxisLabel: string;
   variantChoices: readonly ProductDetailVariantChoice[];
+  variantCount: number;
   variants: readonly ProductDetailVariantView[];
 }
 
@@ -119,7 +120,11 @@ export function buildProductDetailView({ product, related = [] }: ProductDetailI
     categoryLabel: product.category?.name ?? null,
     defaultVariantSku: defaultVariant.sku,
     description: product.description,
-    facts: buildFacts(product, defaultVariant),
+    facts: buildProductDetailFacts({
+      categoryLabel: product.category?.name ?? null,
+      sku: product.sku,
+      variantCount: product.variantCount,
+    }, buildVariantView(defaultVariant, optionGroup)),
     gallery: buildDemoGallery({
       categorySlug: product.category?.slug ?? null,
       imageUrl: product.imageUrl,
@@ -145,6 +150,7 @@ export function buildProductDetailView({ product, related = [] }: ProductDetailI
       label: variant.label,
       sku: variant.sku,
     })),
+    variantCount: product.variantCount,
     variants,
   };
 }
@@ -169,17 +175,23 @@ function buildBreadcrumb(product: CatalogProductDetail): ProductDetailCrumb[] {
  * already validated. This is what occupies the block the approved screenshot
  * spends on social proof, which V1 excludes.
  */
-function buildFacts(
-  product: CatalogProductDetail,
-  variant: CatalogProductDetail["variants"][number],
+export interface ProductDetailFactsSource {
+  categoryLabel: string | null;
+  sku: string;
+  variantCount: number;
+}
+
+export function buildProductDetailFacts(
+  source: ProductDetailFactsSource,
+  variant: Pick<ProductDetailVariantView, "minimumOrderQuantity" | "quantityStep" | "unit">,
 ): ProductDetailFact[] {
   return [
-    { label: "Mã sản phẩm", value: product.sku },
-    { label: "Quy cách", value: `${product.variantCount} lựa chọn` },
+    { label: "Mã sản phẩm", value: source.sku },
+    { label: "Quy cách", value: `${source.variantCount} lựa chọn` },
     { label: "Đặt tối thiểu", value: `${variant.minimumOrderQuantity} ${variant.unit}` },
     { label: "Bước số lượng", value: `${variant.quantityStep} ${variant.unit}` },
     { label: "Đơn vị tính", value: variant.unit },
-    { label: "Danh mục", value: product.category?.name ?? "Đang cập nhật" },
+    { label: "Danh mục", value: source.categoryLabel ?? "Đang cập nhật" },
   ];
 }
 
