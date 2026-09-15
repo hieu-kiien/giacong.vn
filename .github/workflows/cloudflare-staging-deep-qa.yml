@@ -29,6 +29,8 @@ jobs:
     env:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_ACCESS_CLIENT_ID: ${{ secrets.CLOUDFLARE_ACCESS_CLIENT_ID }}
+      CLOUDFLARE_ACCESS_CLIENT_SECRET: ${{ secrets.CLOUDFLARE_ACCESS_CLIENT_SECRET }}
       STAGING_ORIGIN: https://staging.kienhieu.id.vn
       STAGING_DATABASE: giacong-vn-catalog-staging
 
@@ -63,7 +65,18 @@ jobs:
         run: |
           set -euo pipefail
 
-          curl --fail-with-body --silent --show-error --location --max-time 25 \
+          staging_curl() {
+            local -a access_headers=()
+            if [[ -n "${CLOUDFLARE_ACCESS_CLIENT_ID:-}" && -n "${CLOUDFLARE_ACCESS_CLIENT_SECRET:-}" ]]; then
+              access_headers=(
+                -H "CF-Access-Client-Id: ${CLOUDFLARE_ACCESS_CLIENT_ID}"
+                -H "CF-Access-Client-Secret: ${CLOUDFLARE_ACCESS_CLIENT_SECRET}"
+              )
+            fi
+            command curl "${access_headers[@]}" "$@"
+          }
+
+          staging_curl --fail-with-body --silent --show-error --location --max-time 25 \
             --get --data-urlencode 'q=gạo lứt' \
             "$STAGING_ORIGIN/san-pham" > /tmp/catalog-search.html
           grep -q 'Bột gạo lứt xay mịn' /tmp/catalog-search.html
@@ -79,7 +92,7 @@ jobs:
           test -n "$category_slug"
           echo "Category slug: $category_slug"
 
-          curl --fail-with-body --silent --show-error --location --max-time 25 \
+          staging_curl --fail-with-body --silent --show-error --location --max-time 25 \
             --get --data-urlencode "category=$category_slug" \
             "$STAGING_ORIGIN/san-pham" > /tmp/catalog-category.html
           grep -q 'Bột gạo lứt xay mịn' /tmp/catalog-category.html
@@ -88,7 +101,7 @@ jobs:
             exit 1
           fi
 
-          curl --fail-with-body --silent --show-error --location --max-time 25 \
+          staging_curl --fail-with-body --silent --show-error --location --max-time 25 \
             --get --data-urlencode 'sort=starting_price' --data-urlencode 'direction=desc' --data-urlencode 'per_page=48' \
             "$STAGING_ORIGIN/san-pham" > /tmp/catalog-sort.html
           python - <<'PY'
@@ -114,7 +127,19 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          curl --fail-with-body --silent --show-error --max-time 25 \
+
+          staging_curl() {
+            local -a access_headers=()
+            if [[ -n "${CLOUDFLARE_ACCESS_CLIENT_ID:-}" && -n "${CLOUDFLARE_ACCESS_CLIENT_SECRET:-}" ]]; then
+              access_headers=(
+                -H "CF-Access-Client-Id: ${CLOUDFLARE_ACCESS_CLIENT_ID}"
+                -H "CF-Access-Client-Secret: ${CLOUDFLARE_ACCESS_CLIENT_SECRET}"
+              )
+            fi
+            command curl "${access_headers[@]}" "$@"
+          }
+
+          staging_curl --fail-with-body --silent --show-error --max-time 25 \
             "$STAGING_ORIGIN/api/catalog/products/nuoc-mam-cot-pha-loang" > /tmp/fish-sauce.json
           jq -e '
             .product.slug == "nuoc-mam-cot-pha-loang"
@@ -124,14 +149,14 @@ jobs:
             and ([.product.variants[] | select(.sku == "B2B-DEMO-NMC-30" and .isAvailable == false)] | length == 1)
           ' /tmp/fish-sauce.json
 
-          curl --fail-with-body --silent --show-error --max-time 25 \
+          staging_curl --fail-with-body --silent --show-error --max-time 25 \
             "$STAGING_ORIGIN/api/catalog/products/sot-me-chua-ngot" > /tmp/tamarind.json
           jq -e '
             .product.slug == "sot-me-chua-ngot"
             and ([.product.variants[] | select(.sku == "B2B-DEMO-SME-02" and .contactFromQuantity == 264)] | length == 1)
           ' /tmp/tamarind.json
 
-          status=$(curl --silent --show-error --max-time 25 --output /tmp/not-found.json --write-out '%{http_code}' \
+          status=$(staging_curl --silent --show-error --max-time 25 --output /tmp/not-found.json --write-out '%{http_code}' \
             "$STAGING_ORIGIN/api/catalog/products/khong-ton-tai")
           echo "Missing product API -> HTTP $status"
           test "$status" = "404"
@@ -141,10 +166,21 @@ jobs:
         run: |
           set -euo pipefail
 
+          staging_curl() {
+            local -a access_headers=()
+            if [[ -n "${CLOUDFLARE_ACCESS_CLIENT_ID:-}" && -n "${CLOUDFLARE_ACCESS_CLIENT_SECRET:-}" ]]; then
+              access_headers=(
+                -H "CF-Access-Client-Id: ${CLOUDFLARE_ACCESS_CLIENT_ID}"
+                -H "CF-Access-Client-Secret: ${CLOUDFLARE_ACCESS_CLIENT_SECRET}"
+              )
+            fi
+            command curl "${access_headers[@]}" "$@"
+          }
+
           post_cart() {
             local name="$1"
             local payload="$2"
-            curl --fail-with-body --silent --show-error --max-time 25 \
+            staging_curl --fail-with-body --silent --show-error --max-time 25 \
               -H 'Content-Type: application/json' \
               --data "$payload" \
               "$STAGING_ORIGIN/api/gui-yeu-cau/xac-thuc" > "/tmp/$name.json"
@@ -184,7 +220,19 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          status=$(curl --silent --show-error --max-time 25 --output /tmp/contact-drift.json --write-out '%{http_code}' \
+
+          staging_curl() {
+            local -a access_headers=()
+            if [[ -n "${CLOUDFLARE_ACCESS_CLIENT_ID:-}" && -n "${CLOUDFLARE_ACCESS_CLIENT_SECRET:-}" ]]; then
+              access_headers=(
+                -H "CF-Access-Client-Id: ${CLOUDFLARE_ACCESS_CLIENT_ID}"
+                -H "CF-Access-Client-Secret: ${CLOUDFLARE_ACCESS_CLIENT_SECRET}"
+              )
+            fi
+            command curl "${access_headers[@]}" "$@"
+          }
+
+          status=$(staging_curl --silent --show-error --max-time 25 --output /tmp/contact-drift.json --write-out '%{http_code}' \
             -H 'Content-Type: application/json' \
             --data '{"email":"qa@example.com","lines":[{"parentSlug":"bot-gao-lut-xay-min","variantSku":"B2B-DEMO-BGL-05","quantity":25}],"message":"staging QA only","name":"Staging QA","phone":"0868408115","requestId":"00000000-0000-4000-8000-000000000001","snapshotToken":"0000000000000000000000000000000000000000000000000000000000000000","source":"staging-deep-qa"}' \
             "$STAGING_ORIGIN/api/contact")
@@ -192,7 +240,7 @@ jobs:
           test "$status" = "409"
           jq -e '.ok == false and .code == "CART_DRIFTED" and .cart.isSubmittable == true and .cart.lines[0].unitPrice == 78000' /tmp/contact-drift.json
 
-          malformed_status=$(curl --silent --show-error --max-time 25 --output /tmp/contact-malformed.json --write-out '%{http_code}' \
+          malformed_status=$(staging_curl --silent --show-error --max-time 25 --output /tmp/contact-malformed.json --write-out '%{http_code}' \
             -H 'Content-Type: application/json' --data '{bad json' "$STAGING_ORIGIN/api/contact")
           echo "Contact malformed JSON -> HTTP $malformed_status"
           test "$malformed_status" = "400"
@@ -201,7 +249,19 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          curl --fail-with-body --silent --show-error --location --max-time 25 \
+
+          staging_curl() {
+            local -a access_headers=()
+            if [[ -n "${CLOUDFLARE_ACCESS_CLIENT_ID:-}" && -n "${CLOUDFLARE_ACCESS_CLIENT_SECRET:-}" ]]; then
+              access_headers=(
+                -H "CF-Access-Client-Id: ${CLOUDFLARE_ACCESS_CLIENT_ID}"
+                -H "CF-Access-Client-Secret: ${CLOUDFLARE_ACCESS_CLIENT_SECRET}"
+              )
+            fi
+            command curl "${access_headers[@]}" "$@"
+          }
+
+          staging_curl --fail-with-body --silent --show-error --location --max-time 25 \
             --dump-header /tmp/media.headers \
             --output /tmp/media.bin \
             "$STAGING_ORIGIN/media/products/c5be4fe1-3daa-40ad-b9df-54717ec5c863.jpg"
@@ -233,9 +293,24 @@ jobs:
           ];
 
           const browser = await chromium.launch({ headless: true });
+          const stagingOrigin = new URL(origin).origin;
+          const accessHeaders = process.env.CLOUDFLARE_ACCESS_CLIENT_ID && process.env.CLOUDFLARE_ACCESS_CLIENT_SECRET
+            ? {
+                'CF-Access-Client-Id': process.env.CLOUDFLARE_ACCESS_CLIENT_ID,
+                'CF-Access-Client-Secret': process.env.CLOUDFLARE_ACCESS_CLIENT_SECRET,
+              }
+            : {};
           try {
             for (const viewport of viewports) {
               const context = await browser.newContext({ viewport });
+              await context.route('**/*', async (route) => {
+                const requestUrl = new URL(route.request().url());
+                if (requestUrl.origin !== stagingOrigin || Object.keys(accessHeaders).length === 0) {
+                  await route.continue();
+                  return;
+                }
+                await route.continue({ headers: { ...route.request().headers(), ...accessHeaders } });
+              });
               for (const route of routes) {
                 const page = await context.newPage();
                 const errors = [];
