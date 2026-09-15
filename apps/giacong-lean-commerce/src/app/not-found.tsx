@@ -1,4 +1,13 @@
+import type { Metadata } from "next";
 import Link from "next/link";
+
+import { noIndexMetadata } from "@/lib/seo";
+
+export const metadata: Metadata = {
+  ...noIndexMetadata(),
+  description: "Đường dẫn này không còn tồn tại hoặc nội dung chưa được phát hành.",
+  title: "Không tìm thấy trang | Giacong.vn",
+};
 
 export default function NotFound() {
   return (

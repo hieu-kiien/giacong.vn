@@ -5,6 +5,7 @@ const {
   REQUEST_CART_DRIFT_MESSAGE,
   REQUEST_CART_INDETERMINATE_MESSAGE,
   REQUEST_CART_REVALIDATE_ENDPOINT,
+  REQUEST_CART_ACCEPTED_STORAGE_KEY,
   REQUEST_CART_SOURCE,
   REQUEST_CART_SUBMIT_ENDPOINT,
   buildRevalidateBody,
@@ -13,8 +14,10 @@ const {
   driftNotice,
   hydrationNotice,
   isResolvedRequestCart,
+  parseAcceptedRequest,
   parseRevalidateResponse,
   parseSubmitResponse,
+  serializeAcceptedRequest,
 } = await import("../src/lib/request-cart-client" + ".ts");
 
 const line = { parentSlug: "b2b-demo-bot-dinh-duong", quantity: 15, variantSku: "B2B-DEMO-VANILLA" };
@@ -182,7 +185,17 @@ test("a repaired or reset local cart explains itself to the customer", () => {
 });
 
 const UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
-const contact = { email: " Ha@Example.com ", message: " 500 thung mỗi tháng ", name: " Trần Thị B ", phone: " 0868 408 115 " };
+const contact = {
+  address: " 12 phố Mẫu ",
+  companyName: " Công ty B ",
+  deliveryLocation: " Hà Nội ",
+  email: " Ha@Example.com ",
+  message: " 500 thung mỗi tháng ",
+  name: " Trần Thị B ",
+  neededBy: " Cuối tháng ",
+  phone: " 0868 408 115 ",
+  vatInvoice: "yes",
+};
 
 test("the submit endpoint and source identify the cart route", () => {
   assert.equal(REQUEST_CART_SUBMIT_ENDPOINT, "/api/contact");
@@ -206,7 +219,7 @@ test("a request id still works without crypto.randomUUID", () => {
   assert.match(generated, UUID_V4, "a non-secure context must still produce a valid v4 UUID");
 });
 
-test("the submit body carries exactly the eight contract keys", () => {
+test("the submit body carries the RFQ contact contract and no client money", () => {
   const body = buildSubmitBody({
     contact,
     lines: [line],
@@ -216,9 +229,12 @@ test("the submit body carries exactly the eight contract keys", () => {
 
   assert.deepEqual(
     Object.keys(body).sort(),
-    ["email", "lines", "message", "name", "phone", "requestId", "snapshotToken", "source"],
-    "the JSON branch of /api/contact rejects any other key set",
+    ["address", "companyName", "deliveryLocation", "email", "lines", "message", "name", "neededBy", "phone", "requestId", "snapshotToken", "source", "vatInvoice"],
+    "the JSON branch of /api/contact accepts the structured RFQ fields",
   );
+  assert.equal(body.companyName, "Công ty B");
+  assert.equal(body.deliveryLocation, "Hà Nội");
+  assert.equal(body.vatInvoice, "yes");
   assert.equal(body.name, "Trần Thị B", "contact fields are trimmed");
   assert.equal(body.email, "Ha@Example.com");
   assert.equal(body.phone, "0868 408 115", "the server normalises phone punctuation itself");
@@ -228,10 +244,41 @@ test("the submit body carries exactly the eight contract keys", () => {
 });
 
 test("an accepted submit returns the reference to show as Mã", () => {
-  const parsed = parseSubmitResponse(202, { message: "Yêu cầu của bạn đã được tiếp nhận.", ok: true, reference: "YC-2607-0042" });
+  const parsed = parseSubmitResponse(202, { message: "Yêu cầu của bạn đã được tiếp nhận.", ok: true, receivedAt: "2026-09-15T12:30:00.000Z", reference: "YC-2607-0042" });
 
   assert.equal(parsed.status, "accepted");
   assert.equal(parsed.status === "accepted" ? parsed.reference : null, "YC-2607-0042");
+  assert.equal(parsed.status === "accepted" ? parsed.receivedAt : null, "2026-09-15T12:30:00.000Z");
+});
+
+test("an accepted RFQ snapshot can be restored in the same browser session", () => {
+  const snapshot = {
+    cart: resolvedCart(),
+    contact,
+    receivedAt: "2026-09-15T12:30:00.000Z",
+    reference: "LEAD-ABC1234567",
+  };
+  const restored = parseAcceptedRequest(serializeAcceptedRequest(snapshot));
+
+  assert.equal(REQUEST_CART_ACCEPTED_STORAGE_KEY, "giacong.request-cart.accepted.v1");
+  assert.deepEqual(restored, snapshot);
+});
+
+test("an invalid or tampered accepted snapshot is never rendered", () => {
+  const snapshot = {
+    cart: resolvedCart(),
+    contact,
+    receivedAt: "2026-09-15T12:30:00.000Z",
+    reference: "LEAD-ABC1234567",
+  };
+  for (const value of [
+    "not-json",
+    JSON.stringify({ ...snapshot, contact: { ...contact, email: 7 } }),
+    JSON.stringify({ ...snapshot, cart: { ...snapshot.cart, currency: "USD" } }),
+    JSON.stringify({ ...snapshot, reference: "<script>" }),
+  ]) {
+    assert.equal(parseAcceptedRequest(value), null, value);
+  }
 });
 
 test("an accepted submit without a usable reference is not treated as success", () => {

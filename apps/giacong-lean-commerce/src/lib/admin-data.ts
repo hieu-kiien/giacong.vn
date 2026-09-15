@@ -176,6 +176,11 @@ export interface AdminLead {
   phone: string | null;
   country: string | null;
   message: string | null;
+  address?: string | null;
+  deliveryLocation?: string | null;
+  neededBy?: string | null;
+  vatInvoice?: "yes" | "no" | null;
+  items?: AdminLeadItem[];
   source: string;
   deliveryStatus: "pending" | "queued" | "delivered" | "failed";
   assignedTo: string | null;
@@ -188,6 +193,21 @@ export interface AdminLead {
   deliveryError?: string | null;
   deliveryAttempts?: number;
   deliveredAt?: string | null;
+}
+
+export interface AdminLeadItem {
+  id: string;
+  productSlug: string | null;
+  serviceSlug: string | null;
+  productName: string | null;
+  variantName: string | null;
+  variantSku: string | null;
+  unit: string | null;
+  quantity: number | null;
+  unitPrice: number | null;
+  lineTotal: number | null;
+  currency: string | null;
+  notes: string | null;
 }
 
 export class AdminDataError extends Error {
@@ -963,7 +983,8 @@ export async function listAdminLeads(
   const rows = await database.prepare(`
     SELECT id, status, full_name, company_name, email, phone, country, message,
       source, delivery_status, assigned_to, revision, created_at, updated_at,
-      public_reference, webhook_reference, delivery_error, delivered_at, delivery_attempts
+      public_reference, webhook_reference, delivery_error, delivered_at, delivery_attempts,
+      payload_json
     FROM leads
     ${where}
     ORDER BY created_at DESC
@@ -988,30 +1009,12 @@ export async function listAdminLeads(
     delivery_error: string | null;
     delivered_at: string | null;
     delivery_attempts: number | null;
+    payload_json: string | null;
   }>();
+  const itemMap = await readLeadItems(database, rows.results.map((row) => row.id));
 
   return {
-    leads: rows.results.map((row) => ({
-      assignedTo: row.assigned_to,
-      companyName: row.company_name,
-      country: row.country,
-      createdAt: row.created_at,
-      deliveredAt: row.delivered_at ?? null,
-      deliveryAttempts: toDeliveryAttempts(row.delivery_attempts),
-      deliveryError: row.delivery_error ?? null,
-      deliveryStatus: row.delivery_status,
-      email: row.email,
-      fullName: row.full_name,
-      id: row.id,
-      message: row.message,
-      phone: row.phone,
-      publicReference: toPublicReference(row.id, row.public_reference),
-      revision: row.revision,
-      source: row.source,
-      status: row.status,
-      updatedAt: row.updated_at,
-      webhookReference: row.webhook_reference ?? null,
-    })),
+    leads: rows.results.map((row) => toAdminLead(row, itemMap.get(row.id) ?? [])),
     total: integer(count?.total ?? 0),
   };
 }
@@ -1044,12 +1047,15 @@ export async function readAdminLead(database: D1DatabaseLike, leadId: string): P
   const row = await database.prepare(`
     SELECT id, status, full_name, company_name, email, phone, country, message,
       source, delivery_status, assigned_to, revision, created_at, updated_at,
-      public_reference, webhook_reference, delivery_error, delivered_at, delivery_attempts
+      public_reference, webhook_reference, delivery_error, delivered_at, delivery_attempts,
+      payload_json
     FROM leads
     WHERE id = ?
     LIMIT 1
   `).bind(leadId).first<AdminLeadRow>();
-  return row ? toAdminLead(row) : null;
+  if (!row) return null;
+  const itemMap = await readLeadItems(database, [row.id]);
+  return toAdminLead(row, itemMap.get(row.id) ?? []);
 }
 
 type ProductRow = {
@@ -1089,6 +1095,7 @@ type AdminLeadRow = {
   delivery_error: string | null;
   delivered_at: string | null;
   delivery_attempts: number | null;
+  payload_json: string | null;
 };
 
 type ServiceRow = {
@@ -1298,12 +1305,62 @@ async function replaceVariantTiers(
   }
 }
 
-function toAdminLead(row: AdminLeadRow): AdminLead {
+interface AdminLeadItemRow {
+  id: string;
+  lead_id: string;
+  product_slug: string | null;
+  service_slug: string | null;
+  quantity: number | null;
+  unit: string | null;
+  notes: string | null;
+  variant_sku: string | null;
+  product_name: string | null;
+  variant_name: string | null;
+  unit_price: number | null;
+  line_total: number | null;
+  currency: string | null;
+}
+
+async function readLeadItems(database: D1DatabaseLike, leadIds: string[]): Promise<Map<string, AdminLeadItem[]>> {
+  if (leadIds.length === 0) return new Map();
+  const placeholders = leadIds.map(() => "?").join(", ");
+  const rows = await database.prepare(`
+    SELECT id, lead_id, product_slug, service_slug, quantity, unit, notes,
+      variant_sku, product_name, variant_name, unit_price, line_total, currency
+    FROM lead_items
+    WHERE lead_id IN (${placeholders})
+    ORDER BY id ASC
+  `).bind(...leadIds).all<AdminLeadItemRow>();
+  const grouped = new Map<string, AdminLeadItem[]>();
+  for (const row of rows.results) {
+    const item: AdminLeadItem = {
+      currency: row.currency,
+      id: row.id,
+      lineTotal: validLeadMoney(row.line_total),
+      notes: row.notes,
+      productName: row.product_name,
+      productSlug: row.product_slug,
+      quantity: validLeadQuantity(row.quantity),
+      serviceSlug: row.service_slug,
+      unit: row.unit,
+      unitPrice: validLeadMoney(row.unit_price),
+      variantName: row.variant_name,
+      variantSku: row.variant_sku,
+    };
+    grouped.set(row.lead_id, [...(grouped.get(row.lead_id) ?? []), item]);
+  }
+  return grouped;
+}
+
+function toAdminLead(row: AdminLeadRow, items: AdminLeadItem[] = []): AdminLead {
+  const context = readLeadRequestContext(row.payload_json);
   return {
+    address: context.address,
     assignedTo: row.assigned_to,
     companyName: row.company_name,
     country: row.country,
     createdAt: row.created_at,
+    deliveryLocation: context.deliveryLocation,
     deliveredAt: row.delivered_at ?? null,
     deliveryAttempts: toDeliveryAttempts(row.delivery_attempts),
     deliveryError: row.delivery_error ?? null,
@@ -1312,14 +1369,51 @@ function toAdminLead(row: AdminLeadRow): AdminLead {
     fullName: row.full_name,
     id: row.id,
     message: row.message,
+    neededBy: context.neededBy,
+    items,
     phone: row.phone,
     publicReference: toPublicReference(row.id, row.public_reference),
     revision: row.revision,
     source: row.source,
     status: row.status,
     updatedAt: row.updated_at,
+    vatInvoice: context.vatInvoice,
     webhookReference: row.webhook_reference ?? null,
   };
+}
+
+function readLeadRequestContext(payloadJson: string | null | undefined): {
+  address: string | null;
+  deliveryLocation: string | null;
+  neededBy: string | null;
+  vatInvoice: "yes" | "no" | null;
+} {
+  if (!payloadJson) return { address: null, deliveryLocation: null, neededBy: null, vatInvoice: null };
+  try {
+    const payload = JSON.parse(payloadJson) as Record<string, unknown>;
+    return {
+      address: readLeadText(payload.address, 300),
+      deliveryLocation: readLeadText(payload.delivery_location, 120),
+      neededBy: readLeadText(payload.needed_by, 120),
+      vatInvoice: payload.vat_invoice === "yes" || payload.vat_invoice === "no" ? payload.vat_invoice : null,
+    };
+  } catch {
+    return { address: null, deliveryLocation: null, neededBy: null, vatInvoice: null };
+  }
+}
+
+function readLeadText(value: unknown, maxLength: number): string | null {
+  if (typeof value !== "string") return null;
+  const text = value.trim();
+  return text ? text.slice(0, maxLength) : null;
+}
+
+function validLeadQuantity(value: number | null): number | null {
+  return typeof value === "number" && Number.isSafeInteger(value) && value > 0 ? value : null;
+}
+
+function validLeadMoney(value: number | null): number | null {
+  return typeof value === "number" && Number.isFinite(value) && value >= 0 ? value : null;
 }
 
 function toPublicReference(leadId: string, stored: string | null): string {

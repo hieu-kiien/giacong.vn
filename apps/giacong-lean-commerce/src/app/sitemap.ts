@@ -11,7 +11,18 @@ import type { CatalogFilters } from "@/types/catalog";
 export const dynamic = "force-dynamic";
 
 const paginationRoute = /\/page\/\d+\/$|\/page\/\d+$/;
-const excludedRoutes = new Set(["/", "/san-pham/", "/tin-tuc/", "/gui-yeu-cau/"]);
+const excludedRoutes = new Set([
+  "/",
+  "/san-pham/",
+  "/tin-tuc/",
+  "/gui-yeu-cau/",
+  "/chinh-sach-bao-mat/",
+  "/dieu-khoan-su-dung/",
+  "/chinh-sach-thanh-toan/",
+  "/chinh-sach-van-chuyen/",
+  "/chinh-sach-doi-tra/",
+  "/quy-trinh-mua-hang/",
+]);
 const catalogFilters: CatalogFilters = {
   category: "",
   direction: "asc",

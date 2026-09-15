@@ -84,7 +84,7 @@ export function CatalogProductCard({ card }: CatalogProductCardProps) {
         </p>
 
         <p className="!mb-0 flex flex-wrap items-baseline justify-start gap-0.5 !leading-4" data-catalog-price>
-          {card.startingPrice === null ? (
+          {card.startingPrice === null || !card.startingPriceCondition ? (
             <span className={`${COMMERCE_TYPOGRAPHY.price} !text-[15px] !leading-4`}>Liên hệ</span>
           ) : <>
             <span className="text-[10px] text-commerce-secondary">Từ</span>{" "}
@@ -92,6 +92,11 @@ export function CatalogProductCard({ card }: CatalogProductCardProps) {
             {card.unitLabel ? <>{" "}<span className="text-[10px] text-commerce-secondary">/ {card.unitLabel}</span></> : null}
           </>}
         </p>
+        {card.startingPrice !== null && card.startingPriceCondition ? (
+          <p className="!mb-0 text-[10px] !leading-4 text-commerce-secondary" data-catalog-price-condition>
+            với đơn từ {card.startingPriceCondition}
+          </p>
+        ) : null}
 
         <p
           className={`!mb-0 text-[10px] !leading-4 font-semibold ${card.isAvailable ? "text-commerce-brand-dark" : "text-commerce-secondary"}`}

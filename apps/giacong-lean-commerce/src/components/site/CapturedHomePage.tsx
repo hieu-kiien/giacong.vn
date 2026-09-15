@@ -17,6 +17,15 @@ const HOME_HERO_GALLERY = [
   { alt: "Đóng gói sản phẩm thực phẩm", src: "/images/home-hero/hero-4.png" },
 ] as const;
 
+// These captured sections contain customer counts, testimonials and partner marks with no
+// verified source in the current content store. Keep them out of the public fallback until the
+// owner supplies evidence and intentionally publishes replacement content.
+const UNVERIFIED_HOMEPAGE_PROOF_SECTION_IDS = [
+  "section_300790898",
+  "section_777974837",
+  "section_1385300469",
+] as const;
+
 type CapturedHomePageProps = Pick<
   CapturedPageData,
   "markup" | "pageStyles" | "bodyClasses" | "htmlClasses"
@@ -36,7 +45,10 @@ export async function CapturedHomePage({
 }: CapturedHomePageProps) {
   const settings = siteSettings ?? siteSettingDefaults;
   const navigation = await getPublishedSiteNavigation();
-  const normalizedMarkup = applyHomepageSiteSettingsToMarkup(normalizeCapturedMarkup(markup), settings);
+  const normalizedMarkup = applyHomepageSiteSettingsToMarkup(
+    removeUnverifiedHomepageProof(normalizeCapturedMarkup(markup)),
+    settings,
+  );
   const homeMarkup = replaceCompositeHeroWithGallery(
     applyFooterNavigationToMarkup(
       applyNavigationToMarkup(normalizedMarkup, navigation, "menu-item-4618"),
@@ -59,6 +71,16 @@ export async function CapturedHomePage({
   );
 }
 
+function removeUnverifiedHomepageProof(markup: string): string {
+  return UNVERIFIED_HOMEPAGE_PROOF_SECTION_IDS.reduce(
+    (result, sectionId) => result.replace(
+      new RegExp(`<section\\b(?=[^>]*\\bid=["']${sectionId}["'])[^>]*>[\\s\\S]*?<\\/section>`, "i"),
+      "",
+    ),
+    markup,
+  );
+}
+
 function replaceCompositeHeroWithGallery(markup: string, heroImageUrl: string): string {
   const compositeHeroPattern = /<div\b(?=[^>]*\bid=["']image_[^"']+["'])(?=[^>]*\bclass=["'][^"']*\bimg\b[^"']*["'])[^>]*>[\s\S]*?<img\b(?=[^>]*\balt=["']gia cong thuc pham["'])[^>]*\/?>(?:[\s\S]*?)<\/div>\s*(?:<style\b[\s\S]*?<\/style>\s*)?<\/div>/i;
   return markup.replace(compositeHeroPattern, homeHeroGalleryMarkup(heroImageUrl));
@@ -72,8 +94,9 @@ function homeHeroGalleryMarkup(heroImageUrl: string): string {
         alt="${image.alt}"
         data-gallery-image="${index + 1}"
         decoding="async"
+        fetchpriority="${index === 0 ? "high" : "low"}"
         height="202"
-        loading="eager"
+        loading="${index === 0 ? "eager" : "lazy"}"
         src="${index === 0 && safeHeroImageUrl ? safeHeroImageUrl : image.src}"
         width="341"
       />

@@ -127,7 +127,9 @@ export function buildProductDetailView({ product, related = [] }: ProductDetailI
     }),
     isAvailable,
     name: product.name,
-    priceLabel: product.startingPrice ? formatVnd(product.startingPrice.price) : CONTACT_PRICE_LABEL,
+    priceLabel: product.startingPrice
+      ? `Từ ${formatVnd(product.startingPrice.price)} / ${product.startingPrice.unit} với đơn từ ${product.startingPrice.minQuantity} ${product.startingPrice.unit}`
+      : CONTACT_PRICE_LABEL,
     relatedProducts: related
       .filter((item) => item.slug !== product.slug)
       .map(buildRelatedCard),
@@ -251,7 +253,9 @@ function buildRelatedCard(product: CatalogProductParent): ProductDetailRelatedCa
       productName: product.name,
     })[0].url,
     name: product.name,
-    priceLabel: product.startingPrice ? `Từ ${formatVnd(product.startingPrice.price)}` : CONTACT_PRICE_LABEL,
+    priceLabel: product.startingPrice
+      ? `Từ ${formatVnd(product.startingPrice.price)} / ${product.startingPrice.unit} với đơn từ ${product.startingPrice.minQuantity} ${product.startingPrice.unit}`
+      : CONTACT_PRICE_LABEL,
     slug: product.slug,
     specificationLabel: `${product.variantCount} quy cách`,
   };

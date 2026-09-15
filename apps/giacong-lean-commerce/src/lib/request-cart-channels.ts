@@ -26,7 +26,7 @@ const MAX_MESSAGE_LENGTH = 1_800;
 
 /** Chat-ready summary of an accepted request. Reference first, so truncation can never drop it. */
 export function buildHandoffMessage(reference: string, cart: ResolvedRequestCart): string {
-  const header = `Yêu cầu đặt hàng - Mã ${reference}`;
+  const header = `Yêu cầu báo giá - Mã ${reference}`;
   const lines = cart.lines.map((line, index) => {
     const variant = line.variantLabel ? ` - ${line.variantLabel}` : "";
     const price = line.unitPrice === null ? "Liên hệ báo giá" : `${formatPlainVnd(line.unitPrice)} / ${line.unit}`;
@@ -53,6 +53,6 @@ function formatPlainVnd(value: number): string {
 /** Builds the mailto/tel target, adding the reference to the channels whose URL can carry it. */
 export function channelHref(channel: RequestCartChannel, reference: string, message: string): string {
   if (channel.id !== "email") return channel.href;
-  const subject = encodeURIComponent(`Yêu cầu đặt hàng - Mã ${reference}`);
+  const subject = encodeURIComponent(`Yêu cầu báo giá - Mã ${reference}`);
   return `${channel.href}?subject=${subject}&body=${encodeURIComponent(message)}`;
 }

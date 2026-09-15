@@ -215,6 +215,7 @@ function resolveLine(
     productName: product.name,
     quantity: line.quantity,
     quantityStep: variant.quantityStep,
+    tierMinQuantity: null,
     unit: variant.unit,
     unitPrice: null,
     variantLabel: variant.label,
@@ -252,8 +253,8 @@ function resolveLine(
     };
   }
 
-  const unitPrice = resolveTierPrice(line.quantity, variant.tierPrices);
-  if (unitPrice === null) {
+  const matchedTier = resolveTier(line.quantity, variant.tierPrices);
+  if (matchedTier === null) {
     return {
       ...base,
       adjustments: [{
@@ -263,7 +264,12 @@ function resolveLine(
       priceOnRequest: true,
     };
   }
-  return { ...base, lineTotal: unitPrice * line.quantity, unitPrice };
+  return {
+    ...base,
+    lineTotal: matchedTier.price * line.quantity,
+    tierMinQuantity: matchedTier.minQuantity,
+    unitPrice: matchedTier.price,
+  };
 }
 
 /** Highest tier whose minimum does not exceed the quantity. */
@@ -271,15 +277,20 @@ export function resolveTierPrice(
   quantity: number,
   tierPrices: Array<{ minQuantity: number; price: number }>,
 ): number | null {
-  let price: number | null = null;
-  let matched = -1;
+  return resolveTier(quantity, tierPrices)?.price ?? null;
+}
+
+function resolveTier(
+  quantity: number,
+  tierPrices: Array<{ minQuantity: number; price: number }>,
+): { minQuantity: number; price: number } | null {
+  let matched: { minQuantity: number; price: number } | null = null;
   for (const tier of tierPrices) {
-    if (tier.minQuantity <= quantity && tier.minQuantity > matched) {
-      matched = tier.minQuantity;
-      price = tier.price;
+    if (tier.minQuantity <= quantity && (!matched || tier.minQuantity > matched.minQuantity)) {
+      matched = tier;
     }
   }
-  return price;
+  return matched;
 }
 
 function nextStepQuantity(quantity: number, variant: RequestCartVariantResolution): number {
@@ -305,6 +316,7 @@ function unresolvedLine(line: RequestCartLineKey, adjustment: RequestCartAdjustm
     productName: "",
     quantity: line.quantity,
     quantityStep: null,
+    tierMinQuantity: null,
     unit: "",
     unitPrice: null,
     variantLabel: "",
@@ -330,6 +342,7 @@ function snapshotToken(lines: ResolvedRequestCartLine[]): string {
       line.quantityStep,
       line.contactFromQuantity,
       line.isSubmittable,
+      line.tierMinQuantity ?? null,
     ])
     .sort((left, right) => String(left[1]).localeCompare(String(right[1])));
   return createHash("sha256").update(JSON.stringify(canonical)).digest("hex");

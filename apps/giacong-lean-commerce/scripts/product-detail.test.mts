@@ -110,10 +110,11 @@ test("the view model carries the category, title, SKU and unit for the info colu
   assert.equal(view.unitLabel, "bao", "the unit comes from the variant, not from prose");
 });
 
-test("the view model keeps the catalog starting price for non-interactive contexts", () => {
+test("the view model keeps the catalog starting price and MOQ condition for non-interactive contexts", () => {
   const view = buildView(multiVariantProduct());
 
-  assert.match(view.priceLabel, /71\.000/, "starting price is the lowest available tier price");
+  assert.match(view.priceLabel, /78\.000/, "starting price is the lowest available price at MOQ");
+  assert.match(view.priceLabel, /đơn từ 25 bao/, "starting price includes its quantity condition");
   assert.match(view.priceLabel, /₫|VND/, "price is formatted as VND");
 });
 

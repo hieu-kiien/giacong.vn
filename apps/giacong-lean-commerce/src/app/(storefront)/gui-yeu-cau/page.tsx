@@ -8,7 +8,7 @@ import { canonicalMetadata, noIndexMetadata } from "@/lib/seo";
 export const metadata: Metadata = {
   ...canonicalMetadata("/gui-yeu-cau/"),
   ...noIndexMetadata(),
-  title: "Giỏ hàng | Giacong.vn",
+  title: "Giỏ yêu cầu | Giacong.vn",
   description: "Xem lại sản phẩm đã chọn và gửi yêu cầu để được tư vấn, báo giá.",
 };
 
@@ -24,10 +24,10 @@ export default function RequestCartPage() {
                   <p>
                     <Link href="/">Trang chủ</Link>
                     <span className="separator"> » </span>
-                    <span className="last">Giỏ hàng</span>
+                    <span className="last">Giỏ yêu cầu</span>
                   </p>
                 </nav>
-                <h1 className="page-title is-large uppercase"><span>Giỏ hàng</span></h1>
+                <h1 className="page-title is-large uppercase"><span>Giỏ yêu cầu</span></h1>
               </div>
             </div>
           </header>

@@ -119,6 +119,11 @@ export interface AdminLead {
   phone: string | null;
   country: string | null;
   message: string | null;
+  address?: string | null;
+  deliveryLocation?: string | null;
+  neededBy?: string | null;
+  vatInvoice?: "yes" | "no" | null;
+  items?: AdminLeadItem[];
   source: string;
   deliveryStatus: "pending" | "queued" | "delivered" | "failed";
   assignedTo: string | null;
@@ -129,6 +134,21 @@ export interface AdminLead {
   deliveryError?: string | null;
   deliveryAttempts?: number;
   deliveredAt?: string | null;
+}
+
+export interface AdminLeadItem {
+  id: string;
+  productSlug: string | null;
+  serviceSlug: string | null;
+  productName: string | null;
+  variantName: string | null;
+  variantSku: string | null;
+  unit: string | null;
+  quantity: number | null;
+  unitPrice: number | null;
+  lineTotal: number | null;
+  currency: string | null;
+  notes: string | null;
 }
 
 export class AdminClientError extends Error {

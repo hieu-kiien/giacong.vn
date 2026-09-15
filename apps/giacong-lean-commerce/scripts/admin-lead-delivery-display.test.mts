@@ -20,10 +20,12 @@ type LeadRow = Record<string, unknown>;
 class FakeLeadStatement implements D1PreparedStatementLike {
   private values: unknown[] = [];
   private readonly rows: LeadRow[];
+  private readonly itemRows: LeadRow[];
   private readonly query: string;
 
-  constructor(rows: LeadRow[], query: string) {
+  constructor(rows: LeadRow[], query: string, itemRows: LeadRow[] = []) {
     this.rows = rows;
+    this.itemRows = itemRows;
     this.query = query;
   }
 
@@ -35,6 +37,7 @@ class FakeLeadStatement implements D1PreparedStatementLike {
   async all<T = Record<string, unknown>>(): Promise<{ results: T[] }> {
     void this.values;
     if (this.query.includes("COUNT")) return { results: [] };
+    if (this.query.includes("FROM lead_items")) return { results: this.itemRows as T[] };
     return { results: this.rows as T[] };
   }
 
@@ -50,13 +53,15 @@ class FakeLeadStatement implements D1PreparedStatementLike {
 
 class FakeLeadDatabase implements D1DatabaseLike {
   private readonly rows: LeadRow[];
+  private readonly itemRows: LeadRow[];
 
-  constructor(rows: LeadRow[]) {
+  constructor(rows: LeadRow[], itemRows: LeadRow[] = []) {
     this.rows = rows;
+    this.itemRows = itemRows;
   }
 
   prepare(query: string): D1PreparedStatementLike {
-    return new FakeLeadStatement(this.rows, query);
+    return new FakeLeadStatement(this.rows, query, this.itemRows);
   }
 }
 
@@ -80,6 +85,7 @@ const failedRow: LeadRow = {
   status: "new",
   updated_at: "2026-08-30T02:00:00.000Z",
   webhook_reference: null,
+  payload_json: JSON.stringify({ address: "12 Pho Mau", delivery_location: "Ha Noi", needed_by: "Trong tuan", vat_invoice: "yes" }),
 };
 
 const deliveredRow: LeadRow = {
@@ -102,10 +108,27 @@ const deliveredRow: LeadRow = {
   status: "contacted",
   updated_at: "2026-08-29T01:05:00.000Z",
   webhook_reference: "YC-2026-0007",
+  payload_json: "{}",
+};
+
+const failedItem: LeadRow = {
+  currency: "VND",
+  id: "item-1",
+  lead_id: failedRow.id,
+  line_total: 2_100_000,
+  notes: "Bao bi 25 goi",
+  product_name: "Bot dinh duong",
+  product_slug: "bot-dinh-duong",
+  quantity: 25,
+  service_slug: null,
+  unit: "goi",
+  unit_price: 84_000,
+  variant_name: "Vi vani",
+  variant_sku: "B2B-VANI",
 };
 
 test("danh sach lead giu hop dong cu va tra them 5 truong giao hang", async () => {
-  const database = new FakeLeadDatabase([failedRow, deliveredRow]);
+  const database = new FakeLeadDatabase([failedRow, deliveredRow], [failedItem]);
   const { leads, total } = await listAdminLeads(database, { page: 1, pageSize: 20 });
 
   assert.equal(total, 2);
@@ -120,6 +143,12 @@ test("danh sach lead giu hop dong cu va tra them 5 truong giao hang", async () =
   assert.equal(leads[0]?.deliveryError, "secondary_sink_http_502");
   assert.equal(leads[0]?.deliveryAttempts, 5);
   assert.equal(leads[0]?.deliveredAt, null);
+  assert.equal(leads[0]?.deliveryLocation, "Ha Noi");
+  assert.equal(leads[0]?.address, "12 Pho Mau");
+  assert.equal(leads[0]?.vatInvoice, "yes");
+  assert.equal(leads[0]?.neededBy, "Trong tuan");
+  assert.equal(leads[0]?.items?.[0]?.variantSku, "B2B-VANI");
+  assert.equal(leads[0]?.items?.[0]?.lineTotal, 2_100_000);
 
   assert.equal(leads[1]?.webhookReference, "YC-2026-0007");
   assert.equal(leads[1]?.deliveryAttempts, 1);
@@ -127,7 +156,7 @@ test("danh sach lead giu hop dong cu va tra them 5 truong giao hang", async () =
 });
 
 test("doc mot lead tra them 5 truong giao hang", async () => {
-  const database = new FakeLeadDatabase([failedRow]);
+  const database = new FakeLeadDatabase([failedRow], [failedItem]);
   const lead = await readAdminLead(database, "11111111-1111-4111-8111-111111111111");
 
   assert.ok(lead);
@@ -136,6 +165,8 @@ test("doc mot lead tra them 5 truong giao hang", async () => {
   assert.equal(lead.deliveryError, "secondary_sink_http_502");
   assert.equal(lead.deliveryAttempts, 5);
   assert.equal(lead.deliveredAt, null);
+  assert.equal(lead.deliveryLocation, "Ha Noi");
+  assert.equal(lead.items?.length, 1);
 });
 
 test("type client AdminLead co du 5 truong giao hang optional", async () => {
@@ -154,8 +185,10 @@ test("modal chi tiet hien Ma don va Chi tiet gui dung helper an toan", async () 
   assert.notEqual(modalStart, -1);
   const modal = page.slice(modalStart);
 
-  assert.match(modal, /Mã đơn/);
+  assert.match(modal, /Mã yêu cầu/);
   assert.match(modal, /orderReference\(detailLead\)/);
+  assert.match(modal, /detailLead\.items/);
+  assert.match(modal, /Tỉnh\/thành giao hàng/);
   assert.match(modal, /Chi tiết gửi/);
   assert.match(modal, /deliveryDetailText\(detailLead\)/);
   assert.doesNotMatch(modal, /\{detailLead\.deliveryError\}/);
@@ -165,7 +198,7 @@ test("modal chi tiet hien Ma don va Chi tiet gui dung helper an toan", async () 
 test("bang yeu cau co cot Ma don uu tien ma Google (YC-...) roi moi toi ma don (LEAD-...)", async () => {
   const page = await read("src/app/admin/yeu-cau/page.tsx");
 
-  assert.match(page, /Mã đơn/);
+  assert.match(page, /Mã yêu cầu/);
   assert.match(page, /webhookReference\s*\|\|\s*[\w().]*publicReference/);
 });
 

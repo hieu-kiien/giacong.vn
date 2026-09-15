@@ -62,10 +62,10 @@ function deliveryKind(status: AdminLead["deliveryStatus"]): "green" | "amber" | 
   return "neutral";
 }
 
-// Ma don hien cho khach hang: uu tien ma Google tra ve (YC-...),
-// neu chua co thi hien ma don noi bo (LEAD-...).
+// Mã hiển thị cho operator: ưu tiên mã Google trả về (YC-...),
+// nếu chưa có thì dùng mã lead nội bộ (LEAD-...).
 function orderReference(lead: LeadListItem): string {
-  return lead.webhookReference || lead.publicReference || "Chưa có mã đơn";
+  return lead.webhookReference || lead.publicReference || "Chưa có mã yêu cầu";
 }
 
 // Chi hien chu tieng Viet don gian, khong bao gio in nguyen van
@@ -169,7 +169,7 @@ export default function AdminLeadsPage() {
 
   return (
     <div className="admin-content">
-      <AdminPageHeading kicker="Bán hàng / tiếp nhận" title="Yêu cầu báo giá" subtitle="Hộp thư chung cho các yêu cầu đặt hàng riêng gửi về từ trang web và các kênh liên hệ." stamp="HỘP YÊU CẦU" />
+      <AdminPageHeading kicker="Bán hàng / tiếp nhận" title="Yêu cầu báo giá" subtitle="Hộp thư chung cho các yêu cầu báo giá gửi về từ trang web và các kênh liên hệ." stamp="HỘP YÊU CẦU" />
       {mutationError ? <p className="admin-editor-error" role="alert">{mutationError.code ? `${mutationError.code} · ` : ""}{mutationError.message}</p> : null}
       <div className="admin-toolbar">
         <form className="admin-search-wrap" id="lead-search-form" onSubmit={submitSearch}>
@@ -207,7 +207,7 @@ export default function AdminLeadsPage() {
             <>
               <div className="admin-table-scroll">
                 <table className="admin-table">
-                  <thead><tr><th scope="col">Người liên hệ</th><th scope="col">Liên lạc</th><th scope="col">Nhu cầu</th><th scope="col">Mã đơn</th><th scope="col">Trạng thái</th><th scope="col">Gửi dữ liệu</th><th scope="col">Tiếp nhận</th></tr></thead>
+                  <thead><tr><th scope="col">Người liên hệ</th><th scope="col">Liên lạc</th><th scope="col">Nhu cầu</th><th scope="col">Mã yêu cầu</th><th scope="col">Trạng thái</th><th scope="col">Gửi dữ liệu</th><th scope="col">Tiếp nhận</th></tr></thead>
                   <tbody>
                     {leads.map((lead) => {
                       const deliveryDetail = deliveryDetailText(lead);
@@ -268,12 +268,16 @@ export default function AdminLeadsPage() {
                 ["Người liên hệ", detailLead.fullName],
                 ["Công ty", detailLead.companyName || "—"],
                 ["Quốc gia", detailLead.country || "—"],
+                ["Tỉnh/thành giao hàng", detailLead.deliveryLocation || "—"],
+                ["Địa chỉ nhận hàng", detailLead.address || "—"],
+                ["Hóa đơn VAT", vatInvoiceLabel(detailLead.vatInvoice)],
+                ["Thời gian cần hàng", detailLead.neededBy || "—"],
                 ["Email", detailLead.email || "—"],
                 ["Điện thoại", detailLead.phone || "—"],
                 ["Nguồn", detailLead.source],
                 ["Tiếp nhận", formatAdminDate(detailLead.createdAt)],
                 ["Cập nhật", formatAdminDate(detailLead.updatedAt)],
-                ["Mã đơn", orderReference(detailLead)],
+                ["Mã yêu cầu", orderReference(detailLead)],
                 ["Gửi dữ liệu", deliveryLabels[detailLead.deliveryStatus]],
                 ["Chi tiết gửi", deliveryDetailText(detailLead) ?? "—"],
               ].map(([label, value]) => (
@@ -287,8 +291,42 @@ export default function AdminLeadsPage() {
               <strong style={{ fontSize: 13 }}>Nội dung</strong>
               <p className="admin-message" style={{ margin: "6px 0 0", whiteSpace: "pre-wrap" }}>{detailLead.message || "Không có nội dung"}</p>
             </div>
+            {detailLead.items?.length ? (
+              <section aria-labelledby="admin-lead-items-title" style={{ marginTop: 16 }}>
+                <strong id="admin-lead-items-title" style={{ fontSize: 13 }}>Danh sách dòng RFQ</strong>
+                <ul data-testid="admin-lead-items" style={{ display: "grid", gap: 8, listStyle: "none", margin: "8px 0 0", padding: 0 }}>
+                  {detailLead.items.map((item) => (
+                    <li key={item.id} style={{ border: "1px solid var(--admin-border)", borderRadius: 8, padding: "9px 10px" }}>
+                      <strong>{item.productName || item.serviceSlug || "Nội dung yêu cầu"}</strong>
+                      <div className="admin-item-meta">
+                        {[item.variantName, item.variantSku ? `SKU ${item.variantSku}` : null].filter(Boolean).join(" · ") || "Không có biến thể"}
+                      </div>
+                      <div className="admin-item-meta">
+                        {item.quantity !== null ? `${item.quantity} ${item.unit || "đơn vị"}` : "Chưa có số lượng"}
+                        {item.unitPrice !== null ? ` · ${formatLeadMoney(item.unitPrice)}` : " · Liên hệ báo giá"}
+                        {item.lineTotal !== null ? ` · Tạm tính ${formatLeadMoney(item.lineTotal)}` : ""}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            ) : null}
           </AdminModal>
         ) : null}
       </div>
   );
+}
+
+function vatInvoiceLabel(value: AdminLead["vatInvoice"]): string {
+  if (value === "yes") return "Có";
+  if (value === "no") return "Không";
+  return "Chưa chọn";
+}
+
+function formatLeadMoney(value: number): string {
+  return new Intl.NumberFormat("vi-VN", {
+    currency: "VND",
+    maximumFractionDigits: 0,
+    style: "currency",
+  }).format(value);
 }

@@ -484,7 +484,7 @@ const validCartPayload = {
   message: "Cần báo giá cho 2 vị.",
   name: "Nguyễn Văn A",
   phone: "0900000000",
-  product: "Giỏ hàng (2 dòng)",
+  product: "Giỏ yêu cầu (2 dòng)",
   qty: "",
   request_id: "6b1e0f7a-6c2f-4c1a-9c3e-8f5b2d0a1e44",
   request_type: "Tư vấn số lượng lớn",
@@ -521,7 +521,7 @@ test("keeps the cart Yêu cầu row at the exact 15 columns with a summarized D 
   assert.equal(rows[1].length, 15);
   assert.equal(rows[1][0], response.reference);
   assert.equal(rows[1][2], "Tư vấn số lượng lớn");
-  assert.equal(rows[1][3], "Giỏ hàng (2 dòng)");
+  assert.equal(rows[1][3], "Giỏ yêu cầu (2 dòng)");
   assert.equal(rows[1][4], "");
   assert.equal(rows[1][5], "");
   assert.deepEqual(Array.from(rows[1].slice(6, 11)), [

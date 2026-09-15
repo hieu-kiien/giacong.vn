@@ -48,7 +48,7 @@ function doPost(event) {
       reference,
       now,
       payload.request_type,
-      safeText(isCart ? "Giỏ hàng (" + payload.cart.length + " dòng)" : payload.product),
+      safeText(isCart ? "Giỏ yêu cầu (" + payload.cart.length + " dòng)" : payload.product),
       safeText(payload.variant),
       payload.qty,
       safeText(payload.name),

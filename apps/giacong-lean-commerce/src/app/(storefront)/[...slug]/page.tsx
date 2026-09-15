@@ -15,7 +15,7 @@ import { getPublishedSiteSettings } from "@/lib/site-settings";
 import { getServiceFamilyForRoute } from "@/lib/service-content-index";
 import { getManagedServiceFamily } from "@/lib/cloudflare-services";
 import type { CapturedPageData } from "@/types/captured-page";
-import { canonicalMetadata } from "@/lib/seo";
+import { canonicalMetadata, noIndexMetadata } from "@/lib/seo";
 
 export const dynamic = "force-dynamic";
 
@@ -84,6 +84,17 @@ export async function generateMetadata({ params }: CapturedRouteProps): Promise<
       title: managedPage.seoTitle || managedPage.title || settings.site_title,
       description: managedPage.seoDescription || settings.site_description,
       icons: settings.favicon_url ? { icon: settings.favicon_url } : undefined,
+    };
+  }
+  const manifest = localCapturedPages[routePath]
+    ? null
+    : await readCapturedManifest();
+  if (!localCapturedPages[routePath] && typeof manifest?.[routePath] !== "string") {
+    return {
+      ...noIndexMetadata(),
+      description: "Đường dẫn này không còn tồn tại hoặc nội dung chưa được phát hành.",
+      icons: settings.favicon_url ? { icon: settings.favicon_url } : undefined,
+      title: "Không tìm thấy trang | Giacong.vn",
     };
   }
   const data = await readCapturedPath(routePath);

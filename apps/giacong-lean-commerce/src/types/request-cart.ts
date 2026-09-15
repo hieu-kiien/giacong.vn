@@ -41,6 +41,8 @@ export interface ResolvedRequestCartLine {
   productName: string;
   quantity: number;
   quantityStep: number | null;
+  /** Applied price-tier threshold; null means a contact-only band or no tier. */
+  tierMinQuantity?: number | null;
   unit: string;
   unitPrice: number | null;
   variantLabel: string;

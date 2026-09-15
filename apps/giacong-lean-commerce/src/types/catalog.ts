@@ -11,7 +11,10 @@ export interface CatalogTierPrice {
 
 export interface CatalogStartingPrice {
   currency: "VND";
+  /** Quantity and unit at which this starting price actually applies. */
+  minQuantity: number;
   price: number;
+  unit: string;
 }
 
 export interface CatalogProductParent {

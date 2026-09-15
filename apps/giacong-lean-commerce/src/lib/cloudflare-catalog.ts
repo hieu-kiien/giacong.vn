@@ -54,6 +54,8 @@ interface ProductListRow {
   slug: string;
   minimum_order_quantity: number | null;
   starting_price: number | null;
+  starting_price_min_quantity: number | null;
+  starting_price_unit: string | null;
   variant_count: number;
 }
 
@@ -148,8 +150,9 @@ export async function getCatalogProducts(filters: CatalogFilters): Promise<Catal
         MIN(CASE
           WHEN v.is_available = 1 THEN tp.price
           ELSE NULL
-        END) AS starting_price,
-        MIN(CASE WHEN v.is_available = 1 THEN v.moq ELSE NULL END) AS minimum_order_quantity
+         END) AS starting_price,
+${STARTING_PRICE_CONDITION_COLUMNS},
+         MIN(CASE WHEN v.is_available = 1 THEN v.moq ELSE NULL END) AS minimum_order_quantity
       FROM products p
       LEFT JOIN product_variants v ON v.product_id = p.id
       LEFT JOIN variant_tier_prices tp ON tp.variant_id = v.id AND tp.min_quantity = v.moq
@@ -169,6 +172,8 @@ export async function getCatalogProducts(filters: CatalogFilters): Promise<Catal
       COALESCE(vs.variant_count, 0) AS variant_count,
       COALESCE(vs.available_variant_count, 0) AS available_variant_count,
       vs.starting_price,
+      vs.starting_price_min_quantity,
+      vs.starting_price_unit,
       vs.minimum_order_quantity
     FROM products p
     LEFT JOIN categories c ON c.id = p.category_id
@@ -238,7 +243,33 @@ const PARENT_PRODUCT_COLUMNS = `
     COALESCE(vs.variant_count, 0) AS variant_count,
     COALESCE(vs.available_variant_count, 0) AS available_variant_count,
     vs.starting_price,
+    vs.starting_price_min_quantity,
+    vs.starting_price_unit,
     vs.minimum_order_quantity`;
+
+const STARTING_PRICE_CONDITION_COLUMNS = `
+         (
+           SELECT v_start.moq
+           FROM product_variants v_start
+           INNER JOIN variant_tier_prices tp_start
+             ON tp_start.variant_id = v_start.id
+            AND tp_start.min_quantity = v_start.moq
+           WHERE v_start.product_id = p.id
+             AND v_start.is_available = 1
+           ORDER BY tp_start.price ASC, v_start.id ASC
+           LIMIT 1
+         ) AS starting_price_min_quantity,
+         (
+           SELECT v_start.unit
+           FROM product_variants v_start
+           INNER JOIN variant_tier_prices tp_start
+             ON tp_start.variant_id = v_start.id
+            AND tp_start.min_quantity = v_start.moq
+           WHERE v_start.product_id = p.id
+             AND v_start.is_available = 1
+           ORDER BY tp_start.price ASC, v_start.id ASC
+           LIMIT 1
+         ) AS starting_price_unit`;
 
 function parentProductQuery(): string {
   return `
@@ -250,8 +281,9 @@ function parentProductQuery(): string {
         MIN(CASE
           WHEN v.is_available = 1 THEN tp.price
           ELSE NULL
-        END) AS starting_price,
-        MIN(CASE WHEN v.is_available = 1 THEN v.moq ELSE NULL END) AS minimum_order_quantity
+         END) AS starting_price,
+${STARTING_PRICE_CONDITION_COLUMNS},
+         MIN(CASE WHEN v.is_available = 1 THEN v.moq ELSE NULL END) AS minimum_order_quantity
       FROM products p
       LEFT JOIN product_variants v ON v.product_id = p.id
       LEFT JOIN variant_tier_prices tp ON tp.variant_id = v.id AND tp.min_quantity = v.moq
@@ -291,8 +323,9 @@ export async function getCatalogProductsBySlugs(
         MIN(CASE
           WHEN v.is_available = 1 THEN tp.price
           ELSE NULL
-        END) AS starting_price,
-        MIN(CASE WHEN v.is_available = 1 THEN v.moq ELSE NULL END) AS minimum_order_quantity
+         END) AS starting_price,
+${STARTING_PRICE_CONDITION_COLUMNS},
+         MIN(CASE WHEN v.is_available = 1 THEN v.moq ELSE NULL END) AS minimum_order_quantity
       FROM products p
       LEFT JOIN product_variants v ON v.product_id = p.id
       LEFT JOIN variant_tier_prices tp ON tp.variant_id = v.id AND tp.min_quantity = v.moq
@@ -432,6 +465,21 @@ function toParentProduct(row: ProductListRow): CatalogProductParent {
 
   const shortDescription = typeof row.short_description === "string" ? row.short_description : "";
   const description = typeof row.description === "string" ? row.description : shortDescription;
+  let startingPrice: CatalogProductParent["startingPrice"] = null;
+  if (row.starting_price !== null) {
+    if (row.starting_price_min_quantity === null) {
+      throw new CatalogDataError("starting_price thiếu starting_price_min_quantity.");
+    }
+    if (row.starting_price_unit === null) {
+      throw new CatalogDataError("starting_price thiếu starting_price_unit.");
+    }
+    startingPrice = {
+      currency: "VND",
+      minQuantity: positiveInteger(row.starting_price_min_quantity, "starting_price_min_quantity"),
+      price: positiveInteger(row.starting_price, "starting_price"),
+      unit: nonEmptyString(row.starting_price_unit, "starting_price_unit"),
+    };
+  }
 
   return {
     availableVariantCount,
@@ -444,10 +492,7 @@ function toParentProduct(row: ProductListRow): CatalogProductParent {
     sku: nonEmptyString(row.sku, "product sku"),
     slug: nonEmptyString(row.slug, "product slug"),
     minimumOrderQuantity: row.minimum_order_quantity === null ? null : positiveInteger(row.minimum_order_quantity, "minimum_order_quantity"),
-    startingPrice: row.starting_price === null ? null : {
-      currency: "VND",
-      price: positiveInteger(row.starting_price, "starting_price"),
-    },
+    startingPrice,
     type: "configurable",
     variantCount,
   };

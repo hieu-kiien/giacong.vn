@@ -34,7 +34,7 @@ export function CapturedRequestCartButton() {
   return (
     <div className={`phonering-alo-cart ${styles.container}`}>
       <Link
-        aria-label={`Giỏ hàng, ${lineCount} sản phẩm`}
+        aria-label={`Giỏ yêu cầu, ${lineCount} sản phẩm`}
         className={styles.link}
         href="/gui-yeu-cau/"
       >
@@ -45,7 +45,7 @@ export function CapturedRequestCartButton() {
           </span>
         ) : null}
         <span aria-live="polite" className="screen-reader-text">
-          {lineCount} sản phẩm trong giỏ hàng
+          {lineCount} sản phẩm trong giỏ yêu cầu
         </span>
       </Link>
     </div>

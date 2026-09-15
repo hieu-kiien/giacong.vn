@@ -580,14 +580,19 @@ function requestWithJson(body: unknown, contentType = "application/json"): Reque
 
 async function cartBody(overrides: Record<string, unknown> = {}) {
   return {
+    address: "",
+    companyName: "",
+    deliveryLocation: "Hà Nội",
     email: "customer@example.test",
     lines: twoLineCart,
     message: "Cần báo giá cho 2 vị.",
     name: "Nguyễn Văn A",
+    neededBy: "",
     phone: "0900 000 000",
     requestId: REQUEST_ID,
     snapshotToken: await snapshotFor(),
     source: "/gui-yeu-cau/",
+    vatInvoice: "",
     ...overrides,
   };
 }
@@ -619,29 +624,36 @@ test("forwards a canonical multi-line cart with server-computed prices and total
         line_total: 2_100_000,
         note: "SKU B2B-DEMO-VANILLA",
         product: "Bột dinh dưỡng",
+        product_slug: "b2b-demo-bot-dinh-duong",
         qty: 25,
+        tier_min_quantity: 25,
         unit: "gói",
         unit_price: 84_000,
         variant: "Vị vani",
+        variant_sku: "B2B-DEMO-VANILLA",
       },
       {
         index: 2,
         line_total: 950_000,
         note: "SKU B2B-DEMO-LOWSUGAR",
         product: "Bột dinh dưỡng",
+        product_slug: "b2b-demo-bot-dinh-duong",
         qty: 10,
+        tier_min_quantity: 10,
         unit: "gói",
         unit_price: 95_000,
         variant: "Vị ít ngọt",
+        variant_sku: "B2B-DEMO-LOWSUGAR",
       },
     ],
     cart_price_incomplete: false,
     cart_subtotal: 3_050_000,
+    delivery_location: "Hà Nội",
     email: "customer@example.test",
-    message: "Cần báo giá cho 2 vị.",
+    message: "Địa điểm giao hàng: Hà Nội\nGhi chú: Cần báo giá cho 2 vị.",
     name: "Nguyễn Văn A",
     phone: "0900 000 000",
-    product: "Giỏ hàng (2 dòng)",
+    product: "Giỏ yêu cầu (2 dòng)",
     qty: "",
     request_id: REQUEST_ID,
     request_type: "Đặt sản phẩm",
@@ -650,6 +662,56 @@ test("forwards a canonical multi-line cart with server-computed prices and total
     source: "/gui-yeu-cau/",
     variant: "",
   });
+});
+
+test("requires a delivery province/city and forwards structured RFQ details", async () => {
+  let receivedBody = "";
+  const response = await handleContactSubmission(requestWithJson(await cartBody({
+    address: "12 phố Mẫu",
+    companyName: "Công ty B",
+    deliveryLocation: "Đà Nẵng",
+    neededBy: "Trong tháng này",
+    vatInvoice: "yes",
+  })), {
+    cartResolver,
+    environment: environment(),
+    fetch: async (_url: string | URL | Request, init?: RequestInit) => {
+      receivedBody = String(init?.body);
+      return new Response(JSON.stringify({ ok: true, reference: "YC-META" }), {
+        headers: { "Content-Type": "application/json" },
+      });
+    },
+    timeoutMs: 100,
+  });
+
+  assert.equal(response.status, 202);
+  const payload = JSON.parse(receivedBody) as Record<string, unknown>;
+  assert.equal(payload.company_name, "Công ty B");
+  assert.equal(payload.delivery_location, "Đà Nẵng");
+  assert.equal(payload.address, "12 phố Mẫu");
+  assert.equal(payload.needed_by, "Trong tháng này");
+  assert.equal(payload.vat_invoice, "yes");
+  assert.match(String(payload.message), /Địa điểm giao hàng: Đà Nẵng/);
+});
+
+test("rejects a cart quote without a delivery province/city before catalog or sink work", async () => {
+  let called = false;
+  const response = await handleContactSubmission(requestWithJson(await cartBody({ deliveryLocation: "" })), {
+    cartResolver: async () => {
+      called = true;
+      return cartCatalog;
+    },
+    environment: environment(),
+    fetch: async () => {
+      called = true;
+      return new Response();
+    },
+    timeoutMs: 100,
+  });
+
+  assert.equal(response.status, 400);
+  assert.deepEqual((await response.json()).errors, { deliveryLocation: "Vui lòng nhập tỉnh/thành giao hàng." });
+  assert.equal(called, false);
 });
 
 test("assigns the highest cart tier and blanks price on request lines", async () => {
@@ -673,7 +735,7 @@ test("assigns the highest cart tier and blanks price on request lines", async ()
   assert.equal(response.status, 202);
   const payload = JSON.parse(receivedBody);
   assert.equal(payload.request_type, "Tư vấn số lượng lớn");
-  assert.equal(payload.product, "Giỏ hàng (2 dòng)");
+  assert.equal(payload.product, "Giỏ yêu cầu (2 dòng)");
   assert.equal(payload.variant, "");
   assert.equal(payload.qty, "");
   assert.equal(payload.cart[0].unit_price, "");

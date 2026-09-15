@@ -14,13 +14,23 @@ import type { ResolvedRequestCart } from "@/types/request-cart";
 
 const SUBMIT_FAILURE_MESSAGE = "Không thể gửi yêu cầu lúc này. Vui lòng thử lại.";
 
-const EMPTY_CONTACT: RequestCartContact = { email: "", message: "", name: "", phone: "" };
-const ZALO_CHANNEL = REQUEST_CART_CHANNELS.find((channel) => channel.id === "zalo");
-const SMS_CHANNEL = REQUEST_CART_CHANNELS.find((channel) => channel.id === "hotline");
+const EMPTY_CONTACT: RequestCartContact = {
+  address: "",
+  companyName: "",
+  deliveryLocation: "",
+  email: "",
+  message: "",
+  name: "",
+  neededBy: "",
+  phone: "",
+  vatInvoice: "",
+};
+const ZALO_CHANNEL = REQUEST_CART_CHANNELS.find((channel) => channel.id === "zalo" && !channel.demo);
+const SMS_CHANNEL = REQUEST_CART_CHANNELS.find((channel) => channel.id === "hotline" && !channel.demo);
 
 interface RequestFormProps {
   cart: ResolvedRequestCart;
-  onAccepted: (reference: string) => void;
+  onAccepted: (result: { contact: RequestCartContact; receivedAt: string; reference: string }) => void;
   onConflict: (cart: ResolvedRequestCart | null) => void;
 }
 
@@ -69,6 +79,8 @@ export function RequestForm({ cart, onAccepted, onConflict }: RequestFormProps) 
     if (contact.phone.trim() === "") clientErrors.phone = "Vui lòng nhập số điện thoại.";
     if (contact.email.trim() === "") clientErrors.email = "Vui lòng nhập địa chỉ email.";
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contact.email.trim())) clientErrors.email = "Địa chỉ email không hợp lệ.";
+    if (contact.deliveryLocation.trim() === "") clientErrors.deliveryLocation = "Vui lòng nhập tỉnh/thành giao hàng.";
+    if (!["", "yes", "no"].includes(contact.vatInvoice)) clientErrors.vatInvoice = "Vui lòng chọn nhu cầu hóa đơn VAT.";
     if (Object.keys(clientErrors).length > 0) {
       setErrors(clientErrors);
       setFormError("Vui lòng kiểm tra lại thông tin liên hệ.");
@@ -99,7 +111,11 @@ export function RequestForm({ cart, onAccepted, onConflict }: RequestFormProps) 
       const result = parseSubmitResponse(response.status, body);
 
       if (result.status === "accepted") {
-        onAccepted(result.reference);
+        onAccepted({
+          contact: normalizedContact(contact),
+          receivedAt: result.receivedAt ?? new Date().toISOString(),
+          reference: result.reference,
+        });
         return;
       }
       if (result.status === "invalid") {
@@ -174,9 +190,59 @@ export function RequestForm({ cart, onAccepted, onConflict }: RequestFormProps) 
           type="email"
           value={contact.email}
         />
+        <Field
+          error={errors.companyName}
+          id="ten-cong-ty"
+          label="Công ty"
+          onChange={(value) => update("companyName", value)}
+          optionalHint="không bắt buộc"
+          value={contact.companyName}
+        />
+        <Field
+          error={errors.deliveryLocation}
+          id="tinh-thanh-giao-hang"
+          label="Tỉnh/thành giao hàng"
+          onChange={(value) => update("deliveryLocation", value)}
+          required
+          value={contact.deliveryLocation}
+        />
+        <Field
+          error={errors.address}
+          id="dia-chi-nhan-hang"
+          label="Địa chỉ nhận hàng"
+          onChange={(value) => update("address", value)}
+          optionalHint="không bắt buộc"
+          value={contact.address}
+        />
+        <Field
+          error={errors.neededBy}
+          id="thoi-gian-can-hang"
+          label="Thời gian cần hàng"
+          onChange={(value) => update("neededBy", value)}
+          optionalHint="không bắt buộc"
+          value={contact.neededBy}
+        />
+        <div>
+          <label className="block text-sm font-medium text-neutral-800" htmlFor="hoa-don-vat">
+            Có cần hóa đơn VAT không? <span className="font-normal text-neutral-600">(không bắt buộc)</span>
+          </label>
+          <select
+            aria-describedby={errors.vatInvoice ? "hoa-don-vat-loi" : undefined}
+            aria-invalid={errors.vatInvoice ? true : undefined}
+            className="mt-1 h-11! w-full rounded-md border border-neutral-300 bg-white px-3 text-base text-neutral-900 focus-visible:outline-2! focus-visible:outline-offset-2 focus-visible:outline-[#2e90fa]!"
+            id="hoa-don-vat"
+            onChange={(event) => update("vatInvoice", event.target.value)}
+            value={contact.vatInvoice}
+          >
+            <option value="">Chưa chọn</option>
+            <option value="yes">Có</option>
+            <option value="no">Không</option>
+          </select>
+          {errors.vatInvoice ? <p className="mt-1 text-sm text-red-700" id="hoa-don-vat-loi">{errors.vatInvoice}</p> : null}
+        </div>
         <div className="sm:col-span-2">
           <label className="block text-sm font-medium text-neutral-800" htmlFor="noi-dung-yeu-cau">
-            Nội dung yêu cầu <span className="font-normal text-neutral-600">(đã điền sẵn, bạn có thể chỉnh sửa)</span>
+            Ghi chú yêu cầu <span className="font-normal text-neutral-600">(đã điền sẵn, bạn có thể chỉnh sửa)</span>
           </label>
           <textarea
             aria-describedby={errors.message ? "noi-dung-yeu-cau-loi" : undefined}
@@ -239,6 +305,20 @@ function cartMessage(cart: ResolvedRequestCart): string {
     return `- ${product}${variant}: ${line.quantity}${unit}`;
   });
   return ["Tôi muốn được tư vấn và báo giá các sản phẩm sau:", ...lines].join("\n");
+}
+
+function normalizedContact(contact: RequestCartContact): RequestCartContact {
+  return {
+    address: contact.address.trim(),
+    companyName: contact.companyName.trim(),
+    deliveryLocation: contact.deliveryLocation.trim(),
+    email: contact.email.trim(),
+    message: contact.message.trim(),
+    name: contact.name.trim(),
+    neededBy: contact.neededBy.trim(),
+    phone: contact.phone.trim(),
+    vatInvoice: contact.vatInvoice.trim(),
+  };
 }
 
 function smsHref(phone: string, message: string): string {

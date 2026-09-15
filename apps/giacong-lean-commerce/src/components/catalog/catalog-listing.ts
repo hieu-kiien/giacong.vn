@@ -76,6 +76,8 @@ export interface CatalogCardView {
   slug: string;
   specLabel: string;
   startingPrice: number | null;
+  /** Human-readable quantity/unit condition paired with the displayed floor price. */
+  startingPriceCondition: string | null;
   /** Tier rows exactly as published; empty when the source has none. */
   tierPrices: readonly CatalogTierPrice[];
   unitLabel: string | null;
@@ -129,6 +131,9 @@ export function buildCatalogCard(product: CatalogCardSource, index = 0): Catalog
     slug: product.slug,
     specLabel: specLabel(product, priceVariant),
     startingPrice: product.startingPrice?.price ?? null,
+    startingPriceCondition: product.startingPrice
+      ? `${product.startingPrice.minQuantity} ${product.startingPrice.unit}`
+      : null,
     tierPrices: priceVariant?.tierPrices ?? [],
     unitLabel: priceVariant?.unit ?? null,
   };

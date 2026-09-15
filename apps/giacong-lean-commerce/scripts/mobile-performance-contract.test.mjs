@@ -10,6 +10,7 @@ const imageData = await read("src/data/demo-product-images.ts");
 const formatVndSource = await read("src/lib/format-vnd.ts");
 const globalStyles = await read("src/app/globals.css");
 const capturedMarkupSource = await read("src/lib/captured-markup.ts");
+const homeSource = await read("src/components/site/CapturedHomePage.tsx");
 
 const packshots = [
   "public/images/products/demo-dried-fruit-pouches.webp",
@@ -45,4 +46,9 @@ test("captured content images defer below-fold loading without deferring chrome"
   assert.match(capturedMarkupSource, /loading="lazy"/);
   assert.match(capturedMarkupSource, /fetchpriority/);
   assert.match(capturedMarkupSource, /header_logo\|header-logo\|header-logo-dark/);
+});
+
+test("homepage hero prioritizes one image and defers the remaining gallery tiles", () => {
+  assert.match(homeSource, /fetchpriority=\"\$\{index === 0 \? \"high\" : \"low\"\}\"/);
+  assert.match(homeSource, /loading=\"\$\{index === 0 \? \"eager\" : \"lazy\"\}\"/);
 });

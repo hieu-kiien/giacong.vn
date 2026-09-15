@@ -121,17 +121,27 @@ interface DemoProductInput {
 }
 
 /**
- * Builds a product from its variants: `startingPrice` is the lowest tier price of
- * an available variant and the counts are derived, exactly as the adapter derives
- * them. Nothing here is hand-maintained, so the fixture cannot drift internally.
+ * Builds a product from its variants: `startingPrice` is the lowest usable
+ * variant's price at that variant's MOQ, with the matching condition carried
+ * alongside it. Nothing here is hand-maintained, so the fixture cannot drift internally.
  */
 function product(input: DemoProductInput): CatalogProductDetail {
   const attributeId = 2_400 + (input.id % 100);
   const code = input.optionCode ?? "quy_cach";
   const built = variants(code, attributeId, input.name, input.variants);
   const available = built.filter((variant) => variant.isAvailable);
-  const prices = (available.length > 0 ? available : built)
-    .flatMap((variant) => variant.tierPrices.map((tier) => tier.price));
+  const pricedVariants = (available.length > 0 ? available : built)
+    .filter((variant) => variant.tierPrices.length > 0);
+  const startingVariant = pricedVariants.reduce<CatalogProductDetail["variants"][number] | null>(
+    (cheapest, variant) => {
+      const currentPrice = variant.tierPrices[0]?.price;
+      const cheapestPrice = cheapest?.tierPrices[0]?.price;
+      return currentPrice === undefined || (cheapestPrice !== undefined && cheapestPrice <= currentPrice)
+        ? cheapest
+        : variant;
+    },
+    null,
+  );
 
   return {
     availableVariantCount: available.length,
@@ -146,7 +156,14 @@ function product(input: DemoProductInput): CatalogProductDetail {
     minimumOrderQuantity: available.length > 0
       ? Math.min(...available.map((variant) => variant.minimumOrderQuantity))
       : Math.min(...built.map((variant) => variant.minimumOrderQuantity)),
-    startingPrice: { currency: "VND", price: Math.min(...prices) },
+    startingPrice: startingVariant?.tierPrices[0]
+      ? {
+          currency: "VND",
+          minQuantity: startingVariant.minimumOrderQuantity,
+          price: startingVariant.tierPrices[0].price,
+          unit: startingVariant.unit,
+        }
+      : null,
     type: "configurable",
     variantCount: built.length,
     variants: built,

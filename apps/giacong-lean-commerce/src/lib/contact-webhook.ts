@@ -81,9 +81,13 @@ export type ContactProductResolver = (slug: string) => Promise<ContactProductRes
 type ContactRequestType = "Đặt sản phẩm" | "Tư vấn số lượng lớn" | "Tư vấn dịch vụ";
 
 interface ContactSubmission {
+  address: string;
+  companyName: string;
+  deliveryLocation: string;
   email: string;
   message: string;
   name: string;
+  neededBy: string;
   phone: string;
   product: string;
   qty: string;
@@ -91,9 +95,10 @@ interface ContactSubmission {
   serviceUrl: string;
   source: string;
   variant: string;
+  vatInvoice: string;
 }
 
-export interface ContactWebhookPayload extends Omit<ContactSubmission, "qty" | "serviceUrl"> {
+export interface ContactWebhookPayload extends Omit<ContactSubmission, "address" | "companyName" | "deliveryLocation" | "neededBy" | "qty" | "serviceUrl" | "vatInvoice"> {
   qty: number | "";
   /** Stable per-submit key used by D1 and the Apps Script sink for safe retries. */
   request_id: string;
@@ -102,6 +107,11 @@ export interface ContactWebhookPayload extends Omit<ContactSubmission, "qty" | "
   service_code?: string;
   service_name?: string;
   service_url?: string;
+  address?: string;
+  company_name?: string;
+  delivery_location?: string;
+  needed_by?: string;
+  vat_invoice?: string;
 }
 
 interface ContactCartWebhookLine {
@@ -109,10 +119,13 @@ interface ContactCartWebhookLine {
   line_total: number | "";
   note: string;
   product: string;
+  product_slug: string;
   qty: number;
+  tier_min_quantity: number | "";
   unit: string;
   unit_price: number | "";
   variant: string;
+  variant_sku: string;
 }
 
 export interface ContactCartWebhookPayload extends ContactWebhookPayload {
@@ -146,9 +159,13 @@ function readField(formData: FormData, name: string, maxLength: number): string 
 
 function parseSubmission(formData: FormData): ContactSubmission {
   return {
+    address: readField(formData, "address", 300),
+    companyName: readField(formData, "company_name", 160),
+    deliveryLocation: readField(formData, "delivery_location", 120),
     email: readField(formData, "email", 254),
     message: readField(formData, "message", 2_000),
     name: readField(formData, "name", 120),
+    neededBy: readField(formData, "needed_by", 120),
     phone: readField(formData, "phone", 24),
     product: readField(formData, "product", 160),
     qty: readField(formData, "qty", 24),
@@ -156,12 +173,14 @@ function parseSubmission(formData: FormData): ContactSubmission {
     serviceUrl: readField(formData, "service_url", 300),
     source: readField(formData, "source", 200),
     variant: readField(formData, "variant", 160),
+    vatInvoice: readField(formData, "vat_invoice", 10),
   };
 }
 
 function validateSubmission(
   submission: ContactSubmission,
   requireEmail = false,
+  requireDeliveryLocation = false,
 ): Partial<Record<keyof ContactSubmission, string>> {
   const errors: Partial<Record<keyof ContactSubmission, string>> = {};
   const normalizedPhone = submission.phone.replace(/[\s().-]/g, "");
@@ -176,6 +195,12 @@ function validateSubmission(
     errors.email = "Vui lòng nhập địa chỉ email.";
   } else if (submission.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(submission.email)) {
     errors.email = "Địa chỉ email không hợp lệ.";
+  }
+  if (requireDeliveryLocation && submission.deliveryLocation.length < 2) {
+    errors.deliveryLocation = "Vui lòng nhập tỉnh/thành giao hàng.";
+  }
+  if (!["", "yes", "no"].includes(submission.vatInvoice)) {
+    errors.vatInvoice = "Vui lòng chọn nhu cầu hóa đơn VAT.";
   }
 
   return errors;
@@ -220,6 +245,32 @@ function validationFailure(errors: Partial<Record<keyof ContactSubmission, strin
     { ok: false, message: "Vui lòng kiểm tra lại thông tin liên hệ.", errors },
     { status: 400 },
   );
+}
+
+function contactMetadata(submission: ContactSubmission): Pick<
+  ContactWebhookPayload,
+  "address" | "company_name" | "delivery_location" | "needed_by" | "vat_invoice"
+> {
+  return {
+    ...(submission.address ? { address: submission.address } : {}),
+    ...(submission.companyName ? { company_name: submission.companyName } : {}),
+    ...(submission.deliveryLocation ? { delivery_location: submission.deliveryLocation } : {}),
+    ...(submission.neededBy ? { needed_by: submission.neededBy } : {}),
+    ...(submission.vatInvoice ? { vat_invoice: submission.vatInvoice } : {}),
+  };
+}
+
+/** Keeps the fixed Sheet schema useful while D1 payload_json retains each field structurally. */
+function operatorMessage(submission: ContactSubmission): string {
+  const details = [
+    submission.companyName ? `Công ty: ${submission.companyName}` : "",
+    submission.deliveryLocation ? `Địa điểm giao hàng: ${submission.deliveryLocation}` : "",
+    submission.address ? `Địa chỉ nhận hàng: ${submission.address}` : "",
+    submission.vatInvoice ? `Hóa đơn VAT: ${submission.vatInvoice === "yes" ? "Có" : "Không"}` : "",
+    submission.neededBy ? `Thời gian cần hàng: ${submission.neededBy}` : "",
+  ].filter(Boolean);
+  if (details.length === 0) return submission.message;
+  return [...details, submission.message ? `Ghi chú: ${submission.message}` : ""].filter(Boolean).join("\n");
 }
 
 function webhookUrl(value: string | undefined): URL | null {
@@ -272,10 +323,20 @@ async function resolvePayload(
   serviceContext: ContactServiceResolution | null,
   requestId: string,
 ): Promise<ContactWebhookPayload | Response> {
-  const { serviceUrl, ...fields } = submission;
+  const {
+    address: _address,
+    companyName: _companyName,
+    deliveryLocation: _deliveryLocation,
+    neededBy: _neededBy,
+    serviceUrl,
+    vatInvoice: _vatInvoice,
+    ...fields
+  } = submission;
   if (!hasProductContext(submission)) {
     return {
       ...fields,
+      ...contactMetadata(submission),
+      message: operatorMessage(submission),
       product: "",
       qty: "",
       request_id: requestId,
@@ -318,6 +379,8 @@ async function resolvePayload(
 
   return {
     ...fields,
+    ...contactMetadata(submission),
+    message: operatorMessage(submission),
     product: product.name,
     qty,
     request_id: requestId,
@@ -466,6 +529,7 @@ function acceptedLeadResponse(reference: string, deliveryStatus: ContactLeadDeli
       deliveryStatus,
       message: "Yêu cầu của bạn đã được tiếp nhận.",
       ok: true,
+      receivedAt: new Date().toISOString(),
       reference,
     },
     { headers: { "Cache-Control": "no-store" }, status: 202 },
@@ -534,7 +598,8 @@ async function resolveCartPayload(
 
   const payload = body.value;
   if (!isRecord(payload) || !exactKeys(payload, [
-    "email", "lines", "message", "name", "phone", "requestId", "snapshotToken", "source",
+    "address", "companyName", "deliveryLocation", "email", "lines", "message", "name", "neededBy",
+    "phone", "requestId", "snapshotToken", "source", "vatInvoice",
   ])) {
     return failure("Dữ liệu gửi lên không hợp lệ.", 400);
   }
@@ -549,7 +614,7 @@ async function resolveCartPayload(
   if (!parsedLines.ok) return failure(parsedLines.message, 400);
 
   const submission = parseJsonSubmission(payload);
-  const errors = validateSubmission(submission, true);
+  const errors = validateSubmission(submission, true, true);
   if (Object.keys(errors).length > 0) return validationFailure(errors);
 
   let cart: ResolvedRequestCart;
@@ -586,18 +651,22 @@ async function resolveCartPayload(
       line_total: line.lineTotal ?? "",
       note: line.priceOnRequest ? `SKU ${line.variantSku} · Liên hệ báo giá` : `SKU ${line.variantSku}`,
       product: line.productName,
+      product_slug: line.parentSlug,
       qty: line.quantity,
+      tier_min_quantity: line.tierMinQuantity ?? "",
       unit: line.unit,
       unit_price: line.unitPrice ?? "",
       variant: line.variantLabel,
+      variant_sku: line.variantSku,
     })),
     cart_price_incomplete: cart.hasPriceOnRequest,
     cart_subtotal: cart.pricedSubtotal,
+    ...contactMetadata(submission),
     email: submission.email,
-    message: submission.message,
+    message: operatorMessage(submission),
     name: submission.name,
     phone: submission.phone,
-    product: `Giỏ hàng (${cart.lineCount} dòng)`,
+    product: `Giỏ yêu cầu (${cart.lineCount} dòng)`,
     qty: "",
     request_id: payload.requestId,
     request_type: cart.requestType,
@@ -609,9 +678,13 @@ async function resolveCartPayload(
 
 function parseJsonSubmission(payload: Record<string, unknown>): ContactSubmission {
   return {
+    address: readJsonField(payload.address, 300),
+    companyName: readJsonField(payload.companyName, 160),
+    deliveryLocation: readJsonField(payload.deliveryLocation, 120),
     email: readJsonField(payload.email, 254),
     message: readJsonField(payload.message, 2_000),
     name: readJsonField(payload.name, 120),
+    neededBy: readJsonField(payload.neededBy, 120),
     phone: readJsonField(payload.phone, 24),
     product: "",
     qty: "",
@@ -619,6 +692,7 @@ function parseJsonSubmission(payload: Record<string, unknown>): ContactSubmissio
     serviceUrl: "",
     source: readJsonField(payload.source, 200),
     variant: "",
+    vatInvoice: readJsonField(payload.vatInvoice, 10),
   };
 }
 

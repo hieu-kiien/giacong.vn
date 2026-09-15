@@ -62,6 +62,12 @@ test("listing cards surface the MOQ from the demo catalog and the public feed", 
       variant.tierPrices[0].price < cheapest.tierPrices[0].price ? variant : cheapest
     ));
   const demoCard = buildCatalogCard(demoProduct);
+  assert.ok(demoProduct.startingPrice);
+  assert.equal(
+    demoCard.startingPriceCondition,
+    `${demoProduct.startingPrice.minQuantity} ${demoProduct.startingPrice.unit}`,
+    "the starting price must carry the quantity/unit condition that makes it honest",
+  );
   assert.equal(
     demoCard.minimumOrderQuantity,
     pricedVariant.minimumOrderQuantity,
@@ -85,4 +91,25 @@ test("listing cards surface the MOQ from the demo catalog and the public feed", 
   };
   const feedCard = buildCatalogCard(feedParent);
   assert.equal(feedCard.minimumOrderQuantity, 25, "a public-feed parent row must carry its aggregated MOQ onto the card");
+});
+
+test("cards do not show an unqualified starting price when the feed has no condition", () => {
+  const card = buildCatalogCard({
+    availableVariantCount: 1,
+    category: null,
+    description: "",
+    id: 1_000,
+    imageUrl: null,
+    minimumOrderQuantity: 25,
+    name: "QA product without price",
+    shortDescription: "",
+    sku: "QA-NO-PRICE",
+    slug: "qa-no-price",
+    startingPrice: null,
+    type: "configurable",
+    variantCount: 1,
+  });
+
+  assert.equal(card.startingPrice, null);
+  assert.equal(card.startingPriceCondition, null);
 });

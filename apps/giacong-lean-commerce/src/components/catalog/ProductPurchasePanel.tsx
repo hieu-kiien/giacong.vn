@@ -225,10 +225,10 @@ export function ProductPurchasePanel({ editingCartVariantSku, initialVariantSku,
             onClick={addToRequestCart}
             type="button"
           >
-            {editingCartVariantSku ? "Cập nhật giỏ hàng" : view.addToCartLabel}
+            {editingCartVariantSku ? "Cập nhật giỏ yêu cầu" : view.addToCartLabel}
           </button>
           <button className={styles.primaryAction} disabled={!canOrder} onClick={requestQuote} type="button">
-            {editingCartVariantSku ? "Cập nhật và xem giỏ hàng" : view.requestLabel}
+            {editingCartVariantSku ? "Cập nhật và xem giỏ yêu cầu" : view.requestLabel}
           </button>
         </>}
       </div>

@@ -5,14 +5,18 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { formatVnd } from "@/lib/format-vnd";
 import {
+  REQUEST_CART_ACCEPTED_STORAGE_KEY,
   REQUEST_CART_REVALIDATE_ENDPOINT,
   buildRevalidateBody,
   driftNotice,
   hydrationNotice,
+  parseAcceptedRequest,
   parseRevalidateResponse,
+  serializeAcceptedRequest,
 } from "@/lib/request-cart-client";
 import { RequestAccepted } from "@/components/request-cart/RequestAccepted";
 import { RequestForm } from "@/components/request-cart/RequestForm";
+import type { AcceptedRequestSnapshot, RequestCartContact } from "@/lib/request-cart-client";
 import {
   emptyRequestCart,
   readRequestCart,
@@ -33,7 +37,7 @@ export function RequestCartView() {
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const [refreshNonce, setRefreshNonce] = useState(0);
-  const [accepted, setAccepted] = useState<{ cart: ResolvedRequestCart; reference: string } | null>(null);
+  const [accepted, setAccepted] = useState<AcceptedRequestSnapshot | null>(null);
   const lastResolved = useRef<ResolvedRequestCart | null>(null);
 
   /*
@@ -46,6 +50,17 @@ export function RequestCartView() {
       setStorageNotice(hydrationNotice(read));
       setCart(read.state);
     });
+  }, []);
+
+  useEffect(() => {
+    try {
+      const stored = window.sessionStorage.getItem(REQUEST_CART_ACCEPTED_STORAGE_KEY);
+      const restored = parseAcceptedRequest(stored);
+      if (restored) setAccepted(restored);
+      else if (stored) window.sessionStorage.removeItem(REQUEST_CART_ACCEPTED_STORAGE_KEY);
+    } catch {
+      // A blocked or full session store must not hide the live cart.
+    }
   }, []);
 
   const linesKey = cart ? JSON.stringify(toRequestCartKeys(cart)) : "";
@@ -120,16 +135,44 @@ export function RequestCartView() {
    * Only a 202 clears the cart: any other outcome keeps every line so nothing is silently lost.
    * The priced cart is kept in component state so the accepted panel can still summarise it.
    */
-  const acceptRequest = useCallback((reference: string, submitted: ResolvedRequestCart) => {
+  const acceptRequest = useCallback((
+    result: { contact: RequestCartContact; receivedAt: string; reference: string },
+    submitted: ResolvedRequestCart,
+  ) => {
     const empty = emptyRequestCart();
     writeRequestCart(window.localStorage, empty);
-    setAccepted({ cart: submitted, reference });
+    const snapshot: AcceptedRequestSnapshot = {
+      cart: submitted,
+      contact: result.contact,
+      receivedAt: result.receivedAt,
+      reference: result.reference,
+    };
+    try {
+      window.sessionStorage.setItem(REQUEST_CART_ACCEPTED_STORAGE_KEY, serializeAcceptedRequest(snapshot));
+    } catch {
+      // The live success state remains available even if browser storage is unavailable.
+    }
+    setAccepted(snapshot);
     setResolved(null);
     setDrift(null);
     setError(null);
     lastResolved.current = null;
     setCart(empty);
   }, []);
+
+  const startNewRequest = useCallback(() => {
+    try {
+      window.sessionStorage.removeItem(REQUEST_CART_ACCEPTED_STORAGE_KEY);
+    } catch {
+      // Ignore storage restrictions; clearing the live view is still safe.
+    }
+    setAccepted(null);
+  }, []);
+
+  useEffect(() => {
+    if (!cart || cart.lines.length === 0 || !accepted) return;
+    startNewRequest();
+  }, [accepted, cart, startNewRequest]);
 
   /** A 409 repaints from the server's fresh snapshot instead of the state the customer saw. */
   const applyConflict = useCallback((fresh: ResolvedRequestCart | null) => {
@@ -157,7 +200,13 @@ export function RequestCartView() {
       ) : null}
 
       {accepted !== null ? (
-        <RequestAccepted cart={accepted.cart} reference={accepted.reference} />
+        <RequestAccepted
+          cart={accepted.cart}
+          contact={accepted.contact}
+          receivedAt={accepted.receivedAt}
+          reference={accepted.reference}
+          onStartNewRequest={startNewRequest}
+        />
       ) : cart === null ? (
         <p className="mt-6 text-sm text-neutral-700" role="status">Đang đọc giỏ yêu cầu...</p>
       ) : lines.length === 0 ? (
@@ -205,7 +254,7 @@ export function RequestCartView() {
         {resolved ? (
           <RequestForm
             cart={resolved}
-            onAccepted={(reference) => acceptRequest(reference, resolved)}
+            onAccepted={(result) => acceptRequest(result, resolved)}
             onConflict={applyConflict}
           />
         ) : null}
@@ -220,8 +269,8 @@ export function RequestCartView() {
 function EmptyCart() {
   return (
     <div className="mt-6 rounded-lg border border-neutral-200 bg-neutral-50 px-4 py-8 text-center">
-      <p className="text-base font-semibold text-neutral-900">Giỏ hàng đang trống.</p>
-      <p className="mt-2 text-sm text-neutral-700">Chọn sản phẩm và số lượng để thêm vào giỏ hàng.</p>
+      <p className="text-base font-semibold text-neutral-900">Giỏ yêu cầu đang trống.</p>
+      <p className="mt-2 text-sm text-neutral-700">Chọn sản phẩm và số lượng để thêm vào yêu cầu báo giá.</p>
       <Link
         className="mt-4 inline-flex min-h-11! items-center rounded-md bg-commerce-brand-dark! px-5 text-sm font-semibold text-white! hover:brightness-90 focus-visible:outline-2! focus-visible:outline-offset-2 focus-visible:outline-[#2e90fa]!"
         data-cta
@@ -254,7 +303,7 @@ function CartLine({ line, onChangeQuantity, onRemove }: CartLineProps) {
         <div className="flex min-w-0 items-start gap-3">
           {line.imageUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img alt={line.productName || "Sản phẩm trong giỏ hàng"} className="size-20 shrink-0 rounded-md border border-neutral-200 object-cover" data-cart-image loading="lazy" src={line.imageUrl} />
+            <img alt={line.productName || "Sản phẩm trong giỏ yêu cầu"} className="size-20 shrink-0 rounded-md border border-neutral-200 object-cover" data-cart-image loading="lazy" src={line.imageUrl} />
           ) : (
             <div aria-label="Chưa có ảnh sản phẩm" className="size-20 shrink-0 rounded-md border border-neutral-200 bg-neutral-100" data-cart-image />
           )}

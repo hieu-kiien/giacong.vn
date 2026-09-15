@@ -14,6 +14,7 @@ const capturedMarkupSource = await readFile(new URL("../src/lib/captured-markup.
 const globals = await readFile(new URL("../src/app/globals.css", import.meta.url), "utf8");
 const uxAuditPilot = await readFile(new URL("./ux-audit-pilot.mjs", import.meta.url), "utf8");
 const contactForm = await readFile(new URL("../src/components/contact-form.ts", import.meta.url), "utf8");
+const capturedHome = await readFile(new URL("../src/components/site/CapturedHomePage.tsx", import.meta.url), "utf8");
 const motionSource = `${interactions}\n${capturedMotion}`;
 
 const desktopAndMobileMenu = `
@@ -261,6 +262,13 @@ test("raises the captured testimonial metadata to a readable contrast", () => {
     globals,
     /#main \.section07 \.icon-box-text\.last-reset > p\s*\{[\s\S]*?color:\s*#5f6b61\s*!important;/,
   );
+});
+
+test("does not publish unverified homepage proof claims from the captured source", () => {
+  assert.match(capturedHome, /removeUnverifiedHomepageProof/);
+  assert.match(capturedHome, /section_300790898/);
+  assert.match(capturedHome, /section_777974837/);
+  assert.match(capturedHome, /section_1385300469/);
 });
 
 test("uses text-safe brand overrides for captured white surfaces", () => {

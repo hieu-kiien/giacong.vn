@@ -14,6 +14,7 @@ import type { RequestCartReadResult } from "./request-cart-storage.ts";
 export const REQUEST_CART_REVALIDATE_ENDPOINT = "/api/gui-yeu-cau/xac-thuc";
 export const REQUEST_CART_SUBMIT_ENDPOINT = "/api/contact";
 export const REQUEST_CART_SOURCE = "/gui-yeu-cau/";
+export const REQUEST_CART_ACCEPTED_STORAGE_KEY = "giacong.request-cart.accepted.v1";
 
 /**
  * A 502 or 504 means the intake service did not answer in time, not that it did nothing:
@@ -89,6 +90,10 @@ function isResolvedRequestCartLine(value: unknown): value is ResolvedRequestCart
     "adjustments", "contactFromQuantity", "imageUrl", "isAvailable", "isSubmittable", "lineTotal",
     "minimumOrderQuantity", "parentSlug", "priceOnRequest", "productName", "quantity",
     "quantityStep", "unit", "unitPrice", "variantLabel", "variantSku",
+  ]) && !exactKeys(value, [
+    "adjustments", "contactFromQuantity", "imageUrl", "isAvailable", "isSubmittable", "lineTotal",
+    "minimumOrderQuantity", "parentSlug", "priceOnRequest", "productName", "quantity",
+    "quantityStep", "tierMinQuantity", "unit", "unitPrice", "variantLabel", "variantSku",
   ])) {
     return false;
   }
@@ -112,6 +117,7 @@ function isResolvedRequestCartLine(value: unknown): value is ResolvedRequestCart
   for (const key of ["lineTotal", "unitPrice"] as const) {
     if (value[key] !== null && !isMoney(value[key])) return false;
   }
+  if ("tierMinQuantity" in value && value.tierMinQuantity !== null && !isCount(value.tierMinQuantity)) return false;
   return Array.isArray(value.adjustments) && value.adjustments.every(isAdjustment);
 }
 
@@ -185,10 +191,22 @@ function exactKeys(value: object, keys: string[]): boolean {
 }
 
 export interface RequestCartContact {
+  address: string;
+  companyName: string;
+  deliveryLocation: string;
   email: string;
   message: string;
   name: string;
+  neededBy: string;
   phone: string;
+  vatInvoice: string;
+}
+
+export interface AcceptedRequestSnapshot {
+  cart: ResolvedRequestCart;
+  contact: RequestCartContact;
+  receivedAt: string;
+  reference: string;
 }
 
 export type RequestCartField = keyof RequestCartContact;
@@ -201,13 +219,63 @@ export interface SubmitBody extends RequestCartContact {
 }
 
 export type SubmitResult =
-  | { message: string; reference: string; status: "accepted" }
+  | { message: string; receivedAt: string | null; reference: string; status: "accepted" }
   | { errors: Partial<Record<RequestCartField, string>>; message: string; status: "invalid" }
   | { cart: ResolvedRequestCart | null; code: string; message: string; status: "conflict" }
   | { message: string; status: "indeterminate" }
   | { message: string; status: "failed" };
 
-const CONTACT_FIELDS: RequestCartField[] = ["email", "message", "name", "phone"];
+/**
+ * Keeps the last accepted confirmation available after a refresh in this tab only. The server
+ * never exposes a public lookup by reference, and the URL never contains customer details.
+ */
+export function serializeAcceptedRequest(snapshot: AcceptedRequestSnapshot): string {
+  return JSON.stringify(snapshot);
+}
+
+export function parseAcceptedRequest(value: string | null): AcceptedRequestSnapshot | null {
+  if (!value) return null;
+  try {
+    const parsed: unknown = JSON.parse(value);
+    if (!isRecord(parsed) || !exactKeys(parsed, ["cart", "contact", "receivedAt", "reference"])) return null;
+    if (!isResolvedRequestCart(parsed.cart) || !isStoredRequestContact(parsed.contact)) return null;
+    if (typeof parsed.receivedAt !== "string" || !Number.isFinite(Date.parse(parsed.receivedAt))) return null;
+    if (typeof parsed.reference !== "string" || !/^[^\u0000-\u001f<>]{1,120}$/.test(parsed.reference)) return null;
+    return {
+      cart: parsed.cart,
+      contact: parsed.contact,
+      receivedAt: parsed.receivedAt,
+      reference: parsed.reference,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function isStoredRequestContact(value: unknown): value is RequestCartContact {
+  if (!isRecord(value) || !exactKeys(value, [
+    "address", "companyName", "deliveryLocation", "email", "message", "name", "neededBy", "phone", "vatInvoice",
+  ])) return false;
+  const limits: Record<RequestCartField, number> = {
+    address: 300,
+    companyName: 160,
+    deliveryLocation: 120,
+    email: 254,
+    message: 2_000,
+    name: 120,
+    neededBy: 120,
+    phone: 24,
+    vatInvoice: 10,
+  };
+  for (const [field, maxLength] of Object.entries(limits) as Array<[RequestCartField, number]>) {
+    if (typeof value[field] !== "string" || value[field].length > maxLength) return false;
+  }
+  return value.vatInvoice === "" || value.vatInvoice === "yes" || value.vatInvoice === "no";
+}
+
+const CONTACT_FIELDS: RequestCartField[] = [
+  "address", "companyName", "deliveryLocation", "email", "message", "name", "neededBy", "phone", "vatInvoice",
+];
 const SUBMIT_FAILURE_MESSAGE = "Không thể gửi yêu cầu lúc này. Vui lòng thử lại.";
 
 /**
@@ -224,7 +292,7 @@ export function createRequestId(source: Crypto | { getRandomValues: (target: Uin
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
 }
 
-/** The JSON branch of `/api/contact` accepts exactly these eight keys and no money. */
+/** The JSON branch of `/api/contact` accepts the RFQ contact fields and no client money. */
 export function buildSubmitBody(input: {
   contact: RequestCartContact;
   lines: RequestCartLineKey[];
@@ -232,14 +300,19 @@ export function buildSubmitBody(input: {
   snapshotToken: string;
 }): SubmitBody {
   return {
+    address: input.contact.address.trim(),
+    companyName: input.contact.companyName.trim(),
+    deliveryLocation: input.contact.deliveryLocation.trim(),
     email: input.contact.email.trim(),
     lines: buildRevalidateBody(input.lines).lines,
     message: input.contact.message.trim(),
     name: input.contact.name.trim(),
+    neededBy: input.contact.neededBy.trim(),
     phone: input.contact.phone.trim(),
     requestId: input.requestId,
     snapshotToken: input.snapshotToken,
     source: REQUEST_CART_SOURCE,
+    vatInvoice: input.contact.vatInvoice.trim(),
   };
 }
 
@@ -249,7 +322,12 @@ export function parseSubmitResponse(status: number, body: unknown): SubmitResult
   if (status === 202 && isRecord(body) && body.ok === true) {
     const reference = typeof body.reference === "string" ? body.reference.trim() : "";
     if (reference !== "") {
-      return { message: failureMessage(body, "Yêu cầu của bạn đã được tiếp nhận."), reference, status: "accepted" };
+      return {
+        message: failureMessage(body, "Yêu cầu của bạn đã được tiếp nhận."),
+        receivedAt: readReceivedAt(body),
+        reference,
+        status: "accepted",
+      };
     }
     return { message: SUBMIT_FAILURE_MESSAGE, status: "failed" };
   }
@@ -265,6 +343,11 @@ export function parseSubmitResponse(status: number, body: unknown): SubmitResult
     return { message: REQUEST_CART_INDETERMINATE_MESSAGE, status: "indeterminate" };
   }
   return { message, status: "failed" };
+}
+
+function readReceivedAt(body: Record<string, unknown>): string | null {
+  if (typeof body.receivedAt !== "string" || !Number.isFinite(Date.parse(body.receivedAt))) return null;
+  return body.receivedAt;
 }
 
 function fieldErrors(body: unknown): Partial<Record<RequestCartField, string>> {

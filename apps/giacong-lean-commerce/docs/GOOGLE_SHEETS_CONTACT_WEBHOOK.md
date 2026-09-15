@@ -14,7 +14,7 @@ lượng` là số hoặc rỗng. Các text do request cung cấp vẫn được
 
 Template đã triển khai tab thứ hai cho submit giỏ nhiều dòng. Nó khóa theo `Mã` của dòng `Yêu cầu` và mang đúng 9 cột A:I: `Mã`, `Dòng`, `Sản phẩm`, `Biến thể`, `Đơn vị`, `Số lượng`, `Đơn giá`, `Thành tiền`, `Ghi chú hệ thống`. Toàn bộ cột do server/Apps Script ghi; `setupRequestWorkbook()` bảo vệ cả tab và **không** để vùng vận hành nào, nên administrator chỉ đọc. Không có trạng thái, người phụ trách hay công thức trong tab này; vận hành vẫn chỉ diễn ra ở L:N của `Yêu cầu`.
 
-Nhánh giỏ được nhận khi payload có khóa `cart`. Schema 15 cột A:O của `Yêu cầu` không đổi: submit giỏ ghi `Giỏ hàng (N dòng)` vào D và để trống E:F. Đơn giá và thành tiền phải là số nguyên dương thật hoặc rỗng; chuỗi số bị từ chối cả dòng. Mọi text của chi tiết đi qua cùng lớp ép text an toàn như tab `Yêu cầu`.
+Nhánh giỏ được nhận khi payload có khóa `cart`. Schema 15 cột A:O của `Yêu cầu` không đổi: submit giỏ ghi `Giỏ yêu cầu (N dòng)` vào D và để trống E:F. Đơn giá và thành tiền phải là số nguyên dương thật hoặc rỗng; chuỗi số bị từ chối cả dòng. Mọi text của chi tiết đi qua cùng lớp ép text an toàn như tab `Yêu cầu`.
 
 Ba tính chất vận hành cần biết:
 
