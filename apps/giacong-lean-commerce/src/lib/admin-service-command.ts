@@ -14,6 +14,8 @@ const serviceKeys = [
   "summary",
 ] as const;
 
+const optionalServiceKeys = ["offerings", "ctaLabel", "ctaHref", "sortOrder"] as const;
+
 type ServiceCommandInput = AdminServiceInput;
 
 export interface AdminServiceCreateCommand {
@@ -36,7 +38,7 @@ export function parseAdminServiceCreateCommand(
   payload: unknown,
 ): { command: AdminServiceCreateCommand | null; fieldErrors: Record<string, string> } {
   const source = asRecord(payload);
-  const fieldErrors = exactKeys(source, ["requestId", ...serviceKeys]);
+  const fieldErrors = exactKeys(source, ["requestId", ...serviceKeys], optionalServiceKeys);
   validateServiceTypes(source, fieldErrors);
   const requestId = requestIdField(source.requestId, fieldErrors);
   const parsed = parseAdminServicePayload(serviceFields(source));
@@ -53,7 +55,7 @@ export function parseAdminServiceUpdateCommand(
   payload: unknown,
 ): { command: AdminServiceUpdateCommand | null; fieldErrors: Record<string, string> } {
   const source = asRecord(payload);
-  const fieldErrors = exactKeys(source, ["requestId", "revision", ...serviceKeys]);
+  const fieldErrors = exactKeys(source, ["requestId", "revision", ...serviceKeys], optionalServiceKeys);
   validateServiceTypes(source, fieldErrors);
   const requestId = requestIdField(source.requestId, fieldErrors);
   const revision = positiveRevision(source.revision, fieldErrors);
@@ -83,7 +85,12 @@ export function parseAdminServiceArchiveCommand(
 }
 
 function serviceFields(source: Record<string, unknown>): Record<string, unknown> {
-  return Object.fromEntries(serviceKeys.map((key) => [key, source[key]]));
+  return Object.fromEntries([
+    ...serviceKeys.map((key) => [key, source[key]]),
+    ...optionalServiceKeys
+      .filter((key) => Object.prototype.hasOwnProperty.call(source, key))
+      .map((key) => [key, source[key]]),
+  ]);
 }
 
 function requestIdField(value: unknown, fieldErrors: Record<string, string>): string | null {
@@ -102,10 +109,15 @@ function positiveRevision(value: unknown, fieldErrors: Record<string, string>): 
   return value;
 }
 
-function exactKeys(source: Record<string, unknown>, keys: readonly string[]): Record<string, string> {
-  const expected = new Set(keys);
+function exactKeys(
+  source: Record<string, unknown>,
+  requiredKeys: readonly string[],
+  optionalKeys: readonly string[] = [],
+): Record<string, string> {
+  const required = new Set(requiredKeys);
+  const allowed = new Set([...requiredKeys, ...optionalKeys]);
   const errors: Record<string, string> = {};
-  if (Object.keys(source).length !== expected.size || Object.keys(source).some((key) => !expected.has(key))) {
+  if (Object.keys(source).some((key) => !allowed.has(key)) || [...required].some((key) => !Object.prototype.hasOwnProperty.call(source, key))) {
     errors.payload = "Request chứa field không được hỗ trợ hoặc còn thiếu field bắt buộc.";
   }
   return errors;
@@ -124,6 +136,24 @@ function validateServiceTypes(source: Record<string, unknown>, fieldErrors: Reco
   if (typeof source.isActive !== "boolean") fieldErrors.isActive = "isActive phải là boolean.";
   if (!nullableInteger(source.leadTimeDays)) {
     fieldErrors.leadTimeDays = "leadTimeDays phải là số nguyên không âm hoặc null.";
+  }
+  if (Object.prototype.hasOwnProperty.call(source, "offerings") && !Array.isArray(source.offerings)) {
+    fieldErrors.offerings = "offerings phải là một mảng.";
+  }
+  if (Object.prototype.hasOwnProperty.call(source, "ctaLabel")
+    && source.ctaLabel !== null
+    && typeof source.ctaLabel !== "string") {
+    fieldErrors.ctaLabel = "ctaLabel phải là chuỗi hoặc null.";
+  }
+  if (Object.prototype.hasOwnProperty.call(source, "ctaHref")
+    && source.ctaHref !== null
+    && typeof source.ctaHref !== "string") {
+    fieldErrors.ctaHref = "ctaHref phải là chuỗi hoặc null.";
+  }
+  if (Object.prototype.hasOwnProperty.call(source, "sortOrder")
+    && source.sortOrder !== null
+    && (typeof source.sortOrder !== "number" || !Number.isSafeInteger(source.sortOrder))) {
+    fieldErrors.sortOrder = "sortOrder phải là số nguyên hoặc null.";
   }
 }
 

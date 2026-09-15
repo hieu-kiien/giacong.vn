@@ -14,8 +14,8 @@ const product = { id: 1, name: "Túi vải canvas in logo theo yêu cầu", slug
 const navigationItems = [
   { id: "products", capturedMenuId: "menu-item-1742", draftParentId: null, draftHref: "/san-pham/", draftIsActive: true, draftLabel: "Mua hàng", draftSortOrder: 30, publishedParentId: null, publishedHref: "/san-pham/", publishedIsActive: true, publishedLabel: "Mua hàng", publishedSortOrder: 30, menuKey: "primary", version: 1, dirty: false, virtual: false },
   { id: "services", capturedMenuId: "menu-item-5166", draftParentId: null, draftHref: "/thue-gia-cong/", draftIsActive: true, draftLabel: "Thuê gia công", draftSortOrder: 40, publishedParentId: null, publishedHref: "/thue-gia-cong/", publishedIsActive: true, publishedLabel: "Thuê gia công", publishedSortOrder: 40, menuKey: "primary", version: 1, dirty: false, virtual: false },
-  { id: "legacy-products-gia-cong-sua-bot", capturedMenuId: "products-gia-cong-sua-bot", draftParentId: "products", draftHref: "/gia-cong-sua-bot/", draftIsActive: true, draftLabel: "Gia công sữa bột", draftSortOrder: 10, publishedParentId: "products", publishedHref: "/gia-cong-sua-bot/", publishedIsActive: true, publishedLabel: "Gia công sữa bột", publishedSortOrder: 10, menuKey: "primary", version: 0, dirty: false, virtual: true },
-  { id: "legacy-services-mit-say", capturedMenuId: "services-mit-say", draftParentId: "services", draftHref: "#", draftIsActive: false, draftLabel: "Mit sấy", draftSortOrder: 160, publishedParentId: "services", publishedHref: "#", publishedIsActive: false, publishedLabel: "Mit sấy", publishedSortOrder: 160, menuKey: "primary", version: 0, dirty: false, virtual: true },
+  { id: "legacy-services-gia-cong-sua", capturedMenuId: "services-gia-cong-sua", draftParentId: "services", draftHref: "/gia-cong-sua/", draftIsActive: true, draftLabel: "Gia công sữa", draftSortOrder: 110, publishedParentId: "services", publishedHref: "/gia-cong-sua/", publishedIsActive: true, publishedLabel: "Gia công sữa", publishedSortOrder: 110, menuKey: "primary", version: 0, dirty: false, virtual: true },
+  { id: "legacy-services-dich-vu-say", capturedMenuId: "services-dich-vu-say", draftParentId: "services", draftHref: "/dich-vu-say/", draftIsActive: true, draftLabel: "Dịch vụ sấy", draftSortOrder: 140, publishedParentId: "services", publishedHref: "/dich-vu-say/", publishedIsActive: true, publishedLabel: "Dịch vụ sấy", publishedSortOrder: 140, menuKey: "primary", version: 0, dirty: false, virtual: true },
 ];
 
 async function run(name, check, role = "owner", width = 1440) {
@@ -143,13 +143,13 @@ await run("News draft survives sidebar navigation and cancelled discard", async 
   await expect(page.getByTestId("input-news-title")).toHaveValue("Bản nháp cần giữ lại");
 });
 
-await run("Legacy dropdown children show source state before an operator adopts them", async (page) => {
+await run("Legacy service hubs show source state before an operator adopts them", async (page) => {
   await open(page, "/admin/dieu-huong");
-  const label = page.locator("#navigation-legacy-products-gia-cong-sua-bot-label");
+  const label = page.locator("#navigation-legacy-services-gia-cong-sua-label");
   const card = label.locator("xpath=ancestor::article[1]");
-  await expect(card.getByText("Gia công sữa bột", { exact: true })).toBeVisible();
+  await expect(card.getByText("Gia công sữa", { exact: true })).toBeVisible();
   await expect(card.getByText("Mục con nguồn cũ · chưa lưu bản quản lý", { exact: true })).toBeVisible();
-  await label.fill("Sữa bột demo");
+  await label.fill("Gia công sữa demo");
   await expect(card.getByRole("button", { name: "Bật quản lý", exact: true })).toBeEnabled();
 });
 

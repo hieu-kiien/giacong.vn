@@ -1,13 +1,10 @@
 "use client";
 
-import { CircleAlert, ExternalLink, LoaderCircle, RefreshCw, ShieldCheck } from "lucide-react";
-import Link from "next/link";
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 
 import { AdminClientError, fetchAdmin, type AdminSession } from "@/lib/admin-client";
 import { isAdminSessionReady } from "@/lib/admin-visual-contract";
-
-import { AdminVisualEditor } from "./AdminVisualEditor";
+import { AdminUnsavedContext, type AdminUnsavedState } from "./AdminUnsavedGuard";
 
 export type AdminVisualStatus = "loading" | "ready" | "blocked" | "unavailable";
 
@@ -29,7 +26,23 @@ interface AdminVisualModeProps {
 export function AdminVisualMode({ children }: AdminVisualModeProps) {
   const [session, setSession] = useState<AdminSession | null>(null);
   const [status, setStatus] = useState<AdminVisualStatus>("loading");
-  const [attempt, setAttempt] = useState(0);
+  const [unsavedRevision, setUnsavedRevision] = useState(0);
+  const [unsavedSaving, setUnsavedSaving] = useState(false);
+  const unsavedRegistrationsRef = useRef(new Map<string, AdminUnsavedState>());
+
+  const updateUnsavedState = useCallback(() => {
+    const registrations = [...unsavedRegistrationsRef.current.values()];
+    setUnsavedSaving(registrations.some((registration) => registration.saving));
+    setUnsavedRevision((value) => value + 1);
+  }, []);
+  const registerUnsaved = useCallback((id: string, next: AdminUnsavedState) => {
+    unsavedRegistrationsRef.current.set(id, next);
+    updateUnsavedState();
+  }, [updateUnsavedState]);
+  const unregisterUnsaved = useCallback((id: string) => {
+    unsavedRegistrationsRef.current.delete(id);
+    updateUnsavedState();
+  }, [updateUnsavedState]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -53,104 +66,21 @@ export function AdminVisualMode({ children }: AdminVisualModeProps) {
       });
 
     return () => controller.abort();
-  }, [attempt]);
+  }, []);
 
   return (
     <AdminVisualContext.Provider value={{ session, status }}>
-      <>
-        <AdminVisualStatusBar
-          onRetry={() => {
-            setSession(null);
-            setStatus("loading");
-            setAttempt((value) => value + 1);
-          }}
-          role={session?.role}
-          status={status}
-        />
-        {status === "ready" && session ? <AdminVisualEditor session={session} /> : null}
+      <AdminUnsavedContext.Provider
+        value={{
+          isDirty: () => [...unsavedRegistrationsRef.current.values()].some((registration) => registration.isDirty()),
+          revision: unsavedRevision,
+          saving: unsavedSaving,
+          register: registerUnsaved,
+          unregister: unregisterUnsaved,
+        }}
+      >
         {children}
-      </>
+      </AdminUnsavedContext.Provider>
     </AdminVisualContext.Provider>
   );
-}
-
-function AdminVisualStatusBar({
-  onRetry,
-  role,
-  status,
-}: {
-  onRetry: () => void;
-  role?: string;
-  status: AdminVisualStatus;
-}) {
-  const copy = getStatusCopy(status, role);
-
-  return (
-    <div
-      aria-label="Trạng thái storefront quản trị"
-      aria-live="polite"
-      className={`admin-visual-mode-banner admin-visual-mode-banner--${status}`}
-      data-testid={`admin-visual-${status}`}
-      role={status === "ready" ? "region" : "status"}
-    >
-      <div className="admin-visual-mode-copy">
-        <StatusIcon status={status} />
-        <span>
-          <strong>{copy.title}</strong>
-          <small>{copy.detail}</small>
-        </span>
-      </div>
-      {status === "ready" ? (
-        <Link className="admin-visual-mode-link" href="/admin">
-          Trung tâm quản trị
-          <ExternalLink aria-hidden="true" size={14} />
-        </Link>
-      ) : status === "loading" ? (
-        <span aria-hidden="true" className="admin-visual-mode-pending">Đang xác nhận…</span>
-      ) : (
-        <button className="admin-visual-mode-retry" onClick={onRetry} type="button">
-          <RefreshCw aria-hidden="true" size={14} />
-          Thử lại
-        </button>
-      )}
-    </div>
-  );
-}
-
-function StatusIcon({ status }: { status: AdminVisualStatus }) {
-  if (status === "ready") return <ShieldCheck aria-hidden="true" size={18} />;
-  if (status === "loading") return <LoaderCircle aria-hidden="true" className="admin-visual-mode-spinner" size={18} />;
-  return <CircleAlert aria-hidden="true" size={18} />;
-}
-
-function getStatusCopy(status: AdminVisualStatus, role?: string) {
-  if (status === "loading") {
-    return {
-      detail: "Đang xác nhận bạn có thể xem storefront ở chế độ quản trị.",
-      title: "Đang kiểm tra quyền quản trị",
-    };
-  }
-  if (status === "blocked") {
-    return {
-      detail: "Cloudflare Access chưa xác nhận phiên quản trị. Nội dung vẫn chỉ ở chế độ xem.",
-      title: "Chưa được cấp quyền quản trị",
-    };
-  }
-  if (status === "unavailable") {
-    return {
-      detail: "Không thể kiểm tra phiên quản trị. Nội dung vẫn chỉ ở chế độ xem.",
-      title: "Không thể kiểm tra phiên quản trị",
-    };
-  }
-  return {
-    detail: `Đang xem storefront với vai trò ${getRoleLabel(role)}. Có thể chỉnh sửa vùng được hỗ trợ.`,
-    title: "Chế độ quản trị",
-  };
-}
-
-function getRoleLabel(role?: string): string {
-  const labels: Record<string, string> = {
-    owner: "Admin toàn quyền",
-  };
-  return labels[role ?? ""] ?? "tài khoản được cấp quyền";
 }

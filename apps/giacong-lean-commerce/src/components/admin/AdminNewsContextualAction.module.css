@@ -5,23 +5,29 @@
   margin: 0 0 1rem;
 }
 
-.action a {
+.action a,
+.trigger {
+  background: transparent;
   border: 1px solid #6e8c42;
   border-radius: 0.5rem;
   color: #4d770f;
+  cursor: pointer;
   font-size: 0.8125rem;
   font-weight: 700;
+  font-family: inherit;
   padding: 0.625rem 0.875rem;
   text-decoration: none;
   transition: background-color 160ms ease, color 160ms ease;
 }
 
-.action a:hover {
+.action a:hover,
+.trigger:hover {
   background: #4d770f;
   color: #fff;
 }
 
-.action a:focus-visible {
+.action a:focus-visible,
+.trigger:focus-visible {
   outline: 3px solid #b5cf83;
   outline-offset: 3px;
 }
@@ -31,7 +37,8 @@
     justify-content: stretch;
   }
 
-  .action a {
+  .action a,
+  .trigger {
     text-align: center;
     width: 100%;
   }

@@ -2,7 +2,13 @@
 
 Template [google-apps-script-contact-webhook.gs](google-apps-script-contact-webhook.gs) nhận JSON từ `POST /api/contact` và lưu vào tab `Yêu cầu`. Nếu tab chưa có, script tạo đúng 15 cột A:O: `Mã`, `Thời gian`, `Loại`, `Sản phẩm/Dịch vụ`, `Biến thể`, `Số lượng`, `Họ tên`, `Điện thoại`, `Email`, `Nội dung`, `Nguồn`, `Trạng thái`, `Người phụ trách`, `Ghi chú`, `Cập nhật lần cuối`.
 
-Mỗi submit được server chấp nhận tạo một `Mã` và dòng mới. Server tự gán `request_type`; Apps Script ghi giá trị canonical vào C:F, `Mới` vào L, để trống M:N và ghi timestamp vào B:O. `Số lượng` là số hoặc rỗng. Các text do request cung cấp vẫn được ép text an toàn để không chạy công thức Sheet.
+Mỗi submit được server chấp nhận tạo một `Mã` và dòng mới. Mỗi form public
+tạo một `request_id` ổn định cho một lần gửi; server giữ và truyền mã này qua
+queue/webhook, chỉ xóa sau phản hồi tiếp nhận bền vững để retry mạng có thể
+replay cùng kết quả. Server tự gán `request_type`; Apps Script ghi giá trị
+canonical vào C:F, `Mới` vào L, để trống M:N và ghi timestamp vào B:O. `Số
+lượng` là số hoặc rỗng. Các text do request cung cấp vẫn được ép text an toàn
+để không chạy công thức Sheet.
 
 ## Tab `Chi tiết giỏ hàng`
 
@@ -14,7 +20,13 @@ Ba tính chất vận hành cần biết:
 
 - **Thứ tự ghi.** N dòng chi tiết được ghi trước bằng một `setValues`, rồi dòng `Yêu cầu` mới được append. Dòng `Yêu cầu` là commit marker: nếu script chết giữa hai bước, kết quả là dòng chi tiết mồ côi mà operator không thấy, còn client nhận non-ok nên không có thành công giả. Thứ tự ngược lại sẽ hứa N dòng không tồn tại.
 - **Lock.** `LockService.getScriptLock().tryLock(2000)` giữ toàn bộ thao tác ghi dưới ngưỡng abort 5s của Next; nếu không lấy được lock, script trả `{ ok: false }` và không ghi gì.
-- **Chống retry trùng.** `CacheService` map `request_id` → `Mã` trong 6 giờ. Gửi lại cùng `request_id` (ví dụ sau một `504` mà script đã kịp commit) trả lại đúng `Mã` cũ và không thêm dòng nào. Đây là replay protection ở tầng vận chuyển, không phải dedup engine: hai lần khách chủ động gửi là hai `request_id` và vẫn là hai dòng. `CacheService` có thể bị evict, nên backstop vận hành vẫn là `Không tiếp tục` + `Trùng mã <reference>`.
+- **Chống retry trùng.** `CacheService` map `request_id` → `Mã` trong 6 giờ
+  cho cả form thường và giỏ hàng. Gửi lại cùng `request_id` (ví dụ sau một
+  `504` mà script đã kịp commit) trả lại đúng `Mã` cũ và không thêm dòng nào.
+  Đây là replay protection ở tầng vận chuyển, không phải dedup engine: hai lần
+  khách chủ động gửi là hai `request_id` và vẫn là hai dòng. `CacheService` có
+  thể bị evict, nên backstop vận hành vẫn là `Không tiếp tục` + `Trùng mã
+  <reference>`.
 
 ## Thiết lập thủ công
 

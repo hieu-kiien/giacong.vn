@@ -83,23 +83,20 @@ tài liệu đi kèm phiên bản Next được cài trong project.
 Kết luận: các sửa đổi đã có trên staging. Chưa đủ bằng chứng để tuyên bố toàn bộ
 website sẵn sàng production.
 
-## Bổ sung: chỉnh trực tiếp trên storefront — 2026-09-06
+## Cập nhật rút gọn storefront — 2026-09-14
 
-Admin owner/content manager có thể bật chế độ chỉnh trực tiếp trên storefront,
-bấm vào vùng được hỗ trợ để sửa chữ, CTA/link hoặc ảnh; lưu bản nháp và xuất bản
-được tách riêng. Vùng hero và about trang chủ, nhận diện logo/khẩu hiệu cùng
-media picker/upload đã được kiểm tra responsive ở 390/768/1440px. Upload chỉ
-nhận JPEG/PNG/WebP tối đa 8 MB; request có revision và idempotency key, lỗi hoặc
-mất phản hồi giữ nguyên nội dung đang sửa.
+Đã gỡ lớp editor trực tiếp trên DOM, drawer field, registry selector và thanh
+thao tác cố định vì chúng trùng với các màn hình quản trị canonical và làm
+storefront nặng. `AdminVisualMode` hiện chỉ còn kiểm tra hostname/session và
+hiển thị shortcut owner-only nhỏ trên đúng các trang cần vận hành:
+`/san-pham`, `/thue-gia-cong`, `/tin-tuc`, `/lien-he`. Nút trên thẻ sản phẩm và
+bài viết dẫn thẳng tới bản ghi tương ứng trong admin; các thao tác lưu nháp,
+xuất bản, revision, idempotency, media và audit vẫn chạy qua API chuyên dụng.
 
-Evidence mới: `node scripts/qa-admin-visual-edit.mjs` đạt **18/18** trên fixture
-memory cục bộ; gồm save/publish từng phần, retry, stale write, upload multipart,
-khôi phục ảnh đã đăng, CTA URL, điều hướng khi còn bản nháp và responsive.
-OpenNext build, Wrangler dry-run và preview version `3ea32ef4-ee73-4bb4-9e4d-2a59de72e5e7`
-đều đạt. Preview đã smoke test homepage/catalog/detail/cart/service; staging đã
-được chuyển version này và storefront deep QA đạt. Một smoke test staging owner
-đã xác nhận draft ảnh không đổi public page cho tới khi bấm Xuất bản, rồi khôi
-phục lại ảnh mặc định bằng guard đúng row/version. Không có thay đổi production.
+Bộ test focused hiện đạt **28/28** cho contextual actions, deep-link admin,
+news search, request-cart entry point, page navigation và service inventory.
+Các mốc 18/18 inline ở phần lịch sử bên dưới không còn là kiểm tra runtime hiện
+tại và file `scripts/qa-admin-visual-edit.mjs` đã được xóa cùng editor cũ.
 
 Owner read-only revalidation trên version mới: 10/10 route canonical ở desktop
 và 390×844 với reduced motion đều có heading đúng, không page overflow hoặc

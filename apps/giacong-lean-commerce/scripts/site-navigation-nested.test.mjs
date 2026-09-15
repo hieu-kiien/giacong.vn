@@ -42,27 +42,27 @@ test("custom parent and child render as one ordered tree", () => {
   assert.match(result, /Parent[\s\S]*nested-navigation-children[\s\S]*Child/);
 });
 
-test("published legacy mega-menu child overrides its captured label and destination", () => {
-  const sourceItem = legacyMegaMenuItems.find((item) => item.owner === "products" && item.href === "/gia-cong-sua-bot/");
+test("published service hub overrides its captured label and destination", () => {
+  const sourceItem = legacyMegaMenuItems.find((item) => item.owner === "services" && item.href === "/gia-cong-sua/");
   assert.ok(sourceItem);
   const markup = `<div class="sub-menu nav-dropdown"><div class="ux-menu-link flex menu-item" data-navigation-id="${sourceItem.id}"><a class="ux-menu-link__link flex" href="${sourceItem.href}"><span class="ux-menu-link__text">${sourceItem.label}</span></a></div></div>`;
   const result = applyNavigationToMarkup(markup, [{
     id: "managed-child",
     capturedMenuId: sourceItem.id,
-    parentId: "products",
-    href: "/demo-sua-bot/",
+    parentId: "services",
+    href: "/demo-gia-cong-sua/",
     isActive: true,
-    label: "Sữa bột demo",
+    label: "Gia công sữa demo",
     menuKey: "primary",
     sortOrder: 10,
   }]);
-  assert.match(result, /data-navigation-id="products-gia-cong-sua-bot"/);
-  assert.match(result, /href="\/demo-sua-bot\/"/);
-  assert.match(result, />Sữa bột demo<\/span>/);
+  assert.match(result, /data-navigation-id="services-gia-cong-sua"/);
+  assert.match(result, /href="\/demo-gia-cong-sua\/"/);
+  assert.match(result, />Gia công sữa demo<\/span>/);
 });
 
-test("managed service mega-menu children are also exposed in the mobile service menu", () => {
-  const sourceItem = legacyMegaMenuItems.find((item) => item.owner === "services" && item.href === "/say-thang-hoa/");
+test("managed service hubs are also exposed in the mobile service menu", () => {
+  const sourceItem = legacyMegaMenuItems.find((item) => item.owner === "services" && item.href === "/dich-vu-say/");
   assert.ok(sourceItem);
   const markup = [
     '<ul class="header-nav-main"><li id="menu-item-5166"><a href="/thue-gia-cong/">Thuê gia công</a><div class="nav-dropdown"><div class="ux-menu-link flex menu-item" data-navigation-id="',
@@ -78,18 +78,18 @@ test("managed service mega-menu children are also exposed in the mobile service 
     id: "managed-service-child",
     capturedMenuId: sourceItem.id,
     parentId: "services",
-    href: "/demo-say-thang-hoa/",
+    href: "/demo-dich-vu-say/",
     isActive: true,
-    label: "Sấy thăng hoa demo",
+    label: "Dịch vụ sấy demo",
     menuKey: "primary",
     sortOrder: 10,
   }]);
 
-  assert.match(result, /id="menu-item-5466"[\s\S]*managed-legacy-navigation-child[\s\S]*href="\/demo-say-thang-hoa\/"[\s\S]*Sấy thăng hoa demo/);
+  assert.match(result, /id="menu-item-5466"[\s\S]*managed-legacy-navigation-child[\s\S]*href="\/demo-dich-vu-say\/"[\s\S]*Dịch vụ sấy demo/);
 });
 
-test("inactive legacy mega-menu child is hidden without leaking a dead link", () => {
-  const sourceItem = legacyMegaMenuItems.find((item) => item.owner === "services" && item.isPlaceholder);
+test("inactive service hub is hidden without leaking a dead link", () => {
+  const sourceItem = legacyMegaMenuItems.find((item) => item.owner === "services" && item.href === "/dich-vu-say/");
   assert.ok(sourceItem);
   const markup = `<div class="ux-menu-link flex menu-item" data-navigation-id="${sourceItem.id}"><span class="ux-menu-link__link flex"><span class="ux-menu-link__text">${sourceItem.label}</span></span></div>`;
   const result = applyNavigationToMarkup(markup, [{

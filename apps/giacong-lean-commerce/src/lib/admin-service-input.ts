@@ -1,16 +1,8 @@
-import { serviceFamilies } from "../data/service-families.ts";
 import type { AdminPublishStatus, AdminServiceInput } from "./admin-data";
+import { safeInternalHref } from "./service-presentation.ts";
+import type { ServiceOffering } from "@/data/service-families";
 
 const statuses = new Set<AdminPublishStatus>(["draft", "review", "published", "archived"]);
-
-/**
- * The thirteen slugs `/thue-gia-cong/[family]` serves statically. A managed
- * row with any other slug is invisible on the storefront (the static gate
- * falls back to `notFound()`), so new writes outside this list are rejected
- * instead of creating orphan rows. Existing orphan rows are left untouched —
- * they can still be archived, never silently revived.
- */
-const knownServiceFamilySlugs: Set<string> = new Set(serviceFamilies.map((family) => family.slug));
 
 export function parseAdminServicePayload(
   payload: unknown,
@@ -29,32 +21,43 @@ export function parseAdminServicePayload(
   const leadTimeDays = parseNullableNonNegativeInteger(merged.leadTimeDays, "Lead time", fieldErrors, "leadTimeDays");
   const requestedActive = merged.isActive === true;
   const isActive = status === "published" && requestedActive;
+  const offerings = merged.offerings === undefined
+    ? undefined
+    : parseOfferings(merged.offerings, fieldErrors);
+  const ctaLabel = merged.ctaLabel === undefined
+    ? undefined
+    : nullableTextField(merged.ctaLabel, "Nhãn CTA", 120, fieldErrors, "ctaLabel");
+  const ctaHref = merged.ctaHref === undefined
+    ? undefined
+    : parseCtaHref(merged.ctaHref, fieldErrors);
+  const sortOrder = merged.sortOrder === undefined
+    ? undefined
+    : parseNullableNonNegativeInteger(merged.sortOrder, "Thứ tự nhóm", fieldErrors, "sortOrder", 100_000);
 
   if (slug && !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)) {
     fieldErrors.slug = "Slug chỉ gồm chữ thường, số và dấu gạch ngang.";
-  }
-  if (slug && !fieldErrors.slug && !knownServiceFamilySlugs.has(slug)) {
-    fieldErrors.slug = "Slug không thuộc 13 nhóm dịch vụ của /thue-gia-cong; hãy chọn slug trong danh mục cho phép.";
   }
   if (status === "published" && !requestedActive) {
     fieldErrors.isActive = "Dịch vụ published phải được bật hiển thị.";
   }
 
   if (Object.keys(fieldErrors).length > 0) return { fieldErrors, input: null };
-  return {
-    fieldErrors,
-    input: {
-      description,
-      imageUrl,
-      isActive,
-      leadTimeDays,
-      moqSummary,
-      name,
-      slug,
-      status,
-      summary,
-    },
+  const input: AdminServiceInput = {
+    description,
+    imageUrl,
+    isActive,
+    leadTimeDays,
+    moqSummary,
+    name,
+    slug,
+    status,
+    summary,
   };
+  if (offerings !== undefined) input.offerings = offerings;
+  if (ctaLabel !== undefined) input.ctaLabel = ctaLabel;
+  if (ctaHref !== undefined) input.ctaHref = ctaHref;
+  if (sortOrder !== undefined) input.sortOrder = sortOrder;
+  return { fieldErrors, input };
 }
 
 /**
@@ -122,14 +125,65 @@ function parseNullableNonNegativeInteger(
   label: string,
   errors: Record<string, string>,
   key: string,
+  max = 3650,
 ): number | null {
   if (value === null || value === undefined || value === "") return null;
   const parsed = typeof value === "number" ? value : Number(value);
-  if (!Number.isInteger(parsed) || parsed < 0 || parsed > 3650) {
-    errors[key] = `${label} phải là số nguyên từ 0 đến 3650 hoặc để trống.`;
+  if (!Number.isInteger(parsed) || parsed < 0 || parsed > max) {
+    errors[key] = `${label} phải là số nguyên từ 0 đến ${max} hoặc để trống.`;
     return null;
   }
   return parsed;
+}
+
+function parseOfferings(value: unknown, errors: Record<string, string>): ServiceOffering[] {
+  if (!Array.isArray(value)) {
+    errors.offerings = "Danh sách dịch vụ trong nhóm phải là một mảng.";
+    return [];
+  }
+  if (value.length > 100) {
+    errors.offerings = "Mỗi nhóm chỉ được có tối đa 100 dịch vụ.";
+    return [];
+  }
+  const hrefs = new Set<string>();
+  const offerings: ServiceOffering[] = [];
+  for (const item of value) {
+    if (!isRecord(item) || typeof item.label !== "string" || typeof item.href !== "string") {
+      errors.offerings = "Mỗi dịch vụ trong nhóm cần có tên và đường dẫn.";
+      return [];
+    }
+    const label = item.label.trim();
+    const href = item.href.trim();
+    if (!label || label.length > 160) {
+      errors.offerings = "Tên dịch vụ trong nhóm phải có từ 1 đến 160 ký tự.";
+      return [];
+    }
+    if (!safeInternalHref(href)) {
+      errors.offerings = "Đường dẫn dịch vụ trong nhóm phải là đường dẫn nội bộ bắt đầu bằng /.";
+      return [];
+    }
+    if (hrefs.has(href)) {
+      errors.offerings = "Đường dẫn dịch vụ trong nhóm không được trùng.";
+      return [];
+    }
+    hrefs.add(href);
+    offerings.push({ href, label });
+  }
+  return offerings;
+}
+
+function parseCtaHref(value: unknown, errors: Record<string, string>): string | null {
+  if (value === null || value === undefined || value === "") return null;
+  if (typeof value !== "string") {
+    errors.ctaHref = "CTA phải là đường dẫn nội bộ.";
+    return null;
+  }
+  const href = value.trim();
+  if (!safeInternalHref(href)) {
+    errors.ctaHref = "CTA phải là đường dẫn nội bộ bắt đầu bằng /.";
+    return null;
+  }
+  return href;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

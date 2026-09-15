@@ -171,7 +171,7 @@ test("shared admin states explain readiness without infrastructure jargon", asyn
   assert.doesNotMatch(shell, /Dữ liệu hiển thị trực tiếp từ D1/);
 });
 
-test("request inbox stays out of the Lean V1 admin control plane", async () => {
+test("request inbox is reachable from the Lean V1 admin control plane", async () => {
   const [shell, news, dashboard, dashboardApi] = await Promise.all([
     readSource("components", "admin", "AdminShell.tsx"),
     readSource("app", "admin", "tin-tuc", "page.tsx"),
@@ -179,8 +179,8 @@ test("request inbox stays out of the Lean V1 admin control plane", async () => {
     readFile(new URL("../src/app/api/admin/dashboard/route.ts", import.meta.url), "utf8"),
   ]);
 
-  assert.doesNotMatch(shell, /\/admin\/yeu-cau/);
-  assert.doesNotMatch(shell, /Yêu cầu báo giá/);
+  assert.match(shell, /\/admin\/yeu-cau/);
+  assert.match(shell, /Yêu cầu báo giá/);
   assert.match(news, /canManageNews\(session\.role\)/);
   assert.match(news, /if \(!canManage\)/);
   assert.doesNotMatch(dashboard, /link-dashboard-leads/);

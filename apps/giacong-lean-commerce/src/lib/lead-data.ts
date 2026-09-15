@@ -194,6 +194,7 @@ function extractItems(payload: Record<string, unknown>): LeadItem[] {
 
   const product = readNullableText(payload.product, 200);
   const service = readNullableText(payload.service, 160);
+  const serviceSlug = readNullableText(payload.service_code, 160) ?? service;
   const quantity = readNullableInteger(payload.qty);
   if (!product && !service && !payload.variant && quantity === null) return [];
   return [{
@@ -203,12 +204,15 @@ function extractItems(payload: Record<string, unknown>): LeadItem[] {
     productName: product,
     productSlug: null,
     quantity,
-    serviceSlug: service,
+    serviceSlug,
     snapshot: {
       product: payload.product ?? null,
       qty: payload.qty ?? null,
       request_type: payload.request_type ?? null,
       service: payload.service ?? null,
+      service_code: payload.service_code ?? null,
+      service_name: payload.service_name ?? null,
+      service_url: payload.service_url ?? null,
       variant: payload.variant ?? null,
     },
     unit: null,

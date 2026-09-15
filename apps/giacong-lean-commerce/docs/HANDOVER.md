@@ -1,36 +1,52 @@
 # Bàn giao vận hành — giacong.vn trên kienhieu.id.vn
 
-Tài liệu dành cho người vận hành (khách + chủ dự án). Quyết định kiến trúc xem [CLOUDFLARE_DEPLOYMENT.md](./CLOUDFLARE_DEPLOYMENT.md); checklist nghiệm thu xem [PRODUCTION_ACCEPTANCE_CHECKLIST.md](./PRODUCTION_ACCEPTANCE_CHECKLIST.md). Cập nhật 2026-09-04.
+Tài liệu dành cho người vận hành (khách + chủ dự án). Quyết định kiến trúc xem [CLOUDFLARE_DEPLOYMENT.md](./CLOUDFLARE_DEPLOYMENT.md); checklist nghiệm thu xem [PRODUCTION_ACCEPTANCE_CHECKLIST.md](./PRODUCTION_ACCEPTANCE_CHECKLIST.md). Cập nhật 2026-09-15.
 
 ## Checkpoint bàn giao mới nhất
 
-Code gate reference `bb2690bb` đã qua local gate toàn bộ; GitHub handoff head
-`5976970e` (source merge `53162218`); staging đang chạy runtime version
-`6c5789e8-0b84-401e-b3c4-6fc3cff5bcf4` ở 100%. D1 staging không còn migration
-pending; public smoke `/` và `/san-pham` trả `200`. Owner đã re-auth Cloudflare
-Access và smoke read-only đủ 10/10 route admin canonical ở desktop và mobile
-viewport mô phỏng `390×844`, không render lỗi/1102/5xx, không overflow, console
-error/warning rỗng; hai màn hình editor handoff tới storefront thật. Production chưa deploy,
-migrate hay ghi dữ liệu; production vẫn NO-GO cho đến khi checklist nghiệm thu
-được chủ dự án phê duyệt và chạy chủ ý.
+Production **chưa được thay đổi trong đợt này**; không dùng version production
+cũ trong tài liệu này làm bằng chứng nghiệm thu mới. Staging đang chạy
+`giacong-vn-staging` version
+  `d11377e7-ea93-4dbb-89ea-d3d0d344b070` trên
+  `staging.kienhieu.id.vn` và `admin-staging.kienhieu.id.vn`.
+Read-only Wrangler đối chiếu production Worker `giacong-vn` đang ở version
+`7f98ed7b-0d9f-4d59-880c-ee364e02e610`; migration staging `0023–0026` chưa được
+áp dụng vào D1 production.
+
+Access owner đã đọc lại các shortcut inline sản phẩm/dịch vụ/tin tức/liên hệ
+trên đúng version `d11377e7`; form dịch vụ mở đúng bản ghi ID 8, form contact
+mở và đọc đúng giá trị website đang dùng. UAT runtime dịch vụ QA
+(publish/đổi slug/redirect/khôi phục) và tin tức redirect QA đã đạt rồi khôi
+phục sạch. Các suite source và OpenNext build pass; shell runner Windows cần
+dừng sau output cuối.
+QA sản phẩm đã round-trip và khôi phục/ẩn; QA dịch vụ động ID 16 đang là nháp;
+QA tin tức ID 4 hiện không xuất bản, slug cũ được khôi phục và redirect QA đã
+được xóa. Chưa chốt bàn
+giao vì còn phải duyệt dataset/nội dung kinh doanh, xác nhận đích nhận request
+và thực hiện UAT ghi/publish bằng tài khoản thật; tình huống hai tab stale
+revision đã đạt trên staging nhưng logout/expiry và audit đầy đủ còn mở. Lead staging cũ có cả trạng
+thái chuyển Google lỗi `502/504`, nên chưa gửi controlled request mới.
+Sản phẩm QA `test 1` (ID 10) đã được ẩn mềm: D1 là `is_active=0`,
+`status=archived`, còn nguyên 1 biến thể/3 giá bậc; admin hiển thị `Tạm ẩn`,
+sitemap staging còn 224 URL và URL `/san-pham/test1` trả `404`.
 
 ## 1. Bản đồ hệ thống
 
 | Thành phần | Địa chỉ | Ghi chú |
 | --- | --- | --- |
-| Storefront production | https://kienhieu.id.vn | Cloudflare Worker `giacong-vn` @100% |
+| Storefront production | https://kienhieu.id.vn | Chưa deploy bản checkpoint 2026-09-15; chỉ phát hành sau duyệt |
 | Admin production | https://admin.kienhieu.id.vn/admin | Sau Cloudflare Access — fail-closed |
-| Storefront staging | https://staging.kienhieu.id.vn | Worker `giacong-vn-staging`, public demo; version `6c5789e8-0b84-401e-b3c4-6fc3cff5bcf4` ở 100%; rollback point trước deploy là `b8b344ca-07c3-4449-bfca-d5acad685931` |
+| Storefront staging | https://staging.kienhieu.id.vn | Worker `giacong-vn-staging`; version `d11377e7-ea93-4dbb-89ea-d3d0d344b070` |
 | Admin staging | https://admin-staging.kienhieu.id.vn/admin | Cloudflare Access thật; storefront staging mới public; không có identity thì fail-closed |
 | D1 production | `giacong-vn-catalog` | Catalog, leads, media metadata, CMS |
 | R2 production | `giacong-vn-product-media` | Ảnh product/variant/service qua `/media/*` |
 | Request intake | Google Sheet "Yêu cầu báo giá Giacong" + Apps Script | Xem mục 3 |
-| Backup D1 | `.runtime/production-d1-backup-20260902-pre-release.sql` (SHA-256 `583BE2FBFFC2C6D8F0C77E7D97C3786E838EDBFD228E024AD7A8F078A147ABFD`) | Export mới + restore-drill cục bộ đạt `integrity_check=ok`; vẫn phải re-export lại ngay trước cửa sổ migration nếu dữ liệu thay đổi |
+| Backup D1 | `.runtime/handover-20260913/production-d1-after-navigation.sql` (SHA-256 `FA70535FB59FA0F738CDE82598369AD515216D5587C4A556FA2D7538A7D34B41`) | Export sau thay đổi navigation; restore-drill trước release đạt `integrity_check=ok` |
 
 ## 2. Vận hành admin
 
 1. Đăng nhập `admin.kienhieu.id.vn/admin` — Cloudflare Access sẽ xác thực email Google được phép.
-2. Vai trò nội bộ: `owner` (toàn quyền), `content_manager` (nội dung/dịch vụ/media/news), `catalog_manager` (sản phẩm/biến thể/giá), `sales_manager` (leads), `viewer` (chỉ xem). Phân quyền kiểm tra **server-side** — ẩn button bên UI chỉ là tiện ích.
+2. Vai trò hiện dùng: `owner` (toàn quyền). Các role cũ (`content_manager`, `catalog_manager`, `sales_manager`, `viewer`) không còn được admission; phân quyền vẫn kiểm tra **server-side** — ẩn button bên UI chỉ là tiện ích.
 3. Sản phẩm: tạo draft → điền SKU/MOQ/bước số lượng/ngưỡng liên hệ/giá tier → publish. Ràng buộc bất biến (MOQ > 0, tier đúng bậc từ MOQ theo bước, ngưỡng liên hệ nằm trên số lượng hợp lệ) được server kiểm tra — vi phạm sẽ bị từ chối.
 4. Ảnh: upload qua panel media (≤ 8 MiB, JPEG/PNG/WebP) → "Dùng làm ảnh chính". Xóa ảnh đang là ảnh chính sẽ bị chặn 409 — chọn ảnh chính khác trước.
 5. CMS (logo/hero/hotline): tab Nội dung → lưu draft → Publish riêng biệt; có chống ghi đè (stale-write).
@@ -126,24 +142,14 @@ npx wrangler queues info giacong-vn-leads-dlq      # hàng đợi lead thất b�
 - Cần thêm trường mới trên form/Sheet (thay đổi contract — phải cập nhật cả Worker lẫn Apps Script + test).
 - Thêm admin viên trên staging: cấu hình email/identity trong chính sách Cloudflare Access, sau đó owner `qtu1053@gmail.com` dùng `/admin/thanh-vien` để tạo bản ghi `admin_members` và cấp đúng một trong năm role. Không ghi trực tiếp production khi chưa có backup/acceptance.
 
-Trạng thái bàn giao hiện tại: code/test, staging storefront, Access identity
-thật, owner route navigation, public deep-QA, owner bootstrap, CMS draft
-isolation, navigation draft/publish round-trip, news draft round-trip và lead
-write/read-back có kiểm soát, cùng audit read-back 139 sự kiện, đã được xác minh;
-footer renderer đã deploy staging và public read-only smoke pass nhưng chưa có
-footer item active để chạy write/read-back;
-owner admin route `10/10`, mobile/reduced-motion/focus và form tạo admin đủ năm
-role cũng đã được kiểm tra read-only; role matrix nhiều identity, write/read-back đầy đủ, production data approval, migrations `0009–0019` và
-restore/rollback drill vẫn cần chủ dự án phê duyệt và thực hiện chủ ý. Không
-dùng dữ liệu demo staging làm dữ liệu production.
+Trạng thái bàn giao hiện tại: production storefront đang chạy 100% trên
+`kienhieu.id.vn` với version `7f98ed7b-0d9f-4d59-880c-ee364e02e610`; staging
+đang chạy `d11377e7-ea93-4dbb-89ea-d3d0d344b070`. Local gate, smoke route,
+responsive CUA, menu dịch vụ, ảnh local và error tail sau release đều đã pass.
+Cron mồ côi đã được gỡ; queue production còn đúng một producer và một consumer,
+DLQ tồn tại đúng theo cấu hình nhưng không có dấu hiệu phát sinh từ lượt kiểm tra
+này. Không dùng dữ liệu demo staging làm dữ liệu production.
 
-Release hardening source mới nhất: commit `a72ee4e6` đã khóa postcondition
-read-back/rollback cho các write path admin và sửa strict typecheck harnesses;
-commit `1002dc50` bổ sung controlled read-only stress runner; `bb2690bb` đã loại
-telemetry RUM khỏi cảnh báo mutation giả nhưng vẫn chặn mutation app. Staging
-đang ở `6c5789e8` 100%; local gate đạt admin `285/285`, contact `104/104`, catalog
-`5/5`, purchase UI `1/1`, service `3/3`, commerce `69/69`,
-listing `4/4`, detail `29/29`, lint, typecheck và build `27/27`; dependency
-audit không có vulnerability. Public smoke sau deploy pass; smoke owner sau
-deploy đã pass desktop/mobile read-only. Role matrix nhiều identity, write/read-back
-runtime đầy đủ và production gate vẫn cần nghiệm thu có chủ ý.
+Các gate còn lại của bàn giao là theo dõi observability đủ 24 giờ, chủ dự án
+duyệt nội dung kinh doanh/catalog và quyết định redirect `giacong.vn` nếu có
+quyền DNS/hosting domain cũ.

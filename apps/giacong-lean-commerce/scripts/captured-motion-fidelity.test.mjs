@@ -49,30 +49,28 @@ const settings = {
   site_title: "Giacong.vn",
 };
 
-test("keeps the captured mega menus while normalizing their local navigation", () => {
+test("normalizes captured navigation into a direct product route and grouped services", () => {
   const result = normalizeCapturedMarkup(desktopAndMobileMenu);
   const productMenuStart = result.indexOf('id="menu-item-1742"');
   const serviceMenuStart = result.indexOf('id="menu-item-5166"');
   const productMenu = result.slice(productMenuStart, serviceMenuStart);
   const serviceMenu = result.slice(serviceMenuStart);
 
-  assert.equal((result.match(/class="sub-menu nav-dropdown"/g) ?? []).length, 2);
-  assert.match(result, /Mua hàng<i class="icon-angle-down"><\/i>/);
+  assert.equal((result.match(/class="sub-menu nav-dropdown"/g) ?? []).length, 1);
+  assert.match(productMenu, /href="\/san-pham\/"/);
+  assert.match(productMenu, /Mua hàng/);
+  assert.doesNotMatch(productMenu, /nav-dropdown|icon-angle-down/);
   assert.match(result, /Thuê gia công<i class="icon-angle-down"><\/i>/);
-  assert.match(productMenu, /Gia công sốt chấm/);
-  assert.match(productMenu, /Bột phô mai tách muối/);
-  assert.match(productMenu, /href="\/gia-cong-sot-cham\/"/);
-  assert.match(productMenu, /<h4><span>Nước trái cây<\/span><\/h4>/);
-  assert.match(productMenu, /<h4><span>Thực phẩm sấy<\/span><\/h4>/);
-  assert.doesNotMatch(productMenu, /Bột và nguyên liệu khô/);
-  assert.doesNotMatch(productMenu, /Bột đậu nành rang/);
   assert.match(serviceMenu, /id="menu-item-5166"[\s\S]*?href="\/thue-gia-cong\/"/);
-  assert.match(serviceMenu, /Gia công sữa hạt/);
-  assert.match(serviceMenu, /Sấy hồng ngoại/);
-  assert.match(serviceMenu, /Dịch vụ pháp lý/);
-  assert.match(serviceMenu, /<h4><span>Dịch vụ đóng gói<\/span><\/h4>[\s\S]*?<span class="ux-menu-link__text">Hồng sấy<\/span>/);
+  assert.match(serviceMenu, /Thực phẩm và nguyên liệu/);
+  assert.match(serviceMenu, /Gia công sốt chấm/);
   assert.match(serviceMenu, /Dịch vụ sấy/);
+  assert.match(serviceMenu, /Sấy và đóng gói/);
+  assert.match(serviceMenu, /Xem tất cả dịch vụ/);
+  assert.match(serviceMenu, /Gia công sữa bột/);
+  assert.match(serviceMenu, /Sấy hồng ngoại/);
   assert.match(result, /id="menu-item-5466"[\s\S]*?href="\/thue-gia-cong\/"/);
+  assert.match(result, /id="menu-item-5467"[\s\S]*?href="\/san-pham\/"[\s\S]*?Mua hàng/);
 });
 
 test("removes top-level charset declarations before captured CSS enters a layer", () => {
@@ -83,25 +81,13 @@ test("removes top-level charset declarations before captured CSS enters a layer"
   assert.match(result, /\.captured \{ color: green; \}/);
 });
 
-test("creates mobile Mua hàng as an accordion from the desktop mega-menu", () => {
-  assert.match(
-    mobileNavigation,
-    /productItem\.className = "menu-item menu-item-has-children has-icon-left clone-mobile-products"/,
-  );
-  assert.match(
-    mobileNavigation,
-    /const desktopLink = desktopProductItem\?\.querySelector<HTMLAnchorElement>\(\s*":scope > a",\s*\)/,
-  );
-  assert.match(
-    mobileNavigation,
-    /const desktopDropdown = desktopProductItem\?\.querySelector<HTMLElement>\(\s*":scope > \.nav-dropdown",\s*\)/,
-  );
-  assert.match(
-    mobileNavigation,
-    /desktopDropdown\s*\n\s*\.querySelectorAll<HTMLAnchorElement>\(":scope > \.row a"\)/,
-  );
-  assert.match(mobileNavigation, /sub-menu nav-sidebar-ul children clone-mobile-product-children/);
-  assert.doesNotMatch(mobileNavigation, /document\.createTextNode\("Mua hàng"\)/);
+test("keeps mobile Mua hàng direct and reserves accordions for service groups", () => {
+  assert.doesNotMatch(mobileNavigation, /createMobileProductItem|clone-mobile-product/);
+  assert.match(capturedMarkupSource, /function mobileProductMenu\(\)/);
+  assert.match(capturedMarkupSource, /id="menu-item-5467"[\s\S]*href="\/san-pham\/"[\s\S]*Mua hàng/);
+  assert.match(capturedMarkupSource, /function mobileServiceMenu\(\)/);
+  assert.match(mobileNavigation, /li\.menu-item-has-children, li\.has-dropdown/);
+  assert.match(mobileNavigation, /aria-hidden.*String\(!expanded\)/);
 });
 
 test("maps legacy mega-menu hrefs to safe parent routes", () => {
@@ -111,11 +97,15 @@ test("maps legacy mega-menu hrefs to safe parent routes", () => {
   const productMenu = result.slice(productMenuStart, serviceMenuStart);
   const serviceMenu = result.slice(serviceMenuStart);
 
+  assert.match(productMenu, /href="\/san-pham\/"/);
   assert.doesNotMatch(productMenu, /href="(?:#|\/|\/Hoa quả sấy)"/);
+  assert.doesNotMatch(productMenu, /nav-dropdown|icon-angle-down/);
   assert.doesNotMatch(serviceMenu, /href="(?:#|\/|\/Hoa quả sấy)"/);
-  assert.match(productMenu, /<span class="ux-menu-link__text">Nước ép chanh leo<\/span>/);
-  assert.match(productMenu, /<span class="ux-menu-link__text">Bột phô mai tách muối<\/span>/);
-  assert.match(serviceMenu, /<span class="ux-menu-link__text">Hồng sấy<\/span>/);
+  assert.match(serviceMenu, /href="\/gia-cong-sot-cham\/"/);
+  assert.match(serviceMenu, /href="\/dich-vu-say\/"/);
+  assert.match(serviceMenu, /href="\/gia-cong-dong-goi\/"/);
+  assert.match(serviceMenu, /href="\/gia-cong-sua-bot\/"/);
+  assert.match(serviceMenu, /href="\/say-thang-hoa\/"/);
 });
 
 test("renames legacy menu labels even when the dropdown icon carries extra attributes", () => {
@@ -153,15 +143,15 @@ test("keeps invalid contact submissions on the client", () => {
   );
 });
 
-test("published primary navigation updates both parents without replacing shared children", () => {
+test("published navigation keeps Mua hàng direct while updating the service parent", () => {
   const normalized = normalizeCapturedMarkup(desktopAndMobileMenu);
   const result = applyNavigationToMarkup(normalized, [
     {
       id: "products",
       capturedMenuId: "menu-item-1742",
-      href: "/published-products/",
+      href: "/san-pham/",
       isActive: true,
-      label: "Danh mục sản phẩm",
+      label: "Mua hàng",
       menuKey: "primary",
       sortOrder: 30,
     },
@@ -176,25 +166,29 @@ test("published primary navigation updates both parents without replacing shared
     },
   ], "menu-item-1742");
 
-  assert.match(result, /id="menu-item-1742"[\s\S]*?href="\/published-products\/"[\s\S]*?Danh mục sản phẩm/);
+  assert.match(result, /id="menu-item-1742"[\s\S]*?href="\/san-pham\/"[\s\S]*?Mua hàng/);
+  assert.doesNotMatch(result.slice(result.indexOf('id="menu-item-1742"'), result.indexOf('id="menu-item-5166"')), /nav-dropdown|icon-angle-down/);
   assert.match(result, /id="menu-item-5466"[\s\S]*?href="\/published-services\/"[\s\S]*?Dịch vụ đã phát hành/);
-  assert.match(result, /Gia công sốt chấm/);
-  assert.match(result, /Dịch Vụ Gia Công Sữa/);
+  assert.match(result, /Thực phẩm và nguyên liệu/);
+  assert.match(result, /Xem tất cả dịch vụ/);
 });
 
-test("published navigation owns parents while source child choices can be adopted into management", () => {
+test("published navigation owns parents while service hub choices remain source-owned", () => {
   assert.match(capturedMarkupSource, /D1 site_navigation_items owns top-level parent labels and hrefs/);
   assert.match(capturedMarkupSource, /data-navigation-id/);
-  assert.match(capturedMarkupSource, /const productMegaMenuColumns/);
   assert.match(capturedMarkupSource, /const serviceMegaMenuColumns/);
-  assert.match(capturedMarkupSource, /const mobileServiceMenuLinks/);
+  assert.match(capturedMarkupSource, /function mobileProductMenu\(\)/);
+  assert.match(capturedMarkupSource, /function mobileServiceMenu\(\)/);
+  assert.doesNotMatch(capturedMarkupSource, /productMegaMenuColumns|mobileServiceMenuLinks/);
 });
 
-test("desktop UX audit finds the product mega-menu by canonical id", () => {
+test("desktop UX audit checks the direct product link and service mega-menu", () => {
   assert.match(
     uxAuditPilot,
-    /#header li#menu-item-1742\.menu-item-design-container-width\.has-dropdown/,
+    /#header li#menu-item-1742(?:\.menu-item-design-container-width)?/,
   );
+  assert.match(uxAuditPilot, /href="\/san-pham\/"|\/san-pham/);
+  assert.match(uxAuditPilot, /#header li#menu-item-5166\.menu-item-design-container-width\.has-dropdown/);
   assert.doesNotMatch(uxAuditPilot, /filter\(\{ hasText: "Mua hàng" \}\)/);
 });
 
@@ -214,6 +208,17 @@ test("keeps the injected floating contact off mobile when captured bottom contac
     /className="echbay-sms-messenger style-for-position-br max-\[549px\]:!hidden"/,
   );
   assert.match(capturedPage, /aria-label="Liên hệ nhanh" role="region"/);
+});
+
+test("keeps the quick-contact rail in a safe side lane at tablet widths", () => {
+  assert.match(
+    globals,
+    /@media \(min-width: 550px\) and \(max-width: 1199px\)[\s\S]*?\.echbay-sms-messenger \{[\s\S]*?right: 0 !important;[\s\S]*?width: 38px !important;/,
+  );
+  assert.match(globals, /\.echbay-sms-messenger > div:not\(\.phonering-alo-cart\)[\s\S]*?height: 38px/);
+  assert.match(globals, /\.echbay-sms-messenger > div:not\(\.phonering-alo-cart\)[\s\S]*?background-clip: content-box/);
+  assert.match(globals, /\.echbay-sms-messenger > div:not\(\.phonering-alo-cart\) > a[\s\S]*?position: absolute/);
+  assert.match(globals, /\.echbay-sms-messenger \.phonering-alo-cart \.icon[\s\S]*?height: 22px/);
 });
 
 test("capture transform does not bake data-animated=true into generated markup", () => {
@@ -309,7 +314,7 @@ test("primes page reveals before enabling their transition", () => {
 test("keeps desktop mega menus reachable during the pointer handoff", () => {
   assert.match(
     globals,
-    /#header li\.menu-item-design-container-width\.has-dropdown > \.nav-dropdown[\s\S]*?transition: opacity \.25s ease \.35s, visibility 0s linear \.6s !important;/,
+    /#header li\.menu-item-design-container-width\.has-dropdown > \.nav-dropdown[\s\S]*?transition: none !important;/,
   );
   assert.match(
     globals,
@@ -317,33 +322,25 @@ test("keeps desktop mega menus reachable during the pointer handoff", () => {
   );
   assert.match(
     globals,
-    /#header li\.menu-item-design-container-width\.has-dropdown:hover > \.nav-dropdown[\s\S]*?transition: opacity \.25s, visibility \.25s !important;/,
+    /#header li\.menu-item-design-container-width\.has-dropdown:hover > \.nav-dropdown[\s\S]*?transition: none !important;/,
   );
 });
 
 test("closes a sibling desktop mega menu immediately on handoff", () => {
   assert.match(
     globals,
-    /#header:has\(li\.has-dropdown:hover\)[\s\S]*?li\.menu-item-design-container-width\.has-dropdown:not\(:hover\) > \.nav-dropdown[\s\S]*?transition: opacity \.25s, visibility \.25s !important;/,
+    /#header:has\(li\.has-dropdown:hover\)[\s\S]*?li\.menu-item-design-container-width\.has-dropdown:not\(:hover\) > \.nav-dropdown[\s\S]*?transition: none !important;/,
   );
 });
 
-test("keeps the desktop mega-menu content static like the source", () => {
-  assert.doesNotMatch(
+test("keeps the desktop service mega-menu content static like the source", () => {
+  assert.match(
     globals,
-    /#header li\.menu-item-design-container-width\.has-dropdown > \.nav-dropdown \.clone-product-menu,[\s\S]*?opacity: 0;/,
-  );
-  assert.doesNotMatch(
-    globals,
-    /#header li\.menu-item-design-container-width\.has-dropdown:hover > \.nav-dropdown \.clone-product-menu,[\s\S]*?opacity: 1;/,
+    /#header li\.menu-item-design-container-width\.has-dropdown > \.nav-dropdown[\s\S]*?transition: none !important;/,
   );
   assert.match(
     globals,
-    /#header li\.menu-item-design-container-width\.has-dropdown > \.nav-dropdown[\s\S]*?transition: opacity \.25s ease \.35s, visibility 0s linear \.6s !important;/,
-  );
-  assert.match(
-    globals,
-    /#header li\.menu-item-design-container-width\.has-dropdown:hover > \.nav-dropdown[\s\S]*?transition: opacity \.25s, visibility \.25s !important;/,
+    /#header li\.menu-item-design-container-width\.has-dropdown:hover > \.nav-dropdown[\s\S]*?transition: none !important;/,
   );
 });
 
@@ -355,7 +352,7 @@ test("matches the source mobile interaction contract", () => {
   assert.match(mobileNavigation, /aria-hidden.*String\(!expanded\)/);
   assert.match(globals, /header-wrapper\.stuck[\s\S]*box-shadow: 1px 1px 10px rgba\(0,0,0,\.15\)/);
   assert.match(globals, /\.clone-menu-backdrop[\s\S]*width: 100vw/);
-  assert.match(globals, /clone-submenu-open > \.sub-menu[\s\S]*max-height: 390px/);
+  assert.match(globals, /nav-sidebar li\.clone-submenu-open > \.sub-menu[\s\S]*max-height: min\(80vh, 760px\)/);
   assert.match(globals, /prefers-reduced-motion: reduce[\s\S]*clone-menu-open[\s\S]*transition: none/);
 });
 
@@ -367,4 +364,17 @@ test("strips script elements from normalized captured markup", () => {
   assert.doesNotMatch(result, /<script/i);
   assert.doesNotMatch(result, /evil\.example/);
   assert.match(result, /Giới thiệu/);
+});
+
+test("replaces captured placeholder CTAs and removes placeholder social/footer links", () => {
+  const markup = '<a class="nut-xem-them1" href="#"><span>Xem thêm</span><i aria-hidden="true"></i></a><div class="social-icons"><a aria-label="Follow on Facebook" href="http://url"><i class="icon-facebook"></i></a><a aria-label="Follow on LinkedIn" href="#"><i class="icon-linkedin"></i></a></div><footer><ul><li><a href="#">Chính sách thanh toán</a></li><li><a href="/chinh-sach-bao-mat/">Chính sách bảo mật</a></li><li>Thanh toán</li></ul></footer>';
+  const result = normalizeCapturedMarkup(markup);
+
+  assert.match(result, /href="\/thue-gia-cong\/"/);
+  assert.doesNotMatch(result, /href="http:\/\/url"/i);
+  assert.doesNotMatch(result, /Follow on Facebook/);
+  assert.doesNotMatch(result, /Follow on LinkedIn/);
+  assert.doesNotMatch(result, /Chính sách thanh toán/);
+  assert.doesNotMatch(result, /Thanh toán/);
+  assert.match(result, /Chính sách bảo mật/);
 });

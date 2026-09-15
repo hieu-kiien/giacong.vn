@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 520" role="img" aria-labelledby="title desc">
+  <title id="title">Minh hoạ gia công sữa</title>
+  <desc id="desc">Hộp sữa và hạt nguyên liệu trên nền xanh dịu</desc>
+  <rect width="800" height="520" rx="34" fill="#eef7e6"/>
+  <circle cx="650" cy="115" r="86" fill="#d9efc4"/>
+  <path d="M0 410c142-52 260-54 382-11 141 49 245 37 418-43v164H0Z" fill="#c4e6a3"/>
+  <path d="m274 119 46-34 142 16 32 42-21 238-177-13Z" fill="#fffaf0" stroke="#327600" stroke-width="8"/>
+  <path d="m320 85 142 16 32 42-175-17Z" fill="#d9efc4" stroke="#327600" stroke-width="8"/>
+  <path d="m369 177 71 7 38 37-112-8Z" fill="#ffbe4a"/>
+  <path d="M369 220c29-22 63-18 95 7v50c-39-24-70-26-100-9Z" fill="#6ead3d"/>
+  <path d="M367 290c27-14 58-13 99 12v31c-41-20-72-21-101-5Z" fill="#f08b24"/>
+  <path d="M387 156c13-21 29-31 49-30 17 1 30 9 41 27" fill="none" stroke="#327600" stroke-width="7" stroke-linecap="round"/>
+  <path d="M558 217c24-13 51-8 69 12v130c-29 17-53 19-76 4Z" fill="#fff" stroke="#327600" stroke-width="8"/>
+  <path d="m558 217 49-21 20 33-49 20Z" fill="#d9efc4" stroke="#327600" stroke-width="8"/>
+  <path d="M567 278h53M567 302h53M567 326h36" stroke="#6ead3d" stroke-width="9" stroke-linecap="round"/>
+  <path d="M176 361c0-33 27-60 60-60s60 27 60 60" fill="#f7c96b" stroke="#327600" stroke-width="8"/>
+  <path d="M176 361h120v47H176Z" fill="#fffaf0" stroke="#327600" stroke-width="8"/>
+  <path d="M198 384h74" stroke="#f08b24" stroke-width="9" stroke-linecap="round"/>
+</svg>

@@ -22,10 +22,18 @@ const serviceMenuRegion = (html: string): string => {
   return html.slice(start, start + 40000);
 };
 
-const productMenuRegion = (html: string): string => {
-  const start = html.indexOf("clone-product-menu");
-  assert.ok(start >= 0, "expected the replaced product mega menu in output");
-  return html.slice(start, start + 40000);
+const productMenuItemRegion = (html: string): string => {
+  const start = html.indexOf('id="menu-item-1742"');
+  assert.ok(start >= 0, "expected the normalized product link in output");
+  const end = html.indexOf('id="menu-item-5166"', start);
+  assert.ok(end > start, "expected the service menu after the product link");
+  return html.slice(start, end);
+};
+
+const mobileMenuRegion = (html: string): string => {
+  const start = html.indexOf('id="menu-item-5467"');
+  assert.ok(start >= 0, "expected the direct mobile product link in output");
+  return html.slice(start, start + 12000);
 };
 
 const PLACEHOLDER_LABELS = [
@@ -49,7 +57,6 @@ const PLACEHOLDER_LABELS = [
   "Bột nghệ",
   "Bột ớt",
   "Bột sả",
-  "Gia công sữa tươi",
 ];
 
 test("service mega menu never links placeholder labels anywhere", async () => {
@@ -64,13 +71,22 @@ test("service mega menu never links placeholder labels anywhere", async () => {
   assert.doesNotMatch(normalized, /\/Hoa quả sấy/);
 });
 
-test("service items without a real destination render as text, real hubs stay linked", async () => {
+test("service mega menu exposes grouped service entry points", async () => {
   const { markup } = await readDataPage("tin-tuc.json");
   const region = serviceMenuRegion(normalizeCapturedMarkup(markup));
-  assert.match(region, /<span class="ux-menu-link__text">Sữa chua vị chuối<\/span>/);
-  assert.doesNotMatch(region, /<a[^>]*>[\s\S]{0,80}Sữa chua vị chuối[\s\S]{0,20}<\/a>/);
+  assert.match(region, /<h4><span>Thực phẩm và nguyên liệu<\/span><\/h4>/);
+  assert.match(region, /<h4><span>Sữa và đồ uống<\/span><\/h4>/);
+  assert.match(region, /<h4><span>Sấy và đóng gói<\/span><\/h4>/);
+  assert.match(region, /<h4><span>Trà và cà phê<\/span><\/h4>/);
   assert.match(region, /<a[^>]*href="\/dich-vu-say\/"[^>]*>[\s\S]{0,60}Dịch vụ sấy/);
   assert.match(region, /<a[^>]*href="\/gia-cong-do-uong\/"[^>]*>[\s\S]{0,60}Gia công đồ uống/);
+  assert.match(region, /href="\/gia-cong-sua\/"/);
+  assert.match(region, /Gia công sữa/);
+  assert.match(region, /href="\/gia-cong-dong-goi\/"/);
+  assert.match(region, /Xem tất cả dịch vụ/);
+  assert.match(region, /href="\/gia-cong-sua-bot\/"/);
+  assert.match(region, /href="\/say-thang-hoa\/"/);
+  assert.doesNotMatch(region, /href="\/dich-vu-dong-goi-bot-hoa-tan\/"/);
 });
 
 test("captured submit controls expose an explicit accessible name", () => {
@@ -86,29 +102,83 @@ test("captured submit controls expose an explicit accessible name", () => {
   assert.doesNotMatch(explicit, /aria-label="Gửi"/);
 });
 
-test("menu groups without a real page render as headers, not links", async () => {
+test("service menu keeps its grouped headings and hub links", async () => {
   const { markup } = await readDataPage("tin-tuc.json");
   const region = serviceMenuRegion(normalizeCapturedMarkup(markup));
-  for (const label of ["Dịch vụ pháp lý", "Dịch vụ marketing", "Dịch vụ thiết kế", "Dịch vụ đóng gói"]) {
-    assert.match(region, new RegExp(`<h4><span>${label}<\\/span><\\/h4>`));
-  }
-  assert.doesNotMatch(region, /href="\/dich-vu-phap-ly\/"/);
-  assert.doesNotMatch(region, /href="\/dich-vu-marketing\/"/);
-  assert.doesNotMatch(region, /href="\/dich-vu-thiet-ke\/"/);
-  assert.doesNotMatch(region, /href="\/dich-vu-dong-goi\/"/);
+  assert.match(region, /<a href="\/gia-cong-sot-cham\/">Gia công sốt chấm<\/a>/);
+  assert.match(region, /<a href="\/gia-cong-duoc-lieu\/">Gia công dược liệu<\/a>/);
+  assert.match(region, /<a href="\/gia-cong-ca-phe\/">Gia công cà phê<\/a>/);
+  assert.match(region, /<a href="\/gia-cong-dong-goi\/">Gia công đóng gói<\/a>/);
+  assert.match(region, /<a href="\/bot-gia-vi\/">Gia công bột gia vị<\/a>/);
 });
 
-test("product mega menu lists each category exactly once", async () => {
+test("product menu is a direct route without a desktop dropdown", async () => {
   const { markup } = await readDataPage("tin-tuc.json");
-  const region = productMenuRegion(normalizeCapturedMarkup(markup));
-  const productOnly = region.slice(0, region.indexOf("clone-service-menu"));
-  assert.equal(productOnly.split(">Gia công đồ uống</a>").length - 1, 1);
+  const region = productMenuItemRegion(normalizeCapturedMarkup(markup));
+
+  assert.match(region, /href="\/san-pham\/"/);
+  assert.match(region, /Mua hàng/);
+  assert.doesNotMatch(region, /nav-dropdown|clone-product-menu|icon-angle-down/);
 });
 
-test("mobile product clone preserves published nested children", async () => {
+test("service mega menu owns the processing URLs moved out of products", async () => {
+  const { markup } = await readDataPage("tin-tuc.json");
+  const normalized = normalizeCapturedMarkup(markup);
+  const productOnly = productMenuItemRegion(normalized);
+  const services = serviceMenuRegion(normalized);
+
+  for (const href of [
+    "/gia-cong-sot-cham/",
+    "/gia-cong-do-uong/",
+    "/gia-cong-sua/",
+    "/dich-vu-say/",
+    "/gia-cong-dong-goi/",
+    "/bot-gia-vi/",
+  ]) {
+    assert.equal(productOnly.includes('href="' + href + '"'), false, href + " must not be in products");
+    assert.equal(services.includes('href="' + href + '"'), true, href + " must be in services");
+  }
+  for (const href of [
+    "/gia-cong-sua-bot/",
+    "/say-thang-hoa/",
+    "/dich-vu-dong-goi-bot-hoa-tan/",
+  ]) {
+    assert.equal(productOnly.includes('href="' + href + '"'), false, href + " must not be in products");
+    assert.equal(services.includes('href="' + href + '"'), href !== "/dich-vu-dong-goi-bot-hoa-tan/", href + " preserves its menu or group-page destination");
+  }
+});
+
+test("mobile navigation keeps Mua hàng direct and groups service accordions", async () => {
+  const { markup } = await readDataPage("tin-tuc.json");
+  const region = mobileMenuRegion(normalizeCapturedMarkup(markup));
   const source = await readFile(new URL("../src/components/mobile-navigation.ts", import.meta.url), "utf8");
-  assert.match(source, /nested-navigation-children/);
-  assert.match(source, /desktopProductItem[\s\S]*nested-navigation-children/);
+
+  assert.match(region, /id="menu-item-5467"[\s\S]*href="\/san-pham\/"[\s\S]*Mua hàng/);
+  assert.doesNotMatch(region, /clone-mobile-products|clone-mobile-product-children/);
+  assert.match(region, /Thực phẩm và nguyên liệu/);
+  assert.match(region, /Sữa và đồ uống/);
+  assert.match(region, /Sấy và đóng gói/);
+  assert.match(region, /Xem tất cả dịch vụ/);
+  assert.match(region, /Gia công sữa bột/);
+  assert.doesNotMatch(source, /createMobileProductItem|clone-mobile-product/);
+});
+
+test("milk service capture uses a local image fallback for every card", async () => {
+  const { markup } = await readDataPage("gia-cong-sua-bot.json");
+  const normalized = normalizeCapturedMarkup(markup);
+  const legacySources = [
+    "gia-cong-sua-bot-510x366.jpg",
+    "gia-cong-sua-bot-cho-tre-em-247x296.jpg",
+    "gia-cong-sua-bot-nguyen-kem-247x296.webp",
+    "gia-cong-sua-bot-pha-san-247x296.jpg",
+    "sua-bot-cho-nguoi-gia-247x296.webp",
+    "sua-bot-tach-beo-247x296.jpg",
+  ];
+
+  for (const source of legacySources) {
+    assert.equal(normalized.includes(source), false, source + " must use the local asset");
+  }
+  assert.equal((normalized.match(/\/images\/services\/service-milk\.svg/g) ?? []).length, legacySources.length);
 });
 
 const stubScope = (
@@ -197,7 +267,7 @@ test("desktop Escape dismissal wins over hover until pointer or focus re-enters"
   );
 });
 
-test("desktop pointer hover has intent delay while keyboard focus opens immediately", async () => {
+test("desktop pointer hover and keyboard focus open without delay", async () => {
   const globals = await readFile(
     new URL("../src/app/globals.css", import.meta.url),
     "utf8",
@@ -205,7 +275,7 @@ test("desktop pointer hover has intent delay while keyboard focus opens immediat
 
   assert.match(
     globals,
-    /#header li\.has-dropdown:hover > \.nav-dropdown\s*\{[\s\S]*?transition-delay:\s*140ms\s*!important/,
+    /#header li\.has-dropdown:hover > \.nav-dropdown\s*\{[\s\S]*?transition-delay:\s*0ms\s*!important/,
   );
   assert.match(
     globals,

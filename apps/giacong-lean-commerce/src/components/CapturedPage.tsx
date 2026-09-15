@@ -1,6 +1,7 @@
+import { AdminContactContextualAction } from "@/components/admin/AdminContactContextualAction";
 import { GiacongInteractions } from "@/components/GiacongInteractions";
 import { CapturedRequestCartButton } from "@/components/request-cart/CapturedRequestCartButton";
-import { layerCapturedStyles, normalizeCapturedMarkup } from "@/lib/captured-markup";
+import { addCapturedServiceContext, layerCapturedStyles, normalizeCapturedMarkup, type CapturedServiceContext } from "@/lib/captured-markup";
 import { applySiteSettingsToMarkup, siteBrandStyles } from "@/lib/site-markup";
 import {
   applyFooterNavigationToMarkup,
@@ -16,6 +17,8 @@ type CapturedPageProps = Pick<
 > & {
   activeCapturedMenuId?: string | null;
   navigation?: readonly PublishedNavigationItem[];
+  serviceContext?: CapturedServiceContext;
+  contactPageAction?: boolean;
 };
 
 export function CapturedPage({
@@ -26,12 +29,18 @@ export function CapturedPage({
   siteSettings,
   activeCapturedMenuId,
   navigation = [],
+  serviceContext,
+  contactPageAction = false,
 }: CapturedPageProps & { siteSettings?: PublishedSiteSettings }) {
   const settings = siteSettings ?? siteSettingDefaults;
+  const capturedMarkup = normalizeCapturedMarkup(markup, activeCapturedMenuId);
+  const contextualMarkup = serviceContext
+    ? addCapturedServiceContext(capturedMarkup, serviceContext)
+    : capturedMarkup;
   const normalizedMarkup = applySiteSettingsToMarkup(
     applyFooterNavigationToMarkup(
       applyNavigationToMarkup(
-        normalizeCapturedMarkup(markup, activeCapturedMenuId),
+        contextualMarkup,
         navigation,
         activeCapturedMenuId ?? undefined,
       ),
@@ -49,6 +58,7 @@ export function CapturedPage({
         dangerouslySetInnerHTML={{ __html: normalizedMarkup }}
       />
       <CapturedFloatingContact settings={settings} />
+      {contactPageAction ? <AdminContactContextualAction /> : null}
       <GiacongInteractions bodyClasses={bodyClasses} htmlClasses={htmlClasses} />
     </>
   );

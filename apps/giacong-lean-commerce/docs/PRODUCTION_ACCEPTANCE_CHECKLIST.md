@@ -1,6 +1,75 @@
 # Production acceptance checklist
 
-Trạng thái chốt hạ trước promotion `giacong-vn` production. Nguồn yêu cầu gốc: [CLOUDFLARE_NATIVE_V1_PLAN.md](CLOUDFLARE_NATIVE_V1_PLAN.md) mục 7–8. Cập nhật 2026-09-04 sau source hardening, staging deploy và read-only release recheck.
+Trạng thái chốt hạ trước promotion `giacong-vn` production. Nguồn yêu cầu gốc: [CLOUDFLARE_NATIVE_V1_PLAN.md](CLOUDFLARE_NATIVE_V1_PLAN.md) mục 7–8. Cập nhật 2026-09-15.
+
+## Current acceptance checkpoint — 2026-09-15
+
+Mục này là trạng thái hiện hành; mọi mục `Checkpoint` cũ bên dưới chỉ là bằng
+chứng lịch sử, không thay thế kiểm tra trên bản staging cuối.
+
+- [x] Source được đối chiếu tại base `495992c1` với worktree dirty được ghi nhận;
+  staging build/deploy dùng đúng worktree hiện tại.
+- [x] Staging Worker version
+  `d11377e7-ea93-4dbb-89ea-d3d0d344b070` đang phục vụ đúng hai host staging;
+  migration `0023_managed_service_taxonomy.sql` đến
+  `0026_service_slug_redirects.sql` đã apply trên D1 staging, không còn
+  pending; snapshot mới nhất là `.runtime/staging-before-0025.sql` và
+  `.runtime/staging-before-0026.sql` với checksum trong hồ sơ Cloudflare.
+- [x] Read-only đối chiếu production: Worker vẫn ở version
+  `7f98ed7b-0d9f-4d59-880c-ee364e02e610`; D1 production còn pending migration
+  `0023_managed_service_taxonomy.sql` đến `0026_service_slug_redirects.sql`,
+  chưa chạy migration production.
+- [ ] Read-only production probe chưa đạt checklist bản cuối: `/` trả `200`
+  nhưng `/sitemap.xml` hiện `404`; admin page/API vẫn `302` qua Access. Chỉ
+  kiểm tra lại sau khi được duyệt promotion, không sửa production trong lượt này.
+- [x] Shortcut owner-only và form inline đã được Access owner đọc lại trên
+  đúng version `d11377e7`; sản phẩm/dịch vụ/tin tức/contact mở đúng control và
+  form, sidebar có `Yêu cầu báo giá`. Public staging không lộ các control này.
+- [x] Fixture sản phẩm QA `test 1` (ID 10) đã được ẩn mềm sau khi xác nhận đúng
+  bản ghi; D1 cuối là `is_active=0`, `status=archived`, còn 1 biến thể/3 giá
+  bậc; admin reload hiển thị `Tạm ẩn`, sitemap 224 URL không chứa slug này và
+  `/san-pham/test1` trả HTTP `404`.
+- [x] `npm run check` đã chạy lại trong lượt source mới: admin `372/372`,
+  contact `106/106`, catalog `6/6`, purchase UI `1/1`,
+  service `28/28`, commerce `96/96`, listing `5/5`, detail `32/32`, lint,
+  typecheck và OpenNext build pass; build tạo `28/28` static pages. Focused
+  contact/service sau gia cố hydration và request idempotency là `106/106` và
+  `28/28`.
+- [x] Public staging đã kiểm tra service-context payload, noindex/canonical,
+  sitemap/robots/404 và responsive 390/768/1440px trong phạm vi route chính.
+- [x] Hai tab cùng sửa một bài QA: stale revision bị từ chối, không ghi đè; dữ
+  liệu kiểm thử đã được khôi phục và đọc lại.
+- [x] Footer staging sau deploy không còn các mục thanh toán/hoàn tiền/bản
+  quyền phương tiện vô hiệu; liên kết chính sách bảo mật vẫn hoạt động.
+- [ ] Chưa gửi controlled request mới: đích nhận chưa được owner xác nhận và
+  một số lead staging cũ có lỗi chuyển Google `502/504`.
+- [x] UAT runtime dịch vụ QA ID 16 đã lưu nháp/đọc lại, publish tạm, đổi slug,
+  xác nhận redirect `307`, rồi khôi phục và kiểm tra public `404`/D1 baseline.
+- [ ] Chưa UAT đầy đủ các luồng ghi/publish còn lại, logout/expiry, audit và
+  rollback bằng dữ liệu thật đã duyệt; chưa gửi controlled request do đích nhận
+  chưa chốt. Luồng tin tức redirect QA đã được publish/đọc redirect/hoàn nguyên;
+  QA news ID 4 hiện không xuất bản và không còn redirect QA.
+- [ ] Chưa được phép promotion production. Còn chờ owner duyệt dataset,
+  nội dung/ảnh/thương hiệu, nơi nhận request, backup/restore plan và cửa sổ
+  phát hành.
+
+## Follow-up storefront/admin — 2026-09-14
+
+- [x] Đã bỏ editor trực quan nặng khỏi storefront; giữ shortcut owner-only gọn tại
+  đúng các trang sản phẩm, dịch vụ, tin tức và liên hệ, trỏ về admin canonical.
+- [x] Trang dịch vụ hiển thị kho `192` URL nội dung thuộc `13` nhóm, có tìm kiếm
+  và lọc để các bài sâu không còn bị khuất trong menu.
+- [x] Trang tin tức có tìm kiếm theo tiêu đề/nội dung và trạng thái không có kết quả;
+  trang mua hàng có lối vào giỏ yêu cầu rõ ràng.
+- [x] Local gate đạt: admin `365/365`, contact `104/104`, commerce `94/94`,
+  catalog `6/6`, listing `5/5`, detail `30/30`, purchase `1/1`, service `5/5`,
+  lint, typecheck và OpenNext build đều pass.
+- [x] Staging `giacong-vn-staging` deploy version
+  `fbe9fb8a-f18a-4a82-afc2-9554aea95bf3`; public smoke đã kiểm tra `/`,
+  `/san-pham/`, `/thue-gia-cong/`, `/tin-tuc/`, `/gui-yeu-cau/` và `/lien-he/`.
+- [ ] Owner browser QA trên `admin-staging.kienhieu.id.vn` cần phiên Cloudflare
+  Access đang hoạt động; phiên tự động hiện bị chuyển tới màn hình đăng nhập.
+  Vì vậy chưa promotion production và chưa thay đổi dữ liệu production.
 
 ## Checkpoint mới nhất — 2026-09-06
 
@@ -20,6 +89,31 @@ Trước rollout sang môi trường khác, kiểm tra `admin_members`: mọi ro
 role `owner`. Row role cũ bị chặn truy cập nhưng hiện cũng làm trình đọc danh
 sách thành viên từ chối dữ liệu; cần quyết định lưu trữ/vô hiệu hóa phù hợp
 trước rollout, không tự nâng quyền. Staging đã kiểm tra chỉ có một row owner.
+
+## Checkpoint mới nhất — 2026-09-13
+
+- [x] Menu `Mua hàng` trỏ trực tiếp tới `/san-pham/`, không còn dropdown sản
+  phẩm trên desktop/mobile.
+- [x] Menu `Dịch vụ` đã gom ba nhóm chính và giữ các URL chi tiết trên trang
+  nhóm; các link dịch vụ không còn nằm trong khu vực sản phẩm.
+- [x] Ảnh thẻ và hero của trang `/gia-cong-sua-bot/` đã chuyển sang fallback
+  local; production cuộn hết trang không còn ảnh hỏng.
+- [x] D1 migration `0022_product_navigation_label.sql` đã apply ở staging và
+  production; backup sau thay đổi được ghi trong
+  [CLOUDFLARE_CURRENT_STATE.md](CLOUDFLARE_CURRENT_STATE.md).
+- [x] Local focused test cuối `43/43`, full `npm run check` với các suite
+  `fail 0`, lint/typecheck/build hoàn tất; staging deploy và production deploy
+  đều đạt. Production version `7f98ed7b-0d9f-4d59-880c-ee364e02e610` phục vụ
+  `kienhieu.id.vn`.
+- [x] CUA production ở desktop `958px`, tablet `768px` và mobile `390×844`:
+  accordion dịch vụ, link trực tiếp Mua hàng, ảnh local, không overflow, không
+  có giao nhau giữa cụm liên hệ với CTA/ảnh, console error/warning đều đạt.
+- [x] Runtime recheck sau release: đã gỡ cron mồ côi `* * * * *` từng ghi
+  `Handler does not export a scheduled() function`; error tail trên version
+  `7f98ed7b-0d9f-4d59-880c-ee364e02e610` hơn một phút không còn exception, smoke
+  production `6/6` route trả `200`.
+- [ ] Theo dõi observability 24 giờ đầu và duyệt nội dung kinh doanh/catalog;
+  redirect domain cũ là việc riêng của DNS/hosting `giacong.vn` nếu cần.
 
 ## Checkpoint lịch sử — 2026-09-04
 
@@ -333,3 +427,49 @@ Lưu ý: demo staging KHÔNG được seed sang production. Khách tự thao tá
 - [ ] Production gate tổng thể vẫn mở: role × route/action với nhiều identity,
   write/read-back/audit toàn domain, production data approval,
   migration/rollback window và observability 24 giờ.
+
+## 13. Handover revalidation — 2026-09-12
+
+- [x] Placeholder CTA, social link và anchor `href="#"` không có chức năng đã
+  được xử lý trong captured markup; menu controls được bảo toàn.
+- [x] Service editor hiển thị lỗi theo trường; product/news validation test khóa
+  việc reject dữ liệu rỗng trước mutation.
+- [x] Local release gate đạt: admin `370/370`, contact `104/104`, catalog `5/5`,
+  purchase UI `1/1`, service `3/3`, commerce `91/91`, listing `5/5`, detail
+  `30/30`, lint, typecheck và build `27/27`.
+- [x] Staging version `6691d2b2-3bd9-471e-bd8c-aae84b91ba91` deploy 100%; smoke
+  `12/12` route × viewport và UX audit `12/12` action pass, không có overflow,
+  4xx/5xx, console error hoặc serious/critical axe violation.
+- [x] `npm audit --audit-level=high` trả `0 vulnerabilities` sau khi nâng
+  Wrangler lên `4.131.1`.
+- [x] Production storefront/API/admin boundary read-only recheck pass; không có
+  production mutation.
+- [x] Owner Access runtime submit form product/news rỗng đều hiển thị lỗi theo
+  trường; hậu kiểm D1 staging không tăng row và trả `changed_db=false`,
+  `rows_written=0`.
+- [x] Production read-only preflight qua SQL trực tiếp đọc được 13 migration tới
+  `0008_service_images.sql` và xác nhận 4 category, 9 product, 17 variant, 51
+  tier price, 1 service, 1 news post, 1 admin member, 0 lead; `changed_db=false`,
+  `rows_written=0`.
+- [ ] Chưa apply migration local `0009–0021`; endpoint `d1 migrations list` còn
+  trả Cloudflare API `7403`, nhưng đây không chặn việc đọc trực tiếp. Vẫn cần
+  backup mới, phê duyệt và cửa sổ rollback trước khi apply.
+- [ ] Production taxonomy, SKU/variant/MOQ/step/contact threshold, tier price,
+  media và CMS thật cần chủ dự án duyệt và nhập.
+- [ ] Backup mới ngay trước migration, rollback window, observability 24 giờ và
+  quyết định redirect `giacong.vn` cần được chốt.
+
+## 14. Production handover — 2026-09-12
+
+- [x] Domain chuẩn: `kienhieu.id.vn`.
+- [x] Backup D1 production trước migration: `.runtime/handover-20260912/production-d1-pre-migration.sql`, SHA-256 `583BE2FBFFC2C6D8F0C77E7D97C3786E838EDBFD228E024AD7A8F078A147ABFD`.
+- [x] Apply production migration `0009–0021` thành công; hậu kiểm đủ 26 migration và không có foreign-key violation.
+- [x] Deploy production Worker `giacong-vn` version `f5cb680c-cd0d-440b-be35-b6c56bd7ecb3` đạt `100%`.
+- [x] Route production smoke và product API pass; admin production qua Access, dashboard và quyền owner đọc đúng.
+- [x] Không thay đổi dữ liệu nghiệp vụ hiện hữu trong đợt bàn giao.
+- [ ] Theo dõi observability trong 24 giờ đầu sau release.
+- [x] Domain chuẩn `kienhieu.id.vn` đã hoạt động độc lập. `giacong.vn` hiện
+  trỏ tới hosting WordPress/LiteSpeed bên ngoài route Cloudflare của dự án;
+  Worker này không thể tự redirect domain cũ.
+- [ ] Nếu cần dùng domain cũ `giacong.vn`, cấu hình redirect tại DNS/hosting
+  của domain cũ sau khi có quyền quản trị tương ứng.

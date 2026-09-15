@@ -10,9 +10,11 @@ import {
 import { getCatalogCategories, getCatalogProducts } from "@/lib/cloudflare-catalog";
 import { parseCatalogFilters } from "@/lib/catalog-query";
 import { demoCatalogFallbackAllowed, demoCatalogForced, waitForDemoCatalogFallback } from "@/lib/demo-catalog-policy";
+import { canonicalMetadata } from "@/lib/seo";
 import type { CatalogCategory, CatalogFilters, CatalogPagination } from "@/types/catalog";
 
 export const metadata: Metadata = {
+  ...canonicalMetadata("/san-pham/"),
   title: "Sản phẩm | Giacong.vn",
   description: "Danh mục sản phẩm và nguyên liệu dành cho đặt hàng doanh nghiệp.",
 };

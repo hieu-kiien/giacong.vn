@@ -7,9 +7,8 @@ export interface StorefrontNavItem {
  * Storefront navigation. These are exactly the five header links
  * `scripts/verify-service-ia.mjs` locks, with the same labels and targets — the
  * captured menu pointed product entries at `href="#"` and `/`, but these all
- * resolve to real routes. `/gui-yeu-cau` is deliberately absent: the route does
- * not exist yet, so the request-cart badge stays a status readout rather than a
- * dead link.
+ * resolve to real routes. The request-cart entry is kept in the header badge so
+ * the primary navigation remains focused on shopping and service discovery.
  */
 export const STOREFRONT_NAV_ITEMS: readonly StorefrontNavItem[] = [
   { href: "/", label: "Home" },

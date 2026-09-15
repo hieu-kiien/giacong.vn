@@ -12,12 +12,16 @@ import { resolveCapturedActiveMenuId } from "@/lib/captured-markup";
 import { getPublishedSiteNavigation } from "@/lib/site-navigation";
 import { getPublishedSitePage } from "@/lib/site-pages";
 import { getPublishedSiteSettings } from "@/lib/site-settings";
+import { getServiceFamilyForRoute } from "@/lib/service-content-index";
+import { getManagedServiceFamily } from "@/lib/cloudflare-services";
 import type { CapturedPageData } from "@/types/captured-page";
+import { canonicalMetadata } from "@/lib/seo";
 
 export const dynamic = "force-dynamic";
 
 interface CapturedRouteProps {
   params: Promise<{ slug: string[] }>;
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }
 
 interface CapturedAssetsEnv {
@@ -76,6 +80,7 @@ export async function generateMetadata({ params }: CapturedRouteProps): Promise<
   const [managedPage, settings] = await Promise.all([getPublishedSitePage(routePath), getPublishedSiteSettings()]);
   if (managedPage?.blocks.length) {
     return {
+      ...canonicalMetadata(routePath),
       title: managedPage.seoTitle || managedPage.title || settings.site_title,
       description: managedPage.seoDescription || settings.site_description,
       icons: settings.favicon_url ? { icon: settings.favicon_url } : undefined,
@@ -83,20 +88,21 @@ export async function generateMetadata({ params }: CapturedRouteProps): Promise<
   }
   const data = await readCapturedPath(routePath);
   return {
+    ...canonicalMetadata(routePath),
     title: data.title || settings.site_title,
     description: data.description || settings.site_description,
     icons: settings.favicon_url ? { icon: settings.favicon_url } : undefined,
   };
 }
 
-export default async function CapturedRoute({ params }: CapturedRouteProps) {
+export default async function CapturedRoute({ params, searchParams }: CapturedRouteProps) {
   const { slug } = await params;
   const routePath = `/${slug.join("/")}/`;
   const [managedPage, settings] = await Promise.all([getPublishedSitePage(routePath), getPublishedSiteSettings()]);
   if (managedPage?.blocks.length) {
     return (
       <CapturedStorefrontShell activeNavigation={getStorefrontNavigationForPath(routePath)?.key}>
-        <PageBlocks blocks={managedPage.blocks} pageKey={managedPage.pageKey} />
+        <PageBlocks blocks={managedPage.blocks} />
       </CapturedStorefrontShell>
     );
   }
@@ -104,12 +110,27 @@ export default async function CapturedRoute({ params }: CapturedRouteProps) {
     readCapturedPath(routePath),
     getPublishedSiteNavigation(),
   ]);
+  const query = searchParams ? await searchParams : {};
+  const requestedService = typeof query.service === "string" ? query.service : "";
+  const serviceFamily = getServiceFamilyForRoute(routePath)
+    ?? (routePath === "/lien-he/" && requestedService
+      ? await getManagedServiceFamily(requestedService)
+      : undefined);
+  const serviceContextUrl = serviceFamily && routePath === "/lien-he/"
+    ? `/thue-gia-cong/${serviceFamily.slug}/`
+    : routePath;
   return (
     <CapturedPage
       {...data}
       siteSettings={settings}
       activeCapturedMenuId={resolveCapturedActiveMenuId(routePath)}
       navigation={navigation}
+      serviceContext={serviceFamily ? {
+        code: serviceFamily.slug,
+        name: serviceFamily.name,
+        url: serviceContextUrl,
+      } : undefined}
+      contactPageAction={routePath === "/lien-he/"}
     />
   );
 }

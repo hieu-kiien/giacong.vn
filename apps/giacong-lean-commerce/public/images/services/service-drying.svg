@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 520" role="img" aria-labelledby="title desc">
+  <title id="title">Minh hoạ dịch vụ sấy</title>
+  <desc id="desc">Khay nguyên liệu sấy dưới ánh nắng</desc>
+  <rect width="800" height="520" rx="34" fill="#fff8e9"/>
+  <circle cx="640" cy="132" r="72" fill="#ffbe4a"/>
+  <g fill="none" stroke="#f08b24" stroke-width="8" stroke-linecap="round">
+    <path d="M640 27v-28M640 237v28M535 132h-28M773 132h-28M566 58l-20-20M714 206l20 20M714 58l20-20M566 206l-20 20"/>
+  </g>
+  <path d="M90 399c134-53 280-55 413-5 110 41 197 28 297-21v147H90Z" fill="#e4f1cc"/>
+  <path d="M164 236h472l-44 143H208Z" fill="#fff" stroke="#327600" stroke-width="8"/>
+  <path d="m164 236 44-53h384l44 53Z" fill="#d9efc4" stroke="#327600" stroke-width="8"/>
+  <path d="M210 284h379M224 333h350" stroke="#6ead3d" stroke-width="7"/>
+  <g fill="#f08b24" stroke="#327600" stroke-width="6">
+    <circle cx="260" cy="278" r="17"/><circle cx="322" cy="278" r="17"/><circle cx="384" cy="278" r="17"/><circle cx="446" cy="278" r="17"/><circle cx="508" cy="278" r="17"/>
+    <circle cx="290" cy="327" r="17"/><circle cx="352" cy="327" r="17"/><circle cx="414" cy="327" r="17"/><circle cx="476" cy="327" r="17"/><circle cx="538" cy="327" r="17"/>
+  </g>
+</svg>

@@ -357,6 +357,24 @@ test("the detail page owns its stylesheet and leaves the catalog module alone", 
   assert.doesNotMatch(page, /CatalogDetail\b/, "the route must no longer render the old detail shell");
 });
 
+test("the live catalog detail route stays dynamic so not-found responses keep their HTTP status", async () => {
+  const page = await readSource("src", "app", "(storefront)", "san-pham", "[slug]", "page.tsx");
+
+  assert.match(
+    page,
+    /export const dynamic = ["']force-dynamic["']/,
+    "a D1-backed product detail must not be statically optimized into a 200 not-found page",
+  );
+});
+
+test("the Cloudflare wrapper restores a 404 for a streamed hidden product page", async () => {
+  const worker = await readSource("custom-worker.ts");
+
+  assert.match(worker, /withCatalogProductNotFoundStatus/, "the edge wrapper must normalize streamed catalog misses");
+  assert.match(worker, /FROM products WHERE slug = \? AND is_active = 1/, "visibility must come from the canonical D1 catalog");
+  assert.match(worker, /status: 404/, "a missing or hidden product must be an HTTP 404");
+});
+
 test("the direct-detail frame keeps the captured header visible and content below it", async () => {
   const frame = await readSource("src", "components", "site", "CapturedStorefrontTabFrame.tsx");
   const css = await readSource("src", "components", "site", "CapturedStorefrontTabFrame.module.css");

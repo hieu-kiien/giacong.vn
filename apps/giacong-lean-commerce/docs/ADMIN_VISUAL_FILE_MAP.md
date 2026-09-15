@@ -1,7 +1,7 @@
 # Bản đồ file Giacong Visual Admin
 
 **Trạng thái:** bản đồ ownership và source-of-truth
-**Cập nhật:** 2026-09-04
+**Cập nhật:** 2026-09-15
 **Roadmap:** ADMIN_VISUAL_ROADMAP.md
 
 Mục tiêu của file này là trả lời nhanh bốn câu hỏi trước khi sửa code:
@@ -14,21 +14,23 @@ Mục tiêu của file này là trả lời nhanh bốn câu hỏi trước khi 
 Không thêm file mới vào map chỉ vì đã nghĩ ra tên. File chỉ được đánh dấu “đã có”
 khi tồn tại trong checkout; file “dự kiến” phải được tạo trong phase tương ứng.
 
-**Current release checkpoint — 2026-09-04:** Code gate reference `bb2690bb` đã qua;
-GitHub handoff head là `5976970e` (source merge `53162218`). Checkout code head
-`bb2690bb` đã qua
-admin `285/285`, các suite storefront/contact, lint, typecheck và build
-`27/27`; staging đang chạy version
-`6c5789e8-0b84-401e-b3c4-6fc3cff5bcf4` ở 100% và D1 staging không còn migration
-  pending. Các write path admin đã xác nhận postcondition thật trong cùng batch,
-  rollback khi thiếu marker/audit và không phụ thuộc batch result rows. Owner
-  browser smoke sau deploy đã đọc đủ 10/10 route canonical ở desktop và mobile
-  viewport 390×844, heading đúng, không render lỗi/1102/5xx, không overflow và
-  console error/warning rỗng.
-  Controlled owner browser stress (2 tab × 2 vòng × 10 route) đạt `40/40`,
-  không render lỗi/overflow/console issue và không có app mutation; CLI runner
-  `qa:admin-stress` vẫn cần Access storage state riêng. Production chưa
-  deploy/migrate.
+**Current implementation update — 2026-09-15:** lớp `AdminVisualEditor` dạng
+drawer chỉnh DOM trực tiếp đã được gỡ bỏ vì trùng với các màn hình quản trị
+canonical và làm storefront nặng. `AdminVisualMode` chỉ còn gate session/host
+và hiển thị các shortcut owner-only nhỏ; dữ liệu vẫn được sửa, lưu nháp và
+xuất bản ở `/admin/noi-dung`, `/admin/thiet-ke`, `/admin/san-pham`,
+`/admin/dich-vu`, và `/admin/tin-tuc`. `AdminPageContextualAction` cũng đã bị
+gỡ; các page block tiếp tục thuộc page builder. File map bên dưới giữ lại một
+số mốc lịch sử, nhưng các file đã gỡ không còn là source hiện tại.
+
+**Current release checkpoint — 2026-09-15:** Source base `495992c1` còn dirty;
+staging đang chạy version
+`d11377e7-ea93-4dbb-89ea-d3d0d344b070` ở 100%. Browser owner đã đọc lại
+shortcut sản phẩm/dịch vụ/tin tức/contact trên bản này; contact mở đúng form
+và public staging không lộ control. Local gate đạt admin `372/372`, contact
+`106/106`, service `28/28`, commerce `96/96`, listing `5/5`, detail `32/32`,
+catalog `6/6`, purchase UI `1/1`; lint/typecheck/build compile pass và tạo
+`28/28` static pages. Production chưa deploy/migrate.
 
 **Checkpoint 2026-09-03:** checkout hiện ở commit `222ec6c4` (đã giảm burst
 prefetch protected admin sidebar; QA selector menu
@@ -184,16 +186,10 @@ giá trị QA chỉ xuất hiện trong trạng thái draft, public vẫn giữ 
 sau đó giá trị ban đầu được lưu lại và UI trở về `Published/Đã đồng bộ`. Không
 đánh dấu đây là publish/preview đầy đủ hay bằng chứng cho role khác.
 
-**Runtime update 2026-09-02 (direct editing trên DOM thật):**
-`AdminVisualEditor.tsx` không còn render `DraftPreview`; khi session là owner hoặc
-content manager, editor gắn `admin-visual-targets.ts` vào 8 selector homepage
-đã xác định. Click/keyboard mở popover ngay cạnh nội dung thật và cập nhật DOM
-ngay lập tức; thanh cố định giữ `Bảng nội dung`, `Lưu draft`, `Xuất bản`. Bảng
-nội dung vẫn là đường xử lý URL/media và các field đầy đủ. Chrome staging đã
-kiểm tra 8/8 selector, temporary edit + reload restore, public staging 0 admin
-control; focused 13/13, full admin 192/192, commerce 67/67. Version hiện tại
-`6162fa96-38fb-46df-adba-beb1e2d99001` ở 100%, rollback point
-`dabb547e-1475-4815-b9e9-03be91064105`.
+**Runtime update 2026-09-02 (historical):**
+Các đoạn mô tả direct editing trên DOM thật ở những mốc cũ bên dưới chỉ là
+evidence lịch sử trước đợt rút gọn ngày 2026-09-14. Chúng không mô tả runtime
+hiện tại và không nên dùng làm hướng dẫn vận hành mới.
 
 Navigation owner staging cũng đã kiểm tra mục `Home`: draft label QA không rò
 ra public, sau đó nhãn `Home` được khôi phục và item trở lại `Published`. Đây
@@ -330,7 +326,7 @@ runtime acceptance còn mở.
 | Concern | File canonical hiện tại | Trạng thái | Phase đụng tới |
 | --- | --- | --- | --- |
 | Home route | src/app/(storefront)/page.tsx | đã có; đọc published settings/page rồi chọn managed blocks hoặc captured home | P1–P4 |
-| Nested captured route | src/app/(storefront)/[...slug]/page.tsx | đã có; shared shell + managed page hoặc captured fallback; managed branch truyền pageKey cho contextual editor hand-off | P1–P4 |
+| Nested captured route | src/app/(storefront)/[...slug]/page.tsx | đã có; shared shell + managed page hoặc captured fallback; storefront chỉ cung cấp shortcut tới admin canonical khi phù hợp | P1–P4 |
 | Storefront layout | src/app/(storefront)/layout.tsx | đã có; owner của boundary chung public/storefront | P1 |
 | Captured home render | src/components/site/CapturedHomePage.tsx | đã có; HTML captured + site settings + published navigation mapping và fallback hero gallery | P2, P4 |
 | Captured page render | src/components/CapturedPage.tsx | đã có; captured markup fallback | P1–P4 |
@@ -366,18 +362,18 @@ runtime acceptance còn mở.
 
 | Surface | File canonical | Vai trò hiện tại | Vai trò trong target |
 | --- | --- | --- | --- |
-| Admin shell | src/components/admin/AdminShell.tsx | sidebar/topbar, session, nav filter | giữ làm control plane; thêm đường vào storefront edit |
+| Admin shell | src/components/admin/AdminShell.tsx | sidebar/topbar, session, nav filter | giữ làm control plane; storefront chỉ mở shortcut tới đây |
 | Primitives | src/components/admin/AdminPrimitives.tsx | heading, state, table-level UI | dùng chung cho back office và drawer đặc biệt |
-| Dialog/field/toast | src/components/admin/AdminDialog.tsx, AdminField.tsx, AdminToast.tsx | feedback, focus-trapped modal/confirm và form guard | tái sử dụng cho contextual editor; browser focus evidence còn mở |
-| Media | AdminMediaPanel.tsx, AdminMediaPickerModal.tsx | media list/picker | mở từ storefront khi capability cho phép |
-| Page builder | AdminPageBuilder.tsx | safe blocks, draft/publish; chọn page theo query `?page=` và mở route storefront thật để kiểm tra | vẫn là advanced editor/back office; inline là shortcut |
-| Navigation | AdminNavigationManager.tsx | primary/footer menu manager; tạo được mục ở đúng vị trí và publish riêng/bulk | giữ full editor; contextual edit gọi vào đúng item |
+| Dialog/field/toast | src/components/admin/AdminDialog.tsx, AdminField.tsx, AdminToast.tsx | feedback, focus-trapped modal/confirm và form guard | tái sử dụng trong các form admin canonical; không dựng editor trên storefront |
+| Media | AdminMediaPanel.tsx, AdminMediaPickerModal.tsx | media list/picker | mở từ màn hình admin canonical khi capability cho phép |
+| Page builder | AdminPageBuilder.tsx | safe blocks, draft/publish; chọn page theo query `?page=` và mở route storefront thật để kiểm tra | vẫn là advanced editor/back office; storefront chỉ có shortcut |
+| Navigation | AdminNavigationManager.tsx | primary/footer menu manager; tạo được mục ở đúng vị trí và publish riêng/bulk | giữ full editor; shortcut storefront mở đúng màn hình quản trị |
 | Members | AdminMembersManager.tsx | owner quản lý admin roles | trang đặc biệt, không inline trên storefront |
 | Audit/history | src/app/admin/audit/page.tsx, src/app/api/admin/audit/route.ts, src/lib/admin-audit.ts | owner-only timeline read-only, filter/pagination, revision/request id | trang đặc biệt P6; không có rollback nếu chưa được phê duyệt |
 | Category/variant | AdminCategoryPanel.tsx, AdminVariantPanel.tsx | catalog sub-editors | dùng trong catalog/bulk flow, không nhồi hết vào homepage |
 | Product bulk import/archive | AdminProductImportPanel.tsx, src/app/admin/san-pham/page.tsx, src/lib/admin-product-batch.ts | chọn CSV, preview lỗi, import atomic; chọn sản phẩm đang hiển thị, snapshot revision, xác nhận và soft-archive batch | giữ ở catalog control plane; viewer read-only; không biến thành inline editor |
-| Storefront admin context | AdminVisualMode.tsx, AdminNewsContextualAction.tsx, AdminPageContextualAction.tsx, AdminNewsContextualAction.module.css | host/session gate, context role và contextual news/page actions; trạng thái loading/blocked/unavailable/ready | chỉ hiện action trên exact admin hostname sau session ready; public không fetch admin session và không render control |
-| Contextual settings editor | AdminVisualEditor.tsx, AdminVisualEditor.module.css, admin-visual-targets.ts | direct edit trên DOM storefront thật cho 8 homepage target, drawer field đầy đủ, draft/publish và role-aware feedback | MVP cho region đã map; không mô phỏng preview; URL/media và field phức tạp đi qua bảng nội dung |
+| Storefront admin context | AdminVisualMode.tsx, AdminCatalogContextualAction.tsx, AdminNewsContextualAction.tsx, AdminServiceContextualAction.tsx, AdminContactContextualAction.tsx | host/session gate và shortcut owner-only tới editor sản phẩm, dịch vụ, tin tức, liên hệ | chỉ hiện action trên exact admin hostname sau session ready; public không fetch admin session và không render control |
+| Canonical content editors | `src/app/admin/noi-dung`, `src/app/admin/thiet-ke`, `src/app/admin/san-pham`, `src/app/admin/dich-vu`, `src/app/admin/tin-tuc` | nơi duy nhất lưu nháp/xuất bản cho settings, page blocks, sản phẩm, dịch vụ và tin tức | giữ write contract, validation, revision, audit và public read-back ở màn hình chuyên dụng |
 | Admin CSS | src/styles/admin.css | styling control plane | giữ token/brand language, không tạo dashboard stack mới |
 
 ### Visual layer: file đã có và file chưa cần tạo
@@ -387,15 +383,13 @@ Vertical slice hiện tại chứng minh chưa cần tách thành nhiều abstra
 | File canonical | Trách nhiệm | Không được làm |
 | --- | --- | --- |
 | src/components/admin/AdminVisualMode.tsx | context/entry state cho admin storefront | không tự cấp quyền |
-| src/components/admin/AdminVisualEditor.tsx | toolbar/drawer và flow brand/home settings | không ghi D1/R2 trực tiếp |
-| src/components/admin/AdminVisualEditor.module.css | layout, focus, mobile và reduced-motion cho editor | không tạo token riêng ngoài hệ thống |
-| src/components/admin/admin-visual-targets.ts | registry selector/input type cho homepage direct edit | không scan HTML tùy ý hoặc mở rộng sang route chưa map |
-| src/components/admin/AdminNewsContextualAction.tsx, AdminPageContextualAction.tsx | link contextual theo session context tới editor canonical | không tự fetch session, không ghi dữ liệu, không hiện trên public context |
+| src/components/admin/AdminCatalogContextualAction.tsx, AdminNewsContextualAction.tsx, AdminServiceContextualAction.tsx, AdminContactContextualAction.tsx | link contextual theo session context tới editor canonical | không tự fetch session, không ghi dữ liệu, không hiện trên public context |
 | src/lib/admin-visual-contract.ts | exact host gate và session-ready contract | không quyết định capability server |
 
-Các file `AdminEditableRegion.tsx`, `AdminVisualActions.tsx` và
-`admin-visual-regions.ts` chưa tồn tại và chưa được tạo: chỉ mở chúng khi có
-use case thứ ba chứng minh editor hiện tại không còn đủ đơn giản.
+Các file `AdminEditableRegion.tsx`, `AdminVisualActions.tsx`,
+`admin-visual-regions.ts`, `AdminVisualEditor.tsx` và
+`AdminPageContextualAction.tsx` không thuộc runtime hiện tại. Không tạo lại
+chúng nếu chưa có quyết định sản phẩm mới chứng minh cần một editor riêng.
 
 ## 5. API và server boundary
 
@@ -405,7 +399,7 @@ use case thứ ba chứng minh editor hiện tại không còn đủ đơn giả
 | --- | --- | --- |
 | Session | /api/admin/session | P1 |
 | Dashboard | /api/admin/dashboard | P5 |
-| Settings | /api/admin/site-settings, /api/admin/site-settings/publish, /api/admin/site-settings/publish-all, /api/admin/site-settings/media | P2; per-setting và bulk publish có requestId, stale, idempotency và audit batch; contextual editor đã tích hợp, staging/admin read-back còn mở |
+| Settings | /api/admin/site-settings, /api/admin/site-settings/publish, /api/admin/site-settings/publish-all, /api/admin/site-settings/media | P2; per-setting và bulk publish có requestId, stale, idempotency và audit batch; storefront shortcut chỉ dẫn về màn hình admin canonical |
 | Pages | /api/admin/pages, /api/admin/pages/[pageKey], /api/admin/pages/[pageKey]/publish | P4; contextual hand-off đã nối tới page builder, API contract không đổi |
 | Navigation | /api/admin/navigation, /api/admin/navigation/[id], /publish, /publish-all | P4; create/save/publish có exact requestId + revision/CAS + idempotent audit; bulk tối đa 100, D1 atomic, stale theo item và replay; migrations `0017–0018` đã có trong master và staging; owner staging đã verify single-item save → publish → public read-back, còn publish-all, role matrix và full-domain acceptance mở |
 | News | /api/admin/news, /api/admin/news/[id], /api/admin/news/[id]/publish, /api/admin/news/batch | P3; draft save, explicit publish/unpublish, batch status và contextual deep-link đã có; owner staging đã verify create/read/delete QA draft, publish/media acceptance còn mở |

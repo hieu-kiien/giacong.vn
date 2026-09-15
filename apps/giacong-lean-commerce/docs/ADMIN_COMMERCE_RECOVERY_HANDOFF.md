@@ -1,8 +1,9 @@
 # Bàn giao: admin nghiệp vụ và khôi phục điều hướng
 
-Cập nhật 2026-09-07 theo yêu cầu trực tiếp của chủ dự án. **Trạng thái: kế hoạch,
-chưa thực thi.** Lượt lập tài liệu không sửa source, dữ liệu, deploy hoặc chạy
-subagent. Đây là brief thực thi mới; quyết định sản phẩm được đồng bộ trong
+Cập nhật 2026-09-07 theo yêu cầu trực tiếp của chủ dự án. **Trạng thái của brief
+gốc: đã được thực thi và rút gọn tiếp vào 2026-09-14.** Các đoạn mô tả inline
+editor bên dưới là yêu cầu/evidence lịch sử; runtime hiện tại dùng shortcut
+owner-only và các màn hình admin canonical. Quyết định sản phẩm được đồng bộ trong
 [CLOUDFLARE_NATIVE_V1_PLAN.md](./CLOUDFLARE_NATIVE_V1_PLAN.md).
 
 ## 1. Điều chủ dự án đã chốt
@@ -127,8 +128,9 @@ Các điểm vào source để đội sau kiểm tra, không phải danh sách b
   `src/components/CapturedNewsFrame.tsx`, `src/app/(storefront)/thue-gia-cong/`.
 - `src/app/admin/{san-pham,dich-vu,tin-tuc}/`, `src/components/admin/`,
   `src/app/api/admin/`, các module `src/lib/admin-*` của từng domain.
-- `AdminVisualMode.tsx`, `AdminVisualEditor.tsx`, module CSS tương ứng và
-  `src/app/globals.css` chỉ khi liên quan lớp che nút/thay ảnh.
+- `AdminVisualMode.tsx`, các contextual action theo từng domain và
+  `src/app/globals.css` chỉ khi liên quan lớp
+  che nút/thay ảnh.
 
 Đọc AGENTS gần nhất. Trước sửa symbol chạy GitNexus impact upstream, báo HIGH/
 CRITICAL; trước commit chạy detect_changes. Không dựng thêm stack admin.

@@ -1,6 +1,7 @@
 "use client";
 
 import { Search } from "lucide-react";
+import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { useAdminUnsaved, useRegisterAdminUnsaved } from "@/components/admin/AdminUnsavedGuard";
 import { AdminMediaPanel } from "@/components/admin/AdminMediaPanel";
@@ -38,6 +39,8 @@ interface PendingServiceBatch {
 }
 
 type ServiceFormState = {
+  ctaHref: string;
+  ctaLabel: string;
   description: string;
   id?: number;
   imageUrl: string;
@@ -45,28 +48,50 @@ type ServiceFormState = {
   leadTimeDays: string;
   moqSummary: string;
   name: string;
+  offeringsText: string;
   slug: string;
+  sortOrder: string;
   status: "archived" | "draft" | "published" | "review";
   summary: string;
   revision: number;
 };
 
 const emptyServiceForm: ServiceFormState = {
+  ctaHref: "/lien-he/",
+  ctaLabel: "Liên hệ tư vấn",
   description: "",
   imageUrl: "",
   isActive: false,
   leadTimeDays: "",
   moqSummary: "",
   name: "",
+  offeringsText: "",
   slug: "",
+  sortOrder: "",
   status: "draft",
   summary: "",
   revision: 0,
 };
 
+function formatOfferings(offerings: AdminServiceWithRevision["offerings"]): string {
+  return (offerings ?? []).map((offering) => `${offering.label} | ${offering.href}`).join("\n");
+}
+
+function parseOfferingLines(value: string): Array<{ href: string; label: string }> {
+  return value.split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => {
+      const separator = line.indexOf("|");
+      if (separator < 0) return { href: "", label: line };
+      return { href: line.slice(separator + 1).trim(), label: line.slice(0, separator).trim() };
+    });
+}
+
 export default function AdminServicesPage() {
   const session = useAdminSession();
   const { showToast } = useAdminToast();
+  const searchParams = useSearchParams();
   const canManage = canManageServices(session.role);
   const [confirmArchive, setConfirmArchive] = useState<AdminServiceWithRevision | null>(null);
   const [confirmBatchArchive, setConfirmBatchArchive] = useState<AdminServiceWithRevision[]>([]);
@@ -93,17 +118,63 @@ export default function AdminServicesPage() {
   const isDirty = useCallback(() => editor !== null && JSON.stringify(editor) !== JSON.stringify(editorSnapshot), [editor, editorSnapshot]);
   useRegisterAdminUnsaved(isDirty, saving);
 
-  function applyServiceEditor(form: ServiceFormState | null) {
+  const applyServiceEditor = useCallback((form: ServiceFormState | null) => {
     setEditor(form);
     setEditorSnapshot(form);
     setSaveError(null);
-  }
+  }, []);
 
-  function requestServiceEditor(form: ServiceFormState | null) {
+  const requestServiceEditor = useCallback((form: ServiceFormState | null) => {
     if (saving || nestedSaving) return;
     if (isDirty() || hasUnsavedChanges()) { setPendingEditor({ form }); return; }
     applyServiceEditor(form);
-  }
+  }, [applyServiceEditor, hasUnsavedChanges, isDirty, nestedSaving, saving]);
+
+  const editQuery = searchParams.get("edit");
+  const createQuery = searchParams.get("create");
+  const deepLinkKey = editQuery ? `edit:${editQuery}` : createQuery === "1" ? "create" : null;
+  const handledDeepLinkRef = useRef<string | null>(null);
+
+  const openEditById = useCallback(async (id: number) => {
+    if (!canManage) return;
+    try {
+      const result = await fetchAdmin<{ service: AdminServiceWithRevision }>(`/api/admin/services/${id}`);
+      requestServiceEditor({
+        ctaHref: result.service.ctaHref ?? `/lien-he/?service=${result.service.slug}`,
+        ctaLabel: result.service.ctaLabel ?? "Liên hệ tư vấn",
+        description: result.service.description,
+        id: result.service.id,
+        imageUrl: result.service.imageUrl ?? "",
+        isActive: result.service.isActive,
+        leadTimeDays: result.service.leadTimeDays === null ? "" : String(result.service.leadTimeDays),
+        moqSummary: result.service.moqSummary ?? "",
+        name: result.service.name,
+        offeringsText: formatOfferings(result.service.offerings),
+        slug: result.service.slug,
+        sortOrder: String(result.service.sortOrder ?? 0),
+        status: result.service.status as ServiceFormState["status"],
+        summary: result.service.summary,
+        revision: result.service.revision,
+      });
+    } catch (reason: unknown) {
+      showToast("error", reason instanceof AdminClientError ? reason.message : "Không thể tải dịch vụ được yêu cầu.");
+    }
+  }, [canManage, requestServiceEditor, showToast]);
+
+  useEffect(() => {
+    if (!canManage || !deepLinkKey || handledDeepLinkRef.current === deepLinkKey) return;
+    handledDeepLinkRef.current = deepLinkKey;
+    if (createQuery === "1" && !editQuery) {
+      requestServiceEditor({ ...emptyServiceForm });
+      return;
+    }
+    const id = Number(editQuery);
+    if (!Number.isSafeInteger(id) || id <= 0) {
+      showToast("error", "Không thể tải dịch vụ được yêu cầu.");
+      return;
+    }
+    void openEditById(id);
+  }, [canManage, createQuery, deepLinkKey, editQuery, openEditById, requestServiceEditor, showToast]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -168,12 +239,14 @@ export default function AdminServicesPage() {
     setPage(1);
   }
 
-  function openCreate() {
+  const openCreate = useCallback(() => {
     requestServiceEditor({ ...emptyServiceForm });
-  }
+  }, [requestServiceEditor]);
 
-  function openEdit(service: AdminServiceWithRevision) {
+  const openEdit = useCallback((service: AdminServiceWithRevision) => {
     requestServiceEditor({
+      ctaHref: service.ctaHref ?? `/lien-he/?service=${service.slug}`,
+      ctaLabel: service.ctaLabel ?? "Liên hệ tư vấn",
       description: service.description,
       id: service.id,
       imageUrl: service.imageUrl ?? "",
@@ -181,12 +254,14 @@ export default function AdminServicesPage() {
       leadTimeDays: service.leadTimeDays === null ? "" : String(service.leadTimeDays),
       moqSummary: service.moqSummary ?? "",
       name: service.name,
+      offeringsText: formatOfferings(service.offerings),
       slug: service.slug,
+      sortOrder: String(service.sortOrder ?? 0),
       status: service.status as ServiceFormState["status"],
       summary: service.summary,
       revision: service.revision,
     });
-  }
+  }, [requestServiceEditor]);
 
   async function submitService(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -194,13 +269,17 @@ export default function AdminServicesPage() {
     setSaving(true);
     setSaveError(null);
     const fields = {
+      ctaHref: editor.ctaHref.trim() || null,
+      ctaLabel: editor.ctaLabel.trim() || null,
       description: editor.description,
       imageUrl: editor.imageUrl.trim() || null,
       isActive: editor.isActive,
       leadTimeDays: editor.leadTimeDays === "" ? null : Number(editor.leadTimeDays),
       moqSummary: editor.moqSummary || null,
       name: editor.name,
+      offerings: parseOfferingLines(editor.offeringsText),
       slug: editor.slug,
+      sortOrder: editor.sortOrder === "" ? null : Number(editor.sortOrder),
       status: editor.status,
       summary: editor.summary,
     };
@@ -418,6 +497,13 @@ function ServiceEditor({ error, form, onCancel, onChange, onSubmit, saving }: Se
         <span className="admin-stamp">{form.id ? `ID ${form.id}` : "BẢN GHI MỚI"}</span>
       </div>
       {error ? <p className="admin-editor-error" role="alert">{error.code ? `${error.code} · ` : ""}{error.message}</p> : null}
+      {error?.fieldErrors && Object.keys(error.fieldErrors).length > 0 ? (
+        <ul className="admin-editor-error-list" data-testid="service-form-field-errors">
+          {Object.entries(error.fieldErrors).map(([field, message]) => (
+            <li key={field}>{field}: {message}</li>
+          ))}
+        </ul>
+      ) : null}
       <form onSubmit={onSubmit}>
         <div className="admin-editor-grid">
           <label className="admin-field"><span>Tên dịch vụ <b aria-hidden="true">*</b></span><input className="admin-input" data-testid="input-service-name" onChange={(event) => update("name", event.target.value)} required value={form.name} /></label>
@@ -426,6 +512,10 @@ function ServiceEditor({ error, form, onCancel, onChange, onSubmit, saving }: Se
           <label className="admin-field"><span>Thời gian làm hàng (ngày)</span><input className="admin-input admin-mono" data-testid="input-service-lead-time" inputMode="numeric" min="0" onChange={(event) => update("leadTimeDays", event.target.value)} type="number" value={form.leadTimeDays} /></label>
           <label className="admin-field admin-field-wide"><span>Số lượng tối thiểu</span><input className="admin-input" data-testid="input-service-moq" onChange={(event) => update("moqSummary", event.target.value)} placeholder="Ví dụ: từ 500 kg / mẻ" value={form.moqSummary} /></label>
           <label className="admin-field admin-field-wide"><span>Tóm tắt</span><textarea className="admin-textarea" data-testid="input-service-summary" onChange={(event) => update("summary", event.target.value)} rows={2} value={form.summary} /></label>
+          <label className="admin-field admin-field-wide"><span>Dịch vụ trong nhóm</span><textarea className="admin-textarea admin-mono" data-testid="input-service-offerings" onChange={(event) => update("offeringsText", event.target.value)} placeholder="Tên hiển thị | /đường-dẫn/" rows={7} value={form.offeringsText} /><small className="admin-item-meta">Mỗi dòng một mục. Thứ tự từ trên xuống là thứ tự hiển thị ngoài website.</small></label>
+          <label className="admin-field"><span>Nhãn nút liên hệ</span><input className="admin-input" data-testid="input-service-cta-label" onChange={(event) => update("ctaLabel", event.target.value)} value={form.ctaLabel} /></label>
+          <label className="admin-field"><span>Đường dẫn nút liên hệ</span><input className="admin-input admin-mono" data-testid="input-service-cta-href" onChange={(event) => update("ctaHref", event.target.value)} placeholder="/lien-he/?service=..." value={form.ctaHref} /></label>
+          <label className="admin-field"><span>Thứ tự nhóm</span><input className="admin-input admin-mono" data-testid="input-service-sort-order" inputMode="numeric" min="0" onChange={(event) => update("sortOrder", event.target.value)} type="number" value={form.sortOrder} /></label>
           <div className="admin-field admin-field-wide">
             <span>Ảnh chính</span>
             <div className="admin-item-meta" data-testid="service-main-image">
@@ -436,7 +526,7 @@ function ServiceEditor({ error, form, onCancel, onChange, onSubmit, saving }: Se
                   <button className="admin-button admin-button-quiet" data-testid="button-service-clear-image" onClick={() => update("imageUrl", "")} type="button">Gỡ ảnh chính</button>
                 </>
               ) : (
-                <>Chưa có. Upload ảnh ở panel bên dưới rồi chọn “Dùng làm ảnh chính”.</>
+                <>Chưa có. Lưu bản nháp trước; sau đó panel ảnh sẽ xuất hiện bên dưới để tải lên và chọn “Dùng làm ảnh chính”.</>
               )}
             </div>
           </div>

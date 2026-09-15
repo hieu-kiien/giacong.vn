@@ -10,6 +10,7 @@ import {
   batchAdminNewsPublication,
   createAdminNewsPost,
   deleteAdminNewsPost,
+  listAdminNewsPosts,
   publishAdminNewsPost,
   unpublishAdminNewsPost,
   updateAdminNewsPost,
@@ -67,8 +68,40 @@ test("news writes use bounded JSON, explicit publish boundary and revision-aware
   assert.doesNotMatch(publicData, /WHERE slug = \? AND is_published = 1/);
   assert.match(page, /newsBatchRequest/);
   assert.match(page, /batchAction/);
+  assert.match(page, /hasUnpublishedChanges/);
+  assert.match(page, /Phát hành cập nhật/);
   assert.match(page, /requestId: pendingBatch\?\.requestId/);
   assert.match(page, /status >= 400 && clientError\.status < 500/);
+});
+
+test("news slug redirects are additive and only resolve to a live published slug", async () => {
+  const migration = await read("migrations/0024_news_slug_redirects.sql");
+  const [data, publicData, page] = await Promise.all([
+    read("src/lib/admin-data.ts"),
+    read("src/lib/news-public.ts"),
+    read("src/app/(storefront)/tin-tuc/[slug]/page.tsx"),
+  ]);
+  assert.match(migration, /news_slug_redirects/);
+  assert.match(migration, /ON DELETE CASCADE/);
+  assert.match(data, /buildNewsSlugRedirectStatements/);
+  assert.match(data, /newsSlugRedirectTableReady/);
+  assert.match(publicData, /getPublishedNewsRedirect/);
+  assert.match(publicData, /news_slug_redirects/);
+  assert.match(page, /redirectSlug/);
+});
+
+test("public news listing keeps search and pagination in the published-data path", async () => {
+  const [data, page] = await Promise.all([
+    read("src/lib/news-public.ts"),
+    read("src/app/(storefront)/tin-tuc/page.tsx"),
+  ]);
+  assert.match(data, /getPublishedNewsPage/);
+  assert.match(data, /COUNT\(\*\)[\s\S]*FROM news_posts/);
+  assert.match(data, /LIMIT \? OFFSET \?/);
+  assert.match(page, /searchParams/);
+  assert.match(page, /pageValue/);
+  assert.match(page, /Phân trang tin tức/);
+  assert.match(page, /aria-current="page"/);
 });
 
 interface FakeNewsRow {
@@ -719,6 +752,11 @@ class SqliteNewsDatabase implements D1DatabaseLike {
         selected_count INTEGER NOT NULL,
         changed_count INTEGER NOT NULL
       );
+      CREATE TABLE news_slug_redirects (
+        old_slug TEXT PRIMARY KEY,
+        news_id INTEGER NOT NULL REFERENCES news_posts(id) ON DELETE CASCADE,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );
     `);
   }
 
@@ -776,6 +814,32 @@ test("SQLite news postconditions remain atomic when results are omitted", async 
     assert.equal(published?.revision, 3);
     assert.equal(bulk.changedCount, 1);
     assert.equal(bulk.changed[0]?.isPublished, true);
+  } finally {
+    database.sqlite.close();
+  }
+});
+
+test("admin news listing marks a published draft with changes for direct update publishing", async () => {
+  const database = new SqliteNewsDatabase();
+  try {
+    const created = await createAdminNewsPost(database, draftInput, "owner-1", "33333333-3333-4333-8333-333333333333");
+    const published = await publishAdminNewsPost(database, created.id, created.revision, "owner-1", "34343434-3434-4434-8434-343434343434");
+    const edited = await updateAdminNewsPost(
+      database,
+      created.id,
+      { ...draftInput, title: "Bài viết cập nhật" },
+      published?.revision ?? 0,
+      "owner-1",
+      "35353535-3535-4535-8535-353535353535",
+    );
+
+    const pending = await listAdminNewsPosts(database, { page: 1, pageSize: 20 });
+    assert.equal(pending.posts[0]?.isPublished, true);
+    assert.equal(pending.posts[0]?.hasUnpublishedChanges, true);
+
+    await publishAdminNewsPost(database, created.id, edited?.revision ?? 0, "owner-1", "36363636-3636-4636-8636-363636363636");
+    const current = await listAdminNewsPosts(database, { page: 1, pageSize: 20 });
+    assert.equal(current.posts[0]?.hasUnpublishedChanges, false);
   } finally {
     database.sqlite.close();
   }

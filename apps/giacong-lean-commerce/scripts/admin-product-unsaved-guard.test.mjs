@@ -112,7 +112,8 @@ test("chặn chuyển bản ghi/tạo mới/đóng editor khi dirty qua AdminCon
   assert.ok(dismissBlock.length > 0, "phải tìm thấy nhánh Ở lại");
   // Chuyển bản ghi phải đi qua guard: onClick gọi request* trực tiếp, hoặc openEdit/openCreate ủy quyền cho request*.
   const usesRequestInClick = /onClick=\{[^}]*requestOpenEditor|onClick=\{\(\) => request/.test(source);
-  const delegatesViaOpen = /function openEdit[\s\S]*?requestOpenEditor/.test(source) && /function openCreate[\s\S]*?requestOpenEditor/.test(source);
+  const delegatesViaOpen = /(?:function openEdit|const openEdit\s*=\s*useCallback)[\s\S]*?requestOpenEditor/.test(source)
+    && /(?:function openCreate|const openCreate\s*=\s*useCallback)[\s\S]*?requestOpenEditor/.test(source);
   assert.ok(usesRequestInClick || delegatesViaOpen, "nút Sửa/Tạo phải đi qua request* (trực tiếp hoặc qua openEdit/openCreate ủy quyền)");
   // openCreate/openEdit không được setEditor trực tiếp khi dirty (phải qua request*).
   assert.doesNotMatch(source, /function openCreate\(\) \{\s*setSaveError\(null\);\s*setEditor/, "openCreate không được setEditor trực tiếp");

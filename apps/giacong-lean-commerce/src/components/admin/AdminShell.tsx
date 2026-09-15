@@ -1,6 +1,6 @@
 "use client";
 
-import { ExternalLink, History, LayoutDashboard, LayoutTemplate, Menu, Newspaper, Package, PanelTop, PenLine, Settings2, UsersRound, X } from "lucide-react";
+import { ClipboardList, ExternalLink, History, LayoutDashboard, LayoutTemplate, Menu, Newspaper, Package, PanelTop, PenLine, Settings2, UsersRound, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Fragment, createContext, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type MouseEvent as ReactMouseEvent, type ReactNode } from "react";
@@ -39,7 +39,10 @@ interface AdminNavGroup {
 const navGroups: ReadonlyArray<AdminNavGroup> = [
   {
     label: "Vận hành",
-    items: [{ href: "/admin", label: "Tổng quan", icon: LayoutDashboard, readCapability: "dashboard.read" }],
+    items: [
+      { href: "/admin", label: "Tổng quan", icon: LayoutDashboard, readCapability: "dashboard.read" },
+      { href: "/admin/yeu-cau", label: "Yêu cầu báo giá", icon: ClipboardList, readCapability: "leads.read" },
+    ],
   },
   {
     label: "Chỉnh sửa website",

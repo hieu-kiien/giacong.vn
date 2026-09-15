@@ -18,14 +18,6 @@ const mobileMenuIcons = [
     ],
   },
   {
-    selector: ".clone-mobile-products",
-    paths: [
-      '<path d="m3 6 9-4 9 4-9 4Z"/>',
-      '<path d="m3 6 9 4 9-4v12l-9 4-9-4Z"/>',
-      '<path d="M12 10v12"/>',
-    ],
-  },
-  {
     selector: "#menu-item-5466",
     paths: [
       '<circle cx="12" cy="12" r="3"/>',
@@ -73,60 +65,6 @@ function setAccordionExpanded(item: HTMLElement, expanded: boolean) {
   item
     .querySelector<HTMLElement>(":scope > .sub-menu")
     ?.setAttribute("aria-hidden", String(!expanded));
-}
-
-export function createMobileProductItem(
-  menu: HTMLElement | null,
-  desktopProductItem: HTMLElement | null,
-) {
-  const navigation = menu?.querySelector<HTMLElement>(
-    ":scope > .sidebar-menu > .nav-sidebar",
-  );
-  const serviceItem = navigation?.querySelector<HTMLElement>("#menu-item-5466");
-  const desktopLink = desktopProductItem?.querySelector<HTMLAnchorElement>(
-    ":scope > a",
-  );
-  const desktopDropdown = desktopProductItem?.querySelector<HTMLElement>(
-    ":scope > .nav-dropdown",
-  );
-  if (!navigation || !serviceItem || !desktopProductItem || !desktopLink || !desktopDropdown) return undefined;
-
-  const productItem = document.createElement("li");
-  productItem.className = "menu-item menu-item-has-children has-icon-left clone-mobile-products";
-
-  const productLink = desktopLink.cloneNode(true) as HTMLAnchorElement;
-  productLink.className = "nav-top-link";
-  productLink.removeAttribute("aria-expanded");
-  productLink.removeAttribute("aria-haspopup");
-  productLink.querySelector<HTMLElement>(":scope > i.icon-angle-down")?.remove();
-  const sourceIcon = productLink.querySelector<HTMLImageElement>(
-    ":scope > .ux-menu-icon",
-  );
-  if (sourceIcon) {
-    sourceIcon.className = "ux-sidebar-menu-icon";
-  }
-
-  const submenu = document.createElement("ul");
-  submenu.className = "sub-menu nav-sidebar-ul children clone-mobile-product-children";
-  desktopDropdown
-    .querySelectorAll<HTMLAnchorElement>(":scope > .row a")
-    .forEach((desktopChoice) => {
-      const submenuItem = document.createElement("li");
-      submenuItem.className = "menu-item menu-item-type-custom menu-item-object-custom";
-      const choice = desktopChoice.cloneNode(true) as HTMLAnchorElement;
-      choice.className = "clone-mobile-product-link";
-      submenuItem.append(choice);
-      submenu.append(submenuItem);
-    });
-  desktopProductItem
-    .querySelector<HTMLElement>(":scope > .nested-navigation-children")
-    ?.querySelectorAll<HTMLElement>(":scope > li")
-    .forEach((nestedChild) => submenu.append(nestedChild.cloneNode(true)));
-  if (submenu.childElementCount === 0) return undefined;
-
-  productItem.append(productLink, submenu);
-  navigation.insertBefore(productItem, serviceItem);
-  return productItem;
 }
 
 export function replaceMobileMenuIcons(menu: HTMLElement | null) {
@@ -195,8 +133,10 @@ export function handleMobileAccordion(event: Event, menu: HTMLElement | null) {
 
   event.preventDefault();
   const shouldExpand = !item.classList.contains("clone-submenu-open");
-  menu.querySelectorAll<HTMLElement>("li.clone-submenu-open").forEach((openItem) => {
-    if (openItem !== item) setAccordionExpanded(openItem, false);
-  });
+  item.parentElement
+    ?.querySelectorAll<HTMLElement>(":scope > li.clone-submenu-open")
+    .forEach((openItem) => {
+      if (openItem !== item) setAccordionExpanded(openItem, false);
+    });
   setAccordionExpanded(item, shouldExpand);
 }

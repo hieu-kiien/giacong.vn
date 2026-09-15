@@ -2,6 +2,7 @@
 
 import { Search } from "lucide-react";
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
+import { useSearchParams } from "next/navigation";
 import { AdminCategoryPanel } from "@/components/admin/AdminCategoryPanel";
 import { AdminConfirmDialog } from "@/components/admin/AdminDialog";
 import { useAdminUnsaved, useRegisterAdminUnsaved } from "@/components/admin/AdminUnsavedGuard";
@@ -117,6 +118,7 @@ function toProductForm(product: AdminProduct): ProductFormState {
 export default function AdminProductsPage() {
   const session = useAdminSession();
   const { showToast } = useAdminToast();
+  const searchParams = useSearchParams();
   const [products, setProducts] = useState<AdminProduct[]>([]);
   const [query, setQuery] = useState("");
   const [inputQuery, setInputQuery] = useState("");
@@ -143,6 +145,10 @@ export default function AdminProductsPage() {
   const [batchArchiving, setBatchArchiving] = useState(false);
   const [confirmBatchArchive, setConfirmBatchArchive] = useState(false);
   const [pendingBatch, setPendingBatch] = useState<{ requestId: string; items: ProductBatchItem[] } | null>(null);
+  const editQuery = searchParams.get("edit");
+  const createQuery = searchParams.get("create");
+  const deepLinkKey = editQuery ? `edit:${editQuery}` : createQuery === "1" ? "create" : null;
+  const handledDeepLinkRef = useRef<string | null>(null);
   const canManage = canManageCatalog(session.role);
   const activeProducts = products.filter((product) => product.isActive);
   const allVisibleSelected = canManage && activeProducts.length > 0 && activeProducts.every((product) => selectedIds.has(product.id));
@@ -195,28 +201,28 @@ export default function AdminProductsPage() {
     return () => window.removeEventListener("beforeunload", onBeforeUnload);
   }, [hasUnsavedChanges, unsavedRevision]);
 
-  function applyEditorForm(form: ProductFormState | null) {
+  const applyEditorForm = useCallback((form: ProductFormState | null) => {
     editorGenerationRef.current += 1;
     productRequestRef.current = null;
     setEditor(form ? { ...form } : null);
     setEditorSnapshot(form ? { ...form } : null);
     setSaveError(null);
     setPendingRequest(null);
-  }
+  }, []);
 
   function handleEditorChange(form: ProductFormState) {
     productRequestRef.current = null;
     setEditor(form);
   }
 
-  function requestOpenEditor(form: ProductFormState) {
+  const requestOpenEditor = useCallback((form: ProductFormState) => {
     if (saving || saveInFlightRef.current) return;
     if (hasUnsavedChanges()) {
       setPendingRequest({ form: { ...form } });
       return;
     }
     applyEditorForm(form);
-  }
+  }, [applyEditorForm, hasUnsavedChanges, saving]);
 
   function requestCloseEditor() {
     if (saving || saveInFlightRef.current) return;
@@ -249,13 +255,34 @@ export default function AdminProductsPage() {
     setPage(1);
   }
 
-  function openCreate() {
+  const openCreate = useCallback(() => {
     requestOpenEditor({ ...emptyProductForm });
-  }
+  }, [requestOpenEditor]);
 
   function openEdit(product: AdminProduct) {
     requestOpenEditor(toProductForm(product));
   }
+
+  useEffect(() => {
+    if (!canManage || loading || !deepLinkKey || handledDeepLinkRef.current === deepLinkKey) return;
+    handledDeepLinkRef.current = deepLinkKey;
+    if (deepLinkKey === "create") {
+      openCreate();
+      return;
+    }
+
+    const id = Number(editQuery);
+    if (!Number.isSafeInteger(id) || id <= 0) {
+      showToast("error", "Không thể tải sản phẩm được yêu cầu.");
+      return;
+    }
+
+    void fetchAdmin<{ product: AdminProduct }>(`/api/admin/products/${id}`)
+      .then((result) => requestOpenEditor(toProductForm(result.product)))
+      .catch((reason: unknown) => {
+        showToast("error", reason instanceof AdminClientError ? reason.message : "Không thể tải sản phẩm được yêu cầu.");
+      });
+  }, [canManage, deepLinkKey, editQuery, loading, openCreate, requestOpenEditor, showToast]);
 
   async function submitProduct(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();

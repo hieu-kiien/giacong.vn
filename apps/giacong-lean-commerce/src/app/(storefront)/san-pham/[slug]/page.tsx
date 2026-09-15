@@ -5,6 +5,9 @@ import { ProductDetailPage } from "@/components/catalog/ProductDetailPage";
 import { CapturedStorefrontTabFrame } from "@/components/site/CapturedStorefrontTabFrame";
 import { legacyProductRedirects } from "@/lib/catalog-legacy-redirects";
 import { loadCatalogProductDetail } from "@/lib/catalog-detail-source";
+import { canonicalMetadata } from "@/lib/seo";
+
+export const dynamic = "force-dynamic";
 
 type CatalogDetailPageProps = PageProps<"/san-pham/[slug]">;
 
@@ -14,7 +17,11 @@ export async function generateMetadata({ params }: CatalogDetailPageProps): Prom
   const source = await loadCatalogProductDetail(slug);
   if (!source) return { title: "Không tìm thấy sản phẩm | Giacong.vn" };
   const { product } = source;
-  return { title: `${product.name} | Giacong.vn`, description: product.shortDescription || product.name };
+  return {
+    ...canonicalMetadata(`/san-pham/${product.slug}/`),
+    title: `${product.name} | Giacong.vn`,
+    description: product.shortDescription || product.name,
+  };
 }
 
 export default async function CatalogDetailPage({ params, searchParams }: CatalogDetailPageProps) {

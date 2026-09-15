@@ -62,6 +62,10 @@ type ServiceLegacyAction = "service.archived" | "service.created" | "service.upd
 interface ServiceMutationMetaExpectation {
   leadTimeDays?: number | null;
   moqSummary?: string | null;
+  offeringsJson?: string | null;
+  ctaLabel?: string | null;
+  ctaHref?: string | null;
+  sortOrder?: number | null;
   status: AdminServiceInput["status"] | "archived";
 }
 
@@ -106,7 +110,9 @@ export async function createAdminServiceAtomically(
   }
 
   const databaseWithBatch = requireBatch(database);
+  const hasSlugRedirects = hasMeta && await tableExists(database, "service_slug_redirects");
   const statements: D1PreparedStatementLike[] = [
+    ...(hasSlugRedirects ? [buildServiceSlugRedirectCleanup(database, input.slug)] : []),
     buildServiceInsert(database, input),
     buildCreateMutation(database, normalizedRequestId, actorSubject, input.slug, payloadSha256),
     buildLegacyAudit(database, normalizedRequestId, actorSubject, "service.created", "create", input.slug, payloadSha256),
@@ -169,7 +175,12 @@ export async function updateAdminServiceAtomically(
   assertExpectedRevision(existing.revision, expectedRevision, "Dịch vụ đã thay đổi. Hãy tải lại trước khi lưu.");
 
   const databaseWithBatch = requireBatch(database);
+  const hasSlugRedirects = hasMeta && await tableExists(database, "service_slug_redirects");
   const statements: D1PreparedStatementLike[] = [
+    ...(hasSlugRedirects ? [
+      buildServiceSlugRedirectCleanup(database, input.slug),
+      buildServiceSlugRedirect(database, id, expectedRevision, input.slug),
+    ] : []),
     buildServiceUpdate(database, id, input, expectedRevision),
     buildRevisionMutation(database, normalizedRequestId, actorSubject, "update", id, expectedRevision, payloadSha256),
     buildLegacyAudit(database, normalizedRequestId, actorSubject, "service.updated", "id", id, payloadSha256, expectedRevision),
@@ -331,6 +342,31 @@ function buildServiceUpdate(
   );
 }
 
+function buildServiceSlugRedirectCleanup(
+  database: D1DatabaseLike,
+  slug: string,
+): D1PreparedStatementLike {
+  return database.prepare(`
+    DELETE FROM service_slug_redirects
+    WHERE old_slug = ?
+  `).bind(slug);
+}
+
+function buildServiceSlugRedirect(
+  database: D1DatabaseLike,
+  id: number,
+  expectedRevision: number,
+  nextSlug: string,
+): D1PreparedStatementLike {
+  return database.prepare(`
+    INSERT INTO service_slug_redirects (old_slug, service_id)
+    SELECT slug, id
+    FROM services
+    WHERE id = ? AND revision = ? AND is_active = 1 AND slug <> ?
+    ON CONFLICT(old_slug) DO UPDATE SET service_id = excluded.service_id
+  `).bind(id, expectedRevision, nextSlug);
+}
+
 function buildServiceArchive(
   database: D1DatabaseLike,
   id: number,
@@ -420,18 +456,26 @@ function buildServiceMetaWrite(
   const idExpression = id === undefined
     ? "(SELECT CAST(entity_key AS INTEGER) FROM admin_audit_log WHERE request_id = ?)"
     : "?";
+  const presentation = serviceMetaPresentation(input);
   const values = id === undefined
-    ? [requestId, input.status, input.leadTimeDays, input.moqSummary, actorSubject, requestId]
-    : [id, input.status, input.leadTimeDays, input.moqSummary, actorSubject, requestId];
+    ? [requestId, input.status, input.leadTimeDays, input.moqSummary, presentation.offeringsJson, presentation.ctaLabel, presentation.ctaHref, presentation.sortOrder, actorSubject, requestId]
+    : [id, input.status, input.leadTimeDays, input.moqSummary, presentation.offeringsJson, presentation.ctaLabel, presentation.ctaHref, presentation.sortOrder, actorSubject, requestId];
   return database.prepare(`
-    INSERT INTO service_admin_meta (service_id, status, lead_time_days, moq_summary, updated_by, updated_at)
-    SELECT ${idExpression}, ?, ?, ?, ?, CURRENT_TIMESTAMP
+    INSERT INTO service_admin_meta (
+      service_id, status, lead_time_days, moq_summary, offerings_json,
+      cta_label, cta_href, sort_order, updated_by, updated_at
+    )
+    SELECT ${idExpression}, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP
     WHERE EXISTS (SELECT 1 FROM admin_audit_log WHERE request_id = ?)
       AND changes() = 1
     ON CONFLICT(service_id) DO UPDATE SET
       status = excluded.status,
       lead_time_days = excluded.lead_time_days,
       moq_summary = excluded.moq_summary,
+      offerings_json = excluded.offerings_json,
+      cta_label = excluded.cta_label,
+      cta_href = excluded.cta_href,
+      sort_order = excluded.sort_order,
       updated_by = excluded.updated_by,
       updated_at = CURRENT_TIMESTAMP
     RETURNING service_id
@@ -475,9 +519,10 @@ function createServiceMutationPostcondition(
     meta: hasMeta
       ? input
         ? {
-            leadTimeDays: input.leadTimeDays,
-            moqSummary: input.moqSummary,
-            status: input.status,
+          ...serviceMetaPresentation(input),
+          leadTimeDays: input.leadTimeDays,
+          moqSummary: input.moqSummary,
+          status: input.status,
           }
         : { status: "archived" }
       : null,
@@ -590,6 +635,9 @@ function buildServiceMutationReplayExpression(
     postcondition.metadataJson,
   ];
   if (postcondition.meta) {
+    // A replay can happen after a later update/archive changed the current
+    // presentation. The original batch already asserted the exact values;
+    // here only prove that the coupled meta row was durably created.
     parts.push(`EXISTS (
       SELECT 1
       FROM service_admin_meta meta
@@ -774,7 +822,36 @@ function buildServiceMutationPostconditionExpression(
   const values: unknown[] = [...entity.values, ...legacy.values];
   const meta = postcondition.meta;
   if (meta) {
-    if (meta.leadTimeDays !== undefined && meta.moqSummary !== undefined) {
+    if (meta.offeringsJson !== undefined
+      && meta.ctaLabel !== undefined
+      && meta.ctaHref !== undefined
+      && meta.sortOrder !== undefined) {
+      parts.push(`EXISTS (
+        SELECT 1
+        FROM service_admin_meta meta
+        JOIN admin_audit_log marker
+          ON marker.request_id = ?
+         AND meta.service_id = CAST(marker.entity_key AS INTEGER)
+        WHERE meta.status = ?
+          AND meta.lead_time_days IS ?
+          AND meta.moq_summary IS ?
+          AND meta.offerings_json IS ?
+          AND meta.cta_label IS ?
+          AND meta.cta_href IS ?
+          AND meta.sort_order IS ?
+          AND meta.updated_by IS NOT NULL
+      )`);
+      values.push(
+        postcondition.requestId,
+        meta.status,
+        meta.leadTimeDays,
+        meta.moqSummary,
+        meta.offeringsJson,
+        meta.ctaLabel,
+        meta.ctaHref,
+        meta.sortOrder,
+      );
+    } else if (meta.leadTimeDays !== undefined && meta.moqSummary !== undefined) {
       parts.push(`EXISTS (
         SELECT 1
         FROM service_admin_meta meta
@@ -893,7 +970,7 @@ function requireRevision(value: unknown, action: string): number {
 }
 
 function canonicalServiceInput(input: AdminServiceInput): AdminServiceInput {
-  return {
+  const canonical: AdminServiceInput = {
     description: input.description,
     imageUrl: input.imageUrl,
     isActive: input.isActive,
@@ -903,6 +980,25 @@ function canonicalServiceInput(input: AdminServiceInput): AdminServiceInput {
     slug: input.slug,
     status: input.status,
     summary: input.summary,
+  };
+  if (input.offerings !== undefined) canonical.offerings = input.offerings;
+  if (input.ctaLabel !== undefined) canonical.ctaLabel = input.ctaLabel;
+  if (input.ctaHref !== undefined) canonical.ctaHref = input.ctaHref;
+  if (input.sortOrder !== undefined) canonical.sortOrder = input.sortOrder;
+  return canonical;
+}
+
+function serviceMetaPresentation(input: AdminServiceInput): {
+  offeringsJson: string | null;
+  ctaLabel: string | null;
+  ctaHref: string | null;
+  sortOrder: number | null;
+} {
+  return {
+    offeringsJson: input.offerings === undefined ? null : JSON.stringify(input.offerings),
+    ctaLabel: input.ctaLabel ?? null,
+    ctaHref: input.ctaHref ?? null,
+    sortOrder: input.sortOrder ?? null,
   };
 }
 

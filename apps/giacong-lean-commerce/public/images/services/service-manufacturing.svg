@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 520" role="img" aria-labelledby="title desc">
+  <title id="title">Minh hoạ gia công thực phẩm</title>
+  <desc id="desc">Dây chuyền sản xuất và nguyên liệu thực phẩm</desc>
+  <rect width="800" height="520" rx="34" fill="#f5f8ed"/>
+  <path d="M0 399c158-46 287-36 397 4 126 46 237 37 403-37v154H0Z" fill="#dcefc8"/>
+  <path d="M128 160h488v203H128Z" fill="#fff" stroke="#327600" stroke-width="8"/>
+  <path d="M128 160h488v54H128Z" fill="#6ead3d"/>
+  <path d="M178 214v149M566 214v149M288 214v149M456 214v149" stroke="#327600" stroke-width="8"/>
+  <path d="M110 363h524" stroke="#327600" stroke-width="12" stroke-linecap="round"/>
+  <path d="M201 314h374" stroke="#f08b24" stroke-width="14" stroke-linecap="round"/>
+  <circle cx="239" cy="314" r="25" fill="#f7c96b" stroke="#327600" stroke-width="7"/>
+  <circle cx="338" cy="314" r="25" fill="#ffbe4a" stroke="#327600" stroke-width="7"/>
+  <circle cx="438" cy="314" r="25" fill="#82c34b" stroke="#327600" stroke-width="7"/>
+  <circle cx="537" cy="314" r="25" fill="#ef7e35" stroke="#327600" stroke-width="7"/>
+  <path d="M246 105v55M400 105v55M554 105v55" stroke="#327600" stroke-width="9" stroke-linecap="round"/>
+  <path d="M221 105h50M375 105h50M529 105h50" stroke="#327600" stroke-width="9" stroke-linecap="round"/>
+  <path d="M365 78h70v27h-70Z" fill="#f08b24"/>
+</svg>

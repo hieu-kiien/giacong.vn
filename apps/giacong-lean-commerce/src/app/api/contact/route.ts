@@ -4,6 +4,7 @@ import { handleContactSubmission } from "@/lib/contact-webhook";
 import { getAdminDatabase } from "@/lib/admin-data";
 import { createLeadPersistence } from "@/lib/lead-data";
 import { getCatalogProduct } from "@/lib/cloudflare-catalog";
+import { getManagedServiceFamily } from "@/lib/cloudflare-services";
 import { getLeadQueue } from "@/lib/lead-queue";
 import { resolveRequestCartFromCatalog } from "@/lib/request-cart-resolver";
 
@@ -52,6 +53,10 @@ export async function POST(request: Request) {
           sku: variant.sku,
         })),
       };
+    },
+    serviceResolver: async (slug) => {
+      const family = await getManagedServiceFamily(slug);
+      return family ? { name: family.name, slug: family.slug } : null;
     },
   });
 }

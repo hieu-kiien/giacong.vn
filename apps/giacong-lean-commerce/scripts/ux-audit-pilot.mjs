@@ -279,13 +279,31 @@ async function auditHomepageMobile(page, result) {
       observed: menuState,
       pass: menuState.open,
     });
-    const productItem = page.locator("#main-menu.clone-menu-open li.clone-mobile-products, #main-menu li.clone-mobile-products").first();
-    const toggle = productItem.locator(":scope > button.toggle");
-    if (await isVisible(productItem) && await isVisible(toggle)) {
-      const childCount = await productItem.locator(":scope > .sub-menu a").count();
-      await toggle.click();
+    const productItem = page.locator("#main-menu.clone-menu-open li#menu-item-5467, #main-menu li#menu-item-5467").first();
+    const productLink = productItem.locator(":scope > a").first();
+    const productVisible = await isVisible(productLink);
+    const productHref = productVisible ? await productLink.getAttribute("href") : null;
+    const productToggleCount = await productItem.locator(":scope > button.toggle").count();
+    await recordAction(result, {
+      id: "open-mobile-products-link",
+      type: "primary navigation",
+      expected: "Mua hàng là liên kết chạm trực tiếp tới /san-pham/, không mở accordion.",
+      observed: { href: productHref, toggleCount: productToggleCount, visible: productVisible },
+      pass: productVisible && productHref === "/san-pham/" && productToggleCount === 0,
+    });
+
+    const serviceItem = page.locator("#main-menu.clone-menu-open li#menu-item-5466, #main-menu li#menu-item-5466").first();
+    const serviceToggle = serviceItem.locator(":scope > button.toggle");
+    if (await isVisible(serviceToggle)) {
+      await serviceToggle.click();
       await page.waitForTimeout(220);
-      const accordionState = await productItem.evaluate((item) => {
+    }
+    const serviceGroup = serviceItem.locator(":scope > .sub-menu > li.menu-item-has-children").first();
+    const groupToggle = serviceGroup.locator(":scope > button.toggle");
+    if (await isVisible(groupToggle)) {
+      await groupToggle.click();
+      await page.waitForTimeout(220);
+      const accordionState = await serviceGroup.evaluate((item) => {
         const submenu = item.querySelector(":scope > .sub-menu");
         const style = submenu ? getComputedStyle(submenu) : null;
         const button = item.querySelector(":scope > button.toggle");
@@ -295,29 +313,41 @@ async function auditHomepageMobile(page, result) {
           maxHeight: style?.maxHeight ?? null,
           opacity: style?.opacity ?? null,
           transform: style?.transform ?? null,
+          linkCount: submenu?.querySelectorAll("a").length ?? 0,
         };
       });
-      await capture(page, result, "products-accordion-open");
+      await capture(page, result, "service-group-accordion-open");
       await recordAction(result, {
-        id: "open-mobile-products-accordion",
+        id: "open-mobile-service-group",
         type: "open submenu/detail",
-        expected: "Mua hàng mở dạng accordion và dùng cùng các lựa chọn desktop.",
-        observed: { childCount, ...accordionState },
-        pass: accordionState.expanded === "true" && childCount > 0 && accordionState.ariaHidden === "false",
+        expected: "Nhóm dịch vụ mở dạng accordion, có liên kết nhóm và giữ menu cha đang mở.",
+        observed: accordionState,
+        pass: accordionState.expanded === "true" && accordionState.linkCount > 0 && accordionState.ariaHidden === "false",
       });
-      const firstProductLink = productItem.locator(":scope > .sub-menu a").first();
-      if (await isVisible(firstProductLink)) {
-        const href = await firstProductLink.getAttribute("href");
-        const isLocal = Boolean(href?.startsWith("/"));
-        await recordAction(result, {
-          id: "choose-mobile-product",
-          type: "primary navigation",
-          expected: "Lựa chọn sản phẩm có href nội bộ an toàn.",
-          observed: { href, isLocal },
-          pass: isLocal,
-        });
-      }
+    } else {
+      await recordAction(result, {
+        id: "open-mobile-service-group",
+        type: "open submenu/detail",
+        expected: "Có accordion cho nhóm dịch vụ.",
+        observed: "service group toggle not visible",
+        pass: false,
+      });
     }
+    const mobileLayout = await page.evaluate(() => ({
+      scrollWidth: document.documentElement.scrollWidth,
+      viewportWidth: window.innerWidth,
+      floatingButtons: [...document.querySelectorAll(".echbay-sms-messenger, [aria-label*=\"Liên hệ\"]")].map((element) => {
+        const rect = element.getBoundingClientRect();
+        return { right: Math.round(rect.right), bottom: Math.round(rect.bottom), width: Math.round(rect.width) };
+      }),
+    }));
+    await recordAction(result, {
+      id: "mobile-menu-layout",
+      type: "responsive layout",
+      expected: "Menu không tràn ngang và nút nổi không che khuất vùng thao tác chính.",
+      observed: mobileLayout,
+      pass: mobileLayout.scrollWidth <= mobileLayout.viewportWidth + 1,
+    });
   } else {
     await recordAction(result, {
       id: "open-mobile-menu",
@@ -383,13 +413,38 @@ async function auditHomepageScroll(page, result) {
 
 async function auditHomepageDesktop(page, result) {
   await capture(page, result, "before");
-  // The top-level label is editable through D1, so it may be “Mua hàng”,
-  // “Sản Phẩm”, or another approved operator label. The captured menu id is
-  // the stable identity used by the navigation contract.
-  const item = page.locator("#header li#menu-item-1742.menu-item-design-container-width.has-dropdown").first();
-  if (await isVisible(item)) {
-    const panel = item.locator(":scope > .nav-dropdown");
-    await item.hover();
+  const productItem = page.locator("#header li#menu-item-1742").first();
+  if (await isVisible(productItem)) {
+    const productLink = productItem.locator(":scope > a").first();
+    const productHref = await productLink.getAttribute("href");
+    const productDropdownCount = await productItem.locator(":scope > .nav-dropdown").count();
+    await recordAction(result, {
+      id: "open-desktop-products-link",
+      type: "primary navigation",
+      expected: "Mua hàng là liên kết trực tiếp tới /san-pham/ và không có bảng mega-menu.",
+      observed: {
+        label: await productLink.innerText(),
+        href: productHref,
+        dropdownCount: productDropdownCount,
+        className: await productItem.getAttribute("class"),
+      },
+      pass: productHref === "/san-pham/" && productDropdownCount === 0,
+    });
+  }
+  else {
+    await recordAction(result, {
+      id: "open-desktop-products-link",
+      type: "primary navigation",
+      expected: "Có liên kết Mua hàng trực tiếp tới /san-pham/.",
+      observed: "menu item not visible",
+      pass: false,
+    });
+  }
+
+  const serviceItem = page.locator("#header li#menu-item-5166.menu-item-design-container-width.has-dropdown").first();
+  if (await isVisible(serviceItem)) {
+    const panel = serviceItem.locator(":scope > .nav-dropdown");
+    await serviceItem.hover();
     await page.waitForTimeout(350);
     const opened = await panel.evaluate((element) => {
       const style = getComputedStyle(element);
@@ -399,15 +454,17 @@ async function auditHomepageDesktop(page, result) {
         transform: style.transform,
         transition: style.transition,
         rect: element.getBoundingClientRect().toJSON(),
+        grouped: Boolean(element.querySelector(".clone-service-menu")),
+        hasAllServices: [...element.querySelectorAll("a")].some((link) => link.textContent?.includes("Xem tất cả dịch vụ")),
       };
     });
-    await capture(page, result, "mega-menu-open");
+    await capture(page, result, "service-mega-menu-open");
     await recordAction(result, {
-      id: "hover-desktop-products-menu",
+      id: "hover-desktop-service-menu",
       type: "hover",
-      expected: "Mega-menu sản phẩm hiện ở đúng vị trí, fade/visibility hoạt động và nội dung đứng yên.",
-      observed: { label: await item.locator(":scope > a").innerText(), ...opened },
-      pass: opened.visibility !== "hidden" && Number(opened.opacity) > 0.8,
+      expected: "Mega-menu dịch vụ hiện ổn định, có nhóm chính và liên kết xem tất cả dịch vụ.",
+      observed: { label: await serviceItem.locator(":scope > a").innerText(), ...opened },
+      pass: opened.visibility !== "hidden" && Number(opened.opacity) > 0.8 && opened.grouped && opened.hasAllServices,
     });
     if (await isVisible(panel)) {
       await panel.hover();
@@ -417,18 +474,18 @@ async function auditHomepageDesktop(page, result) {
         return { opacity: style.opacity, visibility: style.visibility };
       });
       await recordAction(result, {
-        id: "pointer-handoff-to-desktop-menu",
+        id: "pointer-handoff-to-service-menu",
         type: "mousemove",
-        expected: "Panel không biến mất khi người dùng di chuột từ trigger vào bảng.",
+        expected: "Bảng dịch vụ không biến mất khi di chuột từ nút vào bảng.",
         observed: handoff,
         pass: handoff.visibility !== "hidden" && Number(handoff.opacity) > 0.8,
       });
     }
   } else {
     await recordAction(result, {
-      id: "hover-desktop-products-menu",
+      id: "hover-desktop-service-menu",
       type: "hover",
-      expected: "Có mega-menu sản phẩm để kiểm tra.",
+      expected: "Có mega-menu dịch vụ để kiểm tra.",
       observed: "menu item not visible",
       pass: false,
     });

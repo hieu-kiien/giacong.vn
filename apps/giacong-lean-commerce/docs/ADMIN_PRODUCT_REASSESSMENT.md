@@ -1,8 +1,24 @@
 # Admin product reassessment — Lean V1
 
 **Date:** 2026-09-09
-**Mode:** audit-only; no code, configuration, data, deployment, commit, or production changes
+**Mode:** audit baseline; current implementation updates are recorded below
 **Audience:** project owner and technically experienced staff who should be able to operate the existing site without developer assistance
+
+## Current implementation update — 2026-09-14
+
+The heavy storefront visual editor described in the original audit has been
+removed. `AdminVisualMode` now only gates a compact owner-only set of links to
+the canonical admin writers: `/admin/san-pham`, `/admin/dich-vu`,
+`/admin/tin-tuc`, and `/admin/noi-dung`. Product cards and news cards expose a
+small contextual edit link on the corresponding admin hostname; the public
+hostname renders no admin control. The generic managed-page storefront action
+was also removed, so page blocks remain owned by `/admin/thiet-ke`.
+
+The service landing now exposes a collapsed, searchable inventory of **192**
+captured non-pagination service routes. News has an always-available public
+search form, and the request-cart badge plus catalog toolbar link directly to
+`/gui-yeu-cau/`. These changes close discoverability gaps without creating a
+second content store.
 
 ## Executive conclusion
 
@@ -35,7 +51,7 @@ This is **not enough evidence to call the control plane staging-ready**: route l
 - `src/app/admin/tin-tuc/page.tsx` and `/api/admin/news/**` cover news draft CRUD, publish/unpublish, delete, and batch publication.
 - `src/app/admin/noi-dung/page.tsx` and `/api/admin/site-settings/**` cover global settings with draft, per-setting publish, publish-all, media upload, version checks, and unsaved protection.
 - `src/components/admin/AdminPageBuilder.tsx` and `/api/admin/pages/**` cover schema-safe page blocks, page draft, SEO fields, and publish.
-- `src/components/admin/AdminVisualEditor.tsx`/`AdminVisualMode.tsx` provide contextual visual editing in addition to settings and page-builder routes.
+- `src/components/admin/AdminVisualMode.tsx` plus the individual product, service, news, and contact contextual-action components provide lightweight owner-only links into canonical admin writers.
 - `src/components/admin/AdminNavigationManager.tsx` and `/api/admin/navigation/**` cover editable primary/footer rows only. Nested mega-menu content is in `src/lib/captured-markup.ts` and its runtime interaction is in `src/app/globals.css`/`src/components/GiacongInteractions.tsx`.
 - `/api/admin/leads/**` and `/admin/yeu-cau` provide an admin request view, while the Lean V1 decision source keeps Google Sheet + Apps Script as the request queue. These are related operational surfaces, not silently interchangeable sources of truth.
 
@@ -56,7 +72,7 @@ Confidence labels in this report:
 | News | Draft CRUD, edit, delete, publish/unpublish, batch | D1/news public reader | Suitable; verify cover-media and public read-back | Keep |
 | Global content | Brand, SEO, home, contact, footer settings; draft/publish | D1 site settings | Useful, but overlaps with visual/page authoring | Keep and narrow |
 | Page design | Safe section schema, draft, SEO, publish, new page | D1 pages/public route | Useful only for schema-backed pages; creation is secondary to recovery priorities | Keep; defer expansion |
-| Visual editing | Contextual edit mode and target actions | Depends on target surface | Helpful shortcut but creates a third mental model | Keep as shortcut, not a separate source |
+| Contextual admin links | Owner-only links on product, service, news, and contact surfaces | Dedicated admin writers | Small shortcut with no extra persistence | Keep; no separate visual editor |
 | Navigation | Primary/footer label, href, order, active, draft/publish | D1 navigation rows | Does not cover nested mega-menu tree | Keep top-level; resolve nested ownership |
 | Requests | Search/filter/status/detail UI and lead APIs | Google Sheet + Apps Script remains V1 queue | Operational boundary must be explicit; do not call this a replacement inbox without a decision | Keep; document boundary |
 | Members/access | One owner role, active-state protections, Access boundary | Cloudflare Access + D1 admin records | Security control, not a feature to cut because there is one owner today | Keep |
@@ -77,20 +93,23 @@ The storefront directory and family pages start from the static `serviceFamilies
 
 **Recommendation:** because staff have explicitly requested menu/service self-service, make family/offering taxonomy a first-class controlled dataset with validated parent/child links, route-family checks, draft/publish, and preview. A managed-copy-only label is a temporary containment step, not equivalent autonomy. Do not build a second ad-hoc editor disconnected from the public reader.
 
-### F-02 — Global settings and visual editing share state; page-builder overlap is a UX concern
+### F-02 — Global settings and page-builder ownership must stay explicit
 
 **Severity:** P1 workflow/operability
-**Confidence:** Confirmed for global-settings duplication; UX inference for page-builder overlap
-**Effort:** S for navigation/labels; M if the visual editor is reduced to a single shared controller
-**Locations:** [`src/app/admin/noi-dung/page.tsx:58-98`](../src/app/admin/noi-dung/page.tsx#L58), [`src/app/admin/noi-dung/page.tsx:144-182`](../src/app/admin/noi-dung/page.tsx#L144), [`src/components/admin/AdminVisualEditor.tsx:38-49`](../src/components/admin/AdminVisualEditor.tsx#L38), [`src/components/admin/AdminVisualEditor.tsx:327-367`](../src/components/admin/AdminVisualEditor.tsx#L327), [`src/components/admin/AdminPageBuilder.tsx:175-208`](../src/components/admin/AdminPageBuilder.tsx#L175)
+**Confidence:** Confirmed
+**Effort:** S for navigation and labels
+**Locations:** [`src/app/admin/noi-dung/page.tsx`](../src/app/admin/noi-dung/page.tsx), [`src/app/admin/thiet-ke/page.tsx`](../src/app/admin/thiet-ke/page.tsx), [`src/components/admin/AdminVisualMode.tsx`](../src/components/admin/AdminVisualMode.tsx)
 
-There is a concrete shared owner between `/admin/noi-dung` and visual mode: both load `/api/admin/site-settings`; both can edit the same `hero_primary_cta_label` / `hero_primary_cta_url` region keys; both save through `PATCH /api/admin/site-settings`; and both publish through `/api/admin/site-settings/publish`. The generic content screen exposes the same setting rows at `page.tsx:320-357`, while visual mode applies the draft directly to the page at `AdminVisualEditor.tsx:214-231` and writes it at `:327-367`.
+The current implementation keeps one persistence owner per content class:
+global settings and media belong to `/admin/noi-dung`, page blocks and SEO
+belong to `/admin/thiet-ke`, and product, service, and news records belong to
+their dedicated admin screens. The former DOM editing drawer and generic
+managed-page storefront action were removed because they duplicated these
+writers and made the operator workflow heavier than the product requires.
 
-`AdminPageBuilder` is different: it owns page `blocks`, SEO fields, and `draftEnabled` through `/api/admin/pages/:pageKey` and `/publish` (`AdminPageBuilder.tsx:175-208`). That is not proof of duplicate persistence with global settings; the overlap is a mental-model/route concern until a concrete page block and setting are shown to render the same field.
-
-**Impact:** confirmed duplicate entry points for site settings, plus a likely “which editor owns this page?” UX question for page blocks. The problem is not that each capability is invalid; it is that their boundaries are not visible.
-
-**Recommendation:** keep one persistence owner per content class: global settings for global values/media, page builder for page blocks, and visual mode as a contextual shortcut into the global-settings owner. Hide duplicate global-setting controls from one path only after the shared controller is explicit; do not delete page-builder controls based on the current evidence.
+**Impact:** the remaining risk is documentation and operator discoverability,
+not competing write paths. Contextual links are shortcuts only; they do not
+save data, mutate the DOM, or create a second draft/publish state machine.
 
 ### F-03 — Menu admin stops before the nested Sản phẩm/Dịch vụ tree
 
@@ -143,7 +162,7 @@ The dashboard shows counts, recent leads, and quick links for products, services
 **Severity:** P2 maintenance
 **Confidence:** Confirmed
 **Effort:** S/M incrementally through shared primitives; not a V1 rewrite
-**Locations:** admin panels including category, media, variant, leads, pages, and visual editor
+**Locations:** admin panels including category, media, variant, leads, and pages
 
 The admin has a shared CSS vocabulary, but several components still contain inline presentation decisions and route-specific patterns. This increases the cost of consistent focus, error, disabled, and responsive states.
 
@@ -180,7 +199,7 @@ Legend: **Verified** = evidence exists in this audit or prior controlled staging
 
 ### Consolidate
 
-- Give each public content class one canonical editor. Keep visual mode as a contextual entry point, not a third state machine.
+- Give each public content class one canonical editor. Keep `AdminVisualMode` as a lightweight contextual entry point, not a second editor or state machine.
 - Make the service screen the owner of managed copy plus the validated nested taxonomy model; do not leave the current hybrid implicit.
 - Use one clear “publish/read back” vocabulary across products, services, news, navigation, settings, and pages.
 
@@ -206,7 +225,7 @@ Legend: **Verified** = evidence exists in this audit or prior controlled staging
 1. **Clarify ownership and labels.** Rename or annotate service-copy, content, page, navigation, and request surfaces so an operator knows what they control and what remains code/external-system owned.
 2. **Close high-value E2E evidence.** Prove one safe staging record through save, publish, public read-back, failure/retry, audit, and restore for product, service, news/media, navigation, and page content.
 3. **Resolve nested navigation.** Implement the small validated nested model required for staff self-service; keep a read-only route audit as a diagnostic, not as the primary solution.
-4. **Consolidate content entry points.** Keep global settings, schema page blocks, and visual shortcuts, but give each a single persistence/publish owner.
+4. **Consolidate content entry points.** Keep global settings, schema page blocks, and contextual admin shortcuts, but give each a single persistence/publish owner.
 5. **Improve the dashboard as an action list.** Use existing draft/unpublished/error state; do not invent a new job system.
 6. **Reassess only after operating evidence.** Add fields or automation when real staff work demonstrates a repeated gap.
 

@@ -9,6 +9,7 @@ const validSubmission = {
   message: "  Cần tư vấn số lượng lớn.  ",
   name: "  Nguyễn Văn A  ",
   phone: " 0900 000 000 ",
+  request_id: "6b1e0f7a-6c2f-4c1a-9c3e-8f5b2d0a1e44",
   source: " /lien-he/ ",
 };
 
@@ -79,6 +80,7 @@ test("forwards normalized contact fields and optional secret to an approved Apps
     phone: "0900 000 000",
     product: "",
     qty: "",
+    request_id: "6b1e0f7a-6c2f-4c1a-9c3e-8f5b2d0a1e44",
     request_type: "Tư vấn dịch vụ",
     secret: "shared-secret",
     service: "Liên hệ chung",
@@ -198,6 +200,7 @@ test("derives canonical product requests at MOQ and the inclusive contact thresh
       phone: "0900 000 000",
       product: "Bột dinh dưỡng",
       qty: Number(sample.qty),
+      request_id: "6b1e0f7a-6c2f-4c1a-9c3e-8f5b2d0a1e44",
       request_type: sample.requestType,
       secret: "shared-secret",
       service: "",
@@ -235,9 +238,13 @@ test("accepts the single canonical service and preserves legacy generic contact 
     phone: "0900 000 000",
     product: "",
     qty: "",
+    request_id: "6b1e0f7a-6c2f-4c1a-9c3e-8f5b2d0a1e44",
     request_type: "Tư vấn dịch vụ",
     secret: "shared-secret",
     service: "Sấy & thực phẩm sấy",
+    service_code: "say-thuc-pham-say",
+    service_name: "Sấy & thực phẩm sấy",
+    service_url: "/lien-he/",
     source: "/lien-he/",
     variant: "",
   });
@@ -248,12 +255,64 @@ test("accepts the single canonical service and preserves legacy generic contact 
     phone: "0900 000 000",
     product: "",
     qty: "",
+    request_id: "6b1e0f7a-6c2f-4c1a-9c3e-8f5b2d0a1e44",
     request_type: "Tư vấn dịch vụ",
     secret: "shared-secret",
     service: "Liên hệ chung",
     source: "/lien-he/",
     variant: "",
   });
+});
+
+test("forwards the generic form request id so a retry can replay the same lead", async () => {
+  let receivedBody = "";
+  const requestId = "7d7c2b5e-7e34-4d02-8e7d-7b2d0a4f7c31";
+  const response = await handleContactSubmission(requestWithForm({
+    ...validSubmission,
+    request_id: requestId,
+  }), {
+    environment: environment(),
+    fetch: async (_url: string | URL | Request, init?: RequestInit) => {
+      receivedBody = String(init?.body);
+      return new Response(JSON.stringify({ ok: true, reference: "YC-FORM-ID" }), {
+        headers: { "Content-Type": "application/json" },
+      });
+    },
+    timeoutMs: 100,
+  });
+
+  assert.equal(response.status, 202);
+  assert.equal(JSON.parse(receivedBody).request_id, requestId);
+});
+
+test("resolves a D1-managed service and forwards its canonical metadata", async () => {
+  let receivedBody = "";
+  const response = await handleContactSubmission(requestWithForm({
+    ...validSubmission,
+    service: "qa-dynamic-service",
+    service_url: "/thue-gia-cong/qa-dynamic-service/",
+  }), {
+    environment: environment(),
+    fetch: async (_url: string | URL | Request, init?: RequestInit) => {
+      receivedBody = String(init?.body);
+      return new Response(JSON.stringify({ ok: true, reference: "YC-DYNAMIC" }), {
+        headers: { "Content-Type": "application/json" },
+      });
+    },
+    serviceResolver: async (slug: string) => {
+      assert.equal(slug, "qa-dynamic-service");
+      return { name: "Dịch vụ QA staging", slug: "qa-dynamic-service" };
+    },
+    timeoutMs: 100,
+  });
+
+  assert.equal(response.status, 202);
+  const payload = JSON.parse(receivedBody);
+  assert.equal(payload.service, "Dịch vụ QA staging");
+  assert.equal(payload.service_code, "qa-dynamic-service");
+  assert.equal(payload.service_name, "Dịch vụ QA staging");
+  assert.equal(payload.service_url, "/thue-gia-cong/qa-dynamic-service/");
+  assert.equal("serviceUrl" in payload, false, "internal camelCase fields must not leak to the webhook");
 });
 
 test("rejects malformed, incomplete, and mixed contact context without calling the webhook", async () => {

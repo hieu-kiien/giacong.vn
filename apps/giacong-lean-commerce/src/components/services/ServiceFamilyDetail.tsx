@@ -1,7 +1,9 @@
 import Link from "next/link";
 
+import { AdminServiceContextualAction } from "@/components/admin/AdminServiceContextualAction";
 import { ContactBand } from "@/components/services/ServiceLanding";
 import { ServiceImage } from "@/components/services/ServiceImage";
+import { getServiceFamilyImage } from "@/components/services/service-visuals";
 import styles from "@/components/services/service.module.css";
 import type { ServiceFamily } from "@/data/service-families";
 
@@ -11,7 +13,14 @@ interface ServiceFamilyDetailProps {
    * public reader carries it. Both fields stay optional: families without
    * managed facts render exactly as before — read-only, no schema/API change.
    */
-  family: ServiceFamily & { leadTimeDays?: number | null; moqSummary?: string | null };
+  family: ServiceFamily & {
+    adminId?: number | null;
+    ctaHref?: string;
+    ctaLabel?: string;
+    leadTimeDays?: number | null;
+    moqSummary?: string | null;
+    sortOrder?: number;
+  };
 }
 
 export function ServiceFamilyDetail({ family }: ServiceFamilyDetailProps) {
@@ -26,17 +35,16 @@ export function ServiceFamilyDetail({ family }: ServiceFamilyDetailProps) {
   return (
     <div className={styles.main}>
       <section className={styles.hero}>
-        {family.imageUrl ? (
-          <ServiceImage
-            alt=""
-            className={styles.heroImage}
-            src={family.imageUrl}
-          />
-        ) : null}
+        <ServiceImage
+          alt=""
+          className={styles.heroImage}
+          src={family.imageUrl ?? getServiceFamilyImage(family.slug)}
+        />
         <div className={styles.inner}>
           <nav className={styles.crumbs} aria-label="Breadcrumb"><Link href="/">Trang chủ</Link><span aria-hidden="true">/</span><Link href="/thue-gia-cong/">Thuê gia công</Link><span aria-hidden="true">/</span>{family.name}</nav>
           <p className={styles.eyebrow}>Nhóm dịch vụ</p>
           <h1>{family.name}</h1>
+          <AdminServiceContextualAction serviceId={family.adminId ?? null} serviceSlug={family.slug} />
           <p className={styles.lead}>{family.description}</p>
         </div>
       </section>
@@ -57,7 +65,7 @@ export function ServiceFamilyDetail({ family }: ServiceFamilyDetailProps) {
           <Link className={styles.backLink} href="/thue-gia-cong/">← Xem tất cả nhóm dịch vụ</Link>
         </div>
       </section>
-      <ContactBand service={family.slug} />
+      <ContactBand ctaHref={family.ctaHref} ctaLabel={family.ctaLabel} service={family.slug} />
     </div>
   );
 }

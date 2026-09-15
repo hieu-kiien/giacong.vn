@@ -152,26 +152,26 @@ test("navigation rejects captured children and nested footer items at the persis
   database.close();
 });
 
-test("navigation allows a known legacy mega-menu child under its managed parent", async () => {
+test("navigation allows a known service hub under its managed parent", async () => {
   const database = new SqliteNavigationDatabase();
-  const sourceItem = legacyMegaMenuItems.find((item) => item.owner === "products" && item.href === "/gia-cong-sua-bot/");
+  const sourceItem = legacyMegaMenuItems.find((item) => item.owner === "services" && item.href === "/gia-cong-sua/");
   assert.ok(sourceItem);
-  database.insertRow("products", "Mua hàng", "primary", "menu-item-1742");
+  database.insertRow("services", "Thuê gia công", "primary", "menu-item-5166");
 
   const created = await createAdminSiteNavigation(database, {
     actorSubject,
     capturedMenuId: sourceItem.id,
-    href: "/demo-sua-bot/",
+    href: "/demo-gia-cong-sua/",
     isActive: true,
-    label: "Sữa bột demo",
+    label: "Gia công sữa demo",
     menuKey: "primary",
-    parentId: "products",
+    parentId: "services",
     requestId: "77777777-7777-4777-8777-777777777777",
     sortOrder: sourceItem.sortOrder,
   });
 
   assert.equal(created.capturedMenuId, sourceItem.id);
-  assert.equal(created.draftParentId, "products");
+  assert.equal(created.draftParentId, "services");
   assert.equal(created.dirty, true);
   const published = await publishAdminSiteNavigation(database, {
     actorSubject,
@@ -179,23 +179,23 @@ test("navigation allows a known legacy mega-menu child under its managed parent"
     id: created.id,
     requestId: "88888888-8888-4888-8888-888888888888",
   });
-  assert.equal(published.publishedParentId, "products");
+  assert.equal(published.publishedParentId, "services");
   assert.equal(published.publishedIsActive, true);
   database.close();
 });
 
-test("navigation admin list exposes source dropdown children until they are persisted", async () => {
+test("navigation admin list exposes service hubs until they are persisted", async () => {
   const database = new SqliteNavigationDatabase();
   database.insertRow("products", "Mua hàng", "primary", "menu-item-1742");
   database.insertRow("services", "Thuê gia công", "primary", "menu-item-5166");
 
   const items = await listAdminSiteNavigation(database);
-  const managedSource = legacyMegaMenuItems.find((item) => item.owner === "products" && item.href === "/gia-cong-sua-bot/");
-  const inactiveSource = legacyMegaMenuItems.find((item) => item.owner === "services" && item.isPlaceholder);
+  const managedSource = legacyMegaMenuItems.find((item) => item.owner === "services" && item.href === "/gia-cong-sua/");
+  const serviceSources = legacyMegaMenuItems.filter((item) => item.owner === "services");
   assert.ok(managedSource);
-  assert.ok(inactiveSource);
+  assert.ok(serviceSources.length > 0);
   assert.equal(items.find((item) => item.capturedMenuId === managedSource.id)?.virtual, true);
-  assert.equal(items.find((item) => item.capturedMenuId === inactiveSource.id)?.draftIsActive, false);
+  assert.equal(items.filter((item) => item.virtual && item.draftParentId === "services").length, serviceSources.length);
   assert.equal(items.find((item) => item.id === "products")?.virtual, undefined);
   database.close();
 });

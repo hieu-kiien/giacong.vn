@@ -1,6 +1,7 @@
 "use client";
 
 import { ClipboardList } from "lucide-react";
+import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import { REQUEST_CART_STORAGE_KEY, readRequestCart } from "@/lib/request-cart-storage";
@@ -8,8 +9,7 @@ import { REQUEST_CART_STORAGE_KEY, readRequestCart } from "@/lib/request-cart-st
 /**
  * Minimal request-cart hook for the header. It only ever reads the line count
  * through the locked storage contract, so no price, total or PII reaches the
- * chrome. `/gui-yeu-cau` is not built yet, so this stays a status readout rather
- * than a link the audit would (correctly) flag as dead.
+ * chrome. The count is also a direct link to the one request-cart route.
  */
 export function RequestCartBadge() {
   const [lineCount, setLineCount] = useState(0);
@@ -25,10 +25,12 @@ export function RequestCartBadge() {
   }, []);
 
   return (
-    <p
+    <Link
       aria-live="polite"
+      aria-label={`Mở giỏ yêu cầu, ${lineCount} dòng`}
       className="flex min-h-11 items-center gap-2 px-2 text-sm font-bold text-white"
       data-request-cart-count={lineCount}
+      href="/gui-yeu-cau/"
     >
       <ClipboardList aria-hidden="true" className="size-5" />
       <span>
@@ -37,6 +39,6 @@ export function RequestCartBadge() {
           {lineCount}
         </span>
       </span>
-    </p>
+    </Link>
   );
 }

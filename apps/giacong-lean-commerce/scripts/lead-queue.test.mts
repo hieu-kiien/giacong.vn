@@ -57,7 +57,7 @@ test("queue consumer marks failed delivery and throws for Cloudflare retry", asy
   try {
     await assert.rejects(
       deliverQueuedLead(
-        { leadId: "lead-queue-test", payload: { email: "", message: "", name: "Nguyễn Demo", phone: "0912345678", product: "", qty: "", request_type: "Tư vấn dịch vụ", service: "", source: "queue-test", variant: "" } },
+        { leadId: "lead-queue-test", payload: { email: "", message: "", name: "Nguyễn Demo", phone: "0912345678", product: "", qty: "", request_id: "7d7c2b5e-7e34-4d02-8e7d-7b2d0a4f7c31", request_type: "Tư vấn dịch vụ", service: "", source: "queue-test", variant: "" } },
         { GOOGLE_SHEETS_WEBHOOK_URL: "https://script.google.com/macros/s/demo/exec" },
         {
           prepare() {

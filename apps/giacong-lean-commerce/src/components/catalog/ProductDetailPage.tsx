@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ProductGallery } from "@/components/catalog/ProductGallery";
 import { ProductPurchasePanel } from "@/components/catalog/ProductPurchasePanel";
 import { RelatedProductCard } from "@/components/catalog/RelatedProductCard";
+import { AdminCatalogContextualAction } from "@/components/admin/AdminCatalogContextualAction";
 import styles from "@/components/catalog/product-detail.module.css";
 import type { CatalogDetailSourceResult } from "@/lib/catalog-detail-source";
 import { buildProductDetailView } from "@/lib/product-detail-view";
@@ -56,6 +57,7 @@ export function ProductDetailPage({ editingCartVariantSku, initialVariantSku, so
           <div className={styles.commercial}>
             {view.categoryLabel ? <p className={styles.category}>{view.categoryLabel}</p> : null}
             <h1 className={styles.title}>{view.name}</h1>
+            <AdminCatalogContextualAction productId={source.product.id} />
             <p className={styles.identity}>
               <span>SKU: {view.sku}</span>
               <span>{view.variantChoices.length} quy cách</span>

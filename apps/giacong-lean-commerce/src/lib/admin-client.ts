@@ -91,6 +91,10 @@ export interface AdminService {
   status: string;
   leadTimeDays: number | null;
   moqSummary: string | null;
+  offerings?: Array<{ href: string; label: string }>;
+  ctaLabel?: string;
+  ctaHref?: string;
+  sortOrder?: number;
   updatedAt: string | null;
 }
 

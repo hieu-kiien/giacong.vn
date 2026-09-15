@@ -6,6 +6,7 @@ import { Grid2X2, List, Search } from "lucide-react";
 import { useRef, useState, useTransition } from "react";
 
 import { CatalogProductCard } from "@/components/catalog/CatalogProductCard";
+import { AdminProductCreateContextualAction } from "@/components/admin/AdminProductCreateContextualAction";
 import { DEMO_CATALOG_NOTICE, type CatalogCardView } from "@/components/catalog/catalog-listing";
 import { CommerceRail } from "@/components/commerce/CommerceRail";
 import { COMMERCE_TYPOGRAPHY } from "@/components/commerce/typography";
@@ -273,6 +274,15 @@ export function CatalogList({
                 </button>
               ) : null}
             </div>
+            <Link
+              className="ml-auto flex min-h-11 items-center rounded-commerce-control border border-commerce-brand px-4 text-sm font-bold text-commerce-brand-dark hover:bg-commerce-active-surface focus-visible:commerce-focus-ring"
+              data-catalog-request-cart-link
+              href="/gui-yeu-cau/"
+              prefetch={false}
+            >
+              Xem yêu cầu báo giá
+            </Link>
+            <AdminProductCreateContextualAction />
           </div>
         </section>
 

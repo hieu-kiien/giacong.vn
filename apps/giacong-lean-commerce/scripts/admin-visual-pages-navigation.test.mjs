@@ -4,31 +4,16 @@ import test from "node:test";
 
 const readSource = (path) => readFile(new URL(path, import.meta.url), "utf8");
 
-test("published managed pages expose a contextual edit hand-off", async () => {
-  const [blocks, route, home, action] = await Promise.all([
+test("published managed pages render content without a second storefront editor", async () => {
+  const [blocks, route, home] = await Promise.all([
     readSource("../src/components/site/PageBlocks.tsx"),
     readSource("../src/app/(storefront)/[...slug]/page.tsx"),
     readSource("../src/app/(storefront)/page.tsx"),
-    readSource("../src/components/admin/AdminPageContextualAction.tsx"),
   ]);
 
-  assert.match(blocks, /pageKey\?: string/);
-  assert.match(blocks, /AdminPageContextualAction/);
-  assert.match(blocks, /pageKey=\{pageKey\}/);
-  assert.match(route, /pageKey=\{managedPage\.pageKey\}/);
-  assert.match(home, /pageKey=\{managedPage\.pageKey\}/);
-  assert.match(action, /\/admin\/thiet-ke\?page=/);
-  assert.match(action, /encodeURIComponent\(pageKey\)/);
-});
-
-test("page contextual action is host-gated by the shared visual context and role", async () => {
-  const action = await readSource("../src/components/admin/AdminPageContextualAction.tsx");
-
-  assert.match(action, /useAdminVisualContext/);
-  assert.match(action, /status\s*!==\s*["']ready["']/);
-  assert.match(action, /owner/);
-  assert.match(action, /const editableRoles = new Set\(\["owner"\]\)/);
-  assert.doesNotMatch(action, /fetchAdmin|\/api\/admin\/session/);
+  assert.doesNotMatch(blocks, /AdminPageContextualAction/);
+  assert.match(route, /<PageBlocks blocks=\{managedPage\.blocks\} \/>/);
+  assert.match(home, /<PageBlocks blocks=\{managedPage\.blocks\} \/>/);
 });
 
 test("content and page editors hand off to the real storefront instead of reconstructing a preview", async () => {
@@ -74,18 +59,40 @@ test("managed page contextual control stays out of captured fallback paths", asy
   const source = await readSource("../src/app/(storefront)/[...slug]/page.tsx");
 
   assert.match(source, /if \(managedPage\?\.blocks\.length\)/);
-  assert.match(source, /<PageBlocks blocks=\{managedPage\.blocks\} pageKey=\{managedPage\.pageKey\} \/>/);
+  assert.match(source, /<PageBlocks blocks=\{managedPage\.blocks\} \/>/);
   assert.match(source, /const data = await readCapturedPath\(routePath\)/);
   assert.match(source, /return \(\s*<CapturedPage/);
   assert.match(source, /activeCapturedMenuId=\{resolveCapturedActiveMenuId\(routePath\)\}/);
 });
 
-test("page contextual action has keyboard and responsive affordances", async () => {
+test("remaining contextual actions have keyboard and responsive affordances", async () => {
   const styles = await readSource("../src/components/admin/AdminNewsContextualAction.module.css");
 
   assert.match(styles, /max-width/);
   assert.match(styles, /@media/);
   assert.match(styles, /focus-visible/);
+});
+
+test("contact contextual action binds and removes a live editor click handler", async () => {
+  const source = await readSource("../src/components/admin/AdminContactContextualAction.tsx");
+
+  assert.match(source, /const handleClick = \(\) => \{\s*void openEditor\(\);\s*\};/);
+  assert.match(source, /button\.addEventListener\("click", handleClick\)/);
+  assert.match(source, /button\.removeEventListener\("click", handleClick\)/);
+});
+
+test("contact contextual action clears the captured header hit area", async () => {
+  const styles = await readSource("../src/app/globals.css");
+
+  assert.match(styles, /\.admin-contact-contextual-action\s*\{[\s\S]*padding:\s*84px\s+15px\s+0;/);
+});
+
+test("contact editor distinguishes draft values from the value currently published", async () => {
+  const source = await readSource("../src/components/admin/AdminContactContextualAction.tsx");
+
+  assert.match(source, /Bản nháp đang để trống/);
+  assert.match(source, /bản đã phát hành/);
+  assert.match(source, /giá trị mặc định/);
 });
 
 test("page builder confirms section removal before changing the draft", async () => {

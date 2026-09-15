@@ -33,6 +33,44 @@
 
 @custom-variant dark (&:is(.dark *));
 
+.giacong-service-context {
+  border-left: 3px solid #5aa400;
+  color: #3f6212;
+  font-size: 14px;
+  margin: 0 0 14px;
+  padding: 8px 12px;
+}
+
+.admin-contact-contextual-action {
+  display: flex;
+  justify-content: flex-end;
+  margin: 0 auto 14px;
+  max-width: 1115px;
+  padding: 84px 15px 0;
+}
+
+.admin-contact-contextual-action__button {
+  background: transparent;
+  border: 1px solid #6e8c42;
+  border-radius: 0.5rem;
+  color: #4d770f;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  padding: 0.625rem 0.875rem;
+}
+
+.admin-contact-contextual-action__button:hover {
+  background: #4d770f;
+  color: #fff;
+}
+
+.admin-contact-contextual-action__button:focus-visible {
+  outline: 3px solid #b5cf83;
+  outline-offset: 3px;
+}
+
 /*
  * FROZEN — do not use in new code. The commerce palette in
  * `../styles/commerce-foundation.css` is the single source for every React surface.
@@ -74,138 +112,6 @@
   --color-price: #e11919;
   --color-stock: #16883e;
   --color-focus: #2e90fa;
-}
-
-@layer components {
-  .admin-visual-mode-banner {
-    align-items: center;
-    background: var(--color-brand-800, #285f00);
-    border: 1px solid rgb(201 227 151 / 50%);
-    border-radius: 12px;
-    box-shadow: 0 12px 30px rgb(25 62 0 / 22%);
-    color: #f7fff1;
-    display: flex;
-    gap: 14px;
-    justify-content: space-between;
-    margin: 8px 16px;
-    max-width: none;
-    padding: 10px 12px 10px 14px;
-    position: relative;
-    z-index: 2147483000;
-  }
-
-  .admin-visual-mode-banner--blocked,
-  .admin-visual-mode-banner--unavailable {
-    background: #4a3520;
-    border-color: rgb(255 220 157 / 60%);
-  }
-
-  .admin-visual-mode-copy {
-    align-items: flex-start;
-    display: flex;
-    gap: 9px;
-    min-width: 0;
-  }
-
-  .admin-visual-mode-copy > svg {
-    color: #d6edaa;
-    flex: 0 0 auto;
-    margin-top: 1px;
-  }
-
-  .admin-visual-mode-banner--blocked .admin-visual-mode-copy > svg,
-  .admin-visual-mode-banner--unavailable .admin-visual-mode-copy > svg {
-    color: #ffdc9d;
-  }
-
-  .admin-visual-mode-copy span {
-    display: block;
-    min-width: 0;
-  }
-
-  .admin-visual-mode-copy strong {
-    display: block;
-    font-size: 13px;
-    font-weight: 750;
-    line-height: 1.3;
-  }
-
-  .admin-visual-mode-copy small {
-    color: rgb(247 255 241 / 78%);
-    display: block;
-    font-size: 11px;
-    line-height: 1.45;
-    margin-top: 2px;
-  }
-
-  .admin-visual-mode-link,
-  .admin-visual-mode-retry {
-    align-items: center;
-    border: 1px solid rgb(214 237 170 / 60%);
-    border-radius: 999px;
-    color: #f7fff1;
-    display: inline-flex;
-    flex: 0 0 auto;
-    font-size: 11px;
-    font-weight: 700;
-    gap: 6px;
-    min-height: 36px;
-    padding: 7px 10px;
-    text-decoration: none;
-    white-space: nowrap;
-  }
-
-  .admin-visual-mode-link:hover,
-  .admin-visual-mode-retry:hover {
-    background: rgb(255 255 255 / 12%);
-  }
-
-  .admin-visual-mode-retry {
-    background: transparent;
-    cursor: pointer;
-    font-family: inherit;
-  }
-
-  .admin-visual-mode-pending {
-    color: rgb(247 255 241 / 70%);
-    flex: 0 0 auto;
-    font-size: 11px;
-    white-space: nowrap;
-  }
-
-  .admin-visual-mode-link:focus-visible,
-  .admin-visual-mode-retry:focus-visible {
-    outline: 3px solid #c9e397;
-    outline-offset: 2px;
-  }
-
-  .admin-visual-mode-spinner { animation: admin-visual-mode-spin 1s linear infinite; }
-
-  @keyframes admin-visual-mode-spin {
-    to { transform: rotate(360deg); }
-  }
-
-  @media (max-width: 640px) {
-    .admin-visual-mode-banner {
-      align-items: flex-start;
-      flex-wrap: wrap;
-      gap: 8px 12px;
-      left: 10px;
-      margin: 10px;
-      max-width: none;
-      position: static;
-      right: 10px;
-      top: 10px;
-    }
-
-    .admin-visual-mode-copy { flex: 1 1 220px; }
-    .admin-visual-mode-link,
-    .admin-visual-mode-retry { margin-left: auto; }
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .admin-visual-mode-spinner { animation: none; }
-  }
 }
 
 /* Keep the captured gallery geometry; reveal, parallax and section motion come
@@ -462,6 +368,72 @@
     line-height: 1.65;
     margin: 0;
     max-width: 385px;
+  }
+
+  .giacong-news-list__tools {
+    align-items: center;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 30px;
+  }
+
+  .giacong-news-search--toolbar {
+    margin-top: 0;
+  }
+
+  .giacong-news-search__clear {
+    color: #467f00;
+    font-size: 14px;
+    font-weight: 700;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+
+  .giacong-news-result-count {
+    color: #66715f;
+    font-size: 13px;
+    margin: -12px 0 20px;
+  }
+
+  .giacong-news-pagination {
+    align-items: center;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    justify-content: center;
+    margin-top: 28px;
+  }
+
+  .giacong-news-pagination a,
+  .giacong-news-pagination > span {
+    align-items: center;
+    border: 1px solid #d7e2d0;
+    border-radius: 9px;
+    color: #467f00;
+    display: inline-flex;
+    font-size: 14px;
+    font-weight: 700;
+    justify-content: center;
+    min-height: 44px;
+    padding: 0 15px;
+  }
+
+  .giacong-news-pagination a:hover,
+  .giacong-news-pagination a:focus-visible {
+    border-color: #5aa400;
+    outline: 2px solid rgb(90 164 0 / 25%);
+    outline-offset: 2px;
+  }
+
+  .giacong-news-pagination > span[aria-current="page"] {
+    background: #5aa400;
+    border-color: #5aa400;
+    color: #fff;
+  }
+
+  .giacong-news-pagination > span[aria-disabled="true"] {
+    color: #9aa894;
   }
 
   .giacong-news-empty {
@@ -933,6 +905,58 @@
   overflow-x: clip;
 }
 
+/* Keep the legacy quick-contact rail inside a narrow side lane on tablet and
+ * small desktop viewports so it cannot sit over product cards or their CTAs. */
+@media (min-width: 550px) and (max-width: 1199px) {
+  .echbay-sms-messenger {
+    right: 0 !important;
+    width: 38px !important;
+  }
+
+  .echbay-sms-messenger > div:not(.phonering-alo-cart) {
+    background-clip: content-box;
+    background-origin: content-box;
+    box-shadow: none;
+    box-sizing: border-box;
+    height: 38px;
+    padding: 3px 0 3px 6px;
+    position: relative;
+    width: 38px;
+  }
+
+  .echbay-sms-messenger > div:not(.phonering-alo-cart) > a {
+    inset: 0;
+    line-height: 38px;
+    position: absolute;
+  }
+
+  .echbay-sms-messenger .phonering-alo-cart,
+  .echbay-sms-messenger .phonering-alo-cart .link {
+    box-sizing: border-box;
+    height: 38px;
+    width: 38px;
+  }
+
+  .echbay-sms-messenger .phonering-alo-cart {
+    background-clip: content-box;
+    background-origin: content-box;
+    box-shadow: none;
+    padding: 3px 0 3px 6px;
+    position: relative;
+  }
+
+  .echbay-sms-messenger .phonering-alo-cart .link {
+    inset: 0;
+    padding-left: 6px;
+    position: absolute;
+  }
+
+  .echbay-sms-messenger .phonering-alo-cart .icon {
+    height: 22px;
+    width: 22px;
+  }
+}
+
 #main .section07 .icon-box-text.last-reset > p {
   color: #5f6b61 !important;
 }
@@ -1171,9 +1195,8 @@ body.clone-menu-active {
 @media (min-width: 850px) {
   /*
    * Keep the mega-menu hitbox at its open position while the pointer crosses
-   * the small gap below the trigger. The delayed fade gives the pointer time
-   * to reach the panel; the bridge keeps the parent in :hover when the path is
-   * slow enough to pass through that gap.
+   * the small gap below the trigger. The bridge keeps the parent in :hover
+   * without delaying the menu's response.
    */
   #header li.menu-item-design-container-width.has-dropdown > .nav-dropdown {
     left: 50% !important;
@@ -1181,7 +1204,7 @@ body.clone-menu-active {
     max-width: none !important;
     position: fixed !important;
     top: 70px !important;
-    transition: opacity .25s ease .35s, visibility 0s linear .6s !important;
+    transition: none !important;
     transform: translateX(-50%) !important;
     width: min(1240px, calc(100% - 30px)) !important;
   }
@@ -1207,7 +1230,7 @@ body.clone-menu-active {
   #header:has(li.has-dropdown:hover) li.menu-item-design-container-width.has-dropdown:not(:hover) > .nav-dropdown,
   #header:has(li.has-dropdown:focus-within) li.menu-item-design-container-width.has-dropdown:not(:focus-within) > .nav-dropdown {
     opacity: 0 !important;
-    transition: opacity .25s, visibility .25s !important;
+    transition: none !important;
     visibility: hidden !important;
   }
 
@@ -1217,13 +1240,13 @@ body.clone-menu-active {
       max-width: none !important;
       position: fixed !important;
       top: 70px !important;
-      transition: opacity .25s, visibility .25s !important;
+      transition: none !important;
       transform: translateX(-50%) !important;
       width: min(1240px, calc(100% - 30px)) !important;
     }
 
   #header li.has-dropdown:hover > .nav-dropdown {
-    transition-delay: 140ms !important;
+    transition-delay: 0ms !important;
   }
 
   #header li.has-dropdown:focus-within > .nav-dropdown {
@@ -1238,6 +1261,54 @@ body.clone-menu-active {
 
 }
 
+/* Service navigation: compact, balanced columns without captured decoration. */
+#header .clone-service-menu {
+  background: #fff !important;
+  display: grid !important;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 24px;
+  margin: 0 !important;
+  padding: 24px !important;
+  width: 100% !important;
+}
+#header .clone-service-menu::before,
+#header .clone-service-menu::after { display: none !important; }
+#header .clone-service-menu > .col {
+  max-width: none !important;
+  padding: 0 !important;
+  width: auto !important;
+}
+#header .clone-service-menu h4 {
+  color: #285f00;
+  font-size: 15px;
+  margin: 0 0 12px;
+}
+#header .clone-service-menu .ux-menu-link {
+  border: 0 !important;
+  min-height: 0 !important;
+}
+#header .clone-service-menu .ux-menu-link__link {
+  border: 0 !important;
+  border-radius: 4px;
+  color: #303a2d;
+  font-size: 14px;
+  line-height: 1.4;
+  min-height: 36px;
+  padding: 8px !important;
+  transition: none !important;
+}
+#header .clone-service-menu .ux-menu-link__link:hover,
+#header .clone-service-menu .ux-menu-link__link:focus-visible {
+  background: #edf5e7;
+  color: #285f00;
+}
+#header .clone-service-menu .ux-menu-link__icon { display: none; }
+#header li.menu-item-design-container-width.has-dropdown > .nav-dropdown {
+  background: #fff !important;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
 @media (max-width: 549px) {
   /* A missing captured testimonial image must not stretch its flex column. */
   #main .section07 .icon-box .icon-box-img img {
@@ -1246,7 +1317,7 @@ body.clone-menu-active {
   }
 }
 
-#main-menu .nav-sidebar > li.menu-item-has-children > .sub-menu {
+#main-menu .nav-sidebar li.menu-item-has-children > .sub-menu {
   display: block !important;
   left: auto !important;
   margin: 0;
@@ -1263,8 +1334,8 @@ body.clone-menu-active {
   width: 100%;
 }
 
-#main-menu .nav-sidebar > li.clone-submenu-open > .sub-menu {
-  max-height: 390px;
+#main-menu .nav-sidebar li.clone-submenu-open > .sub-menu {
+  max-height: min(80vh, 760px);
   opacity: 1;
   pointer-events: auto;
   transform: translate3d(0, 0, 0) !important;
@@ -1272,19 +1343,19 @@ body.clone-menu-active {
   visibility: visible;
 }
 
-#main-menu .nav-sidebar > li > .sub-menu > li {
+#main-menu .nav-sidebar li > .sub-menu > li {
   border-top: 1px solid rgb(82 141 38 / 75%);
   margin: 0;
 }
 
-#main-menu .nav-sidebar > li > .sub-menu > li > a {
+#main-menu .nav-sidebar li > .sub-menu > li > a {
   align-items: center;
   color: rgb(255 255 255 / 90%);
   display: flex;
   font-size: 14px;
   line-height: 20px;
-  min-height: 38px;
-  padding: 9px 20px 9px 45px;
+  min-height: 44px;
+  padding: 10px 20px 10px 45px;
   text-transform: none;
   width: 100%;
 }
@@ -1307,6 +1378,31 @@ body.clone-menu-active {
   display: inline-block;
 }
 
+#main-menu #menu-item-5466 .menu-item-has-children {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 44px;
+}
+#main-menu #menu-item-5466 .menu-item-has-children > a {
+  padding-left: 24px;
+  width: auto;
+}
+#main-menu #menu-item-5466 .menu-item-has-children > .clone-toggle {
+  height: 44px;
+  margin: 0;
+  width: 44px;
+}
+#main-menu #menu-item-5466 .menu-item-has-children > .sub-menu {
+  grid-column: 1 / -1;
+}
+#main-menu #menu-item-5466 .sub-menu,
+#main-menu #menu-item-5466 .clone-toggle {
+  transition: none !important;
+}
+#main-menu #menu-item-5466.clone-submenu-open > .sub-menu,
+#main-menu #menu-item-5466 .clone-submenu-open > .sub-menu {
+  max-height: none;
+}
+
 #main-menu li.clone-submenu-open > .clone-toggle {
   transform: rotate(-180deg);
   transition: transform .3s;
@@ -1320,7 +1416,7 @@ body.clone-menu-active {
   #main-menu.clone-menu-open,
   .clone-menu-backdrop,
   .clone-menu-close,
-  #main-menu .nav-sidebar > li > .sub-menu,
+  #main-menu .nav-sidebar li > .sub-menu,
   #main-menu .clone-toggle {
     animation: none !important;
     transition: none !important;
@@ -1330,7 +1426,6 @@ body.clone-menu-active {
     transform: translate3d(0, 0, 0) !important;
   }
 
-  #header li.menu-item-design-container-width.has-dropdown > .nav-dropdown .clone-product-menu,
   #header li.menu-item-design-container-width.has-dropdown > .nav-dropdown .clone-service-menu {
     opacity: 1;
     transform: none;

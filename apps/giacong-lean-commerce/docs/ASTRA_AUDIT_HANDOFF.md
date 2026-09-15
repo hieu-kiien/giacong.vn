@@ -80,9 +80,10 @@ site-settings và contact. Mỗi nhóm phải có bằng chứng request → gua
 validation → D1/R2/queue → audit/postcondition → response → public read-back;
 route tồn tại hoặc test unit pass không thay thế được browser/staging evidence.
 
-### 2.3 Inline storefront editor evidence — 2026-09-06
+### 2.3 Inline storefront editor evidence — 2026-09-06 (historical)
 
-`AdminVisualEditor` hiện cung cấp chỉnh trực tiếp có giới hạn trên storefront:
+Phần này ghi lại một phiên bản đã ngừng sử dụng. `AdminVisualEditor` từng cung
+cấp chỉnh trực tiếp có giới hạn trên storefront:
 hero/about, brand tagline/logo, CTA label/link và hero image. Draft/publish,
 revision conflict, idempotency retry, multipart image validation, media picker,
 dirty navigation và khôi phục ảnh đã đăng đã được kiểm thử trên fixture cục bộ
@@ -94,6 +95,11 @@ Kết quả 2026-09-07: staging `83384ce2-c68a-43a9-b15c-ec784ec13158`, rollback
 `3ea32ef4-ee73-4bb4-9e4d-2a59de72e5e7`; 561 test + 17 admin + 18 inline
 browser đạt, owner thật đọc 10 route × desktop/mobile và dùng popover inline.
 Chi tiết mới nhất ở `ADMIN_QUALITY_REVIEW.md` và `CLOUDFLARE_CURRENT_STATE.md`.
+
+Từ 2026-09-14, editor trực tiếp đã bị gỡ để giảm tải và tránh trùng luồng.
+Storefront chỉ hiển thị shortcut owner-only tới `/admin/san-pham`,
+`/admin/dich-vu`, `/admin/tin-tuc` và `/admin/noi-dung`; page blocks vẫn thuộc
+`/admin/thiet-ke`.
 
 Quyết định mới 2026-09-07 thay thế mọi yêu cầu năm role trong hồ sơ lịch sử:
 chỉ giữ **Admin toàn quyền**, khóa lưu trữ `owner`; role cũ bị từ chối và không

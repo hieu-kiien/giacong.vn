@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 
 import { CapturedStorefrontShell } from "@/components/site/CapturedStorefrontShell";
 import { AdminNewsContextualAction } from "@/components/admin/AdminNewsContextualAction";
-import { getPublishedNewsPost } from "@/lib/news-public";
+import { getPublishedNewsPost, getPublishedNewsRedirect } from "@/lib/news-public";
+import { canonicalMetadata } from "@/lib/seo";
 
 export const dynamic = "force-dynamic";
 
@@ -15,8 +16,16 @@ interface NewsDetailPageProps {
 export async function generateMetadata({ params }: NewsDetailPageProps): Promise<Metadata> {
   const { slug } = await params;
   const post = await getPublishedNewsPost(slug);
+  if (!post) {
+    const redirectSlug = await getPublishedNewsRedirect(slug);
+    if (redirectSlug) return canonicalMetadata(`/tin-tuc/${redirectSlug}/`);
+  }
   if (!post) return { title: "Không tìm thấy bài viết | Giacong.vn" };
-  return { description: post.excerpt, title: `${post.title} | Giacong.vn` };
+  return {
+    ...canonicalMetadata(`/tin-tuc/${post.slug}/`),
+    description: post.excerpt,
+    title: `${post.title} | Giacong.vn`,
+  };
 }
 
 function formatDate(value: string | null): string {
@@ -29,7 +38,11 @@ function formatDate(value: string | null): string {
 export default async function NewsDetailPage({ params }: NewsDetailPageProps) {
   const { slug } = await params;
   const post = await getPublishedNewsPost(slug);
-  if (!post) notFound();
+  if (!post) {
+    const redirectSlug = await getPublishedNewsRedirect(slug);
+    if (redirectSlug) redirect(`/tin-tuc/${encodeURIComponent(redirectSlug)}/`);
+    notFound();
+  }
 
   return (
     <CapturedStorefrontShell>

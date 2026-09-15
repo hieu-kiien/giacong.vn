@@ -51,3 +51,13 @@ test("the Cloudflare catalog keeps the server-only, credential-free boundary the
   assert.match(source, /^import "server-only";/m, "catalog data access must stay server-only");
   assert.doesNotMatch(source, /BAGISTO_|API_KEY|SECRET|PASSWORD/i, "catalog data must not read credential-like values");
 });
+
+test("the Worker deployment explicitly clears unused cron triggers", async () => {
+  const source = await readFile(new URL("../wrangler.jsonc", import.meta.url), "utf8");
+
+  assert.match(
+    source,
+    /"triggers"\s*:\s*\{\s*"crons"\s*:\s*\[\s*\]\s*\}/s,
+    "this Worker has no scheduled handler, so deployment must clear stale cron triggers",
+  );
+});

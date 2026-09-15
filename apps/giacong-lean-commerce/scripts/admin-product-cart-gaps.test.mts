@@ -94,7 +94,7 @@ test("F2: AdminCategoryPanel has no unreachable media-picker state", async () =>
     "utf8",
   );
 
-  // The shared modal must survive: other panels (san-pham, tin-tuc, visual editor) own it.
+  // The shared modal must survive: product and news panels own it.
   const modal = await readFile(
     path.join(import.meta.dirname, "../src/components/admin/AdminMediaPickerModal.tsx"),
     "utf8",

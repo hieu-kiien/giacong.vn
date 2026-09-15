@@ -92,6 +92,7 @@ export const defaultPrimaryNavigation: readonly PublishedNavigationItem[] = [
 const capturedNavigationAliases: Readonly<Record<string, readonly string[]>> = {
   "menu-item-4618": ["menu-item-5465"],
   "menu-item-5498": ["menu-item-5496"],
+  "menu-item-1742": ["menu-item-5467"],
   "menu-item-5166": ["menu-item-5466"],
   "menu-item-1541": ["menu-item-5477"],
   "menu-item-1542": ["menu-item-5478"],
@@ -1579,6 +1580,23 @@ function applyLegacyMegaMenuNavigation(
       }
       return `${nextOpening}${close}${nextInner}${wrapperClose}`;
     });
+    const mobileItemPattern = new RegExp(
+      "(<li\\b[^>]*\\bdata-navigation-id=[\"']" + id + "[\"'][^>]*)(>)([\\s\\S]*?)(</li>)",
+      "gi",
+    );
+    result = result.replace(mobileItemPattern, (_match, opening: string, close: string, inner: string, itemClose: string) => {
+      let nextOpening = updateClassTokens(opening, ["hidden"], item.isActive ? [] : ["hidden"]);
+      nextOpening = item.isActive
+        ? removeAttribute(nextOpening, "aria-hidden")
+        : replaceAttribute(nextOpening, "aria-hidden", "true");
+      const nextInner = inner.replace(
+        /<a\b([^>]*)>[\s\S]*?<\/a>/i,
+        (_anchor, attributes: string) => item.isActive
+          ? "<a" + replaceAttribute(attributes, "href", item.href) + ">" + escapeHtml(item.label) + "</a>"
+          : "<span" + attributes + ">" + escapeHtml(item.label) + "</span>",
+      );
+      return nextOpening + close + nextInner + itemClose;
+    });
   }
   return result;
 }
@@ -1599,14 +1617,32 @@ function appendManagedLegacyServiceChildren(
     .sort((left, right) => left.sortOrder - right.sortOrder || left.id.localeCompare(right.id));
   if (activeItems.length === 0) return markup;
 
-  const mobileParentPattern = /(<li\b[^>]*\bid=["']menu-item-5466["'][^>]*>[\s\S]*?<ul\b[^>]*\bclass=["'][^"']*\bsub-menu\b[^"']*["'][^>]*>)([\s\S]*?)(<\/ul>)/i;
-  return markup.replace(mobileParentPattern, (_match, opening: string, body: string, closing: string) => {
-    const additions = activeItems
-      .filter((item) => item.capturedMenuId && !body.includes(`data-navigation-id="${item.capturedMenuId}"`))
-      .map((item) => `<li class="menu-item menu-item-type-custom menu-item-object-custom managed-legacy-navigation-child" data-navigation-id="${escapeAttribute(item.capturedMenuId as string)}"><a href="${escapeAttribute(item.href)}">${escapeHtml(item.label)}</a></li>`)
-      .join("\n");
-    return additions ? `${opening}${body}${additions}${closing}` : `${opening}${body}${closing}`;
-  });
+  const parentOpening = /<li\b[^>]*\bid=["']menu-item-5466["'][^>]*>/i.exec(markup);
+  const parentItem = findMatchingListItem(markup, "menu-item-5466");
+  if (!parentOpening || !parentItem) return markup;
+  const parentOpeningEnd = parentOpening.index + parentOpening[0].length;
+  const parentBody = markup.slice(parentOpeningEnd, parentItem.closeStart);
+  const submenuOpening = /<ul\b[^>]*\bclass=["'][^"']*\bsub-menu\b[^"']*["'][^>]*>/i.exec(parentBody);
+  if (!submenuOpening) return markup;
+  const submenuOpeningStart = parentOpeningEnd + submenuOpening.index;
+  const submenuOpeningEnd = submenuOpeningStart + submenuOpening[0].length;
+  const submenu = findMatchingUl(markup, submenuOpeningEnd);
+  if (!submenu || submenu.start > parentItem.closeStart) return markup;
+  const body = markup.slice(submenuOpeningEnd, submenu.start);
+  const additions = activeItems
+    .filter((item) => item.capturedMenuId && !body.includes(`data-navigation-id="${item.capturedMenuId}"`))
+    .map((item) => (
+      '<li class="menu-item menu-item-type-custom menu-item-object-custom managed-legacy-navigation-child" data-navigation-id="' +
+      escapeAttribute(item.capturedMenuId as string) +
+      '"><a href="' +
+      escapeAttribute(item.href) +
+      '">' +
+      escapeHtml(item.label) +
+      "</a></li>"
+    ))
+    .join("\n");
+  if (!additions) return markup;
+  return markup.slice(0, submenuOpeningEnd) + body + additions + markup.slice(submenu.start);
 }
 
 function appendNestedCustomNavigation(

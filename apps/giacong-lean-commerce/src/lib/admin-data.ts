@@ -5,6 +5,8 @@ import { getCloudflareContext } from "@opennextjs/cloudflare";
 import type { AdminCategoryInput } from "./admin-category-input";
 import { parseAdminNewsPayload, type AdminNewsDraftInput } from "./admin-news-input.ts";
 import { isAdminRole } from "./admin-permissions.ts";
+import { resolveServicePresentation } from "./service-presentation.ts";
+import { getServiceFamily, type ServiceOffering } from "../data/service-families.ts";
 
 // Retired values remain readable in historical records; only owner passes admission.
 export type AdminRole = "owner" | "content_manager" | "catalog_manager" | "sales_manager" | "viewer";
@@ -141,6 +143,10 @@ export interface AdminService {
   status: AdminPublishStatus;
   leadTimeDays: number | null;
   moqSummary: string | null;
+  offerings?: ServiceOffering[];
+  ctaLabel?: string;
+  ctaHref?: string;
+  sortOrder?: number;
   updatedAt: string | null;
 }
 
@@ -154,6 +160,10 @@ export interface AdminServiceInput {
   slug: string;
   status: AdminPublishStatus;
   summary: string;
+  offerings?: ServiceOffering[];
+  ctaLabel?: string | null;
+  ctaHref?: string | null;
+  sortOrder?: number | null;
 }
 
 export interface AdminLead {
@@ -792,11 +802,11 @@ export async function listAdminServices(
   const rows = await database.prepare(`
     SELECT
       s.id, s.name, s.slug, s.summary, s.description, s.is_active, s.image_url
-      ${hasMeta ? ", m.status, m.lead_time_days, m.moq_summary, m.updated_at AS meta_updated_at" : ""}
+      ${hasMeta ? ", m.status, m.lead_time_days, m.moq_summary, m.offerings_json, m.cta_label, m.cta_href, m.sort_order AS meta_sort_order, m.updated_at AS meta_updated_at" : ""}
     FROM services s
     ${hasMeta ? "LEFT JOIN service_admin_meta m ON m.service_id = s.id" : ""}
     ${whereSql}
-    ORDER BY s.id ASC
+    ${hasMeta ? "ORDER BY COALESCE(m.sort_order, 10000) ASC, s.id ASC" : "ORDER BY s.id ASC"}
     LIMIT ? OFFSET ?
   `).bind(...params, input.pageSize, (input.page - 1) * input.pageSize).all<{
     id: number;
@@ -809,23 +819,15 @@ export async function listAdminServices(
     status?: AdminPublishStatus;
     lead_time_days?: number | null;
     moq_summary?: string | null;
+    offerings_json?: string | null;
+    cta_label?: string | null;
+    cta_href?: string | null;
+    meta_sort_order?: number | null;
     meta_updated_at?: string | null;
   }>();
 
   return {
-    services: rows.results.map((row) => ({
-      description: row.description,
-      id: row.id,
-      imageUrl: row.image_url ?? null,
-      isActive: row.is_active === 1,
-      leadTimeDays: row.lead_time_days ?? null,
-      moqSummary: row.moq_summary ?? null,
-      name: row.name,
-      slug: row.slug,
-      status: row.status ?? (row.is_active === 1 ? "published" : "archived"),
-      summary: row.summary,
-      updatedAt: row.meta_updated_at ?? null,
-    })),
+    services: rows.results.map(toAdminService),
     total: integer(count?.total ?? 0),
   };
 }
@@ -838,7 +840,7 @@ export async function getAdminService(
   const row = await database.prepare(`
     SELECT
       s.id, s.name, s.slug, s.summary, s.description, s.is_active, s.image_url
-      ${hasMeta ? ", m.status, m.lead_time_days, m.moq_summary, m.updated_at AS meta_updated_at" : ""}
+      ${hasMeta ? ", m.status, m.lead_time_days, m.moq_summary, m.offerings_json, m.cta_label, m.cta_href, m.sort_order AS meta_sort_order, m.updated_at AS meta_updated_at" : ""}
     FROM services s
     ${hasMeta ? "LEFT JOIN service_admin_meta m ON m.service_id = s.id" : ""}
     WHERE s.id = ?
@@ -1100,6 +1102,10 @@ type ServiceRow = {
   status?: AdminPublishStatus;
   lead_time_days?: number | null;
   moq_summary?: string | null;
+  offerings_json?: string | null;
+  cta_label?: string | null;
+  cta_href?: string | null;
+  meta_sort_order?: number | null;
   meta_updated_at?: string | null;
 };
 
@@ -1157,12 +1163,19 @@ async function syncServiceMeta(
 ): Promise<void> {
   if (!await tableExists(database, "service_admin_meta")) return;
   await database.prepare(`
-    INSERT INTO service_admin_meta (service_id, status, lead_time_days, moq_summary, updated_by, updated_at)
-    VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+    INSERT INTO service_admin_meta (
+      service_id, status, lead_time_days, moq_summary, offerings_json,
+      cta_label, cta_href, sort_order, updated_by, updated_at
+    )
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
     ON CONFLICT(service_id) DO UPDATE SET
       status = excluded.status,
       lead_time_days = excluded.lead_time_days,
       moq_summary = excluded.moq_summary,
+      offerings_json = excluded.offerings_json,
+      cta_label = excluded.cta_label,
+      cta_href = excluded.cta_href,
+      sort_order = excluded.sort_order,
       updated_by = excluded.updated_by,
       updated_at = CURRENT_TIMESTAMP
   `).bind(
@@ -1170,6 +1183,10 @@ async function syncServiceMeta(
     input.status,
     input.leadTimeDays,
     input.moqSummary,
+    input.offerings === undefined ? null : JSON.stringify(input.offerings),
+    input.ctaLabel ?? null,
+    input.ctaHref ?? null,
+    input.sortOrder ?? null,
     actorSubject,
   ).run();
 }
@@ -1216,6 +1233,7 @@ function toAdminProduct(row: ProductRow): AdminProduct {
 }
 
 function toAdminService(row: ServiceRow): AdminService {
+  const presentation = resolveServicePresentation(row.slug, getServiceFamily(row.slug), row);
   return {
     description: row.description,
     id: row.id,
@@ -1224,6 +1242,7 @@ function toAdminService(row: ServiceRow): AdminService {
     leadTimeDays: row.lead_time_days ?? null,
     moqSummary: row.moq_summary ?? null,
     name: row.name,
+    ...presentation,
     slug: row.slug,
     status: row.status ?? (row.is_active === 1 ? "published" : "archived"),
     summary: row.summary,
@@ -1517,6 +1536,7 @@ export interface AdminNewsPost extends AdminNewsSnapshot {
 
 export interface AdminNewsListItem {
   excerpt: string;
+  hasUnpublishedChanges: boolean;
   id: number;
   isPublished: boolean;
   publishedAt: string | null;
@@ -1666,6 +1686,13 @@ export async function listAdminNewsPosts(
   return {
     posts: rows.results.map((row) => ({
       excerpt: row.draft_excerpt,
+      hasUnpublishedChanges: Boolean(row.published_slug) && (
+        row.draft_slug !== row.published_slug
+        || row.draft_title !== row.published_title
+        || row.draft_excerpt !== row.published_excerpt
+        || row.draft_content !== row.published_content
+        || row.draft_cover_image_url !== row.published_cover_image_url
+      ),
       id: row.id,
       isPublished: row.is_published === 1 && Boolean(row.published_slug),
       publishedAt: row.published_at ?? null,
@@ -2041,6 +2068,7 @@ export async function batchAdminNewsPublication(
   })));
   const eligible = snapshots.filter(({ item, post }) => post && post.revision === item.expectedRevision && (!input.publish || Boolean(post.draft.excerpt.trim())));
   const databaseWithBatch = requireNewsBatch(database);
+  const redirectTableReady = input.publish && await newsSlugRedirectTableReady(database);
   const statements: D1PreparedStatementLike[] = [database.prepare(`
     INSERT INTO admin_news_bulk_audit (
       request_id, actor_subject, action, operation, payload_sha256,
@@ -2091,6 +2119,7 @@ export async function batchAdminNewsPublication(
       childRequestId,
     );
     statements.push(
+      ...(redirectTableReady ? buildNewsSlugRedirectStatements(database, item.id, item.expectedRevision) : []),
       update,
       audit,
       buildNewsBulkItemPostcondition(database, {
@@ -2174,6 +2203,7 @@ async function setAdminNewsPublication(
   }
 
   const databaseWithBatch = requireNewsBatch(database);
+  const redirectTableReady = publish && await newsSlugRedirectTableReady(database);
   const update = publish
     ? database.prepare(`
       UPDATE news_posts
@@ -2210,6 +2240,7 @@ async function setAdminNewsPublication(
   );
   try {
     await databaseWithBatch.batch([
+      ...(redirectTableReady ? buildNewsSlugRedirectStatements(database, id, expectedRevision) : []),
       update,
       audit,
       buildNewsPostconditionAssertion(database, {
@@ -2626,6 +2657,43 @@ function requireNewsBatch(database: D1DatabaseLike): D1DatabaseWithBatch {
     throw new AdminNewsStorageError("D1 atomic batch chưa sẵn sàng cho news write.");
   }
   return databaseWithBatch;
+}
+
+async function newsSlugRedirectTableReady(database: D1DatabaseLike): Promise<boolean> {
+  try {
+    return await tableExists(database, "news_slug_redirects");
+  } catch {
+    // Older test/local databases can publish safely without the optional redirect table.
+    return false;
+  }
+}
+
+function buildNewsSlugRedirectStatements(
+  database: D1DatabaseLike,
+  id: number,
+  expectedRevision: number,
+): D1PreparedStatementLike[] {
+  return [
+    database.prepare(`
+      DELETE FROM news_slug_redirects
+      WHERE old_slug = (
+        SELECT draft_slug
+        FROM news_posts
+        WHERE id = ? AND revision = ?
+        LIMIT 1
+      )
+    `).bind(id, expectedRevision),
+    database.prepare(`
+      INSERT INTO news_slug_redirects (old_slug, news_id)
+      SELECT published_slug, id
+      FROM news_posts
+      WHERE id = ? AND revision = ?
+        AND published_slug IS NOT NULL
+        AND TRIM(published_slug) <> ''
+        AND published_slug <> draft_slug
+      ON CONFLICT(old_slug) DO UPDATE SET news_id = excluded.news_id
+    `).bind(id, expectedRevision),
+  ];
 }
 
 function assertNewsBatchResult(results: unknown[], expectedLength: number): void {

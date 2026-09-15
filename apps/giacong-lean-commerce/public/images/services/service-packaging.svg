@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 520" role="img" aria-labelledby="title desc">
+  <title id="title">Minh hoạ đóng gói</title>
+  <desc id="desc">Bao bì và hộp thành phẩm sẵn sàng giao</desc>
+  <rect width="800" height="520" rx="34" fill="#f3f8ef"/>
+  <path d="M0 404c146-43 260-43 389-5 137 40 254 31 411-40v161H0Z" fill="#d6ebc1"/>
+  <path d="m151 220 132-54 133 54-132 59Z" fill="#ffbe4a" stroke="#327600" stroke-width="8"/>
+  <path d="M151 220v153l133 65V279Z" fill="#f7c96b" stroke="#327600" stroke-width="8"/>
+  <path d="M416 220v153l-132 65V279Z" fill="#ef9a35" stroke="#327600" stroke-width="8"/>
+  <path d="m334 190 130-51 133 55-130 51Z" fill="#d9efc4" stroke="#327600" stroke-width="8"/>
+  <path d="M334 194v152l133 65V245Z" fill="#eef7e6" stroke="#327600" stroke-width="8"/>
+  <path d="M597 194v152l-130 65V245Z" fill="#c4e6a3" stroke="#327600" stroke-width="8"/>
+  <path d="M198 269h70M198 293h52M382 246h70M382 270h52" stroke="#327600" stroke-width="9" stroke-linecap="round"/>
+  <path d="M244 126h105M285 85v82" stroke="#327600" stroke-width="8" stroke-linecap="round"/>
+  <path d="M240 126c0-25 20-45 45-45s45 20 45 45" fill="none" stroke="#f08b24" stroke-width="8"/>
+</svg>

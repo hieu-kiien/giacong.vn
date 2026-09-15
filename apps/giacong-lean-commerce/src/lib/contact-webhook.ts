@@ -10,6 +10,7 @@ import {
   resolveRequestCart,
 } from "./request-cart.ts";
 import type { RequestCartLineKey, RequestCartResolver, ResolvedRequestCart } from "../types/request-cart.ts";
+import { getServiceFamily } from "../data/service-families.ts";
 
 export interface ContactWebhookDependencies {
   cartBatchResolver?: (lines: RequestCartLineKey[]) => Promise<ResolvedRequestCart>;
@@ -23,6 +24,7 @@ export interface ContactWebhookDependencies {
   leadQueue?: ContactLeadQueue;
   leadPersistence?: ContactLeadPersistence;
   productResolver?: ContactProductResolver;
+  serviceResolver?: ContactServiceResolver;
   timeoutMs?: number;
 }
 
@@ -67,6 +69,13 @@ export interface ContactProductVariantResolution {
   sku: string;
 }
 
+export interface ContactServiceResolution {
+  name: string;
+  slug: string;
+}
+
+export type ContactServiceResolver = (slug: string) => Promise<ContactServiceResolution | null>;
+
 export type ContactProductResolver = (slug: string) => Promise<ContactProductResolution | null>;
 
 type ContactRequestType = "Đặt sản phẩm" | "Tư vấn số lượng lớn" | "Tư vấn dịch vụ";
@@ -79,13 +88,20 @@ interface ContactSubmission {
   product: string;
   qty: string;
   service: string;
+  serviceUrl: string;
   source: string;
   variant: string;
 }
 
-export interface ContactWebhookPayload extends Omit<ContactSubmission, "qty"> {
+export interface ContactWebhookPayload extends Omit<ContactSubmission, "qty" | "serviceUrl"> {
   qty: number | "";
+  /** Stable per-submit key used by D1 and the Apps Script sink for safe retries. */
+  request_id: string;
   request_type: ContactRequestType;
+  /** Canonical service metadata retained in D1 payload_json; the Sheet keeps the display name in its existing column. */
+  service_code?: string;
+  service_name?: string;
+  service_url?: string;
 }
 
 interface ContactCartWebhookLine {
@@ -103,7 +119,6 @@ export interface ContactCartWebhookPayload extends ContactWebhookPayload {
   cart: ContactCartWebhookLine[];
   cart_price_incomplete: boolean;
   cart_subtotal: number | "";
-  request_id: string;
 }
 
 export type ContactQueuedPayload = ContactWebhookPayload | ContactCartWebhookPayload;
@@ -138,6 +153,7 @@ function parseSubmission(formData: FormData): ContactSubmission {
     product: readField(formData, "product", 160),
     qty: readField(formData, "qty", 24),
     service: readField(formData, "service", 80),
+    serviceUrl: readField(formData, "service_url", 300),
     source: readField(formData, "source", 200),
     variant: readField(formData, "variant", 160),
   };
@@ -169,7 +185,10 @@ function hasProductContext(submission: ContactSubmission): boolean {
   return Boolean(submission.product || submission.variant || submission.qty);
 }
 
-function validateContext(submission: ContactSubmission): Partial<Record<keyof ContactSubmission, string>> {
+function validateContext(
+  submission: ContactSubmission,
+  serviceContext: ContactServiceResolution | null,
+): Partial<Record<keyof ContactSubmission, string>> {
   const errors: Partial<Record<keyof ContactSubmission, string>> = {};
   const productContext = hasProductContext(submission);
 
@@ -190,7 +209,7 @@ function validateContext(submission: ContactSubmission): Partial<Record<keyof Co
     return errors;
   }
 
-  if (submission.service && submission.service !== "say-thuc-pham-say") {
+  if (submission.service && !serviceContext) {
     errors.service = "Dịch vụ không hợp lệ.";
   }
   return errors;
@@ -250,16 +269,25 @@ function failure(message: string, status: number): Response {
 async function resolvePayload(
   submission: ContactSubmission,
   productResolver: ContactProductResolver | undefined,
+  serviceContext: ContactServiceResolution | null,
+  requestId: string,
 ): Promise<ContactWebhookPayload | Response> {
+  const { serviceUrl, ...fields } = submission;
   if (!hasProductContext(submission)) {
     return {
-      ...submission,
+      ...fields,
       product: "",
       qty: "",
+      request_id: requestId,
       request_type: "Tư vấn dịch vụ",
       // The Apps Script contract rejects "Tư vấn dịch vụ" with an empty
       // service, so a generic contact carries an explicit catch-all label.
-      service: submission.service ? "Sấy & thực phẩm sấy" : "Liên hệ chung",
+      service: serviceContext?.name ?? "Liên hệ chung",
+      ...(serviceContext ? {
+        service_code: serviceContext.slug,
+        service_name: serviceContext.name,
+        service_url: serviceUrl || submission.source,
+      } : {}),
       variant: "",
     };
   }
@@ -289,9 +317,10 @@ async function resolvePayload(
   }
 
   return {
-    ...submission,
+    ...fields,
     product: product.name,
     qty,
+    request_id: requestId,
     request_type: qty >= variant.contactFromQuantity ? "Tư vấn số lượng lớn" : "Đặt sản phẩm",
     service: "",
     variant: variant.label,
@@ -455,12 +484,41 @@ async function resolveFormPayload(
   }
 
   const submission = parseSubmission(formData);
-  const errors = { ...validateSubmission(submission), ...validateContext(submission) };
+  const requestId = readField(formData, "request_id", 80);
+  if (requestId && !REQUEST_ID_PATTERN.test(requestId)) {
+    return failure("Dữ liệu gửi lên không hợp lệ.", 400);
+  }
+  const serviceContext = submission.service
+    ? await resolveServiceContext(submission.service, dependencies.serviceResolver)
+    : null;
+  const errors = { ...validateSubmission(submission), ...validateContext(submission, serviceContext) };
   if (Object.keys(errors).length > 0) {
     return validationFailure(errors);
   }
 
-  return resolvePayload(submission, dependencies.productResolver);
+  return resolvePayload(submission, dependencies.productResolver, serviceContext, requestId || crypto.randomUUID());
+}
+
+async function resolveServiceContext(
+  slug: string,
+  resolver?: ContactServiceResolver,
+): Promise<ContactServiceResolution | null> {
+  const cleanSlug = slug.trim();
+  if (!cleanSlug) return null;
+  if (resolver) {
+    try {
+      const resolved = await resolver(cleanSlug);
+      if (!resolved) return null;
+      const normalizedSlug = resolved.slug.trim();
+      const normalizedName = resolved.name.trim();
+      if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(normalizedSlug) || !normalizedName) return null;
+      return { name: normalizedName.slice(0, 160), slug: normalizedSlug.slice(0, 160) };
+    } catch {
+      return null;
+    }
+  }
+  const family = getServiceFamily(cleanSlug);
+  return family ? { name: family.name, slug: family.slug } : null;
 }
 
 /**
@@ -558,6 +616,7 @@ function parseJsonSubmission(payload: Record<string, unknown>): ContactSubmissio
     product: "",
     qty: "",
     service: "",
+    serviceUrl: "",
     source: readJsonField(payload.source, 200),
     variant: "",
   };

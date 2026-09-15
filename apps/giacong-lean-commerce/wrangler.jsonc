@@ -16,6 +16,9 @@
       "zone_name": "kienhieu.id.vn"
     }
   ],
+  "triggers": {
+    "crons": []
+  },
   "vars": {
     "ADMIN_HOSTNAME": "admin.kienhieu.id.vn",
     "ADMIN_HOSTNAMES": "admin.kienhieu.id.vn",

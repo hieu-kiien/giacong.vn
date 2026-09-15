@@ -8,6 +8,11 @@ trang chủ chỉ thay ảnh và khắc phục lớp che nút. Đọc
 **Phạm vi:** apps/giacong-lean-commerce
 **Bản đồ đi kèm:** ADMIN_VISUAL_FILE_MAP.md
 
+**Cập nhật runtime 2026-09-14:** roadmap này giữ vai trò lịch sử/tham khảo.
+Editor trực tiếp trên DOM đã được loại bỏ; `AdminVisualMode` hiện chỉ còn
+shortcut owner-only tới các màn hình admin canonical. Không triển khai các
+phase inline cũ nếu chưa có quyết định sản phẩm mới.
+
 Tài liệu này là nguồn bám theo cho việc biến admin hiện tại thành mô hình
 **storefront-first hybrid admin**: chỉnh sửa theo ngữ cảnh ở nơi nội dung được
 hiển thị, nhưng vẫn giữ trung tâm vận hành đầy đủ cho nghiệp vụ phức tạp và xử

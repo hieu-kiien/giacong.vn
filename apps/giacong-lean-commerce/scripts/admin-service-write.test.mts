@@ -18,6 +18,7 @@ const actor = "owner@example.com";
 const createRequestId = "11111111-1111-4111-8111-111111111111";
 const updateRequestId = "22222222-2222-4222-8222-222222222222";
 const archiveRequestId = "33333333-3333-4333-8333-333333333333";
+const sqliteDatabases = new Set<DatabaseSync>();
 
 const input = {
   description: "Mô tả dịch vụ",
@@ -320,6 +321,7 @@ class SqliteServiceWriteDatabase implements D1DatabaseLike {
   faultAfterMutationMarker = false;
 
   constructor() {
+    sqliteDatabases.add(this.sqlite);
     this.sqlite.exec(`
       CREATE TABLE services (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -333,11 +335,20 @@ class SqliteServiceWriteDatabase implements D1DatabaseLike {
         revision INTEGER NOT NULL DEFAULT 1,
         updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
       );
+      CREATE TABLE service_slug_redirects (
+        old_slug TEXT PRIMARY KEY,
+        service_id INTEGER NOT NULL REFERENCES services(id) ON DELETE CASCADE,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );
       CREATE TABLE service_admin_meta (
         service_id INTEGER PRIMARY KEY,
         status TEXT NOT NULL CHECK (status IN ('draft', 'review', 'published', 'archived')),
         lead_time_days INTEGER,
         moq_summary TEXT,
+        offerings_json TEXT,
+        cta_label TEXT,
+        cta_href TEXT,
+        sort_order INTEGER,
         capabilities_json TEXT NOT NULL DEFAULT '[]',
         process_steps_json TEXT NOT NULL DEFAULT '[]',
         certifications_json TEXT NOT NULL DEFAULT '[]',
@@ -397,6 +408,11 @@ class SqliteServiceWriteDatabase implements D1DatabaseLike {
     }
   }
 }
+
+test.afterEach(() => {
+  for (const sqlite of sqliteDatabases) sqlite.close();
+  sqliteDatabases.clear();
+});
 
 function sqliteServiceCount(database: SqliteServiceWriteDatabase, table: "services" | "service_admin_meta" | "admin_audit_log" | "audit_logs"): number {
   return Number((database.sqlite.prepare(`SELECT COUNT(*) AS count FROM ${table}`).get() as { count: number }).count);
@@ -543,6 +559,26 @@ test("service postcondition assertion accepts create, update, archive and replay
   assert.equal(sqliteServiceCount(database, "admin_audit_log"), 3);
   assert.equal(sqliteServiceCount(database, "audit_logs"), 3);
   assert.equal(sqliteServiceCount(database, "service_admin_meta"), 1);
+});
+
+test("published service slug changes preserve the previous public URL", async () => {
+  const database = new SqliteServiceWriteDatabase();
+  const renamedInput = {
+    ...input,
+    isActive: true,
+    slug: "gia-cong-thu-nghiem-moi",
+    status: "published" as const,
+  };
+
+  await updateAdminServiceAtomically(database, 1, renamedInput, 1, actor, updateRequestId);
+
+  const redirect = database.sqlite.prepare(`
+    SELECT old_slug, service_id
+    FROM service_slug_redirects
+    WHERE old_slug = 'dich-vu-cu'
+  `).get() as { old_slug: string; service_id: number } | undefined;
+  assert.equal(redirect?.old_slug, "dich-vu-cu");
+  assert.equal(redirect?.service_id, 1);
 });
 
 test("a missing legacy audit postcondition rolls back the complete service update", async () => {

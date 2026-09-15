@@ -16,6 +16,7 @@ import { canManageNews } from "@/lib/admin-permissions.ts";
 
 interface AdminNewsListItem {
   excerpt: string;
+  hasUnpublishedChanges: boolean;
   id: number;
   isPublished: boolean;
   publishedAt: string | null;
@@ -119,6 +120,7 @@ export default function AdminNewsPage() {
   }, [applyNewsEditor, canManage, showToast]);
 
   const editQuery = searchParams.get("edit");
+  const createQuery = searchParams.get("create");
   useEffect(() => {
     if (!editQuery || !canManage) return;
     const id = Number(editQuery);
@@ -128,6 +130,13 @@ export default function AdminNewsPage() {
     }
     void openEditById(id);
   }, [canManage, editQuery, openEditById, showToast]);
+
+  useEffect(() => {
+    if (editQuery || createQuery !== "1" || !canManage) return;
+    setFieldErrors({});
+    setFormError(null);
+    applyNewsEditor({ ...emptyForm });
+  }, [applyNewsEditor, canManage, createQuery, editQuery]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -213,16 +222,17 @@ export default function AdminNewsPage() {
     }
   }
 
-  async function togglePublication(post: AdminNewsListItem) {
+  async function togglePublication(post: AdminNewsListItem, publishOverride?: boolean) {
     if (publicationInFlight.current || newsBatchInFlight.current) return;
+    const publish = publishOverride ?? !post.isPublished;
     publicationInFlight.current = true;
     setPublicationId(post.id);
     try {
       await mutateAdmin(`/api/admin/news/${post.id}/publish`, {
-        body: { expectedRevision: post.revision, publish: !post.isPublished, requestId: crypto.randomUUID() },
+        body: { expectedRevision: post.revision, publish, requestId: crypto.randomUUID() },
         method: "POST",
       });
-      showToast("success", post.isPublished ? "Đã ẩn bài viết khỏi website." : "Đã phát hành bài viết lên website.");
+      showToast("success", publish ? (post.isPublished ? "Đã phát hành bản cập nhật lên website." : "Đã phát hành bài viết lên website.") : "Đã ẩn bài viết khỏi website.");
       setAttempt((value) => value + 1);
     } catch (reason: unknown) {
       showToast("error", reason instanceof AdminClientError ? reason.message : "Không thể thay đổi trạng thái bài viết.");
@@ -396,7 +406,7 @@ export default function AdminNewsPage() {
                   }}
                   type="button"
                 >
-                  <Plus size={15} /> Viết bài mới
+                  <Plus size={15} /> Thêm bài viết
                 </button>
               ) : null}
             </div>
@@ -404,7 +414,7 @@ export default function AdminNewsPage() {
           {error ? <AdminErrorState error={error} onRetry={() => setAttempt((value) => value + 1)} /> : loading ? <AdminLoadingTable /> : (
             <section className="admin-panel admin-table-panel" aria-labelledby="news-table-heading">
               <div className="admin-panel-heading" style={{ padding: "21px 21px 0" }}><div><h2 className="admin-panel-title" id="news-table-heading">Danh sách bài viết</h2><p className="admin-panel-caption">Mới nhất hiển thị trước</p></div><Newspaper aria-hidden="true" color="#6e8c42" size={19} /></div>
-              {posts.length === 0 ? <AdminEmptyState title="Chưa có bài viết nào" description="Bấm “Viết bài mới” để tạo bài đầu tiên cho /tin-tuc." /> : (
+              {posts.length === 0 ? <AdminEmptyState title="Chưa có bài viết nào" description="Bấm “Thêm bài viết” để tạo bài đầu tiên cho /tin-tuc." /> : (
                 <>
                   <div className="admin-table-scroll">
                     <table className="admin-table">
@@ -432,6 +442,11 @@ export default function AdminNewsPage() {
                                   >
                                     <Pencil size={13} /> Sửa bản nháp
                                   </button>
+                                  {post.isPublished && post.hasUnpublishedChanges ? (
+                                    <button className="admin-button admin-button-quiet" data-testid={`button-news-publish-update-${post.id}`} disabled={publicationId !== null || batchAction !== null} onClick={() => void togglePublication(post, true)} type="button">
+                                      {publicationId === post.id ? "Đang xử lý..." : <><Eye size={13} /> Phát hành cập nhật</>}
+                                    </button>
+                                  ) : null}
                                   <button className="admin-button admin-button-quiet" data-testid={`button-news-publish-${post.id}`} disabled={publicationId !== null || batchAction !== null} onClick={() => void togglePublication(post)} type="button">
                                     {publicationId === post.id ? "Đang xử lý..." : <>{post.isPublished ? <EyeOff size={13} /> : <Eye size={13} />} {post.isPublished ? "Ẩn khỏi web" : "Phát hành"}</>}
                                   </button>

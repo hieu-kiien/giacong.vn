@@ -35,3 +35,44 @@ test("service input keeps the main image nullable", () => {
   const cleared = parseAdminServicePayload({ ...basePayload(), imageUrl: null });
   assert.equal(cleared.input?.imageUrl, null);
 });
+
+test("service input accepts an editable ordered offering list and CTA", () => {
+  const parsed = parseAdminServicePayload({
+    ...basePayload(),
+    ctaHref: "/lien-he/?service=gia-cong-sua",
+    ctaLabel: "Nhận tư vấn cho nhóm này",
+    offerings: [
+      { href: "/gia-cong-sua-hat/", label: "Gia công sữa hạt" },
+      { href: "/gia-cong-sua-bot/", label: "Gia công sữa bột" },
+    ],
+    sortOrder: 4,
+  });
+
+  assert.ok(parsed.input);
+  assert.deepEqual(parsed.input?.offerings, [
+    { href: "/gia-cong-sua-hat/", label: "Gia công sữa hạt" },
+    { href: "/gia-cong-sua-bot/", label: "Gia công sữa bột" },
+  ]);
+  assert.equal(parsed.input?.ctaLabel, "Nhận tư vấn cho nhóm này");
+  assert.equal(parsed.input?.ctaHref, "/lien-he/?service=gia-cong-sua");
+  assert.equal(parsed.input?.sortOrder, 4);
+});
+
+test("service input rejects unsafe or ambiguous presentation links", () => {
+  const externalCta = parseAdminServicePayload({
+    ...basePayload(),
+    ctaHref: "https://example.com/",
+  });
+  assert.equal(externalCta.input, null);
+  assert.match(externalCta.fieldErrors.ctaHref ?? "", /đường dẫn nội bộ/);
+
+  const duplicateOfferings = parseAdminServicePayload({
+    ...basePayload(),
+    offerings: [
+      { href: "/gia-cong-sua-hat/", label: "Sữa hạt" },
+      { href: "/gia-cong-sua-hat/", label: "Sữa hạt khác" },
+    ],
+  });
+  assert.equal(duplicateOfferings.input, null);
+  assert.match(duplicateOfferings.fieldErrors.offerings ?? "", /trùng/);
+});

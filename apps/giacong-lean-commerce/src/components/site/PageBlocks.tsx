@@ -1,13 +1,11 @@
 import Link from "next/link";
 
-import { AdminPageContextualAction } from "@/components/admin/AdminPageContextualAction";
 import type { PageBlock, PageCta } from "@/lib/page-builder";
 
-export function PageBlocks({ blocks, pageKey }: { blocks: readonly PageBlock[]; pageKey?: string }) {
+export function PageBlocks({ blocks }: { blocks: readonly PageBlock[] }) {
   if (blocks.length === 0) return null;
   return (
     <main className="managed-page" data-testid="managed-page">
-      {pageKey ? <AdminPageContextualAction pageKey={pageKey} /> : null}
       {blocks.map((block, index) => <PageBlockView block={block} key={`${block.type}-${index}`} />)}
     </main>
   );

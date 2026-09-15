@@ -6,6 +6,7 @@ import { CapturedStorefrontShell } from "@/components/site/CapturedStorefrontShe
 import homePage from "@/data/pages/home.json";
 import { getPublishedSiteSettings } from "@/lib/site-settings";
 import { getPublishedSitePage } from "@/lib/site-pages";
+import { canonicalMetadata } from "@/lib/seo";
 import type { CapturedPageData } from "@/types/captured-page";
 
 export const dynamic = "force-dynamic";
@@ -15,6 +16,7 @@ const data = homePage as CapturedPageData;
 export async function generateMetadata(): Promise<Metadata> {
   const [settings, managedPage] = await Promise.all([getPublishedSiteSettings(), getPublishedSitePage("/")]);
   return {
+    ...canonicalMetadata("/"),
     title: managedPage?.seoTitle || settings.site_title || data.title,
     description: managedPage?.seoDescription || settings.site_description || data.description,
     icons: settings.favicon_url ? { icon: settings.favicon_url } : undefined,
@@ -26,7 +28,7 @@ export default async function Home() {
   if (managedPage?.blocks.length) {
     return (
       <CapturedStorefrontShell>
-        <PageBlocks blocks={managedPage.blocks} pageKey={managedPage.pageKey} />
+        <PageBlocks blocks={managedPage.blocks} />
       </CapturedStorefrontShell>
     );
   }

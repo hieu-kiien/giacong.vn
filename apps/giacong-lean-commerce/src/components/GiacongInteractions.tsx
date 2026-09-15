@@ -10,7 +10,6 @@ import {
 } from "@/lib/desktop-dropdown-escape";
 import {
   addMobileAccordionToggles,
-  createMobileProductItem,
   handleMobileAccordion,
   replaceMobileMenuIcons,
 } from "@/components/mobile-navigation";
@@ -58,10 +57,6 @@ export function GiacongInteractions({
     let taxonomyShow: HTMLDivElement | undefined;
     let taxonomyLess: HTMLDivElement | undefined;
 
-    const generatedMobileProductItem = createMobileProductItem(
-      menu,
-      document.querySelector<HTMLElement>("#menu-item-1742"),
-    );
     const restoreMobileMenuIcons = replaceMobileMenuIcons(menu);
     const generatedToggles = addMobileAccordionToggles(menu);
     const disconnectContactForms = connectContactForms();
@@ -227,7 +222,6 @@ export function GiacongInteractions({
       disconnectCapturedMotion();
       generatedToggles.forEach((button) => button.remove());
       restoreMobileMenuIcons();
-      generatedMobileProductItem?.remove();
       taxonomyShow?.removeEventListener("click", expandTaxonomy);
       taxonomyLess?.removeEventListener("click", collapseTaxonomy);
       taxonomyShow?.remove();

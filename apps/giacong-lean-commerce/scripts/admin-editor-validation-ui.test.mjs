@@ -21,3 +21,13 @@ test("product and news editors validate locally before mutating", async () => {
   assert.match(product, /<form noValidate onSubmit=\{onSubmit\}>/);
   assert.match(news, /<form noValidate onSubmit=\{submitPost\}>/);
 });
+
+test("service editor exposes server field errors instead of only a generic alert", async () => {
+  const service = await readFile(
+    new URL("../src/app/admin/dich-vu/page.tsx", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(service, /service-form-field-errors/);
+  assert.match(service, /Object\.entries\(error\.fieldErrors\)/);
+});

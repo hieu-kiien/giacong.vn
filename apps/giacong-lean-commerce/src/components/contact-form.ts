@@ -1,3 +1,5 @@
+import { getServiceFamily } from "../data/service-families.ts";
+
 interface ContactApiResponse {
   message?: string;
   ok?: boolean;
@@ -11,13 +13,26 @@ const formStatuses = [
   "sent",
   "submitting",
 ] as const;
-
-const APPROVED_SERVICE_SLUG = "say-thuc-pham-say";
+const REQUEST_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 
 export function getContactServiceContext(search: string): string {
-  return new URLSearchParams(search).get("service") === APPROVED_SERVICE_SLUG
-    ? APPROVED_SERVICE_SLUG
-    : "";
+  const slug = new URLSearchParams(search).get("service")?.trim() ?? "";
+  return getServiceFamily(slug)?.slug ?? "";
+}
+
+function safeServiceSlug(value: string): string {
+  const slug = value.trim();
+  return /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug) ? slug.slice(0, 80) : "";
+}
+
+function getFormServiceContext(form: HTMLFormElement): string {
+  const embeddedSlug = form.getAttribute("data-service-context")?.trim() ?? "";
+  const formSlug = form.querySelector<HTMLInputElement>('input[name="service"]')?.value.trim() ?? "";
+  const querySlug = new URLSearchParams(window.location.search).get("service")?.trim() ?? "";
+  return safeServiceSlug(embeddedSlug)
+    || safeServiceSlug(formSlug)
+    || getContactServiceContext(window.location.search)
+    || safeServiceSlug(querySlug);
 }
 
 function readControlValue(
@@ -29,6 +44,14 @@ function readControlValue(
     selector,
   );
   return control?.value.trim().slice(0, maxLength) ?? "";
+}
+
+function getFormRequestId(form: HTMLFormElement): string {
+  const existing = form.dataset.requestId?.trim() ?? "";
+  if (REQUEST_ID_PATTERN.test(existing)) return existing;
+  const requestId = crypto.randomUUID();
+  form.dataset.requestId = requestId;
+  return requestId;
 }
 
 function createContactPayload(form: HTMLFormElement) {
@@ -43,10 +66,15 @@ function createContactPayload(form: HTMLFormElement) {
   );
   payload.set("phone", readControlValue(form, 'input[type="tel"]', 24));
   payload.set("email", readControlValue(form, 'input[type="email"]', 254));
+  payload.set("request_id", getFormRequestId(form));
   payload.set("message", readControlValue(form, "textarea", 2000));
   payload.set("source", window.location.pathname);
-  const service = getContactServiceContext(window.location.search);
+  const service = getFormServiceContext(form);
   if (service) payload.set("service", service);
+  const serviceUrl = readControlValue(form, 'input[name="service_url"]', 300)
+    || form.getAttribute("data-service-url")?.trim().slice(0, 300)
+    || (service ? `/thue-gia-cong/${service}/` : "");
+  if (serviceUrl) payload.set("service_url", serviceUrl);
   return payload;
 }
 
@@ -112,6 +140,7 @@ async function submitContactForm(event: Event) {
       `${result.message ?? "Yêu cầu của bạn đã được tiếp nhận."}${reference}`,
     );
     form.reset();
+    delete form.dataset.requestId;
   } catch {
     setContactFormStatus(
       form,
@@ -139,6 +168,26 @@ export function connectContactForms() {
   }));
 
   forms.forEach((form) => {
+    const service = getFormServiceContext(form);
+    if (service) {
+      const syncServiceContext = () => {
+        const serviceField = form.querySelector<HTMLInputElement>('input[name="service"]');
+        if (serviceField) {
+          serviceField.value = service;
+          serviceField.defaultValue = service;
+          serviceField.setAttribute("value", service);
+        }
+        const serviceUrlField = form.querySelector<HTMLInputElement>('input[name="service_url"]');
+        if (serviceUrlField && !serviceUrlField.value.trim()) {
+          const serviceUrl = `/thue-gia-cong/${service}/`;
+          serviceUrlField.value = serviceUrl;
+          serviceUrlField.defaultValue = serviceUrl;
+          serviceUrlField.setAttribute("value", serviceUrl);
+        }
+      };
+      syncServiceContext();
+      queueMicrotask(syncServiceContext);
+    }
     form.action = "/api/contact";
     form.method = "post";
     form.addEventListener("submit", submitContactForm);

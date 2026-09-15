@@ -3,8 +3,11 @@ import Link from "next/link";
 
 import { RequestCartView } from "@/components/request-cart/RequestCartView";
 import { CapturedStorefrontShell } from "@/components/site/CapturedStorefrontShell";
+import { canonicalMetadata, noIndexMetadata } from "@/lib/seo";
 
 export const metadata: Metadata = {
+  ...canonicalMetadata("/gui-yeu-cau/"),
+  ...noIndexMetadata(),
   title: "Giỏ hàng | Giacong.vn",
   description: "Xem lại sản phẩm đã chọn và gửi yêu cầu để được tư vấn, báo giá.",
 };

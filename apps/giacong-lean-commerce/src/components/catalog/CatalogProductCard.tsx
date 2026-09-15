@@ -4,6 +4,7 @@ import { CatalogProductImage } from "@/components/catalog/CatalogProductImage";
 import type { CatalogCardView } from "@/components/catalog/catalog-listing";
 import { COMMERCE_TYPOGRAPHY } from "@/components/commerce/typography";
 import { formatVnd } from "@/lib/format-vnd";
+import { AdminCatalogContextualAction } from "@/components/admin/AdminCatalogContextualAction";
 
 interface CatalogProductCardProps {
   card: CatalogCardView;
@@ -110,6 +111,7 @@ export function CatalogProductCard({ card }: CatalogProductCardProps) {
           >
             Xem chi tiết
           </Link>
+          <AdminCatalogContextualAction productId={card.id} />
         </div>
 
       </div>

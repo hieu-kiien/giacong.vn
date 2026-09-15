@@ -1,4 +1,115 @@
-# Audit sẵn sàng bàn giao — 2026-09-04
+# Audit sẵn sàng bàn giao — 2026-09-15
+
+## Current acceptance checkpoint — 2026-09-15
+
+Đây là checkpoint mới nhất và **thay thế các kết luận nghiệm thu cũ bên dưới**.
+Kiểm tra được thực hiện trên đúng bản staging đang chạy, không suy ra từ URL
+`200` hoặc báo cáo trước.
+
+### Phiên bản và môi trường
+
+- Source base: `495992c1`; worktree còn dirty do các thay đổi trong phạm vi
+  hoàn thiện. Bản staging được build/deploy từ đúng worktree này.
+- Staging Worker `giacong-vn-staging`, version
+  `d11377e7-ea93-4dbb-89ea-d3d0d344b070`, phục vụ
+  `staging.kienhieu.id.vn` và `admin-staging.kienhieu.id.vn`.
+- Deployment được Cloudflare ghi nhận lúc `2026-09-15 18:50:57 +07:00`; HTTP
+  smoke và browser QA dưới đây đều chạy sau deployment này. Source chưa tạo
+  commit mới và worktree vẫn dirty như đã ghi.
+- Migration `0023_managed_service_taxonomy.sql` đến
+  `0026_service_slug_redirects.sql` đã áp dụng trên D1 staging; không còn
+  migration pending. Snapshot trước các thay đổi mới nhất:
+  `.runtime/staging-before-0025.sql` (231,589 bytes; SHA-256
+  `7B8EC0090EE81EC728A1CB8633D3B42ECEEDC04A196E8631DF899E56D42E2059`) và
+  `.runtime/staging-before-0026.sql` (233,004 bytes; SHA-256
+  `2DED370D774F2D6D08494046492E5F4B6703B942D15212DB5702E1484E1B4819`).
+  Snapshot trước `0023/0024` vẫn được giữ theo checkpoint lịch sử.
+- Read-only Wrangler xác nhận production Worker `giacong-vn` vẫn ở version
+  `7f98ed7b-0d9f-4d59-880c-ee364e02e610`; D1 production còn pending
+  `0023_managed_service_taxonomy.sql` đến `0026_service_slug_redirects.sql`,
+  chưa áp dụng trong đợt này.
+- Production chưa deploy, chưa đổi DNS/quyền và chưa chạy migration production.
+- Probe production chỉ đọc ghi nhận `/` trả `200`, `/sitemap.xml` hiện `404`,
+  còn trang/API admin trả `302` qua Access; đây là trạng thái deployment cũ,
+  chưa phải bằng chứng nghiệm thu bản staging và phải kiểm tra lại sau khi có
+  duyệt phát hành.
+
+### Bằng chứng đã kiểm tra
+
+- Trong lượt Access owner trên đúng version `d11377e7`, danh sách sản phẩm có
+  `Thêm sản phẩm` và `Sửa sản phẩm` trên 10 thẻ; chi tiết sản phẩm có `Sửa sản
+  phẩm` và `Thêm vào giỏ yêu cầu`. Hub dịch vụ có `Thêm dịch vụ` và 13 nút
+  `Sửa dịch vụ`; chi tiết `gia-cong-my-pham` mở đúng form mã 8, đúng slug và
+  trạng thái `Đã đăng`. Danh sách tin tức có `Thêm bài viết`; admin tin tức
+  đọc được hai bản nháp QA và nút sửa từng bản ghi. Contact có nút sửa ngay
+  trên trang; sau khi sửa vùng tránh header, bấm thật đã mở form, đọc đúng
+  hotline/Zalo/Messenger/địa chỉ và đóng lại không ghi dữ liệu.
+- Form inline dùng lại API/form hiện có, có validation, trạng thái lưu, hủy,
+  cảnh báo thay đổi chưa lưu và xử lý stale revision. QA sản phẩm riêng
+  `QA-20260915-STAGING-PRODUCT` đã tạo → publish → đọc lại → sửa → khôi phục
+  → ẩn; biến thể/SKU/MOQ/bậc giá đã đọc lại, record vẫn là fixture ẩn staging.
+- QA dịch vụ `QA-20260915-DYNAMIC-SERVICE` (ID 16) đã round-trip trên UI thật:
+  lưu nháp/đọc lại, publish tạm đọc public `200`, đổi slug và xác nhận slug cũ
+  trả `307` sang slug mới, rồi khôi phục slug, CTA, trạng thái `draft` và
+  `is_active=0`. D1 cuối xác nhận `redirect_count=0`; cả slug gốc và slug tạm
+  đều trả `404`, admin tải lại vẫn đọc đúng bản nháp. Không còn nội dung QA
+  được công khai.
+- QA tin tức `QA-20260915-SLUG-REDIRECT` đã được lưu nháp, publish tạm, sửa
+  slug, bấm `Phát hành cập nhật` và xác nhận redirect `307` trên public; sau
+  đó đã hoàn nguyên snapshot, gỡ xuất bản và xóa redirect QA. D1 cuối ghi
+  nhận bài ID 4 có `is_published=0`, hai slug cùng
+  `qa-20260915-slug-cu`, revision `10`, redirect count `0`; bài `Bài thử`
+  cũng là nháp. Public không còn bài QA.
+- Sản phẩm QA `test 1` (ID 10) đã được ẩn mềm sau khi xác nhận đúng bản ghi.
+  D1 cuối xác nhận `is_active=0`, `status=archived`, còn 1 biến thể và 3 giá
+  bậc; admin tải lại hiển thị `Tạm ẩn`. Sitemap còn 224 URL, không còn
+  `/san-pham/test1/`; URL `/san-pham/test1` trả HTTP `404` và trang thông báo
+  không tìm thấy, không lộ shortcut quản trị.
+- Kiểm thử hai tab trên cùng bài QA: tab 1 lưu trước, tab 2 bị chặn bởi stale
+  revision với thông báo rõ, không ghi đè; tiêu đề gốc đã được lưu lại và đọc
+  lại sau kiểm thử.
+- Sidebar admin đã có mục `Yêu cầu báo giá`; inbox đọc được 10 lead staging
+  hiện có. Một số lead cũ vẫn có trạng thái chuyển Google lỗi `502/504`, nên
+  độ tin cậy nơi nhận chưa đạt để thử gửi mới.
+- Giỏ hàng public được đọc lại sau hydrate với 1 dòng sản phẩm hiện có
+  (`Bột gạo lứt xay mịn`, số lượng 50); không sửa hoặc xóa vì không xác định đó
+  là dữ liệu QA của phiên nào, và chưa gửi yêu cầu mới.
+- Contact query giữ đúng ngữ cảnh dịch vụ (`gia-cong-my-pham` và
+  `gia-cong-ca-phe`) ở markup máy chủ và `data-service-context` /
+  `data-service-url` sau hydration; client payload có fallback canonical và
+  server resolver xác minh lại; public không hiện shortcut admin.
+- Mọi form liên hệ public hiện tạo và giữ một `request_id` ổn định qua retry;
+  server truyền mã này tới hàng đợi/webhook và chỉ xóa sau phản hồi tiếp nhận
+  bền vững, giảm nguy cơ tạo lead trùng khi gặp lỗi mạng/504.
+- Footer public sau chuẩn hóa không còn các mục thanh toán/hoàn tiền/bản quyền
+  phương tiện vô hiệu; liên kết chính sách bảo mật còn được giữ.
+- Public staging có 13 nhóm và 192 route nội dung dịch vụ; các route chính đã
+  kiểm tra ở mobile 390px, tablet 768px và desktop 1440px không có overflow
+  ngang. Canonical runtime, `robots.txt`, 404 và `sitemap.xml` (224 URL) đã
+  được kiểm tra; staging có `X-Robots-Tag: noindex, nofollow, noarchive`.
+  Fixture sản phẩm `test 1` đã được archive/ẩn mềm; URL `/san-pham/test1`
+  trả `404` và không còn nằm trong sitemap.
+
+### Gate tự động trên bản cuối
+
+Các suite trên source cuối đạt: admin `372/372`, contact `106/106`, catalog
+`6/6`, purchase UI `1/1`, service `28/28`, commerce `96/96`, listing `5/5`,
+detail `32/32`; focused navigation `10/10`; lint không báo lỗi. TypeScript và
+OpenNext build compile pass, tạo đủ `28/28` static pages; deployment staging
+`d11377e7` cũng hoàn tất build/deploy. Shell runner Windows giữ process sau
+output cuối nên đã dừng thủ công; không dùng mã thoát của wrapper để thay thế
+browser/runtime evidence.
+
+### Trạng thái chốt bàn giao
+
+| Phạm vi | Trạng thái | Vấn đề còn lại |
+|---|---|---|
+| Shortcut và quản trị inline | Đạt trên staging | Browser owner đã xác nhận trên `d11377e7`; còn cần UAT ghi/publish dữ liệu kinh doanh thật trước production |
+| Nguồn dữ liệu dịch vụ, catalog, tin tức, liên hệ | Đạt kỹ thuật trên staging | Dataset, thương hiệu, nội dung và ảnh thật chưa được owner chốt |
+| Yêu cầu báo giá | Lỗi/chờ thông tin | Chưa xác nhận đích thử; Google hiện có lỗi chuyển tiếp 502/504 ở lead cũ; chưa gửi request mới |
+| Quyền, xung đột hai tab, hết phiên, audit đầy đủ | Xung đột hai tab đạt; phần còn lại chưa đủ | Logout/expiry và audit đầy đủ vẫn cần owner thực hiện trong buổi UAT |
+| UI/SEO/technical gates | Đạt trong phạm vi đã đo | Sitemap staging đã loại fixture sản phẩm test và URL đó trả `404`; vẫn cần rà nội dung thật và kiểm tra production sau khi được duyệt |
+| Production release | Chờ duyệt | Chưa được phép deploy; cần backup/restore plan, dataset, đích nhận và UAT ghi/publish đã chốt |
 
 ## Release checkpoint mới nhất — 2026-09-04
 
@@ -336,7 +447,7 @@ Bản staging hiện **đủ điều kiện để tiếp tục nghiệm thu kỹ
 
 - Commit `e1936cfb` đã đóng race giữa publish news từng bài và publish hàng
   loạt, khóa color picker với role chỉ xem, thêm confirm khi xóa section,
-  giảm query dashboard và làm mobile visual editor không che nội dung.
+  giảm query dashboard và làm mobile lớp admin contextual không che nội dung.
 - Staging version `eff0d7fa-c5e2-4641-911b-b3b324ac0284` đã build/deploy 100%,
   startup 30 ms; không có D1/R2 mutation trong lượt QA.
 - `npm run check` exit `0`: admin `198/198`, contact `104/104`, catalog
