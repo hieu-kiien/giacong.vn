@@ -114,8 +114,10 @@ export function normalizeCapturedMarkup(markup: string, activeCapturedMenuId?: s
     );
 
   const safeNormalized = normalizeCapturedFooterDeadItems(
-    normalizeCapturedPlaceholderAnchors(
-      normalizeCapturedPlaceholderSocialLinks(normalized),
+    normalizeCapturedUnverifiedProofItems(
+      normalizeCapturedPlaceholderAnchors(
+        normalizeCapturedPlaceholderSocialLinks(normalized),
+      ),
     ),
   );
 
@@ -220,6 +222,51 @@ function normalizeCapturedPlaceholderAnchors(markup: string): string {
     }
     return content;
   });
+}
+
+/**
+ * Captured legacy pages may contain a WordPress rating widget and DMCA badge
+ * copied from the source site. Neither is backed by this application, so
+ * publishing it would present an unverified review signal or a third-party
+ * compliance claim. Remove only the known widget/badge shapes at the shared
+ * capture boundary; managed content and legitimate external links remain
+ * untouched.
+ */
+function normalizeCapturedUnverifiedProofItems(markup: string): string {
+  const result = removeCapturedRatingWidgets(markup);
+  return result.replace(
+    /(?:<br\s*\/?>\s*)?<a\b[^>]*\bhref\s*=\s*(["'])[^"']*dmca\.com[^"']*\1[^>]*>[\s\S]*?<\/a>/gi,
+    "",
+  );
+}
+
+function removeCapturedRatingWidgets(markup: string): string {
+  const widgetPattern = /<div\b[^>]*\bclass\s*=\s*(["'])[^"']*\bkk-star-ratings\b[^"']*\1[^>]*>/gi;
+  const ranges: Array<[number, number]> = [];
+  let match: RegExpExecArray | null;
+  while ((match = widgetPattern.exec(markup))) {
+    const end = findCapturedDivEnd(markup, widgetPattern.lastIndex);
+    if (end === null) continue;
+    ranges.push([match.index, end]);
+    widgetPattern.lastIndex = end;
+  }
+  return ranges.reduceRight((result, [start, end]) => result.slice(0, start) + result.slice(end), markup);
+}
+
+function findCapturedDivEnd(markup: string, contentStart: number): number | null {
+  const divTagPattern = /<\/?div\b[^>]*>/gi;
+  divTagPattern.lastIndex = contentStart;
+  let depth = 1;
+  let tag: RegExpExecArray | null;
+  while ((tag = divTagPattern.exec(markup))) {
+    if (/^<\/div\b/i.test(tag[0])) {
+      depth -= 1;
+      if (depth === 0) return divTagPattern.lastIndex;
+    } else if (!/\/\s*>$/.test(tag[0])) {
+      depth += 1;
+    }
+  }
+  return null;
 }
 
 const capturedFooterDeadLabels = new Set([

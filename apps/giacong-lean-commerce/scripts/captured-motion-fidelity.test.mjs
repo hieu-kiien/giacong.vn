@@ -15,6 +15,7 @@ const globals = await readFile(new URL("../src/app/globals.css", import.meta.url
 const uxAuditPilot = await readFile(new URL("./ux-audit-pilot.mjs", import.meta.url), "utf8");
 const contactForm = await readFile(new URL("../src/components/contact-form.ts", import.meta.url), "utf8");
 const capturedHome = await readFile(new URL("../src/components/site/CapturedHomePage.tsx", import.meta.url), "utf8");
+const contactCapture = JSON.parse(await readFile(new URL("../src/data/pages/lien-he.json", import.meta.url), "utf8"));
 const motionSource = `${interactions}\n${capturedMotion}`;
 
 const desktopAndMobileMenu = `
@@ -127,6 +128,21 @@ test("keeps one top-level main landmark, names captured frames and gives footer 
   assert.doesNotMatch(result, /id="content"[^>]*role="main"/);
   assert.match(result, /<footer><h2>Thông tin công ty<\/h2><\/footer>/);
   assert.match(result, /<iframe[^>]*title="Bản đồ vị trí Giacong\.vn"/);
+});
+
+test("removes unverified captured ratings and third-party DMCA badges", () => {
+  const markup = '<main><div class="kk-star-ratings"><div class="kksr-legend">5/5 - (1 bình chọn)</div></div></main><footer><div class="footer-copy"><br/><a class="dmca-badge" href="//www.dmca.com/Protection/Status.aspx?ID=test"><img alt="DMCA.com Protection Status" src="https://images.dmca.com/badge.png"/></a><a href="https://www.dmca.com/compliance/giacong.vn"><img alt="DMCA compliant image" src="https://www.dmca.com/compliant.png"/></a></div></footer>';
+  const result = normalizeCapturedMarkup(markup);
+
+  assert.match(result, /<footer>/);
+  assert.doesNotMatch(result, /kk-star-ratings|kksr-legend|5\/5|bình chọn/i);
+  assert.doesNotMatch(result, /dmca\.com|dmca-badge/i);
+});
+
+test("removes legacy proof widgets from the real contact capture", () => {
+  const result = normalizeCapturedMarkup(contactCapture.markup);
+
+  assert.doesNotMatch(result, /kk-star-ratings|kksr-legend|5\/5|bình chọn|dmca\.com|dmca-badge/i);
 });
 
 test("promotes the captured contact section heading to follow its page title", () => {
