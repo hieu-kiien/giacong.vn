@@ -9,7 +9,7 @@ Kiểm tra được thực hiện trên đúng bản staging đang chạy, khôn
 ### Phiên bản và môi trường
 
 - Runtime source commit: `8077cec1c953def8baf33e3e8d90566e973beac2`; HEAD
-  repository là `d3f06932bcf8135f54cde78b1473beff21c38913` trên nhánh
+  repository là `4762c4825e725339a361a115bcd69d6fa6cf6bb9` trên nhánh
   `codex/admin-quality-completion`, chỉ thay workflow/contract CI deep QA và
   chưa được deploy. Bản staging được build/deploy từ đúng runtime commit.
 - Staging Worker `giacong-vn-staging`, version
@@ -116,10 +116,11 @@ Các suite trên source cuối đạt: admin `372/372`, contact `110/110`, catal
   detail `33/33`; lint, typecheck và OpenNext build compile pass, tạo đủ
 `28/28` route. `npm audit --audit-level=high` báo `0 vulnerabilities`.
 - GitHub [quality/staging gate run `35001777778`](https://github.com/hieu-kiien/giacong.vn/actions/runs/35001777778)
-  xanh; GitHub [deep-QA run `35004975567`](https://github.com/hieu-kiien/giacong.vn/actions/runs/35004975567)
-  chạy đúng HEAD nhưng fail HTTP `403` từ Cloudflare edge ở bước catalog dù
-  đã gửi Access service-token headers. Local/browser deep QA trên staging pass;
-  CI edge restriction vẫn là blocker nghiệm thu pipeline, không được soft-pass.
+  xanh; GitHub [deep-QA run `35056121809`](https://github.com/hieu-kiien/giacong.vn/actions/runs/35056121809)
+  chạy đúng HEAD `4762c482` nhưng vẫn fail HTTP `403` từ Cloudflare edge ở bước
+  catalog dù đã gửi Access service-token headers và User-Agent nhận diện riêng.
+  Local/browser deep QA trên staging pass; CI edge restriction vẫn là blocker
+  nghiệm thu pipeline, không được soft-pass.
 Deployment staging `8e115f49` hoàn tất build/deploy; một số wrapper Windows
 được dừng sau khi output cuối đã pass, không dùng trạng thái wrapper để thay thế
 browser/runtime evidence.

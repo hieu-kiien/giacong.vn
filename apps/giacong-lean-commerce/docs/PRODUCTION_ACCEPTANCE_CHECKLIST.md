@@ -9,7 +9,7 @@ chứng lịch sử, không thay thế kiểm tra trên bản staging cuối.
 
 - [x] Runtime source được đối chiếu tại commit
   `8077cec1c953def8baf33e3e8d90566e973beac2`; HEAD repository hiện là
-  `d3f06932bcf8135f54cde78b1473beff21c38913` trên nhánh
+  `4762c4825e725339a361a115bcd69d6fa6cf6bb9` trên nhánh
   `codex/admin-quality-completion`, chỉ chứa workflow/contract CI deep QA và
   chưa được deploy. Staging build/deploy dùng đúng runtime commit nêu trên.
 - [x] Staging Worker version
@@ -41,11 +41,12 @@ chứng lịch sử, không thay thế kiểm tra trên bản staging cuối.
   compile pass, tạo `28/28` route. `npm audit --audit-level=high` báo
   `0 vulnerabilities`.
 - [x] GitHub quality/staging gate run `35001777778` xanh; [deep-QA run
-  `35004975567`](https://github.com/hieu-kiien/giacong.vn/actions/runs/35004975567)
-  chạy đúng HEAD nhưng bị HTTP `403` từ Cloudflare edge ở bước catalog dù đã
-  gửi Access service-token headers. Đây là blocker CI runner/edge cần owner
-  xử lý bằng allowlist hoặc egress được phê duyệt; không đánh dấu deep QA GitHub
-  đạt và không thay đổi quyền Access trong lượt này. Local/browser deep QA pass.
+  `35056121809`](https://github.com/hieu-kiien/giacong.vn/actions/runs/35056121809)
+  chạy đúng HEAD `4762c482` nhưng vẫn bị HTTP `403` từ Cloudflare edge ở bước
+  catalog sau khi đã gửi Access service-token headers và User-Agent nhận diện
+  riêng. Đây là blocker CI runner/edge cần owner xử lý bằng allowlist hoặc egress
+  được phê duyệt; không đánh dấu deep QA GitHub đạt và không thay đổi quyền
+  Access trong lượt này. Local/browser deep QA pass.
 - [x] Public staging đã kiểm tra service-context payload, noindex/canonical,
   sitemap/robots/404 và responsive 390/768/1440px trong phạm vi route chính;
   UX audit evidence `.runtime/ux-audit-final-20260916-r7` đúng version `8e115f49`

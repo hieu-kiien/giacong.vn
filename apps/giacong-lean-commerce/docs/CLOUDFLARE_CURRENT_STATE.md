@@ -6,7 +6,7 @@ Checkpoint này là trạng thái mới nhất; các checkpoint production/stagi
 ở phía dưới chỉ giữ làm lịch sử và không được dùng làm bằng chứng phát hành.
 
 - Runtime source commit đang chạy là `8077cec1c953def8baf33e3e8d90566e973beac2`;
-  repository HEAD là `d3f06932bcf8135f54cde78b1473beff21c38913` trên nhánh
+  repository HEAD là `4762c4825e725339a361a115bcd69d6fa6cf6bb9` trên nhánh
   `codex/admin-quality-completion` và chỉ bổ sung workflow/contract cho CI deep
   QA, chưa được deploy. Worker `giacong-vn-staging` version
   `8e115f49-9b4b-48a3-8eb9-85b9eddb70a0` đang phục vụ
@@ -50,12 +50,12 @@ Checkpoint này là trạng thái mới nhất; các checkpoint production/stagi
   lint, typecheck và OpenNext build compile pass, tạo `28/28` route. `npm audit
   --audit-level=high` báo `0 vulnerabilities`.
 - CI/CD checkpoint: [CI and Cloudflare staging gate](https://github.com/hieu-kiien/giacong.vn/actions/runs/35001777778)
-  xanh ở commit `336b89a3`; [Cloudflare staging deep QA](https://github.com/hieu-kiien/giacong.vn/actions/runs/35004975567)
-  đã chạy đúng HEAD `d3f06932` nhưng fail ở bước catalog với HTTP `403` từ
-  Cloudflare edge. Workflow đã gửi cả Access service-token headers và không in
-  secret; vì vậy đây là blocker hạ tầng/allowlist của GitHub runner, không được
-  coi là ứng dụng pass và không được soft-pass. Deep QA local/browser trên cùng
-  staging vẫn pass.
+  xanh ở commit `336b89a3`; [Cloudflare staging deep QA mới nhất](https://github.com/hieu-kiien/giacong.vn/actions/runs/35056121809)
+  chạy đúng HEAD `4762c482` nhưng vẫn fail ở bước catalog với HTTP `403` từ
+  Cloudflare edge, sau khi đã có Access service-token headers và User-Agent
+  nhận diện riêng. Secret không bị in; đây là blocker hạ tầng/allowlist của
+  GitHub runner, không được coi là ứng dụng pass và không được soft-pass. Deep
+  QA local/browser trên cùng staging vẫn pass.
 - Access owner đã đọc lại trên đúng version `4c85039f`: sản phẩm, dịch vụ, tin
   tức và contact có shortcut/form đúng bản ghi; contact shortcut nằm trên
   storefront host admin `/lien-he/`, còn màn hình quản trị tập trung là
