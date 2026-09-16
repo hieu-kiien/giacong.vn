@@ -127,7 +127,6 @@ jobs:
               'Lá tía tô sấy lạnh',
               'Hoa cúc sấy nguyên bông',
               'Bột gạo lứt xay mịn',
-              'test 1',
           ]
           positions = [html.find(name) for name in names]
           if any(position < 0 for position in positions):
