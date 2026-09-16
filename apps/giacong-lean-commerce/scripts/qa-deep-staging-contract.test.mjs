@@ -20,6 +20,7 @@ test("deep staging QA supports the configured Cloudflare Access service token wi
   assert.match(workflow, /staging_curl\(\)/);
   assert.match(workflow, /CF-Access-Client-Id:/);
   assert.match(workflow, /CF-Access-Client-Secret:/);
+  assert.match(workflow, /--user-agent\s+['"]Giacong-Staging-Deep-QA\/1\.0['"]/);
   assert.match(workflow, /context\.route\(/);
   assert.doesNotMatch(workflow, /extraHTTPHeaders:\s*accessHeaders/);
   assert.doesNotMatch(workflow, /echo\s+.*CLOUDFLARE_ACCESS_CLIENT_SECRET/);

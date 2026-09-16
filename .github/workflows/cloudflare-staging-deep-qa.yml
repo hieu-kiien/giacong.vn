@@ -73,7 +73,7 @@ jobs:
                 -H "CF-Access-Client-Secret: ${CLOUDFLARE_ACCESS_CLIENT_SECRET}"
               )
             fi
-            command curl "${access_headers[@]}" "$@"
+            command curl --user-agent 'Giacong-Staging-Deep-QA/1.0' "${access_headers[@]}" "$@"
           }
 
           staging_curl --fail-with-body --silent --show-error --location --max-time 25 \
@@ -136,7 +136,7 @@ jobs:
                 -H "CF-Access-Client-Secret: ${CLOUDFLARE_ACCESS_CLIENT_SECRET}"
               )
             fi
-            command curl "${access_headers[@]}" "$@"
+            command curl --user-agent 'Giacong-Staging-Deep-QA/1.0' "${access_headers[@]}" "$@"
           }
 
           staging_curl --fail-with-body --silent --show-error --max-time 25 \
@@ -174,7 +174,7 @@ jobs:
                 -H "CF-Access-Client-Secret: ${CLOUDFLARE_ACCESS_CLIENT_SECRET}"
               )
             fi
-            command curl "${access_headers[@]}" "$@"
+            command curl --user-agent 'Giacong-Staging-Deep-QA/1.0' "${access_headers[@]}" "$@"
           }
 
           post_cart() {
@@ -229,7 +229,7 @@ jobs:
                 -H "CF-Access-Client-Secret: ${CLOUDFLARE_ACCESS_CLIENT_SECRET}"
               )
             fi
-            command curl "${access_headers[@]}" "$@"
+            command curl --user-agent 'Giacong-Staging-Deep-QA/1.0' "${access_headers[@]}" "$@"
           }
 
           status=$(staging_curl --silent --show-error --max-time 25 --output /tmp/contact-drift.json --write-out '%{http_code}' \
@@ -258,7 +258,7 @@ jobs:
                 -H "CF-Access-Client-Secret: ${CLOUDFLARE_ACCESS_CLIENT_SECRET}"
               )
             fi
-            command curl "${access_headers[@]}" "$@"
+            command curl --user-agent 'Giacong-Staging-Deep-QA/1.0' "${access_headers[@]}" "$@"
           }
 
           staging_curl --fail-with-body --silent --show-error --location --max-time 25 \
