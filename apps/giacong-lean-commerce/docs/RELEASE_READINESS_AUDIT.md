@@ -559,10 +559,11 @@ chứng thay cho kết quả CLI công khai.
 
 ## Revalidation URL cũ và giỏ yêu cầu — 2026-09-16
 
-- Source cuối đã push: `6eec54f1`; staging Worker:
-  `4f005c6f-b437-4278-82ef-3dd0a35b2c5b`.
+- Source cuối đã push: `65f1d45a`; staging Worker:
+  `b91f6113-1915-42a8-8c25-876aee499dcf`.
 - URL sản phẩm cũ `/san-pham/b2b-demo-bot-dinh-duong-vi-vani` không còn trỏ
-  vào parent demo đã xóa; hiện redirect về catalog `/san-pham/`. Các route
+  vào parent demo đã xóa; Worker trả HTTP `308` trực tiếp về catalog
+  `/san-pham/`. Các route
   `sua-*`/`tra-*` cũ được giữ trong kho captured service content, không nhập
   nhầm thành sản phẩm RFQ.
 - CTA template-sale `Đặt mua mẫu web này` đã được loại tại boundary chuẩn hóa

@@ -5,9 +5,9 @@ Tài liệu dành cho người vận hành (khách + chủ dự án). Quyết đ
 ## Checkpoint bàn giao mới nhất
 
 Production **chưa được thay đổi trong đợt này**; source đã kiểm tra và push là
-commit `6eec54f1` trên nhánh `codex/admin-quality-completion`. Staging đang chạy
+commit `65f1d45a` trên nhánh `codex/admin-quality-completion`. Staging đang chạy
 `giacong-vn-staging` version
-`4f005c6f-b437-4278-82ef-3dd0a35b2c5b` trên
+`b91f6113-1915-42a8-8c25-876aee499dcf` trên
 `staging.kienhieu.id.vn` và `admin-staging.kienhieu.id.vn`.
 Read-only Wrangler đối chiếu production Worker `giacong-vn` đang ở version
 `7f98ed7b-0d9f-4d59-880c-ee364e02e610`; migration staging `0023–0026` chưa được
@@ -174,8 +174,8 @@ npx wrangler queues info giacong-vn-leads-dlq      # hàng đợi lead thất b�
 
 Trạng thái bàn giao hiện tại: production storefront vẫn chạy 100% trên
 `kienhieu.id.vn` với version `7f98ed7b-0d9f-4d59-880c-ee364e02e610`; chưa được
-promotion bản mới. Staging đang chạy source `6eec54f1` với version
-`4f005c6f-b437-4278-82ef-3dd0a35b2c5b`. Các nhóm regression catalog/service/
+promotion bản mới. Staging đang chạy source `65f1d45a` với version
+`b91f6113-1915-42a8-8c25-876aee499dcf`. Các nhóm regression catalog/service/
 commerce lần lượt pass `7/7`, `28/28`, `104/104`; build OpenNext/Cloudflare
 hoàn tất; GitHub Actions run `35099413896` cũng pass Quality gate và staging
 gate. Browser read-back trên staging đã kiểm tra URL cũ, CTA dịch vụ và giỏ.
