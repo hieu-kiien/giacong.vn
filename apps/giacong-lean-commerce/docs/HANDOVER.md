@@ -5,11 +5,12 @@ Tài liệu dành cho người vận hành (khách + chủ dự án). Quyết đ
 ## Checkpoint bàn giao mới nhất
 
 Production **chưa được thay đổi trong đợt này**; runtime source bàn giao là commit
-`eba85cb765aa994e86c60974ef4fdccaf37eca33`. Quality/staging gate mới nhất đã
+`eba85cb765aa994e86c60974ef4fdccaf37eca33`. Quality/staging gate source đã
 chạy ở commit `51ac1bdd` trên nhánh `codex/admin-quality-completion` và xanh;
-deep-QA mới nhất cũng chạy trên commit này nhưng bị Cloudflare edge trả `403`
-ở bước catalog. Không dùng version production cũ trong tài
-liệu này làm bằng chứng nghiệm thu mới. Staging đang chạy
+HEAD hiện tại `5c3c9151f165434436cf51df6fb197e6d4dce323` chỉ sửa fixture CI.
+Deep-QA mới nhất [run `35088052299`](https://github.com/hieu-kiien/giacong.vn/actions/runs/35088052299)
+chạy đúng HEAD trên active protected preview và xanh toàn bộ. Không dùng
+version production cũ trong tài liệu này làm bằng chứng nghiệm thu mới. Staging đang chạy
 `giacong-vn-staging` version
 `a676fed4-2d08-4637-882b-f6dad976ef84` trên
 `staging.kienhieu.id.vn` và `admin-staging.kienhieu.id.vn`, deploy lúc
@@ -47,10 +48,12 @@ noindex, không canonical. Biến thể QA `SMOKE-VARIANT-20260816` (ID 28) đã
 Quality/staging gate GitHub run
 `35084763965` (commit `51ac1bdd`) xanh cả Quality gate và staging dry-run;
 workflow không deploy. Deep-QA run
-`35085313576` (cùng commit) vẫn bị Cloudflare edge trả `403` ở bước catalog dù
-đã gửi Access service-token headers và User-Agent nhận diện riêng. Deep QA
-local/browser vẫn pass, nhưng pipeline GitHub chưa được coi là đạt cho đến khi
-owner xử lý allowlist/egress CI được phê duyệt.
+`35088052299` (HEAD `5c3c9151`) xanh trên active protected preview, gồm catalog,
+product/cart/contact-drift, R2 media và responsive browser checks. Workflow
+không soft-pass: nó lấy preview URL của deployment đang chạy và chỉ gửi Access
+service token khi cần. Lượt cũ `35085313576` vẫn được giữ làm bằng chứng rằng
+GitHub runner gọi hostname public ổn định bị edge trả `403`; nếu muốn CI gọi
+đúng hostname đó, owner cần duyệt allowlist/egress rule riêng.
 
 ## 1. Bản đồ hệ thống
 
@@ -169,7 +172,8 @@ Trạng thái bàn giao hiện tại: production storefront vẫn chạy 100% tr
 promotion bản mới. Staging đang chạy
 `a676fed4-2d08-4637-882b-f6dad976ef84`. Local gate, HTTP smoke, responsive
 CUA/Playwright, UX audit, menu dịch vụ và các luồng RFQ mock đã pass trên
-source/deployment cuối; GitHub deep QA còn bị chặn ở lớp edge như trên. UX evidence nằm tại
+source/deployment cuối; GitHub deep QA trên active preview đã xanh, còn hostname public ổn định
+vẫn có ghi chú edge `403` khi gọi từ GitHub runner như trên. UX evidence nằm tại
 `.runtime/ux-audit-final-20260916-r7`; một warning duy nhất là iframe Google
 Maps cross-origin. Cron mồ côi đã được gỡ; queue production còn đúng một
 producer và một consumer, DLQ tồn tại đúng theo cấu hình nhưng không có dấu

@@ -9,10 +9,11 @@ Kiểm tra được thực hiện trên đúng bản staging đang chạy, khôn
 ### Phiên bản và môi trường
 
 - Runtime source snapshot đã deploy (sau đó được commit/push nguyên trạng): `eba85cb765aa994e86c60974ef4fdccaf37eca33`;
-  quality/staging gate mới nhất chạy ở commit `51ac1bdd` trên nhánh
-  `codex/admin-quality-completion` và xanh; deep-QA cũng chạy trên commit này
-  nhưng bị Cloudflare edge trả `403` ở bước catalog. Bản staging được
-  build/deploy từ đúng source snapshot này.
+  quality/staging gate source mới nhất chạy ở commit `51ac1bdd` trên nhánh
+  `codex/admin-quality-completion` và xanh. Sau đó chỉ có các sửa CI không
+  thay đổi runtime; HEAD hiện tại là `5c3c9151f165434436cf51df6fb197e6d4dce323`.
+  Deep-QA mới nhất chạy đúng HEAD này trên active protected preview và xanh
+  toàn bộ. Bản staging được build/deploy từ đúng source snapshot runtime này.
 - Staging Worker `giacong-vn-staging`, version
   `a676fed4-2d08-4637-882b-f6dad976ef84`, phục vụ
   `staging.kienhieu.id.vn` và `admin-staging.kienhieu.id.vn`.
@@ -136,11 +137,18 @@ Các suite trên source cuối đạt: admin `372/372`, contact `110/110`, catal
   detail `33/33`; lint, typecheck và OpenNext build compile pass, tạo đủ
 `28/28` route. `npm audit --audit-level=high` báo `0 vulnerabilities`.
 - GitHub [quality/staging gate run `35084763965`](https://github.com/hieu-kiien/giacong.vn/actions/runs/35084763965)
-  xanh cả quality và staging dry-run, không deploy; GitHub [deep-QA run `35085313576`](https://github.com/hieu-kiien/giacong.vn/actions/runs/35085313576)
-  chạy đúng commit `51ac1bdd` nhưng vẫn fail HTTP `403` từ Cloudflare edge ở bước
-  catalog dù đã gửi Access service-token headers và User-Agent nhận diện riêng.
-  Local/browser deep QA trên staging pass; CI edge restriction vẫn là blocker
-  nghiệm thu pipeline, không được soft-pass.
+  xanh cả quality và staging dry-run, không deploy. GitHub [deep-QA run `35088052299`](https://github.com/hieu-kiien/giacong.vn/actions/runs/35088052299)
+  chạy đúng HEAD `5c3c9151` và xanh toàn bộ: deployment preview, catalog,
+  product API/quantity, cart validation, contact cart-drift guard, R2 media và
+  responsive browser-error check. Workflow lấy URL preview của version vừa
+  deploy và gửi Access service token khi preview được bảo vệ, nên không bỏ qua
+  kiểm thử bằng `continue-on-error` hay soft-pass.
+- Lượt cũ [deep-QA run `35085313576`](https://github.com/hieu-kiien/giacong.vn/actions/runs/35085313576)
+  bị Cloudflare edge trả `403` khi GitHub runner gọi hostname public ổn định;
+  đây là ghi chú reachability của hostname public, không phải kết quả của
+  Deep-QA trên active preview. Nếu bắt buộc CI phải gọi đúng hostname public,
+  owner vẫn cần duyệt allowlist/egress rule ở Cloudflare trước khi thay đổi
+  chính sách.
 - GitNexus re-index đúng HEAD rồi nhưng compare với `master` vẫn báo `CRITICAL`
   (`228` file, `1.101` symbol, `118` execution flow) vì branch mang toàn bộ
   delta tính năng từ merge-base. Đây là blocker review/merge riêng, không phải
