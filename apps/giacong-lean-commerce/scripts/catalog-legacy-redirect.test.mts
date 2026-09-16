@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  getRetiredLegacyProductRedirect,
   legacyProductRedirects,
   retiredLegacyProductSlugs,
 } from "../src/lib/catalog-legacy-redirects.ts";
@@ -23,4 +24,19 @@ test("retired demo product URLs cannot redirect to missing catalog parents", () 
     assert.equal(retiredLegacyProductSlugs.has(slug), true, slug);
     assert.equal(legacyProductRedirects[slug], undefined, slug);
   }
+});
+
+test("retired demo product URLs redirect at the edge without carrying stale variant queries", () => {
+  const staleUrl = new URL(
+    "https://staging.kienhieu.id.vn/san-pham/b2b-demo-bot-dinh-duong-vi-vani/?variant=OLD-SKU",
+  );
+
+  assert.equal(
+    getRetiredLegacyProductRedirect(staleUrl),
+    "https://staging.kienhieu.id.vn/san-pham/",
+  );
+  assert.equal(
+    getRetiredLegacyProductRedirect(new URL("https://staging.kienhieu.id.vn/san-pham/bot-gao-lut-xay-min")),
+    null,
+  );
 });

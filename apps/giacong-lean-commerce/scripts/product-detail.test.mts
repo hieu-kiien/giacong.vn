@@ -391,6 +391,13 @@ test("the Cloudflare wrapper restores a 404 for a streamed hidden product page",
   assert.match(worker, /status: 404/, "a missing or hidden product must be an HTTP 404");
 });
 
+test("the Cloudflare wrapper redirects retired product aliases before Next handles them", async () => {
+  const worker = await readSource("custom-worker.ts");
+
+  assert.match(worker, /getRetiredLegacyProductRedirect/, "legacy aliases must be handled at the Worker boundary");
+  assert.match(worker, /status: 308/, "retired aliases must use a permanent redirect");
+});
+
 test("the direct-detail frame keeps the captured header visible and content below it", async () => {
   const frame = await readSource("src", "components", "site", "CapturedStorefrontTabFrame.tsx");
   const css = await readSource("src", "components", "site", "CapturedStorefrontTabFrame.module.css");

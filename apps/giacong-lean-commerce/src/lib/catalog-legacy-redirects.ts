@@ -22,3 +22,19 @@ export const retiredLegacyProductSlugs: ReadonlySet<string> = new Set([
   "b2b-demo-ngu-coc-dinh-duong-hat",
   "b2b-demo-bot-yen-mach-hoa-tan",
 ]);
+
+export function getRetiredLegacyProductRedirect(url: URL): string | null {
+  const match = /^\/san-pham\/([^/]+)\/?$/.exec(url.pathname);
+  if (!match?.[1]) return null;
+
+  let slug: string;
+  try {
+    slug = decodeURIComponent(match[1]).trim();
+  } catch {
+    return null;
+  }
+
+  return retiredLegacyProductSlugs.has(slug)
+    ? new URL("/san-pham/", url).toString()
+    : null;
+}
