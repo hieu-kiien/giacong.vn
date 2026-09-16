@@ -31,11 +31,15 @@ jobs:
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       CLOUDFLARE_ACCESS_CLIENT_ID: ${{ secrets.CLOUDFLARE_ACCESS_CLIENT_ID }}
       CLOUDFLARE_ACCESS_CLIENT_SECRET: ${{ secrets.CLOUDFLARE_ACCESS_CLIENT_SECRET }}
+      # The public hostname remains a separate smoke target. The active
+      # version's isolated preview is selected after Wrangler verifies traffic
+      # and is used for authenticated CI requests below.
       STAGING_ORIGIN: https://staging.kienhieu.id.vn
+      STAGING_PUBLIC_ORIGIN: https://staging.kienhieu.id.vn
       STAGING_DATABASE: giacong-vn-catalog-staging
-      # The active deep-QA origin is the public storefront. Access service-token
-      # headers are opt-in for a protected origin and must not be sent to the
-      # public host, where they can trigger an edge challenge.
+      STAGING_WORKER_NAME: giacong-vn-staging
+      STAGING_WORKERS_SUBDOMAIN: qtu1053
+      # Set to true after the active version's protected preview is selected.
       STAGING_ACCESS_REQUIRED: "false"
 
     steps:
@@ -63,6 +67,12 @@ jobs:
             and .[0].percentage == 100
             and (. [0].version_id | type == "string" and length > 0)
           ' <<<"$deployment"
+          active_version_id="$(echo "$deployment" | jq -r '.versions[0].version_id')"
+          preview_prefix="${active_version_id%%-*}"
+          preview_origin="https://${preview_prefix}-${STAGING_WORKER_NAME}.${STAGING_WORKERS_SUBDOMAIN}.workers.dev"
+          echo "STAGING_ORIGIN=$preview_origin" >> "$GITHUB_ENV"
+          echo "STAGING_ACCESS_REQUIRED=true" >> "$GITHUB_ENV"
+          echo "CI origin: $preview_origin"
 
       - name: Verify catalog search, category filter and sort
         shell: bash
