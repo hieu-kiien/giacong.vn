@@ -116,6 +116,13 @@ Kiểm tra được thực hiện trên đúng bản staging đang chạy, khôn
   hiển thị `info@giacong.vn` và `0947142999` ở hai trường liên hệ. Khi setting
   để trống, editor mới phân biệt “giá trị mặc định” với “bản đã đăng” mà không
   thay thế draft rỗng; regression test đã chạy trong suite admin.
+- UAT write/read-back bổ sung trên cùng phiên owner ngày `2026-09-16`: sản phẩm
+  `QA-20260915-STAGING-PRODUCT` lưu mô tả có marker `QA-ROUND-20260916`, tải
+  lại thấy đúng rồi khôi phục; dịch vụ `QA-20260915-DYNAMIC-SERVICE` cũng lưu,
+  tải lại và khôi phục đúng tóm tắt. Bài `QA-20260915-SLUG-REDIRECT` được lưu
+  nháp, xuất bản thấy trên `/tin-tuc` và URL chi tiết, gỡ xuất bản rồi khôi phục
+  snapshot; sau đó URL cũ trả trang không tìm thấy và bài không còn lộ công khai.
+  Không có dữ liệu kinh doanh thật bị sửa; các thao tác QA đã được hoàn nguyên.
 
 ### Recheck sau sửa H1 captured service — 2026-09-16
 

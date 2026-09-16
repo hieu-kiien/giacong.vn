@@ -43,6 +43,9 @@ revision đã đạt trên staging nhưng logout/expiry và audit đầy đủ c
 thái chuyển Google lỗi `502/504`, nên chưa gửi controlled request mới.
 Sau deploy mới, live browser đã xác nhận facts MOQ đổi theo SKU và giá tier/tạm
 tính cập nhật đúng khi đổi số lượng; giỏ nhiều SKU giữ nguyên sau tải lại.
+UAT owner bổ sung ngày 2026-09-16 đã round-trip sản phẩm QA, dịch vụ QA và bài
+tin QA (lưu → tải lại; bài tin xuất bản → đọc public → gỡ xuất bản), sau đó khôi
+phục đúng snapshot; không gửi RFQ thật và không sửa dữ liệu kinh doanh.
 Sản phẩm QA `test 1` (ID 10) đã được ẩn mềm: D1 là `is_active=0`,
 `status=archived`, còn nguyên 1 biến thể/3 giá bậc; admin hiển thị `Tạm ẩn`,
 sitemap staging còn 223 URL và URL `/san-pham/test1` trả `404` với title riêng,
