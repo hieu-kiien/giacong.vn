@@ -402,3 +402,11 @@ test("replaces captured placeholder CTAs and removes placeholder social/footer l
   assert.doesNotMatch(result, /Thanh toán/);
   assert.match(result, /Chính sách bảo mật/);
 });
+
+test("removes the legacy template-sale CTA from captured service pages", () => {
+  const markup = '<main><a class="devvn_buy_now devvn_buy_now_style" href="#"><strong>Đặt mua mẫu web này</strong><span></span></a><p>Thông tin dịch vụ vẫn được giữ lại.</p></main>';
+  const result = normalizeCapturedMarkup(markup);
+
+  assert.doesNotMatch(result, /Đặt mua mẫu web này/i);
+  assert.match(result, /Thông tin dịch vụ vẫn được giữ lại/);
+});

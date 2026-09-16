@@ -116,7 +116,9 @@ export function normalizeCapturedMarkup(markup: string, activeCapturedMenuId?: s
   const safeNormalized = normalizeCapturedFooterDeadItems(
     normalizeCapturedUnverifiedProofItems(
       normalizeCapturedPlaceholderAnchors(
-        normalizeCapturedPlaceholderSocialLinks(normalized),
+        normalizeCapturedPlaceholderSocialLinks(
+          normalizeCapturedTemplatePurchaseCta(normalized),
+        ),
       ),
     ),
   );
@@ -222,6 +224,13 @@ function normalizeCapturedPlaceholderAnchors(markup: string): string {
     }
     return content;
   });
+}
+
+function normalizeCapturedTemplatePurchaseCta(markup: string): string {
+  return markup.replace(
+    /<a\b(?=[^>]*\bclass\s*=\s*(["'])[^"']*\bdevvn_buy_now\b[^"']*\1)[^>]*>[\s\S]*?<\/a>/gi,
+    "",
+  );
 }
 
 /**
