@@ -6,9 +6,9 @@ Checkpoint này là trạng thái mới nhất; các checkpoint production/stagi
 ở phía dưới chỉ giữ làm lịch sử và không được dùng làm bằng chứng phát hành.
 
 - Runtime source commit đang chạy là `8077cec1c953def8baf33e3e8d90566e973beac2`;
-  repository HEAD là `4762c4825e725339a361a115bcd69d6fa6cf6bb9` trên nhánh
-  `codex/admin-quality-completion` và chỉ bổ sung workflow/contract cho CI deep
-  QA, chưa được deploy. Worker `giacong-vn-staging` version
+  workflow/contract CI deep QA được kiểm tra ở commit `4762c482` trên nhánh
+  `codex/admin-quality-completion` và chưa được deploy. Worker
+  `giacong-vn-staging` version
   `8e115f49-9b4b-48a3-8eb9-85b9eddb70a0` đang phục vụ
   `staging.kienhieu.id.vn/*` và `admin-staging.kienhieu.id.vn/*`.
 - Deployment được Cloudflare ghi nhận lúc `2026-09-16 00:15:11 +07:00`; HTTP

@@ -8,10 +8,10 @@ Mục này là trạng thái hiện hành; mọi mục `Checkpoint` cũ bên dư
 chứng lịch sử, không thay thế kiểm tra trên bản staging cuối.
 
 - [x] Runtime source được đối chiếu tại commit
-  `8077cec1c953def8baf33e3e8d90566e973beac2`; HEAD repository hiện là
-  `4762c4825e725339a361a115bcd69d6fa6cf6bb9` trên nhánh
-  `codex/admin-quality-completion`, chỉ chứa workflow/contract CI deep QA và
-  chưa được deploy. Staging build/deploy dùng đúng runtime commit nêu trên.
+  `8077cec1c953def8baf33e3e8d90566e973beac2`; workflow/contract CI deep QA
+  được kiểm tra ở commit `4762c482` trên nhánh
+  `codex/admin-quality-completion` và chưa được deploy. Staging build/deploy
+  dùng đúng runtime commit nêu trên.
 - [x] Staging Worker version
   `8e115f49-9b4b-48a3-8eb9-85b9eddb70a0` đang phục vụ đúng hai host staging;
   migration `0023_managed_service_taxonomy.sql` đến

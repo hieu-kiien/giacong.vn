@@ -8,10 +8,10 @@ Kiểm tra được thực hiện trên đúng bản staging đang chạy, khôn
 
 ### Phiên bản và môi trường
 
-- Runtime source commit: `8077cec1c953def8baf33e3e8d90566e973beac2`; HEAD
-  repository là `4762c4825e725339a361a115bcd69d6fa6cf6bb9` trên nhánh
-  `codex/admin-quality-completion`, chỉ thay workflow/contract CI deep QA và
-  chưa được deploy. Bản staging được build/deploy từ đúng runtime commit.
+- Runtime source commit: `8077cec1c953def8baf33e3e8d90566e973beac2`;
+  workflow/contract CI deep QA được kiểm tra ở commit `4762c482` trên nhánh
+  `codex/admin-quality-completion` và chưa được deploy. Bản staging được
+  build/deploy từ đúng runtime commit.
 - Staging Worker `giacong-vn-staging`, version
   `8e115f49-9b4b-48a3-8eb9-85b9eddb70a0`, phục vụ
   `staging.kienhieu.id.vn` và `admin-staging.kienhieu.id.vn`.

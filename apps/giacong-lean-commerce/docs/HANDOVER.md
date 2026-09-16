@@ -5,10 +5,9 @@ Tài liệu dành cho người vận hành (khách + chủ dự án). Quyết đ
 ## Checkpoint bàn giao mới nhất
 
 Production **chưa được thay đổi trong đợt này**; runtime source bàn giao là commit
-`8077cec1c953def8baf33e3e8d90566e973beac2`. HEAD repository hiện là
-`4762c4825e725339a361a115bcd69d6fa6cf6bb9` trên nhánh
-`codex/admin-quality-completion`, chỉ cập nhật workflow/contract CI deep QA và
-chưa deploy. Không dùng version production cũ trong tài
+`8077cec1c953def8baf33e3e8d90566e973beac2`. Workflow/contract CI deep QA được
+kiểm tra ở commit `4762c482` trên nhánh `codex/admin-quality-completion` và chưa
+deploy. Không dùng version production cũ trong tài
 liệu này làm bằng chứng nghiệm thu mới. Staging đang chạy
 `giacong-vn-staging` version
 `8e115f49-9b4b-48a3-8eb9-85b9eddb70a0` trên
