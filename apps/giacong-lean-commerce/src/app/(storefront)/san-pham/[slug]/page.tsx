@@ -3,7 +3,7 @@ import { notFound, permanentRedirect } from "next/navigation";
 
 import { ProductDetailPage } from "@/components/catalog/ProductDetailPage";
 import { CapturedStorefrontTabFrame } from "@/components/site/CapturedStorefrontTabFrame";
-import { legacyProductRedirects } from "@/lib/catalog-legacy-redirects";
+import { legacyProductRedirects, retiredLegacyProductSlugs } from "@/lib/catalog-legacy-redirects";
 import { loadCatalogProductDetail } from "@/lib/catalog-detail-source";
 import { canonicalMetadata } from "@/lib/seo";
 
@@ -53,9 +53,11 @@ export default async function CatalogDetailPage({ params, searchParams }: Catalo
 
 function redirectLegacyProduct(slug: string) {
   const destination = legacyProductRedirects[slug];
-  if (!destination) return;
-  const query = new URLSearchParams({ variant: destination.variantSku });
-  permanentRedirect(`/san-pham/${destination.parentSlug}/?${query}`);
+  if (destination) {
+    const query = new URLSearchParams({ variant: destination.variantSku });
+    permanentRedirect(`/san-pham/${destination.parentSlug}/?${query}`);
+  }
+  if (retiredLegacyProductSlugs.has(slug)) permanentRedirect("/san-pham/");
 }
 
 function firstValue(value: string | string[] | undefined): string {
