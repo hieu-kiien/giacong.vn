@@ -575,6 +575,9 @@ chứng thay cho kết quả CLI công khai.
   OpenNext build và Cloudflare staging deploy hoàn tất. Wrapper lint/typecheck
   trên Windows giữ process mở không có diagnostic nên không dùng chúng làm
   bằng chứng exit 0; build đã chạy TypeScript thành công.
+- GitHub Actions workflow dispatch `35099413896` đã pass cả Quality gate và
+  Cloudflare staging gate trên branch này; staging gate chỉ build/dry-run,
+  không thay đổi traffic.
 
 Production chưa deploy. Các gate còn mở vẫn là duyệt dữ liệu kinh doanh/pháp
 lý thật và nơi nhận RFQ, kiểm tra đủ identity/expiry/logout/audit trên Access,

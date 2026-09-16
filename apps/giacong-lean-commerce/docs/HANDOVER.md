@@ -177,8 +177,9 @@ Trạng thái bàn giao hiện tại: production storefront vẫn chạy 100% tr
 promotion bản mới. Staging đang chạy source `6eec54f1` với version
 `4f005c6f-b437-4278-82ef-3dd0a35b2c5b`. Các nhóm regression catalog/service/
 commerce lần lượt pass `7/7`, `28/28`, `104/104`; build OpenNext/Cloudflare
-hoàn tất và browser read-back trên staging đã kiểm tra URL cũ, CTA dịch vụ và
-giỏ. Không dùng dữ liệu demo staging làm dữ liệu production.
+hoàn tất; GitHub Actions run `35099413896` cũng pass Quality gate và staging
+gate. Browser read-back trên staging đã kiểm tra URL cũ, CTA dịch vụ và giỏ.
+Không dùng dữ liệu demo staging làm dữ liệu production.
 
 Các gate còn lại của bàn giao là theo dõi observability đủ 24 giờ, chủ dự án
 duyệt nội dung kinh doanh/catalog và quyết định redirect `giacong.vn` nếu có
