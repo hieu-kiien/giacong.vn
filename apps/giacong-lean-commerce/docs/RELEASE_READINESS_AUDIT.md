@@ -9,10 +9,9 @@ Kiểm tra được thực hiện trên đúng bản staging đang chạy, khôn
 ### Phiên bản và môi trường
 
 - Runtime source snapshot đã deploy (sau đó được commit/push nguyên trạng): `eba85cb765aa994e86c60974ef4fdccaf37eca33`;
-  quality/staging gate mới nhất chạy ở HEAD `04cc54bc` trên nhánh
-  `codex/admin-quality-completion` và xanh; HEAD sau Deep-QA chỉ bổ sung tài
-  liệu, không thay đổi runtime. Deep-QA mới nhất chạy trên runtime/CI HEAD
-  `5c3c9151` trên active protected preview và xanh toàn bộ. Bản staging được
+  quality/staging gate mới nhất chạy ở HEAD `7fe69b52` trên nhánh
+  `codex/admin-quality-completion` và xanh; Deep-QA cùng HEAD trên active
+  protected preview cũng xanh toàn bộ. Bản staging được
   build/deploy từ đúng source snapshot runtime này.
 - Staging Worker `giacong-vn-staging`, version
   `a676fed4-2d08-4637-882b-f6dad976ef84`, phục vụ
@@ -136,9 +135,9 @@ Các suite trên source cuối đạt: admin `372/372`, contact `110/110`, catal
 `6/6`, purchase UI `1/1`, service `28/28`, commerce `102/102`, listing `6/6`,
   detail `33/33`; lint, typecheck và OpenNext build compile pass, tạo đủ
 `28/28` route. `npm audit --audit-level=high` báo `0 vulnerabilities`.
-- GitHub [quality/staging gate run `35088401099`](https://github.com/hieu-kiien/giacong.vn/actions/runs/35088401099)
-  xanh cả quality và staging dry-run trên HEAD `04cc54bc`, không deploy. GitHub [deep-QA run `35088052299`](https://github.com/hieu-kiien/giacong.vn/actions/runs/35088052299)
-  chạy đúng HEAD `5c3c9151` và xanh toàn bộ: deployment preview, catalog,
+- GitHub [quality/staging gate run `35089195699`](https://github.com/hieu-kiien/giacong.vn/actions/runs/35089195699)
+  xanh cả quality và staging dry-run trên HEAD `7fe69b52`, không deploy. GitHub [deep-QA run `35089196729`](https://github.com/hieu-kiien/giacong.vn/actions/runs/35089196729)
+  chạy đúng HEAD `7fe69b52` và xanh toàn bộ: deployment preview, catalog,
   product API/quantity, cart validation, contact cart-drift guard, R2 media và
   responsive browser-error check. Workflow lấy URL preview của version vừa
   deploy và gửi Access service token khi preview được bảo vệ, nên không bỏ qua
