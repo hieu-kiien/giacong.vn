@@ -6,6 +6,41 @@
 Kiểm tra được thực hiện trên đúng bản staging đang chạy, không suy ra từ URL
 `200` hoặc báo cáo trước.
 
+## Production release checkpoint — 2026-09-16
+
+Theo phê duyệt phát hành của chủ dự án, source tại HEAD `019036a5` (runtime
+redirect từ `65f1d45a`, CI source gate `35107576405` xanh) đã được upload rồi
+promotion lên production Worker `giacong-vn`, version
+`f35067a6-dfe4-4c60-997e-2f4486488af9`, 100% traffic. Deployment ID
+`46a7f6fb-0fca-49b2-93da-a4da5f2045e2`, lúc
+`2026-09-16T15:21:25.730743Z`; rollback point là version cũ
+`7f98ed7b-0d9f-4d59-880c-ee364e02e610`.
+
+Trước migration/release đã export D1 production tại
+`.runtime/production-pre-release-20260916.sql`, SHA-256
+`A2CA111AEBE6522E54CBD2BA6348D2C09B49F389E1DDF67F57F8D7B7A984C104`. Các
+migration `0023_managed_service_taxonomy.sql` đến
+`0026_service_slug_redirects.sql` đã áp dụng thành công; sau đó kiểm tra lại
+không còn migration pending, 14 service active và 14 `service_admin_meta`.
+Không có migration nào khác và không gửi RFQ thật.
+
+Production smoke trực tiếp đạt: homepage/catalog/product/cart/service/policy
+`200`; `/robots.txt` và `/sitemap.xml` `200`; URL không tồn tại `404`; alias
+sản phẩm demo cũ `308` về `/san-pham/`; admin production chưa xác thực bị
+Cloudflare Access trả `302`. Product API đọc đúng sản phẩm
+`bot-gao-lut-xay-min` với 3 SKU; cart revalidation bằng SKU production
+`B2B-SEED-BGL-05` xác nhận MOQ `25`, bước `5`, đơn giá `78.000 ₫`, tạm tính
+`1.950.000 ₫`. Browser production xác nhận thêm vào giỏ, tải lại giỏ, form
+RFQ, product page ở viewport 390px không tràn ngang và không có console
+error/warning.
+
+Trạng thái nghiệm thu chưa phải “bàn giao hoàn hảo”: production vẫn có một
+service pre-existing slug `test` đang active, một bài news đã xuất bản và một
+lead lịch sử; các bản ghi này chưa bị xóa/ẩn vì chưa có quyết định nội dung
+kinh doanh cụ thể. Cần owner xác nhận xử lý dữ liệu đó, chạy UAT admin
+production bằng identity thật, xác nhận đích nhận RFQ và theo dõi
+observability sau phát hành trước khi ký bàn giao.
+
 ### Phiên bản và môi trường
 
 - Runtime source snapshot đã deploy (sau đó được commit/push nguyên trạng): `e5b6bb44fbd2d2581e71fde84fb5aa31cbdbbcea`;
@@ -14,7 +49,7 @@ Kiểm tra được thực hiện trên đúng bản staging đang chạy, khôn
   cùng SHA trên nhánh `codex/admin-quality-completion` đều xanh. Bản staging
   được build/deploy từ đúng source snapshot runtime này.
 - Staging Worker `giacong-vn-staging`, version
-  `0083b43f-6d2d-4b7d-b55d-cb161432477b`, phục vụ
+  `b91f6113-1915-42a8-8c25-876aee499dcf`, phục vụ
   `staging.kienhieu.id.vn` và `admin-staging.kienhieu.id.vn`.
 - Deployment mới được Cloudflare ghi nhận lúc `2026-09-16 18:50:11 +07:00`; HTTP
   smoke và browser recheck H1 dưới đây chạy sau deployment này; các bằng chứng
@@ -30,15 +65,11 @@ Kiểm tra được thực hiện trên đúng bản staging đang chạy, khôn
   `.runtime/staging-before-0026.sql` (233,004 bytes; SHA-256
   `2DED370D774F2D6D08494046492E5F4B6703B942D15212DB5702E1484E1B4819`).
   Snapshot trước `0023/0024` vẫn được giữ theo checkpoint lịch sử.
-- Read-only Wrangler xác nhận production Worker `giacong-vn` vẫn ở version
-  `7f98ed7b-0d9f-4d59-880c-ee364e02e610`; D1 production còn pending
-  `0023_managed_service_taxonomy.sql` đến `0026_service_slug_redirects.sql`,
-  chưa áp dụng trong đợt này.
-- Production chưa deploy, chưa đổi DNS/quyền và chưa chạy migration production.
-- Probe production chỉ đọc ghi nhận `/` trả `200`, `/sitemap.xml` hiện `404`,
-  còn trang/API admin trả `302` qua Access; đây là trạng thái deployment cũ,
-  chưa phải bằng chứng nghiệm thu bản staging và phải kiểm tra lại sau khi có
-  duyệt phát hành.
+- Read-only Wrangler sau phát hành xác nhận production Worker `giacong-vn`
+  đang ở version `f35067a6-dfe4-4c60-997e-2f4486488af9` @100%; D1 production
+  không còn migration pending. Các kết quả `/sitemap.xml` `404` và version
+  `7f98ed7b` ở các dòng lịch sử bên dưới chỉ là bằng chứng trước release,
+  không phải trạng thái hiện tại.
 
 ### Bằng chứng đã kiểm tra
 

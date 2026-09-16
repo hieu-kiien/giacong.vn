@@ -4,14 +4,16 @@ Tài liệu dành cho người vận hành (khách + chủ dự án). Quyết đ
 
 ## Checkpoint bàn giao mới nhất
 
-Production **chưa được thay đổi trong đợt này**; source đã kiểm tra và push là
-commit `65f1d45a` trên nhánh `codex/admin-quality-completion`. Staging đang chạy
-`giacong-vn-staging` version
-`b91f6113-1915-42a8-8c25-876aee499dcf` trên
-`staging.kienhieu.id.vn` và `admin-staging.kienhieu.id.vn`.
-Read-only Wrangler đối chiếu production Worker `giacong-vn` đang ở version
-`7f98ed7b-0d9f-4d59-880c-ee364e02e610`; migration staging `0023–0026` chưa được
-áp dụng vào D1 production.
+Source cuối đã push là commit `019036a5` trên nhánh
+`codex/admin-quality-completion` (runtime redirect nằm ở `65f1d45a`).
+Production Worker `giacong-vn` đã được promotion thành công lên version
+`f35067a6-dfe4-4c60-997e-2f4486488af9` ở 100% traffic lúc
+`2026-09-16T15:21:25.730743Z`; staging đang chạy version
+`b91f6113-1915-42a8-8c25-876aee499dcf` trên `staging.kienhieu.id.vn` và
+`admin-staging.kienhieu.id.vn`. Rollback point code là version cũ
+`7f98ed7b-0d9f-4d59-880c-ee364e02e610`.
+D1 production đã áp dụng migration `0023–0026` sau khi export backup mới;
+không có migration nào còn chờ.
 
 Regression trên đúng staging version này đã xác nhận URL sản phẩm demo cũ
 `/san-pham/b2b-demo-bot-dinh-duong-vi-vani` chuyển an toàn về `/san-pham/`,
@@ -64,14 +66,14 @@ GitHub runner gọi hostname public ổn định bị edge trả `403`; nếu mu
 
 | Thành phần | Địa chỉ | Ghi chú |
 | --- | --- | --- |
-| Storefront production | https://kienhieu.id.vn | Chưa deploy bản checkpoint 2026-09-16; chỉ phát hành sau duyệt |
+| Storefront production | https://kienhieu.id.vn | Worker `giacong-vn`; version `f35067a6-dfe4-4c60-997e-2f4486488af9` @100% |
 | Admin production | https://admin.kienhieu.id.vn/admin | Sau Cloudflare Access — fail-closed |
-| Storefront staging | https://staging.kienhieu.id.vn | Worker `giacong-vn-staging`; version `0083b43f-6d2d-4b7d-b55d-cb161432477b` |
+| Storefront staging | https://staging.kienhieu.id.vn | Worker `giacong-vn-staging`; version `b91f6113-1915-42a8-8c25-876aee499dcf` |
 | Admin staging | https://admin-staging.kienhieu.id.vn/admin | Cloudflare Access thật; storefront staging mới public; không có identity thì fail-closed |
 | D1 production | `giacong-vn-catalog` | Catalog, leads, media metadata, CMS |
 | R2 production | `giacong-vn-product-media` | Ảnh product/variant/service qua `/media/*` |
 | Request intake | Google Sheet "Yêu cầu báo giá Giacong" + Apps Script | Xem mục 3 |
-| Backup D1 | `.runtime/handover-20260913/production-d1-after-navigation.sql` (SHA-256 `FA70535FB59FA0F738CDE82598369AD515216D5587C4A556FA2D7538A7D34B41`) | Export sau thay đổi navigation; restore-drill trước release đạt `integrity_check=ok` |
+| Backup D1 | `.runtime/production-pre-release-20260916.sql` (SHA-256 `A2CA111AEBE6522E54CBD2BA6348D2C09B49F389E1DDF67F57F8D7B7A984C104`) | Export ngay trước production migration/release; file bị ignore, không commit |
 
 ## 2. Vận hành admin
 
@@ -172,15 +174,27 @@ npx wrangler queues info giacong-vn-leads-dlq      # hàng đợi lead thất b�
 - Cần thêm trường mới trên form/Sheet (thay đổi contract — phải cập nhật cả Worker lẫn Apps Script + test).
 - Thêm admin viên trên staging: cấu hình email/identity trong chính sách Cloudflare Access, sau đó owner `qtu1053@gmail.com` dùng `/admin/thanh-vien` để tạo bản ghi `admin_members` và cấp role `owner` theo mô hình Lean V1. Không ghi trực tiếp production khi chưa có backup/acceptance.
 
-Trạng thái bàn giao hiện tại: production storefront vẫn chạy 100% trên
-`kienhieu.id.vn` với version `7f98ed7b-0d9f-4d59-880c-ee364e02e610`; chưa được
-promotion bản mới. Staging đang chạy source `65f1d45a` với version
-`b91f6113-1915-42a8-8c25-876aee499dcf`. Các nhóm regression catalog/service/
-commerce lần lượt pass `7/7`, `28/28`, `104/104`; build OpenNext/Cloudflare
-hoàn tất; GitHub Actions run `35107576405` cũng pass Quality gate và staging
-gate. Browser read-back trên staging đã kiểm tra URL cũ, CTA dịch vụ và giỏ.
-Không dùng dữ liệu demo staging làm dữ liệu production.
+Trạng thái phát hành hiện tại: production storefront và admin route đã chạy
+version `f35067a6-dfe4-4c60-997e-2f4486488af9` ở 100% traffic; deployment ID là
+`46a7f6fb-0fca-49b2-93da-a4da5f2045e2`. Smoke production trực tiếp đạt:
+storefront/policy/catalog/service/product/cart `200`, `/robots.txt` và
+`/sitemap.xml` `200`, 404 đúng `404`, URL sản phẩm demo cũ `308` về `/san-pham/`,
+và admin chưa xác thực bị Cloudflare Access chặn `302`. Product API đọc đúng
+`bot-gao-lut-xay-min`, 3 SKU; cart revalidation với SKU production
+`B2B-SEED-BGL-05` xác nhận MOQ `25`, bước `5`, đơn giá `78.000 ₫`, tạm tính
+`1.950.000 ₫`. Browser production ở 390px không tràn ngang và không có console
+error/warning. Không gửi RFQ thật.
 
-Các gate còn lại của bàn giao là theo dõi observability đủ 24 giờ, chủ dự án
-duyệt nội dung kinh doanh/catalog và quyết định redirect `giacong.vn` nếu có
-quyền DNS/hosting domain cũ.
+Trước phát hành đã export D1 production tại
+`.runtime/production-pre-release-20260916.sql`, SHA-256
+`A2CA111AEBE6522E54CBD2BA6348D2C09B49F389E1DDF67F57F8D7B7A984C104`; migration
+`0023–0026` áp dụng thành công, không còn pending. Rollback code là
+`npx --no-install wrangler versions deploy 7f98ed7b-0d9f-4d59-880c-ee364e02e610@100% --env="" --yes`;
+rollback dữ liệu không tự động, chỉ dùng backup sau khi có chủ ý và kiểm tra
+restore/audit.
+
+Các gate bàn giao còn mở và không được đánh dấu đạt chỉ vì deploy xanh: cần chủ
+dự án xác nhận bản ghi dịch vụ production có slug `test` (đang active từ trước,
+không tự xóa); kiểm tra admin production bằng identity thật; xác nhận nội dung
+kinh doanh/pháp lý, nơi nhận RFQ và theo dõi observability đủ 24 giờ. Dữ liệu
+staging QA không được đưa sang production.
