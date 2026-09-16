@@ -247,7 +247,7 @@ jobs:
 
           status=$(staging_curl --silent --show-error --max-time 25 --output /tmp/contact-drift.json --write-out '%{http_code}' \
             -H 'Content-Type: application/json' \
-            --data '{"email":"qa@example.com","lines":[{"parentSlug":"bot-gao-lut-xay-min","variantSku":"B2B-DEMO-BGL-05","quantity":25}],"message":"staging QA only","name":"Staging QA","phone":"0868408115","requestId":"00000000-0000-4000-8000-000000000001","snapshotToken":"0000000000000000000000000000000000000000000000000000000000000000","source":"staging-deep-qa"}' \
+            --data '{"address":"","companyName":"","deliveryLocation":"Hà Nội","email":"qa@example.com","lines":[{"parentSlug":"bot-gao-lut-xay-min","variantSku":"B2B-DEMO-BGL-05","quantity":25}],"message":"staging QA only","name":"Staging QA","neededBy":"","phone":"0868408115","requestId":"00000000-0000-4000-8000-000000000001","snapshotToken":"0000000000000000000000000000000000000000000000000000000000000000","source":"/gui-yeu-cau/","vatInvoice":""}' \
             "$STAGING_ORIGIN/api/contact")
           echo "Contact stale snapshot -> HTTP $status"
           test "$status" = "409"
