@@ -33,6 +33,10 @@ jobs:
       CLOUDFLARE_ACCESS_CLIENT_SECRET: ${{ secrets.CLOUDFLARE_ACCESS_CLIENT_SECRET }}
       STAGING_ORIGIN: https://staging.kienhieu.id.vn
       STAGING_DATABASE: giacong-vn-catalog-staging
+      # The active deep-QA origin is the public storefront. Access service-token
+      # headers are opt-in for a protected origin and must not be sent to the
+      # public host, where they can trigger an edge challenge.
+      STAGING_ACCESS_REQUIRED: "false"
 
     steps:
       - name: Checkout
@@ -67,7 +71,7 @@ jobs:
 
           staging_curl() {
             local -a access_headers=()
-            if [[ -n "${CLOUDFLARE_ACCESS_CLIENT_ID:-}" && -n "${CLOUDFLARE_ACCESS_CLIENT_SECRET:-}" ]]; then
+            if [[ "${STAGING_ACCESS_REQUIRED:-false}" == "true" && -n "${CLOUDFLARE_ACCESS_CLIENT_ID:-}" && -n "${CLOUDFLARE_ACCESS_CLIENT_SECRET:-}" ]]; then
               access_headers=(
                 -H "CF-Access-Client-Id: ${CLOUDFLARE_ACCESS_CLIENT_ID}"
                 -H "CF-Access-Client-Secret: ${CLOUDFLARE_ACCESS_CLIENT_SECRET}"
@@ -130,7 +134,7 @@ jobs:
 
           staging_curl() {
             local -a access_headers=()
-            if [[ -n "${CLOUDFLARE_ACCESS_CLIENT_ID:-}" && -n "${CLOUDFLARE_ACCESS_CLIENT_SECRET:-}" ]]; then
+            if [[ "${STAGING_ACCESS_REQUIRED:-false}" == "true" && -n "${CLOUDFLARE_ACCESS_CLIENT_ID:-}" && -n "${CLOUDFLARE_ACCESS_CLIENT_SECRET:-}" ]]; then
               access_headers=(
                 -H "CF-Access-Client-Id: ${CLOUDFLARE_ACCESS_CLIENT_ID}"
                 -H "CF-Access-Client-Secret: ${CLOUDFLARE_ACCESS_CLIENT_SECRET}"
@@ -168,7 +172,7 @@ jobs:
 
           staging_curl() {
             local -a access_headers=()
-            if [[ -n "${CLOUDFLARE_ACCESS_CLIENT_ID:-}" && -n "${CLOUDFLARE_ACCESS_CLIENT_SECRET:-}" ]]; then
+            if [[ "${STAGING_ACCESS_REQUIRED:-false}" == "true" && -n "${CLOUDFLARE_ACCESS_CLIENT_ID:-}" && -n "${CLOUDFLARE_ACCESS_CLIENT_SECRET:-}" ]]; then
               access_headers=(
                 -H "CF-Access-Client-Id: ${CLOUDFLARE_ACCESS_CLIENT_ID}"
                 -H "CF-Access-Client-Secret: ${CLOUDFLARE_ACCESS_CLIENT_SECRET}"
@@ -223,7 +227,7 @@ jobs:
 
           staging_curl() {
             local -a access_headers=()
-            if [[ -n "${CLOUDFLARE_ACCESS_CLIENT_ID:-}" && -n "${CLOUDFLARE_ACCESS_CLIENT_SECRET:-}" ]]; then
+            if [[ "${STAGING_ACCESS_REQUIRED:-false}" == "true" && -n "${CLOUDFLARE_ACCESS_CLIENT_ID:-}" && -n "${CLOUDFLARE_ACCESS_CLIENT_SECRET:-}" ]]; then
               access_headers=(
                 -H "CF-Access-Client-Id: ${CLOUDFLARE_ACCESS_CLIENT_ID}"
                 -H "CF-Access-Client-Secret: ${CLOUDFLARE_ACCESS_CLIENT_SECRET}"
@@ -252,7 +256,7 @@ jobs:
 
           staging_curl() {
             local -a access_headers=()
-            if [[ -n "${CLOUDFLARE_ACCESS_CLIENT_ID:-}" && -n "${CLOUDFLARE_ACCESS_CLIENT_SECRET:-}" ]]; then
+            if [[ "${STAGING_ACCESS_REQUIRED:-false}" == "true" && -n "${CLOUDFLARE_ACCESS_CLIENT_ID:-}" && -n "${CLOUDFLARE_ACCESS_CLIENT_SECRET:-}" ]]; then
               access_headers=(
                 -H "CF-Access-Client-Id: ${CLOUDFLARE_ACCESS_CLIENT_ID}"
                 -H "CF-Access-Client-Secret: ${CLOUDFLARE_ACCESS_CLIENT_SECRET}"
@@ -294,7 +298,9 @@ jobs:
 
           const browser = await chromium.launch({ headless: true });
           const stagingOrigin = new URL(origin).origin;
-          const accessHeaders = process.env.CLOUDFLARE_ACCESS_CLIENT_ID && process.env.CLOUDFLARE_ACCESS_CLIENT_SECRET
+          const accessHeaders = process.env.STAGING_ACCESS_REQUIRED === 'true'
+            && process.env.CLOUDFLARE_ACCESS_CLIENT_ID
+            && process.env.CLOUDFLARE_ACCESS_CLIENT_SECRET
             ? {
                 'CF-Access-Client-Id': process.env.CLOUDFLARE_ACCESS_CLIENT_ID,
                 'CF-Access-Client-Secret': process.env.CLOUDFLARE_ACCESS_CLIENT_SECRET,
