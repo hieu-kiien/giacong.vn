@@ -3,6 +3,7 @@
 // Values, versions and audit metadata still come from the database row.
 import assert from "node:assert/strict";
 import test from "node:test";
+import { readFile } from "node:fs/promises";
 import { listAdminSiteSettings } from "../src/lib/site-settings.ts";
 
 function fakeDb(rows: Array<Record<string, unknown>>) {
@@ -75,4 +76,13 @@ test("saved published value reports itself as effective", async () => {
 
   assert.equal(settings[0]?.effectiveValue, "Ten da luu");
   assert.equal(settings[0]?.isDefaultValue, false);
+});
+
+test("admin editor explains the effective value without replacing an empty draft", async () => {
+  const source = await readFile(new URL("../src/app/admin/noi-dung/page.tsx", import.meta.url), "utf8");
+
+  assert.match(source, /setting-effective-\$\{setting\.key\}/);
+  assert.match(source, /ngoài web đang dùng giá trị mặc định/);
+  assert.match(source, /ngoài web đang dùng bản đã đăng/);
+  assert.match(source, /placeholder=\{setting\.isDefaultValue && setting\.effectiveValue/);
 });

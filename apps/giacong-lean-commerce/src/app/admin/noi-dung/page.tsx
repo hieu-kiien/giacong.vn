@@ -321,6 +321,12 @@ function SettingEditor({
   onImageUpload: (file: File) => void;
 }) {
   const isMultiline = setting.type === "multiline";
+  const draftValueIsEmpty = setting.draftValue.trim() === "";
+  const effectiveValueNote = draftValueIsEmpty
+    ? setting.isDefaultValue
+      ? `Ô đang trống — ngoài web đang dùng giá trị mặc định: ${setting.effectiveValue || "—"}`
+      : `Ô đang trống — ngoài web đang dùng bản đã đăng: ${setting.effectiveValue || "—"}`
+    : null;
   const imagePreview = setting.type === "image"
     ? setting.draftValue.trim() || setting.effectiveValue.trim()
     : "";
@@ -337,9 +343,9 @@ function SettingEditor({
       <div className={`admin-setting-input-wrap${setting.type === "color" ? " is-color" : ""}`}>
         {setting.type === "color" ? <input aria-label={`${setting.label} preview`} className="admin-color-input" disabled={!canEdit} onChange={(event) => onChange(setting.key, event.target.value)} type="color" value={/^#[0-9a-f]{6}$/i.test(setting.draftValue) ? setting.draftValue : "#6cbe45"} /> : null}
         {isMultiline ? (
-          <textarea className="admin-textarea" data-testid={`input-setting-${setting.key}`} disabled={!canEdit} id={`setting-${setting.key}`} onChange={(event) => onChange(setting.key, event.target.value)} rows={4} value={setting.draftValue} />
+          <textarea className="admin-textarea" data-testid={`input-setting-${setting.key}`} disabled={!canEdit} id={`setting-${setting.key}`} onChange={(event) => onChange(setting.key, event.target.value)} placeholder={setting.isDefaultValue && setting.effectiveValue ? `Mặc định: ${setting.effectiveValue}` : undefined} rows={4} value={setting.draftValue} />
         ) : (
-          <input className={`admin-input${setting.type === "color" ? " admin-input-color-value" : ""}`} data-testid={`input-setting-${setting.key}`} disabled={!canEdit} id={`setting-${setting.key}`} onChange={(event) => onChange(setting.key, event.target.value)} type={setting.type === "url" ? "url" : "text"} value={setting.draftValue} />
+          <input className={`admin-input${setting.type === "color" ? " admin-input-color-value" : ""}`} data-testid={`input-setting-${setting.key}`} disabled={!canEdit} id={`setting-${setting.key}`} onChange={(event) => onChange(setting.key, event.target.value)} placeholder={setting.isDefaultValue && setting.effectiveValue ? `Mặc định: ${setting.effectiveValue}` : undefined} type={setting.type === "url" ? "url" : "text"} value={setting.draftValue} />
         )}
       </div>
       {imagePreview ? (
@@ -374,7 +380,7 @@ function SettingEditor({
       ) : null}
       <div className="admin-setting-meta">
         <span>bản {setting.version} · Cập nhật {formatAdminDate(setting.updatedAt)}</span>
-        {setting.draftValue.trim() === "" ? <small>Ô đang trống — ngoài web đang hiện: {setting.effectiveValue || "—"}{setting.isDefaultValue ? " (giá trị mặc định)" : ""}</small> : null}
+        {effectiveValueNote ? <small data-testid={`setting-effective-${setting.key}`}>{effectiveValueNote}</small> : null}
         <div className="admin-setting-actions">
           <button className="admin-button admin-button-quiet" data-testid={`button-setting-save-${setting.key}`} disabled={!canEdit || !hasUnsavedChanges || saving} onClick={onSave} type="button"><Save size={13} /> {saving ? "Đang lưu" : "Lưu nháp"}</button>
           <button className="admin-button admin-button-primary" data-testid={`button-setting-publish-${setting.key}`} disabled={!canEdit || hasUnsavedChanges || !setting.dirty || publishing} onClick={onPublish} type="button"><Send size={13} /> {publishing ? "Đang phát hành" : "Phát hành"}</button>
