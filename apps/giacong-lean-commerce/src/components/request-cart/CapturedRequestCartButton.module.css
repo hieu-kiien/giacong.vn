@@ -48,3 +48,34 @@
   right: -4px;
   top: -4px;
 }
+
+/* The legacy contact rail narrows to 38px between 550px and 1199px. Keep the
+ * cart's hashed link inside that lane; the old global selector only matched a
+ * literal `.link` class and left this CSS-module link at 45px. */
+@media (min-width: 550px) and (max-width: 1199px) {
+  .container {
+    box-sizing: border-box;
+    height: 38px;
+    padding: 3px 0 3px 6px;
+    width: 38px;
+  }
+
+  .link {
+    box-sizing: border-box;
+    height: 100%;
+    inset: 0;
+    padding-left: 6px;
+    position: absolute;
+    width: 100%;
+  }
+
+  .icon {
+    height: 22px;
+    width: 22px;
+  }
+
+  .count {
+    right: 0;
+    top: 0;
+  }
+}
