@@ -8,15 +8,17 @@ Kiểm tra được thực hiện trên đúng bản staging đang chạy, khôn
 
 ### Phiên bản và môi trường
 
-- Runtime source commit: `8077cec1c953def8baf33e3e8d90566e973beac2`;
+- Runtime source snapshot đã deploy (sau đó được commit/push nguyên trạng): `eba85cb765aa994e86c60974ef4fdccaf37eca33`;
   workflow/contract CI deep QA được kiểm tra ở commit `4762c482` trên nhánh
   `codex/admin-quality-completion` và chưa được deploy. Bản staging được
-  build/deploy từ đúng runtime commit.
+  build/deploy từ đúng source snapshot này.
 - Staging Worker `giacong-vn-staging`, version
-  `8e115f49-9b4b-48a3-8eb9-85b9eddb70a0`, phục vụ
+  `a676fed4-2d08-4637-882b-f6dad976ef84`, phục vụ
   `staging.kienhieu.id.vn` và `admin-staging.kienhieu.id.vn`.
-- Deployment được Cloudflare ghi nhận lúc `2026-09-16 00:15:11 +07:00`; HTTP
-  smoke, deep QA và UX audit dưới đây đều chạy sau deployment này; không có
+- Deployment mới được Cloudflare ghi nhận lúc `2026-09-16 17:13:40 +07:00`; HTTP
+  smoke và browser recheck H1 dưới đây chạy sau deployment này; các bằng chứng
+  deep QA/UX audit trước đó chạy trên version `8e115f49` và không bị suy diễn
+  sang hotfix nếu chưa chạy lại; không có
   thay đổi source sau lần deploy. Bản này cũng đã loại widget đánh giá và
   liên kết/badge DMCA không có căn cứ khỏi captured markup dùng trên public.
 - Migration `0023_managed_service_taxonomy.sql` đến
@@ -108,6 +110,23 @@ Kiểm tra được thực hiện trên đúng bản staging đang chạy, khôn
   áp dụng đúng đơn giá `143.500 ₫`, tạm tính `8.610.000 ₫`; giỏ giữ 2 SKU sau
   tải lại. Submit thiếu thông tin bị chặn ở client; không gửi controlled request
   thật vì nơi nhận vẫn chưa được owner xác nhận.
+
+### Recheck sau sửa H1 captured service — 2026-09-16
+
+- Commit source đã push trên nhánh `codex/admin-quality-completion`:
+  `eba85cb765aa994e86c60974ef4fdccaf37eca33`. Hàm áp dụng site settings
+  không còn ghi đè H1/CTA/hero của route captured; các trường Hero chỉ chạy
+  qua adapter homepage.
+- Staging Worker mới `a676fed4-2d08-4637-882b-f6dad976ef84` (version 245),
+  deploy lúc `2026-09-16 17:13:40 +07:00`. Browser public kiểm tra đúng
+  route `/gia-cong-sot-bo-dau-phong/`: title và H1 đều là
+  `Gia Công Sốt Bơ Đậu Phộng`, không còn H1 Hero trang chủ; canonical là
+  `https://kienhieu.id.vn/gia-cong-sot-bo-dau-phong/`. Homepage vẫn giữ H1
+  `Giải pháp gia công toàn diện chuyên nghiệp`.
+- Regression mới pass: route captured giữ H1 gốc; suite commerce sau thay đổi
+  đạt `102/102`; quality gate source cuối tiếp tục pass admin/contact/catalog/
+  service/listing/detail, lint, typecheck và build `28/28`. Không có D1/R2
+  mutation trong hotfix.
 
 ### Gate tự động trên bản cuối
 

@@ -5,17 +5,22 @@ Tài liệu dành cho người vận hành (khách + chủ dự án). Quyết đ
 ## Checkpoint bàn giao mới nhất
 
 Production **chưa được thay đổi trong đợt này**; runtime source bàn giao là commit
-`8077cec1c953def8baf33e3e8d90566e973beac2`. Workflow/contract CI deep QA được
+`eba85cb765aa994e86c60974ef4fdccaf37eca33`. Workflow/contract CI deep QA được
 kiểm tra ở commit `4762c482` trên nhánh `codex/admin-quality-completion` và chưa
 deploy. Không dùng version production cũ trong tài
 liệu này làm bằng chứng nghiệm thu mới. Staging đang chạy
 `giacong-vn-staging` version
-`8e115f49-9b4b-48a3-8eb9-85b9eddb70a0` trên
+`a676fed4-2d08-4637-882b-f6dad976ef84` trên
 `staging.kienhieu.id.vn` và `admin-staging.kienhieu.id.vn`, deploy lúc
-`2026-09-16 00:15:11 +07:00`.
+`2026-09-16 17:13:40 +07:00`.
 Read-only Wrangler đối chiếu production Worker `giacong-vn` đang ở version
 `7f98ed7b-0d9f-4d59-880c-ee364e02e610`; migration staging `0023–0026` chưa được
 áp dụng vào D1 production.
+
+Hotfix H1 captured service đã được kiểm tra trên public staging sau deploy:
+`/gia-cong-sot-bo-dau-phong/` hiển thị H1 theo đúng nội dung dịch vụ và
+canonical đúng URL; homepage vẫn giữ H1 Hero. Hotfix không ghi D1/R2 và đã push
+trên nhánh `codex/admin-quality-completion`.
 
 Access owner đã đọc lại các shortcut inline sản phẩm/dịch vụ/tin tức/liên hệ
 trên đúng version `4c85039f`; form dịch vụ mở đúng bản ghi ID 8, form contact
