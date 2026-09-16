@@ -7,7 +7,8 @@ Tài liệu dành cho người vận hành (khách + chủ dự án). Quyết đ
 Production **chưa được thay đổi trong đợt này**; runtime source bàn giao là commit
 `eba85cb765aa994e86c60974ef4fdccaf37eca33`. Quality/staging gate source đã
 chạy ở commit `51ac1bdd` trên nhánh `codex/admin-quality-completion` và xanh;
-HEAD hiện tại `5c3c9151f165434436cf51df6fb197e6d4dce323` chỉ sửa fixture CI.
+HEAD được quality gate kiểm tra gần nhất là `04cc54bca43e3626867bd46d5f0a029b68f77dc4`;
+thay đổi sau Deep-QA chỉ cập nhật tài liệu, không thay đổi runtime.
 Deep-QA mới nhất [run `35088052299`](https://github.com/hieu-kiien/giacong.vn/actions/runs/35088052299)
 chạy đúng HEAD trên active protected preview và xanh toàn bộ. Không dùng
 version production cũ trong tài liệu này làm bằng chứng nghiệm thu mới. Staging đang chạy
@@ -46,7 +47,7 @@ noindex, không canonical. Biến thể QA `SMOKE-VARIANT-20260816` (ID 28) đã
   được xóa khỏi D1 staging sau khi kiểm tra không có media/lead tham chiếu;
   2 tier bị cascade và 3 audit lịch sử được giữ.
 Quality/staging gate GitHub run
-`35084763965` (commit `51ac1bdd`) xanh cả Quality gate và staging dry-run;
+`35088401099` (HEAD `04cc54bc`) xanh cả Quality gate và staging dry-run;
 workflow không deploy. Deep-QA run
 `35088052299` (HEAD `5c3c9151`) xanh trên active protected preview, gồm catalog,
 product/cart/contact-drift, R2 media và responsive browser checks. Workflow

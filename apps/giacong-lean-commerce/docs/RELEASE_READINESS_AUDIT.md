@@ -9,11 +9,11 @@ Kiểm tra được thực hiện trên đúng bản staging đang chạy, khôn
 ### Phiên bản và môi trường
 
 - Runtime source snapshot đã deploy (sau đó được commit/push nguyên trạng): `eba85cb765aa994e86c60974ef4fdccaf37eca33`;
-  quality/staging gate source mới nhất chạy ở commit `51ac1bdd` trên nhánh
-  `codex/admin-quality-completion` và xanh. Sau đó chỉ có các sửa CI không
-  thay đổi runtime; HEAD hiện tại là `5c3c9151f165434436cf51df6fb197e6d4dce323`.
-  Deep-QA mới nhất chạy đúng HEAD này trên active protected preview và xanh
-  toàn bộ. Bản staging được build/deploy từ đúng source snapshot runtime này.
+  quality/staging gate mới nhất chạy ở HEAD `04cc54bc` trên nhánh
+  `codex/admin-quality-completion` và xanh; HEAD sau Deep-QA chỉ bổ sung tài
+  liệu, không thay đổi runtime. Deep-QA mới nhất chạy trên runtime/CI HEAD
+  `5c3c9151` trên active protected preview và xanh toàn bộ. Bản staging được
+  build/deploy từ đúng source snapshot runtime này.
 - Staging Worker `giacong-vn-staging`, version
   `a676fed4-2d08-4637-882b-f6dad976ef84`, phục vụ
   `staging.kienhieu.id.vn` và `admin-staging.kienhieu.id.vn`.
@@ -136,8 +136,8 @@ Các suite trên source cuối đạt: admin `372/372`, contact `110/110`, catal
 `6/6`, purchase UI `1/1`, service `28/28`, commerce `102/102`, listing `6/6`,
   detail `33/33`; lint, typecheck và OpenNext build compile pass, tạo đủ
 `28/28` route. `npm audit --audit-level=high` báo `0 vulnerabilities`.
-- GitHub [quality/staging gate run `35084763965`](https://github.com/hieu-kiien/giacong.vn/actions/runs/35084763965)
-  xanh cả quality và staging dry-run, không deploy. GitHub [deep-QA run `35088052299`](https://github.com/hieu-kiien/giacong.vn/actions/runs/35088052299)
+- GitHub [quality/staging gate run `35088401099`](https://github.com/hieu-kiien/giacong.vn/actions/runs/35088401099)
+  xanh cả quality và staging dry-run trên HEAD `04cc54bc`, không deploy. GitHub [deep-QA run `35088052299`](https://github.com/hieu-kiien/giacong.vn/actions/runs/35088052299)
   chạy đúng HEAD `5c3c9151` và xanh toàn bộ: deployment preview, catalog,
   product API/quantity, cart validation, contact cart-drift guard, R2 media và
   responsive browser-error check. Workflow lấy URL preview của version vừa
