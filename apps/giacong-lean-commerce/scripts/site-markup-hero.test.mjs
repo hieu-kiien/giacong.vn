@@ -36,7 +36,7 @@ const settings = (heroImageUrl) => ({
 });
 
 test("replaces the hero src AND strips legacy srcset so the new image actually renders", () => {
-  const result = applySiteSettingsToMarkup(heroMarkup, settings("https://media.example.test/hero-new.jpg"));
+  const result = applyHomepageSiteSettingsToMarkup(heroMarkup, settings("https://media.example.test/hero-new.jpg"));
 
   assert.match(result, /src="https:\/\/media\.example\.test\/hero-new\.jpg"/);
   assert.doesNotMatch(result, /srcset=/, "stale srcset would win over src in the browser");
@@ -45,7 +45,7 @@ test("replaces the hero src AND strips legacy srcset so the new image actually r
 });
 
 test("keeps the original hero markup untouched when no custom image is set", () => {
-  const result = applySiteSettingsToMarkup(heroMarkup, settings(""));
+  const result = applyHomepageSiteSettingsToMarkup(heroMarkup, settings(""));
 
   assert.match(result, /srcset="https:\/\/giacong\.vn/);
 });
@@ -76,7 +76,7 @@ test("applies the published brand tagline beside the captured logo safely", () =
 });
 
 test("applies published hero CTA labels and URLs safely", () => {
-  const result = applySiteSettingsToMarkup(heroCtaMarkup, {
+  const result = applyHomepageSiteSettingsToMarkup(heroCtaMarkup, {
     ...settings(""),
     hero_primary_cta_label: "Xem thêm <QA>",
     hero_primary_cta_url: "/gioi-thieu?from=<qa>",
@@ -108,7 +108,7 @@ test("applies homepage-only descriptions and the real captured about heading", (
 
 test("keeps the hero heading hierarchy without misapplying the about title", () => {
   const heroThenEyebrow = '<h1 class="entry-title">Old hero</h1><h3 class="entry-title">Old eyebrow</h3><h2 class="entry-title">Old about</h2>';
-  const heroThenEyebrowResult = applySiteSettingsToMarkup(heroThenEyebrow, settings(""));
+  const heroThenEyebrowResult = applyHomepageSiteSettingsToMarkup(heroThenEyebrow, settings(""));
 
   assert.match(heroThenEyebrowResult, /<h1 class="entry-title">Tiêu đề<\/h1>/);
   assert.match(heroThenEyebrowResult, /<h2 class="entry-title">Eyebrow<\/h2>/);
@@ -116,7 +116,7 @@ test("keeps the hero heading hierarchy without misapplying the about title", () 
   assert.doesNotMatch(heroThenEyebrowResult, /<h3 class="entry-title">/);
 
   const sourceOrder = '<h3 class="entry-title">Old eyebrow</h3><h1 class="entry-title">Old hero</h1><h2 class="entry-title">Old about</h2>';
-  const sourceOrderResult = applySiteSettingsToMarkup(sourceOrder, settings(""));
+  const sourceOrderResult = applyHomepageSiteSettingsToMarkup(sourceOrder, settings(""));
 
   assert.match(sourceOrderResult, /<h3 class="entry-title">Eyebrow<\/h3>/);
   assert.match(sourceOrderResult, /<h1 class="entry-title">Tiêu đề<\/h1>/);
@@ -148,4 +148,14 @@ test("keeps legacy company-info block untouched when contact settings are empty"
 
   assert.match(result, /Lê Duẩn/);
   assert.match(result, /0938\.591\.444/);
+});
+
+test("does not apply homepage hero settings to a captured service page", () => {
+  const result = applySiteSettingsToMarkup(
+    '<h1 class="entry-title">Gia Công Sốt Bơ Đậu Phộng</h1><p>Nội dung dịch vụ.</p>',
+    settings(""),
+  );
+
+  assert.match(result, /<h1 class="entry-title">Gia Công Sốt Bơ Đậu Phộng<\/h1>/);
+  assert.doesNotMatch(result, /Tiêu đề/);
 });

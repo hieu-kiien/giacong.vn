@@ -4,7 +4,7 @@ import test from "node:test";
 
 const { layerCapturedStyles, normalizeCapturedMarkup } = await import("../src/lib/captured-markup" + ".ts");
 const { transformPage } = await import("./capture-giacong.mjs");
-const { applySiteSettingsToMarkup } = await import("../src/lib/site-markup" + ".ts");
+const { applyHomepageSiteSettingsToMarkup } = await import("../src/lib/site-markup" + ".ts");
 const { applyNavigationToMarkup } = await import("../src/lib/site-navigation" + ".ts");
 const interactions = await readFile(new URL("../src/components/GiacongInteractions.tsx", import.meta.url), "utf8");
 const capturedMotion = await readFile(new URL("../src/components/captured-motion.ts", import.meta.url), "utf8");
@@ -211,7 +211,7 @@ test("desktop UX audit checks the direct product link and service mega-menu", ()
 
 test("keeps the hero eyebrow as h3 and applies the about title to the real h2", () => {
   const markup = '<section class="section01"><h3 class="entry-title">Old eyebrow</h3><h1 class="entry-title">Old hero</h1></section><section><h2 class="entry-title">Old about</h2></section>';
-  const result = applySiteSettingsToMarkup(markup, settings);
+  const result = applyHomepageSiteSettingsToMarkup(markup, settings);
 
   assert.match(result, /<h3 class="entry-title">Năng lực gia công<\/h3>/);
   assert.match(result, /<h1 class="entry-title">Hero mới<\/h1>/);

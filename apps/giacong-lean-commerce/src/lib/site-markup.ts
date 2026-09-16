@@ -1,6 +1,15 @@
 import type { PublishedSiteSettings } from "./site-settings";
 
-export function applySiteSettingsToMarkup(markup: string, settings: PublishedSiteSettings): string {
+interface SiteMarkupOptions {
+  /** Apply fields that belong only to the captured homepage hero. */
+  applyHomepageContent?: boolean;
+}
+
+export function applySiteSettingsToMarkup(
+  markup: string,
+  settings: PublishedSiteSettings,
+  options: SiteMarkupOptions = {},
+): string {
   let   result = markup;
   const brandName = escapeHtml(settings.brand_name);
   const email = escapeHtml(settings.contact_email);
@@ -29,17 +38,19 @@ export function applySiteSettingsToMarkup(markup: string, settings: PublishedSit
   result = replaceFooterCopyright(result, settings.footer_copyright);
   result = replaceContactInfo(result, settings);
 
-  result = replaceFirstElementText(result, /<h1\b[^>]*class=(["'])[^"']*\bentry-title\b[^"']*\1[^>]*>[\s\S]*?<\/h1>/i, settings.hero_title);
-  result = replaceFirstElementText(result, /<h3\b[^>]*class=(["'])[^"']*\bentry-title\b[^"']*\1[^>]*>[\s\S]*?<\/h3>/i, settings.hero_eyebrow);
-  result = replaceFirstElementText(result, /<h2\b[^>]*class=(["'])[^"']*\bentry-title\b[^"']*\1[^>]*>[\s\S]*?<\/h2>/i, settings.about_title);
-  // The captured eyebrow is an h3 under an h1; promote it so the document
-  // outline never skips a level (h1 → h3). First entry-title h3 only.
-  result = promoteHeroEyebrowAfterHeroTitle(result);
-  result = replaceHeroImage(result, settings.hero_image_url);
+  if (options.applyHomepageContent === true) {
+    result = replaceFirstElementText(result, /<h1\b[^>]*class=(["'])[^"']*\bentry-title\b[^"']*\1[^>]*>[\s\S]*?<\/h1>/i, settings.hero_title);
+    result = replaceFirstElementText(result, /<h3\b[^>]*class=(["'])[^"']*\bentry-title\b[^"']*\1[^>]*>[\s\S]*?<\/h3>/i, settings.hero_eyebrow);
+    result = replaceFirstElementText(result, /<h2\b[^>]*class=(["'])[^"']*\bentry-title\b[^"']*\1[^>]*>[\s\S]*?<\/h2>/i, settings.about_title);
+    // The captured eyebrow is an h3 under an h1; promote it so the document
+    // outline never skips a level (h1 → h3). First entry-title h3 only.
+    result = promoteHeroEyebrowAfterHeroTitle(result);
+    result = replaceHeroImage(result, settings.hero_image_url);
+    result = replaceHeroCta(result, "nut-xem-them1", settings.hero_primary_cta_label, settings.hero_primary_cta_url);
+    result = replaceHeroCta(result, "nut-xem-them2", settings.hero_secondary_cta_label, settings.hero_secondary_cta_url);
+  }
   result = replaceLogo(result, settings.logo_url, settings.logo_dark_url);
   result = replaceBrandTagline(result, settings.brand_tagline);
-  result = replaceHeroCta(result, "nut-xem-them1", settings.hero_primary_cta_label, settings.hero_primary_cta_url);
-  result = replaceHeroCta(result, "nut-xem-them2", settings.hero_secondary_cta_label, settings.hero_secondary_cta_url);
 
   return result;
 }
@@ -51,7 +62,7 @@ export function applySiteSettingsToMarkup(markup: string, settings: PublishedSit
  * homepage content.
  */
 export function applyHomepageSiteSettingsToMarkup(markup: string, settings: PublishedSiteSettings): string {
-  let result = applySiteSettingsToMarkup(markup, settings);
+  let result = applySiteSettingsToMarkup(markup, settings, { applyHomepageContent: true });
   result = replaceHomepageSectionElementText(result, "section01", "p", settings.hero_description, escapeTextWithBreaks);
   result = replaceHomepageSectionElementText(result, "section02", "h2", settings.about_title, escapeHtml);
   result = replaceHomepageSectionElementText(result, "section02", "p", settings.about_description, escapeTextWithBreaks);
