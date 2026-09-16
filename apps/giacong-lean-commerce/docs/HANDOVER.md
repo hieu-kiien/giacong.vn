@@ -5,9 +5,10 @@ Tài liệu dành cho người vận hành (khách + chủ dự án). Quyết đ
 ## Checkpoint bàn giao mới nhất
 
 Production **chưa được thay đổi trong đợt này**; runtime source bàn giao là commit
-`eba85cb765aa994e86c60974ef4fdccaf37eca33`. Workflow/contract CI deep QA được
-kiểm tra ở commit `4762c482` trên nhánh `codex/admin-quality-completion` và chưa
-deploy. Không dùng version production cũ trong tài
+`eba85cb765aa994e86c60974ef4fdccaf37eca33`. Quality/staging gate mới nhất đã
+chạy ở commit `51ac1bdd` trên nhánh `codex/admin-quality-completion` và xanh;
+deep-QA mới nhất cũng chạy trên commit này nhưng bị Cloudflare edge trả `403`
+ở bước catalog. Không dùng version production cũ trong tài
 liệu này làm bằng chứng nghiệm thu mới. Staging đang chạy
 `giacong-vn-staging` version
 `a676fed4-2d08-4637-882b-f6dad976ef84` trên
@@ -43,11 +44,13 @@ sitemap staging còn 223 URL và URL `/san-pham/test1` trả `404` với title r
 noindex, không canonical. Biến thể QA `SMOKE-VARIANT-20260816` (ID 28) đã
   được xóa khỏi D1 staging sau khi kiểm tra không có media/lead tham chiếu;
   2 tier bị cascade và 3 audit lịch sử được giữ.
-Quality/staging gate GitHub run `35001777778` xanh; deep-QA run `35056121809`
-đúng HEAD vẫn bị Cloudflare edge trả `403` ở bước catalog dù đã gửi Access
-service-token headers và User-Agent nhận diện riêng. Deep QA local/browser vẫn
-pass, nhưng pipeline GitHub chưa được coi là đạt cho đến khi owner xử lý
-allowlist/egress CI được phê duyệt.
+Quality/staging gate GitHub run
+`35084763965` (commit `51ac1bdd`) xanh cả Quality gate và staging dry-run;
+workflow không deploy. Deep-QA run
+`35085313576` (cùng commit) vẫn bị Cloudflare edge trả `403` ở bước catalog dù
+đã gửi Access service-token headers và User-Agent nhận diện riêng. Deep QA
+local/browser vẫn pass, nhưng pipeline GitHub chưa được coi là đạt cho đến khi
+owner xử lý allowlist/egress CI được phê duyệt.
 
 ## 1. Bản đồ hệ thống
 
@@ -55,7 +58,7 @@ allowlist/egress CI được phê duyệt.
 | --- | --- | --- |
 | Storefront production | https://kienhieu.id.vn | Chưa deploy bản checkpoint 2026-09-16; chỉ phát hành sau duyệt |
 | Admin production | https://admin.kienhieu.id.vn/admin | Sau Cloudflare Access — fail-closed |
-| Storefront staging | https://staging.kienhieu.id.vn | Worker `giacong-vn-staging`; version `8e115f49-9b4b-48a3-8eb9-85b9eddb70a0` |
+| Storefront staging | https://staging.kienhieu.id.vn | Worker `giacong-vn-staging`; version `a676fed4-2d08-4637-882b-f6dad976ef84` |
 | Admin staging | https://admin-staging.kienhieu.id.vn/admin | Cloudflare Access thật; storefront staging mới public; không có identity thì fail-closed |
 | D1 production | `giacong-vn-catalog` | Catalog, leads, media metadata, CMS |
 | R2 production | `giacong-vn-product-media` | Ảnh product/variant/service qua `/media/*` |
@@ -164,9 +167,9 @@ npx wrangler queues info giacong-vn-leads-dlq      # hàng đợi lead thất b�
 Trạng thái bàn giao hiện tại: production storefront vẫn chạy 100% trên
 `kienhieu.id.vn` với version `7f98ed7b-0d9f-4d59-880c-ee364e02e610`; chưa được
 promotion bản mới. Staging đang chạy
-`8e115f49-9b4b-48a3-8eb9-85b9eddb70a0`. Local gate, HTTP smoke, deep QA,
-responsive CUA/Playwright, UX audit, menu dịch vụ và các luồng RFQ mock đã pass
-trên source/deployment cuối. UX evidence nằm tại
+`a676fed4-2d08-4637-882b-f6dad976ef84`. Local gate, HTTP smoke, responsive
+CUA/Playwright, UX audit, menu dịch vụ và các luồng RFQ mock đã pass trên
+source/deployment cuối; GitHub deep QA còn bị chặn ở lớp edge như trên. UX evidence nằm tại
 `.runtime/ux-audit-final-20260916-r7`; một warning duy nhất là iframe Google
 Maps cross-origin. Cron mồ côi đã được gỡ; queue production còn đúng một
 producer và một consumer, DLQ tồn tại đúng theo cấu hình nhưng không có dấu

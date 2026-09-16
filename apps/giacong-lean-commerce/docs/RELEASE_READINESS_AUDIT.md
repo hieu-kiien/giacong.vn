@@ -9,8 +9,9 @@ Kiểm tra được thực hiện trên đúng bản staging đang chạy, khôn
 ### Phiên bản và môi trường
 
 - Runtime source snapshot đã deploy (sau đó được commit/push nguyên trạng): `eba85cb765aa994e86c60974ef4fdccaf37eca33`;
-  workflow/contract CI deep QA được kiểm tra ở commit `4762c482` trên nhánh
-  `codex/admin-quality-completion` và chưa được deploy. Bản staging được
+  quality/staging gate mới nhất chạy ở commit `51ac1bdd` trên nhánh
+  `codex/admin-quality-completion` và xanh; deep-QA cũng chạy trên commit này
+  nhưng bị Cloudflare edge trả `403` ở bước catalog. Bản staging được
   build/deploy từ đúng source snapshot này.
 - Staging Worker `giacong-vn-staging`, version
   `a676fed4-2d08-4637-882b-f6dad976ef84`, phục vụ
@@ -18,8 +19,8 @@ Kiểm tra được thực hiện trên đúng bản staging đang chạy, khôn
 - Deployment mới được Cloudflare ghi nhận lúc `2026-09-16 17:13:40 +07:00`; HTTP
   smoke và browser recheck H1 dưới đây chạy sau deployment này; các bằng chứng
   deep QA/UX audit trước đó chạy trên version `8e115f49` và không bị suy diễn
-  sang hotfix nếu chưa chạy lại; không có
-  thay đổi source sau lần deploy. Bản này cũng đã loại widget đánh giá và
+  sang hotfix nếu chưa chạy lại; không có thay đổi runtime source sau lần
+  deploy. Bản này cũng đã loại widget đánh giá và
   liên kết/badge DMCA không có căn cứ khỏi captured markup dùng trên public.
 - Migration `0023_managed_service_taxonomy.sql` đến
   `0026_service_slug_redirects.sql` đã áp dụng trên D1 staging; không còn
@@ -131,12 +132,12 @@ Kiểm tra được thực hiện trên đúng bản staging đang chạy, khôn
 ### Gate tự động trên bản cuối
 
 Các suite trên source cuối đạt: admin `372/372`, contact `110/110`, catalog
-`6/6`, purchase UI `1/1`, service `28/28`, commerce `101/101`, listing `6/6`,
+`6/6`, purchase UI `1/1`, service `28/28`, commerce `102/102`, listing `6/6`,
   detail `33/33`; lint, typecheck và OpenNext build compile pass, tạo đủ
 `28/28` route. `npm audit --audit-level=high` báo `0 vulnerabilities`.
-- GitHub [quality/staging gate run `35001777778`](https://github.com/hieu-kiien/giacong.vn/actions/runs/35001777778)
-  xanh; GitHub [deep-QA run `35056121809`](https://github.com/hieu-kiien/giacong.vn/actions/runs/35056121809)
-  chạy đúng HEAD `4762c482` nhưng vẫn fail HTTP `403` từ Cloudflare edge ở bước
+- GitHub [quality/staging gate run `35084763965`](https://github.com/hieu-kiien/giacong.vn/actions/runs/35084763965)
+  xanh cả quality và staging dry-run, không deploy; GitHub [deep-QA run `35085313576`](https://github.com/hieu-kiien/giacong.vn/actions/runs/35085313576)
+  chạy đúng commit `51ac1bdd` nhưng vẫn fail HTTP `403` từ Cloudflare edge ở bước
   catalog dù đã gửi Access service-token headers và User-Agent nhận diện riêng.
   Local/browser deep QA trên staging pass; CI edge restriction vẫn là blocker
   nghiệm thu pipeline, không được soft-pass.
@@ -144,9 +145,9 @@ Các suite trên source cuối đạt: admin `372/372`, contact `110/110`, catal
   (`228` file, `1.101` symbol, `118` execution flow) vì branch mang toàn bộ
   delta tính năng từ merge-base. Đây là blocker review/merge riêng, không phải
   lỗi runtime mới; không nhập branch vào `master` nếu chưa review có kiểm soát.
-Deployment staging `8e115f49` hoàn tất build/deploy; một số wrapper Windows
-được dừng sau khi output cuối đã pass, không dùng trạng thái wrapper để thay thế
-browser/runtime evidence.
+Deployment staging `a676fed4-2d08-4637-882b-f6dad976ef84` hoàn tất
+build/deploy; một số wrapper Windows được dừng sau khi output cuối đã pass,
+không dùng trạng thái wrapper để thay thế browser/runtime evidence.
 
 ### Trạng thái chốt bàn giao
 
