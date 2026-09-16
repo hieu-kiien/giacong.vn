@@ -47,6 +47,10 @@ chứng lịch sử, không thay thế kiểm tra trên bản staging cuối.
   riêng. Đây là blocker CI runner/edge cần owner xử lý bằng allowlist hoặc egress
   được phê duyệt; không đánh dấu deep QA GitHub đạt và không thay đổi quyền
   Access trong lượt này. Local/browser deep QA pass.
+- [ ] GitNexus đã re-index đúng workspace nhưng compare với `master` vẫn ở mức
+  `CRITICAL` (`228` file, `1.101` symbol, `118` execution flow) do branch chứa
+  toàn bộ delta tính năng từ merge-base. Cần review/merge có kiểm soát; không
+  coi đây là bằng chứng branch đã an toàn để nhập vào `master`.
 - [x] Public staging đã kiểm tra service-context payload, noindex/canonical,
   sitemap/robots/404 và responsive 390/768/1440px trong phạm vi route chính;
   UX audit evidence `.runtime/ux-audit-final-20260916-r7` đúng version `8e115f49`

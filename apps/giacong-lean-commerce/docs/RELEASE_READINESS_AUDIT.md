@@ -121,6 +121,10 @@ Các suite trên source cuối đạt: admin `372/372`, contact `110/110`, catal
   catalog dù đã gửi Access service-token headers và User-Agent nhận diện riêng.
   Local/browser deep QA trên staging pass; CI edge restriction vẫn là blocker
   nghiệm thu pipeline, không được soft-pass.
+- GitNexus re-index đúng HEAD rồi nhưng compare với `master` vẫn báo `CRITICAL`
+  (`228` file, `1.101` symbol, `118` execution flow) vì branch mang toàn bộ
+  delta tính năng từ merge-base. Đây là blocker review/merge riêng, không phải
+  lỗi runtime mới; không nhập branch vào `master` nếu chưa review có kiểm soát.
 Deployment staging `8e115f49` hoàn tất build/deploy; một số wrapper Windows
 được dừng sau khi output cuối đã pass, không dùng trạng thái wrapper để thay thế
 browser/runtime evidence.

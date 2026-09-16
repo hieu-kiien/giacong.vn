@@ -56,6 +56,11 @@ Checkpoint này là trạng thái mới nhất; các checkpoint production/stagi
   nhận diện riêng. Secret không bị in; đây là blocker hạ tầng/allowlist của
   GitHub runner, không được coi là ứng dụng pass và không được soft-pass. Deep
   QA local/browser trên cùng staging vẫn pass.
+- GitNexus đã re-index đúng HEAD `9dff280d` vào `2026-09-16 04:42:51 +07:00`;
+  compare với `master` vẫn báo `CRITICAL` vì branch chứa delta tính năng lớn
+  từ merge-base (`228` file, `1.101` symbol, `118` execution flow). Đây là rủi
+  ro merge/review của toàn bộ branch, không phải phát hiện mới từ commit CI;
+  không được merge mù hoặc dùng kết quả local để bỏ qua cảnh báo này.
 - Access owner đã đọc lại trên đúng version `4c85039f`: sản phẩm, dịch vụ, tin
   tức và contact có shortcut/form đúng bản ghi; contact shortcut nằm trên
   storefront host admin `/lien-he/`, còn màn hình quản trị tập trung là
