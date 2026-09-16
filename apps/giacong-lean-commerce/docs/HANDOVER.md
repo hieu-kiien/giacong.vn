@@ -5,20 +5,23 @@ Tài liệu dành cho người vận hành (khách + chủ dự án). Quyết đ
 ## Checkpoint bàn giao mới nhất
 
 Production **chưa được thay đổi trong đợt này**; runtime source bàn giao là commit
-`eba85cb765aa994e86c60974ef4fdccaf37eca33`. Quality/staging gate source đã
-chạy ở commit `51ac1bdd` trên nhánh `codex/admin-quality-completion` và xanh;
-HEAD được quality gate và Deep-QA kiểm tra gần nhất là `7fe69b52`;
-thay đổi sau lượt kiểm tra chỉ cập nhật tài liệu, không thay đổi runtime.
-Deep-QA mới nhất [run `35089196729`](https://github.com/hieu-kiien/giacong.vn/actions/runs/35089196729)
-chạy đúng HEAD trên active protected preview và xanh toàn bộ. Không dùng
+`e5b6bb44fbd2d2581e71fde84fb5aa31cbdbbcea`. Quality/staging gate và Deep-QA
+đã chạy đúng commit này trên nhánh `codex/admin-quality-completion` và xanh;
+không dùng
 version production cũ trong tài liệu này làm bằng chứng nghiệm thu mới. Staging đang chạy
 `giacong-vn-staging` version
-`a676fed4-2d08-4637-882b-f6dad976ef84` trên
+`0083b43f-6d2d-4b7d-b55d-cb161432477b` trên
 `staging.kienhieu.id.vn` và `admin-staging.kienhieu.id.vn`, deploy lúc
-`2026-09-16 17:13:40 +07:00`.
+`2026-09-16 18:50:11 +07:00`.
 Read-only Wrangler đối chiếu production Worker `giacong-vn` đang ở version
 `7f98ed7b-0d9f-4d59-880c-ee364e02e610`; migration staging `0023–0026` chưa được
 áp dụng vào D1 production.
+
+Sau deployment này, phiên Cloudflare Access owner đã tải lại `/admin/noi-dung`
+trên đúng admin staging: API site settings trả `200`, và form hiển thị đúng
+email `info@giacong.vn` cùng hotline `0947142999`. Code cũng giải thích rõ
+trường hợp ô trống đang dùng giá trị mặc định hoặc bản đã đăng, có regression
+test; không ghi thêm dữ liệu staging trong lần kiểm tra này.
 
 Hotfix H1 captured service đã được kiểm tra trên public staging sau deploy:
 `/gia-cong-sot-bo-dau-phong/` hiển thị H1 theo đúng nội dung dịch vụ và
@@ -62,7 +65,7 @@ GitHub runner gọi hostname public ổn định bị edge trả `403`; nếu mu
 | --- | --- | --- |
 | Storefront production | https://kienhieu.id.vn | Chưa deploy bản checkpoint 2026-09-16; chỉ phát hành sau duyệt |
 | Admin production | https://admin.kienhieu.id.vn/admin | Sau Cloudflare Access — fail-closed |
-| Storefront staging | https://staging.kienhieu.id.vn | Worker `giacong-vn-staging`; version `a676fed4-2d08-4637-882b-f6dad976ef84` |
+| Storefront staging | https://staging.kienhieu.id.vn | Worker `giacong-vn-staging`; version `0083b43f-6d2d-4b7d-b55d-cb161432477b` |
 | Admin staging | https://admin-staging.kienhieu.id.vn/admin | Cloudflare Access thật; storefront staging mới public; không có identity thì fail-closed |
 | D1 production | `giacong-vn-catalog` | Catalog, leads, media metadata, CMS |
 | R2 production | `giacong-vn-product-media` | Ảnh product/variant/service qua `/media/*` |
@@ -171,7 +174,7 @@ npx wrangler queues info giacong-vn-leads-dlq      # hàng đợi lead thất b�
 Trạng thái bàn giao hiện tại: production storefront vẫn chạy 100% trên
 `kienhieu.id.vn` với version `7f98ed7b-0d9f-4d59-880c-ee364e02e610`; chưa được
 promotion bản mới. Staging đang chạy
-`a676fed4-2d08-4637-882b-f6dad976ef84`. Local gate, HTTP smoke, responsive
+`0083b43f-6d2d-4b7d-b55d-cb161432477b`. Local gate, HTTP smoke, responsive
 CUA/Playwright, UX audit, menu dịch vụ và các luồng RFQ mock đã pass trên
 source/deployment cuối; GitHub deep QA trên active preview đã xanh, còn hostname public ổn định
 vẫn có ghi chú edge `403` khi gọi từ GitHub runner như trên. UX evidence nằm tại

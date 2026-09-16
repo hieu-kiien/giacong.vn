@@ -8,15 +8,15 @@ Kiểm tra được thực hiện trên đúng bản staging đang chạy, khôn
 
 ### Phiên bản và môi trường
 
-- Runtime source snapshot đã deploy (sau đó được commit/push nguyên trạng): `eba85cb765aa994e86c60974ef4fdccaf37eca33`;
-  quality/staging gate mới nhất chạy ở HEAD `7fe69b52` trên nhánh
-  `codex/admin-quality-completion` và xanh; Deep-QA cùng HEAD trên active
-  protected preview cũng xanh toàn bộ. Bản staging được
-  build/deploy từ đúng source snapshot runtime này.
+- Runtime source snapshot đã deploy (sau đó được commit/push nguyên trạng): `e5b6bb44fbd2d2581e71fde84fb5aa31cbdbbcea`;
+  quality/staging gate [run `35093248332`](https://github.com/hieu-kiien/giacong.vn/actions/runs/35093248332)
+  và Deep-QA [run `35093263796`](https://github.com/hieu-kiien/giacong.vn/actions/runs/35093263796)
+  cùng SHA trên nhánh `codex/admin-quality-completion` đều xanh. Bản staging
+  được build/deploy từ đúng source snapshot runtime này.
 - Staging Worker `giacong-vn-staging`, version
-  `a676fed4-2d08-4637-882b-f6dad976ef84`, phục vụ
+  `0083b43f-6d2d-4b7d-b55d-cb161432477b`, phục vụ
   `staging.kienhieu.id.vn` và `admin-staging.kienhieu.id.vn`.
-- Deployment mới được Cloudflare ghi nhận lúc `2026-09-16 17:13:40 +07:00`; HTTP
+- Deployment mới được Cloudflare ghi nhận lúc `2026-09-16 18:50:11 +07:00`; HTTP
   smoke và browser recheck H1 dưới đây chạy sau deployment này; các bằng chứng
   deep QA/UX audit trước đó chạy trên version `8e115f49` và không bị suy diễn
   sang hotfix nếu chưa chạy lại; không có thay đổi runtime source sau lần
@@ -111,6 +111,11 @@ Kiểm tra được thực hiện trên đúng bản staging đang chạy, khôn
   áp dụng đúng đơn giá `143.500 ₫`, tạm tính `8.610.000 ₫`; giỏ giữ 2 SKU sau
   tải lại. Submit thiếu thông tin bị chặn ở client; không gửi controlled request
   thật vì nơi nhận vẫn chưa được owner xác nhận.
+- Recheck admin sau deployment `0083b43f` đã tải lại `/admin/noi-dung` trên
+  phiên Access owner thật; response `/api/admin/site-settings` là `200`, DOM
+  hiển thị `info@giacong.vn` và `0947142999` ở hai trường liên hệ. Khi setting
+  để trống, editor mới phân biệt “giá trị mặc định” với “bản đã đăng” mà không
+  thay thế draft rỗng; regression test đã chạy trong suite admin.
 
 ### Recheck sau sửa H1 captured service — 2026-09-16
 
@@ -131,13 +136,13 @@ Kiểm tra được thực hiện trên đúng bản staging đang chạy, khôn
 
 ### Gate tự động trên bản cuối
 
-Các suite trên source cuối đạt: admin `372/372`, contact `110/110`, catalog
+Các suite trên source cuối đạt: admin `374/374`, contact `110/110`, catalog
 `6/6`, purchase UI `1/1`, service `28/28`, commerce `102/102`, listing `6/6`,
   detail `33/33`; lint, typecheck và OpenNext build compile pass, tạo đủ
 `28/28` route. `npm audit --audit-level=high` báo `0 vulnerabilities`.
-- GitHub [quality/staging gate run `35089195699`](https://github.com/hieu-kiien/giacong.vn/actions/runs/35089195699)
-  xanh cả quality và staging dry-run trên HEAD `7fe69b52`, không deploy. GitHub [deep-QA run `35089196729`](https://github.com/hieu-kiien/giacong.vn/actions/runs/35089196729)
-  chạy đúng HEAD `7fe69b52` và xanh toàn bộ: deployment preview, catalog,
+- GitHub [quality/staging gate run `35093248332`](https://github.com/hieu-kiien/giacong.vn/actions/runs/35093248332)
+  xanh cả quality và staging dry-run trên HEAD `e5b6bb44`, không deploy. GitHub [deep-QA run `35093263796`](https://github.com/hieu-kiien/giacong.vn/actions/runs/35093263796)
+  chạy đúng HEAD `e5b6bb44` và xanh toàn bộ: deployment preview, catalog,
   product API/quantity, cart validation, contact cart-drift guard, R2 media và
   responsive browser-error check. Workflow lấy URL preview của version vừa
   deploy và gửi Access service token khi preview được bảo vệ, nên không bỏ qua
