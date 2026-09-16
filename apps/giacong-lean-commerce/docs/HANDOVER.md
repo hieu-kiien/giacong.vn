@@ -4,24 +4,22 @@ Tài liệu dành cho người vận hành (khách + chủ dự án). Quyết đ
 
 ## Checkpoint bàn giao mới nhất
 
-Production **chưa được thay đổi trong đợt này**; runtime source bàn giao là commit
-`e5b6bb44fbd2d2581e71fde84fb5aa31cbdbbcea`. Quality/staging gate và Deep-QA
-đã chạy đúng commit này trên nhánh `codex/admin-quality-completion` và xanh;
-không dùng
-version production cũ trong tài liệu này làm bằng chứng nghiệm thu mới. Staging đang chạy
+Production **chưa được thay đổi trong đợt này**; source đã kiểm tra và push là
+commit `6eec54f1` trên nhánh `codex/admin-quality-completion`. Staging đang chạy
 `giacong-vn-staging` version
-`0083b43f-6d2d-4b7d-b55d-cb161432477b` trên
-`staging.kienhieu.id.vn` và `admin-staging.kienhieu.id.vn`, deploy lúc
-`2026-09-16 18:50:11 +07:00`.
+`4f005c6f-b437-4278-82ef-3dd0a35b2c5b` trên
+`staging.kienhieu.id.vn` và `admin-staging.kienhieu.id.vn`.
 Read-only Wrangler đối chiếu production Worker `giacong-vn` đang ở version
 `7f98ed7b-0d9f-4d59-880c-ee364e02e610`; migration staging `0023–0026` chưa được
 áp dụng vào D1 production.
 
-Sau deployment này, phiên Cloudflare Access owner đã tải lại `/admin/noi-dung`
-trên đúng admin staging: API site settings trả `200`, và form hiển thị đúng
-email `info@giacong.vn` cùng hotline `0947142999`. Code cũng giải thích rõ
-trường hợp ô trống đang dùng giá trị mặc định hoặc bản đã đăng, có regression
-test; không ghi thêm dữ liệu staging trong lần kiểm tra này.
+Regression trên đúng staging version này đã xác nhận URL sản phẩm demo cũ
+`/san-pham/b2b-demo-bot-dinh-duong-vi-vani` chuyển an toàn về `/san-pham/`,
+không trỏ nhầm sang sản phẩm mới; trang dịch vụ cũ vẫn hiển thị nội dung và đã
+loại CTA bán mẫu web. Giỏ yêu cầu đọc lại đủ 2 SKU, tổng tạm tính
+`14.335.000 ₫`, console không có warning/error; thanh giỏ nổi ở viewport 1132px
+có vùng 38×38 và icon 22×22, không tràn ngang. Không gửi RFQ thật và không ghi
+thêm/xóa dữ liệu staging trong lượt này.
 
 Hotfix H1 captured service đã được kiểm tra trên public staging sau deploy:
 `/gia-cong-sot-bo-dau-phong/` hiển thị H1 theo đúng nội dung dịch vụ và
@@ -176,16 +174,11 @@ npx wrangler queues info giacong-vn-leads-dlq      # hàng đợi lead thất b�
 
 Trạng thái bàn giao hiện tại: production storefront vẫn chạy 100% trên
 `kienhieu.id.vn` với version `7f98ed7b-0d9f-4d59-880c-ee364e02e610`; chưa được
-promotion bản mới. Staging đang chạy
-`0083b43f-6d2d-4b7d-b55d-cb161432477b`. Local gate, HTTP smoke, responsive
-CUA/Playwright, UX audit, menu dịch vụ và các luồng RFQ mock đã pass trên
-source/deployment cuối; GitHub deep QA trên active preview đã xanh, còn hostname public ổn định
-vẫn có ghi chú edge `403` khi gọi từ GitHub runner như trên. UX evidence nằm tại
-`.runtime/ux-audit-final-20260916-r7`; một warning duy nhất là iframe Google
-Maps cross-origin. Cron mồ côi đã được gỡ; queue production còn đúng một
-producer và một consumer, DLQ tồn tại đúng theo cấu hình nhưng không có dấu
-hiệu phát sinh từ lượt kiểm tra này. Không dùng dữ liệu demo staging làm dữ liệu
-production.
+promotion bản mới. Staging đang chạy source `6eec54f1` với version
+`4f005c6f-b437-4278-82ef-3dd0a35b2c5b`. Các nhóm regression catalog/service/
+commerce lần lượt pass `7/7`, `28/28`, `104/104`; build OpenNext/Cloudflare
+hoàn tất và browser read-back trên staging đã kiểm tra URL cũ, CTA dịch vụ và
+giỏ. Không dùng dữ liệu demo staging làm dữ liệu production.
 
 Các gate còn lại của bàn giao là theo dõi observability đủ 24 giờ, chủ dự án
 duyệt nội dung kinh doanh/catalog và quyết định redirect `giacong.vn` nếu có

@@ -557,6 +557,29 @@ chứng thay cho kết quả CLI công khai.
   dữ liệu backup vào source control.
 - Dữ liệu demo staging không được dùng làm seed production.
 
+## Revalidation URL cũ và giỏ yêu cầu — 2026-09-16
+
+- Source cuối đã push: `6eec54f1`; staging Worker:
+  `4f005c6f-b437-4278-82ef-3dd0a35b2c5b`.
+- URL sản phẩm cũ `/san-pham/b2b-demo-bot-dinh-duong-vi-vani` không còn trỏ
+  vào parent demo đã xóa; hiện redirect về catalog `/san-pham/`. Các route
+  `sua-*`/`tra-*` cũ được giữ trong kho captured service content, không nhập
+  nhầm thành sản phẩm RFQ.
+- CTA template-sale `Đặt mua mẫu web này` đã được loại tại boundary chuẩn hóa
+  captured markup; regression test mới giữ lại nội dung dịch vụ xung quanh.
+- Browser staging đọc lại giỏ có 2 dòng SKU `B2B-DEMO-BGL-05` và
+  `B2B-DEMO-BGL-10`, tổng tạm tính `14.335.000 ₫`; không submit RFQ thật.
+  Thanh giỏ nổi ở viewport tablet không còn bị cắt, không có horizontal
+  overflow hoặc console warning/error.
+- Targeted suites pass: commerce `104/104`, service `28/28`, catalog `7/7`;
+  OpenNext build và Cloudflare staging deploy hoàn tất. Wrapper lint/typecheck
+  trên Windows giữ process mở không có diagnostic nên không dùng chúng làm
+  bằng chứng exit 0; build đã chạy TypeScript thành công.
+
+Production chưa deploy. Các gate còn mở vẫn là duyệt dữ liệu kinh doanh/pháp
+lý thật và nơi nhận RFQ, kiểm tra đủ identity/expiry/logout/audit trên Access,
+backup/restore và observability production 24 giờ, cùng phê duyệt release.
+
 ## Định nghĩa bàn giao hoàn hảo
 
 Chỉ đánh dấu bàn giao hoàn tất khi checklist production acceptance và roadmap
