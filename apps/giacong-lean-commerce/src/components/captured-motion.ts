@@ -147,17 +147,29 @@ function connectCapturedReveals(root: ParentNode): MotionCleanup {
   const elements = Array.from(root.querySelectorAll<HTMLElement>("[data-animate]"));
   if (elements.length === 0) return noop;
 
-  const original = elements.map((element) => element.getAttribute("data-animated"));
+  const original = elements.map((element) => ({
+    animated: element.getAttribute("data-animated"),
+    reduced: element.getAttribute("data-motion-reduced"),
+  }));
   const reveal = (element: HTMLElement) => element.setAttribute("data-animated", "true");
-
-  if (prefersReducedMotion() || !("IntersectionObserver" in window)) {
-    elements.forEach(reveal);
-    return () => elements.forEach((element, index) => {
-      restoreAttribute(element, "data-animated", original[index]);
+  const restore = () => {
+    elements.forEach((element, index) => {
+      restoreAttribute(element, "data-animated", original[index].animated);
+      restoreAttribute(element, "data-motion-reduced", original[index].reduced);
     });
+  };
+  const reducedMotion = prefersReducedMotion();
+
+  if (reducedMotion) {
+    elements.forEach((element) => element.setAttribute("data-motion-reduced", "true"));
+  }
+  elements.forEach((element) => element.removeAttribute("data-animated"));
+
+  if (!("IntersectionObserver" in window)) {
+    elements.forEach(reveal);
+    return restore;
   }
 
-  elements.forEach((element) => element.removeAttribute("data-animated"));
   const observer = new IntersectionObserver(
     (entries) => {
       entries.forEach((entry) => {
@@ -173,9 +185,7 @@ function connectCapturedReveals(root: ParentNode): MotionCleanup {
 
   return () => {
     observer.disconnect();
-    elements.forEach((element, index) => {
-      restoreAttribute(element, "data-animated", original[index]);
-    });
+    restore();
   };
 }
 

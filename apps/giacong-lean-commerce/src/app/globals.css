@@ -632,6 +632,19 @@
     animation-iteration-count: 1 !important;
     transition-duration: .001ms !important;
   }
+
+  /* Keep a quiet opacity-only reveal for users who reduce motion. Captured
+   * slide/scale transforms stay disabled while the page avoids appearing
+   * frozen during hydration or scroll. */
+  [data-animate][data-motion-reduced] {
+    opacity: 0 !important;
+    transform: none !important;
+    transition: opacity .35s ease-out !important;
+  }
+
+  [data-animate][data-motion-reduced][data-animated="true"] {
+    opacity: 1 !important;
+  }
 }
 
 /* Runtime-only reveal layer for the app-owned storefront surfaces. */

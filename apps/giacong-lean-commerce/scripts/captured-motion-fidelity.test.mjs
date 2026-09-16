@@ -260,6 +260,14 @@ test("capture transform does not bake data-animated=true into generated markup",
   assert.doesNotMatch(globals, /giacong-page-orbit|giacong-background-drift/);
 });
 
+test("keeps a reduced-motion fade fallback for captured reveals", () => {
+  assert.match(capturedMotion, /data-motion-reduced/);
+  assert.match(capturedMotion, /const reducedMotion = prefersReducedMotion\(\)/);
+  assert.match(capturedMotion, /setAttribute\("data-motion-reduced", "true"\)/);
+  assert.match(globals, /\[data-animate\]\[data-motion-reduced\]/);
+  assert.match(globals, /data-motion-reduced\]\[data-animated=["']true["']\]/);
+});
+
 test("keeps slider pagination as a native list instead of an incomplete tablist", () => {
   assert.doesNotMatch(capturedMotion, /dots\.setAttribute\("role", "tablist"\)/);
   assert.match(capturedMotion, /dots\.setAttribute\("aria-label", "Chuyển nội dung"\)/);
