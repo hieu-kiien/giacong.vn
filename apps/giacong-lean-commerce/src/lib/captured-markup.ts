@@ -84,8 +84,17 @@ function readLinkLabel(content: string) {
  * remaining `@font-face`, `@media` and `@keyframes` rules.
  */
 export function layerCapturedStyles(pageStyles: string): string {
-  const nestedStyles = pageStyles.replace(/@charset\s+(?:"[^"]*"|'[^']*')\s*;?/gi, "");
+  const nestedStyles = normalizeCapturedFontDisplay(
+    pageStyles.replace(/@charset\s+(?:"[^"]*"|'[^']*')\s*;?/gi, ""),
+  );
   return `@layer captured {\n${nestedStyles}\n}`;
+}
+
+function normalizeCapturedFontDisplay(styles: string): string {
+  return styles.replace(/@font-face\s*{[^}]*}/gi, (fontFace) => {
+    if (!/font-family\s*:\s*["']fl-icons["']/i.test(fontFace)) return fontFace;
+    return fontFace.replace(/(font-display\s*:\s*)block/gi, "$1swap");
+  });
 }
 
 export function normalizeCapturedMarkup(markup: string, activeCapturedMenuId?: string | null) {
