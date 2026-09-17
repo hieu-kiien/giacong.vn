@@ -154,16 +154,23 @@ function connectCapturedReveals(root: ParentNode): MotionCleanup {
   const elements = Array.from(root.querySelectorAll<HTMLElement>("[data-animate]"));
   if (elements.length === 0) return noop;
 
+  const hero = root.querySelector<HTMLElement>("#section_250108065");
+  const heroElements = hero ? elements.filter((element) => hero.contains(element)) : [];
+
   const original = elements.map((element) => ({
     animated: element.getAttribute("data-animated"),
     reduced: element.getAttribute("data-motion-reduced"),
   }));
+  const originalHeroReady = hero?.getAttribute("data-captured-hero-motion-ready") ?? null;
   const reveal = (element: HTMLElement) => element.setAttribute("data-animated", "true");
   const restore = () => {
     elements.forEach((element, index) => {
       restoreAttribute(element, "data-animated", original[index].animated);
       restoreAttribute(element, "data-motion-reduced", original[index].reduced);
     });
+    if (hero) {
+      restoreAttribute(hero, "data-captured-hero-motion-ready", originalHeroReady);
+    }
   };
   const reducedMotion = prefersReducedMotion();
 
@@ -171,6 +178,10 @@ function connectCapturedReveals(root: ParentNode): MotionCleanup {
     elements.forEach((element) => element.setAttribute("data-motion-reduced", "true"));
   }
   elements.forEach((element) => element.removeAttribute("data-animated"));
+
+  if (reducedMotion) {
+    heroElements.forEach(reveal);
+  }
 
   if (!("IntersectionObserver" in window)) {
     elements.forEach(reveal);
@@ -188,9 +199,25 @@ function connectCapturedReveals(root: ParentNode): MotionCleanup {
     },
     { rootMargin: "0px", threshold: 0.05 },
   );
-  elements.forEach((element) => observer.observe(element));
+  elements.forEach((element) => {
+    if (!heroElements.includes(element)) observer.observe(element);
+  });
+
+  let heroMotionFrame: number | undefined;
+  if (!reducedMotion && hero && heroElements.length > 0) {
+    heroMotionFrame = window.requestAnimationFrame(() => {
+      if (!hero.isConnected) return;
+      hero.setAttribute("data-captured-hero-motion-ready", "true");
+      heroMotionFrame = window.requestAnimationFrame(() => {
+        heroMotionFrame = undefined;
+        if (!hero.isConnected) return;
+        heroElements.forEach(reveal);
+      });
+    });
+  }
 
   return () => {
+    if (heroMotionFrame !== undefined) window.cancelAnimationFrame(heroMotionFrame);
     observer.disconnect();
     restore();
   };

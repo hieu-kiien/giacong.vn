@@ -281,6 +281,14 @@ test("keeps a reduced-motion fade fallback for captured reveals", () => {
   assert.match(globals, /data-motion-reduced\]\[data-animated=["']true["']\]/);
 });
 
+test("keeps the captured hero visible without JS and restores its entrance motion after paint", () => {
+  assert.match(capturedMotion, /data-captured-hero-motion-ready/);
+  assert.match(capturedMotion, /heroElements/);
+  assert.match(capturedMotion, /heroMotionFrame/);
+  assert.match(globals, /#section_250108065\[data-captured-hero-motion-ready\]/);
+  assert.match(globals, /#section_250108065 \[data-animate\][\s\S]*?opacity: 1 !important/);
+});
+
 test("covers app-owned storefront surfaces outside the captured homepage", () => {
   assert.match(capturedMotion, /\[data-motion-section\]/);
   assert.match(capturedMotion, /\[data-service-group\]/);
