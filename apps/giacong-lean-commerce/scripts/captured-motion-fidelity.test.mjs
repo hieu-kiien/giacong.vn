@@ -308,6 +308,11 @@ test("gives the desktop service mega-menu a compact and accessible visual system
   assert.match(globals, /@media \(prefers-reduced-motion:\s*reduce\)/);
 });
 
+test("keeps news card metadata and actions at text-safe contrast", () => {
+  assert.match(globals, /\.giacong-news-card time\s*\{[^}]*color:\s*#5f6b61/);
+  assert.match(globals, /\.giacong-news-card__link\s*\{[^}]*color:\s*#327600/);
+});
+
 test("covers app-owned storefront surfaces outside the captured homepage", () => {
   assert.match(capturedMotion, /\[data-motion-section\]/);
   assert.match(capturedMotion, /\[data-service-group\]/);
