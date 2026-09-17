@@ -11,11 +11,46 @@ import { siteSettingDefaults, type PublishedSiteSettings } from "@/lib/site-sett
 import type { CapturedPageData } from "@/types/captured-page";
 
 const HOME_HERO_GALLERY = [
-  { alt: "Nhân sự trong dây chuyền gia công thực phẩm", src: "/images/home-hero/hero-1.png" },
-  { alt: "Sơ chế nông sản tại nhà máy", src: "/images/home-hero/hero-2.png" },
-  { alt: "Nhà máy gia công thực phẩm", src: "/images/home-hero/hero-3.png" },
-  { alt: "Đóng gói sản phẩm thực phẩm", src: "/images/home-hero/hero-4.png" },
+  {
+    alt: "Nhân sự trong dây chuyền gia công thực phẩm",
+    avif: "/images/home-hero/hero-1.avif",
+    src: "/images/home-hero/hero-1.png",
+    webp: "/images/home-hero/hero-1.webp",
+  },
+  {
+    alt: "Sơ chế nông sản tại nhà máy",
+    avif: "/images/home-hero/hero-2.avif",
+    src: "/images/home-hero/hero-2.png",
+    webp: "/images/home-hero/hero-2.webp",
+  },
+  {
+    alt: "Nhà máy gia công thực phẩm",
+    avif: "/images/home-hero/hero-3.avif",
+    src: "/images/home-hero/hero-3.png",
+    webp: "/images/home-hero/hero-3.webp",
+  },
+  {
+    alt: "Đóng gói sản phẩm thực phẩm",
+    avif: "/images/home-hero/hero-4.avif",
+    src: "/images/home-hero/hero-4.png",
+    webp: "/images/home-hero/hero-4.webp",
+  },
 ] as const;
+
+const HOMEPAGE_MEDIA_ALIASES: Readonly<Record<string, string>> = {
+  "https://giacong.vn/wp-content/uploads/2024/10/img-b.png": "/images/home-captured/img-b.webp",
+  "https://giacong.vn/wp-content/uploads/2024/10/banner-gia-cong.jpg": "/images/home-captured/banner-gia-cong.webp",
+  "https://giacong.vn/wp-content/uploads/2024/10/img-sp-1.png": "/images/home-captured/img-sp-1.webp",
+  "https://giacong.vn/wp-content/uploads/2024/10/img-sp-1-510x315.png": "/images/home-captured/img-sp-1-510x315.webp",
+  "https://giacong.vn/wp-content/uploads/2024/10/img-sp-1-300x185.png": "/images/home-captured/img-sp-1-300x185.webp",
+  "https://giacong.vn/wp-content/uploads/2024/09/IMG.png": "/images/home-captured/IMG.webp",
+  "https://giacong.vn/wp-content/uploads/2024/09/IMG-768x652.png": "/images/home-captured/IMG-768x652.webp",
+  "https://giacong.vn/wp-content/uploads/2024/09/IMG-510x433.png": "/images/home-captured/IMG-510x433.webp",
+  "https://giacong.vn/wp-content/uploads/2024/09/IMG-300x255.png": "/images/home-captured/IMG-300x255.webp",
+  "https://giacong.vn/wp-content/uploads/2024/08/logo-__1_-removebg-preview.png": "/images/home-captured/menu-logo.webp",
+  "https://giacong.vn/wp-content/uploads/2024/10/GIACONG.VN-ngang-03-1-1024x291.png": "/images/home-captured/header-logo.webp",
+  "https://giacong.vn/wp-content/uploads/2024/08/book-open-svgrepo-com.svg": "/images/home-captured/book-open.svg",
+};
 
 // These captured sections contain customer counts, testimonials and partner marks with no
 // verified source in the current content store. Keep them out of the public fallback until the
@@ -45,9 +80,11 @@ export async function CapturedHomePage({
 }: CapturedHomePageProps) {
   const settings = siteSettings ?? siteSettingDefaults;
   const navigation = await getPublishedSiteNavigation();
-  const normalizedMarkup = applyHomepageSiteSettingsToMarkup(
-    removeUnverifiedHomepageProof(normalizeCapturedMarkup(markup)),
-    settings,
+  const normalizedMarkup = localizeHomepageMedia(
+    applyHomepageSiteSettingsToMarkup(
+      removeUnverifiedHomepageProof(normalizeCapturedMarkup(localizeHomepageMedia(markup))),
+      settings,
+    ),
   );
   const homeMarkup = replaceCompositeHeroWithGallery(
     applyFooterNavigationToMarkup(
@@ -59,7 +96,7 @@ export async function CapturedHomePage({
 
   return (
     <>
-      <style dangerouslySetInnerHTML={{ __html: `${layerCapturedStyles(pageStyles)}\n${siteBrandStyles(settings)}` }} />
+      <style dangerouslySetInnerHTML={{ __html: `${layerCapturedStyles(localizeHomepageMedia(pageStyles))}\n${siteBrandStyles(settings)}` }} />
       <div
         className={bodyClasses}
         dangerouslySetInnerHTML={{ __html: homeMarkup }}
@@ -68,6 +105,13 @@ export async function CapturedHomePage({
       <CapturedFloatingContact settings={settings} />
       <GiacongInteractions bodyClasses={bodyClasses} htmlClasses={htmlClasses} />
     </>
+  );
+}
+
+function localizeHomepageMedia(value: string): string {
+  return Object.entries(HOMEPAGE_MEDIA_ALIASES).reduce(
+    (result, [source, replacement]) => result.split(source).join(replacement),
+    value,
   );
 }
 
@@ -90,16 +134,20 @@ function homeHeroGalleryMarkup(heroImageUrl: string): string {
   const safeHeroImageUrl = heroImageUrl.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
   const items = HOME_HERO_GALLERY.map((image, index) => `
     <figure class="giacong-home-gallery__item giacong-home-gallery__item--${index + 1}">
-      <img
-        alt="${image.alt}"
-        data-gallery-image="${index + 1}"
-        decoding="async"
-        fetchpriority="${index === 0 ? "high" : "low"}"
-        height="202"
-        loading="${index === 0 ? "eager" : "lazy"}"
-        src="${index === 0 && safeHeroImageUrl ? safeHeroImageUrl : image.src}"
-        width="341"
-      />
+      <picture>
+        ${index === 0 && safeHeroImageUrl ? "" : `<source srcset="${image.avif} 341w" type="image/avif" /><source srcset="${image.webp} 341w" type="image/webp" />`}
+        <img
+          alt="${image.alt}"
+          data-gallery-image="${index + 1}"
+          decoding="async"
+          fetchpriority="${index === 0 ? "high" : "low"}"
+          height="202"
+          loading="${index === 0 ? "eager" : "lazy"}"
+          sizes="341px"
+          src="${index === 0 && safeHeroImageUrl ? safeHeroImageUrl : image.src}"
+          width="341"
+        />
+      </picture>
     </figure>`).join("");
 
   return `<div aria-label="Năng lực gia công của Giacong.vn" class="giacong-home-gallery" data-testid="home-hero-gallery">${items}

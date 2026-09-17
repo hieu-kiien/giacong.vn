@@ -14,6 +14,7 @@
     "lint": "eslint src custom-worker.ts next.config.ts open-next.config.ts postcss.config.mjs",
     "typecheck": "next typegen && tsc --noEmit",
     "prepare:captured-assets": "node scripts/prepare-captured-assets.mjs",
+    "optimize:homepage-media": "node scripts/optimize-homepage-media.mjs",
     "db:local:bootstrap": "wrangler d1 execute giacong-vn-catalog --local --file scripts/local-catalog-baseline.sql",
     "predev": "npm run prepare:captured-assets",
     "prebuild": "npm run prepare:captured-assets",

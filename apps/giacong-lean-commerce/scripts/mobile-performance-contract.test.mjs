@@ -19,6 +19,20 @@ const packshots = [
   "public/images/products/demo-sauce-bottles.webp",
 ];
 
+const homepageOptimizedAssets = [
+  ["public/images/home-hero/hero-1.avif", 80_000],
+  ["public/images/home-hero/hero-2.avif", 80_000],
+  ["public/images/home-hero/hero-3.avif", 80_000],
+  ["public/images/home-hero/hero-4.avif", 80_000],
+  ["public/images/home-captured/img-b.webp", 300_000],
+  ["public/images/home-captured/banner-gia-cong.webp", 180_000],
+  ["public/images/home-captured/img-sp-1.webp", 180_000],
+  ["public/images/home-captured/IMG.webp", 140_000],
+  ["public/images/home-captured/menu-logo.webp", 140_000],
+  ["public/images/home-captured/header-logo.webp", 80_000],
+  ["public/images/home-captured/book-open.svg", 20_000],
+];
+
 test("mobile catalog fallback imagery uses compressed WebP packshots", async () => {
   assert.doesNotMatch(galleryData, /images\/products\/demo-[^"']+\.png/);
   assert.doesNotMatch(imageData, /images\/products\/demo-[^"']+\.png/);
@@ -51,4 +65,22 @@ test("captured content images defer below-fold loading without deferring chrome"
 test("homepage hero prioritizes one image and defers the remaining gallery tiles", () => {
   assert.match(homeSource, /fetchpriority=\"\$\{index === 0 \? \"high\" : \"low\"\}\"/);
   assert.match(homeSource, /loading=\"\$\{index === 0 \? \"eager\" : \"lazy\"\}\"/);
+});
+
+test("homepage critical media uses local modern formats", async () => {
+  assert.match(homeSource, /<picture>/);
+  assert.match(homeSource, /type=\"image\/avif\"/);
+  assert.match(homeSource, /type=\"image\/webp\"/);
+  assert.match(homeSource, /home-captured\/img-b\.webp/);
+  assert.match(homeSource, /home-captured\/banner-gia-cong\.webp/);
+  assert.match(homeSource, /home-captured\/img-sp-1\.webp/);
+  assert.match(homeSource, /home-captured\/IMG\.webp/);
+  assert.match(homeSource, /home-captured\/menu-logo\.webp/);
+  assert.match(homeSource, /home-captured\/header-logo\.webp/);
+  assert.match(homeSource, /home-captured\/book-open\.svg/);
+
+  await Promise.all(homepageOptimizedAssets.map(async ([path, limit]) => {
+    const size = (await stat(new URL(path, appRoot))).size;
+    assert.ok(size < limit, `expected ${path} to stay below ${limit} bytes; got ${size}`);
+  }));
 });

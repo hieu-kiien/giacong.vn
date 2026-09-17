@@ -144,6 +144,12 @@
   width: 100% !important;
 }
 
+.section01 .giacong-home-gallery picture {
+  display: block;
+  height: 100%;
+  width: 100%;
+}
+
 .giacong-managed-footer-navigation {
   border-top: 1px solid rgb(90 164 0 / 20%);
   margin-top: 24px;
