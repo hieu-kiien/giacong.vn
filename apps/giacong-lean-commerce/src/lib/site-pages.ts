@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 
 import type { D1DatabaseLike, D1PreparedStatementLike } from "./admin-data";
@@ -370,7 +371,7 @@ export async function publishAdminSitePage(
   return readPageMutationResult(database, mutation, postcondition);
 }
 
-export async function getPublishedSitePage(routePath: string): Promise<PublishedSitePage | null> {
+export const getPublishedSitePage = cache(async function getPublishedSitePage(routePath: string): Promise<PublishedSitePage | null> {
   let normalizedPath: string;
   try {
     normalizedPath = normalizeRoutePath(routePath);
@@ -448,7 +449,7 @@ interface SitePageRow {
   published_by: string | null;
   published_at: string | null;
   last_request_id: string | null;
-}
+});
 
 interface PublishedSitePageRow {
   page_key: string;

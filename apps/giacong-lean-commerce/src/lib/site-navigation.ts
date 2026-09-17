@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 
 import { getLegacyMegaMenuItem, legacyMegaMenuItems } from "../data/legacy-mega-menu.ts";
@@ -1418,7 +1419,7 @@ export class SiteNavigationIdempotencyConflictError extends Error {
   }
 }
 
-export async function getPublishedSiteNavigation(): Promise<PublishedNavigationItem[]> {
+export const getPublishedSiteNavigation = cache(async function getPublishedSiteNavigation(): Promise<PublishedNavigationItem[]> {
   try {
     const database = await getSiteDatabase();
     const rows = await database.prepare(`
@@ -1454,7 +1455,7 @@ export async function getPublishedSiteNavigation(): Promise<PublishedNavigationI
     console.warn("Published site navigation unavailable; using committed defaults.", error);
     return [...defaultPrimaryNavigation];
   }
-}
+});
 
 export function applyNavigationToMarkup(
   markup: string,

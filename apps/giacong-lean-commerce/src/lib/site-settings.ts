@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import type { D1DatabaseLike, D1PreparedStatementLike } from "./admin-data";
 
@@ -338,7 +339,7 @@ export async function publishAllAdminSiteSettings(
   return readBulkSiteSettingResult(database, requestId, mutation);
 }
 
-export async function getPublishedSiteSettings(): Promise<PublishedSiteSettings> {
+export const getPublishedSiteSettings = cache(async function getPublishedSiteSettings(): Promise<PublishedSiteSettings> {
   try {
     const database = await getSiteDatabase();
     const rows = await database.prepare(`
@@ -350,7 +351,7 @@ export async function getPublishedSiteSettings(): Promise<PublishedSiteSettings>
     console.warn("Published site settings unavailable; using committed defaults.", error);
     return { ...siteSettingDefaults };
   }
-}
+});
 
 export function selectPublishedSiteSettings(
   rows: Array<{ setting_key: string; published_value: string }>,
