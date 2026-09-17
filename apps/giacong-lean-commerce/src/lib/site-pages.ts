@@ -401,7 +401,7 @@ export const getPublishedSitePage = cache(async function getPublishedSitePage(ro
     console.warn("Published site page unavailable; using captured fallback.", error);
     return null;
   }
-}
+});
 
 export function normalizePageKey(value: string): string {
   if (typeof value !== "string") throw new SitePageValidationError("pageKey phải là chuỗi.");
@@ -449,7 +449,7 @@ interface SitePageRow {
   published_by: string | null;
   published_at: string | null;
   last_request_id: string | null;
-});
+}
 
 interface PublishedSitePageRow {
   page_key: string;
