@@ -47,6 +47,13 @@ const localCapturedMedia = {
   "https://giacong.vn/wp-content/uploads/2026/01/mail.webp": "/images/home-captured/mail.webp",
   "https://giacong.vn/wp-content/uploads/2026/01/zalo.webp": "/images/home-captured/zalo.webp",
   "https://giacong.vn/wp-content/uploads/2026/01/messenger.webp": "/images/home-captured/messenger.webp",
+  "https://giacong.vn/wp-content/uploads/2024/10/logo-gia-cong-new-300x85.png": "/images/home-captured/footer-logo-300.webp",
+  "https://giacong.vn/wp-content/uploads/2024/10/logo-gia-cong-new.png": "/images/home-captured/footer-logo.webp",
+  "https://giacong.vn/wp-content/uploads/2024/10/marketing-email-mail-information-news-svgrepo-com.svg": "/images/home-captured/service-email.svg",
+  "https://giacong.vn/wp-content/uploads/2024/10/money-dollar-cash-payment-svgrepo-com.svg": "/images/home-captured/service-money.svg",
+  "https://giacong.vn/wp-content/uploads/2024/10/seo-application-like-thumb-svgrepo-com.svg": "/images/home-captured/service-like.svg",
+  "https://giacong.vn/wp-content/uploads/2024/10/seo-mobile-setting-gear-cog-07-svgrepo-com.svg": "/images/home-captured/service-mobile.svg",
+  "https://giacong.vn/wp-content/uploads/2024/10/seo-reward-license-certificate-contract-svgrepo-com.svg": "/images/home-captured/service-certificate.svg",
 };
 const fontFiles = [
   "SFProDisplay-Regular.woff2",

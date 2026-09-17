@@ -42,6 +42,13 @@ const homepageOptimizedAssets = [
   ["public/images/home-captured/mail.webp", 20_000],
   ["public/images/home-captured/zalo.webp", 20_000],
   ["public/images/home-captured/messenger.webp", 20_000],
+  ["public/images/home-captured/footer-logo-300.webp", 80_000],
+  ["public/images/home-captured/footer-logo.webp", 140_000],
+  ["public/images/home-captured/service-email.svg", 20_000],
+  ["public/images/home-captured/service-money.svg", 20_000],
+  ["public/images/home-captured/service-like.svg", 20_000],
+  ["public/images/home-captured/service-mobile.svg", 20_000],
+  ["public/images/home-captured/service-certificate.svg", 20_000],
 ];
 
 test("mobile catalog fallback imagery uses compressed WebP packshots", async () => {
@@ -93,6 +100,8 @@ test("homepage critical media uses local modern formats", async () => {
   assert.match(homeSource, /home-captured\/Group-205\.webp/);
   assert.match(homeSource, /home-captured\/check-circle\.svg/);
   assert.match(homeSource, /home-captured\/call\.webp/);
+  assert.match(homeSource, /home-captured\/footer-logo\.webp/);
+  assert.match(homeSource, /home-captured\/service-email\.svg/);
 
   await Promise.all(homepageOptimizedAssets.map(async ([path, limit]) => {
     const size = (await stat(new URL(path, appRoot))).size;

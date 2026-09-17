@@ -25,6 +25,13 @@ const remoteSources = {
   mail: "https://giacong.vn/wp-content/uploads/2026/01/mail.webp",
   zalo: "https://giacong.vn/wp-content/uploads/2026/01/zalo.webp",
   messenger: "https://giacong.vn/wp-content/uploads/2026/01/messenger.webp",
+  footerLogoSmall: "https://giacong.vn/wp-content/uploads/2024/10/logo-gia-cong-new-300x85.png",
+  footerLogo: "https://giacong.vn/wp-content/uploads/2024/10/logo-gia-cong-new.png",
+  serviceEmail: "https://giacong.vn/wp-content/uploads/2024/10/marketing-email-mail-information-news-svgrepo-com.svg",
+  serviceMoney: "https://giacong.vn/wp-content/uploads/2024/10/money-dollar-cash-payment-svgrepo-com.svg",
+  serviceLike: "https://giacong.vn/wp-content/uploads/2024/10/seo-application-like-thumb-svgrepo-com.svg",
+  serviceMobile: "https://giacong.vn/wp-content/uploads/2024/10/seo-mobile-setting-gear-cog-07-svgrepo-com.svg",
+  serviceCertificate: "https://giacong.vn/wp-content/uploads/2024/10/seo-reward-license-certificate-contract-svgrepo-com.svg",
 };
 
 async function fetchImage(url) {
@@ -67,6 +74,8 @@ const additionalRasterSources = [
   ["mail", "mail.webp", 96, 82],
   ["zalo", "zalo.webp", 96, 82],
   ["messenger", "messenger.webp", 96, 82],
+  ["footerLogoSmall", "footer-logo-300.webp", 300, 82],
+  ["footerLogo", "footer-logo.webp", 512, 82],
 ];
 const additionalRasterBuffers = await Promise.all(
   additionalRasterSources.map(async ([key]) => ({ key, source: await fetchImage(remoteSources[key]) })),
@@ -91,6 +100,16 @@ for (const { key, source } of additionalRasterBuffers) {
 
 const checkCircle = await fetchImage(remoteSources.checkCircle);
 await writeFile(join(capturedDirectory, "check-circle.svg"), checkCircle);
+const serviceIconSources = [
+  ["serviceEmail", "service-email.svg"],
+  ["serviceMoney", "service-money.svg"],
+  ["serviceLike", "service-like.svg"],
+  ["serviceMobile", "service-mobile.svg"],
+  ["serviceCertificate", "service-certificate.svg"],
+];
+await Promise.all(serviceIconSources.map(async ([key, outputName]) => {
+  await writeFile(join(capturedDirectory, outputName), await fetchImage(remoteSources[key]));
+}));
 
 const generatedFiles = [
   ...["hero-1", "hero-2", "hero-3", "hero-4"].flatMap((name) => [
@@ -120,6 +139,13 @@ const generatedFiles = [
     "mail.webp",
     "zalo.webp",
     "messenger.webp",
+    "footer-logo-300.webp",
+    "footer-logo.webp",
+    "service-email.svg",
+    "service-money.svg",
+    "service-like.svg",
+    "service-mobile.svg",
+    "service-certificate.svg",
   ].map((name) => join(capturedDirectory, name)),
 ];
 
