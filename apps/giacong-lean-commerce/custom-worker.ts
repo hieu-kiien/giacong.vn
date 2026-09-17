@@ -39,6 +39,7 @@ const nonIndexableHosts = new Set([
 ]);
 
 const PUBLIC_DOCUMENT_CACHE_CONTROL = "public, max-age=0, s-maxage=60, stale-while-revalidate=300";
+const publicDocumentCache = (caches as CacheStorage & { default: Cache }).default;
 
 function isPublicDocumentRequest(request: Request): boolean {
   if (request.method !== "GET") return false;
@@ -78,7 +79,7 @@ function publicDocumentCacheKey(request: Request): Request {
 async function readPublicDocumentCache(request: Request): Promise<Response | null> {
   if (!isPublicDocumentRequest(request)) return null;
   try {
-    return await caches.default.match(publicDocumentCacheKey(request)) ?? null;
+    return await publicDocumentCache.match(publicDocumentCacheKey(request)) ?? null;
   } catch (error) {
     console.warn("Public document cache read unavailable.", error);
     return null;
@@ -92,7 +93,7 @@ function writePublicDocumentCache(
 ): void {
   if (!isPublicDocumentRequest(request) || !isPublicDocumentResponse(response)) return;
   ctx.waitUntil(
-    caches.default.put(publicDocumentCacheKey(request), response.clone()).catch((error: unknown) => {
+    publicDocumentCache.put(publicDocumentCacheKey(request), response.clone()).catch((error: unknown) => {
       console.warn("Public document cache write unavailable.", error);
     }),
   );
