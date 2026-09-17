@@ -18,7 +18,7 @@ img:is([sizes=auto i],[sizes^="auto," i]){contain-intrinsic-size:3000px 1500px}
 
 @font-face {
 				font-family: "fl-icons";
-				font-display: block;
+				font-display: swap;
 				src: url(/styles/icons/fl-icons.eot?v=3.16.2);
 				src:
 					url(/styles/icons/fl-icons.eot#iefix?v=3.16.2) format("embedded-opentype"),

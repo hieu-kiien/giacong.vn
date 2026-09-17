@@ -11,6 +11,7 @@ const formatVndSource = await read("src/lib/format-vnd.ts");
 const globalStyles = await read("src/app/globals.css");
 const capturedMarkupSource = await read("src/lib/captured-markup.ts");
 const homeSource = await read("src/components/site/CapturedHomePage.tsx");
+const homeRouteSource = await read("src/app/(storefront)/page.tsx");
 const capturedStylesheet = await read("public/styles/giacong-sections.css");
 
 const packshots = [
@@ -73,6 +74,13 @@ test("page reveal layers are released after a block settles", () => {
   );
 });
 
+test("homepage above-the-fold copy is visible before captured motion boots", () => {
+  assert.match(
+    globalStyles,
+    /#section_250108065 \[data-animate\][\s\S]*?animation: none !important[\s\S]*?opacity: 1 !important[\s\S]*?transform: none !important/,
+  );
+});
+
 test("captured content images defer below-fold loading without deferring chrome", () => {
   assert.match(capturedMarkupSource, /function addCapturedImageLoadingHints\(/);
   assert.match(capturedMarkupSource, /loading="lazy"/);
@@ -83,6 +91,11 @@ test("captured content images defer below-fold loading without deferring chrome"
 test("homepage hero prioritizes one image and defers the remaining gallery tiles", () => {
   assert.match(homeSource, /fetchpriority=\"\$\{index === 0 \? \"high\" : \"low\"\}\"/);
   assert.match(homeSource, /loading=\"\$\{index === 0 \? \"eager\" : \"lazy\"\}\"/);
+});
+
+test("homepage data reads start in parallel before rendering", () => {
+  assert.match(homeRouteSource, /const \[settings, managedPage, navigation\] = await Promise\.all\(/);
+  assert.match(homeRouteSource, /<CapturedHomePage \{\.\.\.data\} siteSettings=\{settings\} navigation=\{navigation\} \/>/);
 });
 
 test("homepage critical media uses local modern formats", async () => {
@@ -111,4 +124,8 @@ test("homepage critical media uses local modern formats", async () => {
 
 test("captured shared stylesheet keeps media on the local origin", () => {
   assert.doesNotMatch(capturedStylesheet, /https:\/\/giacong\.vn\/wp-content\//);
+});
+
+test("captured icon font does not hide icon fallbacks while loading", () => {
+  assert.match(capturedStylesheet, /font-family: "fl-icons";[\s\S]*?font-display: swap;/);
 });

@@ -41,6 +41,15 @@
   padding: 8px 12px;
 }
 
+/* The first captured section is the LCP surface. Keep its copy and gallery
+ * visible immediately; scroll reveal remains enabled for the sections below.
+ */
+#section_250108065 [data-animate] {
+  animation: none !important;
+  opacity: 1 !important;
+  transform: none !important;
+}
+
 .admin-contact-contextual-action {
   display: flex;
   justify-content: flex-end;

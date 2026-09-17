@@ -6,6 +6,7 @@ import {
   applyFooterNavigationToMarkup,
   applyNavigationToMarkup,
   getPublishedSiteNavigation,
+  type PublishedNavigationItem,
 } from "@/lib/site-navigation";
 import { siteSettingDefaults, type PublishedSiteSettings } from "@/lib/site-settings";
 import type { CapturedPageData } from "@/types/captured-page";
@@ -83,7 +84,10 @@ const UNVERIFIED_HOMEPAGE_PROOF_SECTION_IDS = [
 type CapturedHomePageProps = Pick<
   CapturedPageData,
   "markup" | "pageStyles" | "bodyClasses" | "htmlClasses"
-> & { siteSettings?: PublishedSiteSettings };
+> & {
+  navigation?: readonly PublishedNavigationItem[];
+  siteSettings?: PublishedSiteSettings;
+};
 
 /**
  * Renders the captured homepage while replacing the source's composite hero
@@ -95,10 +99,11 @@ export async function CapturedHomePage({
   pageStyles,
   bodyClasses,
   htmlClasses,
+  navigation: publishedNavigation,
   siteSettings,
 }: CapturedHomePageProps) {
   const settings = siteSettings ?? siteSettingDefaults;
-  const navigation = await getPublishedSiteNavigation();
+  const navigation = publishedNavigation ?? await getPublishedSiteNavigation();
   const normalizedMarkup = localizeHomepageMedia(
     applyHomepageSiteSettingsToMarkup(
       removeUnverifiedHomepageProof(normalizeCapturedMarkup(localizeHomepageMedia(markup))),

@@ -6,6 +6,7 @@ import { CapturedStorefrontShell } from "@/components/site/CapturedStorefrontShe
 import homePage from "@/data/pages/home.json";
 import { getPublishedSiteSettings } from "@/lib/site-settings";
 import { getPublishedSitePage } from "@/lib/site-pages";
+import { getPublishedSiteNavigation } from "@/lib/site-navigation";
 import { canonicalMetadata } from "@/lib/seo";
 import type { CapturedPageData } from "@/types/captured-page";
 
@@ -24,7 +25,11 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function Home() {
-  const [settings, managedPage] = await Promise.all([getPublishedSiteSettings(), getPublishedSitePage("/")]);
+  const [settings, managedPage, navigation] = await Promise.all([
+    getPublishedSiteSettings(),
+    getPublishedSitePage("/"),
+    getPublishedSiteNavigation(),
+  ]);
   if (managedPage?.blocks.length) {
     return (
       <CapturedStorefrontShell>
@@ -32,5 +37,5 @@ export default async function Home() {
       </CapturedStorefrontShell>
     );
   }
-  return <CapturedHomePage {...data} siteSettings={settings} />;
+  return <CapturedHomePage {...data} siteSettings={settings} navigation={navigation} />;
 }
