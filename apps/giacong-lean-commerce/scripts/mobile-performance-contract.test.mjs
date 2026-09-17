@@ -11,6 +11,7 @@ const formatVndSource = await read("src/lib/format-vnd.ts");
 const globalStyles = await read("src/app/globals.css");
 const capturedMarkupSource = await read("src/lib/captured-markup.ts");
 const homeSource = await read("src/components/site/CapturedHomePage.tsx");
+const capturedStylesheet = await read("public/styles/giacong-sections.css");
 
 const packshots = [
   "public/images/products/demo-dried-fruit-pouches.webp",
@@ -31,6 +32,16 @@ const homepageOptimizedAssets = [
   ["public/images/home-captured/menu-logo.webp", 140_000],
   ["public/images/home-captured/header-logo.webp", 80_000],
   ["public/images/home-captured/book-open.svg", 20_000],
+  ["public/images/home-captured/bg-tin-tuc.webp", 180_000],
+  ["public/images/home-captured/Group-205.webp", 180_000],
+  ["public/images/home-captured/quote.webp", 20_000],
+  ["public/images/home-captured/check-circle.svg", 20_000],
+  ["public/images/home-captured/form-bg.webp", 100_000],
+  ["public/images/home-captured/thumbcn-1200x676-9.webp", 250_000],
+  ["public/images/home-captured/call.webp", 20_000],
+  ["public/images/home-captured/mail.webp", 20_000],
+  ["public/images/home-captured/zalo.webp", 20_000],
+  ["public/images/home-captured/messenger.webp", 20_000],
 ];
 
 test("mobile catalog fallback imagery uses compressed WebP packshots", async () => {
@@ -78,9 +89,17 @@ test("homepage critical media uses local modern formats", async () => {
   assert.match(homeSource, /home-captured\/menu-logo\.webp/);
   assert.match(homeSource, /home-captured\/header-logo\.webp/);
   assert.match(homeSource, /home-captured\/book-open\.svg/);
+  assert.match(homeSource, /home-captured\/bg-tin-tuc\.webp/);
+  assert.match(homeSource, /home-captured\/Group-205\.webp/);
+  assert.match(homeSource, /home-captured\/check-circle\.svg/);
+  assert.match(homeSource, /home-captured\/call\.webp/);
 
   await Promise.all(homepageOptimizedAssets.map(async ([path, limit]) => {
     const size = (await stat(new URL(path, appRoot))).size;
     assert.ok(size < limit, `expected ${path} to stay below ${limit} bytes; got ${size}`);
   }));
+});
+
+test("captured shared stylesheet keeps media on the local origin", () => {
+  assert.doesNotMatch(capturedStylesheet, /https:\/\/giacong\.vn\/wp-content\//);
 });

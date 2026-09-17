@@ -50,6 +50,18 @@ const HOMEPAGE_MEDIA_ALIASES: Readonly<Record<string, string>> = {
   "https://giacong.vn/wp-content/uploads/2024/08/logo-__1_-removebg-preview.png": "/images/home-captured/menu-logo.webp",
   "https://giacong.vn/wp-content/uploads/2024/10/GIACONG.VN-ngang-03-1-1024x291.png": "/images/home-captured/header-logo.webp",
   "https://giacong.vn/wp-content/uploads/2024/08/book-open-svgrepo-com.svg": "/images/home-captured/book-open.svg",
+  "https://giacong.vn/wp-content/uploads/2020/06/banner-bg-2.png": "/images/home-captured/banner-gia-cong.webp",
+  "https://giacong.vn/wp-content/uploads/2020/06/phone-icon.png": "/images/home-captured/call.webp",
+  "https://giacong.vn/wp-content/uploads/2024/09/bg-tin-tuc.png": "/images/home-captured/bg-tin-tuc.webp",
+  "https://giacong.vn/wp-content/uploads/2024/09/Group-205.png": "/images/home-captured/Group-205.webp",
+  "https://giacong.vn/wp-content/uploads/2024/09/quote.png": "/images/home-captured/quote.webp",
+  "https://giacong.vn/wp-content/uploads/2024/10/check-circle-svgrepo-com.svg": "/images/home-captured/check-circle.svg",
+  "https://giacong.vn/wp-content/uploads/2024/10/form-bg.jpg": "/images/home-captured/form-bg.webp",
+  "https://giacong.vn/wp-content/uploads/2024/10/thumbcn-1200x676-9.jpg": "/images/home-captured/thumbcn-1200x676-9.webp",
+  "https://giacong.vn/wp-content/uploads/2026/01/call.webp": "/images/home-captured/call.webp",
+  "https://giacong.vn/wp-content/uploads/2026/01/mail.webp": "/images/home-captured/mail.webp",
+  "https://giacong.vn/wp-content/uploads/2026/01/zalo.webp": "/images/home-captured/zalo.webp",
+  "https://giacong.vn/wp-content/uploads/2026/01/messenger.webp": "/images/home-captured/messenger.webp",
 };
 
 // These captured sections contain customer counts, testimonials and partner marks with no

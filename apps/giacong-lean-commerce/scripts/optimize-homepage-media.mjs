@@ -15,6 +15,16 @@ const remoteSources = {
   menuLogo: "https://giacong.vn/wp-content/uploads/2024/08/logo-__1_-removebg-preview.png",
   headerLogo: "https://giacong.vn/wp-content/uploads/2024/10/GIACONG.VN-ngang-03-1-1024x291.png",
   bookOpen: "https://giacong.vn/wp-content/uploads/2024/08/book-open-svgrepo-com.svg",
+  newsBackground: "https://giacong.vn/wp-content/uploads/2024/09/bg-tin-tuc.png",
+  sectionBackground: "https://giacong.vn/wp-content/uploads/2024/09/Group-205.png",
+  quote: "https://giacong.vn/wp-content/uploads/2024/09/quote.png",
+  checkCircle: "https://giacong.vn/wp-content/uploads/2024/10/check-circle-svgrepo-com.svg",
+  formBackground: "https://giacong.vn/wp-content/uploads/2024/10/form-bg.jpg",
+  newsThumbnail: "https://giacong.vn/wp-content/uploads/2024/10/thumbcn-1200x676-9.jpg",
+  call: "https://giacong.vn/wp-content/uploads/2026/01/call.webp",
+  mail: "https://giacong.vn/wp-content/uploads/2026/01/mail.webp",
+  zalo: "https://giacong.vn/wp-content/uploads/2026/01/zalo.webp",
+  messenger: "https://giacong.vn/wp-content/uploads/2026/01/messenger.webp",
 };
 
 async function fetchImage(url) {
@@ -47,6 +57,20 @@ const [background, banner, product, about, menuLogo, headerLogo] = await Promise
 const bookOpenResponse = await fetch(remoteSources.bookOpen);
 if (!bookOpenResponse.ok) throw new Error(`Could not download ${remoteSources.bookOpen}: ${bookOpenResponse.status}`);
 const bookOpen = Buffer.from(await bookOpenResponse.arrayBuffer());
+const additionalRasterSources = [
+  ["newsBackground", "bg-tin-tuc.webp", 1600, 78],
+  ["sectionBackground", "Group-205.webp", 1600, 78],
+  ["quote", "quote.webp", 160, 82],
+  ["formBackground", "form-bg.webp", 1600, 78],
+  ["newsThumbnail", "thumbcn-1200x676-9.webp", 1200, 78],
+  ["call", "call.webp", 96, 82],
+  ["mail", "mail.webp", 96, 82],
+  ["zalo", "zalo.webp", 96, 82],
+  ["messenger", "messenger.webp", 96, 82],
+];
+const additionalRasterBuffers = await Promise.all(
+  additionalRasterSources.map(async ([key]) => ({ key, source: await fetchImage(remoteSources[key]) })),
+);
 
 await writeWebp(background, "img-b.webp", 1600, 78);
 await writeWebp(banner, "banner-gia-cong.webp", 1600, 78);
@@ -60,6 +84,13 @@ await writeWebp(about, "IMG.webp", 863, 80);
 await writeWebp(about, "IMG-768x652.webp", 768, 80);
 await writeWebp(about, "IMG-510x433.webp", 510, 80);
 await writeWebp(about, "IMG-300x255.webp", 300, 80);
+for (const { key, source } of additionalRasterBuffers) {
+  const [, outputName, width, quality] = additionalRasterSources.find(([sourceKey]) => sourceKey === key);
+  await writeWebp(source, outputName, width, quality);
+}
+
+const checkCircle = await fetchImage(remoteSources.checkCircle);
+await writeFile(join(capturedDirectory, "check-circle.svg"), checkCircle);
 
 const generatedFiles = [
   ...["hero-1", "hero-2", "hero-3", "hero-4"].flatMap((name) => [
@@ -79,6 +110,16 @@ const generatedFiles = [
     "IMG-768x652.webp",
     "IMG-510x433.webp",
     "IMG-300x255.webp",
+    "bg-tin-tuc.webp",
+    "Group-205.webp",
+    "quote.webp",
+    "check-circle.svg",
+    "form-bg.webp",
+    "thumbcn-1200x676-9.webp",
+    "call.webp",
+    "mail.webp",
+    "zalo.webp",
+    "messenger.webp",
   ].map((name) => join(capturedDirectory, name)),
 ];
 
