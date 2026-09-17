@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-css-tags -- Fixed TOC is a route-specific public capture asset. */
 import { AdminContactContextualAction } from "@/components/admin/AdminContactContextualAction";
 import { GiacongInteractions } from "@/components/GiacongInteractions";
 import { CapturedRequestCartButton } from "@/components/request-cart/CapturedRequestCartButton";
