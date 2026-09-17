@@ -2,8 +2,6 @@
 
 import { useEffect } from "react";
 
-import { connectContactForms } from "@/components/contact-form";
-import { connectCapturedMotion } from "@/components/captured-motion";
 import {
   resolveDesktopDropdownEscapeTarget,
   type EscapeActiveElement,
@@ -59,8 +57,19 @@ export function GiacongInteractions({
 
     const restoreMobileMenuIcons = replaceMobileMenuIcons(menu);
     const generatedToggles = addMobileAccordionToggles(menu);
-    const disconnectContactForms = connectContactForms();
-    const disconnectCapturedMotion = connectCapturedMotion();
+    let disposed = false;
+    let disconnectContactForms: (() => void) | undefined;
+    let disconnectCapturedMotion: (() => void) | undefined;
+    void Promise.all([
+      import("./contact-form"),
+      import("./captured-motion"),
+    ]).then(([contactForm, capturedMotion]) => {
+      if (disposed) return;
+      disconnectContactForms = contactForm.connectContactForms();
+      disconnectCapturedMotion = capturedMotion.connectCapturedMotion();
+    }).catch((error) => {
+      console.warn("Optional storefront interactions unavailable.", error);
+    });
     const mobileSearchInput = menu?.querySelector<HTMLInputElement>(
       "input[type='search']",
     );
@@ -211,6 +220,7 @@ export function GiacongInteractions({
     updateStickyHeader();
 
     return () => {
+      disposed = true;
       trigger?.removeEventListener("click", toggleMenu);
       headerSearchTrigger?.removeEventListener("click", openMobileSearch);
       menuBackdrop.removeEventListener("click", closeMenu);
@@ -218,8 +228,8 @@ export function GiacongInteractions({
       document.removeEventListener("click", handleSubmenu);
       document.removeEventListener("keydown", handleMenuKeydown);
       window.removeEventListener("scroll", updateStickyHeader);
-      disconnectContactForms();
-      disconnectCapturedMotion();
+      disconnectContactForms?.();
+      disconnectCapturedMotion?.();
       generatedToggles.forEach((button) => button.remove());
       restoreMobileMenuIcons();
       taxonomyShow?.removeEventListener("click", expandTaxonomy);

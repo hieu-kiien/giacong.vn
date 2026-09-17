@@ -57,6 +57,13 @@ const settings = {
   site_title: "Giacong.vn",
 };
 
+test("defers optional form and motion modules out of the initial interaction chunk", () => {
+  assert.doesNotMatch(interactions, /import\s*{\s*connectContactForms\s*}\s*from/);
+  assert.doesNotMatch(interactions, /import\s*{\s*connectCapturedMotion\s*}\s*from/);
+  assert.match(interactions, /import\("\.\/contact-form"\)/);
+  assert.match(interactions, /import\("\.\/captured-motion"\)/);
+});
+
 test("normalizes captured navigation into a direct product route and grouped services", () => {
   const result = normalizeCapturedMarkup(desktopAndMobileMenu);
   const productMenuStart = result.indexOf('id="menu-item-1742"');
