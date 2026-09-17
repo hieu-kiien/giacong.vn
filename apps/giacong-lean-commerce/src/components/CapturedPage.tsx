@@ -48,9 +48,11 @@ export function CapturedPage({
     ),
     settings,
   );
+  const needsFixedTocStyles = /\bftwp-(?:container|trigger|list)\b/i.test(markup);
 
   return (
     <>
+      {needsFixedTocStyles ? <link rel="stylesheet" href="/styles/fixed-toc.css" /> : null}
       <style dangerouslySetInnerHTML={{ __html: `${layerCapturedStyles(pageStyles)}\n${siteBrandStyles(settings)}` }} />
       <div
         className={bodyClasses}
