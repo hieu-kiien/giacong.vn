@@ -38,6 +38,33 @@ const nonIndexableHosts = new Set([
   "staging.kienhieu.id.vn",
 ]);
 
+const PUBLIC_DOCUMENT_CACHE_CONTROL = "public, max-age=0, s-maxage=60, stale-while-revalidate=300";
+
+function isPublicDocumentRequest(request: Request, response: Response): boolean {
+  if (request.method !== "GET" || response.status !== 200) return false;
+
+  const url = new URL(request.url);
+  if (url.hostname.toLowerCase() !== "kienhieu.id.vn") return false;
+  if (!(request.headers.get("Accept") ?? "").includes("text/html")) return false;
+  if (request.headers.has("RSC") || url.searchParams.has("_rsc")) return false;
+  if (!(response.headers.get("Content-Type") ?? "").includes("text/html")) return false;
+  return !response.headers.has("Set-Cookie");
+}
+
+function withPublicDocumentCache(request: Request, response: Response): Response {
+  if (!isPublicDocumentRequest(request, response)) return response;
+
+  const headers = new Headers(response.headers);
+  headers.set("Cache-Control", PUBLIC_DOCUMENT_CACHE_CONTROL);
+  headers.delete("Pragma");
+  headers.delete("Expires");
+  return new Response(response.body, {
+    headers,
+    status: response.status,
+    statusText: response.statusText,
+  });
+}
+
 function shouldPreventIndexing(request: Request): boolean {
   return nonIndexableHosts.has(new URL(request.url).hostname.toLowerCase());
 }
@@ -110,7 +137,8 @@ const worker = {
     }
 
     const response = await generatedWorker.fetch(request, env, ctx);
-    return withIndexingHeaders(request, await withCatalogProductNotFoundStatus(request, response, env));
+    const catalogResponse = await withCatalogProductNotFoundStatus(request, response, env);
+    return withPublicDocumentCache(request, withIndexingHeaders(request, catalogResponse));
   },
 
   async queue(batch: QueueBatch<LeadDeliveryMessage>, env: WorkerEnv): Promise<void> {
