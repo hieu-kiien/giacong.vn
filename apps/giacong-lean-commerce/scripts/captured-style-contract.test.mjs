@@ -28,3 +28,9 @@ test("fixed TOC CSS is loaded only by captured pages that contain a TOC", () => 
   assert.match(capturedPageSource, /ftwp-/);
   assert.match(capturedPageSource, /fixed-toc\.css/);
 });
+
+test("legacy widget styles are not part of the storefront critical stylesheet", () => {
+  assert.doesNotMatch(capturedLayersSource, /woocommerce-blocks\.css/);
+  assert.doesNotMatch(capturedLayersSource, /quick-buy\.css/);
+  assert.doesNotMatch(capturedLayersSource, /star-ratings\.css/);
+});

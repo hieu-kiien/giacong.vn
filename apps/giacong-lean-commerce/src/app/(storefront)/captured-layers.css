@@ -20,6 +20,12 @@
  * captured footer and the 237 captured routes looking the same) while losing to
  * Tailwind utilities and components.
  *
+ * `flatsome.css` already contains the base WooCommerce and Magnific Popup rules.
+ * The capture normalizer removes the legacy rating widget, no route emits
+ * WooCommerce Blocks markup, and the old quick-buy plugin popup is not part of
+ * this application. Keeping those three legacy sheets out of the critical
+ * bundle removes bytes from every storefront request without changing markup.
+ *
  * The paths are relative so the bundler inlines them into the route stylesheet.
  * An absolute-URL `@import` also works in production, but dev keeps it as a
  * second round trip: the captured CSS then lands after first paint and the page
@@ -27,9 +33,6 @@
  * bytes — they are simply no longer requested from `public/`.
  */
 @import "../../../public/styles/menu-icons.css" layer(captured);
-@import "../../../public/styles/woocommerce-blocks.css" layer(captured);
-@import "../../../public/styles/star-ratings.css" layer(captured);
-@import "../../../public/styles/quick-buy.css" layer(captured);
 @import "../../../public/styles/flatsome.css" layer(captured);
 @import "../../../public/styles/flatsome-shop.css" layer(captured);
 @import "../../../public/styles/giacong.css" layer(captured);
