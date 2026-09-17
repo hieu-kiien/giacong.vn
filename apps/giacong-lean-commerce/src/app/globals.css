@@ -56,7 +56,7 @@
   @media (prefers-reduced-motion: no-preference) {
     #section_250108065[data-captured-hero-motion-ready] [data-animate] {
       animation: none !important;
-      opacity: 0 !important;
+      opacity: 1 !important;
       transition: filter 1.3s, transform 1.6s, opacity 0.7s ease-in !important;
       will-change: filter, transform, opacity;
     }

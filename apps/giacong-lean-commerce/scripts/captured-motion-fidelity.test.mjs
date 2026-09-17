@@ -286,6 +286,7 @@ test("keeps the captured hero visible without JS and restores its entrance motio
   assert.match(capturedMotion, /heroElements/);
   assert.match(capturedMotion, /heroMotionFrame/);
   assert.match(globals, /#section_250108065\[data-captured-hero-motion-ready\]/);
+  assert.match(globals, /#section_250108065\[data-captured-hero-motion-ready\][\s\S]*?opacity: 1 !important/);
   assert.match(globals, /#section_250108065 \[data-animate\][\s\S]*?opacity: 1 !important/);
 });
 
