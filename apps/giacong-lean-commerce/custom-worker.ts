@@ -39,6 +39,8 @@ const nonIndexableHosts = new Set([
 ]);
 
 const PUBLIC_DOCUMENT_CACHE_CONTROL = "public, max-age=0, s-maxage=60, stale-while-revalidate=300";
+const IMMUTABLE_STATIC_ASSET_CACHE_CONTROL = "public, max-age=31536000, immutable";
+const PUBLIC_STATIC_ASSET_CACHE_CONTROL = "public, max-age=86400, stale-while-revalidate=604800";
 const publicDocumentCache = (caches as CacheStorage & { default: Cache }).default;
 
 function isPublicDocumentRequest(request: Request): boolean {
@@ -63,6 +65,39 @@ function withPublicDocumentCache(request: Request, response: Response): Response
 
   const headers = new Headers(response.headers);
   headers.set("Cache-Control", PUBLIC_DOCUMENT_CACHE_CONTROL);
+  headers.delete("Pragma");
+  headers.delete("Expires");
+  return new Response(response.body, {
+    headers,
+    status: response.status,
+    statusText: response.statusText,
+  });
+}
+
+function isStaticAssetRequest(request: Request): boolean {
+  if (request.method !== "GET" && request.method !== "HEAD") return false;
+
+  const pathname = new URL(request.url).pathname;
+  return pathname.startsWith("/_next/static/")
+    || pathname.startsWith("/images/")
+    || pathname.startsWith("/styles/");
+}
+
+function isStaticAssetResponse(response: Response): boolean {
+  if (response.status !== 200) return false;
+  if ((response.headers.get("Content-Type") ?? "").includes("text/html")) return false;
+  return !response.headers.has("Set-Cookie");
+}
+
+function withStaticAssetCache(request: Request, response: Response): Response {
+  if (!isStaticAssetRequest(request) || !isStaticAssetResponse(response)) return response;
+
+  const pathname = new URL(request.url).pathname;
+  const cacheControl = pathname.startsWith("/_next/static/")
+    ? IMMUTABLE_STATIC_ASSET_CACHE_CONTROL
+    : PUBLIC_STATIC_ASSET_CACHE_CONTROL;
+  const headers = new Headers(response.headers);
+  headers.set("Cache-Control", cacheControl);
   headers.delete("Pragma");
   headers.delete("Expires");
   return new Response(response.body, {
@@ -175,7 +210,10 @@ const worker = {
 
     const response = await generatedWorker.fetch(request, env, ctx);
     const catalogResponse = await withCatalogProductNotFoundStatus(request, response, env);
-    const finalResponse = withPublicDocumentCache(request, withIndexingHeaders(request, catalogResponse));
+    const finalResponse = withStaticAssetCache(
+      request,
+      withPublicDocumentCache(request, withIndexingHeaders(request, catalogResponse)),
+    );
     writePublicDocumentCache(request, finalResponse, ctx);
     return finalResponse;
   },
