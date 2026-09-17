@@ -10,6 +10,10 @@ test("public document caching is bounded and isolated from private surfaces", ()
   assert.match(worker, /request\.method !== "GET"/);
   assert.match(worker, /Accept/);
   assert.match(worker, /Set-Cookie/);
+  assert.match(worker, /Cookie/);
   assert.match(worker, /public, max-age=0, s-maxage=60, stale-while-revalidate=300/);
+  assert.match(worker, /caches\.default\.match/);
+  assert.match(worker, /caches\.default\.put/);
+  assert.match(worker, /ctx\.waitUntil/);
   assert.match(worker, /withPublicDocumentCache\(request/);
 });

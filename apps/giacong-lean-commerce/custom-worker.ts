@@ -40,19 +40,25 @@ const nonIndexableHosts = new Set([
 
 const PUBLIC_DOCUMENT_CACHE_CONTROL = "public, max-age=0, s-maxage=60, stale-while-revalidate=300";
 
-function isPublicDocumentRequest(request: Request, response: Response): boolean {
-  if (request.method !== "GET" || response.status !== 200) return false;
+function isPublicDocumentRequest(request: Request): boolean {
+  if (request.method !== "GET") return false;
 
   const url = new URL(request.url);
   if (url.hostname.toLowerCase() !== "kienhieu.id.vn") return false;
   if (!(request.headers.get("Accept") ?? "").includes("text/html")) return false;
   if (request.headers.has("RSC") || url.searchParams.has("_rsc")) return false;
+  if (request.headers.has("Cookie") || request.headers.has("Authorization")) return false;
+  return true;
+}
+
+function isPublicDocumentResponse(response: Response): boolean {
+  if (response.status !== 200) return false;
   if (!(response.headers.get("Content-Type") ?? "").includes("text/html")) return false;
   return !response.headers.has("Set-Cookie");
 }
 
 function withPublicDocumentCache(request: Request, response: Response): Response {
-  if (!isPublicDocumentRequest(request, response)) return response;
+  if (!isPublicDocumentRequest(request) || !isPublicDocumentResponse(response)) return response;
 
   const headers = new Headers(response.headers);
   headers.set("Cache-Control", PUBLIC_DOCUMENT_CACHE_CONTROL);
@@ -63,6 +69,33 @@ function withPublicDocumentCache(request: Request, response: Response): Response
     status: response.status,
     statusText: response.statusText,
   });
+}
+
+function publicDocumentCacheKey(request: Request): Request {
+  return new Request(new URL(request.url).toString(), { method: "GET" });
+}
+
+async function readPublicDocumentCache(request: Request): Promise<Response | null> {
+  if (!isPublicDocumentRequest(request)) return null;
+  try {
+    return await caches.default.match(publicDocumentCacheKey(request)) ?? null;
+  } catch (error) {
+    console.warn("Public document cache read unavailable.", error);
+    return null;
+  }
+}
+
+function writePublicDocumentCache(
+  request: Request,
+  response: Response,
+  ctx: WorkerExecutionContext,
+): void {
+  if (!isPublicDocumentRequest(request) || !isPublicDocumentResponse(response)) return;
+  ctx.waitUntil(
+    caches.default.put(publicDocumentCacheKey(request), response.clone()).catch((error: unknown) => {
+      console.warn("Public document cache write unavailable.", error);
+    }),
+  );
 }
 
 function shouldPreventIndexing(request: Request): boolean {
@@ -136,9 +169,14 @@ const worker = {
       }
     }
 
+    const cachedDocument = await readPublicDocumentCache(request);
+    if (cachedDocument) return cachedDocument;
+
     const response = await generatedWorker.fetch(request, env, ctx);
     const catalogResponse = await withCatalogProductNotFoundStatus(request, response, env);
-    return withPublicDocumentCache(request, withIndexingHeaders(request, catalogResponse));
+    const finalResponse = withPublicDocumentCache(request, withIndexingHeaders(request, catalogResponse));
+    writePublicDocumentCache(request, finalResponse, ctx);
+    return finalResponse;
   },
 
   async queue(batch: QueueBatch<LeadDeliveryMessage>, env: WorkerEnv): Promise<void> {
