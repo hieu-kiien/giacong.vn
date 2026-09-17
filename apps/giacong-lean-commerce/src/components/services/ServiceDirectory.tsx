@@ -192,7 +192,7 @@ export function ServiceDirectory({
     <section aria-labelledby="service-directory-title" className={styles.directory} id="service-directory">
       <h2 className="sr-only" id="service-directory-title">Danh mục nhóm dịch vụ</h2>
 
-      <div className={styles.filterPanel}>
+      <div className={styles.filterPanel} data-motion-section="service-filter">
         <form onSubmit={handleSearchSubmit} role="search">
           <label className={styles.searchLabel} htmlFor="service-search">
             Bạn cần gia công gì?
@@ -245,7 +245,7 @@ export function ServiceDirectory({
             {featuredFamilies.map((family) => <ServiceGroupCard family={family} key={family.slug} />)}
           </div>
           {remainingFamilies.length > 0 ? (
-            <section aria-labelledby="all-service-groups" className={styles.remainingSection}>
+            <section aria-labelledby="all-service-groups" className={styles.remainingSection} data-motion-section="service-all-groups">
               <h2 id="all-service-groups">Tất cả nhóm dịch vụ</h2>
               <div className={styles.cardGrid}>
                 {remainingFamilies.map((family) => <ServiceGroupCard family={family} key={family.slug} />)}
@@ -263,7 +263,7 @@ export function ServiceDirectory({
       ) : null}
 
       {contentIndex.length > 0 ? (
-        <details className={styles.contentIndex} open={Boolean(query)}>
+        <details className={styles.contentIndex} data-motion-section="service-content-index" open={Boolean(query)}>
           <summary>
             <span>Kho nội dung dịch vụ</span>
             <strong>{filteredContent.length} trang</strong>

@@ -15,6 +15,12 @@ const globals = await readFile(new URL("../src/app/globals.css", import.meta.url
 const uxAuditPilot = await readFile(new URL("./ux-audit-pilot.mjs", import.meta.url), "utf8");
 const contactForm = await readFile(new URL("../src/components/contact-form.ts", import.meta.url), "utf8");
 const capturedHome = await readFile(new URL("../src/components/site/CapturedHomePage.tsx", import.meta.url), "utf8");
+const productDetail = await readFile(new URL("../src/components/catalog/ProductDetailPage.tsx", import.meta.url), "utf8");
+const requestCart = await readFile(new URL("../src/components/request-cart/RequestCartView.tsx", import.meta.url), "utf8");
+const policyPage = await readFile(new URL("../src/components/site/PolicyPage.tsx", import.meta.url), "utf8");
+const serviceDirectory = await readFile(new URL("../src/components/services/ServiceDirectory.tsx", import.meta.url), "utf8");
+const serviceFamilyDetail = await readFile(new URL("../src/components/services/ServiceFamilyDetail.tsx", import.meta.url), "utf8");
+const serviceLanding = await readFile(new URL("../src/components/services/ServiceLanding.tsx", import.meta.url), "utf8");
 const contactCapture = JSON.parse(await readFile(new URL("../src/data/pages/lien-he.json", import.meta.url), "utf8"));
 const motionSource = `${interactions}\n${capturedMotion}`;
 
@@ -266,6 +272,25 @@ test("keeps a reduced-motion fade fallback for captured reveals", () => {
   assert.match(capturedMotion, /setAttribute\("data-motion-reduced", "true"\)/);
   assert.match(globals, /\[data-animate\]\[data-motion-reduced\]/);
   assert.match(globals, /data-motion-reduced\]\[data-animated=["']true["']\]/);
+});
+
+test("covers app-owned storefront surfaces outside the captured homepage", () => {
+  assert.match(capturedMotion, /\[data-motion-section\]/);
+  assert.match(capturedMotion, /\[data-service-group\]/);
+  assert.match(capturedMotion, /\.giacong-news-detail > article/);
+  assert.match(productDetail, /data-motion-section/);
+  assert.match(requestCart, /data-motion-section/);
+  assert.match(policyPage, /data-motion-section/);
+  assert.match(serviceDirectory, /data-motion-section/);
+  assert.match(serviceFamilyDetail, /data-motion-section/);
+  assert.match(serviceLanding, /data-motion-section/);
+});
+
+test("keeps mobile page reveals visible but restrained", () => {
+  assert.match(globals, /@media \(max-width: 549px\) and \(prefers-reduced-motion: no-preference\)/);
+  assert.match(globals, /translate3d\(0, 18px, 0\)/);
+  assert.match(globals, /translate3d\(-24px, 0, 0\)/);
+  assert.match(globals, /translate3d\(24px, 0, 0\)/);
 });
 
 test("keeps slider pagination as a native list instead of an incomplete tablist", () => {

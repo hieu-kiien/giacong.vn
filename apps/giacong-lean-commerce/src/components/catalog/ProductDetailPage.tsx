@@ -38,7 +38,7 @@ export function ProductDetailPage({ editingCartVariantSku, initialVariantSku, so
   return (
     <div className={styles.page}>
       <div className={styles.rail}>
-        <nav aria-label="Đường dẫn" className={styles.crumbs}>
+        <nav aria-label="Đường dẫn" className={styles.crumbs} data-motion-section="product-detail-breadcrumb">
           <ol>
             {view.breadcrumb.map((crumb) => (
               <li key={crumb.label}>
@@ -50,7 +50,7 @@ export function ProductDetailPage({ editingCartVariantSku, initialVariantSku, so
           </ol>
         </nav>
 
-        <div className={styles.hero}>
+        <div className={styles.hero} data-motion-section="product-detail-hero">
           <ProductGallery images={view.gallery} />
           <ProductDetailCommerce
             editingCartVariantSku={editingCartVariantSku}
@@ -62,14 +62,14 @@ export function ProductDetailPage({ editingCartVariantSku, initialVariantSku, so
         </div>
 
         {view.description ? (
-          <section aria-labelledby="detail-description" className={styles.descriptionPanel}>
+          <section aria-labelledby="detail-description" className={styles.descriptionPanel} data-motion-section="product-detail-description">
             <h2 className={styles.sectionTitle} id="detail-description">Mô tả sản phẩm</h2>
             <p className={styles.description}>{view.description}</p>
           </section>
         ) : null}
 
         {view.relatedProducts.length > 0 ? (
-          <section aria-labelledby="detail-related" className={styles.relatedSection}>
+          <section aria-labelledby="detail-related" className={styles.relatedSection} data-motion-section="product-detail-related">
             <h2 className={styles.sectionTitle} id="detail-related">Sản phẩm liên quan</h2>
             <ul className={styles.relatedRail}>
               {view.relatedProducts.map((card) => (

@@ -685,6 +685,31 @@
   }
 }
 
+/* Mobile keeps the same reveal language with shorter travel and timing. This
+ * avoids a heavy entrance on a small viewport while preserving clear motion
+ * between sections, cards and the primary buying actions. */
+@media (max-width: 549px) and (prefers-reduced-motion: no-preference) {
+  .page-reveal-ready.page-reveal-motion [data-page-reveal] {
+    transition-duration: .5s, .6s;
+  }
+
+  .page-reveal-ready [data-page-reveal="from-up"] {
+    transform: translate3d(0, 18px, 0);
+  }
+
+  .page-reveal-ready [data-page-reveal="from-left"] {
+    transform: translate3d(-24px, 0, 0);
+  }
+
+  .page-reveal-ready [data-page-reveal="from-right"] {
+    transform: translate3d(24px, 0, 0);
+  }
+
+  .page-reveal-ready [data-page-reveal="scale"] {
+    transform: translate3d(0, 18px, 0) scale(.97);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   [data-page-reveal] {
     opacity: 1;

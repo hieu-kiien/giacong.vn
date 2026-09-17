@@ -34,7 +34,7 @@ export function ServiceFamilyDetail({ family }: ServiceFamilyDetailProps) {
     : null;
   return (
     <div className={styles.main}>
-      <section className={styles.hero}>
+      <section className={styles.hero} data-motion-section="service-detail-hero">
         <ServiceImage
           alt=""
           className={styles.heroImage}
@@ -48,7 +48,7 @@ export function ServiceFamilyDetail({ family }: ServiceFamilyDetailProps) {
           <p className={styles.lead}>{family.description}</p>
         </div>
       </section>
-      <section className={styles.section} aria-labelledby="offering-title">
+      <section className={styles.section} aria-labelledby="offering-title" data-motion-section="service-detail-offerings">
         <div className={styles.inner}>
           <div className={styles.sectionHeading}><h2 id="offering-title">Dịch vụ trong nhóm</h2><p>Mỗi liên kết dưới đây dẫn đến một trang nội dung hiện có.</p></div>
           {moqSummary || leadTimeDays !== null ? (

@@ -26,10 +26,17 @@ const PAGE_REVEAL_SELECTOR = [
   "[data-catalog-grid]",
   "[data-catalog-grid] > [data-catalog-card]",
   "[data-catalog-grid] ~ aside",
+  "[data-motion-section]",
+  "[data-service-group]",
   ".managed-block",
   ".managed-feature-card",
   ".giacong-news-card",
-  "[data-storefront-detail-main] > *",
+  ".giacong-news-detail > article",
+  ".giacong-news-list__header",
+  ".giacong-news-list__tools",
+  ".giacong-news-result-count",
+  ".giacong-news-empty",
+  ".giacong-news-pagination",
 ].join(", ");
 
 type PageRevealMode = "from-up" | "from-left" | "from-right" | "scale";
@@ -51,7 +58,7 @@ function connectPageReveals(root: ParentNode): MotionCleanup {
   }));
   const staggered = (element: HTMLElement) =>
     element.matches(
-      "[data-catalog-grid] > [data-catalog-card], .managed-feature-card, .giacong-news-card",
+      "[data-catalog-grid] > [data-catalog-card], [data-service-group], .managed-feature-card, .giacong-news-card",
     );
 
   elements.forEach((element, index) => {
@@ -134,7 +141,7 @@ function getPageRevealMode(element: HTMLElement): PageRevealMode {
   if (element.matches(".archive-page-header, .giacong-page-hero")) return "from-left";
   if (
     element.matches(
-      "[data-catalog-grid] > [data-catalog-card], .managed-feature-card, .giacong-news-card",
+      "[data-catalog-grid] > [data-catalog-card], [data-service-group], .managed-feature-card, .giacong-news-card",
     )
   ) {
     return "scale";

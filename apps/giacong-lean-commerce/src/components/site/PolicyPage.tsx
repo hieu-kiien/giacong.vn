@@ -100,10 +100,10 @@ export function PolicyPage({ policyKey }: { policyKey: PolicyKey }) {
         <div className="page-wrapper" id="content">
           <div className="row align-center">
             <div className="large-10 col">
-              <nav aria-label="Breadcrumb" className="rank-math-breadcrumb" style={{ paddingTop: 30 }}>
+              <nav aria-label="Breadcrumb" className="rank-math-breadcrumb" data-motion-section="policy-breadcrumb" style={{ paddingTop: 30 }}>
                 <p><Link href="/">Trang chủ</Link><span className="separator"> » </span><span className="last">{policy.title}</span></p>
               </nav>
-              <article className="rounded-lg border border-neutral-200 bg-white p-5 shadow-sm sm:p-8">
+              <article className="rounded-lg border border-neutral-200 bg-white p-5 shadow-sm sm:p-8" data-motion-section="policy-content">
                 <p className="text-sm font-semibold uppercase tracking-[0.16em] text-commerce-brand-dark">Tài liệu cần xác nhận</p>
                 <h1 className="mt-2 text-3xl font-bold text-commerce-primary">{policy.title}</h1>
                 <p className="mt-3 text-base leading-7 text-commerce-secondary">{policy.description}</p>

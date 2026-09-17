@@ -188,7 +188,7 @@ export function RequestCartView() {
   const lines = cart?.lines ?? [];
 
   return (
-    <div className="w-full py-8">
+    <div className="w-full py-8" data-motion-section="request-cart">
       <p className="mt-3 max-w-2xl text-sm text-neutral-700 sm:text-base">
         Giá và tạm tính được hệ thống kiểm tra khi bạn thay đổi số lượng và trước khi gửi yêu cầu.
       </p>

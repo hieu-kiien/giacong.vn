@@ -26,7 +26,7 @@ export function ServiceLanding({
   return (
     <div className={indexStyles.landing}>
       <div className={indexStyles.rail}>
-        <p className={indexStyles.intro}>
+        <p className={indexStyles.intro} data-motion-section="service-intro">
           {familyCount} nhóm dịch vụ gia công. Chọn nhóm gần nhất với sản phẩm của bạn để xem
           các trang dịch vụ chi tiết.
         </p>
@@ -52,7 +52,7 @@ export function ContactBand({ service, ctaHref, ctaLabel }: ContactBandProps) {
   const href = safeInternalHref(ctaHref) ?? defaultCta;
   const label = ctaLabel?.trim() || "Liên hệ tư vấn";
   return (
-    <section className={styles.contactBand} aria-labelledby="service-contact-title">
+    <section className={styles.contactBand} aria-labelledby="service-contact-title" data-motion-section="service-contact">
       <div className={`${styles.inner} ${styles.contactInner}`}>
         <div><p className={styles.eyebrow}>Chưa xác định đúng nhóm?</p><h2 id="service-contact-title">Trao đổi nhu cầu gia công</h2></div>
         <Link className={styles.primaryAction} href={href}>{label}</Link>
