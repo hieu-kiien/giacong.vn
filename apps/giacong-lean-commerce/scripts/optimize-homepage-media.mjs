@@ -85,12 +85,19 @@ await writeWebp(background, "img-b.webp", 1600, 78);
 await writeWebp(banner, "banner-gia-cong.webp", 1600, 78);
 await writeWebp(menuLogo, "menu-logo.webp", 300, 78);
 await writeWebp(headerLogo, "header-logo.webp", 512, 82);
+await writeWebp(headerLogo, "header-logo-350.webp", 350, 82);
+await writeWebp(headerLogo, "header-logo-200.webp", 200, 82);
 await writeFile(join(capturedDirectory, "book-open.svg"), bookOpen);
 await writeWebp(product, "img-sp-1.webp", 728, 80);
+await writeWebp(product, "img-sp-1-640x395.webp", 640, 80);
+await writeWebp(product, "img-sp-1-600x371.webp", 600, 80);
+await writeWebp(product, "img-sp-1-400x247.webp", 400, 80);
 await writeWebp(product, "img-sp-1-510x315.webp", 510, 80);
 await writeWebp(product, "img-sp-1-300x185.webp", 300, 80);
 await writeWebp(about, "IMG.webp", 863, 80);
 await writeWebp(about, "IMG-768x652.webp", 768, 80);
+await writeWebp(about, "IMG-680x578.webp", 680, 80);
+await writeWebp(about, "IMG-400x340.webp", 400, 80);
 await writeWebp(about, "IMG-510x433.webp", 510, 80);
 await writeWebp(about, "IMG-300x255.webp", 300, 80);
 for (const { key, source } of additionalRasterBuffers) {
@@ -121,12 +128,19 @@ const generatedFiles = [
     "banner-gia-cong.webp",
     "menu-logo.webp",
     "header-logo.webp",
+    "header-logo-350.webp",
+    "header-logo-200.webp",
     "book-open.svg",
     "img-sp-1.webp",
+    "img-sp-1-640x395.webp",
+    "img-sp-1-600x371.webp",
+    "img-sp-1-400x247.webp",
     "img-sp-1-510x315.webp",
     "img-sp-1-300x185.webp",
     "IMG.webp",
     "IMG-768x652.webp",
+    "IMG-680x578.webp",
+    "IMG-400x340.webp",
     "IMG-510x433.webp",
     "IMG-300x255.webp",
     "bg-tin-tuc.webp",

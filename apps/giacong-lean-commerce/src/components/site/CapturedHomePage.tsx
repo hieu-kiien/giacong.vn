@@ -1,6 +1,7 @@
 import { GiacongInteractions } from "@/components/GiacongInteractions";
 import { CapturedFloatingContact } from "@/components/CapturedPage";
 import { layerCapturedStyles, normalizeCapturedMarkup } from "@/lib/captured-markup";
+import { optimizeHomepageResponsiveImages } from "@/lib/homepage-image-optimization";
 import { applyHomepageSiteSettingsToMarkup, siteBrandStyles } from "@/lib/site-markup";
 import {
   applyFooterNavigationToMarkup,
@@ -104,10 +105,12 @@ export async function CapturedHomePage({
 }: CapturedHomePageProps) {
   const settings = siteSettings ?? siteSettingDefaults;
   const navigation = publishedNavigation ?? await getPublishedSiteNavigation();
-  const normalizedMarkup = localizeHomepageMedia(
-    applyHomepageSiteSettingsToMarkup(
-      removeUnverifiedHomepageProof(normalizeCapturedMarkup(localizeHomepageMedia(markup))),
-      settings,
+  const normalizedMarkup = optimizeHomepageResponsiveImages(
+    localizeHomepageMedia(
+      applyHomepageSiteSettingsToMarkup(
+        removeUnverifiedHomepageProof(normalizeCapturedMarkup(localizeHomepageMedia(markup))),
+        settings,
+      ),
     ),
   );
   const homeMarkup = replaceCompositeHeroWithGallery(
