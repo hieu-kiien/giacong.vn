@@ -173,13 +173,15 @@ function connectCapturedReveals(root: ParentNode): MotionCleanup {
     }
   };
   const reducedMotion = prefersReducedMotion();
+  const heroMotionEnabled =
+    !reducedMotion && (window.matchMedia?.("(min-width: 1024px)").matches ?? false);
 
   if (reducedMotion) {
     elements.forEach((element) => element.setAttribute("data-motion-reduced", "true"));
   }
   elements.forEach((element) => element.removeAttribute("data-animated"));
 
-  if (reducedMotion) {
+  if (reducedMotion || !heroMotionEnabled) {
     heroElements.forEach(reveal);
   }
 
@@ -204,7 +206,7 @@ function connectCapturedReveals(root: ParentNode): MotionCleanup {
   });
 
   let heroMotionFrame: number | undefined;
-  if (!reducedMotion && hero && heroElements.length > 0) {
+  if (heroMotionEnabled && hero && heroElements.length > 0) {
     heroMotionFrame = window.requestAnimationFrame(() => {
       if (!hero.isConnected) return;
       hero.setAttribute("data-captured-hero-motion-ready", "true");
