@@ -2,7 +2,7 @@
 import { AdminContactContextualAction } from "@/components/admin/AdminContactContextualAction";
 import { GiacongInteractions } from "@/components/GiacongInteractions";
 import { CapturedRequestCartButton } from "@/components/request-cart/CapturedRequestCartButton";
-import { addCapturedServiceContext, layerCapturedStyles, normalizeCapturedMarkup, type CapturedServiceContext } from "@/lib/captured-markup";
+import { addCapturedServiceContext, layerCapturedStyles, needsCapturedShopStyles, normalizeCapturedMarkup, type CapturedServiceContext } from "@/lib/captured-markup";
 import { applySiteSettingsToMarkup, siteBrandStyles } from "@/lib/site-markup";
 import {
   applyFooterNavigationToMarkup,
@@ -50,10 +50,12 @@ export function CapturedPage({
     settings,
   );
   const needsFixedTocStyles = /\bftwp-(?:container|trigger|list)\b/i.test(markup);
+  const needsShopStyles = needsCapturedShopStyles(markup);
 
   return (
     <>
       {needsFixedTocStyles ? <link rel="stylesheet" href="/styles/fixed-toc.css" /> : null}
+      {needsShopStyles ? <link rel="stylesheet" href="/styles/captured-shop.css" /> : null}
       <style dangerouslySetInnerHTML={{ __html: `${layerCapturedStyles(pageStyles)}\n${siteBrandStyles(settings)}` }} />
       <div
         className={bodyClasses}

@@ -90,6 +90,15 @@ export function layerCapturedStyles(pageStyles: string): string {
   return `@layer captured {\n${nestedStyles}\n}`;
 }
 
+/**
+ * Product/archive captures are the only captured surfaces that need the
+ * legacy shop stylesheet. Keeping this decision at the markup boundary avoids
+ * making every article, policy page, and the homepage pay for product CSS.
+ */
+export function needsCapturedShopStyles(markup: string): boolean {
+  return /\b(?:product-small|product-main|product-gallery|woocommerce-product-gallery|shop-page-title|woocommerce-ordering|shop_table)\b/i.test(markup);
+}
+
 function normalizeCapturedFontDisplay(styles: string): string {
   return styles.replace(/@font-face\s*{[^}]*}/gi, (fontFace) => {
     if (!/font-family\s*:\s*["']fl-icons["']/i.test(fontFace)) return fontFace;
