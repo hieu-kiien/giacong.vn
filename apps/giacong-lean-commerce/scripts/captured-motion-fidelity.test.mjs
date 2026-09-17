@@ -60,8 +60,11 @@ const settings = {
 test("defers optional form and motion modules out of the initial interaction chunk", () => {
   assert.doesNotMatch(interactions, /import\s*{\s*connectContactForms\s*}\s*from/);
   assert.doesNotMatch(interactions, /import\s*{\s*connectCapturedMotion\s*}\s*from/);
+  assert.doesNotMatch(interactions, /Promise\.all\(\[\s*import\("\.\/contact-form"\)/);
   assert.match(interactions, /import\("\.\/contact-form"\)/);
   assert.match(interactions, /import\("\.\/captured-motion"\)/);
+  assert.match(interactions, /import\("\.\/contact-form"\)[\s\S]*?\.then\(\(contactForm\)/);
+  assert.match(interactions, /import\("\.\/captured-motion"\)[\s\S]*?\.then\(\(capturedMotion\)/);
 });
 
 test("normalizes captured navigation into a direct product route and grouped services", () => {
@@ -286,9 +289,23 @@ test("keeps the captured hero visible without JS and restores its entrance motio
   assert.match(capturedMotion, /heroElements/);
   assert.match(capturedMotion, /heroMotionFrame/);
   assert.match(capturedMotion, /min-width: 1024px/);
+  assert.match(capturedMotion, /data-captured-hero-motion-play/);
+  assert.match(capturedMotion, /void hero\.offsetWidth/);
+  assert.match(capturedMotion, /hero\.setAttribute\("data-captured-hero-motion-play", "true"\)/);
   assert.match(globals, /#section_250108065\[data-captured-hero-motion-ready\]/);
   assert.match(globals, /#section_250108065\[data-captured-hero-motion-ready\][\s\S]*?opacity: 1 !important/);
   assert.match(globals, /#section_250108065 \[data-animate\][\s\S]*?opacity: 1 !important/);
+  assert.match(globals, /data-captured-hero-motion-play\][\s\S]*?transition:\s*transform 620ms/);
+});
+
+test("gives the desktop service mega-menu a compact and accessible visual system", () => {
+  assert.match(globals, /width:\s*min\(1080px,\s*calc\(100vw - 48px\)\)/);
+  assert.match(globals, /border-radius:\s*14px/);
+  assert.match(globals, /grid-template-columns:\s*repeat\(4,\s*minmax\(0,\s*1fr\)\)/);
+  assert.match(globals, /clone-service-menu::before/);
+  assert.match(globals, /ux-menu-link__link:hover[\s\S]*?transform:\s*translate3d\(2px,\s*0,\s*0\)/);
+  assert.match(globals, /transition:\s*opacity 160ms ease,\s*transform 160ms ease/);
+  assert.match(globals, /@media \(prefers-reduced-motion:\s*reduce\)/);
 });
 
 test("covers app-owned storefront surfaces outside the captured homepage", () => {
@@ -388,33 +405,33 @@ test("primes page reveals before enabling their transition", () => {
 test("keeps desktop mega menus reachable during the pointer handoff", () => {
   assert.match(
     globals,
-    /#header li\.menu-item-design-container-width\.has-dropdown > \.nav-dropdown[\s\S]*?transition: none !important;/,
+    /#header li\.menu-item-design-container-width\.has-dropdown > \.nav-dropdown[\s\S]*?transition: opacity 160ms ease, transform 160ms ease, visibility 0s linear 160ms !important;/,
   );
   assert.match(
     globals,
-    /#header li\.menu-item-design-container-width\.has-dropdown::after[\s\S]*?height: 14px;[\s\S]*?pointer-events: auto;/,
+    /#header li\.menu-item-design-container-width\.has-dropdown::after[\s\S]*?height: 16px;[\s\S]*?pointer-events: auto;/,
   );
   assert.match(
     globals,
-    /#header li\.menu-item-design-container-width\.has-dropdown:hover > \.nav-dropdown[\s\S]*?transition: none !important;/,
+    /#header li\.has-dropdown:hover > \.nav-dropdown[\s\S]*?transition: opacity 160ms ease, transform 160ms ease !important;/,
   );
 });
 
 test("closes a sibling desktop mega menu immediately on handoff", () => {
   assert.match(
     globals,
-    /#header:has\(li\.has-dropdown:hover\)[\s\S]*?li\.menu-item-design-container-width\.has-dropdown:not\(:hover\) > \.nav-dropdown[\s\S]*?transition: none !important;/,
+    /#header:has\(li\.has-dropdown:hover\)[\s\S]*?li\.menu-item-design-container-width\.has-dropdown:not\(:hover\) > \.nav-dropdown[\s\S]*?pointer-events: none !important;/,
   );
 });
 
 test("keeps the desktop service mega-menu content static like the source", () => {
   assert.match(
     globals,
-    /#header li\.menu-item-design-container-width\.has-dropdown > \.nav-dropdown[\s\S]*?transition: none !important;/,
+    /#header li\.menu-item-design-container-width\.has-dropdown > \.nav-dropdown[\s\S]*?overflow-y: auto;/,
   );
   assert.match(
     globals,
-    /#header li\.menu-item-design-container-width\.has-dropdown:hover > \.nav-dropdown[\s\S]*?transition: none !important;/,
+    /#header \.clone-service-menu \.ux-menu-link__link[\s\S]*?transition: background-color 140ms ease, color 140ms ease, transform 140ms ease !important;/,
   );
 });
 

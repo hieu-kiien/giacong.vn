@@ -162,6 +162,7 @@ function connectCapturedReveals(root: ParentNode): MotionCleanup {
     reduced: element.getAttribute("data-motion-reduced"),
   }));
   const originalHeroReady = hero?.getAttribute("data-captured-hero-motion-ready") ?? null;
+  const originalHeroPlay = hero?.getAttribute("data-captured-hero-motion-play") ?? null;
   const reveal = (element: HTMLElement) => element.setAttribute("data-animated", "true");
   const restore = () => {
     elements.forEach((element, index) => {
@@ -170,6 +171,7 @@ function connectCapturedReveals(root: ParentNode): MotionCleanup {
     });
     if (hero) {
       restoreAttribute(hero, "data-captured-hero-motion-ready", originalHeroReady);
+      restoreAttribute(hero, "data-captured-hero-motion-play", originalHeroPlay);
     }
   };
   const reducedMotion = prefersReducedMotion();
@@ -208,12 +210,17 @@ function connectCapturedReveals(root: ParentNode): MotionCleanup {
   let heroMotionFrame: number | undefined;
   if (heroMotionEnabled && hero && heroElements.length > 0) {
     heroMotionFrame = window.requestAnimationFrame(() => {
+      heroMotionFrame = undefined;
       if (!hero.isConnected) return;
       hero.setAttribute("data-captured-hero-motion-ready", "true");
+      // Force the initial transform frame to commit before enabling the
+      // transition. This creates one real desktop entrance instead of a
+      // transition that starts and ends in the same rendered frame.
+      void hero.offsetWidth;
       heroMotionFrame = window.requestAnimationFrame(() => {
         heroMotionFrame = undefined;
         if (!hero.isConnected) return;
-        heroElements.forEach(reveal);
+        hero.setAttribute("data-captured-hero-motion-play", "true");
       });
     });
   }

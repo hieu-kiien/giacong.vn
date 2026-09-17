@@ -60,16 +60,22 @@ export function GiacongInteractions({
     let disposed = false;
     let disconnectContactForms: (() => void) | undefined;
     let disconnectCapturedMotion: (() => void) | undefined;
-    void Promise.all([
-      import("./contact-form"),
-      import("./captured-motion"),
-    ]).then(([contactForm, capturedMotion]) => {
-      if (disposed) return;
-      disconnectContactForms = contactForm.connectContactForms();
-      disconnectCapturedMotion = capturedMotion.connectCapturedMotion();
-    }).catch((error) => {
-      console.warn("Optional storefront interactions unavailable.", error);
-    });
+    void import("./contact-form")
+      .then((contactForm) => {
+        if (disposed) return;
+        disconnectContactForms = contactForm.connectContactForms();
+      })
+      .catch((error) => {
+        console.warn("Optional contact form interactions unavailable.", error);
+      });
+    void import("./captured-motion")
+      .then((capturedMotion) => {
+        if (disposed) return;
+        disconnectCapturedMotion = capturedMotion.connectCapturedMotion();
+      })
+      .catch((error) => {
+        console.warn("Optional storefront motion unavailable.", error);
+      });
     const mobileSearchInput = menu?.querySelector<HTMLInputElement>(
       "input[type='search']",
     );

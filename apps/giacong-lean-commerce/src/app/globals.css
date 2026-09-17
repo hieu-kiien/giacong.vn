@@ -52,36 +52,38 @@
   }
 
   /* Re-enable the captured hero's entrance after the first paint. The fallback
-   * above keeps the hero usable without JavaScript or with reduced motion. */
+   * above keeps the hero usable without JavaScript or with reduced motion. The
+   * first attribute commits the start frame; the second starts one transform
+   * transition after that frame has been laid out. */
   @media (prefers-reduced-motion: no-preference) and (min-width: 1024px) {
     #section_250108065[data-captured-hero-motion-ready] [data-animate] {
       animation: none !important;
       opacity: 1 !important;
-      transition: filter 1.3s, transform 1.6s, opacity 0.7s ease-in !important;
-      will-change: filter, transform, opacity;
+      transition: none !important;
+      will-change: transform;
     }
 
     #section_250108065[data-captured-hero-motion-ready] [data-animate="fadeInLeft"] {
-      transform: translate3d(-70px, 0, 0) !important;
+      transform: translate3d(-28px, 0, 0) !important;
     }
 
     #section_250108065[data-captured-hero-motion-ready] [data-animate="fadeInRight"] {
-      transform: translate3d(70px, 0, 0) !important;
+      transform: translate3d(28px, 0, 0) !important;
     }
 
     #section_250108065[data-captured-hero-motion-ready] [data-animate="bounceIn"] {
-      transform: scale(1.3) !important;
+      transform: scale(1.04) !important;
     }
 
     #section_250108065[data-captured-hero-motion-ready] [data-animate="flipInX"] {
       backface-visibility: visible;
-      transform: perspective(400px) rotateX(90deg) translate3d(0, -15px, 0) !important;
+      transform: perspective(400px) rotateX(20deg) translate3d(0, -8px, 0) !important;
     }
 
-    #section_250108065[data-captured-hero-motion-ready] [data-animate][data-animated="true"] {
-      filter: none !important;
+    #section_250108065[data-captured-hero-motion-ready][data-captured-hero-motion-play] [data-animate] {
       opacity: 1 !important;
       transform: none !important;
+      transition: transform 620ms cubic-bezier(.22, 1, .36, 1) !important;
       will-change: auto;
     }
   }
@@ -1283,57 +1285,50 @@ body.clone-menu-active {
   background: #285f00 !important;
 }
 @media (min-width: 850px) {
-  /*
-   * Keep the mega-menu hitbox at its open position while the pointer crosses
+  /* Keep the mega-menu hitbox at its open position while the pointer crosses
    * the small gap below the trigger. The bridge keeps the parent in :hover
-   * without delaying the menu's response.
-   */
+   * without delaying the menu's response. */
   #header li.menu-item-design-container-width.has-dropdown > .nav-dropdown {
+    background: #fff !important;
+    border: 1px solid #dfead7 !important;
+    border-radius: 14px !important;
+    box-shadow: 0 18px 50px rgb(32 67 13 / 18%) !important;
     left: 50% !important;
-    max-height: 80vh !important;
+    max-height: min(72vh, 640px) !important;
     max-width: none !important;
+    opacity: 0 !important;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 0 !important;
+    pointer-events: none !important;
     position: fixed !important;
-    top: 70px !important;
-    transition: none !important;
-    transform: translateX(-50%) !important;
-    width: min(1240px, calc(100% - 30px)) !important;
+    top: 74px !important;
+    transform: translate(-50%, -10px) !important;
+    transition: opacity 160ms ease, transform 160ms ease, visibility 0s linear 160ms !important;
+    visibility: hidden !important;
+    width: min(1080px, calc(100vw - 48px)) !important;
+    z-index: 1000 !important;
   }
 
   #header li.menu-item-design-container-width.has-dropdown::after {
     content: "";
-    height: 14px;
+    height: 16px;
     left: 0;
     pointer-events: auto;
     position: absolute;
     right: 0;
     top: 100%;
+    z-index: 1;
   }
 
   #header li.has-dropdown:hover > .nav-dropdown,
   #header li.has-dropdown:focus-within > .nav-dropdown {
-    left: -15px !important;
-    max-height: 80vh !important;
     opacity: 1 !important;
+    pointer-events: auto !important;
+    transform: translate(-50%, 0) !important;
+    transition: opacity 160ms ease, transform 160ms ease !important;
     visibility: visible !important;
   }
-
-  #header:has(li.has-dropdown:hover) li.menu-item-design-container-width.has-dropdown:not(:hover) > .nav-dropdown,
-  #header:has(li.has-dropdown:focus-within) li.menu-item-design-container-width.has-dropdown:not(:focus-within) > .nav-dropdown {
-    opacity: 0 !important;
-    transition: none !important;
-    visibility: hidden !important;
-  }
-
-  #header li.menu-item-design-container-width.has-dropdown:hover > .nav-dropdown,
-    #header li.menu-item-design-container-width.has-dropdown:focus-within > .nav-dropdown {
-      left: 50% !important;
-      max-width: none !important;
-      position: fixed !important;
-      top: 70px !important;
-      transition: none !important;
-      transform: translateX(-50%) !important;
-      width: min(1240px, calc(100% - 30px)) !important;
-    }
 
   #header li.has-dropdown:hover > .nav-dropdown {
     transition-delay: 0ms !important;
@@ -1343,60 +1338,110 @@ body.clone-menu-active {
     transition-delay: 0ms !important;
   }
 
-  #header li.has-dropdown[data-dropdown-dismissed="true"] > .nav-dropdown {
+  #header:has(li.has-dropdown:hover) li.menu-item-design-container-width.has-dropdown:not(:hover) > .nav-dropdown,
+  #header:has(li.has-dropdown:focus-within) li.menu-item-design-container-width.has-dropdown:not(:focus-within) > .nav-dropdown {
     opacity: 0 !important;
     pointer-events: none !important;
+    transform: translate(-50%, -10px) !important;
     visibility: hidden !important;
   }
 
+  #header li.has-dropdown[data-dropdown-dismissed="true"] > .nav-dropdown {
+    opacity: 0 !important;
+    pointer-events: none !important;
+    transform: translate(-50%, -10px) !important;
+    visibility: hidden !important;
+  }
 }
 
-/* Service navigation: compact, balanced columns without captured decoration. */
+/* Service navigation: compact cards make the four service families scannable
+ * without the oversized blank white panel from the captured theme. */
 #header .clone-service-menu {
   background: #fff !important;
+  border-radius: 13px;
   display: grid !important;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 24px;
+  gap: 14px;
   margin: 0 !important;
-  padding: 24px !important;
+  padding: 16px 18px 18px !important;
   width: 100% !important;
 }
-#header .clone-service-menu::before,
+#header .clone-service-menu::before {
+  border-bottom: 1px solid #e4efdc;
+  color: #1f5700;
+  content: "Dịch vụ gia công";
+  display: block;
+  font-size: 18px;
+  font-weight: 700;
+  grid-column: 1 / -1;
+  line-height: 1.2;
+  margin: 0 4px 2px;
+  padding: 0 0 12px;
+}
 #header .clone-service-menu::after { display: none !important; }
 #header .clone-service-menu > .col {
+  background: #fbfdf9;
+  border: 1px solid #e4efdc;
+  border-radius: 12px;
   max-width: none !important;
-  padding: 0 !important;
+  padding: 14px 12px !important;
   width: auto !important;
 }
 #header .clone-service-menu h4 {
-  color: #285f00;
+  border-bottom: 1px solid #e4efdc;
+  color: #285f00 !important;
   font-size: 15px;
-  margin: 0 0 12px;
+  font-weight: 700;
+  line-height: 1.3;
+  margin: 0 0 6px;
+  padding: 0 8px 10px;
 }
+#header .clone-service-menu h4 > span { color: inherit !important; }
 #header .clone-service-menu .ux-menu-link {
   border: 0 !important;
   min-height: 0 !important;
 }
 #header .clone-service-menu .ux-menu-link__link {
+  align-items: center;
   border: 0 !important;
-  border-radius: 4px;
-  color: #303a2d;
+  border-radius: 8px;
+  color: #303a2d !important;
+  display: flex;
   font-size: 14px;
+  gap: 6px;
   line-height: 1.4;
-  min-height: 36px;
-  padding: 8px !important;
-  transition: none !important;
+  min-height: 32px;
+  padding: 6px 8px !important;
+  transition: background-color 140ms ease, color 140ms ease, transform 140ms ease !important;
 }
 #header .clone-service-menu .ux-menu-link__link:hover,
 #header .clone-service-menu .ux-menu-link__link:focus-visible {
-  background: #edf5e7;
-  color: #285f00;
+  background: #edf5e7 !important;
+  color: #285f00 !important;
+  transform: translate3d(2px, 0, 0);
 }
-#header .clone-service-menu .ux-menu-link__icon { display: none; }
-#header li.menu-item-design-container-width.has-dropdown > .nav-dropdown {
-  background: #fff !important;
-  overflow-y: auto;
-  overscroll-behavior: contain;
+#header .clone-service-menu .ux-menu-link__icon {
+  color: #6cbe45 !important;
+  display: inline-block !important;
+  flex: 0 0 auto;
+  font-size: 10px;
+  opacity: .8;
+}
+#header .clone-service-menu > .col:last-child .ux-menu-link:last-child {
+  border-top: 1px solid #e4efdc !important;
+  margin-top: 8px;
+  padding-top: 8px;
+}
+#header .clone-service-menu > .col:last-child .ux-menu-link:last-child .ux-menu-link__link {
+  background: #edf5e7;
+  color: #285f00 !important;
+  font-weight: 700;
+}
+
+@media (min-width: 850px) and (max-width: 1199px) {
+  #header .clone-service-menu {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 549px) {
@@ -1519,6 +1564,11 @@ body.clone-menu-active {
   #header li.menu-item-design-container-width.has-dropdown > .nav-dropdown .clone-service-menu {
     opacity: 1;
     transform: none;
+  }
+
+  #header li.menu-item-design-container-width.has-dropdown > .nav-dropdown,
+  #header .clone-service-menu .ux-menu-link__link {
+    transition: none !important;
   }
 }
 
