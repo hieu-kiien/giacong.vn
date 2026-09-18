@@ -45,6 +45,21 @@
  * visible immediately; scroll reveal remains enabled for the sections below.
  */
 @layer captured {
+  /* Captured CSS hides data-animate elements until the source script marks
+   * them as animated. Keep the server-rendered document readable until our
+   * runtime explicitly opts into that behavior. This is the no-JS and import
+   * failure safety net. */
+  @media (prefers-reduced-motion: no-preference) {
+    html:not(.captured-motion-enabled) [data-animate] {
+      animation: none !important;
+      filter: none !important;
+      opacity: 1 !important;
+      transform: none !important;
+      transition: none !important;
+      will-change: auto;
+    }
+  }
+
   #section_250108065 [data-animate] {
     animation: none !important;
     opacity: 1 !important;
@@ -687,17 +702,14 @@
     transition-duration: .001ms !important;
   }
 
-  /* Keep a quiet opacity-only reveal for users who reduce motion. Captured
-   * slide/scale transforms stay disabled while the page avoids appearing
-   * frozen during hydration or scroll. */
+  /* Reduced-motion users get the complete document immediately. */
   [data-animate][data-motion-reduced] {
-    opacity: 0 !important;
-    transform: none !important;
-    transition: opacity .35s ease-out !important;
-  }
-
-  [data-animate][data-motion-reduced][data-animated="true"] {
+    animation: none !important;
+    filter: none !important;
     opacity: 1 !important;
+    transform: none !important;
+    transition: none !important;
+    will-change: auto;
   }
 }
 

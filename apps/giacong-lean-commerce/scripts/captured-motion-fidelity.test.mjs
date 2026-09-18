@@ -276,12 +276,17 @@ test("capture transform does not bake data-animated=true into generated markup",
   assert.doesNotMatch(globals, /giacong-page-orbit|giacong-background-drift/);
 });
 
-test("keeps a reduced-motion fade fallback for captured reveals", () => {
+test("keeps captured reveals visible without JavaScript and reduced motion", () => {
   assert.match(capturedMotion, /data-motion-reduced/);
   assert.match(capturedMotion, /const reducedMotion = prefersReducedMotion\(\)/);
   assert.match(capturedMotion, /setAttribute\("data-motion-reduced", "true"\)/);
   assert.match(globals, /\[data-animate\]\[data-motion-reduced\]/);
-  assert.match(globals, /data-motion-reduced\]\[data-animated=["']true["']\]/);
+  assert.match(globals, /html:not\(\.captured-motion-enabled\)\s+\[data-animate\][\s\S]*?opacity:\s*1 !important/);
+  assert.match(capturedMotion, /captured-motion-enabled/);
+  assert.match(capturedMotion, /documentElement\.classList\.add\("captured-motion-enabled"\)/);
+  const reducedRule = globals.match(/\[data-animate\]\[data-motion-reduced\]\s*\{[\s\S]*?\n\s*\}/)?.[0] ?? "";
+  assert.match(reducedRule, /opacity:\s*1 !important/);
+  assert.doesNotMatch(reducedRule, /opacity:\s*0 !important/);
 });
 
 test("keeps the captured hero visible without JS and restores its entrance motion after paint", () => {

@@ -177,11 +177,25 @@ function connectCapturedReveals(root: ParentNode): MotionCleanup {
   const reducedMotion = prefersReducedMotion();
   const heroMotionEnabled =
     !reducedMotion && (window.matchMedia?.("(min-width: 1024px)").matches ?? false);
+  const documentElement = document.documentElement;
+  const originalCapturedMotionEnabled = documentElement.classList.contains(
+    "captured-motion-enabled",
+  );
+  let enableCapturedMotionFrame: number | undefined;
 
   if (reducedMotion) {
     elements.forEach((element) => element.setAttribute("data-motion-reduced", "true"));
   }
   elements.forEach((element) => element.removeAttribute("data-animated"));
+
+  if (!reducedMotion) {
+    enableCapturedMotionFrame = window.requestAnimationFrame(() => {
+      enableCapturedMotionFrame = window.requestAnimationFrame(() => {
+        enableCapturedMotionFrame = undefined;
+        documentElement.classList.add("captured-motion-enabled");
+      });
+    });
+  }
 
   if (reducedMotion || !heroMotionEnabled) {
     heroElements.forEach(reveal);
@@ -189,7 +203,15 @@ function connectCapturedReveals(root: ParentNode): MotionCleanup {
 
   if (!("IntersectionObserver" in window)) {
     elements.forEach(reveal);
-    return restore;
+    return () => {
+      if (enableCapturedMotionFrame !== undefined) {
+        window.cancelAnimationFrame(enableCapturedMotionFrame);
+      }
+      if (!originalCapturedMotionEnabled) {
+        documentElement.classList.remove("captured-motion-enabled");
+      }
+      restore();
+    };
   }
 
   const observer = new IntersectionObserver(
@@ -227,7 +249,13 @@ function connectCapturedReveals(root: ParentNode): MotionCleanup {
 
   return () => {
     if (heroMotionFrame !== undefined) window.cancelAnimationFrame(heroMotionFrame);
+    if (enableCapturedMotionFrame !== undefined) {
+      window.cancelAnimationFrame(enableCapturedMotionFrame);
+    }
     observer.disconnect();
+    if (!originalCapturedMotionEnabled) {
+      documentElement.classList.remove("captured-motion-enabled");
+    }
     restore();
   };
 }
