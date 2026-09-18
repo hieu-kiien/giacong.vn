@@ -371,6 +371,11 @@ test("preloads the local desktop homepage background when it is the LCP surface"
   assert.match(capturedHome, /!settings\.hero_image_url/);
 });
 
+test("keeps the bold font preload off the mobile critical path", () => {
+  assert.match(capturedHome, /href="\/styles\/fonts\/SFProDisplay-Bold\.woff2"[^>]*media="\(min-width: 850px\)"/);
+  assert.match(capturedPage, /href="\/styles\/fonts\/SFProDisplay-Bold\.woff2"[^>]*media="\(min-width: 850px\)"/);
+});
+
 test("uses text-safe brand overrides for captured white surfaces", () => {
   assert.match(globals, /#main #content \.subtitle > span[\s\S]*color: #327600 !important/);
   assert.match(globals, /#main #content \.wpcf7-form \.wpcf7-submit[\s\S]*background-color: #327600 !important/);
