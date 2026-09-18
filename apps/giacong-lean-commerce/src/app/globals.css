@@ -1288,6 +1288,11 @@ body.clone-menu-active {
   background: #327600 !important;
 }
 
+#main #content .primary.nut-xem-them1,
+#main #content .primary.nut-xem-them1 > span {
+  color: #fff !important;
+}
+
 #main #content .giacong-news-search button:hover,
 #main .giacong-news-search button:hover,
 #main #content .giacong-news-search button:focus-visible,

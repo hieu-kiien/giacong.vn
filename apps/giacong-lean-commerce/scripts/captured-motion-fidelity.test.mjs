@@ -385,6 +385,10 @@ test("uses text-safe brand overrides for captured white surfaces", () => {
   assert.match(globals, /\.wpcf7-submit[\s\S]*background-color: #327600 !important/);
 });
 
+test("keeps captured service CTA text readable on the dark green surface", () => {
+  assert.match(globals, /#main #content \.primary\.nut-xem-them1[\s\S]*color: #fff !important/);
+});
+
 test("settles page motion before collecting the accessibility snapshot", () => {
   assert.match(uxAuditPilot, /async function waitForSettled\(page\)[\s\S]*page\.waitForTimeout\(1400\)/);
   assert.match(uxAuditPilot, /await waitForSettled\(page\);\s*await collectPageInspection\(page, result\);/);
