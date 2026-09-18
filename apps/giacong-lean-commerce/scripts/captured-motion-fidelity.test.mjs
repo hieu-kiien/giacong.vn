@@ -303,6 +303,11 @@ test("keeps the captured hero visible without JS and restores its entrance motio
   assert.match(globals, /data-captured-hero-motion-play\][\s\S]*?transition:\s*transform 620ms/);
 });
 
+test("inlines homepage hero visibility before captured CSS settles", () => {
+  assert.match(capturedHome, /const HOMEPAGE_CRITICAL_MOTION_STYLES = `@layer captured\{#section_250108065 \[data-animate\]\{[^`]*opacity:1 !important;[^`]*transform:none !important/);
+  assert.match(capturedHome, /siteBrandStyles\(settings\)\}\\n\$\{HOMEPAGE_CRITICAL_MOTION_STYLES\}/);
+});
+
 test("gives the desktop service mega-menu a compact and accessible visual system", () => {
   assert.match(globals, /width:\s*min\(1080px,\s*calc\(100vw - 48px\)\)/);
   assert.match(globals, /border-radius:\s*14px/);
