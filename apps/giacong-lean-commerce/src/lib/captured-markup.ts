@@ -122,6 +122,9 @@ export function normalizeCapturedMarkup(markup: string, activeCapturedMenuId?: s
     .replace(/Sản Phẩm(?=<i\b[^>]*\bclass=(["'])icon-angle-down\1[^>]*>\s*<\/i>)/g, "Mua hàng")
     .replace(/Dịch vụ(?=<i\b[^>]*\bclass=(["'])icon-angle-down\1[^>]*>\s*<\/i>)/g, "Thuê gia công")
     .replace(/Dịch Vụ Gia Công(?=<\/a>)/g, "Thuê gia công")
+    .replace(/Kiếm tra/g, "Kiểm tra")
+    .replace(/doanh nghiệp\.Bao gồm/g, "doanh nghiệp. Bao gồm")
+    .replace(/doanh nghiệp,tiến hành/g, "doanh nghiệp, tiến hành")
     .replace(
     /<a\b([^>]*?)href=(["'])#\2([^>]*)>([\s\S]*?)<\/a>/gi,
     (link, beforeHref: string, quote: string, afterHref: string, content: string) => {

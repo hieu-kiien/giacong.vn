@@ -176,6 +176,18 @@ test("promotes the captured contact section heading to follow its page title", (
   assert.doesNotMatch(result, /<h3>Thông tin công ty<\/h3>/);
 });
 
+test("repairs known spacing and spelling errors in captured copy", () => {
+  const result = normalizeCapturedMarkup(
+    '<p>Kiếm tra chất lượng</p><p>Kiếm tra và bảo quản</p><p>doanh nghiệp.Bao gồm</p><p>doanh nghiệp,tiến hành</p>',
+  );
+
+  assert.match(result, /Kiểm tra chất lượng/);
+  assert.match(result, /Kiểm tra và bảo quản/);
+  assert.match(result, /doanh nghiệp\. Bao gồm/);
+  assert.match(result, /doanh nghiệp, tiến hành/);
+  assert.doesNotMatch(result, /Kiếm tra|doanh nghiệp\.Bao|doanh nghiệp,tiến/);
+});
+
 test("keeps invalid contact submissions on the client", () => {
   assert.match(
     contactForm,
