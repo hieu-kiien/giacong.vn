@@ -144,6 +144,8 @@ export async function CapturedHomePage({
           />
         </>
       ) : null}
+      <link rel="preload" href="/styles/fonts/SFProDisplay-Regular.woff2" as="font" type="font/woff2" crossOrigin="anonymous" />
+      <link rel="preload" href="/styles/fonts/SFProDisplay-Bold.woff2" as="font" type="font/woff2" crossOrigin="anonymous" media="(min-width: 850px)" />
       <style dangerouslySetInnerHTML={{ __html: `${layerCapturedStyles(localizeHomepageMedia(pageStyles))}\n${siteBrandStyles(settings)}\n${HOMEPAGE_CRITICAL_MOTION_STYLES}` }} />
       <div
         className={bodyClasses}

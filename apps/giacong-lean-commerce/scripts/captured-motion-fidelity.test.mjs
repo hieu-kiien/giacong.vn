@@ -390,9 +390,9 @@ test("preloads the first mobile hero tile when it is the LCP surface", () => {
   );
 });
 
-test("does not preload admin-only fonts on public captured routes", () => {
-  assert.doesNotMatch(capturedHome, /SFProDisplay-(?:Regular|Bold)\.woff2/);
-  assert.doesNotMatch(capturedPage, /SFProDisplay-(?:Regular|Bold)\.woff2/);
+test("keeps the bold font preload off the mobile critical path", () => {
+  assert.match(capturedHome, /href="\/styles\/fonts\/SFProDisplay-Bold\.woff2"[^>]*media="\(min-width: 850px\)"/);
+  assert.match(capturedPage, /href="\/styles\/fonts\/SFProDisplay-Bold\.woff2"[^>]*media="\(min-width: 850px\)"/);
 });
 
 test("uses text-safe brand overrides for captured white surfaces", () => {

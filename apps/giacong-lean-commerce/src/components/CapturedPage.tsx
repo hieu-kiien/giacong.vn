@@ -54,6 +54,8 @@ export function CapturedPage({
 
   return (
     <>
+      <link rel="preload" href="/styles/fonts/SFProDisplay-Regular.woff2" as="font" type="font/woff2" crossOrigin="anonymous" />
+      <link rel="preload" href="/styles/fonts/SFProDisplay-Bold.woff2" as="font" type="font/woff2" crossOrigin="anonymous" media="(min-width: 850px)" />
       {needsFixedTocStyles ? <link rel="stylesheet" href="/styles/fixed-toc.css" /> : null}
       {needsShopStyles ? <link rel="stylesheet" href="/styles/captured-shop.css" /> : null}
       <style dangerouslySetInnerHTML={{ __html: `${layerCapturedStyles(pageStyles)}\n${siteBrandStyles(settings)}` }} />
