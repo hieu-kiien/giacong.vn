@@ -364,6 +364,13 @@ test("does not publish unverified homepage proof claims from the captured source
   assert.match(capturedHome, /section_1385300469/);
 });
 
+test("preloads the local desktop homepage background when it is the LCP surface", () => {
+  assert.match(capturedHome, /rel="preload"\s+href="\/images\/home-captured\/img-b\.webp"\s+as="image"/);
+  assert.match(capturedHome, /media="\(min-width: 850px\)"/);
+  assert.match(capturedHome, /fetchPriority="high"/);
+  assert.match(capturedHome, /!settings\.hero_image_url/);
+});
+
 test("uses text-safe brand overrides for captured white surfaces", () => {
   assert.match(globals, /#main #content \.subtitle > span[\s\S]*color: #327600 !important/);
   assert.match(globals, /#main #content \.wpcf7-form \.wpcf7-submit[\s\S]*background-color: #327600 !important/);

@@ -18,7 +18,8 @@ const aboutImageSrcset = [
   `${homepageImageDirectory}/IMG.webp 863w`,
 ].join(", ");
 
-const contentImageSizes = "(max-width: 549px) 510px, (max-width: 849px) 400px, calc(50vw - 90px)";
+const contentImageSizes =
+  "(max-width: 549px) calc(100vw - 36px), (max-width: 849px) 400px, calc(50vw - 90px)";
 
 /**
  * Rewrites the few large homepage capture images with local responsive

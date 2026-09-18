@@ -123,6 +123,15 @@ export async function CapturedHomePage({
 
   return (
     <>
+      {!settings.hero_image_url ? (
+        <link
+          rel="preload"
+          href="/images/home-captured/img-b.webp"
+          as="image"
+          media="(min-width: 850px)"
+          fetchPriority="high"
+        />
+      ) : null}
       <link rel="preload" href="/styles/fonts/SFProDisplay-Regular.woff2" as="font" type="font/woff2" crossOrigin="anonymous" />
       <link rel="preload" href="/styles/fonts/SFProDisplay-Bold.woff2" as="font" type="font/woff2" crossOrigin="anonymous" />
       <style dangerouslySetInnerHTML={{ __html: `${layerCapturedStyles(localizeHomepageMedia(pageStyles))}\n${siteBrandStyles(settings)}` }} />

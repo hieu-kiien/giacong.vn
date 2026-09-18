@@ -66,7 +66,7 @@ test("serves captured homepage images with viewport-sized local candidates", () 
   assert.match(result, /sizes="\(max-width: 849px\) 200px, 350px"/);
   assert.match(result, /srcset="\/images\/home-captured\/img-sp-1-300x185\.webp 300w, \/images\/home-captured\/img-sp-1-400x247\.webp 400w, \/images\/home-captured\/img-sp-1-510x315\.webp 510w, \/images\/home-captured\/img-sp-1-600x371\.webp 600w, \/images\/home-captured\/img-sp-1-640x395\.webp 640w, \/images\/home-captured\/img-sp-1\.webp 728w"/);
   assert.match(result, /srcset="\/images\/home-captured\/IMG-300x255\.webp 300w, \/images\/home-captured\/IMG-400x340\.webp 400w, \/images\/home-captured\/IMG-510x433\.webp 510w, \/images\/home-captured\/IMG-680x578\.webp 680w, \/images\/home-captured\/IMG-768x652\.webp 768w, \/images\/home-captured\/IMG\.webp 863w"/);
-  assert.match(result, /sizes="\(max-width: 549px\) 510px, \(max-width: 849px\) 400px, calc\(50vw - 90px\)"/);
+  assert.match(result, /sizes="\(max-width: 549px\) calc\(100vw - 36px\), \(max-width: 849px\) 400px, calc\(50vw - 90px\)"/);
 });
 
 test("does not rewrite unrelated captured images", () => {
