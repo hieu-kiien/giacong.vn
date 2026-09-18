@@ -67,6 +67,13 @@ test("defers optional form and motion modules out of the initial interaction chu
   assert.match(interactions, /import\("\.\/captured-motion"\)[\s\S]*?\.then\(\(capturedMotion\)/);
 });
 
+test("keeps contact form loading route-scoped and defers mobile motion until idle", () => {
+  assert.match(interactions, /const contactForms = document\.querySelectorAll<HTMLFormElement>\("\.wpcf7-form"\)/);
+  assert.match(interactions, /if \(contactForms\.length > 0\) \{[\s\S]*?import\("\.\/contact-form"\)/);
+  assert.match(interactions, /scheduleAfterPaint\([\s\S]*?requestIdleCallback/);
+  assert.match(interactions, /matchMedia\?\.\("\(max-width: 849px\)"\)\.matches/);
+});
+
 test("normalizes captured navigation into a direct product route and grouped services", () => {
   const result = normalizeCapturedMarkup(desktopAndMobileMenu);
   const productMenuStart = result.indexOf('id="menu-item-1742"');
@@ -374,6 +381,13 @@ test("preloads the local desktop homepage background when it is the LCP surface"
   assert.match(capturedHome, /media="\(min-width: 850px\)"/);
   assert.match(capturedHome, /fetchPriority="high"/);
   assert.match(capturedHome, /!settings\.hero_image_url/);
+});
+
+test("preloads the first mobile hero tile when it is the LCP surface", () => {
+  assert.match(
+    capturedHome,
+    /rel="preload"\s+href="\/images\/home-hero\/hero-1\.avif"\s+as="image"\s+type="image\/avif"\s+media="\(max-width: 849px\)"\s+fetchPriority="high"/,
+  );
 });
 
 test("keeps the bold font preload off the mobile critical path", () => {

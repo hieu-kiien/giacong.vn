@@ -17,6 +17,50 @@ interface GiacongInteractionsProps {
   htmlClasses: string;
 }
 
+type IdleWindow = Window & {
+  requestIdleCallback?: (callback: () => void, options?: { timeout: number }) => number;
+  cancelIdleCallback?: (handle: number) => void;
+};
+
+function scheduleAfterPaint(callback: () => void, idle: boolean) {
+  let cancelled = false;
+  let firstFrame: number | undefined;
+  let secondFrame: number | undefined;
+  let idleHandle: number | undefined;
+  let timeoutHandle: number | undefined;
+  const run = () => {
+    if (cancelled) return;
+    callback();
+  };
+  const afterPaint = () => {
+    if (cancelled) return;
+    if (!idle) {
+      run();
+      return;
+    }
+    const idleWindow = window as IdleWindow;
+    if (idleWindow.requestIdleCallback) {
+      idleHandle = idleWindow.requestIdleCallback(run, { timeout: 1000 });
+    } else {
+      timeoutHandle = window.setTimeout(run, 0);
+    }
+  };
+
+  firstFrame = window.requestAnimationFrame(() => {
+    secondFrame = window.requestAnimationFrame(afterPaint);
+  });
+
+  return () => {
+    cancelled = true;
+    if (firstFrame !== undefined) window.cancelAnimationFrame(firstFrame);
+    if (secondFrame !== undefined) window.cancelAnimationFrame(secondFrame);
+    if (idleHandle !== undefined) {
+      (window as IdleWindow).cancelIdleCallback?.(idleHandle);
+    }
+    if (timeoutHandle !== undefined) window.clearTimeout(timeoutHandle);
+  };
+}
+
 export function GiacongInteractions({
   bodyClasses,
   htmlClasses,
@@ -60,22 +104,28 @@ export function GiacongInteractions({
     let disposed = false;
     let disconnectContactForms: (() => void) | undefined;
     let disconnectCapturedMotion: (() => void) | undefined;
-    void import("./contact-form")
-      .then((contactForm) => {
-        if (disposed) return;
-        disconnectContactForms = contactForm.connectContactForms();
-      })
-      .catch((error) => {
-        console.warn("Optional contact form interactions unavailable.", error);
-      });
-    void import("./captured-motion")
-      .then((capturedMotion) => {
-        if (disposed) return;
-        disconnectCapturedMotion = capturedMotion.connectCapturedMotion();
-      })
-      .catch((error) => {
-        console.warn("Optional storefront motion unavailable.", error);
-      });
+    const contactForms = document.querySelectorAll<HTMLFormElement>(".wpcf7-form");
+    if (contactForms.length > 0) {
+      void import("./contact-form")
+        .then((contactForm) => {
+          if (disposed) return;
+          disconnectContactForms = contactForm.connectContactForms();
+        })
+        .catch((error) => {
+          console.warn("Optional contact form interactions unavailable.", error);
+        });
+    }
+    const deferCapturedMotion = window.matchMedia?.("(max-width: 849px)").matches ?? false;
+    const cancelCapturedMotionSchedule = scheduleAfterPaint(() => {
+      void import("./captured-motion")
+        .then((capturedMotion) => {
+          if (disposed) return;
+          disconnectCapturedMotion = capturedMotion.connectCapturedMotion();
+        })
+        .catch((error) => {
+          console.warn("Optional storefront motion unavailable.", error);
+        });
+    }, deferCapturedMotion);
     const mobileSearchInput = menu?.querySelector<HTMLInputElement>(
       "input[type='search']",
     );
@@ -234,6 +284,7 @@ export function GiacongInteractions({
       document.removeEventListener("click", handleSubmenu);
       document.removeEventListener("keydown", handleMenuKeydown);
       window.removeEventListener("scroll", updateStickyHeader);
+      cancelCapturedMotionSchedule();
       disconnectContactForms?.();
       disconnectCapturedMotion?.();
       generatedToggles.forEach((button) => button.remove());

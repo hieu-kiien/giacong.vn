@@ -126,13 +126,23 @@ export async function CapturedHomePage({
   return (
     <>
       {!settings.hero_image_url ? (
-        <link
-          rel="preload"
-          href="/images/home-captured/img-b.webp"
-          as="image"
-          media="(min-width: 850px)"
-          fetchPriority="high"
-        />
+        <>
+          <link
+            rel="preload"
+            href="/images/home-captured/img-b.webp"
+            as="image"
+            media="(min-width: 850px)"
+            fetchPriority="high"
+          />
+          <link
+            rel="preload"
+            href="/images/home-hero/hero-1.avif"
+            as="image"
+            type="image/avif"
+            media="(max-width: 849px)"
+            fetchPriority="high"
+          />
+        </>
       ) : null}
       <link rel="preload" href="/styles/fonts/SFProDisplay-Regular.woff2" as="font" type="font/woff2" crossOrigin="anonymous" />
       <link rel="preload" href="/styles/fonts/SFProDisplay-Bold.woff2" as="font" type="font/woff2" crossOrigin="anonymous" media="(min-width: 850px)" />
