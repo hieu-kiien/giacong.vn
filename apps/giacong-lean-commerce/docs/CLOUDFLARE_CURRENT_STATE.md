@@ -2,16 +2,13 @@
 
 ## Production motion/cache follow-up — 2026-09-19
 
-- Production `giacong-vn` đang chạy version `650e92e8-eb23-4c97-a1bd-b862e15f311d`
-  ở mức `100%`. Đã loại bỏ hoàn toàn legacy Flatsome loading spinner khỏi
-  captured markup và slider, carousel testimonial hiển thị sạch sẽ không còn
-  spinner quay liên tục đè lên nội dung. Carousel testimonial trên mobile (<=549px)
-  đã chuyển sang fade một slide duy nhất để không lộ slide kế bên trong lúc chuyển;
-  desktop vẫn giữ transform animation nhưng testimonial không còn tự động xoay,
-  chỉ đổi khi khách bấm dot hoặc vuốt. Browser smoke trên mobile và desktop đều
-  hiển thị đúng ảnh testimonial thật, không còn trạng thái cắt ngang/xoay giữa slide.
-- Regression focused suite đạt `50/50`; OpenNext build đã compile TypeScript,
-  generate đủ `28/28` route và hoàn tất bước `OpenNext build complete`.
+- Production `giacong-vn` đang chạy version `a00c0f90-817b-426b-b7e2-40d91e1a43ed`
+  ở mức `100%`. Đã re-enable chế độ tự động xoay chuyển slide (auto-rotation) cho carousel
+  testimonial theo chu kỳ 6000ms, tự động tạm dừng khi hover/focus (`pauseAutoPlayOnHover`).
+  Đồng thời đã loại bỏ hoàn toàn legacy Flatsome loading spinner khỏi captured markup và slider,
+  giữ giao diện sạch sẽ, trơn tru.
+- Regression test suite đạt `51/51`; OpenNext build đã compile TypeScript,
+  generate đủ `28/28` route và hoàn tất upload & deploy production.
 - GitHub staging gate đã bỏ Wrangler version hard-code `4.115.0`, dùng Wrangler
   `4.131.1` từ lockfile qua `npx --no-install`, để CI và Cloudflare build dùng
   cùng dependency. Static image live trả `CF-Cache-Status: HIT` với cache
