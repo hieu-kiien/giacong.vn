@@ -2,12 +2,14 @@
 
 ## Production motion/cache follow-up — 2026-09-19
 
-- Production `giacong-vn` đang chạy version `14747f11-9910-42d8-80ca-1a13364d05bb`
-  ở mức `100%`. Carousel testimonial trên mobile (<=549px) đã chuyển sang
-  fade một slide duy nhất để không lộ slide kế bên trong lúc chuyển; desktop vẫn
-  giữ transform animation nhưng testimonial không còn tự động xoay, chỉ đổi khi
-  khách bấm dot hoặc vuốt. Browser smoke trên mobile và desktop đều hiển thị
-  đúng ảnh testimonial thật, không còn trạng thái cắt ngang/xoay giữa slide.
+- Production `giacong-vn` đang chạy version `650e92e8-eb23-4c97-a1bd-b862e15f311d`
+  ở mức `100%`. Đã loại bỏ hoàn toàn legacy Flatsome loading spinner khỏi
+  captured markup và slider, carousel testimonial hiển thị sạch sẽ không còn
+  spinner quay liên tục đè lên nội dung. Carousel testimonial trên mobile (<=549px)
+  đã chuyển sang fade một slide duy nhất để không lộ slide kế bên trong lúc chuyển;
+  desktop vẫn giữ transform animation nhưng testimonial không còn tự động xoay,
+  chỉ đổi khi khách bấm dot hoặc vuốt. Browser smoke trên mobile và desktop đều
+  hiển thị đúng ảnh testimonial thật, không còn trạng thái cắt ngang/xoay giữa slide.
 - Regression focused suite đạt `50/50`; OpenNext build đã compile TypeScript,
   generate đủ `28/28` route và hoàn tất bước `OpenNext build complete`.
 - GitHub staging gate đã bỏ Wrangler version hard-code `4.115.0`, dùng Wrangler
