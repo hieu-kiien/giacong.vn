@@ -2,7 +2,7 @@
 
 ## Production motion/cache follow-up — 2026-09-19
 
-- Production `giacong-vn` đang chạy version `090c8848-e049-43cc-92cc-55b54ee366af`
+- Production `giacong-vn` đang chạy version `14747f11-9910-42d8-80ca-1a13364d05bb`
   ở mức `100%`. Carousel testimonial trên mobile (<=549px) đã chuyển sang
   fade một slide duy nhất để không lộ slide kế bên trong lúc chuyển; desktop vẫn
   giữ transform animation nhưng testimonial không còn tự động xoay, chỉ đổi khi
