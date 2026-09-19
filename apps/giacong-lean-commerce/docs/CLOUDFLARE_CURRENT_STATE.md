@@ -1,5 +1,20 @@
 # Cloudflare current state — 2026-09-16
 
+## Production motion/cache follow-up — 2026-09-19
+
+- Production `giacong-vn` đang chạy version `090c8848-e049-43cc-92cc-55b54ee366af`
+  ở mức `100%`. Carousel testimonial trên mobile (<=549px) đã chuyển sang
+  fade một slide duy nhất để không lộ slide kế bên trong lúc chuyển; desktop vẫn
+  giữ transform animation. Browser smoke trên mobile và desktop đều hiển thị
+  đúng ảnh testimonial thật, không còn trạng thái cắt ngang/xoay giữa slide.
+- Regression focused suite đạt `50/50`; OpenNext build đã compile TypeScript,
+  generate đủ `28/28` route và hoàn tất bước `OpenNext build complete`.
+- GitHub staging gate đã bỏ Wrangler version hard-code `4.115.0`, dùng Wrangler
+  `4.131.1` từ lockfile qua `npx --no-install`, để CI và Cloudflare build dùng
+  cùng dependency. Static image live trả `CF-Cache-Status: HIT` với cache
+  `86400` giây; HTML request có `Accept: text/html` trả public edge policy
+  `s-maxage=60` và `stale-while-revalidate=300`.
+
 ## Current staging checkpoint — 2026-09-16
 
 Checkpoint này là trạng thái mới nhất; các checkpoint production/staging cũ

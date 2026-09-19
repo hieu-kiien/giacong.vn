@@ -70,13 +70,13 @@ jobs:
         run: npm ci
 
       - name: Verify Cloudflare credentials and existing staging worker
-        run: npx --yes wrangler@4.115.0 deployments status --env=staging --json
+        run: npx --no-install wrangler deployments status --env=staging --json
 
       - name: Build OpenNext for Cloudflare staging
         run: npm run cf:build:staging
 
       - name: Validate Wrangler package without deploying
-        run: npx --yes wrangler@4.115.0 deploy --env=staging --dry-run --outdir=.wrangler-dry-run
+        run: npx --no-install wrangler deploy --env=staging --dry-run --outdir=.wrangler-dry-run
 
       - name: Staging remains unchanged
         run: echo "Cloudflare staging gate passed. This workflow intentionally does not deploy."

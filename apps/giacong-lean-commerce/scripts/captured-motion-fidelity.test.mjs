@@ -370,6 +370,13 @@ test("clips translated slider slides so mobile pages cannot grow horizontally", 
   assert.match(globals, /\.slider\.clone-slider-ready\s*\{[\s\S]*?overflow:\s*hidden\s*!important;/);
 });
 
+test("fades mobile slider content without exposing adjacent slides during motion", () => {
+  assert.match(capturedMotion, /const mobileViewport = window\.matchMedia\?\.\("\(max-width: 549px\)"\)/);
+  assert.match(capturedMotion, /data-clone-slider-mode/);
+  assert.match(capturedMotion, /slide\.style\.opacity = isMobile \? \(selected \? "1" : "0"\) : ""/);
+  assert.match(capturedMotion, /mobileViewport\?\.addEventListener\("change", onViewportChange\)/);
+});
+
 test("keeps captured storefront content inside the viewport during motion", () => {
   assert.match(globals, /#main\s*\{[\s\S]*?overflow-x:\s*clip;/);
 });

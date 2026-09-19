@@ -272,13 +272,18 @@ function connectCapturedSlider(slider: HTMLElement): MotionCleanup {
   if (slides.length < 2) return noop;
 
   const reducedMotion = prefersReducedMotion();
+  const mobileViewport = window.matchMedia?.("(max-width: 549px)");
   const originalHeight = slider.style.height;
   const originalAriaLive = slider.getAttribute("aria-live");
   const originalIndex = slider.getAttribute("data-clone-slider-index");
+  const originalMode = slider.getAttribute("data-clone-slider-mode");
   const originalReady = slider.classList.contains("clone-slider-ready");
   const originalSlideStyles = slides.map((slide) => ({
+    ariaHidden: slide.getAttribute("aria-hidden"),
     hidden: slide.hidden,
     left: slide.style.left,
+    opacity: slide.style.opacity,
+    pointerEvents: slide.style.pointerEvents,
     position: slide.style.position,
     top: slide.style.top,
     transform: slide.style.transform,
@@ -304,6 +309,7 @@ function connectCapturedSlider(slider: HTMLElement): MotionCleanup {
   slider.classList.add("clone-slider-ready");
   slider.setAttribute("aria-live", "polite");
   slider.setAttribute("data-clone-slider-index", "0");
+  slider.setAttribute("data-clone-slider-mode", mobileViewport?.matches ? "fade" : "slide");
   slider.style.height = naturalHeight + "px";
 
   const updateHeight = () => {
@@ -329,10 +335,24 @@ function connectCapturedSlider(slider: HTMLElement): MotionCleanup {
 
   const render = (index: number) => {
     current = (index + slides.length) % slides.length;
+    const isMobile = mobileViewport?.matches ?? false;
     slider.setAttribute("data-clone-slider-index", String(current));
+    slider.setAttribute("data-clone-slider-mode", isMobile ? "fade" : "slide");
     updateHeight();
     slides.forEach((slide, slideIndex) => {
-      slide.style.transform = `translate3d(${(slideIndex - current) * 100}%, 0, 0)`;
+      const selected = slideIndex === current;
+      slide.style.transform = isMobile
+        ? "translate3d(0, 0, 0)"
+        : `translate3d(${(slideIndex - current) * 100}%, 0, 0)`;
+      slide.style.opacity = isMobile ? (selected ? "1" : "0") : "";
+      slide.style.pointerEvents = isMobile ? (selected ? "auto" : "none") : "";
+      if (isMobile) slide.setAttribute("aria-hidden", selected ? "false" : "true");
+      else restoreAttribute(slide, "aria-hidden", originalSlideStyles[slideIndex].ariaHidden);
+      slide.style.transition = reducedMotion
+        ? "none"
+        : isMobile
+          ? "opacity .45s ease"
+          : "transform .6s cubic-bezier(.25,.46,.45,.94)";
     });
     dots?.querySelectorAll<HTMLButtonElement>("button").forEach((dot, dotIndex) => {
       const selected = dotIndex === current;
@@ -357,6 +377,7 @@ function connectCapturedSlider(slider: HTMLElement): MotionCleanup {
   const onFocusOut = (event: FocusEvent) => {
     if (!slider.contains(event.relatedTarget as Node | null)) paused = false;
   };
+  const onViewportChange = () => render(current);
 
   dots?.querySelectorAll<HTMLButtonElement>("button").forEach((dot, dotIndex) => {
     const handler = () => render(dotIndex);
@@ -369,6 +390,7 @@ function connectCapturedSlider(slider: HTMLElement): MotionCleanup {
   slider.addEventListener("mouseleave", onMouseLeave);
   slider.addEventListener("focusin", onFocusIn);
   slider.addEventListener("focusout", onFocusOut);
+  mobileViewport?.addEventListener("change", onViewportChange);
   const resizeObserver =
     typeof ResizeObserver === "undefined" ? undefined : new ResizeObserver(updateHeight);
   slides.forEach((slide) => resizeObserver?.observe(slide));
@@ -388,12 +410,16 @@ function connectCapturedSlider(slider: HTMLElement): MotionCleanup {
     slider.removeEventListener("mouseleave", onMouseLeave);
     slider.removeEventListener("focusin", onFocusIn);
     slider.removeEventListener("focusout", onFocusOut);
+    mobileViewport?.removeEventListener("change", onViewportChange);
     dotHandlers.forEach(({ dot, handler }) => dot.removeEventListener("click", handler));
     resizeObserver?.disconnect();
     slides.forEach((slide, index) => {
       const original = originalSlideStyles[index];
+      restoreAttribute(slide, "aria-hidden", original.ariaHidden);
       slide.hidden = original.hidden;
       slide.style.left = original.left;
+      slide.style.opacity = original.opacity;
+      slide.style.pointerEvents = original.pointerEvents;
       slide.style.position = original.position;
       slide.style.top = original.top;
       slide.style.transform = original.transform;
@@ -404,6 +430,7 @@ function connectCapturedSlider(slider: HTMLElement): MotionCleanup {
     if (!originalReady) slider.classList.remove("clone-slider-ready");
     restoreAttribute(slider, "aria-live", originalAriaLive);
     restoreAttribute(slider, "data-clone-slider-index", originalIndex);
+    restoreAttribute(slider, "data-clone-slider-mode", originalMode);
     if (createdDots) dots?.remove();
   };
 }
