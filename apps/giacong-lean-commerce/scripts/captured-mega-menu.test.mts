@@ -163,7 +163,7 @@ test("mobile navigation keeps Mua hàng direct and groups service accordions", a
   assert.doesNotMatch(source, /createMobileProductItem|clone-mobile-product/);
 });
 
-test("milk service capture uses a local image fallback for every card", async () => {
+test("milk service capture restores the exact legacy image for every card", async () => {
   const { markup } = await readDataPage("gia-cong-sua-bot.json");
   const normalized = normalizeCapturedMarkup(markup);
   const legacySources = [
@@ -176,9 +176,19 @@ test("milk service capture uses a local image fallback for every card", async ()
   ];
 
   for (const source of legacySources) {
-    assert.equal(normalized.includes(source), false, source + " must use the local asset");
+    assert.equal(normalized.includes("https://giacong.vn/wp-content/uploads/2025/04/" + source), false, source + " must use the local asset");
   }
-  assert.equal((normalized.match(/\/images\/services\/service-milk\.svg/g) ?? []).length, legacySources.length);
+  for (const asset of [
+    "/images/captured-legacy/source/gia-cong-sua-bot.jpg",
+    "/images/captured-legacy/source/gia-cong-sua-bot-cho-tre-em-247x296.jpg",
+    "/images/captured-legacy/source/gia-cong-sua-bot-nguyen-kem-247x296.webp",
+    "/images/captured-legacy/source/gia-cong-sua-bot-pha-san-247x296.jpg",
+    "/images/captured-legacy/source/sua-bot-cho-nguoi-gia-247x296.webp",
+    "/images/captured-legacy/source/sua-bot-tach-beo-247x296.jpg",
+  ]) {
+    assert.equal(normalized.includes(asset), true, asset + " must be restored");
+  }
+  assert.equal((normalized.match(/\/images\/services\/service-milk\.svg/g) ?? []).length, 0);
 });
 
 const stubScope = (

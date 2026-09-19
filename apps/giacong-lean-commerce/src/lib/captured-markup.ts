@@ -1,4 +1,5 @@
 import { getLegacyMegaMenuItemId, type LegacyMegaMenuOwner } from "../data/legacy-mega-menu.ts";
+import { resolveCapturedLegacyAsset } from "./captured-legacy-assets.ts";
 
 const localCtaRoutes: Record<string, string> = {
   "Liên hệ ngay": "/lien-he/",
@@ -27,7 +28,7 @@ const capturedAssetAliases: Readonly<Record<string, string>> = {
   "https://giacong.vn/wp-content/uploads/2024/09/IMG-510x433.png":
     "/images/home-captured/IMG-510x433.webp",
   "https://giacong.vn/wp-content/uploads/2024/09/Screenshot-2024-09-06-003821-100x100.png":
-    "/images/captured-asset-placeholder.svg",
+    "/images/captured-legacy/source/Screenshot-2024-09-06-003821.png",
   "https://giacong.vn/wp-content/uploads/2024/09/Screenshot-2024-09-06-004009-100x100.png":
     "/images/captured-asset-placeholder.svg",
   "https://giacong.vn/wp-content/uploads/2024/08/book-open-svgrepo-com.svg":
@@ -76,21 +77,21 @@ const capturedAssetAliases: Readonly<Record<string, string>> = {
     "/images/captured-legacy/sidebar-contact.png",
   "https://giacong.vn/wp-content/uploads/2024/08/trang-chu-netfood.svg":
     "/images/captured-legacy/sidebar-home.svg",
-  // The captured milk-service cards point to the old WordPress host. Keep the
-  // cards and copy, but serve a local illustration so a failed remote image
-  // cannot leave an empty tile on the live route.
+  // Keep explicit aliases for older assets with meaningful storefront roles.
+  // The complete Git recovery manifest below handles the remaining captures,
+  // including WordPress-generated thumbnails.
   "https://giacong.vn/wp-content/uploads/2025/04/gia-cong-sua-bot-cho-tre-em-247x296.jpg":
-    "/images/services/service-milk.svg",
+    "/images/captured-legacy/source/gia-cong-sua-bot-cho-tre-em-247x296.jpg",
   "https://giacong.vn/wp-content/uploads/2025/04/gia-cong-sua-bot-510x366.jpg":
-    "/images/services/service-milk.svg",
+    "/images/captured-legacy/source/gia-cong-sua-bot.jpg",
   "https://giacong.vn/wp-content/uploads/2025/04/gia-cong-sua-bot-nguyen-kem-247x296.webp":
-    "/images/services/service-milk.svg",
+    "/images/captured-legacy/source/gia-cong-sua-bot-nguyen-kem-247x296.webp",
   "https://giacong.vn/wp-content/uploads/2025/04/gia-cong-sua-bot-pha-san-247x296.jpg":
-    "/images/services/service-milk.svg",
+    "/images/captured-legacy/source/gia-cong-sua-bot-pha-san-247x296.jpg",
   "https://giacong.vn/wp-content/uploads/2025/04/sua-bot-cho-nguoi-gia-247x296.webp":
-    "/images/services/service-milk.svg",
+    "/images/captured-legacy/source/sua-bot-cho-nguoi-gia-247x296.webp",
   "https://giacong.vn/wp-content/uploads/2025/04/sua-bot-tach-beo-247x296.jpg":
-    "/images/services/service-milk.svg",
+    "/images/captured-legacy/source/sua-bot-tach-beo-247x296.jpg",
 };
 
 function readLinkLabel(content: string) {
@@ -264,13 +265,12 @@ function normalizeCapturedAssetSources(markup: string): string {
     markup,
   );
 
-  // A captured page can contain an asset that was not present in the approved
-  // local map. Never leave those runtime requests pointed at the retired
-  // WordPress host: a neutral local asset is safer than a broken image and
-  // keeps every storefront route independent from that origin.
+  // Recover the exact Git asset by basename, including the original image
+  // behind a generated WordPress thumbnail. Only an upload absent from the
+  // approved Git snapshot falls back to the neutral local placeholder.
   return localized.replace(
     /(?:https?:)?\/\/(?:www\.)?giacong\.vn\/wp-content\/uploads\/[^\s"'()<>]+/gi,
-    "/images/captured-asset-placeholder.svg",
+    (source) => resolveCapturedLegacyAsset(source) ?? "/images/captured-asset-placeholder.svg",
   );
 }
 

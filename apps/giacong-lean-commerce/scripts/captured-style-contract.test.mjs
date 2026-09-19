@@ -49,6 +49,15 @@ test("captured CSS maps contact-page assets to local fallbacks", () => {
   assert.doesNotMatch(result, /https:\/\/giacong\.vn\/wp-content\/uploads\/(?:2024\/09\/form-bg\.jpg|2024\/08\/doi-tac--510x137\.png)/);
 });
 
+test("captured CSS restores an exact Git image behind a WordPress thumbnail URL", () => {
+  const result = layerCapturedStyles(`.service {
+    background-image: url(https://giacong.vn/wp-content/uploads/2024/08/dich-vu-say-lanh-300x169.jpg);
+  }`);
+
+  assert.match(result, /\/images\/captured-legacy\/source\/dich-vu-say-lanh\.jpg/);
+  assert.doesNotMatch(result, /https:\/\/giacong\.vn\/wp-content\/uploads\//);
+});
+
 test("captured CSS falls back any unmapped upload to a local placeholder", () => {
   const result = layerCapturedStyles(`.unknown {
     background-image: url(https://giacong.vn/wp-content/uploads/2025/09/future-capture.png);
