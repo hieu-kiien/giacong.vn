@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { readFile, stat } from "node:fs/promises";
 import test from "node:test";
 
 const { layerCapturedStyles, normalizeCapturedMarkup } = await import("../src/lib/captured-markup" + ".ts");
@@ -379,6 +379,15 @@ test("raises the captured testimonial metadata to a readable contrast", () => {
     globals,
     /#main \.section07 \.icon-box-text\.last-reset > p\s*\{[\s\S]*?color:\s*#5f6b61\s*!important;/,
   );
+});
+
+test("restores the exact second testimonial image instead of a placeholder", async () => {
+  const result = normalizeCapturedMarkup(
+    '<img src="https://giacong.vn/wp-content/uploads/2024/09/Screenshot-2024-09-06-004009-298x300.png" srcset="https://giacong.vn/wp-content/uploads/2024/09/Screenshot-2024-09-06-004009-100x100.png 100w"/>',
+  );
+  assert.match(result, /\/images\/captured-legacy\/source\/Screenshot-2024-09-06-004009\.png/);
+  assert.doesNotMatch(result, /captured-asset-placeholder\.svg/);
+  await stat(new URL("../public/images/captured-legacy/source/Screenshot-2024-09-06-004009.png", import.meta.url));
 });
 
 test("keeps the exact legacy homepage partner showcase while filtering only the proof block", () => {

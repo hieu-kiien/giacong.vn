@@ -30,7 +30,7 @@ const capturedAssetAliases: Readonly<Record<string, string>> = {
   "https://giacong.vn/wp-content/uploads/2024/09/Screenshot-2024-09-06-003821-100x100.png":
     "/images/captured-legacy/source/Screenshot-2024-09-06-003821.png",
   "https://giacong.vn/wp-content/uploads/2024/09/Screenshot-2024-09-06-004009-100x100.png":
-    "/images/captured-asset-placeholder.svg",
+    "/images/captured-legacy/source/Screenshot-2024-09-06-004009.png",
   "https://giacong.vn/wp-content/uploads/2024/08/book-open-svgrepo-com.svg":
     "/images/captured-legacy/nav-products.svg",
   "https://giacong.vn/wp-content/uploads/2024/08/file-star-svgrepo-com.svg":

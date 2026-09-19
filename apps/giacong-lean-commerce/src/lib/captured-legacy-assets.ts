@@ -214,6 +214,7 @@ const capturedLegacyAssetByKey: Readonly<Record<string, string>> = Object.freeze
   "say-chan-khong.webp": "say-chan-khong.webp",
   "say-hong-ngoai-.png": "say-hong-ngoai-.png",
   "screenshot-2024-09-06-003821.png": "Screenshot-2024-09-06-003821.png",
+  "screenshot-2024-09-06-004009.png": "Screenshot-2024-09-06-004009.png",
   "seo-application-like-thumb-svgrepo-com.svg": "seo-application-like-thumb-svgrepo-com.svg",
   "seo-mobile-setting-gear-cog-07-svgrepo-com.svg": "seo-mobile-setting-gear-cog-07-svgrepo-com.svg",
   "seo-reward-license-certificate-contract-svgrepo-com.svg": "seo-reward-license-certificate-contract-svgrepo-com.svg",
