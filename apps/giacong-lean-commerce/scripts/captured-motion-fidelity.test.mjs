@@ -150,7 +150,7 @@ test("keeps one top-level main landmark, names captured frames and gives footer 
   assert.match(result, /<div id="content">/);
   assert.doesNotMatch(result, /id="content"[^>]*role="main"/);
   assert.match(result, /<footer><h2>Thông tin công ty<\/h2><\/footer>/);
-  assert.match(result, /<iframe[^>]*title="Bản đồ vị trí Giacong\.vn"/);
+  assert.match(result, /<iframe[^>]*title="Bản đồ vị trí Kienhieu"/);
 });
 
 test("removes unverified captured ratings and third-party DMCA badges", () => {

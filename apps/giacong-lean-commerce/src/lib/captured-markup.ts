@@ -487,8 +487,8 @@ function normalizeCapturedFrames(markup: string): string {
   return markup.replace(/<iframe\b([^>]*)>/gi, (tag, attributes: string) => {
     if (/\btitle\s*=/i.test(attributes)) return tag;
     const title = /(?:google\.[^/]+\/maps\/embed|maps\.google\.)/i.test(attributes)
-      ? "Bản đồ vị trí Giacong.vn"
-      : "Nội dung nhúng Giacong.vn";
+      ? "Bản đồ vị trí Kienhieu"
+      : "Nội dung nhúng Kienhieu";
     return `<iframe${attributes} title="${title}">`;
   });
 }
