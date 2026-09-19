@@ -30,6 +30,7 @@ production.
 | `npm run qa:astra-preflight` (`scripts/astra-audit-preflight.mjs`) | Preflight read-only: kiểm tra repo dirty/staged, engine/dependency, tài liệu/lệnh bắt buộc, generated artifacts và dấu hiệu `.env` trước khi review |
 | [google-apps-script-contact-webhook.gs](./google-apps-script-contact-webhook.gs) | Mã Apps Script được kiểm thử; chỉnh cùng hướng dẫn webhook |
 | [HANDOVER.md](./HANDOVER.md) | Tài liệu bàn giao vận hành: bản đồ hệ thống, admin, Google Sheet, triển khai/rollback, giám sát |
+| [HUONG_DAN_SU_DUNG_KHACH_HANG.md](./HUONG_DAN_SU_DUNG_KHACH_HANG.md) | Cẩm nang hướng dẫn quản trị và vận hành website dành cho khách hàng / chủ doanh nghiệp |
 
 ## Tài liệu tham khảo lịch sử
 
