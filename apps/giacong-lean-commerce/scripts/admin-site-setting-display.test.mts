@@ -65,7 +65,7 @@ test("empty published value reports the built-in default as effective", async ()
     fakeDb([{ ...oldCopyRow(), draft_value: "", published_value: "" }]) as never,
   );
 
-  assert.equal(settings[0]?.effectiveValue, "Giacong.vn - Giải pháp gia công toàn diện");
+  assert.equal(settings[0]?.effectiveValue, "Kienhieu - Giải pháp gia công toàn diện");
   assert.equal(settings[0]?.isDefaultValue, true);
 });
 

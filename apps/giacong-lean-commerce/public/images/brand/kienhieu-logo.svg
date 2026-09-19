@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 560 128" role="img" aria-labelledby="title desc">
+  <title id="title">Kienhieu</title>
+  <desc id="desc">Kienhieu — Giải pháp gia công toàn diện</desc>
+  <g fill="none" stroke="#4f9c56" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M52 91c-18-9-27-25-24-45 20 2 35 12 42 31 2 6 2 11 1 17" stroke-width="8"/>
+    <path d="M69 95c2-27 14-48 38-62" stroke="#285f00" stroke-width="8"/>
+    <path d="M38 57c11 1 21 6 29 15" stroke-width="5"/>
+  </g>
+  <text x="126" y="72" fill="#285f00" font-family="Arial, Helvetica, sans-serif" font-size="58" font-weight="700" letter-spacing="-2">Kienhieu</text>
+  <text x="130" y="101" fill="#4f9c56" font-family="Arial, Helvetica, sans-serif" font-size="15" font-weight="600" letter-spacing="3">GIẢI PHÁP GIA CÔNG</text>
+</svg>

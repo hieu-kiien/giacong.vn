@@ -29,7 +29,11 @@ import type { RequestCartState, ResolvedRequestCart, ResolvedRequestCartLine } f
 
 const REVALIDATE_FAILURE_MESSAGE = "Không thể xác thực giỏ yêu cầu. Vui lòng thử lại.";
 
-export function RequestCartView() {
+interface RequestCartViewProps {
+  contactEmail?: string;
+}
+
+export function RequestCartView({ contactEmail }: RequestCartViewProps = {}) {
   const [cart, setCart] = useState<RequestCartState | null>(null);
   const [storageNotice, setStorageNotice] = useState<string | null>(null);
   const [resolved, setResolved] = useState<ResolvedRequestCart | null>(null);
@@ -203,6 +207,7 @@ export function RequestCartView() {
         <RequestAccepted
           cart={accepted.cart}
           contact={accepted.contact}
+          contactEmail={contactEmail}
           receivedAt={accepted.receivedAt}
           reference={accepted.reference}
           onStartNewRequest={startNewRequest}

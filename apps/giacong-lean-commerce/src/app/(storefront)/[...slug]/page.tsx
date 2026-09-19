@@ -37,6 +37,10 @@ const localCapturedPages: Readonly<Record<string, CapturedPageData>> = {
   "/lien-he/": contactPage as CapturedPageData,
 };
 
+function replaceLegacyBrandInText(value: string, brandName: string): string {
+  return value.replace(/\bgiacong\.vn\b/gi, brandName);
+}
+
 async function readCapturedAsset<T>(file: string): Promise<T> {
   if (!capturedAssetFilePattern.test(file)) {
     throw new Error("Captured page asset name is invalid.");
@@ -81,8 +85,8 @@ export async function generateMetadata({ params }: CapturedRouteProps): Promise<
   if (managedPage?.blocks.length) {
     return {
       ...canonicalMetadata(routePath),
-      title: managedPage.seoTitle || managedPage.title || settings.site_title,
-      description: managedPage.seoDescription || settings.site_description,
+      title: replaceLegacyBrandInText(managedPage.seoTitle || managedPage.title || settings.site_title, settings.brand_name),
+      description: replaceLegacyBrandInText(managedPage.seoDescription || settings.site_description, settings.brand_name),
       icons: settings.favicon_url ? { icon: settings.favicon_url } : undefined,
     };
   }
@@ -94,14 +98,14 @@ export async function generateMetadata({ params }: CapturedRouteProps): Promise<
       ...noIndexMetadata(),
       description: "Đường dẫn này không còn tồn tại hoặc nội dung chưa được phát hành.",
       icons: settings.favicon_url ? { icon: settings.favicon_url } : undefined,
-      title: "Không tìm thấy trang | Giacong.vn",
+      title: `Không tìm thấy trang | ${settings.brand_name}`,
     };
   }
   const data = await readCapturedPath(routePath);
   return {
     ...canonicalMetadata(routePath),
-    title: data.title || settings.site_title,
-    description: data.description || settings.site_description,
+    title: replaceLegacyBrandInText(data.title || settings.site_title, settings.brand_name),
+    description: replaceLegacyBrandInText(data.description || settings.site_description, settings.brand_name),
     icons: settings.favicon_url ? { icon: settings.favicon_url } : undefined,
   };
 }

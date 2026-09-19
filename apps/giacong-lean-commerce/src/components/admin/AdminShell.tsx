@@ -11,7 +11,7 @@ import { AdminUnsavedContext, type AdminUnsavedState, shouldBlockUnsavedNavigati
 import { AdminToastProvider } from "@/components/admin/AdminToast";
 import { canManage, type AdminCapability } from "@/lib/admin-permissions";
 
-interface AdminShellProps { children: ReactNode; }
+interface AdminShellProps { brandName: string; children: ReactNode; }
 interface SessionContextValue { session: AdminSession | null; }
 const SessionContext = createContext<SessionContextValue>({ session: null });
 
@@ -165,7 +165,7 @@ interface AdminHistoryRecovery {
   showHistoryDialog: boolean;
 }
 
-export function AdminShell({ children }: AdminShellProps) {
+export function AdminShell({ brandName, children }: AdminShellProps) {
   const pathname = usePathname();
   const router = useRouter();
   const fullHref = useSyncExternalStore(subscribeToFullHref, getFullHrefSnapshot, getFullHrefServerSnapshot);
@@ -425,7 +425,7 @@ export function AdminShell({ children }: AdminShellProps) {
 
   if (status === "loading") return <AdminLoadingScreen />;
   if (status !== "ready" || !session) {
-    return <AdminAccessScreen status={status === "blocked" ? "blocked" : "unavailable"} error={error} onRetry={() => setAttempt((value) => value + 1)} />;
+    return <AdminAccessScreen brandName={brandName} status={status === "blocked" ? "blocked" : "unavailable"} error={error} onRetry={() => setAttempt((value) => value + 1)} />;
   }
 
   const visibleNavGroups = navGroups
@@ -445,8 +445,8 @@ export function AdminShell({ children }: AdminShellProps) {
           <aside className={`admin-sidebar${mobileOpen ? " is-open" : ""}`} aria-label="Điều hướng admin" id="admin-navigation" onClickCapture={handleSidebarClickCapture} ref={sidebarRef}>
             <button aria-label="Đóng điều hướng" className="admin-nav-close" data-testid="button-close-admin-nav" onClick={() => setMobileOpen(false)} type="button"><X aria-hidden="true" size={20} /></button>
             <Link className="admin-brand" href="/admin" onClick={() => setMobileOpen(false)} prefetch={false}>
-              <span className="admin-brand-mark" aria-hidden="true">g.</span>
-              <span className="admin-brand-copy"><strong>Giacong.vn</strong><span>Khu vực vận hành</span></span>
+              <span className="admin-brand-mark" aria-hidden="true">{`${brandName.slice(0, 1).toUpperCase()}.`}</span>
+              <span className="admin-brand-copy"><strong>{brandName}</strong><span>Khu vực vận hành</span></span>
             </Link>
             <nav aria-label="Các khu vực quản trị" className="admin-nav">
               {visibleNavGroups.map((group) => (
@@ -490,7 +490,7 @@ export function AdminShell({ children }: AdminShellProps) {
                 >
                   {mobileOpen ? <X aria-hidden="true" /> : <Menu aria-hidden="true" />}
                 </button>
-                <span>Giacong.vn / <strong>{currentNavItem?.label ?? "Quản trị"}</strong></span>
+                <span>{brandName} / <strong>{currentNavItem?.label ?? "Quản trị"}</strong></span>
               </div>
               <div className="admin-topbar-meta">
                 <Link className="admin-storefront-link" href="/" rel="noreferrer" target="_blank">
@@ -538,7 +538,7 @@ function AdminLoadingScreen() {
   );
 }
 
-function AdminAccessScreen({ status, error, onRetry }: { status: "blocked" | "unavailable"; error: AdminClientError | null; onRetry: () => void }) {
+function AdminAccessScreen({ brandName, status, error, onRetry }: { brandName: string; status: "blocked" | "unavailable"; error: AdminClientError | null; onRetry: () => void }) {
   const isBlocked = status === "blocked";
   const showLoginLink = isBlocked || error?.code === "NETWORK_ERROR";
   return (
@@ -546,8 +546,8 @@ function AdminAccessScreen({ status, error, onRetry }: { status: "blocked" | "un
       <div className="admin-access-page">
         <section className="admin-access-card" aria-labelledby="admin-access-title">
           <Link className="admin-brand" href="/admin">
-            <span className="admin-brand-mark" aria-hidden="true">g.</span>
-            <span className="admin-brand-copy"><strong>Giacong.vn</strong><span>Khu vực vận hành</span></span>
+            <span className="admin-brand-mark" aria-hidden="true">{`${brandName.slice(0, 1).toUpperCase()}.`}</span>
+            <span className="admin-brand-copy"><strong>{brandName}</strong><span>Khu vực vận hành</span></span>
           </Link>
           <h1 id="admin-access-title">{isBlocked ? "Khu vực này cần Cloudflare Access" : "Admin chưa sẵn sàng"}</h1>
           <p>

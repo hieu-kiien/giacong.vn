@@ -15,12 +15,22 @@ export interface RequestCartChannel {
   label: string;
 }
 
-export const REQUEST_CART_CHANNELS: readonly RequestCartChannel[] = [
-  { contact: "06408115", copyFirst: true, demo: true, href: "https://zalo.me/06408115", id: "zalo", label: "Zalo" },
-  { contact: "m.me/qtudepdai", copyFirst: true, demo: true, href: "https://m.me/qtudepdai", id: "messenger", label: "Messenger" },
-  { contact: "qtu1053@gmail.com", copyFirst: false, demo: true, href: "mailto:qtu1053@gmail.com", id: "email", label: "Email" },
-  { contact: "0868408115", copyFirst: false, demo: true, href: "tel:0868408115", id: "hotline", label: "Hotline" },
-];
+export interface RequestCartChannelSettings {
+  contactEmail?: string;
+}
+
+export function getRequestCartChannels(settings: RequestCartChannelSettings = {}): readonly RequestCartChannel[] {
+  const contactEmail = settings.contactEmail?.trim() || "contact@kienhieu.id.vn";
+
+  return [
+    { contact: "06408115", copyFirst: true, demo: true, href: "https://zalo.me/06408115", id: "zalo", label: "Zalo" },
+    { contact: "m.me/qtudepdai", copyFirst: true, demo: true, href: "https://m.me/qtudepdai", id: "messenger", label: "Messenger" },
+    { contact: contactEmail, copyFirst: false, demo: true, href: `mailto:${contactEmail}`, id: "email", label: "Email" },
+    { contact: "0868408115", copyFirst: false, demo: true, href: "tel:0868408115", id: "hotline", label: "Hotline" },
+  ];
+}
+
+export const REQUEST_CART_CHANNELS: readonly RequestCartChannel[] = getRequestCartChannels();
 
 const MAX_MESSAGE_LENGTH = 1_800;
 

@@ -3,6 +3,7 @@ import Link from "next/link";
 
 import { CapturedStorefrontShell } from "@/components/site/CapturedStorefrontShell";
 import { canonicalMetadata, noIndexMetadata } from "@/lib/seo";
+import { getPublishedSiteSettings } from "@/lib/site-settings";
 
 export type PolicyKey =
   | "privacy"
@@ -82,13 +83,15 @@ const policyDefinitions: Record<PolicyKey, PolicyDefinition> = {
   },
 };
 
-export function policyMetadata(key: PolicyKey): Metadata {
+export async function policyMetadata(key: PolicyKey): Promise<Metadata> {
   const policy = policyDefinitions[key];
+  const settings = await getPublishedSiteSettings();
   return {
     ...canonicalMetadata(policy.path),
     ...noIndexMetadata(),
     description: policy.description,
-    title: `${policy.title} | Giacong.vn`,
+    icons: settings.favicon_url ? { icon: settings.favicon_url } : undefined,
+    title: `${policy.title} | ${settings.brand_name}`,
   };
 }
 

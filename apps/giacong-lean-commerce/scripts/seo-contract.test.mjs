@@ -22,16 +22,17 @@ test("public SEO contract declares canonical metadata and a generated sitemap", 
   assert.match(sitemap, /getServiceContentIndex/);
   assert.match(robots, /Disallow: \/\\n/);
   assert.match(robots, /Sitemap: \$\{PUBLIC_SITE_ORIGIN\}\/sitemap\.xml/);
-  assert.match(rootLayout, /title: "Giacong\.vn"/);
-  assert.match(rootLayout, /title: defaultMetadata\.title/);
-  assert.match(rootLayout, /description: defaultMetadata\.description/);
+  assert.match(rootLayout, /title: settings\.site_title \|\| defaultMetadata\.title/);
+  assert.match(rootLayout, /description: settings\.site_description \|\| defaultMetadata\.description/);
   assert.doesNotMatch(rootLayout, /canonicalMetadata\("\/"\)/);
-  assert.match(notFound, /export const metadata/);
-  assert.match(notFound, /title: "Không tìm thấy trang \| Giacong\.vn"/);
+  assert.match(notFound, /generateMetadata/);
+  assert.match(notFound, /title: `Không tìm thấy trang \| \$\{settings\.brand_name\}`/);
+  assert.match(notFound, /<p[^>]*>\{settings\.brand_name\}<\/p>/);
   assert.match(notFound, /noIndexMetadata/);
   assert.match(notFound, /Xem sản phẩm/);
-  assert.match(capturedRoute, /Không tìm thấy trang \| Giacong\.vn/);
+  assert.match(capturedRoute, /Không tìm thấy trang \| \$\{settings\.brand_name\}/);
   assert.match(capturedRoute, /noIndexMetadata/);
+  assert.match(capturedRoute, /replaceLegacyBrandInText/);
 });
 
 test("non-public hosts are marked noindex at the Worker boundary", async () => {

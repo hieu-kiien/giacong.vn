@@ -121,6 +121,7 @@ export async function CapturedHomePage({
       navigation,
     ),
     settings.hero_image_url,
+    settings.brand_name,
   );
 
   return (
@@ -175,13 +176,14 @@ function removeUnverifiedHomepageProof(markup: string): string {
   );
 }
 
-function replaceCompositeHeroWithGallery(markup: string, heroImageUrl: string): string {
+function replaceCompositeHeroWithGallery(markup: string, heroImageUrl: string, brandName: string): string {
   const compositeHeroPattern = /<div\b(?=[^>]*\bid=["']image_[^"']+["'])(?=[^>]*\bclass=["'][^"']*\bimg\b[^"']*["'])[^>]*>[\s\S]*?<img\b(?=[^>]*\balt=["']gia cong thuc pham["'])[^>]*\/?>(?:[\s\S]*?)<\/div>\s*(?:<style\b[\s\S]*?<\/style>\s*)?<\/div>/i;
-  return markup.replace(compositeHeroPattern, homeHeroGalleryMarkup(heroImageUrl));
+  return markup.replace(compositeHeroPattern, homeHeroGalleryMarkup(heroImageUrl, brandName));
 }
 
-function homeHeroGalleryMarkup(heroImageUrl: string): string {
+function homeHeroGalleryMarkup(heroImageUrl: string, brandName: string): string {
   const safeHeroImageUrl = heroImageUrl.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const safeBrandName = brandName.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
   const items = HOME_HERO_GALLERY.map((image, index) => `
     <figure class="giacong-home-gallery__item giacong-home-gallery__item--${index + 1}">
       <picture>
@@ -200,6 +202,6 @@ function homeHeroGalleryMarkup(heroImageUrl: string): string {
       </picture>
     </figure>`).join("");
 
-  return `<div aria-label="Năng lực gia công của Giacong.vn" class="giacong-home-gallery" data-testid="home-hero-gallery">${items}
+  return `<div aria-label="Năng lực gia công của ${safeBrandName}" class="giacong-home-gallery" data-testid="home-hero-gallery">${items}
   </div>`;
 }

@@ -1,4 +1,4 @@
-# Giacong.vn
+# Kienhieu
 
 Storefront B2B cho dịch vụ gia công và catalog sản phẩm. Khách có thể xem nội dung, chọn sản phẩm/quy cách, tạo request cart và gửi yêu cầu báo giá. Admin Cloudflare-native quản lý catalog, lead, media R2, nội dung, page, menu và quyền thành viên.
 
@@ -10,7 +10,7 @@ Storefront B2B cho dịch vụ gia công và catalog sản phẩm. Khách có th
 - **Media:** Cloudflare R2, metadata và checksum lưu trong D1.
 - **Lead delivery:** Cloudflare Queues tới webhook/Google Apps Script sau khi D1 ghi thành công.
 - **Admin security:** Cloudflare Access ở production và staging; chỉ storefront staging là public.
-- **Hostname chính:** `kienhieu.id.vn`; Giacong.vn là thương hiệu.
+- **Hostname chính:** `kienhieu.id.vn`; Kienhieu là thương hiệu.
 
 ## Chạy và kiểm tra
 

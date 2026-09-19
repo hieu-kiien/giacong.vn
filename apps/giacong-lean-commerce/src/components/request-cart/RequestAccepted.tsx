@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRef, useState } from "react";
 
-import { REQUEST_CART_CHANNELS, buildHandoffMessage, channelHref } from "@/lib/request-cart-channels";
+import { buildHandoffMessage, channelHref, getRequestCartChannels } from "@/lib/request-cart-channels";
 import { formatVnd } from "@/lib/format-vnd";
 import type { RequestCartContact } from "@/lib/request-cart-client";
 import type { RequestCartChannel } from "@/lib/request-cart-channels";
@@ -12,6 +12,7 @@ import type { ResolvedRequestCart } from "@/types/request-cart";
 interface RequestAcceptedProps {
   cart: ResolvedRequestCart;
   contact: RequestCartContact;
+  contactEmail?: string;
   receivedAt: string;
   reference: string;
   onStartNewRequest: () => void;
@@ -19,11 +20,11 @@ interface RequestAcceptedProps {
 
 type CopyState = { channel: string; status: "copied" | "manual" } | null;
 
-export function RequestAccepted({ cart, contact, receivedAt, onStartNewRequest, reference }: RequestAcceptedProps) {
+export function RequestAccepted({ cart, contact, contactEmail, receivedAt, onStartNewRequest, reference }: RequestAcceptedProps) {
   const [copyState, setCopyState] = useState<CopyState>(null);
   const manualRef = useRef<HTMLTextAreaElement | null>(null);
   const message = buildHandoffMessage(reference, cart);
-  const confirmedChannels = REQUEST_CART_CHANNELS.filter((channel) => !channel.demo);
+  const confirmedChannels = getRequestCartChannels({ contactEmail }).filter((channel) => !channel.demo);
 
   /**
    * Chat channels cannot receive text through a URL, so the content is copied first and the

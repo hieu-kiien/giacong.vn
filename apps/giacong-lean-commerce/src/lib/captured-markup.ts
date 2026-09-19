@@ -21,16 +21,32 @@ const legacyMegaMenuHrefFallbacks: Readonly<Record<string, "parent">> = {
 
 const capturedAssetAliases: Readonly<Record<string, string>> = {
   // The capture kept WordPress thumbnail suffixes after the source thumbnails
-  // were removed. The original files are still public and preserve the same
-  // visual content without adding a dependency on the old thumbnail route.
+  // were removed. Use the approved local candidates instead of reviving the
+  // old thumbnail route.
   "https://giacong.vn/wp-content/uploads/2024/10/img-sp-1-510x315.png":
-    "https://giacong.vn/wp-content/uploads/2024/10/img-sp-1.png",
+    "/images/home-captured/img-sp-1-510x315.webp",
   "https://giacong.vn/wp-content/uploads/2024/09/IMG-510x433.png":
-    "https://giacong.vn/wp-content/uploads/2024/09/IMG.png",
+    "/images/home-captured/IMG-510x433.webp",
   "https://giacong.vn/wp-content/uploads/2024/09/Screenshot-2024-09-06-003821-100x100.png":
-    "https://giacong.vn/wp-content/uploads/2024/09/Screenshot-2024-09-06-003821.png",
+    "/images/captured-asset-placeholder.svg",
   "https://giacong.vn/wp-content/uploads/2024/09/Screenshot-2024-09-06-004009-100x100.png":
-    "https://giacong.vn/wp-content/uploads/2024/09/Screenshot-2024-09-06-004009.png",
+    "/images/captured-asset-placeholder.svg",
+  "https://giacong.vn/wp-content/uploads/2024/08/book-open-svgrepo-com.svg":
+    "/images/home-captured/book-open.svg",
+  "https://giacong.vn/wp-content/uploads/2024/10/form-bg.jpg":
+    "/images/home-captured/form-bg.webp",
+  "https://giacong.vn/wp-content/uploads/2024/09/form-bg.jpg":
+    "/images/home-captured/form-bg.webp",
+  "https://giacong.vn/wp-content/uploads/2024/08/doi-tac--510x137.png":
+    "/images/captured-asset-placeholder.svg",
+  "https://giacong.vn/wp-content/uploads/2025/04/insta.png":
+    "/images/captured-asset-placeholder.svg",
+  "https://giacong.vn/wp-content/uploads/2025/04/fb.png":
+    "/images/captured-asset-placeholder.svg",
+  "https://giacong.vn/wp-content/uploads/2025/04/tele.png":
+    "/images/captured-asset-placeholder.svg",
+  "https://giacong.vn/wp-content/uploads/2025/04/zalo.png":
+    "/images/captured-asset-placeholder.svg",
   // These decorative icon uploads now return a WordPress 404 HTML page. A
   // local neutral asset keeps the captured layout stable and removes the
   // browser's ORB failures from every route.
@@ -85,7 +101,9 @@ function readLinkLabel(content: string) {
  */
 export function layerCapturedStyles(pageStyles: string): string {
   const nestedStyles = normalizeCapturedFontDisplay(
-    pageStyles.replace(/@charset\s+(?:"[^"]*"|'[^']*')\s*;?/gi, ""),
+    normalizeCapturedAssetSources(
+      pageStyles.replace(/@charset\s+(?:"[^"]*"|'[^']*')\s*;?/gi, ""),
+    ),
   );
   return `@layer captured {\n${nestedStyles}\n}`;
 }
@@ -221,9 +239,18 @@ export function addCapturedServiceContext(markup: string, context: CapturedServi
 }
 
 function normalizeCapturedAssetSources(markup: string): string {
-  return Object.entries(capturedAssetAliases).reduce(
+  const localized = Object.entries(capturedAssetAliases).reduce(
     (result, [source, replacement]) => result.split(source).join(replacement),
     markup,
+  );
+
+  // A captured page can contain an asset that was not present in the approved
+  // local map. Never leave those runtime requests pointed at the retired
+  // WordPress host: a neutral local asset is safer than a broken image and
+  // keeps every storefront route independent from that origin.
+  return localized.replace(
+    /(?:https?:)?\/\/(?:www\.)?giacong\.vn\/wp-content\/uploads\/[^\s"'()<>]+/gi,
+    "/images/captured-asset-placeholder.svg",
   );
 }
 

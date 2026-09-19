@@ -106,6 +106,36 @@ test("applies the published brand tagline beside the captured logo safely", () =
   assert.doesNotMatch(result, /<QA>/);
 });
 
+test("switches the captured brand and every managed logo surface together", () => {
+  const markup = `
+    <header><div class="flex-col logo" id="logo"><a href="/" title="Giacong.vn trang chủ">
+      <img class="header_logo" src="/legacy-light.png" alt="Giacong.vn" />
+      <img class="header-logo-dark" src="/legacy-dark.png" alt="GIACONG.VN" />
+    </a></div></header>
+    <main><h1>Giacong.vn cung cấp</h1><p>Giacong.vn giúp doanh nghiệp.</p>
+      <iframe title="Bản đồ vị trí Giacong.vn"></iframe>
+      <a href="mailto:info@giacong.vn">info@giacong.vn</a>
+      <p>qtu1053@gmail.com</p>
+    </main>
+    <footer><section class="footer-section"><div class="icon-box"><div class="icon-box-img"><img src="/legacy-footer.png" alt="Giacong.vn" /></div><div class="icon-box-text"><p>Cũ</p></div></div></section></footer>`;
+  const result = applySiteSettingsToMarkup(markup, {
+    ...settings(""),
+    brand_name: "kienhieu",
+    contact_email: "contact@kienhieu.id.vn",
+    logo_url: "/images/brand/kienhieu-logo.svg",
+    logo_dark_url: "/images/brand/kienhieu-logo-dark.svg",
+  });
+
+  assert.match(result, /src="\/images\/brand\/kienhieu-logo\.svg"[^>]*alt="kienhieu"/);
+  assert.match(result, /src="\/images\/brand\/kienhieu-logo-dark\.svg"[^>]*alt="kienhieu"/);
+  assert.match(result, /footer-section[\s\S]*src="\/images\/brand\/kienhieu-logo\.svg"[^>]*alt="kienhieu"/);
+  assert.match(result, /title="kienhieu trang chủ"/);
+  assert.match(result, /Bản đồ vị trí kienhieu/);
+  assert.match(result, /mailto:contact@kienhieu\.id\.vn/);
+  assert.match(result, /contact@kienhieu\.id\.vn/);
+  assert.doesNotMatch(result, /Giacong\.vn|GIACONG\.VN|info@giacong\.vn|qtu1053@gmail\.com/);
+});
+
 test("applies published hero CTA labels and URLs safely", () => {
   const result = applyHomepageSiteSettingsToMarkup(heroCtaMarkup, {
     ...settings(""),

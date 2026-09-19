@@ -6,6 +6,7 @@ import { CapturedStorefrontShell } from "@/components/site/CapturedStorefrontShe
 import { AdminNewsContextualAction } from "@/components/admin/AdminNewsContextualAction";
 import { getPublishedNewsPost, getPublishedNewsRedirect } from "@/lib/news-public";
 import { canonicalMetadata } from "@/lib/seo";
+import { getPublishedSiteSettings } from "@/lib/site-settings";
 
 export const dynamic = "force-dynamic";
 
@@ -15,16 +16,20 @@ interface NewsDetailPageProps {
 
 export async function generateMetadata({ params }: NewsDetailPageProps): Promise<Metadata> {
   const { slug } = await params;
-  const post = await getPublishedNewsPost(slug);
+  const [post, settings] = await Promise.all([
+    getPublishedNewsPost(slug),
+    getPublishedSiteSettings(),
+  ]);
   if (!post) {
     const redirectSlug = await getPublishedNewsRedirect(slug);
     if (redirectSlug) return canonicalMetadata(`/tin-tuc/${redirectSlug}/`);
   }
-  if (!post) return { title: "Không tìm thấy bài viết | Giacong.vn" };
+  if (!post) return { title: `Không tìm thấy bài viết | ${settings.brand_name}` };
   return {
     ...canonicalMetadata(`/tin-tuc/${post.slug}/`),
     description: post.excerpt,
-    title: `${post.title} | Giacong.vn`,
+    title: `${post.title} | ${settings.brand_name}`,
+    icons: settings.favicon_url ? { icon: settings.favicon_url } : undefined,
   };
 }
 

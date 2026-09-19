@@ -350,6 +350,7 @@ type Channel = { contact: string; copyFirst: boolean; demo: true; href: string; 
 const channelModule = await import("../src/lib/request-cart-channels" + ".ts");
 const REQUEST_CART_CHANNELS = channelModule.REQUEST_CART_CHANNELS as readonly Channel[];
 const buildHandoffMessage = channelModule.buildHandoffMessage as (reference: string, cart: never) => string;
+const getRequestCartChannels = channelModule.getRequestCartChannels as (settings?: { contactEmail?: string }) => readonly Channel[];
 
 test("the demo contact channels are exactly the locked values", () => {
   assert.deepEqual(
@@ -361,9 +362,18 @@ test("the demo contact channels are exactly the locked values", () => {
   assert.equal(byId.get("zalo")?.href, "https://zalo.me/06408115");
   assert.equal(byId.get("zalo")?.contact, "06408115");
   assert.equal(byId.get("messenger")?.href, "https://m.me/qtudepdai");
-  assert.equal(byId.get("email")?.href, "mailto:qtu1053@gmail.com");
+  assert.equal(byId.get("email")?.href, "mailto:contact@kienhieu.id.vn");
   assert.equal(byId.get("hotline")?.href, "tel:0868408115");
   assert.equal(byId.get("hotline")?.contact, "0868408115");
+});
+
+test("request handoff uses the published contact email after a brand switch", () => {
+  const channels = getRequestCartChannels({ contactEmail: "sales@kienhieu.id.vn" });
+  const email = channels.find((channel) => channel.id === "email");
+
+  assert.equal(email?.contact, "sales@kienhieu.id.vn");
+  assert.equal(email?.href, "mailto:sales@kienhieu.id.vn");
+  assert.doesNotMatch(email?.href ?? "", /giacong\.vn/i);
 });
 
 test("only the chat channels need prepared content copied first", () => {

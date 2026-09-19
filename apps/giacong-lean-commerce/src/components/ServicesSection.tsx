@@ -81,7 +81,7 @@ export function ServicesSection() {
       <div className="mx-auto max-w-[1280px] px-5 pb-20 pt-20 sm:px-8 lg:px-12 lg:pb-24 lg:pt-24">
         <header className="mx-auto max-w-3xl text-center">
           <h2 className="text-3xl font-bold tracking-tight text-[#313131] sm:text-4xl">
-            Các dịch vụ của <span className="text-[#55a630]">Giacong.vn</span>
+            Các dịch vụ của <span className="text-[#55a630]">Kienhieu</span>
           </h2>
           <p className="mt-4 text-sm leading-6 text-[#666] sm:text-base">
             Sản phẩm của chúng tôi tiêu chuẩn chất lượng cao, đáp ứng yêu cầu nghiêm ngặt của các thị trường quốc tế,

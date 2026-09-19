@@ -23,6 +23,41 @@ test("captured fl-icons does not block text while the icon font loads", () => {
   assert.doesNotMatch(result, /font-family:\s*["']fl-icons["'][\s\S]*font-display:\s*block/i);
 });
 
+test("captured CSS maps retired WordPress backgrounds to local assets", () => {
+  const result = layerCapturedStyles(`.archive-page-header {
+    background-image: url("https://giacong.vn/wp-content/uploads/2024/10/form-bg.jpg");
+  }
+  .service-icon {
+    background-image: url(https://giacong.vn/wp-content/uploads/2024/08/book-open-svgrepo-com.svg);
+  }`);
+
+  assert.match(result, /\/images\/home-captured\/form-bg\.webp/);
+  assert.match(result, /\/images\/home-captured\/book-open\.svg/);
+  assert.doesNotMatch(result, /https:\/\/giacong\.vn\/wp-content\/uploads\/(?:2024\/10\/form-bg\.jpg|2024\/08\/book-open-svgrepo-com\.svg)/);
+});
+
+test("captured CSS maps contact-page assets to local fallbacks", () => {
+  const result = layerCapturedStyles(`.contact {
+    background-image: url(https://giacong.vn/wp-content/uploads/2024/09/form-bg.jpg);
+  }
+  .partner {
+    background-image: url(https://giacong.vn/wp-content/uploads/2024/08/doi-tac--510x137.png);
+  }`);
+
+  assert.match(result, /\/images\/home-captured\/form-bg\.webp/);
+  assert.match(result, /\/images\/captured-asset-placeholder\.svg/);
+  assert.doesNotMatch(result, /https:\/\/giacong\.vn\/wp-content\/uploads\/(?:2024\/09\/form-bg\.jpg|2024\/08\/doi-tac--510x137\.png)/);
+});
+
+test("captured CSS falls back any unmapped upload to a local placeholder", () => {
+  const result = layerCapturedStyles(`.unknown {
+    background-image: url(https://giacong.vn/wp-content/uploads/2025/09/future-capture.png);
+  }`);
+
+  assert.match(result, /\/images\/captured-asset-placeholder\.svg/);
+  assert.doesNotMatch(result, /https:\/\/giacong\.vn\/wp-content\/uploads\//);
+});
+
 test("fixed TOC CSS is loaded only by captured pages that contain a TOC", () => {
   assert.doesNotMatch(capturedLayersSource, /fixed-toc\.css/);
   assert.match(capturedPageSource, /ftwp-/);

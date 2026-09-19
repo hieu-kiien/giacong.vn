@@ -6,6 +6,7 @@ import { CapturedStorefrontTabFrame } from "@/components/site/CapturedStorefront
 import { legacyProductRedirects, retiredLegacyProductSlugs } from "@/lib/catalog-legacy-redirects";
 import { loadCatalogProductDetail } from "@/lib/catalog-detail-source";
 import { canonicalMetadata } from "@/lib/seo";
+import { getPublishedSiteSettings } from "@/lib/site-settings";
 
 export const dynamic = "force-dynamic";
 
@@ -14,13 +15,17 @@ type CatalogDetailPageProps = PageProps<"/san-pham/[slug]">;
 export async function generateMetadata({ params }: CatalogDetailPageProps): Promise<Metadata> {
   const { slug } = await params;
   redirectLegacyProduct(slug);
-  const source = await loadCatalogProductDetail(slug);
-  if (!source) return { title: "Không tìm thấy sản phẩm | Giacong.vn" };
+  const [source, settings] = await Promise.all([
+    loadCatalogProductDetail(slug),
+    getPublishedSiteSettings(),
+  ]);
+  if (!source) return { title: `Không tìm thấy sản phẩm | ${settings.brand_name}` };
   const { product } = source;
   return {
     ...canonicalMetadata(`/san-pham/${product.slug}/`),
-    title: `${product.name} | Giacong.vn`,
+    title: `${product.name} | ${settings.brand_name}`,
     description: product.shortDescription || product.name,
+    icons: settings.favicon_url ? { icon: settings.favicon_url } : undefined,
   };
 }
 

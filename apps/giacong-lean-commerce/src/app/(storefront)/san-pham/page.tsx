@@ -11,13 +11,18 @@ import { getCatalogCategories, getCatalogProducts } from "@/lib/cloudflare-catal
 import { parseCatalogFilters } from "@/lib/catalog-query";
 import { demoCatalogFallbackAllowed, demoCatalogForced, waitForDemoCatalogFallback } from "@/lib/demo-catalog-policy";
 import { canonicalMetadata } from "@/lib/seo";
+import { getPublishedSiteSettings } from "@/lib/site-settings";
 import type { CatalogCategory, CatalogFilters, CatalogPagination } from "@/types/catalog";
 
-export const metadata: Metadata = {
-  ...canonicalMetadata("/san-pham/"),
-  title: "Sản phẩm | Giacong.vn",
-  description: "Danh mục sản phẩm và nguyên liệu dành cho đặt hàng doanh nghiệp.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const settings = await getPublishedSiteSettings();
+  return {
+    ...canonicalMetadata("/san-pham/"),
+    title: `Sản phẩm | ${settings.brand_name}`,
+    description: "Danh mục sản phẩm và nguyên liệu dành cho đặt hàng doanh nghiệp.",
+    icons: settings.favicon_url ? { icon: settings.favicon_url } : undefined,
+  };
+}
 
 interface CatalogPageData {
   cards: ReturnType<typeof buildCatalogCards>;

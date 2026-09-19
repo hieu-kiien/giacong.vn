@@ -28,7 +28,7 @@ export function StorefrontHeader({ categories }: StorefrontHeaderProps) {
           className="flex min-h-11 items-center rounded-md px-1 text-lg font-bold tracking-tight text-white focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-white"
           href="/"
         >
-          Giacong<span className="text-brand-200">.vn</span>
+          Kienhieu
         </Link>
         <nav aria-label="Điều hướng chính" className="max-md:hidden">
           <ul className="flex items-center">

@@ -20,9 +20,8 @@ export function applySiteSettingsToMarkup(
 
   // Empty settings never erase captured content; the sanitizer falls back to
   // defaults, but an explicitly cleared value must still keep the old text.
-  if (brandName) result = result.replace(/Giacong\.vn/g, brandName);
   if (email) {
-    result = result.replace(/info@giacong\.vn/gi, email);
+    result = result.replace(/(?:info@giacong\.vn|qtu1053@gmail\.com)/gi, email);
     result = result.replace(/href=(["'])mailto:[^"']*\1/gi, `href="${
       escapeAttr(`mailto:${settings.contact_email}`)
     }"`);
@@ -37,6 +36,7 @@ export function applySiteSettingsToMarkup(
   result = replaceFooterAddress(result, settings.contact_address);
   result = replaceFooterCopyright(result, settings.footer_copyright);
   result = replaceContactInfo(result, settings);
+  if (brandName) result = replaceLegacyBrandTokens(result, brandName);
 
   if (options.applyHomepageContent === true) {
     result = replaceFirstElementText(result, /<h1\b[^>]*class=(["'])[^"']*\bentry-title\b[^"']*\1[^>]*>[\s\S]*?<\/h1>/i, settings.hero_title);
@@ -49,7 +49,7 @@ export function applySiteSettingsToMarkup(
     result = replaceHeroCta(result, "nut-xem-them1", settings.hero_primary_cta_label, settings.hero_primary_cta_url);
     result = replaceHeroCta(result, "nut-xem-them2", settings.hero_secondary_cta_label, settings.hero_secondary_cta_url);
   }
-  result = replaceLogo(result, settings.logo_url, settings.logo_dark_url);
+  result = replaceLogo(result, settings.logo_url, settings.logo_dark_url, brandName);
   result = replaceBrandTagline(result, settings.brand_tagline);
 
   return result;
@@ -177,16 +177,16 @@ function replaceHeroImage(markup: string, imageUrl: string): string {
   return `${markup.slice(0, match.index)}${updated}${markup.slice(match.index + match[0].length)}`;
 }
 
-function replaceLogo(markup: string, logoUrl: string, darkLogoUrl: string): string {
+function replaceLogo(markup: string, logoUrl: string, darkLogoUrl: string, brandName: string): string {
   const light = typeof logoUrl === "string" ? logoUrl.trim() : "";
   const dark = (typeof darkLogoUrl === "string" ? darkLogoUrl.trim() : "") || light;
   if (!light && !dark) return markup;
   let result = markup;
   if (light) {
-    result = result.replace(/<img\b[^>]*class=(['"])[^"']*\bheader_logo\b[^"']*\1[^>]*>/gi, (image) => replaceManagedImageSource(image, escapeAttr(light)));
+    result = result.replace(/<img\b[^>]*class=(['"])[^"']*\bheader_logo\b[^"']*\1[^>]*>/gi, (image) => replaceManagedImageSource(image, escapeAttr(light), brandName));
   }
   if (dark) {
-    result = result.replace(/<img\b[^>]*class=(['"])[^"']*\bheader-logo-dark\b[^"']*\1[^>]*>/gi, (image) => replaceManagedImageSource(image, escapeAttr(dark)));
+    result = result.replace(/<img\b[^>]*class=(['"])[^"']*\bheader-logo-dark\b[^"']*\1[^>]*>/gi, (image) => replaceManagedImageSource(image, escapeAttr(dark), brandName));
   }
 
   // The captured footer has a dedicated logo image inside `.icon-box-img`,
@@ -194,16 +194,38 @@ function replaceLogo(markup: string, logoUrl: string, darkLogoUrl: string): stri
   // logo setting so desktop, mobile, header and footer cannot drift apart.
   return light ? result.replace(
     /(<footer\b[\s\S]*?<[^>]*class=(['"])[^"']*\bfooter-section\b[^"']*\2[\s\S]*?<[^>]*class=(['"])[^"']*\bicon-box\b[^"']*\3[\s\S]*?<[^>]*class=(['"])[^"']*\bicon-box-img\b[^"']*\4[\s\S]*?)(<img\b[^>]*>)/i,
-    (_match, before: string, _footerQuote: string, _iconQuote: string, _imageBoxQuote: string, image: string) => `${before}${replaceManagedImageSource(image, escapeAttr(light))}`,
+    (_match, before: string, _footerQuote: string, _iconQuote: string, _imageBoxQuote: string, image: string) => `${before}${replaceManagedImageSource(image, escapeAttr(light), brandName)}`,
   ) : result;
 }
 
-function replaceManagedImageSource(image: string, safeUrl: string): string {
+function replaceManagedImageSource(image: string, safeUrl: string, safeAlt: string): string {
   let result = image
     .replace(/\s(?:srcset|sizes)=(['"])[^"']*\1/gi, "")
     .replace(/\ssrc=(['"])[^"']*\1/i, ` src="${safeUrl}"`);
   if (!/\ssrc=/i.test(result)) result = result.replace(/<img\b/i, `<img src="${safeUrl}"`);
+  if (safeAlt) {
+    result = /\salt=(['"])[^"']*\1/i.test(result)
+      ? result.replace(/\salt=(['"])[^"']*\1/i, ` alt="${safeAlt}"`)
+      : result.replace(/<img\b/i, `<img alt="${safeAlt}"`);
+  }
   return result;
+}
+
+function replaceLegacyBrandTokens(markup: string, safeBrandName: string): string {
+  const protectedUrls: string[] = [];
+  const withProtectedUrls = markup
+    .replace(/(\b(?:href|action)\s*=\s*['"])https?:\/\/(?:www\.)?giacong\.vn(?=\/|['"])/gi, "$1")
+    .replace(/(?:https?:)?\/\/(?:www\.)?giacong\.vn[^\s"'<>)]*/gi, (url) => {
+      const token = `__legacy_brand_url_${protectedUrls.length}__`;
+      protectedUrls.push(url);
+      return token;
+    })
+    .replace(/\bgiacong\.vn\b/gi, safeBrandName);
+
+  return protectedUrls.reduce(
+    (result, url, index) => result.replace(`__legacy_brand_url_${index}__`, url),
+    withProtectedUrls,
+  );
 }
 
 function replaceFooterDescription(markup: string, value: string): string {

@@ -58,21 +58,21 @@ export interface AdminSiteSetting {
 export type PublishedSiteSettings = Record<SiteSettingKey, string>;
 
 export const siteSettingDefaults: PublishedSiteSettings = {
-  brand_name: "Giacong.vn",
+  brand_name: "Kienhieu",
   brand_tagline: "Giải pháp gia công toàn diện",
-  logo_url: "",
-  logo_dark_url: "",
-  favicon_url: "",
+  logo_url: "/images/brand/kienhieu-logo.svg",
+  logo_dark_url: "/images/brand/kienhieu-logo-dark.svg",
+  favicon_url: "/images/brand/kienhieu-favicon.svg",
   primary_color: "#6cbe45",
   accent_color: "#bde875",
-  site_title: "Giacong.vn - Giải pháp gia công toàn diện",
+  site_title: "Kienhieu - Giải pháp gia công toàn diện",
   site_description: "Giao diện giới thiệu dịch vụ gia công toàn diện.",
   contact_phone: "0947142999",
-  contact_email: "info@giacong.vn",
+  contact_email: "contact@kienhieu.id.vn",
   contact_zalo_url: "https://zalo.me/0947142999",
   contact_messenger_url: "https://m.me/qtudepdai",
   contact_address: "VP Hà Nội: 108 Trần Hưng Đạo - Hoàn Kiếm - Hà Nội",
-  hero_eyebrow: "Giacong.vn cung cấp",
+  hero_eyebrow: "Kienhieu cung cấp",
   hero_title: "Giải pháp gia công toàn diện chuyên nghiệp",
   hero_description: "Chúng tôi cung cấp dịch vụ gia công (OEM) nông sản, thực phẩm và dược liệu toàn diện từ sản xuất đến thiết kế thương hiệu và đóng gói. Với đội ngũ chuyên gia giàu kinh nghiệm, chúng tôi cam kết mang đến cho bạn những sản phẩm chất lượng cao.",
   hero_primary_cta_label: "Về chúng tôi",
@@ -82,8 +82,8 @@ export const siteSettingDefaults: PublishedSiteSettings = {
   hero_image_url: "",
   about_title: "Đồng hành cùng doanh nghiệp trong thời đại mới",
   about_description: "Với đội ngũ chuyên gia giàu kinh nghiệm, hệ thống nhà xưởng hiện đại và quy trình sản xuất tối ưu, chúng tôi mang đến giải pháp gia công phù hợp cho doanh nghiệp.",
-  footer_description: "Giacong.vn là nền tảng kết nối khách hàng và các đơn vị sản xuất, cung cấp giải pháp gia công toàn diện.",
-  footer_copyright: "Copyright 2026 © Giacong.vn | Một sản phẩm của Netmedia",
+  footer_description: "Kienhieu là nền tảng kết nối khách hàng và các đơn vị sản xuất, cung cấp giải pháp gia công toàn diện.",
+  footer_copyright: "Copyright 2026 © Kienhieu",
 };
 
 export class SiteSettingValidationError extends Error {}

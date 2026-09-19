@@ -2,7 +2,7 @@ import { ArrowRight, Check, ChevronRight, Menu } from "lucide-react";
 
 const navigationItems = [
   { label: "Home", href: "#home" },
-  { label: "Về Giacong.vn", href: "#gioi-thieu" },
+  { label: "Về Kienhieu", href: "#gioi-thieu" },
   { label: "Sản Phẩm", href: "#san-pham" },
   { label: "Dịch vụ", href: "#dich-vu" },
   { label: "Tin tức", href: "#tin-tuc" },
@@ -23,8 +23,8 @@ export function HeroSection() {
         <div className="absolute inset-0 bg-[linear-gradient(115deg,transparent_0%,transparent_48%,rgba(255,255,255,0.06)_48.2%,transparent_48.5%)]" />
 
         <header className="relative z-10 mx-auto flex h-24 max-w-[1230px] items-center justify-between px-5 lg:px-0">
-          <a href="#home" className="text-[26px] font-bold tracking-[-0.06em]" aria-label="Giacong.vn trang chủ">
-            Giacong<span className="text-[#bde875]">.vn</span>
+          <a href="#home" className="text-[26px] font-bold tracking-[-0.06em]" aria-label="Kienhieu trang chủ">
+            Kienhieu
           </a>
           <nav className="hidden items-center gap-7 text-[14px] font-medium lg:flex" aria-label="Điều hướng chính">
             {navigationItems.map((item) => (
@@ -40,7 +40,7 @@ export function HeroSection() {
 
         <div className="relative z-10 mx-auto grid min-h-[588px] max-w-[1230px] items-center gap-12 px-5 pb-28 pt-10 md:grid-cols-[1.03fr_0.97fr] lg:px-0 lg:pb-20 lg:pt-2">
           <div className="max-w-[620px]">
-            <p className="mb-4 text-[17px] font-semibold tracking-[-0.02em] text-[#d5f58d]">Giacong.vn cung cấp</p>
+            <p className="mb-4 text-[17px] font-semibold tracking-[-0.02em] text-[#d5f58d]">Kienhieu cung cấp</p>
             <h1 className="max-w-[615px] text-4xl font-bold leading-[1.12] tracking-[-0.055em] sm:text-5xl lg:text-[58px]">
               Giải pháp gia công toàn diện chuyên nghiệp
             </h1>
@@ -75,7 +75,7 @@ export function HeroSection() {
             <div className="absolute bottom-0 right-0 h-44 w-44 rounded-tl-[100px] bg-[#0a7b54]" />
           </div>
           <div className="px-7 py-9 sm:px-10 sm:py-11 lg:px-14">
-            <p className="text-sm font-bold uppercase tracking-[0.13em] text-[#4f9c56]">Giacong.vn</p>
+            <p className="text-sm font-bold uppercase tracking-[0.13em] text-[#4f9c56]">Kienhieu</p>
             <h2 className="mt-3 max-w-[560px] text-3xl font-bold leading-[1.18] tracking-[-0.04em] text-[#183b31] sm:text-[38px]">
               Đồng hành cùng doanh nghiệp trong thời đại mới
             </h2>

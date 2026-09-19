@@ -5,14 +5,19 @@ import { AdminNewsContextualAction, AdminNewsCreateContextualAction } from "@/co
 import { CapturedStorefrontShell } from "@/components/site/CapturedStorefrontShell";
 import { getPublishedNewsPage } from "@/lib/news-public";
 import { canonicalMetadata } from "@/lib/seo";
+import { getPublishedSiteSettings } from "@/lib/site-settings";
 
 export const dynamic = "force-dynamic";
 
-export const metadata: Metadata = {
-  ...canonicalMetadata("/tin-tuc/"),
-  title: "Tin tức | Giacong.vn",
-  description: "Thông tin mới nhất về sản phẩm, năng lực sản xuất và hoạt động của Giacong.vn.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const settings = await getPublishedSiteSettings();
+  return {
+    ...canonicalMetadata("/tin-tuc/"),
+    title: `Tin tức | ${settings.brand_name}`,
+    description: `Thông tin mới nhất về sản phẩm, năng lực sản xuất và hoạt động của ${settings.brand_name}.`,
+    icons: settings.favicon_url ? { icon: settings.favicon_url } : undefined,
+  };
+}
 
 function formatDate(value: string | null): string {
   if (!value) return "";
@@ -38,10 +43,13 @@ export default async function NewsListingPage({ searchParams }: NewsListingPageP
   const query = (Array.isArray(queryValue) ? queryValue[0] : queryValue)?.trim().slice(0, 100) ?? "";
   const requestedPageValue = Array.isArray(pageValue) ? pageValue[0] : pageValue;
   const requestedPage = Number(requestedPageValue);
-  const newsPage = await getPublishedNewsPage(
-    Number.isSafeInteger(requestedPage) && requestedPage > 0 ? requestedPage : 1,
-    query,
-  );
+  const [newsPage, settings] = await Promise.all([
+    getPublishedNewsPage(
+      Number.isSafeInteger(requestedPage) && requestedPage > 0 ? requestedPage : 1,
+      query,
+    ),
+    getPublishedSiteSettings(),
+  ]);
   const { lastPage, page: currentPage, posts, total } = newsPage;
 
   return (
@@ -51,7 +59,7 @@ export default async function NewsListingPage({ searchParams }: NewsListingPageP
           <div aria-hidden="true" className="giacong-page-hero__orb giacong-page-hero__orb--one" />
           <div aria-hidden="true" className="giacong-page-hero__orb giacong-page-hero__orb--two" />
           <div className="giacong-page-hero__inner">
-            <p className="giacong-page-hero__eyebrow">Giacong.vn cập nhật</p>
+            <p className="giacong-page-hero__eyebrow">{settings.brand_name} cập nhật</p>
             <h1 id="news-page-title">Tin tức</h1>
             <nav aria-label="Breadcrumb" className="giacong-page-hero__breadcrumb">
               <Link href="/">Trang chủ</Link>
@@ -68,7 +76,7 @@ export default async function NewsListingPage({ searchParams }: NewsListingPageP
                 <p className="giacong-section-kicker">Góc chia sẻ</p>
                 <h2 id="news-list-title">Kiến thức và hoạt động mới nhất</h2>
               </div>
-              <p>Thông tin về sản phẩm, năng lực sản xuất và những cập nhật từ Giacong.vn.</p>
+              <p>Thông tin về sản phẩm, năng lực sản xuất và những cập nhật từ {settings.brand_name}.</p>
             </header>
 
             <div className="giacong-news-list__tools">
