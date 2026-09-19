@@ -56,7 +56,7 @@ const normalizedNewsMarkup = normalizeCapturedMarkup(newsPage.markup);
 const capturedHeader = extractElement(normalizedNewsMarkup, "header");
 const capturedFooter = extractElement(normalizedNewsMarkup, "footer", capturedHeader.end);
 const wrapperClose = normalizedNewsMarkup.indexOf("</div>", capturedFooter.end);
-const capturedAuxiliaryMarkup = wrapperClose < 0
+const capturedAuxiliaryMarkupSource = wrapperClose < 0
   ? ""
   : normalizedNewsMarkup.slice(wrapperClose + "</div>".length);
 
@@ -79,6 +79,10 @@ export async function CapturedStorefrontShell({
     applyFooterNavigationToMarkup(capturedFooter.markup, navigation),
     settings,
   );
+  const auxiliaryMarkup = applySiteSettingsToMarkup(
+    applyNavigationToMarkup(capturedAuxiliaryMarkupSource, navigation, activeCapturedMenuId),
+    settings,
+  );
 
   return (
     <>
@@ -90,7 +94,7 @@ export async function CapturedStorefrontShell({
           {children}
           <div dangerouslySetInnerHTML={{ __html: footerMarkup }} />
         </div>
-        <div dangerouslySetInnerHTML={{ __html: capturedAuxiliaryMarkup }} />
+        <div dangerouslySetInnerHTML={{ __html: auxiliaryMarkup }} />
       </div>
       <CapturedFloatingContact settings={settings} />
       <GiacongInteractions bodyClasses={newsPage.bodyClasses} htmlClasses={newsPage.htmlClasses} />

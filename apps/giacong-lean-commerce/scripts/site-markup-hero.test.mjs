@@ -115,7 +115,7 @@ test("switches the captured brand and every managed logo surface together", () =
     <main><h1>Giacong.vn cung cấp</h1><p>Giacong.vn giúp doanh nghiệp.</p>
       <iframe title="Bản đồ vị trí Giacong.vn"></iframe>
       <a href="mailto:info@giacong.vn">info@giacong.vn</a>
-      <p>qtu1053@gmail.com</p>
+      <p>qtu1053@gmail.com</p><p>Website: https://giacong.vn</p>
     </main>
     <footer><section class="footer-section"><div class="icon-box"><div class="icon-box-img"><img src="/legacy-footer.png" alt="Giacong.vn" /></div><div class="icon-box-text"><p>Cũ</p></div></div></section></footer>`;
   const result = applySiteSettingsToMarkup(markup, {
@@ -133,6 +133,7 @@ test("switches the captured brand and every managed logo surface together", () =
   assert.match(result, /Bản đồ vị trí kienhieu/);
   assert.match(result, /mailto:contact@kienhieu\.id\.vn/);
   assert.match(result, /contact@kienhieu\.id\.vn/);
+  assert.match(result, /Website: https:\/\/kienhieu\.id\.vn/);
   assert.doesNotMatch(result, /Giacong\.vn|GIACONG\.VN|info@giacong\.vn|qtu1053@gmail\.com/);
 });
 

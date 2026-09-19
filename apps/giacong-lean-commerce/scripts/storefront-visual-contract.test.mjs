@@ -32,6 +32,13 @@ test("homepage applies the published navigation to the captured fallback", () =>
   assert.match(storefrontShell, /applyFooterNavigationToMarkup/);
 });
 
+test("storefront auxiliary mobile markup receives the published brand and navigation", () => {
+  assert.match(storefrontShell, /const capturedAuxiliaryMarkupSource =/);
+  assert.match(storefrontShell, /const auxiliaryMarkup = applySiteSettingsToMarkup\(/);
+  assert.match(storefrontShell, /applyNavigationToMarkup\(\s*capturedAuxiliaryMarkupSource/);
+  assert.match(storefrontShell, /__html: auxiliaryMarkup/);
+});
+
 test("news route has its own source-aligned page frame and active navigation", () => {
   assert.doesNotMatch(newsPage, /activeNavigation="products"/);
   assert.match(newsPage, /giacong-page-hero/);

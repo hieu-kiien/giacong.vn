@@ -1,4 +1,5 @@
 import type { PublishedSiteSettings } from "./site-settings";
+import { PUBLIC_SITE_ORIGIN } from "./seo.ts";
 
 interface SiteMarkupOptions {
   /** Apply fields that belong only to the captured homepage hero. */
@@ -213,18 +214,16 @@ function replaceManagedImageSource(image: string, safeUrl: string, safeAlt: stri
 
 function replaceLegacyBrandTokens(markup: string, safeBrandName: string): string {
   const protectedUrls: string[] = [];
-  const withProtectedUrls = markup
-    .replace(/(\b(?:href|action)\s*=\s*['"])https?:\/\/(?:www\.)?giacong\.vn(?=\/|['"])/gi, "$1")
-    .replace(/(?:https?:)?\/\/(?:www\.)?giacong\.vn[^\s"'<>)]*/gi, (url) => {
-      const token = `__legacy_brand_url_${protectedUrls.length}__`;
-      protectedUrls.push(url);
-      return token;
-    })
-    .replace(/\bgiacong\.vn\b/gi, safeBrandName);
-
+  const withCurrentOrigin = markup.replace(/(?:https?:)?\/\/(?:www\.)?giacong\.vn[^\s"'<>)]*/gi, (url) => {
+    if (/(?:https?:)?\/\/(?:www\.)?giacong\.vn$/i.test(url)) return PUBLIC_SITE_ORIGIN;
+    const token = `__legacy_brand_url_${protectedUrls.length}__`;
+    protectedUrls.push(url);
+    return token;
+  });
+  const replaced = withCurrentOrigin.replace(/\bgiacong\.vn\b/gi, safeBrandName);
   return protectedUrls.reduce(
     (result, url, index) => result.replace(`__legacy_brand_url_${index}__`, url),
-    withProtectedUrls,
+    replaced,
   );
 }
 
