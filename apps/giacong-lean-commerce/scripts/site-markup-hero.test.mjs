@@ -150,14 +150,15 @@ test("removes legacy social handles from captured contact blocks", () => {
   assert.doesNotMatch(result, /giacong\.(page|tele)|Zalo:\/giacong/i);
 });
 
-test("replaces the legacy NetFood label with the published brand", () => {
-  const result = applySiteSettingsToMarkup('<p>Hãy để NetFood tư vấn cho bạn.</p>', {
+test("replaces legacy NetFood labels with the published brand", () => {
+  const result = applySiteSettingsToMarkup('<p>Hãy để NetFood tư vấn cho bạn.</p><p>Công ty Cổ phần Net Food</p>', {
     ...settings(""),
     brand_name: "Kienhieu",
   });
 
   assert.match(result, /Hãy để Kienhieu tư vấn cho bạn/);
-  assert.doesNotMatch(result, /NetFood/i);
+  assert.match(result, /Công ty Cổ phần Kienhieu/);
+  assert.doesNotMatch(result, /Net\s*Food/i);
 });
 
 test("applies published hero CTA labels and URLs safely", () => {
