@@ -382,9 +382,10 @@ test("fades mobile slider content without exposing adjacent slides during motion
   assert.match(capturedMotion, /mobileViewport\?\.addEventListener\("change", onViewportChange\)/);
 });
 
-test("keeps the homepage testimonial stable until the visitor changes it", () => {
-  assert.match(capturedMotion, /const autoRotate = slider\.closest\("\.section07"\) === null/);
+test("automatically rotates homepage testimonials with pause on interaction", () => {
+  assert.match(capturedMotion, /const autoRotate = true/);
   assert.match(capturedMotion, /const timer = reducedMotion \|\| !autoRotate/);
+  assert.match(capturedMotion, /onMouseEnter = \(\) => \{\s*paused = true;/);
 });
 
 test("keeps captured storefront content inside the viewport during motion", () => {

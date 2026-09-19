@@ -273,7 +273,7 @@ function connectCapturedSlider(slider: HTMLElement): MotionCleanup {
 
   const reducedMotion = prefersReducedMotion();
   const mobileViewport = window.matchMedia?.("(max-width: 549px)");
-  const autoRotate = slider.closest(".section07") === null;
+  const autoRotate = true;
   const originalHeight = slider.style.height;
   const originalAriaLive = slider.getAttribute("aria-live");
   const originalIndex = slider.getAttribute("data-clone-slider-index");
