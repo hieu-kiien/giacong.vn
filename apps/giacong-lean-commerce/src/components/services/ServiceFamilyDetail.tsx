@@ -32,13 +32,14 @@ export function ServiceFamilyDetail({ family }: ServiceFamilyDetailProps) {
     && family.leadTimeDays >= 0
     ? family.leadTimeDays
     : null;
+  const heroImage = family.imageUrl ?? getServiceFamilyImage(family.slug) ?? "/images/services/service-manufacturing.svg";
   return (
     <div className={styles.main}>
       <section className={styles.hero} data-motion-section="service-detail-hero">
         <ServiceImage
           alt=""
           className={styles.heroImage}
-          src={family.imageUrl ?? getServiceFamilyImage(family.slug)}
+          src={heroImage}
         />
         <div className={styles.inner}>
           <nav className={styles.crumbs} aria-label="Breadcrumb"><Link href="/">Trang chủ</Link><span aria-hidden="true">/</span><Link href="/thue-gia-cong/">Thuê gia công</Link><span aria-hidden="true">/</span>{family.name}</nav>

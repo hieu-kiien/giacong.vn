@@ -33,6 +33,14 @@ const capturedAssetAliases: Readonly<Record<string, string>> = {
     "/images/captured-asset-placeholder.svg",
   "https://giacong.vn/wp-content/uploads/2024/08/book-open-svgrepo-com.svg":
     "/images/home-captured/book-open.svg",
+  "https://giacong.vn/wp-content/uploads/2024/08/file-star-svgrepo-com.svg":
+    "/images/home-captured/icon-home.svg",
+  "https://giacong.vn/wp-content/uploads/2024/08/file-2-svgrepo-com.svg":
+    "/images/home-captured/icon-about.svg",
+  "https://giacong.vn/wp-content/uploads/2024/08/bulb-2-svgrepo-com.svg":
+    "/images/home-captured/icon-services.svg",
+  "https://giacong.vn/wp-content/uploads/2024/08/message-2-star-svgrepo-com.svg":
+    "/images/home-captured/icon-contact.svg",
   "https://giacong.vn/wp-content/uploads/2024/10/form-bg.jpg":
     "/images/home-captured/form-bg.webp",
   "https://giacong.vn/wp-content/uploads/2024/09/form-bg.jpg":
@@ -47,13 +55,6 @@ const capturedAssetAliases: Readonly<Record<string, string>> = {
     "/images/captured-asset-placeholder.svg",
   "https://giacong.vn/wp-content/uploads/2025/04/zalo.png":
     "/images/captured-asset-placeholder.svg",
-  // These decorative icon uploads now return a WordPress 404 HTML page. A
-  // local neutral asset keeps the captured layout stable and removes the
-  // browser's ORB failures from every route.
-  "https://giacong.vn/wp-content/uploads/2024/08/file-star-svgrepo-com.svg": "/images/captured-asset-placeholder.svg",
-  "https://giacong.vn/wp-content/uploads/2024/08/file-2-svgrepo-com.svg": "/images/captured-asset-placeholder.svg",
-  "https://giacong.vn/wp-content/uploads/2024/08/bulb-2-svgrepo-com.svg": "/images/captured-asset-placeholder.svg",
-  "https://giacong.vn/wp-content/uploads/2024/08/message-2-star-svgrepo-com.svg": "/images/captured-asset-placeholder.svg",
   "https://giacong.vn/wp-content/uploads/2024/08/gift-card-150x150.png": "/images/captured-asset-placeholder.svg",
   "https://giacong.vn/wp-content/uploads/2024/08/comment-info-150x150.png": "/images/captured-asset-placeholder.svg",
   "https://giacong.vn/wp-content/uploads/2024/08/envelope-dot-150x150.png": "/images/captured-asset-placeholder.svg",
@@ -164,15 +165,17 @@ export function normalizeCapturedMarkup(markup: string, activeCapturedMenuId?: s
 
   return applyCapturedActiveNav(
     addCapturedImageLoadingHints(
-      normalizeCapturedAssetSources(
-        normalizeCapturedFooterHeadings(
-          normalizeCapturedFormControls(
-            normalizeCapturedFrames(
-              normalizeCapturedContactHeadings(
-                normalizeCapturedMainLandmark(
-                  normalizeHomeMenuItems(
-                    replaceCapturedMenus(
-                      normalizeCapturedMenuRoutes(normalizeCapturedInternalLinks(safeNormalized)),
+      normalizeCapturedHeaderIcons(
+        normalizeCapturedAssetSources(
+          normalizeCapturedFooterHeadings(
+            normalizeCapturedFormControls(
+              normalizeCapturedFrames(
+                normalizeCapturedContactHeadings(
+                  normalizeCapturedMainLandmark(
+                    normalizeHomeMenuItems(
+                      replaceCapturedMenus(
+                        normalizeCapturedMenuRoutes(normalizeCapturedInternalLinks(safeNormalized)),
+                      ),
                     ),
                   ),
                 ),
@@ -251,6 +254,13 @@ function normalizeCapturedAssetSources(markup: string): string {
   return localized.replace(
     /(?:https?:)?\/\/(?:www\.)?giacong\.vn\/wp-content\/uploads\/[^\s"'()<>]+/gi,
     "/images/captured-asset-placeholder.svg",
+  );
+}
+
+function normalizeCapturedHeaderIcons(markup: string): string {
+  return markup.replace(
+    /(<li\b[^>]*\bid=["'](?:menu-item-1541|menu-item-5477)["'][^>]*>[\s\S]*?<img\b[^>]*\bsrc=["'])\/images\/home-captured\/icon-about\.svg(?=["'])/i,
+    "$1/images/home-captured/icon-news.svg",
   );
 }
 

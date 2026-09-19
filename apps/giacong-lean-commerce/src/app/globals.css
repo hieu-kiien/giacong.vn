@@ -270,11 +270,6 @@
     z-index: 20;
   }
 
-  .archive.category-tin-tuc #header #menu-item-1541 > a {
-    border-bottom: 2px solid currentColor;
-    color: #fff;
-  }
-
   .menu-san-pham h4 > span {
     color: #333;
     font-size: 16px;
@@ -317,6 +312,33 @@
     right: -50px;
     transform: rotate(15deg);
     width: 650px;
+  }
+
+  /* Captured page styles reference retired WordPress contact assets. Keep the
+   * existing link behavior, but restore the four local branded glyphs. */
+  .echbay-sms-messenger div.phonering-alo-alo,
+  .echbay-sms-messenger div.phonering-alo-sms,
+  .echbay-sms-messenger div.phonering-alo-zalo,
+  .echbay-sms-messenger div.phonering-alo-messenger {
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: 62%;
+  }
+
+  .echbay-sms-messenger div.phonering-alo-alo {
+    background-image: url("/images/home-captured/call.webp") !important;
+  }
+
+  .echbay-sms-messenger div.phonering-alo-sms {
+    background-image: url("/images/home-captured/mail.webp") !important;
+  }
+
+  .echbay-sms-messenger div.phonering-alo-zalo {
+    background-image: url("/images/home-captured/zalo.webp") !important;
+  }
+
+  .echbay-sms-messenger div.phonering-alo-messenger {
+    background-image: url("/images/home-captured/messenger.webp") !important;
   }
 
   .giacong-page-hero__inner,

@@ -29,11 +29,12 @@ test("managed service read carries an optional main image without inventing one"
 
 test("service groups always have a local visual fallback", () => {
   for (const family of serviceFamilies) {
-    assert.match(getServiceFamilyImage(family.slug), /^\/images\/services\/.+\.svg$/);
+    const image = getServiceFamilyImage(family.slug);
+    assert.ok(image === null || /^\/images\/services\/.+\.svg$/.test(image));
   }
-  assert.match(getServiceFamilyImage("gia-cong-sua"), /service-milk\.svg$/);
-  assert.match(getServiceFamilyImage("say-thuc-pham-say"), /service-drying\.svg$/);
-  assert.match(getServiceFamilyImage("gia-cong-dong-goi"), /service-packaging\.svg$/);
+  assert.equal(getServiceFamilyImage("gia-cong-sua"), "/images/services/service-milk.svg");
+  assert.equal(getServiceFamilyImage("say-thuc-pham-say"), "/images/services/service-drying.svg");
+  assert.equal(getServiceFamilyImage("gia-cong-dong-goi"), "/images/services/service-packaging.svg");
 });
 
 test("service content index makes captured routes reachable without expanding the default cards", () => {

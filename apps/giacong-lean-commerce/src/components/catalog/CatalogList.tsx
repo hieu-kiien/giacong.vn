@@ -142,7 +142,7 @@ export function CatalogList({
   });
   return (
     <div className="bg-white text-commerce-body">
-      <CommerceRail className="-mt-6 max-w-4xl pb-12 pt-0">
+      <CommerceRail className="-mt-6 max-w-[1263px] pb-12 pt-0">
         {showPageHeading ? (
           <section className="pb-6">
           {showPageHeading ? (

@@ -46,8 +46,8 @@ test("news route has its own source-aligned page frame and active navigation", (
   assert.match(newsPage, /data-testid="news-empty-state"/);
 });
 
-test("news route highlights its captured source menu item without changing shared navigation", () => {
-  assert.match(globals, /\.archive\.category-tin-tuc #header #menu-item-1541 > a/);
+test("shared navigation does not force a news underline on any route", () => {
+  assert.doesNotMatch(globals, /\.archive\.category-tin-tuc #header #menu-item-1541 > a/);
   assert.doesNotMatch(globals, /\.archive #header #menu-item-1541/);
 });
 
