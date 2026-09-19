@@ -20,9 +20,8 @@ const legacyMegaMenuHrefFallbacks: Readonly<Record<string, "parent">> = {
 };
 
 const capturedAssetAliases: Readonly<Record<string, string>> = {
-  // The capture kept WordPress thumbnail suffixes after the source thumbnails
-  // were removed. Use the approved local candidates instead of reviving the
-  // old thumbnail route.
+  // These URLs came from the captured legacy site. Keep the original assets
+  // local so the storefront does not depend on the retired WordPress host.
   "https://giacong.vn/wp-content/uploads/2024/10/img-sp-1-510x315.png":
     "/images/home-captured/img-sp-1-510x315.webp",
   "https://giacong.vn/wp-content/uploads/2024/09/IMG-510x433.png":
@@ -32,33 +31,51 @@ const capturedAssetAliases: Readonly<Record<string, string>> = {
   "https://giacong.vn/wp-content/uploads/2024/09/Screenshot-2024-09-06-004009-100x100.png":
     "/images/captured-asset-placeholder.svg",
   "https://giacong.vn/wp-content/uploads/2024/08/book-open-svgrepo-com.svg":
-    "/images/home-captured/book-open.svg",
+    "/images/captured-legacy/nav-products.svg",
   "https://giacong.vn/wp-content/uploads/2024/08/file-star-svgrepo-com.svg":
-    "/images/home-captured/icon-home.svg",
+    "/images/captured-legacy/nav-home.svg",
   "https://giacong.vn/wp-content/uploads/2024/08/file-2-svgrepo-com.svg":
-    "/images/home-captured/icon-about.svg",
+    "/images/captured-legacy/nav-about.svg",
   "https://giacong.vn/wp-content/uploads/2024/08/bulb-2-svgrepo-com.svg":
-    "/images/home-captured/icon-services.svg",
+    "/images/captured-legacy/nav-services.svg",
   "https://giacong.vn/wp-content/uploads/2024/08/message-2-star-svgrepo-com.svg":
-    "/images/home-captured/icon-contact.svg",
+    "/images/captured-legacy/nav-contact.svg",
+  "https://giacong.vn/wp-content/uploads/2024/08/dich-vu.svg":
+    "/images/captured-legacy/sidebar-services.svg",
   "https://giacong.vn/wp-content/uploads/2024/10/form-bg.jpg":
     "/images/home-captured/form-bg.webp",
   "https://giacong.vn/wp-content/uploads/2024/09/form-bg.jpg":
     "/images/home-captured/form-bg.webp",
+  // Restore the exact partner-strip capture from the legacy Git commit. The
+  // source host no longer serves any of these generated thumbnail variants.
+  "https://giacong.vn/wp-content/uploads/2024/08/doi-tac-.png":
+    "/images/captured-legacy/partner-strip.png",
   "https://giacong.vn/wp-content/uploads/2024/08/doi-tac--510x137.png":
-    "/images/captured-asset-placeholder.svg",
+    "/images/captured-legacy/partner-strip.png",
+  "https://giacong.vn/wp-content/uploads/2024/08/doi-tac--300x81.png":
+    "/images/captured-legacy/partner-strip.png",
+  "https://giacong.vn/wp-content/uploads/2024/08/doi-tac--1024x275.png":
+    "/images/captured-legacy/partner-strip.png",
+  "https://giacong.vn/wp-content/uploads/2024/08/doi-tac--768x207.png":
+    "/images/captured-legacy/partner-strip.png",
+  "https://giacong.vn/wp-content/uploads/2024/08/doi-tac--1536x413.png":
+    "/images/captured-legacy/partner-strip.png",
   "https://giacong.vn/wp-content/uploads/2025/04/insta.png":
-    "/images/captured-asset-placeholder.svg",
+    "/images/captured-social/instagram.png",
   "https://giacong.vn/wp-content/uploads/2025/04/fb.png":
-    "/images/captured-asset-placeholder.svg",
+    "/images/captured-social/facebook.png",
   "https://giacong.vn/wp-content/uploads/2025/04/tele.png":
-    "/images/captured-asset-placeholder.svg",
+    "/images/captured-social/telegram.png",
   "https://giacong.vn/wp-content/uploads/2025/04/zalo.png":
-    "/images/captured-asset-placeholder.svg",
-  "https://giacong.vn/wp-content/uploads/2024/08/gift-card-150x150.png": "/images/captured-asset-placeholder.svg",
-  "https://giacong.vn/wp-content/uploads/2024/08/comment-info-150x150.png": "/images/captured-asset-placeholder.svg",
-  "https://giacong.vn/wp-content/uploads/2024/08/envelope-dot-150x150.png": "/images/captured-asset-placeholder.svg",
-  "https://giacong.vn/wp-content/uploads/2024/08/trang-chu-netfood.svg": "/images/captured-asset-placeholder.svg",
+    "/images/captured-social/zalo.png",
+  "https://giacong.vn/wp-content/uploads/2024/08/gift-card-150x150.png":
+    "/images/captured-legacy/sidebar-news.png",
+  "https://giacong.vn/wp-content/uploads/2024/08/comment-info-150x150.png":
+    "/images/captured-legacy/sidebar-about.png",
+  "https://giacong.vn/wp-content/uploads/2024/08/envelope-dot-150x150.png":
+    "/images/captured-legacy/sidebar-contact.png",
+  "https://giacong.vn/wp-content/uploads/2024/08/trang-chu-netfood.svg":
+    "/images/captured-legacy/sidebar-home.svg",
   // The captured milk-service cards point to the old WordPress host. Keep the
   // cards and copy, but serve a local illustration so a failed remote image
   // cannot leave an empty tile on the live route.
@@ -259,7 +276,7 @@ function normalizeCapturedAssetSources(markup: string): string {
 
 function normalizeCapturedHeaderIcons(markup: string): string {
   return markup.replace(
-    /(<li\b[^>]*\bid=["'](?:menu-item-1541|menu-item-5477)["'][^>]*>[\s\S]*?<img\b[^>]*\bsrc=["'])\/images\/home-captured\/icon-about\.svg(?=["'])/i,
+    /(<li\b[^>]*\bid=["'](?:menu-item-1541|menu-item-5477)["'][^>]*>[\s\S]*?<img\b[^>]*\bsrc=["'])(?:\/images\/home-captured\/icon-about\.svg|\/images\/captured-legacy\/nav-about\.svg)(?=["'])/i,
     "$1/images/home-captured/icon-news.svg",
   );
 }

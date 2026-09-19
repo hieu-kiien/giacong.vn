@@ -150,6 +150,16 @@ test("removes legacy social handles from captured contact blocks", () => {
   assert.doesNotMatch(result, /giacong\.(page|tele)|Zalo:\/giacong/i);
 });
 
+test("replaces the legacy NetFood label with the published brand", () => {
+  const result = applySiteSettingsToMarkup('<p>Hãy để NetFood tư vấn cho bạn.</p>', {
+    ...settings(""),
+    brand_name: "Kienhieu",
+  });
+
+  assert.match(result, /Hãy để Kienhieu tư vấn cho bạn/);
+  assert.doesNotMatch(result, /NetFood/i);
+});
+
 test("applies published hero CTA labels and URLs safely", () => {
   const result = applyHomepageSiteSettingsToMarkup(heroCtaMarkup, {
     ...settings(""),

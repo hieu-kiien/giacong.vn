@@ -32,7 +32,7 @@ test("captured CSS maps retired WordPress backgrounds to local assets", () => {
   }`);
 
   assert.match(result, /\/images\/home-captured\/form-bg\.webp/);
-  assert.match(result, /\/images\/home-captured\/book-open\.svg/);
+  assert.match(result, /\/images\/captured-legacy\/nav-products\.svg/);
   assert.doesNotMatch(result, /https:\/\/giacong\.vn\/wp-content\/uploads\/(?:2024\/10\/form-bg\.jpg|2024\/08\/book-open-svgrepo-com\.svg)/);
 });
 
@@ -45,7 +45,7 @@ test("captured CSS maps contact-page assets to local fallbacks", () => {
   }`);
 
   assert.match(result, /\/images\/home-captured\/form-bg\.webp/);
-  assert.match(result, /\/images\/captured-asset-placeholder\.svg/);
+  assert.match(result, /\/images\/captured-legacy\/partner-strip\.png/);
   assert.doesNotMatch(result, /https:\/\/giacong\.vn\/wp-content\/uploads\/(?:2024\/09\/form-bg\.jpg|2024\/08\/doi-tac--510x137\.png)/);
 });
 

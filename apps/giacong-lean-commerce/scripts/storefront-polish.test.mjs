@@ -4,6 +4,7 @@ import test from "node:test";
 
 const appRoot = new URL("../", import.meta.url);
 const read = (path) => readFile(new URL(path, appRoot), "utf8");
+const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 const [catalogList, capturedMarkup, globalStyles] = await Promise.all([
   read("src/components/catalog/CatalogList.tsx"),
@@ -22,22 +23,56 @@ test("captured archive chrome does not force a Tin tức underline on every rout
 
 test("captured header icons resolve to local vector assets", async () => {
   const icons = [
-    "icon-home.svg",
-    "icon-about.svg",
-    "book-open.svg",
-    "icon-services.svg",
+    "nav-home.svg",
+    "nav-about.svg",
+    "nav-products.svg",
+    "nav-services.svg",
     "icon-news.svg",
-    "icon-contact.svg",
+    "nav-contact.svg",
+    "sidebar-home.svg",
+    "sidebar-about.png",
+    "sidebar-services.svg",
+    "sidebar-news.png",
+    "sidebar-contact.png",
   ];
 
   for (const icon of icons) {
-    await stat(new URL(`public/images/home-captured/${icon}`, appRoot));
-    assert.match(capturedMarkup, new RegExp(`/images/home-captured/${icon}`));
+    await stat(new URL(`public/images/${icon.startsWith("nav-") || icon.startsWith("sidebar-") ? "captured-legacy" : "home-captured"}/${icon}`, appRoot));
+    assert.match(capturedMarkup, new RegExp(`/images/(?:captured-legacy|home-captured)/${icon}`));
   }
 
   assert.doesNotMatch(
     capturedMarkup,
-    /file-star-svgrepo-com\.svg": "\/images\/captured-asset-placeholder\.svg|bulb-2-svgrepo-com\.svg": "\/images\/captured-asset-placeholder\.svg/,
+    /(?:file-star-svgrepo-com|bulb-2-svgrepo-com|dich-vu)\.svg": "\/images\/captured-asset-placeholder\.svg/,
+  );
+});
+
+test("captured about-page visuals keep real local assets after the Kienhieu rebrand", async () => {
+  const aliases = [
+    ["doi-tac-.png", "/images/captured-legacy/partner-strip.png"],
+    ["doi-tac--510x137.png", "/images/captured-legacy/partner-strip.png"],
+    ["doi-tac--300x81.png", "/images/captured-legacy/partner-strip.png"],
+    ["doi-tac--1024x275.png", "/images/captured-legacy/partner-strip.png"],
+    ["doi-tac--768x207.png", "/images/captured-legacy/partner-strip.png"],
+    ["doi-tac--1536x413.png", "/images/captured-legacy/partner-strip.png"],
+    ["fb.png", "/images/captured-social/facebook.png"],
+    ["tele.png", "/images/captured-social/telegram.png"],
+    ["insta.png", "/images/captured-social/instagram.png"],
+    ["zalo.png", "/images/captured-social/zalo.png"],
+    ["gift-card-150x150.png", "/images/captured-legacy/sidebar-news.png"],
+    ["comment-info-150x150.png", "/images/captured-legacy/sidebar-about.png"],
+    ["envelope-dot-150x150.png", "/images/captured-legacy/sidebar-contact.png"],
+    ["trang-chu-netfood.svg", "/images/captured-legacy/sidebar-home.svg"],
+  ];
+
+  for (const [source, replacement] of aliases) {
+    assert.match(capturedMarkup, new RegExp(`${escapeRegExp(source)}[\\s\\S]{0,250}${escapeRegExp(replacement)}`));
+    await stat(new URL(`public${replacement}`, appRoot));
+  }
+
+  assert.doesNotMatch(
+    capturedMarkup,
+    /(?:doi-tac(?:--(?:510x137|300x81|1024x275|768x207|1536x413))?|fb|tele|insta|zalo)\.png": "\/images\/captured-asset-placeholder\.svg/,
   );
 });
 

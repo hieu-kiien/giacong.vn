@@ -222,6 +222,7 @@ function replaceLegacyBrandTokens(markup: string, safeBrandName: string): string
   });
   let replaced = withCurrentOrigin.replace(/\bgiacong\.vn\b/gi, safeBrandName);
   replaced = replaced
+    .replace(/\bnetfood\b/gi, safeBrandName)
     .replace(/Zalo:\s*\/giacong\b/gi, () => `Zalo: ${safeBrandName}`)
     .replace(/\bgiacong\.page\b/gi, () => `${safeBrandName} Fanpage`)
     .replace(/\bgiacong\.tele\b/gi, () => `${safeBrandName} Telegram`);
