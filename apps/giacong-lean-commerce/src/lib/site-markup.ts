@@ -220,7 +220,11 @@ function replaceLegacyBrandTokens(markup: string, safeBrandName: string): string
     protectedUrls.push(url);
     return token;
   });
-  const replaced = withCurrentOrigin.replace(/\bgiacong\.vn\b/gi, safeBrandName);
+  let replaced = withCurrentOrigin.replace(/\bgiacong\.vn\b/gi, safeBrandName);
+  replaced = replaced
+    .replace(/Zalo:\s*\/giacong\b/gi, () => `Zalo: ${safeBrandName}`)
+    .replace(/\bgiacong\.page\b/gi, () => `${safeBrandName} Fanpage`)
+    .replace(/\bgiacong\.tele\b/gi, () => `${safeBrandName} Telegram`);
   return protectedUrls.reduce(
     (result, url, index) => result.replace(`__legacy_brand_url_${index}__`, url),
     replaced,

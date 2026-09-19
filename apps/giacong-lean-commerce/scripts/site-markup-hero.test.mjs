@@ -137,6 +137,19 @@ test("switches the captured brand and every managed logo surface together", () =
   assert.doesNotMatch(result, /Giacong\.vn|GIACONG\.VN|info@giacong\.vn|qtu1053@gmail\.com/);
 });
 
+test("removes legacy social handles from captured contact blocks", () => {
+  const markup = '<p><strong>Zalo:/giacong</strong></p><p>giacong.page</p><p>giacong.tele</p>';
+  const result = applySiteSettingsToMarkup(markup, {
+    ...settings(""),
+    brand_name: "Kienhieu",
+  });
+
+  assert.match(result, /Zalo: Kienhieu/);
+  assert.match(result, /Kienhieu Fanpage/);
+  assert.match(result, /Kienhieu Telegram/);
+  assert.doesNotMatch(result, /giacong\.(page|tele)|Zalo:\/giacong/i);
+});
+
 test("applies published hero CTA labels and URLs safely", () => {
   const result = applyHomepageSiteSettingsToMarkup(heroCtaMarkup, {
     ...settings(""),
