@@ -273,6 +273,7 @@ function connectCapturedSlider(slider: HTMLElement): MotionCleanup {
 
   const reducedMotion = prefersReducedMotion();
   const mobileViewport = window.matchMedia?.("(max-width: 549px)");
+  const autoRotate = slider.closest(".section07") === null;
   const originalHeight = slider.style.height;
   const originalAriaLive = slider.getAttribute("aria-live");
   const originalIndex = slider.getAttribute("data-clone-slider-index");
@@ -396,7 +397,7 @@ function connectCapturedSlider(slider: HTMLElement): MotionCleanup {
   slides.forEach((slide) => resizeObserver?.observe(slide));
   render(0);
 
-  const timer = reducedMotion
+  const timer = reducedMotion || !autoRotate
     ? undefined
     : window.setInterval(() => {
         if (!paused) render(current + 1);

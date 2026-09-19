@@ -377,6 +377,11 @@ test("fades mobile slider content without exposing adjacent slides during motion
   assert.match(capturedMotion, /mobileViewport\?\.addEventListener\("change", onViewportChange\)/);
 });
 
+test("keeps the homepage testimonial stable until the visitor changes it", () => {
+  assert.match(capturedMotion, /const autoRotate = slider\.closest\("\.section07"\) === null/);
+  assert.match(capturedMotion, /const timer = reducedMotion \|\| !autoRotate/);
+});
+
 test("keeps captured storefront content inside the viewport during motion", () => {
   assert.match(globals, /#main\s*\{[\s\S]*?overflow-x:\s*clip;/);
 });

@@ -5,7 +5,8 @@
 - Production `giacong-vn` đang chạy version `090c8848-e049-43cc-92cc-55b54ee366af`
   ở mức `100%`. Carousel testimonial trên mobile (<=549px) đã chuyển sang
   fade một slide duy nhất để không lộ slide kế bên trong lúc chuyển; desktop vẫn
-  giữ transform animation. Browser smoke trên mobile và desktop đều hiển thị
+  giữ transform animation nhưng testimonial không còn tự động xoay, chỉ đổi khi
+  khách bấm dot hoặc vuốt. Browser smoke trên mobile và desktop đều hiển thị
   đúng ảnh testimonial thật, không còn trạng thái cắt ngang/xoay giữa slide.
 - Regression focused suite đạt `50/50`; OpenNext build đã compile TypeScript,
   generate đủ `28/28` route và hoàn tất bước `OpenNext build complete`.
