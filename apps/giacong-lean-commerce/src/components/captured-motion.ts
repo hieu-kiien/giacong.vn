@@ -308,6 +308,9 @@ function connectCapturedSlider(slider: HTMLElement): MotionCleanup {
   let pointerStartX: number | undefined;
 
   slider.classList.add("clone-slider-ready");
+  slider.parentElement
+    ?.querySelectorAll<HTMLElement>(":scope > .loading-spin")
+    .forEach((spinner) => spinner.remove());
   slider.setAttribute("aria-live", "polite");
   slider.setAttribute("data-clone-slider-index", "0");
   slider.setAttribute("data-clone-slider-mode", mobileViewport?.matches ? "fade" : "slide");

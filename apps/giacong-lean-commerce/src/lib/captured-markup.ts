@@ -156,6 +156,10 @@ export function normalizeCapturedMarkup(markup: string, activeCapturedMenuId?: s
     // initial frame to animate from. Older generated page JSON baked this
     // attribute in, so strip it here as a backwards-compatible safeguard.
     .replace(/\sdata-animated=(["'])[^"']*\1/gi, "")
+    // Legacy Flatsome sliders baked a standalone loading spinner into the markup
+    // while waiting for jQuery Flickity. Modern captured sliders initialize
+    // without it, so strip orphan spinners to prevent perpetual spinning.
+    .replace(/<div\b[^>]*\bclass=(["'])[^"']*\bloading-spin\b[^"']*\1[^>]*>\s*<\/div>/gi, "")
     .replace(/Sản Phẩm(?=<i\b[^>]*\bclass=(["'])icon-angle-down\1[^>]*>\s*<\/i>)/g, "Mua hàng")
     .replace(/Dịch vụ(?=<i\b[^>]*\bclass=(["'])icon-angle-down\1[^>]*>\s*<\/i>)/g, "Thuê gia công")
     .replace(/Dịch Vụ Gia Công(?=<\/a>)/g, "Thuê gia công")

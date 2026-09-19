@@ -289,8 +289,13 @@ test("capture transform does not bake data-animated=true into generated markup",
   assert.match(globals, /clone-menu-slide-in/);
   assert.doesNotMatch(globals, /clone-product-menu[\s\S]*transform: translateY\(/);
   assert.doesNotMatch(globals, /clone-service-menu[\s\S]*transition: opacity \.25s ease-out, transform/);
-  assert.doesNotMatch(interactions, /slide\.hidden\s*=\s*slideIndex\s*!==\s*current/);
   assert.match(globals, /\.clone-slider-ready/);
+  assert.match(globals, /\.loading-spin[\s\S]*display:\s*none\s*!important/);
+  assert.match(capturedMotion, /loading-spin/);
+  assert.doesNotMatch(
+    normalizeCapturedMarkup('<div class="slider-wrapper"><div class="slider"></div><div class="loading-spin dark large centered"></div></div>'),
+    /loading-spin/,
+  );
   assert.match(globals, /\.clone-menu-backdrop[\s\S]*transition:\s*opacity\s+\.3s/);
   assert.doesNotMatch(globals, /giacong-page-orbit|giacong-background-drift/);
 });

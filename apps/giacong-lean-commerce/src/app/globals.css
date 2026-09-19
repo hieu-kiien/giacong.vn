@@ -45,6 +45,14 @@
  * visible immediately; scroll reveal remains enabled for the sections below.
  */
 @layer captured {
+  /* Captured Flatsome sliders rendered a standalone loading spinner while
+   * waiting for legacy jQuery Flickity. The modern runtime initializes
+   * immediately without requiring this legacy spinner. */
+  .loading-spin,
+  .slider-wrapper > .loading-spin {
+    display: none !important;
+  }
+
   /* Captured CSS hides data-animate elements until the source script marks
    * them as animated. Keep the server-rendered document readable until our
    * runtime explicitly opts into that behavior. This is the no-JS and import
