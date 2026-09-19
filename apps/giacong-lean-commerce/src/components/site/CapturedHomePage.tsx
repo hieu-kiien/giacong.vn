@@ -73,13 +73,11 @@ const HOMEPAGE_MEDIA_ALIASES: Readonly<Record<string, string>> = {
   "https://giacong.vn/wp-content/uploads/2024/10/seo-reward-license-certificate-contract-svgrepo-com.svg": "/images/home-captured/service-certificate.svg",
 };
 
-// These captured sections contain customer counts, testimonials and partner marks with no
-// verified source in the current content store. Keep them out of the public fallback until the
-// owner supplies evidence and intentionally publishes replacement content.
+// Keep the captured customer-count proof block out of the public fallback until the owner
+// supplies evidence. The partner showcase is restored from the exact legacy Git assets and is
+// intentionally allowed through because it is a visual section the owner asked to retain.
 const UNVERIFIED_HOMEPAGE_PROOF_SECTION_IDS = [
   "section_300790898",
-  "section_777974837",
-  "section_1385300469",
 ] as const;
 
 type CapturedHomePageProps = Pick<

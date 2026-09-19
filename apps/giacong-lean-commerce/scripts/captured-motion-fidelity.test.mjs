@@ -381,11 +381,11 @@ test("raises the captured testimonial metadata to a readable contrast", () => {
   );
 });
 
-test("does not publish unverified homepage proof claims from the captured source", () => {
+test("keeps the exact legacy homepage partner showcase while filtering only the proof block", () => {
   assert.match(capturedHome, /removeUnverifiedHomepageProof/);
   assert.match(capturedHome, /section_300790898/);
-  assert.match(capturedHome, /section_777974837/);
-  assert.match(capturedHome, /section_1385300469/);
+  assert.doesNotMatch(capturedHome, /const UNVERIFIED_HOMEPAGE_PROOF_SECTION_IDS = \[[\s\S]*?section_777974837/);
+  assert.doesNotMatch(capturedHome, /const UNVERIFIED_HOMEPAGE_PROOF_SECTION_IDS = \[[\s\S]*?section_1385300469/);
 });
 
 test("preloads the local desktop homepage background when it is the LCP surface", () => {
