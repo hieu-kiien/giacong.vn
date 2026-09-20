@@ -16,17 +16,23 @@ concurrency:
 
 jobs:
   audit-access:
-    name: Audit staging Access JWT inputs
+    name: Audit Access policy (${{ matrix.admin_domain }})
     if: github.event.pull_request.head.repo.full_name == github.repository || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        admin_domain:
+          - admin-staging.kienhieu.id.vn
+          - admin.kienhieu.id.vn
     env:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-      ADMIN_DOMAIN: admin-staging.kienhieu.id.vn
+      ADMIN_DOMAIN: ${{ matrix.admin_domain }}
 
     steps:
-      - name: Read exact staging Access application
+      - name: Read exact Access application
         shell: bash
         run: |
           set -euo pipefail
@@ -40,9 +46,47 @@ jobs:
           test "$app_count" = "1"
           echo "$apps" | jq -c '.result[] | select(.type == "self_hosted" and .domain == env.ADMIN_DOMAIN) | {id,name,domain,type,aud,session_duration,app_launcher_visible,auto_redirect_to_identity}' \
             | tee /tmp/access-app.json
+          app_id="$(jq -r '.id // empty' /tmp/access-app.json)"
           aud="$(jq -r '.aud // empty' /tmp/access-app.json)"
+          test -n "$app_id"
           test -n "$aud"
+          echo "ACCESS_APP_ID=$app_id" >> "$GITHUB_ENV"
           echo "POLICY_AUD=$aud" >> "$GITHUB_ENV"
+
+      - name: Read Access application policies safely
+        shell: bash
+        run: |
+          set -euo pipefail
+          policies="$(curl --fail-with-body --silent --show-error \
+            --get "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/access/apps/$ACCESS_APP_ID/policies" \
+            -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+            --data-urlencode "per_page=50")"
+          echo "$policies" | jq -e '.success == true' >/dev/null
+
+          # Keep identifiers and selector TYPES for diagnosis, but never print
+          # email addresses, domains, groups or other selector values.
+          echo "$policies" | jq -c '
+            [
+              .result[] |
+              {
+                id,
+                name,
+                decision,
+                precedence,
+                reusable: (.reusable // false),
+                include_selectors: ((.include // []) | map(keys[]) | unique),
+                require_selectors: ((.require // []) | map(keys[]) | unique),
+                exclude_selectors: ((.exclude // []) | map(keys[]) | unique),
+                include_rule_count: ((.include // []) | length),
+                require_rule_count: ((.require // []) | length),
+                exclude_rule_count: ((.exclude // []) | length)
+              }
+            ]
+          ' | tee /tmp/access-policies-safe.json
+
+          policy_count="$(jq 'length' /tmp/access-policies-safe.json)"
+          test "$policy_count" -ge 1
+          echo "ACCESS_POLICY_COUNT=$policy_count" >> "$GITHUB_ENV"
 
       - name: Read Zero Trust organization team domain
         shell: bash
@@ -71,17 +115,23 @@ jobs:
           echo "$jwks" | jq -e '.keys | all(.[]; (.kid | type == "string" and length > 0) and (.kty | type == "string" and length > 0))' >/dev/null
           jq -n --argjson key_count "$key_count" '{jwks_key_count:$key_count}' | tee /tmp/jwks-state.json
 
-      - name: Publish safe verification inputs
+      - name: Publish safe verification summary
         shell: bash
         run: |
           {
-            echo "## Cloudflare Access staging JWT inputs"
+            echo "## Cloudflare Access policy audit"
             echo
-            echo "These identifiers are configuration, not authentication secrets."
+            echo "No selector values or credentials are printed by this audit."
             echo
             echo "- Admin domain: \`$ADMIN_DOMAIN\`"
             echo "- Team domain: \`$TEAM_DOMAIN\`"
+            echo "- Application ID: \`$ACCESS_APP_ID\`"
             echo "- Application AUD: \`$POLICY_AUD\`"
-            echo "- JWKS endpoint: \`$TEAM_DOMAIN/cdn-cgi/access/certs\`"
-            echo "- JWKS currently exposes: \`$(jq -r '.jwks_key_count' /tmp/jwks-state.json)\` signing key(s)"
+            echo "- Policy count: \`$ACCESS_POLICY_COUNT\`"
+            echo "- JWKS signing keys: \`$(jq -r '.jwks_key_count' /tmp/jwks-state.json)\`"
+            echo
+            echo "### Policy structure"
+            jq -r '.[] |
+              "- \(.name) [\(.decision)] | include=\((.include_selectors | join(",")) // "none") | require=\((.require_selectors | join(",")) // "none") | exclude=\((.exclude_selectors | join(",")) // "none") | rules=\(.include_rule_count)/\(.require_rule_count)/\(.exclude_rule_count)"' \
+              /tmp/access-policies-safe.json
           } >> "$GITHUB_STEP_SUMMARY"
