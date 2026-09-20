@@ -11,12 +11,12 @@ permissions:
   contents: read
 
 concurrency:
-  group: cloudflare-admin-access-audit-\${{ github.event.pull_request.number || github.ref }}
+  group: cloudflare-admin-access-audit-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
   audit-access:
-    name: Audit Access policy (\${{ matrix.admin_domain }})
+    name: Audit Access policy (${{ matrix.admin_domain }})
     if: github.event.pull_request.head.repo.full_name == github.repository || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -27,9 +27,9 @@ jobs:
           - admin-staging.kienhieu.id.vn
           - admin.kienhieu.id.vn
     env:
-      CLOUDFLARE_API_TOKEN: \${{ secrets.CLOUDFLARE_API_TOKEN }}
-      CLOUDFLARE_ACCOUNT_ID: \${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-      ADMIN_DOMAIN: \${{ matrix.admin_domain }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      ADMIN_DOMAIN: ${{ matrix.admin_domain }}
 
     steps:
       - name: Read exact Access application
@@ -99,8 +99,8 @@ jobs:
           auth_domain="$(echo "$organization" | jq -r '.result.auth_domain // empty')"
           test -n "$auth_domain"
           case "$auth_domain" in
-            https://*) team_domain="\${auth_domain%/}" ;;
-            *) team_domain="https://\${auth_domain%/}" ;;
+            https://*) team_domain="${auth_domain%/}" ;;
+            *) team_domain="https://${auth_domain%/}" ;;
           esac
           echo "TEAM_DOMAIN=$team_domain" >> "$GITHUB_ENV"
           jq -n --arg auth_domain "$auth_domain" '{auth_domain:$auth_domain}' | tee /tmp/access-org.json
