@@ -17,7 +17,7 @@ test("published storefront readers combine request and cross-request caching", (
 
   for (const [source, reader, cacheKey] of readers) {
     assert.match(source, /import\s*{\s*cache\s*}\s*from\s*["']react["']/);
-    assert.match(source, /import\s*{\s*unstable_cache\s*}\s*from\s*["']next\/cache["']/);
+    assert.match(source, /import\s*{\s*unstable_cache\s*}\s*from\s*["']next\/cache\.js["']/);
     assert.match(
       source,
       new RegExp(`export const ${reader} = cache\\(`),
