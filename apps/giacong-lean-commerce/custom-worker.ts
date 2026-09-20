@@ -38,7 +38,7 @@ const nonIndexableHosts = new Set([
   "staging.kienhieu.id.vn",
 ]);
 
-const PUBLIC_DOCUMENT_CACHE_CONTROL = "public, max-age=0, s-maxage=60, stale-while-revalidate=300";
+const PUBLIC_DOCUMENT_CACHE_CONTROL = "public, max-age=0, s-maxage=600, stale-while-revalidate=3600";
 const publicDocumentCache = (caches as CacheStorage & { default: Cache }).default;
 
 function isPublicDocumentRequest(request: Request): boolean {
