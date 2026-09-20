@@ -3,11 +3,11 @@ type MotionCleanup = () => void;
 const noop: MotionCleanup = () => undefined;
 
 export function connectCapturedMotion(root: ParentNode = document): MotionCleanup {
+  const smallViewport = window.matchMedia?.("(max-width: 549px)").matches ?? false;
   const cleanups = [
-    connectCapturedReveals(root),
-    connectPageReveals(root),
+    ...(smallViewport ? [] : [connectCapturedReveals(root), connectPageReveals(root)]),
     connectCapturedSliders(root),
-    connectCapturedParallax(root),
+    ...(smallViewport ? [] : [connectCapturedParallax(root)]),
   ];
 
   return () => cleanups.forEach((cleanup) => cleanup());
