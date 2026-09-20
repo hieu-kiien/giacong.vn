@@ -428,8 +428,10 @@ test("restores the exact second testimonial image instead of a placeholder", asy
 test("keeps the exact legacy homepage partner showcase while filtering only the proof block", () => {
   assert.match(capturedHome, /removeUnverifiedHomepageProof/);
   assert.match(capturedHome, /section_300790898/);
-  assert.doesNotMatch(capturedHome, /const UNVERIFIED_HOMEPAGE_PROOF_SECTION_IDS = \[[\s\S]*?section_777974837/);
-  assert.doesNotMatch(capturedHome, /const UNVERIFIED_HOMEPAGE_PROOF_SECTION_IDS = \[[\s\S]*?section_1385300469/);
+  const proofList = capturedHome.match(/const UNVERIFIED_HOMEPAGE_PROOF_SECTION_IDS = \[([\s\S]*?)\] as const;/)?.[1] ?? "";
+  assert.match(proofList, /section_300790898/);
+  assert.doesNotMatch(proofList, /section_777974837/);
+  assert.doesNotMatch(proofList, /section_1385300469/);
 });
 
 test("preloads the local desktop homepage background when it is the LCP surface", () => {
@@ -445,6 +447,16 @@ test("preloads the first mobile hero tile when it is the LCP surface", () => {
     /rel="preload"\s+href="\/images\/home-hero\/hero-1\.avif"\s+as="image"\s+type="image\/avif"\s+media="\(max-width: 849px\)"\s+fetchPriority="high"/,
   );
 });
+
+test("mobile homepage defers below-fold section rendering without touching the hero", () => {
+  assert.match(capturedHome, /const HOMEPAGE_MOBILE_RENDER_STYLES = `@media \(max-width:549px\)/);
+  assert.match(capturedHome, /#section_220139106[^}]*content-visibility:auto/);
+  assert.match(capturedHome, /contain-intrinsic-size:auto 2400px/);
+  assert.match(capturedHome, /#section_294752369\{contain-intrinsic-size:auto 900px;\}/);
+  assert.doesNotMatch(capturedHome, /#section_250108065[^}]*content-visibility:auto/);
+  assert.doesNotMatch(capturedHome, /#section_1437980462[^}]*content-visibility:auto/);
+});
+
 
 test("keeps the bold font preload off the mobile critical path", () => {
   assert.match(capturedHome, /href="\/styles\/fonts\/SFProDisplay-Bold\.woff2"[^>]*media="\(min-width: 850px\)"/);
