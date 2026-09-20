@@ -1,4 +1,4 @@
-name: Release admin auth boundary to Cloudflare staging once
+name: Release tested master to Cloudflare staging once
 
 on:
   push:
@@ -27,10 +27,25 @@ jobs:
       ADMIN_ORIGIN: https://admin-staging.kienhieu.id.vn
       WORKER_NAME: giacong-vn-staging
       WORKERS_SUBDOMAIN: qtu1053
+      EXPECTED_APP_BASE_SHA: 3e66904c600e2b97794bb806fd9beaa26ee940ec
 
     steps:
       - name: Checkout tested master
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Prove application tree matches the tested commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          git cat-file -e "$EXPECTED_APP_BASE_SHA^{commit}"
+          if ! git diff --quiet "$EXPECTED_APP_BASE_SHA" HEAD -- apps/giacong-lean-commerce; then
+            echo "Application files changed after the tested commit; refusing to release." >&2
+            git diff --stat "$EXPECTED_APP_BASE_SHA" HEAD -- apps/giacong-lean-commerce
+            exit 1
+          fi
+          echo "Application tree matches tested commit $EXPECTED_APP_BASE_SHA"
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -128,11 +143,11 @@ jobs:
           old_id="${{ steps.before.outputs.old_version_id }}"
           rollback() {
             echo "Staging verification failed; restoring $old_id"
-            npx wrangler versions deploy "$old_id@100%" --env=staging --message="Automatic rollback after admin-auth staging verification failure" --yes
+            npx wrangler versions deploy "$old_id@100%" --env=staging --message="Automatic rollback after tested-master staging verification failure" --yes
           }
           trap rollback ERR
 
-          npx wrangler versions deploy "$NEW_VERSION_ID@100%" --env=staging --message="Promote tested Cloudflare Access admin admission boundary" --yes
+          npx wrangler versions deploy "$NEW_VERSION_ID@100%" --env=staging --message="Promote tested master staging release" --yes
 
           for path in / /san-pham /san-pham/bot-gao-lut-xay-min /gui-yeu-cau /thue-gia-cong/say-thuc-pham-say; do
             status="$(curl --silent --show-error --location --max-time 25 --output /tmp/active.html --write-out '%{http_code}' "$STAGING_ORIGIN$path")"
@@ -168,7 +183,7 @@ jobs:
         shell: bash
         run: |
           {
-            echo "## Admin authentication staging release"
+            echo "## Tested master staging release"
             echo
             echo "- Previous rollback version: \`${{ steps.before.outputs.old_version_id }}\`"
             echo "- New active version: \`$NEW_VERSION_ID\`"
