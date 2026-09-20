@@ -261,10 +261,33 @@ function connectCapturedReveals(root: ParentNode): MotionCleanup {
 }
 
 function connectCapturedSliders(root: ParentNode): MotionCleanup {
-  const cleanups = Array.from(root.querySelectorAll<HTMLElement>(".slider")).map((slider) =>
-    connectCapturedSlider(slider),
+  const sliders = Array.from(root.querySelectorAll<HTMLElement>(".slider"));
+  if (sliders.length === 0) return noop;
+
+  if (!("IntersectionObserver" in window)) {
+    const cleanups = sliders.map((slider) => connectCapturedSlider(slider));
+    return () => cleanups.forEach((cleanup) => cleanup());
+  }
+
+  const cleanups = new Map<HTMLElement, MotionCleanup>();
+  const observer = new IntersectionObserver(
+    (entries) => {
+      entries.forEach((entry) => {
+        if (!entry.isIntersecting) return;
+        const slider = entry.target as HTMLElement;
+        if (!cleanups.has(slider)) cleanups.set(slider, connectCapturedSlider(slider));
+        observer.unobserve(slider);
+      });
+    },
+    { rootMargin: "400px 0px", threshold: 0 },
   );
-  return () => cleanups.forEach((cleanup) => cleanup());
+
+  sliders.forEach((slider) => observer.observe(slider));
+
+  return () => {
+    observer.disconnect();
+    cleanups.forEach((cleanup) => cleanup());
+  };
 }
 
 function connectCapturedSlider(slider: HTMLElement): MotionCleanup {

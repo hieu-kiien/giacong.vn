@@ -371,6 +371,16 @@ test("keeps slider pagination as a native list instead of an incomplete tablist"
   assert.match(capturedMotion, /dots\.setAttribute\("aria-label", "Chuyển nội dung"\)/);
 });
 
+test("defers captured slider layout work until the slider nears the viewport", () => {
+  assert.match(capturedMotion, /const sliders = Array\.from\(root\.querySelectorAll<HTMLElement>\("\.slider"\)\)/);
+  assert.match(capturedMotion, /new IntersectionObserver/);
+  assert.match(capturedMotion, /rootMargin: "400px 0px"/);
+  assert.match(capturedMotion, /observer\.observe\(slider\)/);
+  assert.match(capturedMotion, /connectCapturedSlider\(slider\)/);
+  assert.match(capturedMotion, /observer\.unobserve\(slider\)/);
+});
+
+
 test("clips translated slider slides so mobile pages cannot grow horizontally", () => {
   assert.match(globals, /\.slider\.clone-slider-ready\s*\{[\s\S]*?overflow:\s*hidden\s*!important;/);
 });
