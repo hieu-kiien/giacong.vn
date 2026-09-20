@@ -1,5 +1,5 @@
 import { cache } from "react";
-import { unstable_cache } from "next/cache";
+import { unstable_cache } from "next/cache.js";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 
 import type { D1DatabaseLike, D1PreparedStatementLike } from "./admin-data";
