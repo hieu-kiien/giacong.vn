@@ -74,6 +74,15 @@ test("keeps contact form loading route-scoped and defers mobile motion until idl
   assert.match(interactions, /matchMedia\?\.\("\(max-width: 849px\)"\)\.matches/);
 });
 
+test("routes captured internal links through the Next app router", () => {
+  assert.match(interactions, /import \{ useRouter \} from "next\/navigation"/);
+  assert.match(interactions, /const router = useRouter\(\)/);
+  assert.match(interactions, /document\.addEventListener\("click", handleInternalNavigation\)/);
+  assert.match(interactions, /router\.push\(normalizedPath/);
+  assert.match(interactions, /const normalizedPath = url\.pathname === "\/" \? "\/" : url\.pathname\.replace\(\/\\\/\+\$\/, ""\)/);
+  assert.match(interactions, /event\.metaKey[\s\S]*?event\.ctrlKey[\s\S]*?event\.shiftKey[\s\S]*?event\.altKey/);
+});
+
 test("normalizes captured navigation into a direct product route and grouped services", () => {
   const result = normalizeCapturedMarkup(desktopAndMobileMenu);
   const productMenuStart = result.indexOf('id="menu-item-1742"');
