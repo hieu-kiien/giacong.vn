@@ -68,19 +68,20 @@ test("the admin control plane exposes page, navigation and member management sur
   assert.match(members, /\/api\/admin\/members/);
   assert.match(members, /title="Tài khoản quản trị"/);
   assert.match(members, /Thêm tài khoản quản trị/);
-  assert.match(members, /Tài khoản đăng nhập Cloudflare Access/);
+  assert.match(members, /Email đăng nhập/);
+  assert.match(members, /tự liên kết danh tính Cloudflare/);
+  assert.doesNotMatch(members, /member-new-subject/);
   assert.match(members, /Quản lý tài khoản quản trị/);
   assert.match(members, /currentMemberId=\{session\.memberId\}/);
   assert.match(members, /member\.id === currentMemberId/);
   assert.match(members, /label: "Admin toàn quyền"/);
   assert.doesNotMatch(members, /label: "(?:Quản lý nội dung|Quản lý hàng hóa|Quản lý yêu cầu|Người xem)"/);
-  assert.match(members, /readOnly value="Admin toàn quyền"/);
-  assert.match(members, /Vai trò quản trị/);
+  assert.doesNotMatch(members, /readOnly value="Admin toàn quyền"/);
   assert.match(members, /Tài khoản hiện tại không thể tự hạ quyền hoặc vô hiệu hóa/);
   assert.match(members, /createFieldErrors/);
   assert.match(members, /memberFieldErrors\[member\.id\]/);
-  assert.match(members, /error=\{createFieldErrors\.accessSubject\}/);
-  assert.match(members, /aria-invalid=\{Boolean\(createFieldErrors\.accessSubject\)\}/);
+  assert.match(members, /error=\{createFieldErrors\.email\}/);
+  assert.match(members, /aria-invalid=\{Boolean\(createFieldErrors\.email\)\}/);
 });
 
 test("the shell groups routes in plain-language control-plane sections", async () => {
