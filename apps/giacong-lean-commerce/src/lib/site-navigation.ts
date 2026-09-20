@@ -1,4 +1,5 @@
 import { cache } from "react";
+import { unstable_cache } from "next/cache";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 
 import { getLegacyMegaMenuItem, legacyMegaMenuItems } from "../data/legacy-mega-menu.ts";
@@ -1419,8 +1420,8 @@ export class SiteNavigationIdempotencyConflictError extends Error {
   }
 }
 
-export const getPublishedSiteNavigation = cache(async function getPublishedSiteNavigation(): Promise<PublishedNavigationItem[]> {
-  try {
+const readPublishedSiteNavigation = unstable_cache(
+  async (): Promise<PublishedNavigationItem[]> => {
     const database = await getSiteDatabase();
     const rows = await database.prepare(`
       SELECT id, captured_menu_id, published_href, published_is_active,
@@ -1451,6 +1452,14 @@ export const getPublishedSiteNavigation = cache(async function getPublishedSiteN
       sortOrder: item.sortOrder,
     })));
     return navigationItems;
+  },
+  ["published-site-navigation"],
+  { revalidate: 60 },
+);
+
+export const getPublishedSiteNavigation = cache(async function getPublishedSiteNavigation(): Promise<PublishedNavigationItem[]> {
+  try {
+    return await readPublishedSiteNavigation();
   } catch (error) {
     console.warn("Published site navigation unavailable; using committed defaults.", error);
     return [...defaultPrimaryNavigation];
