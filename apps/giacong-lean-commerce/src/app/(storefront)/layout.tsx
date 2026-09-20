@@ -9,6 +9,7 @@ import { getRuntimeAdminAccessConfig } from "@/lib/admin-access-runtime";
 import { normalizeAdminAccessConfig } from "@/lib/admin-access";
 
 import "./captured-layers.css";
+import "../../styles/admin.css";
 
 export const dynamic = "force-dynamic";
 

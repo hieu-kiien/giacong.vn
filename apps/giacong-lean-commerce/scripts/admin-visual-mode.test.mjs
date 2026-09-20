@@ -34,6 +34,7 @@ test("admin mode requires an authenticated session with a known role", () => {
 test("the storefront layout gates the lightweight admin context by request host", async () => {
   const source = await readSource("../src/app/(storefront)/layout.tsx");
 
+  assert.match(source, /import\s+["']\.\.\/\.\.\/styles\/admin\.css["'];/);
   assert.match(source, /await headers\(\)/);
   assert.match(source, /getRuntimeAdminAccessConfig/);
   assert.match(source, /normalizeAdminAccessConfig/);
