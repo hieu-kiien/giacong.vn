@@ -366,6 +366,13 @@ test("keeps mobile page reveals visible but restrained", () => {
   assert.match(globals, /translate3d\(24px, 0, 0\)/);
 });
 
+test("small mobile viewports skip decorative reveal and parallax observers", () => {
+  assert.match(capturedMotion, /const smallViewport = window\.matchMedia\?\.\("\(max-width: 549px\)"\)\.matches \?\? false/);
+  assert.match(capturedMotion, /smallViewport \? \[\] : \[connectCapturedReveals\(root\), connectPageReveals\(root\)\]/);
+  assert.match(capturedMotion, /connectCapturedSliders\(root\)/);
+  assert.match(capturedMotion, /smallViewport \? \[\] : \[connectCapturedParallax\(root\)\]/);
+});
+
 test("keeps slider pagination as a native list instead of an incomplete tablist", () => {
   assert.doesNotMatch(capturedMotion, /dots\.setAttribute\("role", "tablist"\)/);
   assert.match(capturedMotion, /dots\.setAttribute\("aria-label", "Chuyển nội dung"\)/);
