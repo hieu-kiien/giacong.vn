@@ -89,6 +89,17 @@ type CapturedHomePageProps = Pick<
 };
 
 const HOMEPAGE_CRITICAL_MOTION_STYLES = `@layer captured{#section_250108065 [data-animate]{animation:none !important;opacity:1 !important;transform:none !important;}}`;
+const HOMEPAGE_MOBILE_RENDER_STYLES = `@media (max-width:549px){
+#section_220139106,#section_1771329794,#section_819391773,#section_777974837,#section_1385300469,#section_938597378,#section_294752369{content-visibility:auto;}
+#section_220139106{contain-intrinsic-size:auto 2400px;}
+#section_1771329794{contain-intrinsic-size:auto 520px;}
+#section_819391773{contain-intrinsic-size:auto 1200px;}
+#section_777974837{contain-intrinsic-size:auto 900px;}
+#section_1385300469{contain-intrinsic-size:auto 1500px;}
+#section_938597378{contain-intrinsic-size:auto 1100px;}
+#section_294752369{contain-intrinsic-size:auto 900px;}
+}`;
+
 
 /**
  * Renders the captured homepage while replacing the source's composite hero
@@ -145,7 +156,7 @@ export async function CapturedHomePage({
       ) : null}
       <link rel="preload" href="/styles/fonts/SFProDisplay-Regular.woff2" as="font" type="font/woff2" crossOrigin="anonymous" />
       <link rel="preload" href="/styles/fonts/SFProDisplay-Bold.woff2" as="font" type="font/woff2" crossOrigin="anonymous" media="(min-width: 850px)" />
-      <style dangerouslySetInnerHTML={{ __html: `${layerCapturedStyles(localizeHomepageMedia(pageStyles))}\n${siteBrandStyles(settings)}\n${HOMEPAGE_CRITICAL_MOTION_STYLES}` }} />
+      <style dangerouslySetInnerHTML={{ __html: `${layerCapturedStyles(localizeHomepageMedia(pageStyles))}\n${siteBrandStyles(settings)}\n${HOMEPAGE_CRITICAL_MOTION_STYLES}\n${HOMEPAGE_MOBILE_RENDER_STYLES}` }} />
       <div
         className={bodyClasses}
         dangerouslySetInnerHTML={{ __html: homeMarkup }}
