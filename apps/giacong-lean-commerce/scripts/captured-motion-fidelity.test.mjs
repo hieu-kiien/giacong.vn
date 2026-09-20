@@ -382,8 +382,8 @@ test("fades mobile slider content without exposing adjacent slides during motion
   assert.match(capturedMotion, /mobileViewport\?\.addEventListener\("change", onViewportChange\)/);
 });
 
-test("automatically rotates homepage testimonials with pause on interaction", () => {
-  assert.match(capturedMotion, /const autoRotate = true/);
+test("automatically rotates testimonials off mobile with pause on interaction", () => {
+  assert.match(capturedMotion, /const autoRotate = !\(mobileViewport\?\.matches \?\? false\)/);
   assert.match(capturedMotion, /const timer = reducedMotion \|\| !autoRotate/);
   assert.match(capturedMotion, /onMouseEnter = \(\) => \{\s*paused = true;/);
 });
