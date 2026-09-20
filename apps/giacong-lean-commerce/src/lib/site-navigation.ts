@@ -1,5 +1,5 @@
 import { cache } from "react";
-import { unstable_cache } from "next/cache";
+import { unstable_cache } from "next/cache.js";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 
 import { getLegacyMegaMenuItem, legacyMegaMenuItems } from "../data/legacy-mega-menu.ts";
