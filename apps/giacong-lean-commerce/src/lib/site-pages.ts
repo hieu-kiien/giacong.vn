@@ -1,4 +1,5 @@
 import { cache } from "react";
+import { unstable_cache } from "next/cache.js";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 
 import type { D1DatabaseLike, D1PreparedStatementLike } from "./admin-data";
@@ -371,15 +372,8 @@ export async function publishAdminSitePage(
   return readPageMutationResult(database, mutation, postcondition);
 }
 
-export const getPublishedSitePage = cache(async function getPublishedSitePage(routePath: string): Promise<PublishedSitePage | null> {
-  let normalizedPath: string;
-  try {
-    normalizedPath = normalizeRoutePath(routePath);
-  } catch {
-    return null;
-  }
-
-  try {
+const readPublishedSitePage = unstable_cache(
+  async (normalizedPath: string): Promise<PublishedSitePage | null> => {
     const database = await getSiteDatabase();
     const row = await database.prepare(`
       SELECT page_key, route_path, title, published_enabled,
@@ -397,6 +391,21 @@ export const getPublishedSitePage = cache(async function getPublishedSitePage(ro
       seoTitle: row.published_seo_title,
       title: row.title,
     };
+  },
+  ["published-site-page"],
+  { revalidate: 60 },
+);
+
+export const getPublishedSitePage = cache(async function getPublishedSitePage(routePath: string): Promise<PublishedSitePage | null> {
+  let normalizedPath: string;
+  try {
+    normalizedPath = normalizeRoutePath(routePath);
+  } catch {
+    return null;
+  }
+
+  try {
+    return await readPublishedSitePage(normalizedPath);
   } catch (error) {
     console.warn("Published site page unavailable; using captured fallback.", error);
     return null;

@@ -1,4 +1,5 @@
 import { cache } from "react";
+import { unstable_cache } from "next/cache.js";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import type { D1DatabaseLike, D1PreparedStatementLike } from "./admin-data";
 
@@ -339,14 +340,22 @@ export async function publishAllAdminSiteSettings(
   return readBulkSiteSettingResult(database, requestId, mutation);
 }
 
-export const getPublishedSiteSettings = cache(async function getPublishedSiteSettings(): Promise<PublishedSiteSettings> {
-  try {
+const readPublishedSiteSettings = unstable_cache(
+  async (): Promise<PublishedSiteSettings> => {
     const database = await getSiteDatabase();
     const rows = await database.prepare(`
       SELECT setting_key, published_value
       FROM site_settings
     `).all<{ setting_key: string; published_value: string }>();
     return selectPublishedSiteSettings(rows.results);
+  },
+  ["published-site-settings"],
+  { revalidate: 60 },
+);
+
+export const getPublishedSiteSettings = cache(async function getPublishedSiteSettings(): Promise<PublishedSiteSettings> {
+  try {
+    return await readPublishedSiteSettings();
   } catch (error) {
     console.warn("Published site settings unavailable; using committed defaults.", error);
     return { ...siteSettingDefaults };
