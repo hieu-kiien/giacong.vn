@@ -107,6 +107,18 @@ export async function createAdminMemberAtomically(
     return readMutationMember(database, existingMutation);
   }
 
+  if (input.email) {
+    const duplicateEmail = await database.prepare(`
+      SELECT id
+      FROM admin_members
+      WHERE lower(email) = lower(?)
+      LIMIT 1
+    `).bind(input.email.trim().toLowerCase()).first<{ id: string }>();
+    if (duplicateEmail) {
+      throw new AdminMemberWriteValidationError("Email này đã tồn tại trong danh sách quản trị.");
+    }
+  }
+
   const id = crypto.randomUUID();
   postcondition.id = id;
   const databaseWithBatch = requireBatch(database);
