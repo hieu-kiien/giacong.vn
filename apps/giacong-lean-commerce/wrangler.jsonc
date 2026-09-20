@@ -31,6 +31,12 @@
     "directory": ".open-next/assets",
     "binding": "ASSETS"
   },
+  "services": [
+    {
+      "binding": "WORKER_SELF_REFERENCE",
+      "service": "giacong-vn"
+    }
+  ],
   "d1_databases": [
     {
       "binding": "GIACONG_VN_CATALOG",
@@ -117,6 +123,12 @@
         "directory": ".open-next/assets",
         "binding": "ASSETS"
       },
+      "services": [
+        {
+          "binding": "WORKER_SELF_REFERENCE",
+          "service": "giacong-vn-staging"
+        }
+      ],
       "d1_databases": [
         {
           "binding": "GIACONG_VN_CATALOG",
