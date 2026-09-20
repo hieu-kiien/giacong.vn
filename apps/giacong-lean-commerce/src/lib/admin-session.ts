@@ -67,6 +67,7 @@ export async function handleAdminSession(
 
   return adminSuccess(requestId, {
     authenticated: true,
+    ...(admission.actor.email ? { email: admission.actor.email } : {}),
     ...(memberId ? { memberId } : {}),
     role,
     subject: admission.actor.subject,
