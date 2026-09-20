@@ -446,6 +446,16 @@ test("preloads the first mobile hero tile when it is the LCP surface", () => {
   );
 });
 
+test("mobile homepage defers below-fold section rendering without touching the hero", () => {
+  assert.match(capturedHome, /const HOMEPAGE_MOBILE_RENDER_STYLES = `@media \(max-width:549px\)/);
+  assert.match(capturedHome, /#section_220139106[^}]*content-visibility:auto/);
+  assert.match(capturedHome, /contain-intrinsic-size:auto 2400px/);
+  assert.match(capturedHome, /#section_294752369\{contain-intrinsic-size:auto 900px;\}/);
+  assert.doesNotMatch(capturedHome, /#section_250108065[^}]*content-visibility:auto/);
+  assert.doesNotMatch(capturedHome, /#section_1437980462[^}]*content-visibility:auto/);
+});
+
+
 test("keeps the bold font preload off the mobile critical path", () => {
   assert.match(capturedHome, /href="\/styles\/fonts\/SFProDisplay-Bold\.woff2"[^>]*media="\(min-width: 850px\)"/);
   assert.match(capturedPage, /href="\/styles\/fonts\/SFProDisplay-Bold\.woff2"[^>]*media="\(min-width: 850px\)"/);
