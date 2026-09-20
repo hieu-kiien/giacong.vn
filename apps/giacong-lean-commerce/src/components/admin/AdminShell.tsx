@@ -78,6 +78,8 @@ const roleLabels: Record<string, string> = {
   owner: "Admin toàn quyền",
 };
 
+const CLOUDFLARE_ACCESS_LOGOUT_PATH = "/cdn-cgi/access/logout";
+
 const subscribeToBrowserLocation = () => () => undefined;
 const getStagingHostSnapshot = () => isStagingAdminHost(window.location.hostname);
 const getServerStagingHostSnapshot = () => false;
@@ -407,7 +409,7 @@ export function AdminShell({ brandName, children }: AdminShellProps) {
     setMobileOpen(false);
     if ("logout" in pending) {
       pendingHistoryRef.current = null;
-      window.location.assign("/cdn-cgi/access/logout");
+      window.location.assign(new URL(CLOUDFLARE_ACCESS_LOGOUT_PATH, window.location.origin).toString());
       return;
     }
     if ("history" in pending) {
@@ -530,7 +532,7 @@ export function AdminShell({ brandName, children }: AdminShellProps) {
                 <a
                   className="admin-storefront-link"
                   data-testid="link-admin-logout"
-                  href="/cdn-cgi/access/logout"
+                  href={CLOUDFLARE_ACCESS_LOGOUT_PATH}
                   onClick={handleLogoutClick}
                 >
                   Đăng xuất
