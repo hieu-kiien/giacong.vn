@@ -29,11 +29,15 @@ async function read(relativePath: string): Promise<string> {
   return readFile(new URL(relativePath, root), "utf8");
 }
 
-const memberFields = {
-  accessSubject: "operator@example.com",
+const memberCreateFields = {
   displayName: "Operator",
   email: "operator@example.com",
   isActive: true,
+};
+
+const memberFields = {
+  accessSubject: "operator@example.com",
+  ...memberCreateFields,
   role: "owner" as const,
 };
 
@@ -327,10 +331,13 @@ class FakeDatabase implements D1DatabaseLike {
 }
 
 test("member and lead commands require exact keys, UUID request IDs and numeric revisions", () => {
-  const create = parseAdminMemberCreateCommand({ requestId: memberCreateRequest, ...memberFields });
+  const create = parseAdminMemberCreateCommand({ requestId: memberCreateRequest, ...memberCreateFields });
   assert.equal(create.command?.requestId, memberCreateRequest);
-  assert.equal(parseAdminMemberCreateCommand({ requestId: memberCreateRequest, ...memberFields, extra: true }).command, null);
-  assert.equal(parseAdminMemberCreateCommand({ requestId: "bad", ...memberFields }).command, null);
+  assert.equal(create.command?.input.email, "operator@example.com");
+  assert.equal(create.command?.input.role, "owner");
+  assert.match(create.command?.input.accessSubject ?? "", /^pending-email:/);
+  assert.equal(parseAdminMemberCreateCommand({ requestId: memberCreateRequest, ...memberCreateFields, extra: true }).command, null);
+  assert.equal(parseAdminMemberCreateCommand({ requestId: "bad", ...memberCreateFields }).command, null);
 
   const update = parseAdminMemberUpdateCommand({ requestId: memberUpdateRequest, expectedRevision: 1, ...memberFields });
   assert.equal(update.command?.expectedRevision, 1);
