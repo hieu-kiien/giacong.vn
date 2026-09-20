@@ -428,8 +428,10 @@ test("restores the exact second testimonial image instead of a placeholder", asy
 test("keeps the exact legacy homepage partner showcase while filtering only the proof block", () => {
   assert.match(capturedHome, /removeUnverifiedHomepageProof/);
   assert.match(capturedHome, /section_300790898/);
-  assert.doesNotMatch(capturedHome, /const UNVERIFIED_HOMEPAGE_PROOF_SECTION_IDS = \[[\s\S]*?section_777974837/);
-  assert.doesNotMatch(capturedHome, /const UNVERIFIED_HOMEPAGE_PROOF_SECTION_IDS = \[[\s\S]*?section_1385300469/);
+  const proofList = capturedHome.match(/const UNVERIFIED_HOMEPAGE_PROOF_SECTION_IDS = \[([\s\S]*?)\] as const;/)?.[1] ?? "";
+  assert.match(proofList, /section_300790898/);
+  assert.doesNotMatch(proofList, /section_777974837/);
+  assert.doesNotMatch(proofList, /section_1385300469/);
 });
 
 test("preloads the local desktop homepage background when it is the LCP surface", () => {
