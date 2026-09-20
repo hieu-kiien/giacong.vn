@@ -28,6 +28,22 @@ test("returns an authenticated session carrying the operator role", async () => 
   });
 });
 
+test("returns the verified Cloudflare email when present", async () => {
+  const response = await handleAdminSession(new Request("https://admin.example.test/api/admin/session"), {
+    admit: async () => ({ actor: { email: "owner@example.com", subject: "access-subject" }, ok: true }),
+    requestId: () => "request-email",
+    resolveRole: async () => ({ memberId: "owner-1", role: "owner" }),
+  });
+  assert.equal(response.status, 200);
+  assert.deepEqual((await response.json()).data, {
+    authenticated: true,
+    email: "owner@example.com",
+    memberId: "owner-1",
+    role: "owner",
+    subject: "access-subject",
+  });
+});
+
 test("returns the resolved member id so the UI can protect the current account", async () => {
   const response = await handleAdminSession(new Request("https://admin.example.test/api/admin/session"), {
     admit: async () => ({ actor: { subject: "access-subject" }, ok: true }),

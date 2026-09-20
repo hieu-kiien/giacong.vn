@@ -1,8 +1,12 @@
 import type { AdminMemberInput } from "./admin-members-input.ts";
 import { isAdminRequestId } from "./admin-request.ts";
-import { parseAdminMemberPayload } from "./admin-members-input.ts";
+import {
+  parseAdminMemberCreatePayload,
+  parseAdminMemberPayload,
+} from "./admin-members-input.ts";
 
-const memberKeys = ["accessSubject", "displayName", "email", "isActive", "role"] as const;
+const memberCreateKeys = ["displayName", "email", "isActive"] as const;
+const memberUpdateKeys = ["accessSubject", "displayName", "email", "isActive", "role"] as const;
 
 export interface AdminMemberCreateCommand {
   input: AdminMemberInput;
@@ -19,9 +23,9 @@ export function parseAdminMemberCreateCommand(
   payload: unknown,
 ): { command: AdminMemberCreateCommand | null; fieldErrors: Record<string, string> } {
   const source = asRecord(payload);
-  const fieldErrors = exactKeys(source, ["requestId", ...memberKeys]);
+  const fieldErrors = exactKeys(source, ["requestId", ...memberCreateKeys]);
   const requestId = readRequestId(source.requestId, fieldErrors);
-  const parsed = parseAdminMemberPayload(memberFields(source));
+  const parsed = parseAdminMemberCreatePayload(memberFields(source, memberCreateKeys));
   Object.assign(fieldErrors, parsed.fieldErrors);
   return {
     command: requestId && parsed.input && Object.keys(fieldErrors).length === 0
@@ -35,10 +39,10 @@ export function parseAdminMemberUpdateCommand(
   payload: unknown,
 ): { command: AdminMemberUpdateCommand | null; fieldErrors: Record<string, string> } {
   const source = asRecord(payload);
-  const fieldErrors = exactKeys(source, ["requestId", "expectedRevision", ...memberKeys]);
+  const fieldErrors = exactKeys(source, ["requestId", "expectedRevision", ...memberUpdateKeys]);
   const requestId = readRequestId(source.requestId, fieldErrors);
   const expectedRevision = readRevision(source.expectedRevision, fieldErrors);
-  const parsed = parseAdminMemberPayload(memberFields(source));
+  const parsed = parseAdminMemberPayload(memberFields(source, memberUpdateKeys));
   Object.assign(fieldErrors, parsed.fieldErrors);
   return {
     command: requestId && expectedRevision !== null && parsed.input && Object.keys(fieldErrors).length === 0
@@ -48,8 +52,11 @@ export function parseAdminMemberUpdateCommand(
   };
 }
 
-function memberFields(source: Record<string, unknown>): Record<string, unknown> {
-  return Object.fromEntries(memberKeys.map((key) => [key, source[key]]));
+function memberFields(
+  source: Record<string, unknown>,
+  keys: readonly string[],
+): Record<string, unknown> {
+  return Object.fromEntries(keys.map((key) => [key, source[key]]));
 }
 
 function readRequestId(value: unknown, fieldErrors: Record<string, string>): string | null {

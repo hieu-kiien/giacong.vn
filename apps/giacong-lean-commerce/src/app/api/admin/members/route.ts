@@ -34,7 +34,7 @@ export async function POST(request: Request): Promise<Response> {
   }
   const parsedRequest = await readBoundedAdminJson(request);
   if (!parsedRequest.ok) return adminFailure(parsedRequest.requestId, parsedRequest.status, parsedRequest.code, parsedRequest.message);
-  if (!isRecord(parsedRequest.body) || !hasOnlyKeys(parsedRequest.body, ["requestId", "accessSubject", "displayName", "email", "isActive", "role"])) {
+  if (!isRecord(parsedRequest.body) || !hasOnlyKeys(parsedRequest.body, ["requestId", "displayName", "email", "isActive"])) {
     return adminFailure(parsedRequest.requestId, 400, "INVALID_REQUEST", "Body thành viên chứa trường không được hỗ trợ.");
   }
   const parsed = parseAdminMemberCreateCommand(parsedRequest.body);
@@ -46,14 +46,15 @@ export async function POST(request: Request): Promise<Response> {
     return adminSuccess(parsedRequest.requestId, { member }, 201);
   } catch (error) {
     if (error instanceof AdminMemberWriteValidationError) {
-      return adminFailure(parsedRequest.requestId, 422, "VALIDATION_ERROR", error.message);
+      const fieldErrors = /email/i.test(error.message) ? { email: error.message } : undefined;
+      return adminFailure(parsedRequest.requestId, 422, "VALIDATION_ERROR", error.message, fieldErrors);
     }
     if (error instanceof AdminMemberWriteIdempotencyConflictError) {
       return adminFailure(parsedRequest.requestId, 409, "IDEMPOTENCY_CONFLICT", error.message);
     }
     return adminErrorFrom(parsedRequest.requestId, error, "Không thể thêm thành viên.", {
-      fieldErrors: { accessSubject: "accessSubject hoặc email đã tồn tại." },
-      message: "accessSubject hoặc email đã tồn tại.",
+      fieldErrors: { email: "Email này đã tồn tại trong danh sách quản trị." },
+      message: "Email này đã tồn tại trong danh sách quản trị.",
     });
   }
 }

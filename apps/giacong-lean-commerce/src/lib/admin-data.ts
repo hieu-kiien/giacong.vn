@@ -4,6 +4,7 @@ import { getCloudflareContext } from "@opennextjs/cloudflare";
 
 import type { AdminCategoryInput } from "./admin-category-input";
 import { parseAdminNewsPayload, type AdminNewsDraftInput } from "./admin-news-input.ts";
+import { shouldBindAdminAccessSubject } from "./admin-member-identity.ts";
 import { isAdminRole } from "./admin-permissions.ts";
 import { resolveServicePresentation } from "./service-presentation.ts";
 import { getServiceFamily, type ServiceOffering } from "../data/service-families.ts";
@@ -237,19 +238,29 @@ export async function findAdminMember(
   const normalizedSubject = accessSubject.trim();
   if (!normalizedSubject) return null;
 
-  const exactRow = await database.prepare(`
-    SELECT id, access_subject, email, display_name, role
-    FROM admin_members
-    WHERE is_active = 1
-      AND access_subject = ?
-    LIMIT 1
-  `).bind(normalizedSubject).first<{
+  async function findBySubject(): Promise<{
     id: string;
     access_subject: string;
     email: string | null;
     display_name: string;
     role: AdminRole;
-  }>();
+  } | null> {
+    return database.prepare(`
+      SELECT id, access_subject, email, display_name, role
+      FROM admin_members
+      WHERE is_active = 1
+        AND access_subject = ?
+      LIMIT 1
+    `).bind(normalizedSubject).first<{
+      id: string;
+      access_subject: string;
+      email: string | null;
+      display_name: string;
+      role: AdminRole;
+    }>();
+  }
+
+  const exactRow = await findBySubject();
   if (exactRow) return isAdminRole(exactRow.role) ? toAdminMember(exactRow) : null;
 
   const normalizedEmail = email?.trim().toLowerCase() ?? "";
@@ -269,8 +280,43 @@ export async function findAdminMember(
     display_name: string;
     role: AdminRole;
   }>();
+
   if (emailRows.results.length !== 1 || !isAdminRole(emailRows.results[0].role)) return null;
-  return toAdminMember(emailRows.results[0]);
+  const matched = emailRows.results[0];
+
+  if (shouldBindAdminAccessSubject(matched.access_subject, normalizedEmail)) {
+    try {
+      const result = await database.prepare(`
+        UPDATE admin_members
+        SET access_subject = ?, revision = revision + 1, updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+          AND access_subject = ?
+          AND is_active = 1
+      `).bind(normalizedSubject, matched.id, matched.access_subject).run();
+
+      const record = typeof result === "object" && result !== null
+        ? result as { meta?: { changes?: unknown }; results?: unknown[] }
+        : null;
+      const changed = Array.isArray(record?.results)
+        ? record.results.length > 0
+        : Number(record?.meta?.changes ?? 0) > 0;
+
+      if (changed) {
+        return toAdminMember({ ...matched, access_subject: normalizedSubject });
+      }
+
+      // A parallel request may have completed the first-login bind already.
+      const rebound = await findBySubject();
+      return rebound && isAdminRole(rebound.role) ? toAdminMember(rebound) : null;
+    } catch {
+      // Fail closed if the identity cannot be bound (for example a uniqueness conflict).
+      return null;
+    }
+  }
+
+  // Existing bound accounts continue to use verified-email fallback so a
+  // Cloudflare identity re-issue does not unexpectedly lock out an owner.
+  return toAdminMember(matched);
 }
 
 function toAdminMember(row: {

@@ -1,6 +1,6 @@
 "use client";
 
-import { ClipboardList, ExternalLink, History, LayoutDashboard, LayoutTemplate, Menu, Newspaper, Package, PanelTop, PenLine, Settings2, UsersRound, X } from "lucide-react";
+import { ClipboardList, ExternalLink, History, LayoutDashboard, LayoutTemplate, LogOut, Menu, Newspaper, Package, PanelTop, PenLine, Settings2, UsersRound, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Fragment, createContext, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type MouseEvent as ReactMouseEvent, type ReactNode } from "react";
@@ -77,6 +77,8 @@ const navGroups: ReadonlyArray<AdminNavGroup> = [
 const roleLabels: Record<string, string> = {
   owner: "Admin toàn quyền",
 };
+
+const CLOUDFLARE_ACCESS_LOGOUT_PATH = "/cdn-cgi/access/logout";
 
 const subscribeToBrowserLocation = () => () => undefined;
 const getStagingHostSnapshot = () => isStagingAdminHost(window.location.hostname);
@@ -177,7 +179,7 @@ export function AdminShell({ brandName, children }: AdminShellProps) {
   const menuTriggerRef = useRef<HTMLButtonElement>(null);
   const [attempt, setAttempt] = useState(0);
   const isStagingHost = useSyncExternalStore(subscribeToBrowserLocation, getStagingHostSnapshot, getServerStagingHostSnapshot);
-  const [pendingNav, setPendingNav] = useState<{ href: string } | { history: true } | null>(null);
+  const [pendingNav, setPendingNav] = useState<{ href: string } | { history: true } | { logout: true } | null>(null);
   const [historyDiscardKey, setHistoryDiscardKey] = useState(0);
   const [unsavedSaving, setUnsavedSaving] = useState(false);
   const [unsavedRevision, setUnsavedRevision] = useState(0);
@@ -186,7 +188,7 @@ export function AdminShell({ brandName, children }: AdminShellProps) {
   const unsavedSavingRef = useRef(false);
   const currentHrefRef = useRef<string | null>(null);
   const currentHistoryStateRef = useRef<Record<string, unknown> | null>(null);
-  const pendingRef = useRef<{ href: string } | { history: true } | null>(null);
+  const pendingRef = useRef<{ href: string } | { history: true } | { logout: true } | null>(null);
   const pendingHistoryRef = useRef<{ delta: number; direction: AdminHistoryPopDirection } | null>(null);
   const allowPopRef = useRef(false);
   const historyDiscardRef = useRef<string | null>(null);
@@ -308,6 +310,27 @@ export function AdminShell({ brandName, children }: AdminShellProps) {
     setPendingNav(nextPending);
   }
 
+  function handleLogoutClick(event: ReactMouseEvent<HTMLAnchorElement>) {
+    if (event.defaultPrevented) return;
+    if (event.button !== 0) return;
+    if (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
+
+    let dirty = false;
+    try {
+      dirty = unsavedIsDirtyRef.current();
+    } catch {
+      dirty = false;
+    }
+    const saving = unsavedSavingRef.current;
+    if (!shouldBlockUnsavedNavigation({ isDirty: dirty, saving, hasPending: pendingRef.current !== null })) return;
+
+    event.preventDefault();
+    if (pendingRef.current) return;
+    const nextPending = { logout: true } as const;
+    pendingRef.current = nextPending;
+    setPendingNav(nextPending);
+  }
+
   useLayoutEffect(() => {
     function onPopState(event: PopStateEvent) {
       const recovery = historyRecoveryRef.current;
@@ -384,6 +407,11 @@ export function AdminShell({ brandName, children }: AdminShellProps) {
     pendingRef.current = null;
     if (!pending) return;
     setMobileOpen(false);
+    if ("logout" in pending) {
+      pendingHistoryRef.current = null;
+      window.location.assign(new URL(CLOUDFLARE_ACCESS_LOGOUT_PATH, window.location.origin).toString());
+      return;
+    }
     if ("history" in pending) {
       const pendingHistory = pendingHistoryRef.current;
       pendingHistoryRef.current = null;
@@ -500,7 +528,16 @@ export function AdminShell({ brandName, children }: AdminShellProps) {
                 {isStagingHost ? <span className="admin-environment-badge" data-testid="badge-admin-environment">BẢN THỬ</span> : null}
                 <span className="admin-live-dot">Kết nối trực tiếp</span>
                 <span className="admin-role-label">Vai trò: {roleLabels[session.role] ?? "Tài khoản được cấp quyền"}</span>
-                <span aria-label={`Tài khoản ${session.subject}`} className="admin-avatar" title={session.subject}>{getInitials(session.subject)}</span>
+                <span aria-label={`Tài khoản ${session.email ?? session.subject}`} className="admin-avatar" title={session.email ?? session.subject}>{getInitials(session.email ?? session.subject)}</span>
+                <a
+                  className="admin-storefront-link"
+                  data-testid="link-admin-logout"
+                  href={CLOUDFLARE_ACCESS_LOGOUT_PATH}
+                  onClick={handleLogoutClick}
+                >
+                  Đăng xuất
+                  <LogOut aria-hidden="true" size={14} />
+                </a>
               </div>
             </header>
             <Fragment key={historyDiscardKey}>{children}</Fragment>
@@ -510,11 +547,13 @@ export function AdminShell({ brandName, children }: AdminShellProps) {
         {pendingNav ? (
           <AdminConfirmDialog
             cancelLabel="Ở lại"
-            confirmLabel="Bỏ thay đổi"
-            message="Còn thay đổi chưa lưu. Rời trang sẽ mất thay đổi. Vẫn rời trang?"
+            confirmLabel={"logout" in pendingNav ? "Đăng xuất" : "Bỏ thay đổi"}
+            message={"logout" in pendingNav
+              ? "Còn thay đổi chưa lưu. Đăng xuất lúc này sẽ làm mất các thay đổi đó. Vẫn đăng xuất?"
+              : "Còn thay đổi chưa lưu. Rời trang sẽ mất thay đổi. Vẫn rời trang?"}
             onConfirm={confirmPendingNav}
             onDismiss={dismissPendingNav}
-            title="Bỏ thay đổi chưa lưu?"
+            title={"logout" in pendingNav ? "Đăng xuất khỏi admin?" : "Bỏ thay đổi chưa lưu?"}
           />
         ) : null}
       </AdminToastProvider>
