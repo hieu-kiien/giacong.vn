@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 import type { D1DatabaseLike, D1PreparedStatementLike } from "../src/lib/admin-data.ts";
 import { findAdminMember } from "../src/lib/admin-data.ts";
-import { parseAdminMemberPayload } from "../src/lib/admin-members-input.ts";
+import { parseAdminMemberCreatePayload, parseAdminMemberPayload } from "../src/lib/admin-members-input.ts";
 import { ADMIN_CAPABILITIES, canManage, canManageMembers, canManageNavigation, canManagePages } from "../src/lib/admin-permissions.ts";
 
 test("single admin role rejects retired permissions and member payloads", () => {
@@ -93,6 +93,62 @@ test("member payloads normalize identity fields and role", () => {
     isActive: true,
     role: "owner",
   });
+});
+
+test("member creation needs only verified-email identity fields", () => {
+  const parsed = parseAdminMemberCreatePayload({
+    displayName: "  Người mới  ",
+    email: " NEW.ADMIN@EXAMPLE.COM ",
+    isActive: true,
+  });
+  assert.deepEqual(parsed.fieldErrors, {});
+  assert.deepEqual(parsed.input, {
+    accessSubject: "pending-email:new.admin@example.com",
+    displayName: "Người mới",
+    email: "new.admin@example.com",
+    isActive: true,
+    role: "owner",
+  });
+
+  const missingEmail = parseAdminMemberCreatePayload({
+    displayName: "Người mới",
+    email: "",
+    isActive: true,
+  });
+  assert.equal(missingEmail.input, null);
+  assert.ok(missingEmail.fieldErrors.email);
+});
+
+test("first verified-email login binds a pending Access subject", async () => {
+  const pending: LookupRow = {
+    access_subject: "pending-email:new.admin@example.com",
+    display_name: "Người mới",
+    email: "new.admin@example.com",
+    id: "owner-pending",
+    role: "owner",
+  };
+  const database = new LookupDatabase(null, [pending]);
+  const member = await findAdminMember(database, "cloudflare-sub-123", "NEW.ADMIN@EXAMPLE.COM");
+  assert.deepEqual(member, {
+    accessSubject: "cloudflare-sub-123",
+    displayName: "Người mới",
+    email: "new.admin@example.com",
+    id: "owner-pending",
+    role: "owner",
+  });
+  assert.ok(database.queries.some((query) => /UPDATE admin_members/.test(query)));
+});
+
+test("admin account UI hides accessSubject and exposes Cloudflare logout", async () => {
+  const [manager, shell] = await Promise.all([
+    readFile(new URL("../src/components/admin/AdminMembersManager.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/components/admin/AdminShell.tsx", import.meta.url), "utf8"),
+  ]);
+  assert.doesNotMatch(manager, /member-new-subject/);
+  assert.match(manager, /Email đăng nhập/);
+  assert.match(manager, /newMember\.email\.trim\(\)/);
+  assert.match(shell, /\/cdn-cgi\/access\/logout/);
+  assert.match(shell, /link-admin-logout/);
 });
 
 test("member payloads reject unsafe identity values and unknown roles", () => {
