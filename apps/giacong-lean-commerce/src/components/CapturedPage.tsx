@@ -1,7 +1,7 @@
 /* eslint-disable @next/next/no-css-tags -- Fixed TOC is a route-specific public capture asset. */
 import { AdminContactContextualAction } from "@/components/admin/AdminContactContextualAction";
 import { GiacongInteractions } from "@/components/GiacongInteractions";
-import { CapturedRequestCartButton } from "@/components/request-cart/CapturedRequestCartButton";
+import { DesktopCapturedRequestCartButton } from "@/components/request-cart/DesktopCapturedRequestCartButton";
 import { addCapturedServiceContext, layerCapturedStyles, needsCapturedShopStyles, normalizeCapturedMarkup, type CapturedServiceContext } from "@/lib/captured-markup";
 import { applySiteSettingsToMarkup, siteBrandStyles } from "@/lib/site-markup";
 import {
@@ -75,7 +75,7 @@ export function CapturedFloatingContact({ settings = siteSettingDefaults }: { se
   const phone = settings.contact_phone.replace(/[^\d+]/g, "");
   return (
     <div className="echbay-sms-messenger style-for-position-br max-[549px]:!hidden" aria-label="Liên hệ nhanh" role="region">
-        <CapturedRequestCartButton />
+        <DesktopCapturedRequestCartButton />
         <div className="phonering-alo-alo">
           <a href={`tel:${phone}`} rel="nofollow" aria-label={`Gọi ${settings.contact_phone}`}>.</a>
         </div>
