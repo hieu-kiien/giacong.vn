@@ -3,8 +3,8 @@
 import { lazy, Suspense, useEffect, useState } from "react";
 
 const LazyCapturedRequestCartButton = lazy(async () => {
-  const module = await import("./CapturedRequestCartButton");
-  return { default: module.CapturedRequestCartButton };
+  const cartModule = await import("./CapturedRequestCartButton");
+  return { default: cartModule.CapturedRequestCartButton };
 });
 
 export function DesktopCapturedRequestCartButton() {
