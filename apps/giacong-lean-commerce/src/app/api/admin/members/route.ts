@@ -46,7 +46,8 @@ export async function POST(request: Request): Promise<Response> {
     return adminSuccess(parsedRequest.requestId, { member }, 201);
   } catch (error) {
     if (error instanceof AdminMemberWriteValidationError) {
-      return adminFailure(parsedRequest.requestId, 422, "VALIDATION_ERROR", error.message);
+      const fieldErrors = /email/i.test(error.message) ? { email: error.message } : undefined;
+      return adminFailure(parsedRequest.requestId, 422, "VALIDATION_ERROR", error.message, fieldErrors);
     }
     if (error instanceof AdminMemberWriteIdempotencyConflictError) {
       return adminFailure(parsedRequest.requestId, 409, "IDEMPOTENCY_CONFLICT", error.message);
