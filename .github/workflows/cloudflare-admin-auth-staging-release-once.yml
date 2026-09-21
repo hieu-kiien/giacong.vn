@@ -138,30 +138,7 @@ jobs:
             test "$status" = "200"
           done
 
-          product_meta="$(curl --fail-with-body --silent --show-error --location --max-time 25 \
-            -H 'Accept: application/json' \
-            --output /tmp/product.json \
-            --write-out '%{http_code}|%{content_type}' \
-            "$PREVIEW_ORIGIN/api/catalog/products/bot-gao-lut-xay-min")"
-          product_status="${product_meta%%|*}"
-          product_type="${product_meta#*|}"
-          echo "product API -> HTTP $product_status, Content-Type $product_type"
-          test "$product_status" = "200"
-          jq -e '.product.slug == "bot-gao-lut-xay-min" and .product.startingPrice.price == 78000 and .product.variantCount >= 3' /tmp/product.json >/dev/null
-
-          cart_meta="$(curl --fail-with-body --silent --show-error --location --max-time 25 \
-            -H 'Accept: application/json' \
-            -H 'Content-Type: application/json' \
-            --data '{"lines":[{"parentSlug":"bot-gao-lut-xay-min","variantSku":"B2B-DEMO-BGL-05","quantity":25}]}' \
-            --output /tmp/cart.json \
-            --write-out '%{http_code}|%{content_type}' \
-            "$PREVIEW_ORIGIN/api/gui-yeu-cau/xac-thuc")"
-          cart_status="${cart_meta%%|*}"
-          cart_type="${cart_meta#*|}"
-          echo "cart validation API -> HTTP $cart_status, Content-Type $cart_type"
-          test "$cart_status" = "200"
-          jq -e '.ok == true and .cart.isSubmittable == true and .cart.pricedSubtotal == 1950000 and .cart.lines[0].unitPrice == 78000' /tmp/cart.json >/dev/null
-
+          echo "Version preview HTML smoke passed; API routes are verified only after promotion on the staging origin."
           session_status="$(curl --silent --show-error --max-time 25 --output /tmp/session-preview.json --write-out '%{http_code}' "$PREVIEW_ORIGIN/api/admin/session")"
           echo "workers.dev admin session -> HTTP $session_status"
           test "$session_status" = "404"
@@ -184,6 +161,32 @@ jobs:
             echo "$path -> HTTP $status"
             test "$status" = "200"
           done
+
+          product_meta="$(curl --fail-with-body --silent --show-error --location --max-time 25 \
+            -H 'Accept: application/json' \
+            --output /tmp/active-product.json \
+            --write-out '%{http_code}|%{content_type}' \
+            "$STAGING_ORIGIN/api/catalog/products/bot-gao-lut-xay-min")"
+          product_status="${product_meta%%|*}"
+          product_type="${product_meta#*|}"
+          echo "active product API -> HTTP $product_status, Content-Type $product_type"
+          test "$product_status" = "200"
+          test "$product_type" = "application/json; charset=utf-8" || test "$product_type" = "application/json"
+          jq -e '.product.slug == "bot-gao-lut-xay-min" and .product.startingPrice.price == 78000 and .product.variantCount >= 3' /tmp/active-product.json >/dev/null
+
+          cart_meta="$(curl --fail-with-body --silent --show-error --location --max-time 25 \
+            -H 'Accept: application/json' \
+            -H 'Content-Type: application/json' \
+            --data '{"lines":[{"parentSlug":"bot-gao-lut-xay-min","variantSku":"B2B-DEMO-BGL-05","quantity":25}]}' \
+            --output /tmp/active-cart.json \
+            --write-out '%{http_code}|%{content_type}' \
+            "$STAGING_ORIGIN/api/gui-yeu-cau/xac-thuc")"
+          cart_status="${cart_meta%%|*}"
+          cart_type="${cart_meta#*|}"
+          echo "active cart validation API -> HTTP $cart_status, Content-Type $cart_type"
+          test "$cart_status" = "200"
+          test "$cart_type" = "application/json; charset=utf-8" || test "$cart_type" = "application/json"
+          jq -e '.ok == true and .cart.isSubmittable == true and .cart.pricedSubtotal == 1950000 and .cart.lines[0].unitPrice == 78000' /tmp/active-cart.json >/dev/null
 
           wrong_host_status="$(curl --silent --show-error --max-time 25 --output /tmp/wrong-host.json --write-out '%{http_code}' "$STAGING_ORIGIN/api/admin/session")"
           echo "active workers.dev admin session -> HTTP $wrong_host_status"
@@ -220,6 +223,7 @@ jobs:
             echo "- Isolated preview: \`$PREVIEW_ORIGIN\`"
             echo "- Remote R2 cache bucket verified with Wrangler: passed"
             echo "- OpenNext R2 preflight workaround: applied only for the known connection-error check; actual R2 population remained fatal"
+            echo "- API smoke: executed after promotion on the active staging origin; preview URL is HTML-only smoke"
             echo "- Public storefront/cart smoke: passed"
             echo "- workers.dev admin bypass attempt: 404"
             echo "- unauthenticated admin hostname: blocked/challenged by Cloudflare Access"
