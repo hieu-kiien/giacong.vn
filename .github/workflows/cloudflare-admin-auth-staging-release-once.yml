@@ -50,7 +50,9 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 24
+          # Pin the release toolchain below the Node 24.17 HTTP-Agent regression.
+          # The deployed Cloudflare Worker does not run on this Node runtime.
+          node-version: 24.16.0
           cache: npm
           cache-dependency-path: apps/giacong-lean-commerce/package-lock.json
 
