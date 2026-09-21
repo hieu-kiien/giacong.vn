@@ -21,7 +21,7 @@ if (source.includes('logger.warn("OpenNext R2 preflight bypass:')) {
   process.exit(0);
 }
 
-const guardPattern = /if\\s*\\(!result\\.success\\)\\s*\\{\\s*throw new Error\\(\\`Failed to provision remote R2 bucket \"\$\\{bucketName\\}\" for binding \"\$\\{R2_CACHE_BINDING_NAME\\}\": \$\\{result\\.error\\}\`\\);\\s*\\}/;
+const guardPattern = /if\s*\(!result\.success\)\s*\{\s*throw new Error\(`Failed to provision remote R2 bucket "\$\{bucketName\}" for binding "\$\{R2_CACHE_BINDING_NAME\}": \$\{result\.error\}`\);\s*\}/;
 
 const match = source.match(guardPattern);
 if (!match) {
@@ -33,16 +33,20 @@ const replacement = [
   '  if (result.error === ' + JSON.stringify(ACCEPTED_ERROR) + ') {',
   "    logger.warn(\"OpenNext R2 preflight bypass: Cloudflare bucket-existence check failed with Connection error; continuing to the R2 Worker population path.\");",
   "  } else {",
-  "    throw new Error(`Failed to provision remote R2 bucket \\"${bucketName}\\" for binding \\"${R2_CACHE_BINDING_NAME}\\": ${result.error}`);",
+  "    throw new Error(`Failed to provision remote R2 bucket \"${bucketName}\" for binding \"${R2_CACHE_BINDING_NAME}\": ${result.error}`);",
   "  }",
   "}",
-].join('\\n');
+].join("\n");
 
 const patched = source.replace(match[0], replacement);
 await writeFile(targetPath, patched);
 
 const verify = await readFile(targetPath, "utf8");
-if (!verify.includes('logger.warn("OpenNext R2 preflight bypass:')) {
+if (
+  !verify.includes('logger.warn("OpenNext R2 preflight bypass:') ||
+  !verify.includes(JSON.stringify(ACCEPTED_ERROR)) ||
+  verify === source
+) {
   throw new Error("OpenNext R2 preflight workaround verification failed.");
 }
 
