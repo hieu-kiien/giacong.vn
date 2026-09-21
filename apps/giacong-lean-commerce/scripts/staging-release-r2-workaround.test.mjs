@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 const [workflow, patchScript] = await Promise.all([
-  readFile(new URL("../../.github/workflows/cloudflare-admin-auth-staging-release-once.yml", import.meta.url), "utf8"),
+  readFile(new URL("../../../.github/workflows/cloudflare-admin-auth-staging-release-once.yml", import.meta.url), "utf8"),
   readFile(new URL("./patch-opennext-r2-preflight.mjs", import.meta.url), "utf8"),
 ]);
 
