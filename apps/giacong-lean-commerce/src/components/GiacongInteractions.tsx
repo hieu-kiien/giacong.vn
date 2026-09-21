@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 
 import {
   resolveDesktopDropdownEscapeTarget,
@@ -65,6 +66,8 @@ export function GiacongInteractions({
   bodyClasses,
   htmlClasses,
 }: GiacongInteractionsProps) {
+  const router = useRouter();
+
   useEffect(() => {
     const previousBodyClasses = document.body.className;
     const previousHtmlClasses = document.documentElement.className;
@@ -202,6 +205,41 @@ export function GiacongInteractions({
       openMenu(headerSearchTrigger, mobileSearchInput ?? null);
       mobileSearchInput?.select();
     };
+    const handleInternalNavigation = (event: MouseEvent) => {
+      if (
+        event.defaultPrevented
+        || event.button !== 0
+        || event.metaKey
+        || event.ctrlKey
+        || event.shiftKey
+        || event.altKey
+      ) return;
+      if (!(event.target instanceof Element)) return;
+
+      const anchor = event.target.closest<HTMLAnchorElement>("a[href]");
+      if (!anchor || anchor.target === "_blank" || anchor.hasAttribute("download")) return;
+
+      const href = anchor.getAttribute("href");
+      if (!href || href.startsWith("#")) return;
+
+      let url: URL;
+      try {
+        url = new URL(href, window.location.href);
+      } catch {
+        return;
+      }
+      if (url.origin !== window.location.origin) return;
+      if (url.pathname === window.location.pathname && url.search === window.location.search && url.hash) return;
+
+      const normalizedPath = url.pathname === "/" ? "/" : url.pathname.replace(/\/+$/, "");
+      const nextHref = `${normalizedPath}${url.search}${url.hash}`;
+      const currentHref = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+      if (nextHref === currentHref) return;
+
+      event.preventDefault();
+      setMenuClosed(false);
+      router.push(normalizedPath + url.search + url.hash);
+    };
     const handleMenuKeydown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         if (!menu?.classList.contains("clone-menu-open")) {
@@ -271,6 +309,7 @@ export function GiacongInteractions({
     menuBackdrop.addEventListener("click", closeMenu);
     menuClose.addEventListener("click", closeMenu);
     document.addEventListener("click", handleSubmenu);
+    document.addEventListener("click", handleInternalNavigation);
     document.addEventListener("keydown", handleMenuKeydown);
     window.addEventListener("scroll", updateStickyHeader, { passive: true });
     updateStickyHeader();
@@ -282,6 +321,7 @@ export function GiacongInteractions({
       menuBackdrop.removeEventListener("click", closeMenu);
       menuClose.removeEventListener("click", closeMenu);
       document.removeEventListener("click", handleSubmenu);
+      document.removeEventListener("click", handleInternalNavigation);
       document.removeEventListener("keydown", handleMenuKeydown);
       window.removeEventListener("scroll", updateStickyHeader);
       cancelCapturedMotionSchedule();
@@ -306,7 +346,7 @@ export function GiacongInteractions({
       document.body.className = previousBodyClasses;
       document.documentElement.className = previousHtmlClasses;
     };
-  }, [bodyClasses, htmlClasses]);
+  }, [bodyClasses, htmlClasses, router]);
 
   return null;
 }
