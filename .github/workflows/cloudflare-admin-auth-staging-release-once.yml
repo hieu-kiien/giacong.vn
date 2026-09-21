@@ -138,14 +138,28 @@ jobs:
             test "$status" = "200"
           done
 
-          curl --fail-with-body --silent --show-error --max-time 25 \
-            "$PREVIEW_ORIGIN/api/catalog/products/bot-gao-lut-xay-min" > /tmp/product.json
+          product_meta="$(curl --fail-with-body --silent --show-error --location --max-time 25 \
+            -H 'Accept: application/json' \
+            --output /tmp/product.json \
+            --write-out '%{http_code}|%{content_type}' \
+            "$PREVIEW_ORIGIN/api/catalog/products/bot-gao-lut-xay-min")"
+          product_status="${product_meta%%|*}"
+          product_type="${product_meta#*|}"
+          echo "product API -> HTTP $product_status, Content-Type $product_type"
+          test "$product_status" = "200"
           jq -e '.product.slug == "bot-gao-lut-xay-min" and .product.startingPrice.price == 78000 and .product.variantCount >= 3' /tmp/product.json >/dev/null
 
-          curl --fail-with-body --silent --show-error --max-time 25 \
+          cart_meta="$(curl --fail-with-body --silent --show-error --location --max-time 25 \
+            -H 'Accept: application/json' \
             -H 'Content-Type: application/json' \
             --data '{"lines":[{"parentSlug":"bot-gao-lut-xay-min","variantSku":"B2B-DEMO-BGL-05","quantity":25}]}' \
-            "$PREVIEW_ORIGIN/api/gui-yeu-cau/xac-thuc" > /tmp/cart.json
+            --output /tmp/cart.json \
+            --write-out '%{http_code}|%{content_type}' \
+            "$PREVIEW_ORIGIN/api/gui-yeu-cau/xac-thuc")"
+          cart_status="${cart_meta%%|*}"
+          cart_type="${cart_meta#*|}"
+          echo "cart validation API -> HTTP $cart_status, Content-Type $cart_type"
+          test "$cart_status" = "200"
           jq -e '.ok == true and .cart.isSubmittable == true and .cart.pricedSubtotal == 1950000 and .cart.lines[0].unitPrice == 78000' /tmp/cart.json >/dev/null
 
           session_status="$(curl --silent --show-error --max-time 25 --output /tmp/session-preview.json --write-out '%{http_code}' "$PREVIEW_ORIGIN/api/admin/session")"
