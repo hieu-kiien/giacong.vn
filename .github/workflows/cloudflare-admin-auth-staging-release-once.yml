@@ -27,6 +27,7 @@ jobs:
       ADMIN_ORIGIN: https://admin-staging.kienhieu.id.vn
       WORKER_NAME: giacong-vn-staging
       WORKERS_SUBDOMAIN: qtu1053
+      CACHE_BUCKET: giacong-vn-next-cache-staging
       EXPECTED_APP_BASE_SHA: 3e66904c600e2b97794bb806fd9beaa26ee940ec
 
     steps:
@@ -62,6 +63,13 @@ jobs:
       - name: Record release toolchain version
         run: node --version
 
+      - name: Verify remote R2 cache bucket with Wrangler
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx wrangler r2 bucket info "$CACHE_BUCKET" --env=staging --json > /tmp/cache-bucket.json
+          jq -e --arg expected "$CACHE_BUCKET" '.name == $expected' /tmp/cache-bucket.json
+
       - name: Capture active rollback point and existing versions
         id: before
         shell: bash
@@ -83,6 +91,9 @@ jobs:
 
       - name: Build OpenNext staging artifact
         run: npm run cf:build:staging
+
+      - name: Patch OpenNext R2 provisioning preflight
+        run: node scripts/patch-opennext-r2-preflight.mjs
 
       - name: Upload a new version without changing traffic
         shell: bash
@@ -193,6 +204,8 @@ jobs:
             echo "- Previous rollback version: \`${{ steps.before.outputs.old_version_id }}\`"
             echo "- New active version: \`$NEW_VERSION_ID\`"
             echo "- Isolated preview: \`$PREVIEW_ORIGIN\`"
+            echo "- Remote R2 cache bucket verified with Wrangler: passed"
+            echo "- OpenNext R2 preflight workaround: applied only for the known connection-error check; actual R2 population remained fatal"
             echo "- Public storefront/cart smoke: passed"
             echo "- workers.dev admin bypass attempt: 404"
             echo "- unauthenticated admin hostname: blocked/challenged by Cloudflare Access"
