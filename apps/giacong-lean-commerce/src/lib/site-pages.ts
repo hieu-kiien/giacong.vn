@@ -393,7 +393,7 @@ const readPublishedSitePage = unstable_cache(
     };
   },
   ["published-site-page"],
-  { revalidate: 60 },
+  { revalidate: 60, tags: ["published-site-page", "site-pages"] }, /* { revalidate: 60 } */
 );
 
 export const getPublishedSitePage = cache(async function getPublishedSitePage(routePath: string): Promise<PublishedSitePage | null> {

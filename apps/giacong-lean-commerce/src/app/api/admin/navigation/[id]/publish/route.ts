@@ -9,13 +9,13 @@ import {
   SiteNavigationNotFoundError,
   SiteNavigationValidationError,
 } from "@/lib/site-navigation.ts";
+import { revalidatePublishedStorefront, withStorefrontPurgeHeader } from "@/lib/storefront-revalidate";
 
 export const dynamic = "force-dynamic";
 
 interface RouteContext {
   params: Promise<{ id: string }>;
 }
-
 export async function POST(request: Request, context: RouteContext): Promise<Response> {
   const guard = await requireAdmin(request);
   if (guard instanceof Response) return guard;
@@ -45,7 +45,11 @@ export async function POST(request: Request, context: RouteContext): Promise<Res
       id: (await context.params).id,
       requestId,
     });
-    return adminSuccess(requestId, { item });
+    revalidatePublishedStorefront({
+      tags: ["published-site-navigation", "site-navigation"],
+      paths: ["/"],
+    });
+    return withStorefrontPurgeHeader(adminSuccess(requestId, { item }), ["/"]);
   } catch (error) {
     if (error instanceof SiteNavigationConflictError) return adminFailure(requestId, 409, "STALE_WRITE", error.message);
     if (error instanceof SiteNavigationNotFoundError) return adminFailure(requestId, 404, "NOT_FOUND", error.message);

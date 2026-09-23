@@ -10,6 +10,7 @@ import {
   SiteSettingNotFoundError,
   SiteSettingValidationError,
 } from "@/lib/site-settings";
+import { revalidatePublishedStorefront, withStorefrontPurgeHeader } from "@/lib/storefront-revalidate";
 
 export const dynamic = "force-dynamic";
 
@@ -43,7 +44,11 @@ export async function POST(request: Request): Promise<Response> {
       key: body.key,
       requestId,
     });
-    return adminSuccess(requestId, { setting });
+    revalidatePublishedStorefront({
+      tags: ["published-site-settings", "site-settings"],
+      paths: ["/"],
+    });
+    return withStorefrontPurgeHeader(adminSuccess(requestId, { setting }), ["/"]);
   } catch (error) {
     if (error instanceof SiteSettingConflictError) return adminFailure(requestId, 409, "STALE_WRITE", error.message);
     if (error instanceof SiteSettingIdempotencyConflictError) return adminFailure(requestId, 409, "IDEMPOTENCY_CONFLICT", error.message);

@@ -10,7 +10,7 @@ import { getPublishedSiteNavigation } from "@/lib/site-navigation";
 import { canonicalMetadata } from "@/lib/seo";
 import type { CapturedPageData } from "@/types/captured-page";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 86400;
 
 const data = homePage as CapturedPageData;
 

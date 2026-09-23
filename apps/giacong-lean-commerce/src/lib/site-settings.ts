@@ -350,7 +350,7 @@ const readPublishedSiteSettings = unstable_cache(
     return selectPublishedSiteSettings(rows.results);
   },
   ["published-site-settings"],
-  { revalidate: 60 },
+  { revalidate: 60, tags: ["published-site-settings", "site-settings"] }, /* { revalidate: 60 } */
 );
 
 export const getPublishedSiteSettings = cache(async function getPublishedSiteSettings(): Promise<PublishedSiteSettings> {

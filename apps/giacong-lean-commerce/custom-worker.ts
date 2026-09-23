@@ -39,6 +39,7 @@ const nonIndexableHosts = new Set([
 ]);
 
 const PUBLIC_DOCUMENT_CACHE_CONTROL = "public, max-age=0, s-maxage=600, stale-while-revalidate=3600";
+const CDN_DOCUMENT_CACHE_CONTROL = "public, max-age=86400, stale-while-revalidate=604800";
 const publicDocumentCache = (caches as CacheStorage & { default: Cache }).default;
 
 function isPublicDocumentRequest(request: Request): boolean {
@@ -63,6 +64,7 @@ function withPublicDocumentCache(request: Request, response: Response): Response
 
   const headers = new Headers(response.headers);
   headers.set("Cache-Control", PUBLIC_DOCUMENT_CACHE_CONTROL);
+  headers.set("CDN-Cache-Control", CDN_DOCUMENT_CACHE_CONTROL);
   headers.delete("Pragma");
   headers.delete("Expires");
   return new Response(response.body, {
@@ -174,6 +176,29 @@ const worker = {
     if (cachedDocument) return cachedDocument;
 
     const response = await generatedWorker.fetch(request, env, ctx);
+
+    if (response.headers.has("x-purge-storefront-cache")) {
+      const purgePaths = (response.headers.get("x-purge-storefront-cache") ?? "/")
+        .split(",")
+        .map((path: string) => path.trim())
+        .filter(Boolean);
+      for (const purgePath of purgePaths) {
+        const purgeKey = new Request(new URL(purgePath, "https://kienhieu.id.vn").toString(), { method: "GET" });
+        ctx.waitUntil(
+          publicDocumentCache.delete(purgeKey).catch((error: unknown) => {
+            console.warn("Public document cache delete failed.", error);
+          }),
+        );
+      }
+      const cleanedHeaders = new Headers(response.headers);
+      cleanedHeaders.delete("x-purge-storefront-cache");
+      return new Response(response.body, {
+        headers: cleanedHeaders,
+        status: response.status,
+        statusText: response.statusText,
+      });
+    }
+
     const catalogResponse = await withCatalogProductNotFoundStatus(request, response, env);
     const finalResponse = withPublicDocumentCache(
       request,

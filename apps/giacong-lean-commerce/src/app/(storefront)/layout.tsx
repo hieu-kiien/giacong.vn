@@ -11,8 +11,6 @@ import { normalizeAdminAccessConfig } from "@/lib/admin-access";
 import "./captured-layers.css";
 import "../../styles/admin.css";
 
-export const dynamic = "force-dynamic";
-
 export default async function StorefrontLayout({ children }: { children: React.ReactNode }) {
   const requestHeaders = await headers();
   const adminConfig = normalizeAdminAccessConfig(getRuntimeAdminAccessConfig());

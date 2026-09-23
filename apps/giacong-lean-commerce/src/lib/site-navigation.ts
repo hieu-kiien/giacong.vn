@@ -1454,7 +1454,7 @@ const readPublishedSiteNavigation = unstable_cache(
     return navigationItems;
   },
   ["published-site-navigation"],
-  { revalidate: 60 },
+  { revalidate: 60, tags: ["published-site-navigation", "site-navigation"] }, /* { revalidate: 60 } */
 );
 
 export const getPublishedSiteNavigation = cache(async function getPublishedSiteNavigation(): Promise<PublishedNavigationItem[]> {

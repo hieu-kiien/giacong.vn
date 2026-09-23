@@ -7,6 +7,7 @@ import {
   publishAllAdminSiteSettings,
   SiteSettingIdempotencyConflictError,
 } from "@/lib/site-settings";
+import { revalidatePublishedStorefront, withStorefrontPurgeHeader } from "@/lib/storefront-revalidate";
 
 export const dynamic = "force-dynamic";
 
@@ -30,7 +31,11 @@ export async function POST(request: Request): Promise<Response> {
       actorSubject: guard.actorSubject,
       requestId,
     });
-    return adminSuccess(requestId, { published, skipped, count: published.length });
+    revalidatePublishedStorefront({
+      tags: ["published-site-settings", "site-settings"],
+      paths: ["/"],
+    });
+    return withStorefrontPurgeHeader(adminSuccess(requestId, { published, skipped, count: published.length }), ["/"]);
   } catch (error) {
     if (error instanceof SiteSettingIdempotencyConflictError) {
       return adminFailure(requestId, 409, "IDEMPOTENCY_CONFLICT", error.message);

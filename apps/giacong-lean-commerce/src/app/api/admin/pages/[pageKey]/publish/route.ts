@@ -10,13 +10,13 @@ import {
   SitePageNotFoundError,
   SitePageValidationError,
 } from "@/lib/site-pages.ts";
+import { revalidatePublishedStorefront, withStorefrontPurgeHeader } from "@/lib/storefront-revalidate";
 
 export const dynamic = "force-dynamic";
 
 interface RouteContext {
   params: Promise<{ pageKey: string }>;
 }
-
 export async function POST(request: Request, context: RouteContext): Promise<Response> {
   const guard = await requireAdmin(request);
   if (guard instanceof Response) return guard;
@@ -45,7 +45,11 @@ export async function POST(request: Request, context: RouteContext): Promise<Res
       pageKey: (await context.params).pageKey,
       requestId,
     });
-    return adminSuccess(requestId, { page });
+    revalidatePublishedStorefront({
+      tags: ["published-site-page", "site-pages"],
+      paths: [page.routePath, "/"],
+    });
+    return withStorefrontPurgeHeader(adminSuccess(requestId, { page }), [page.routePath, "/"]);
   } catch (error) {
     if (error instanceof SitePageConflictError) return adminFailure(requestId, 409, "STALE_WRITE", error.message);
     if (error instanceof SitePageIdempotencyConflictError) return adminFailure(requestId, 409, "IDEMPOTENCY_CONFLICT", error.message);

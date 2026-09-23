@@ -8,6 +8,7 @@ import {
   SiteNavigationIdempotencyConflictError,
   SiteNavigationValidationError,
 } from "@/lib/site-navigation.ts";
+import { revalidatePublishedStorefront, withStorefrontPurgeHeader } from "@/lib/storefront-revalidate";
 
 export const dynamic = "force-dynamic";
 
@@ -31,7 +32,11 @@ export async function POST(request: Request): Promise<Response> {
       actorSubject: guard.actorSubject,
       requestId,
     });
-    return adminSuccess(requestId, result);
+    revalidatePublishedStorefront({
+      tags: ["published-site-navigation", "site-navigation"],
+      paths: ["/"],
+    });
+    return withStorefrontPurgeHeader(adminSuccess(requestId, result), ["/"]);
   } catch (error) {
     if (error instanceof SiteNavigationIdempotencyConflictError) {
       return adminFailure(requestId, 409, "IDEMPOTENCY_CONFLICT", error.message);
