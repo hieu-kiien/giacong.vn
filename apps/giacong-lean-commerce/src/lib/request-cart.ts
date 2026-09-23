@@ -149,13 +149,42 @@ export async function readJsonBody(request: Request, maxBytes: number): Promise<
   }
 
   let raw: string;
-  try {
-    raw = await request.text();
-  } catch {
-    return { message: "Dữ liệu gửi lên không hợp lệ.", ok: false, status: 400 };
-  }
-  if (new TextEncoder().encode(raw).length > maxBytes) {
-    return { message: "Dữ liệu gửi lên quá lớn.", ok: false, status: 413 };
+  if (request.body && typeof request.body.getReader === "function") {
+    const reader = request.body.getReader();
+    const chunks: Uint8Array[] = [];
+    let total = 0;
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        total += value.byteLength;
+        if (total > maxBytes) {
+          await reader.cancel();
+          return { message: "Dữ liệu gửi lên quá lớn.", ok: false, status: 413 };
+        }
+        chunks.push(value);
+      }
+    } catch {
+      return { message: "Dữ liệu gửi lên không hợp lệ.", ok: false, status: 400 };
+    } finally {
+      reader.releaseLock();
+    }
+    const merged = new Uint8Array(total);
+    let offset = 0;
+    for (const chunk of chunks) {
+      merged.set(chunk, offset);
+      offset += chunk.byteLength;
+    }
+    raw = new TextDecoder().decode(merged);
+  } else {
+    try {
+      raw = await request.text();
+    } catch {
+      return { message: "Dữ liệu gửi lên không hợp lệ.", ok: false, status: 400 };
+    }
+    if (new TextEncoder().encode(raw).length > maxBytes) {
+      return { message: "Dữ liệu gửi lên quá lớn.", ok: false, status: 413 };
+    }
   }
 
   try {

@@ -90,7 +90,7 @@ type CapturedHomePageProps = Pick<
 
 const HOMEPAGE_CRITICAL_MOTION_STYLES = `@layer captured{#section_250108065 [data-animate]{animation:none !important;opacity:1 !important;transform:none !important;}}`;
 const HOMEPAGE_MOBILE_RENDER_STYLES = `@media (max-width:549px){
-#section_220139106,#section_1771329794,#section_819391773,#section_777974837,#section_1385300469,#section_938597378,#section_294752369,#footer{content-visibility:auto;}
+#section_220139106,#section_1771329794,#section_819391773,#section_777974837,#section_1385300469,#section_938597378,#footer{content-visibility:auto;}
 #section_220139106{contain-intrinsic-size:auto 2400px;}
 #section_1771329794{contain-intrinsic-size:auto 520px;}
 #section_819391773{contain-intrinsic-size:auto 1200px;}

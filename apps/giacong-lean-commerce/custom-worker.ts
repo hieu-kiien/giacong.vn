@@ -74,8 +74,29 @@ function withPublicDocumentCache(request: Request, response: Response): Response
   });
 }
 
+const MARKETING_QUERY_PARAMS = new Set([
+  "utm_source",
+  "utm_medium",
+  "utm_campaign",
+  "utm_term",
+  "utm_content",
+  "fbclid",
+  "gclid",
+  "gad_source",
+  "zarsrc",
+  "ref",
+  "mc_cid",
+  "mc_eid",
+]);
+
 function publicDocumentCacheKey(request: Request): Request {
-  return new Request(new URL(request.url).toString(), { method: "GET" });
+  const url = new URL(request.url);
+  for (const param of Array.from(url.searchParams.keys())) {
+    if (MARKETING_QUERY_PARAMS.has(param.toLowerCase())) {
+      url.searchParams.delete(param);
+    }
+  }
+  return new Request(url.toString(), { method: "GET" });
 }
 
 async function readPublicDocumentCache(request: Request): Promise<Response | null> {
@@ -117,7 +138,7 @@ function withIndexingHeaders(request: Request, response: Response): Response {
 }
 
 function catalogProductSlug(pathname: string): string | null {
-  const match = /^\/san-pham\/([^/]+)$/.exec(pathname);
+  const match = /^\/san-pham\/([^/]+)\/?$/.exec(pathname);
   if (!match?.[1]) return null;
   try {
     const slug = decodeURIComponent(match[1]).trim();
@@ -173,7 +194,16 @@ const worker = {
     }
 
     const cachedDocument = await readPublicDocumentCache(request);
-    if (cachedDocument) return cachedDocument;
+    if (cachedDocument) {
+      const checkedDocument = await withCatalogProductNotFoundStatus(request, cachedDocument, env);
+      if (checkedDocument.status === 404) {
+        ctx.waitUntil(
+          publicDocumentCache.delete(publicDocumentCacheKey(request)).catch(() => {}),
+        );
+        return checkedDocument;
+      }
+      return cachedDocument;
+    }
 
     const response = await generatedWorker.fetch(request, env, ctx);
 
@@ -183,12 +213,21 @@ const worker = {
         .map((path: string) => path.trim())
         .filter(Boolean);
       for (const purgePath of purgePaths) {
-        const purgeKey = new Request(new URL(purgePath, "https://kienhieu.id.vn").toString(), { method: "GET" });
-        ctx.waitUntil(
-          publicDocumentCache.delete(purgeKey).catch((error: unknown) => {
-            console.warn("Public document cache delete failed.", error);
-          }),
-        );
+        const normalizedPaths = new Set<string>();
+        normalizedPaths.add(purgePath);
+        if (purgePath !== "/" && purgePath.endsWith("/")) {
+          normalizedPaths.add(purgePath.slice(0, -1));
+        } else if (purgePath !== "/" && !purgePath.endsWith("/")) {
+          normalizedPaths.add(`${purgePath}/`);
+        }
+        for (const p of normalizedPaths) {
+          const purgeKey = new Request(new URL(p, "https://kienhieu.id.vn").toString(), { method: "GET" });
+          ctx.waitUntil(
+            publicDocumentCache.delete(purgeKey).catch((error: unknown) => {
+              console.warn("Public document cache delete failed.", error);
+            }),
+          );
+        }
       }
       const cleanedHeaders = new Headers(response.headers);
       cleanedHeaders.delete("x-purge-storefront-cache");

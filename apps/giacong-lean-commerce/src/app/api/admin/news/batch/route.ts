@@ -9,6 +9,7 @@ import {
 import { requireAdmin } from "@/lib/admin-guard";
 import { canManageNews } from "@/lib/admin-permissions.ts";
 import { hasOnlyKeys, isAdminRequestId, readBoundedAdminJson } from "@/lib/admin-request";
+import { revalidatePublishedStorefront, withStorefrontPurgeHeader } from "@/lib/storefront-revalidate";
 
 export const dynamic = "force-dynamic";
 
@@ -43,7 +44,12 @@ export async function POST(request: Request): Promise<Response> {
       publish: body.publish,
       requestId,
     });
-    return adminSuccess(requestId, result);
+    const paths = ["/", "/tin-tuc"];
+    revalidatePublishedStorefront({
+      tags: ["news", "published-news"],
+      paths,
+    });
+    return withStorefrontPurgeHeader(adminSuccess(requestId, result), paths);
   } catch (error) {
     if (error instanceof AdminNewsIdempotencyConflictError) return adminFailure(requestId, 409, "IDEMPOTENCY_CONFLICT", error.message);
     if (error instanceof AdminNewsValidationError) return adminFailure(requestId, 422, "VALIDATION_ERROR", error.message);

@@ -10,6 +10,7 @@ import {
 import { requireAdmin } from "@/lib/admin-guard";
 import { canManageNews } from "@/lib/admin-permissions.ts";
 import { hasOnlyKeys, isAdminRequestId, readBoundedAdminJson } from "@/lib/admin-request";
+import { revalidatePublishedStorefront, withStorefrontPurgeHeader } from "@/lib/storefront-revalidate";
 
 export const dynamic = "force-dynamic";
 
@@ -48,9 +49,19 @@ export async function POST(request: Request, context: RouteContext): Promise<Res
     const post = body.publish
       ? await publishAdminNewsPost(guard.database, id, body.expectedRevision, guard.actorSubject, requestId)
       : await unpublishAdminNewsPost(guard.database, id, body.expectedRevision, guard.actorSubject, requestId);
-    return post
-      ? adminSuccess(requestId, { post })
-      : adminFailure(requestId, 404, "NOT_FOUND", "Không tìm thấy bài viết.");
+    if (!post) {
+      return adminFailure(requestId, 404, "NOT_FOUND", "Không tìm thấy bài viết.");
+    }
+    const slug = (post.slug || "").trim();
+    const paths = ["/", "/tin-tuc"];
+    if (slug) {
+      paths.push(`/tin-tuc/${slug}`);
+    }
+    revalidatePublishedStorefront({
+      tags: ["news", "published-news"],
+      paths,
+    });
+    return withStorefrontPurgeHeader(adminSuccess(requestId, { post }), paths);
   } catch (error) {
     if (error instanceof AdminNewsConflictError) return adminFailure(requestId, 409, "STALE_WRITE", error.message);
     if (error instanceof AdminNewsIdempotencyConflictError) return adminFailure(requestId, 409, "IDEMPOTENCY_CONFLICT", error.message);

@@ -45,11 +45,12 @@ export async function POST(request: Request, context: RouteContext): Promise<Res
       id: (await context.params).id,
       requestId,
     });
+    const paths = ["/", "/san-pham", "/thue-gia-cong", "/tin-tuc"];
     revalidatePublishedStorefront({
       tags: ["published-site-navigation", "site-navigation"],
-      paths: ["/"],
+      paths,
     });
-    return withStorefrontPurgeHeader(adminSuccess(requestId, { item }), ["/"]);
+    return withStorefrontPurgeHeader(adminSuccess(requestId, { item }), paths);
   } catch (error) {
     if (error instanceof SiteNavigationConflictError) return adminFailure(requestId, 409, "STALE_WRITE", error.message);
     if (error instanceof SiteNavigationNotFoundError) return adminFailure(requestId, 404, "NOT_FOUND", error.message);

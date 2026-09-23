@@ -707,6 +707,39 @@ function cartConflict(message: string, code: string, cart: ResolvedRequestCart):
   );
 }
 
+function sanitizeSpreadsheetValue(value: string): string {
+  const trimmed = value.trim();
+  if (/^[=@\t\r]|^[+\-](?!\d)/.test(trimmed)) {
+    return `'${trimmed}`;
+  }
+  return value;
+}
+
+function sanitizeWebhookPayload(payload: ContactQueuedPayload): ContactQueuedPayload {
+  const sanitized = {
+    ...payload,
+    ...(payload.address ? { address: sanitizeSpreadsheetValue(payload.address) } : {}),
+    ...(payload.company_name ? { company_name: sanitizeSpreadsheetValue(payload.company_name) } : {}),
+    ...(payload.delivery_location ? { delivery_location: sanitizeSpreadsheetValue(payload.delivery_location) } : {}),
+    ...(payload.message ? { message: sanitizeSpreadsheetValue(payload.message) } : {}),
+    ...(payload.name ? { name: sanitizeSpreadsheetValue(payload.name) } : {}),
+    ...(payload.needed_by ? { needed_by: sanitizeSpreadsheetValue(payload.needed_by) } : {}),
+    ...(payload.source ? { source: sanitizeSpreadsheetValue(payload.source) } : {}),
+    ...(payload.service ? { service: sanitizeSpreadsheetValue(payload.service) } : {}),
+    ...(payload.product ? { product: sanitizeSpreadsheetValue(payload.product) } : {}),
+    ...(payload.variant ? { variant: sanitizeSpreadsheetValue(payload.variant) } : {}),
+  };
+  if ("cart" in payload && Array.isArray(payload.cart)) {
+    (sanitized as ContactCartWebhookPayload).cart = payload.cart.map((line) => ({
+      ...line,
+      note: sanitizeSpreadsheetValue(line.note),
+      product: sanitizeSpreadsheetValue(line.product),
+      variant: sanitizeSpreadsheetValue(line.variant),
+    }));
+  }
+  return sanitized;
+}
+
 export async function deliverToWebhook(
   resolved: ContactQueuedPayload,
   dependencies: ContactWebhookDependencies,
@@ -717,7 +750,7 @@ export async function deliverToWebhook(
     return failure("Dịch vụ tiếp nhận yêu cầu chưa được cấu hình.", 503);
   }
 
-  const payload: ContactWebhookPayload & { secret?: string } = { ...resolved };
+  const payload: ContactQueuedPayload & { secret?: string } = sanitizeWebhookPayload(resolved);
   const secret = environment.GOOGLE_SHEETS_WEBHOOK_SECRET?.trim();
   if (secret) payload.secret = secret;
 

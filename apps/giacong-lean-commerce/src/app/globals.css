@@ -1620,3 +1620,21 @@ body.clone-menu-active {
 }
 
 }
+
+@media (max-width: 849px) {
+  input[type="text"],
+  input[type="tel"],
+  input[type="email"],
+  input[type="search"],
+  input[type="password"],
+  textarea,
+  select,
+  .form-lien-he input,
+  .header-search-form-wrapper input {
+    font-size: 16px !important;
+  }
+}
+
+.bottom-contact {
+  padding-bottom: env(safe-area-inset-bottom, 12px) !important;
+}

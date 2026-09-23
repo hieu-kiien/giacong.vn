@@ -44,11 +44,12 @@ export async function POST(request: Request): Promise<Response> {
       key: body.key,
       requestId,
     });
+    const paths = ["/", "/san-pham", "/thue-gia-cong", "/tin-tuc"];
     revalidatePublishedStorefront({
       tags: ["published-site-settings", "site-settings"],
-      paths: ["/"],
+      paths,
     });
-    return withStorefrontPurgeHeader(adminSuccess(requestId, { setting }), ["/"]);
+    return withStorefrontPurgeHeader(adminSuccess(requestId, { setting }), paths);
   } catch (error) {
     if (error instanceof SiteSettingConflictError) return adminFailure(requestId, 409, "STALE_WRITE", error.message);
     if (error instanceof SiteSettingIdempotencyConflictError) return adminFailure(requestId, 409, "IDEMPOTENCY_CONFLICT", error.message);

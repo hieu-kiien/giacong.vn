@@ -31,11 +31,12 @@ export async function POST(request: Request): Promise<Response> {
       actorSubject: guard.actorSubject,
       requestId,
     });
+    const paths = ["/", "/san-pham", "/thue-gia-cong", "/tin-tuc"];
     revalidatePublishedStorefront({
       tags: ["published-site-settings", "site-settings"],
-      paths: ["/"],
+      paths,
     });
-    return withStorefrontPurgeHeader(adminSuccess(requestId, { published, skipped, count: published.length }), ["/"]);
+    return withStorefrontPurgeHeader(adminSuccess(requestId, { published, skipped, count: published.length }), paths);
   } catch (error) {
     if (error instanceof SiteSettingIdempotencyConflictError) {
       return adminFailure(requestId, 409, "IDEMPOTENCY_CONFLICT", error.message);
