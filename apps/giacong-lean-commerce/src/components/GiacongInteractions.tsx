@@ -108,17 +108,20 @@ export function GiacongInteractions({
     let disconnectContactForms: (() => void) | undefined;
     let disconnectCapturedMotion: (() => void) | undefined;
     const contactForms = document.querySelectorAll<HTMLFormElement>(".wpcf7-form");
+    const deferSecondaryInteractions = window.matchMedia?.("(max-width: 849px)").matches ?? false;
+    let cancelContactFormSchedule: (() => void) | undefined;
     if (contactForms.length > 0) {
-      void import("./contact-form")
-        .then((contactForm) => {
-          if (disposed) return;
-          disconnectContactForms = contactForm.connectContactForms();
-        })
-        .catch((error) => {
-          console.warn("Optional contact form interactions unavailable.", error);
-        });
+      cancelContactFormSchedule = scheduleAfterPaint(() => {
+        void import("./contact-form")
+          .then((contactForm) => {
+            if (disposed) return;
+            disconnectContactForms = contactForm.connectContactForms();
+          })
+          .catch((error) => {
+            console.warn("Optional contact form interactions unavailable.", error);
+          });
+      }, deferSecondaryInteractions);
     }
-    const deferCapturedMotion = window.matchMedia?.("(max-width: 849px)").matches ?? false;
     const cancelCapturedMotionSchedule = scheduleAfterPaint(() => {
       void import("./captured-motion")
         .then((capturedMotion) => {
@@ -128,7 +131,7 @@ export function GiacongInteractions({
         .catch((error) => {
           console.warn("Optional storefront motion unavailable.", error);
         });
-    }, deferCapturedMotion);
+    }, deferSecondaryInteractions);
     const mobileSearchInput = menu?.querySelector<HTMLInputElement>(
       "input[type='search']",
     );
@@ -324,6 +327,7 @@ export function GiacongInteractions({
       document.removeEventListener("click", handleInternalNavigation);
       document.removeEventListener("keydown", handleMenuKeydown);
       window.removeEventListener("scroll", updateStickyHeader);
+      cancelContactFormSchedule?.();
       cancelCapturedMotionSchedule();
       disconnectContactForms?.();
       disconnectCapturedMotion?.();
