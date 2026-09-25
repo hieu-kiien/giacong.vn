@@ -1,9 +1,10 @@
 "use client";
 
-import { ClipboardList, Filter, Mail, Phone, Search } from "lucide-react";
+import { Building2, ClipboardList, Filter, Mail, Phone, Search } from "lucide-react";
 import { useEffect, useState, type FormEvent } from "react";
 import { AdminEmptyState, AdminErrorState, AdminLoadingTable, AdminPageHeading, AdminPagination, AdminStatusBadge } from "@/components/admin/AdminPrimitives";
 import { AdminModal } from "@/components/admin/AdminDialog";
+import { AdminCustomerDrawer } from "@/components/admin/AdminCustomerDrawer";
 import { useAdminSession } from "@/components/admin/AdminShell";
 import { useAdminToast } from "@/components/admin/AdminToast";
 import { AdminClientError, fetchAdmin, formatAdminDate, mutateAdmin, type AdminLead, type LeadStatus } from "@/lib/admin-client";
@@ -106,6 +107,7 @@ export default function AdminLeadsPage() {
   const [query, setQuery] = useState("");
   const [inputQuery, setInputQuery] = useState("");
   const [detailLead, setDetailLead] = useState<LeadListItem | null>(null);
+  const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [lastPage, setLastPage] = useState(1);
@@ -114,6 +116,10 @@ export default function AdminLeadsPage() {
   const [attempt, setAttempt] = useState(0);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [mutationError, setMutationError] = useState<AdminClientError | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkStatusModal, setBulkStatusModal] = useState(false);
+  const [targetBulkStatus, setTargetBulkStatus] = useState<LeadStatus>("qualified");
+  const [bulkUpdating, setBulkUpdating] = useState(false);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -167,6 +173,29 @@ export default function AdminLeadsPage() {
     }
   }
 
+  async function applyBulkStatus() {
+    if (!canManage || selectedIds.size === 0 || bulkUpdating) return;
+    setBulkUpdating(true);
+    const selectedLeads = leads.filter((l) => selectedIds.has(l.id));
+    let count = 0;
+    for (const lead of selectedLeads) {
+      try {
+        await mutateAdmin(`/api/admin/leads/${lead.id}`, {
+          body: { requestId: crypto.randomUUID(), revision: lead.revision, status: targetBulkStatus },
+          method: "PATCH",
+        });
+        count++;
+      } catch {
+        // continue with other leads
+      }
+    }
+    setBulkUpdating(false);
+    setBulkStatusModal(false);
+    setSelectedIds(new Set());
+    setAttempt((v) => v + 1);
+    showToast("success", `Đã cập nhật ${count}/${selectedLeads.length} yêu cầu sang ${statusLabels[targetBulkStatus]}.`);
+  }
+
   return (
     <div className="admin-content">
       <AdminPageHeading kicker="Bán hàng / tiếp nhận" title="Yêu cầu báo giá" subtitle="Hộp thư chung cho các yêu cầu báo giá gửi về từ trang web và các kênh liên hệ." stamp="HỘP YÊU CẦU" />
@@ -192,38 +221,133 @@ export default function AdminLeadsPage() {
             Xóa tìm kiếm
           </button>
         ) : null}
-        <div className="admin-filter-field">
-          <label className="admin-label" htmlFor="lead-status">Lọc theo trạng thái</label>
-          <select className="admin-select" data-testid="select-lead-status" id="lead-status" onChange={(event) => { setStatus(event.target.value as LeadStatus | ""); setPage(1); }} value={status}>
-            {statusOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-          </select>
-        </div>
+        {canManage && selectedIds.size > 0 ? (
+          <div className="admin-bulk-toolbar" style={{ alignItems: "center", display: "inline-flex", flexWrap: "wrap", gap: 8 }}>
+            <span aria-live="polite" className="admin-item-meta" data-testid="lead-selection-count">
+              Đã chọn <strong>{selectedIds.size}</strong>
+            </span>
+            <button
+              className="admin-button admin-button-primary"
+              data-testid="button-lead-batch-status"
+              onClick={() => setBulkStatusModal(true)}
+              style={{ fontSize: 12, minHeight: 30, padding: "0 10px" }}
+              type="button"
+            >
+              Chuyển trạng thái đã chọn
+            </button>
+            <button
+              className="admin-button admin-button-quiet"
+              onClick={() => setSelectedIds(new Set())}
+              style={{ fontSize: 12, minHeight: 30, padding: "0 8px" }}
+              type="button"
+            >
+              Bỏ chọn
+            </button>
+          </div>
+        ) : null}
         <span className="admin-count"><Filter size={13} style={{ verticalAlign: "middle" }} /> {status ? statusLabels[status] : "Toàn bộ hộp thư"} · {total} yêu cầu</span>
       </div>
       {error ? <AdminErrorState error={error} onRetry={() => setAttempt((value) => value + 1)} /> : loading ? <AdminLoadingTable /> : (
         <section className="admin-panel admin-table-panel" aria-labelledby="lead-table-heading">
-          <div className="admin-panel-heading" style={{ padding: "21px 21px 0" }}><div><h2 className="admin-panel-title" id="lead-table-heading">Danh sách yêu cầu</h2><p className="admin-panel-caption">Mới nhất hiển thị trước</p></div><ClipboardList aria-hidden="true" color="#6e8c42" size={19} /></div>
+          <div className="admin-panel-heading" style={{ padding: "21px 21px 12px" }}><div><h2 className="admin-panel-title" id="lead-table-heading">Danh sách yêu cầu</h2><p className="admin-panel-caption">Mới nhất hiển thị trước</p></div><ClipboardList aria-hidden="true" color="#6e8c42" size={19} /></div>
+          <div style={{ padding: "0 21px 12px" }}>
+            <div className="admin-filter-tabs">
+              {[
+                { label: "Tất cả", value: "" },
+                { label: "Mới tiếp nhận", value: "new" },
+                { label: "Đã xác thực", value: "qualified" },
+                { label: "Đã liên hệ", value: "contacted" },
+                { label: "Báo giá", value: "quotation_sent" },
+                { label: "Đã chốt", value: "won" },
+                { label: "Không tiếp tục", value: "lost" },
+                { label: "Rác", value: "spam" },
+              ].map((tab) => (
+                <button
+                  key={tab.value}
+                  type="button"
+                  className={`admin-filter-tab${status === tab.value ? " is-active" : ""}`}
+                  onClick={() => { setStatus(tab.value as LeadStatus | ""); setPage(1); }}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+          </div>
           {leads.length === 0 ? <AdminEmptyState title={status ? "Không có yêu cầu ở trạng thái này" : "Hộp thư chưa có yêu cầu"} description={status ? "Chọn một trạng thái khác." : "Chưa có yêu cầu nào. Không hiển thị dữ liệu mẫu."} /> : (
             <>
               <div className="admin-table-scroll">
-                <table className="admin-table">
-                  <thead><tr><th scope="col">Người liên hệ</th><th scope="col">Liên lạc</th><th scope="col">Nhu cầu</th><th scope="col">Mã yêu cầu</th><th scope="col">Trạng thái</th><th scope="col">Gửi dữ liệu</th><th scope="col">Tiếp nhận</th></tr></thead>
+                <table className="admin-table admin-product-table">
+                  <thead>
+                    <tr>
+                      {canManage ? (
+                        <th style={{ width: 44 }} scope="col">
+                          <input
+                            aria-label="Chọn tất cả yêu cầu trên trang này"
+                            checked={leads.length > 0 && selectedIds.size === leads.length}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setSelectedIds(new Set(leads.map((l) => l.id)));
+                              } else {
+                                setSelectedIds(new Set());
+                              }
+                            }}
+                            type="checkbox"
+                          />
+                        </th>
+                      ) : null}
+                      <th scope="col">Người liên hệ</th>
+                      <th scope="col">Liên lạc</th>
+                      <th scope="col">Nhu cầu</th>
+                      <th scope="col">Mã yêu cầu</th>
+                      <th scope="col">Trạng thái</th>
+                      <th scope="col">Gửi dữ liệu</th>
+                      <th scope="col">Tiếp nhận</th>
+                    </tr>
+                  </thead>
                   <tbody>
                     {leads.map((lead) => {
                       const deliveryDetail = deliveryDetailText(lead);
                       return (
                       <tr data-testid={`row-lead-${lead.id}`} key={lead.id}>
+                        {canManage ? (
+                          <td style={{ width: 44 }}>
+                            <input
+                              aria-label={`Chọn yêu cầu ${lead.fullName}`}
+                              checked={selectedIds.has(lead.id)}
+                              onChange={() => {
+                                setSelectedIds((prev) => {
+                                  const next = new Set(prev);
+                                  if (next.has(lead.id)) next.delete(lead.id);
+                                  else next.add(lead.id);
+                                  return next;
+                                });
+                              }}
+                              type="checkbox"
+                            />
+                          </td>
+                        ) : null}
                         <td>
                           <button
-                            className="admin-lead-person"
+                            className="admin-lead-person admin-product-name-btn"
                             data-testid={`button-lead-detail-${lead.id}`}
                             onClick={() => setDetailLead(lead)}
                             style={{ background: "none", border: "none", cursor: "pointer", padding: 0, textAlign: "left" }}
                             type="button"
                           >
-                            <strong>{lead.fullName}</strong>
+                            <strong style={{ display: "block" }}>{lead.fullName}</strong>
                             <span>{lead.companyName || "Chưa có tên công ty"}{lead.country ? ` · ${lead.country}` : ""} · Xem chi tiết</span>
                           </button>
+                          <div style={{ marginTop: 6 }}>
+                            <button
+                              className="admin-button admin-button-quiet"
+                              onClick={() => setSelectedLeadId(lead.id)}
+                              style={{ alignItems: "center", display: "inline-flex", gap: 5, fontSize: 11, minHeight: 26, padding: "2px 8px" }}
+                              title="Xem hồ sơ khách hàng & tiến độ báo giá"
+                              type="button"
+                            >
+                              <Building2 size={12} /> Hồ sơ khách hàng
+                            </button>
+                          </div>
                         </td>
                         <td><div className="admin-lead-person">{lead.email ? <span><Mail size={12} style={{ verticalAlign: "middle" }} /> {lead.email}</span> : null}{lead.phone ? <span><Phone size={12} style={{ verticalAlign: "middle" }} /> {lead.phone}</span> : null}{!lead.email && !lead.phone ? <span>Chưa có thông tin</span> : null}</div></td>
                         <td><div className="admin-message" title={lead.message ?? undefined}>{lead.message || "Không có nội dung"}</div><div className="admin-item-meta">{lead.source}</div></td>
@@ -312,6 +436,52 @@ export default function AdminLeadsPage() {
               </section>
             ) : null}
           </AdminModal>
+        ) : null}
+        {bulkStatusModal ? (
+          <AdminModal labelledBy="lead-bulk-title" onClose={() => setBulkStatusModal(false)} title="Chuyển trạng thái yêu cầu hàng loạt">
+            <h2 hidden id="lead-bulk-title">Chuyển trạng thái yêu cầu hàng loạt</h2>
+            <p style={{ margin: "0 0 16px", color: "var(--admin-ink-muted)" }}>
+              Đang chọn <strong>{selectedIds.size}</strong> yêu cầu. Vui lòng chọn trạng thái mới muốn chuyển sang:
+            </p>
+            <div className="admin-field">
+              <label className="admin-label" htmlFor="bulk-target-status">Trạng thái mới</label>
+              <select
+                className="admin-select"
+                id="bulk-target-status"
+                onChange={(e) => setTargetBulkStatus(e.target.value as LeadStatus)}
+                style={{ width: "100%", minHeight: 38 }}
+                value={targetBulkStatus}
+              >
+                {pipelineStatusOptions.map((opt) => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
+            </div>
+            <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 24 }}>
+              <button
+                className="admin-button admin-button-quiet"
+                onClick={() => setBulkStatusModal(false)}
+                type="button"
+              >
+                Hủy
+              </button>
+              <button
+                className="admin-button admin-button-primary"
+                disabled={bulkUpdating}
+                onClick={() => void applyBulkStatus()}
+                type="button"
+              >
+                {bulkUpdating ? "Đang cập nhật..." : "Xác nhận chuyển"}
+              </button>
+            </div>
+          </AdminModal>
+        ) : null}
+        {selectedLeadId ? (
+          <AdminCustomerDrawer
+            customerId={selectedLeadId}
+            leadId={selectedLeadId}
+            onClose={() => setSelectedLeadId(null)}
+          />
         ) : null}
       </div>
   );

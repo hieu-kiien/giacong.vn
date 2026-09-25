@@ -34,6 +34,7 @@ export async function GET(request: Request): Promise<Response> {
         page,
         pageSize,
         query: url.searchParams.get("query") ?? undefined,
+        status: url.searchParams.get("status") ?? undefined,
       }),
       listAdminCategories(guard.database),
     ]);

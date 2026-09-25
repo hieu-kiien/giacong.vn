@@ -44,6 +44,7 @@ export interface AdminProduct {
   revision: number;
   startingPrice: number | null;
   variantCount: number | null;
+  soldCount?: number | null;
   updatedAt: string | null;
 }
 

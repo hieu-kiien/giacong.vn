@@ -64,6 +64,7 @@ export interface AdminProduct {
   status: AdminPublishStatus;
   leadTimeDays: number | null;
   revision: number;
+  soldCount?: number | null;
   updatedAt: string | null;
 }
 
@@ -413,9 +414,10 @@ export async function getAdminOverview(
 
 export async function listAdminProducts(
   database: D1DatabaseLike,
-  input: { page: number; pageSize: number; query?: string },
+  input: { page: number; pageSize: number; query?: string; status?: string },
 ): Promise<{ products: AdminProduct[]; total: number }> {
   const hasMeta = await tableExists(database, "product_admin_meta");
+  const hasLeadItems = await tableExists(database, "lead_items");
   const where: string[] = [];
   const params: unknown[] = [];
   if (input.query?.trim()) {
@@ -423,10 +425,30 @@ export async function listAdminProducts(
     where.push("(p.name LIKE ? ESCAPE '\\' COLLATE NOCASE OR p.sku LIKE ? ESCAPE '\\' COLLATE NOCASE OR p.slug LIKE ? ESCAPE '\\' COLLATE NOCASE)");
     params.push(pattern, pattern, pattern);
   }
+  if (input.status === "active") {
+    if (hasMeta) {
+      where.push("(p.is_active = 1 AND (m.status = 'published' OR m.status IS NULL))");
+    } else {
+      where.push("p.is_active = 1");
+    }
+  } else if (input.status === "draft") {
+    if (hasMeta) {
+      where.push("(m.status = 'draft' OR m.status = 'review')");
+    } else {
+      where.push("p.is_active = 0");
+    }
+  } else if (input.status === "hidden") {
+    if (hasMeta) {
+      where.push("(p.is_active = 0 OR m.status = 'archived')");
+    } else {
+      where.push("p.is_active = 0");
+    }
+  }
   const whereSql = where.length ? `WHERE ${where.join(" AND ")}` : "";
   const count = await database.prepare(`
     SELECT COUNT(*) AS total
     FROM products p
+    ${hasMeta ? "LEFT JOIN product_admin_meta m ON m.product_id = p.id" : ""}
     ${whereSql}
   `).bind(...params).first<{ total: number }>();
   const rows = await database.prepare(`
@@ -439,6 +461,7 @@ export async function listAdminProducts(
         INNER JOIN product_variants v2 ON v2.id = tp.variant_id
         WHERE v2.product_id = p.id) AS starting_price
       ${hasMeta ? ", m.status, m.lead_time_days, m.updated_at AS meta_updated_at" : ""}
+      ${hasLeadItems ? ", COALESCE((SELECT SUM(li.quantity) FROM lead_items li WHERE li.product_slug = p.slug), 0) AS sold_count" : ", 0 AS sold_count"}
     FROM products p
     LEFT JOIN categories c ON c.id = p.category_id
     ${hasMeta ? "LEFT JOIN product_admin_meta m ON m.product_id = p.id" : ""}
@@ -460,6 +483,7 @@ export async function listAdminProducts(
     minimum_order_quantity: number | null;
     starting_price: number | null;
     variant_count: number | null;
+    sold_count?: number | null;
     status?: AdminPublishStatus;
     lead_time_days?: number | null;
     meta_updated_at?: string | null;
@@ -480,6 +504,7 @@ export async function listAdminProducts(
       shortDescription: row.short_description,
       sku: row.sku,
       slug: row.slug,
+      soldCount: row.sold_count ?? 0,
       startingPrice: row.starting_price,
       status: row.status ?? (row.is_active === 1 ? "published" : "archived"),
       updatedAt: row.meta_updated_at ?? null,
@@ -494,11 +519,13 @@ export async function getAdminProduct(
   id: number,
 ): Promise<AdminProduct | null> {
   const hasMeta = await tableExists(database, "product_admin_meta");
+  const hasLeadItems = await tableExists(database, "lead_items");
   const row = await database.prepare(`
     SELECT
       p.id, p.name, p.slug, p.sku, p.category_id, c.name AS category_name,
       p.short_description, p.description, p.image_url, p.is_active, p.revision
       ${hasMeta ? ", m.status, m.lead_time_days, m.updated_at AS meta_updated_at" : ""}
+      ${hasLeadItems ? ", COALESCE((SELECT SUM(li.quantity) FROM lead_items li WHERE li.product_slug = p.slug), 0) AS sold_count" : ", 0 AS sold_count"}
     FROM products p
     LEFT JOIN categories c ON c.id = p.category_id
     ${hasMeta ? "LEFT JOIN product_admin_meta m ON m.product_id = p.id" : ""}
@@ -849,7 +876,7 @@ export async function archiveAdminProduct(
 
 export async function listAdminServices(
   database: D1DatabaseLike,
-  input: { page: number; pageSize: number; query?: string },
+  input: { page: number; pageSize: number; query?: string; status?: string },
 ): Promise<{ services: AdminService[]; total: number }> {
   const hasMeta = await tableExists(database, "service_admin_meta");
   const where: string[] = [];
@@ -859,10 +886,30 @@ export async function listAdminServices(
     where.push("(s.name LIKE ? ESCAPE '\\' COLLATE NOCASE OR s.slug LIKE ? ESCAPE '\\' COLLATE NOCASE OR s.summary LIKE ? ESCAPE '\\' COLLATE NOCASE)");
     params.push(pattern, pattern, pattern);
   }
+  if (input.status === "active") {
+    if (hasMeta) {
+      where.push("(s.is_active = 1 AND (m.status = 'published' OR m.status IS NULL))");
+    } else {
+      where.push("s.is_active = 1");
+    }
+  } else if (input.status === "draft") {
+    if (hasMeta) {
+      where.push("(m.status = 'draft' OR m.status = 'review')");
+    } else {
+      where.push("s.is_active = 0");
+    }
+  } else if (input.status === "hidden") {
+    if (hasMeta) {
+      where.push("(s.is_active = 0 OR m.status = 'archived')");
+    } else {
+      where.push("s.is_active = 0");
+    }
+  }
   const whereSql = where.length ? `WHERE ${where.join(" AND ")}` : "";
   const count = await database.prepare(`
     SELECT COUNT(*) AS total
     FROM services s
+    ${hasMeta ? "LEFT JOIN service_admin_meta m ON m.service_id = s.id" : ""}
     ${whereSql}
   `).bind(...params).first<{ total: number }>();
   const rows = await database.prepare(`
@@ -1119,6 +1166,7 @@ type ProductRow = {
   status?: AdminPublishStatus;
   lead_time_days?: number | null;
   meta_updated_at?: string | null;
+  sold_count?: number | null;
 };
 
 type AdminLeadRow = {
@@ -1280,6 +1328,7 @@ function toAdminProduct(row: ProductRow): AdminProduct {
     shortDescription: row.short_description,
     sku: row.sku,
     slug: row.slug,
+    soldCount: row.sold_count ?? 0,
     status: row.status ?? (row.is_active === 1 ? "published" : "archived"),
     updatedAt: row.meta_updated_at ?? null,
   };

@@ -6,6 +6,12 @@ initOpenNextCloudflareForDev();
 const nextConfig: NextConfig = {
   allowedDevOrigins: ["127.0.0.1", "192.168.1.177"],
   output: "standalone",
+  experimental: {
+    staleTimes: {
+      dynamic: 30,
+      static: 180,
+    },
+  },
   async redirects() {
     return [
       {

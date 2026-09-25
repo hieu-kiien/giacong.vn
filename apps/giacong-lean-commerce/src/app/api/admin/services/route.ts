@@ -31,6 +31,7 @@ export async function GET(request: Request): Promise<Response> {
       page,
       pageSize,
       query: url.searchParams.get("query") ?? undefined,
+      status: url.searchParams.get("status") ?? undefined,
     });
     const services = await attachAdminServiceRevisions(guard.database, data.services);
     return adminSuccess(crypto.randomUUID(), {

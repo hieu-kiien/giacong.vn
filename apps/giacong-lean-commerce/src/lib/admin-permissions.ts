@@ -23,6 +23,8 @@ export const ADMIN_CAPABILITIES = [
   "services.write",
   "leads.read",
   "leads.write",
+  "crm.read",
+  "crm.write",
 ] as const;
 
 export type AdminCapability = (typeof ADMIN_CAPABILITIES)[number];
@@ -43,6 +45,10 @@ export function canManageCatalog(role: AdminRole | string): boolean {
 
 export function canManageLeads(role: AdminRole | string): boolean {
   return canManage(role, "leads.write");
+}
+
+export function canManageCrm(role: AdminRole | string): boolean {
+  return canManage(role, "crm.write");
 }
 
 export function canManageMedia(role: AdminRole | string): boolean {

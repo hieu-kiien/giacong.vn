@@ -41,6 +41,7 @@ export function AdminMediaPanel({ productId, serviceId, title }: AdminMediaPanel
   const [pendingRemove, setPendingRemove] = useState<MediaAsset | null>(null);
   const [settingMainId, setSettingMainId] = useState<string | null>(null);
   const [error, setError] = useState<AdminClientError | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
   const isUnsavedDirty = useCallback(() => {
     if (variantId || altText || file) return true;
     return media.some((asset) => (altDrafts[asset.id] ?? "") !== (asset.altText ?? ""));
@@ -244,7 +245,40 @@ export function AdminMediaPanel({ productId, serviceId, title }: AdminMediaPanel
       </div>
       {error ? <p className="admin-editor-error" role="alert">{error.code ? `${error.code} · ` : ""}{error.message}</p> : null}
       <div className="admin-editor-grid">
-        <label className="admin-field admin-field-wide"><span>File ảnh</span><input accept="image/jpeg,image/png,image/webp" aria-label="Chọn file ảnh để tải lên" className="admin-input" onChange={chooseFile} type="file" /></label>
+        <label
+          className={`admin-field admin-field-wide ${isDragging ? "admin-field-dragover" : ""}`}
+          onDragEnter={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setIsDragging(true);
+          }}
+          onDragLeave={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setIsDragging(false);
+          }}
+          onDragOver={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+          }}
+          onDrop={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setIsDragging(false);
+            const dropped = e.dataTransfer.files?.[0];
+            if (dropped) setFile(dropped);
+          }}
+          style={{
+            background: isDragging ? "#ecfdf5" : undefined,
+            border: isDragging ? "2px dashed #059669" : undefined,
+            borderRadius: 6,
+            padding: isDragging ? 8 : undefined,
+            transition: "all 0.2s ease",
+          }}
+        >
+          <span>File ảnh (kéo thả hoặc chọn tệp)</span>
+          <input accept="image/jpeg,image/png,image/webp" aria-label="Chọn file ảnh để tải lên" className="admin-input" onChange={chooseFile} type="file" />
+        </label>
         {productId ? <label className="admin-field"><span>Gắn vào biến thể</span><select className="admin-select" onChange={(event) => setVariantId(event.target.value)} value={variantId}><option value="">Sản phẩm</option>{variants.map((variant) => <option key={variant.id} value={variant.id}>{variant.name} · {variant.sku}</option>)}</select></label> : <div className="admin-field"><span>Nhóm</span><div className="admin-input">Dịch vụ</div></div>}
         <label className="admin-field"><span>Mô tả ảnh</span><input className="admin-input" maxLength={300} onChange={(event) => setAltText(event.target.value)} placeholder="Mô tả ngắn về nội dung ảnh" value={altText} /></label>
       </div>

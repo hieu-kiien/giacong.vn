@@ -1,6 +1,6 @@
 "use client";
 
-import { ExternalLink, RefreshCw, Save, Send, SendHorizonal, ShieldCheck, Upload } from "lucide-react";
+import { Check, ExternalLink, RefreshCw, Save, Send, SendHorizonal, ShieldCheck, Upload } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRegisterAdminUnsaved } from "@/components/admin/AdminUnsavedGuard";
 import { AdminConfirmDialog } from "@/components/admin/AdminDialog";
@@ -45,6 +45,7 @@ export default function AdminContentPage() {
   const [attempt, setAttempt] = useState(0);
   const [showReloadConfirm, setShowReloadConfirm] = useState(false);
   const [publishingAll, setPublishingAll] = useState(false);
+  const [activeGroup, setActiveGroup] = useState<string>("all");
   const publishAllRequestId = useRef<{ key: string; requestId: string } | null>(null);
   const isDirty = useCallback(() => unsavedKeys.size > 0, [unsavedKeys]);
   useRegisterAdminUnsaved(isDirty, Boolean(savingKey || uploadingKey || publishingKey || publishingAll));
@@ -111,6 +112,34 @@ export default function AdminContentPage() {
       setNotice(`Đã lưu bản nháp “${setting.label}”.`);
     } catch (reason: unknown) {
       setError(reason instanceof AdminClientError ? reason : new AdminClientError("Không thể lưu bản nháp.", 0));
+    } finally {
+      setSavingKey(null);
+    }
+  }
+
+  async function saveAndPublish(setting: AdminSiteSetting) {
+    setSavingKey(setting.key);
+    setNotice(null);
+    try {
+      const requestId = crypto.randomUUID();
+      const saveResult = await mutateAdmin<{ setting: AdminSiteSetting }>("/api/admin/site-settings", {
+        method: "PATCH",
+        body: { requestId, key: setting.key, value: setting.draftValue, expectedVersion: setting.version },
+      });
+      setUnsavedKeys((current) => {
+        const next = new Set(current);
+        next.delete(setting.key);
+        return next;
+      });
+      const pubRequestId = crypto.randomUUID();
+      const pubResult = await mutateAdmin<{ setting: AdminSiteSetting }>("/api/admin/site-settings/publish", {
+        method: "POST",
+        body: { requestId: pubRequestId, key: setting.key, expectedVersion: saveResult.setting.version },
+      });
+      setSettings((current) => current.map((item) => item.key === setting.key ? pubResult.setting : item));
+      setNotice(`Đã lưu và áp dụng “${setting.label}” ra website thành công.`);
+    } catch (reason: unknown) {
+      setError(reason instanceof AdminClientError ? reason : new AdminClientError("Không thể lưu và áp dụng nội dung.", 0));
     } finally {
       setSavingKey(null);
     }
@@ -264,8 +293,38 @@ export default function AdminContentPage() {
       {loading ? <div className="admin-skeleton admin-content-skeleton" aria-label="Đang tải nội dung" /> : (
         <div className="admin-content-layout">
           <div className="admin-content-sections">
-            {groupedSettings.map(({ group, label, description, items }) => (
-              <section className="admin-panel admin-content-section" aria-labelledby={`content-group-${group}`} key={group}>
+            <div style={{ marginBottom: 16 }}>
+              <div className="admin-filter-tabs">
+                {[
+                  { label: "Tất cả nhóm", value: "all" },
+                  { label: "Thương hiệu & Logo", value: "brand" },
+                  { label: "Tìm kiếm Google (SEO)", value: "seo" },
+                  { label: "Trang chủ", value: "home" },
+                  { label: "Liên hệ", value: "contact" },
+                  { label: "Cuối trang", value: "footer" },
+                ].map((tab) => {
+                  const groupItems = tab.value === "all" ? settings : settings.filter((s) => s.group === tab.value);
+                  const hasDirty = groupItems.some((s) => s.dirty);
+                  return (
+                    <button
+                      key={tab.value}
+                      type="button"
+                      className={`admin-filter-tab${activeGroup === tab.value ? " is-active" : ""}`}
+                      onClick={() => setActiveGroup(tab.value)}
+                    >
+                      {tab.label}
+                      <span className="admin-filter-count" style={hasDirty ? { background: "#fef3c7", color: "#92400e" } : undefined}>
+                        {groupItems.length}{hasDirty ? " •" : ""}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+            {groupedSettings
+              .filter(({ group }) => activeGroup === "all" || group === activeGroup)
+              .map(({ group, label, description, items }) => (
+                <section className="admin-panel admin-content-section" aria-labelledby={`content-group-${group}`} key={group}>
                 <div className="admin-panel-heading">
                   <div><h2 className="admin-panel-title" id={`content-group-${group}`}>{label}</h2><p className="admin-panel-caption">{description}</p></div>
                   {items.some((item) => item.dirty) ? <AdminStatusBadge kind="amber" value="Có bản nháp" /> : <AdminStatusBadge kind="green" value="Đã đồng bộ" />}
@@ -282,6 +341,7 @@ export default function AdminContentPage() {
                       hasUnsavedChanges={unsavedKeys.has(setting.key)}
                       onChange={updateDraft}
                       onSave={() => void saveDraft(setting)}
+                      onSaveAndPublish={() => void saveAndPublish(setting)}
                       onPublish={() => void publish(setting)}
                       onImageUpload={(file) => void uploadImage(setting, file)}
                     />
@@ -306,6 +366,7 @@ function SettingEditor({
   hasUnsavedChanges,
   onChange,
   onSave,
+  onSaveAndPublish,
   onPublish,
   onImageUpload,
 }: {
@@ -317,6 +378,7 @@ function SettingEditor({
   hasUnsavedChanges: boolean;
   onChange: (key: string, value: string) => void;
   onSave: () => void;
+  onSaveAndPublish: () => void;
   onPublish: () => void;
   onImageUpload: (file: File) => void;
 }) {
@@ -382,6 +444,19 @@ function SettingEditor({
         <span>bản {setting.version} · Cập nhật {formatAdminDate(setting.updatedAt)}</span>
         {effectiveValueNote ? <small data-testid={`setting-effective-${setting.key}`}>{effectiveValueNote}</small> : null}
         <div className="admin-setting-actions">
+          {hasUnsavedChanges ? (
+            <button
+              className="admin-button admin-button-primary"
+              data-testid={`button-setting-save-apply-${setting.key}`}
+              disabled={!canEdit || saving || publishing}
+              onClick={onSaveAndPublish}
+              style={{ fontWeight: 600 }}
+              title="Lưu bản nháp và tự động phát hành ngay ra website"
+              type="button"
+            >
+              <Check size={13} /> {saving ? "Đang áp dụng…" : "Lưu & Áp dụng"}
+            </button>
+          ) : null}
           <button className="admin-button admin-button-quiet" data-testid={`button-setting-save-${setting.key}`} disabled={!canEdit || !hasUnsavedChanges || saving} onClick={onSave} type="button"><Save size={13} /> {saving ? "Đang lưu" : "Lưu nháp"}</button>
           <button className="admin-button admin-button-primary" data-testid={`button-setting-publish-${setting.key}`} disabled={!canEdit || hasUnsavedChanges || !setting.dirty || publishing} onClick={onPublish} type="button"><Send size={13} /> {publishing ? "Đang phát hành" : "Phát hành"}</button>
         </div>
@@ -392,20 +467,20 @@ function SettingEditor({
 
 function LiveStorefrontHandoff() {
   return (
-    <aside className="admin-live-storefront-card" aria-label="Chỉnh sửa trên trang web thật">
+    <aside className="admin-live-storefront-card" aria-label="Xem trước trên website thật">
       <div className="admin-live-storefront-card-heading">
-        <div><div className="admin-kicker">TRANG WEB THẬT</div><h2>Chỉnh sửa tại nơi hiển thị</h2></div>
+        <div><div className="admin-kicker">XEM TRƯỚC</div><h2>Kiểm tra trên website thật</h2></div>
         <ExternalLink aria-hidden="true" size={17} />
       </div>
       <div className="admin-live-storefront-card-body">
-        <p>Trang này quản lý dữ liệu, bản nháp và đăng bài. Không dựng một bản xem trước riêng có thể khác với website thật.</p>
-        <p>Muốn thấy đúng bố cục, menu, ảnh và hiệu ứng, hãy mở trang web thật rồi bấm nút <strong>Sửa</strong> cạnh vùng nội dung khi tài khoản của bạn có quyền.</p>
+        <p>Mở trang web thật để xem trực tiếp logo, màu sắc, thông tin liên hệ và nội dung trang chủ sau khi áp dụng.</p>
+        <p>Bản nháp chỉ lưu trong quản trị. Khi bạn bấm <strong>Phát hành</strong>, thông tin sẽ được cập nhật ngay lập tức ra ngoài website.</p>
       </div>
       <a className="admin-button admin-button-primary admin-live-storefront-card-action" data-testid="link-open-live-storefront" href="/" rel="noreferrer" target="_blank">
         Mở trang web thật
         <ExternalLink aria-hidden="true" size={14} />
       </a>
-      <p className="admin-live-storefront-card-note">Bản nháp chỉ nằm trong trang quản trị. Trang web công khai chỉ đổi sau khi bạn lưu và đăng.</p>
+      <p className="admin-live-storefront-card-note">Dữ liệu được cập nhật an toàn và đồng bộ tức thì trên toàn hệ thống.</p>
     </aside>
   );
 }

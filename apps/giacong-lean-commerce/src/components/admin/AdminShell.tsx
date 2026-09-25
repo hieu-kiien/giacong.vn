@@ -1,6 +1,6 @@
 "use client";
 
-import { ClipboardList, ExternalLink, History, LayoutDashboard, LayoutTemplate, LogOut, Menu, Newspaper, Package, PanelTop, PenLine, Settings2, UsersRound, X } from "lucide-react";
+import { Building2, ClipboardList, ExternalLink, History, Image as ImageIcon, LayoutDashboard, LayoutTemplate, LogOut, Menu, Newspaper, Package, PanelTop, PenLine, Settings2, UsersRound, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Fragment, createContext, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type MouseEvent as ReactMouseEvent, type ReactNode } from "react";
@@ -42,6 +42,7 @@ const navGroups: ReadonlyArray<AdminNavGroup> = [
     items: [
       { href: "/admin", label: "Tổng quan", icon: LayoutDashboard, readCapability: "dashboard.read" },
       { href: "/admin/yeu-cau", label: "Yêu cầu báo giá", icon: ClipboardList, readCapability: "leads.read" },
+      { href: "/admin/khach-hang", label: "Khách hàng B2B", icon: Building2, readCapability: "crm.read" },
     ],
   },
   {
@@ -63,6 +64,7 @@ const navGroups: ReadonlyArray<AdminNavGroup> = [
     label: "Nội dung",
     items: [
       { href: "/admin/tin-tuc", label: "Tin tức", icon: Newspaper, readCapability: "news.read" },
+      { href: "/admin/media", label: "Thư viện Media", icon: ImageIcon, readCapability: "media.read" },
     ],
   },
   {
@@ -180,6 +182,7 @@ export function AdminShell({ brandName, children }: AdminShellProps) {
   const [attempt, setAttempt] = useState(0);
   const isStagingHost = useSyncExternalStore(subscribeToBrowserLocation, getStagingHostSnapshot, getServerStagingHostSnapshot);
   const [pendingNav, setPendingNav] = useState<{ href: string } | { history: true } | { logout: true } | null>(null);
+  const [navigatingHref, setNavigatingHref] = useState<string | null>(null);
   const [historyDiscardKey, setHistoryDiscardKey] = useState(0);
   const [unsavedSaving, setUnsavedSaving] = useState(false);
   const [unsavedRevision, setUnsavedRevision] = useState(0);
@@ -241,6 +244,10 @@ export function AdminShell({ brandName, children }: AdminShellProps) {
   useEffect(() => {
     pendingRef.current = pendingNav;
   }, [pendingNav]);
+
+  useEffect(() => {
+    setNavigatingHref(null);
+  }, [pathname]);
 
   const updateUnsavedState = useCallback(() => {
     unsavedIsDirtyRef.current = () => [...unsavedRegistrationsRef.current.values()].some((registration) => registration.isDirty());
@@ -468,6 +475,21 @@ export function AdminShell({ brandName, children }: AdminShellProps) {
       >
       <AdminToastProvider>
         <div className="admin-app">
+          {navigatingHref ? (
+            <div
+              aria-hidden="true"
+              style={{
+                position: "fixed",
+                top: 0,
+                left: 0,
+                right: 0,
+                height: 3,
+                background: "linear-gradient(90deg, #4d770f 0%, #b6d27c 50%, #4d770f 100%)",
+                zIndex: 9999,
+                boxShadow: "0 0 6px rgba(182, 210, 124, 0.8)",
+              }}
+            />
+          ) : null}
         <div className="admin-shell">
           {mobileOpen ? <button aria-label="Đóng điều hướng" className="admin-nav-backdrop" data-testid="admin-nav-backdrop" onClick={() => setMobileOpen(false)} tabIndex={-1} type="button" /> : null}
           <aside className={`admin-sidebar${mobileOpen ? " is-open" : ""}`} aria-label="Điều hướng admin" id="admin-navigation" onClickCapture={handleSidebarClickCapture} ref={sidebarRef}>
@@ -482,17 +504,47 @@ export function AdminShell({ brandName, children }: AdminShellProps) {
                   <p className="admin-nav-label">{group.label}</p>
                   {group.items.map(({ href, icon: Icon, label }) => {
                     const isActive = isAdminNavItemActive(pathname, href);
+                    const isPending = navigatingHref === href;
                     return <Link
                       aria-current={isActive ? "page" : undefined}
+                      aria-busy={isPending ? "true" : undefined}
                       className="admin-nav-link"
+                      data-pending={isPending ? "true" : undefined}
                       data-testid={`link-admin-${label}`}
                       href={href}
                       key={href}
-                      onClick={() => setMobileOpen(false)}
+                      onClick={() => {
+                        setMobileOpen(false);
+                        if (href !== pathname) {
+                          setNavigatingHref(href);
+                        }
+                      }}
+                      onMouseEnter={() => {
+                        try {
+                          router.prefetch(href);
+                        } catch {}
+                      }}
+                      onFocus={() => {
+                        try {
+                          router.prefetch(href);
+                        } catch {}
+                      }}
                       prefetch={false}
                     >
                       <Icon aria-hidden="true" />
                       <span>{label}</span>
+                      {isPending ? (
+                        <span
+                          aria-hidden="true"
+                          style={{
+                            width: 6,
+                            height: 6,
+                            borderRadius: "50%",
+                            backgroundColor: "#b6d27c",
+                            marginLeft: "auto",
+                          }}
+                        />
+                      ) : null}
                     </Link>
                   })}
                 </div>

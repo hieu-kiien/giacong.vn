@@ -33,7 +33,7 @@ export async function GET(_request: Request, context: RouteContext<"/media/[...p
   const headers = new Headers();
   object.writeHttpMetadata(headers);
   if (object.httpEtag) headers.set("ETag", object.httpEtag);
-  headers.set("Cache-Control", "public, max-age=3600, s-maxage=86400");
+  headers.set("Cache-Control", "public, max-age=31536000, s-maxage=31536000, immutable");
   headers.set("X-Content-Type-Options", "nosniff");
 
   return new Response(object.body, { headers });

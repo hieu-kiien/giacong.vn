@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { AlertTriangle, CheckCircle2, ChevronLeft, ChevronRight, Database, Inbox, RefreshCw } from "lucide-react";
 import { AdminClientError } from "@/lib/admin-client";
 
@@ -42,8 +43,22 @@ export function AdminStatusBadge({ value, kind = "neutral" }: { value: string; k
   return <span className={`admin-badge admin-badge-${kind}`}>{value}</span>;
 }
 
-export function AdminMetric({ label, value, foot, testId }: { label: string; value: number | string; foot: string; testId: string }) {
-  return <div className="admin-metric" data-testid={testId}><div className="admin-metric-label">{label}</div><div className="admin-metric-value">{value}</div><div className="admin-metric-foot">{foot}</div></div>;
+export function AdminMetric({ label, value, foot, testId, href }: { label: string; value: number | string; foot: string; testId: string; href?: string }) {
+  const metricContent = (
+    <div className={`admin-metric${href ? " is-clickable" : ""}`} data-testid={testId}>
+      <div className="admin-metric-label">{label}</div>
+      <div className="admin-metric-value">{value}</div>
+      <div className="admin-metric-foot">{foot}</div>
+    </div>
+  );
+  if (href) {
+    return (
+      <Link href={href} prefetch={false} style={{ color: "inherit", display: "block", textDecoration: "none" }}>
+        {metricContent}
+      </Link>
+    );
+  }
+  return metricContent;
 }
 
 export function DataReadiness({ data }: { data: Record<string, boolean> }) {
@@ -58,7 +73,7 @@ export function DataReadiness({ data }: { data: Record<string, boolean> }) {
   const readyCount = entries.filter(([, ready]) => ready).length;
   return (
     <section className="admin-panel" aria-labelledby="readiness-heading" data-testid="panel-data-readiness">
-      <div className="admin-panel-heading"><div><h2 className="admin-panel-title" id="readiness-heading">Độ sẵn sàng dữ liệu</h2><p className="admin-panel-caption">{readyCount}/{entries.length} thành phần đã phản hồi</p></div><Database aria-hidden="true" color="#6e8c42" size={19} /></div>
+      <div className="admin-panel-heading"><div><h2 className="admin-panel-title" id="readiness-heading">Trạng thái kết nối dữ liệu</h2><p className="admin-panel-caption">{readyCount}/{entries.length} phân hệ Cloudflare D1 sẵn sàng</p></div><Database aria-hidden="true" color="#6e8c42" size={19} /></div>
       <div className="admin-readiness-list">
         {entries.map(([key, ready]) => <div className="admin-readiness-row" key={key}><span className="admin-readiness-name">{labels[key] ?? key}</span><span className={`admin-ready-state ${ready ? "is-ready" : "is-pending"}`}>{ready ? "Sẵn sàng" : "Chưa có"}</span></div>)}
       </div>

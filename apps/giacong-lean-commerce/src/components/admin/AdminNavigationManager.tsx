@@ -1,6 +1,6 @@
 "use client";
 
-import { Eye, Plus, RefreshCw, Save, Send, ShieldCheck } from "lucide-react";
+import { Eye, EyeOff, Plus, RefreshCw, Save, Send, ShieldCheck } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useRegisterAdminUnsaved } from "@/components/admin/AdminUnsavedGuard";
 
@@ -71,6 +71,7 @@ export function AdminNavigationManager() {
   const [creating, setCreating] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
   const [confirmReload, setConfirmReload] = useState(false);
+  const [menuTab, setMenuTab] = useState<"all" | "primary" | "footer">("all");
   const [newItem, setNewItem] = useState<NewNavigationForm>({ href: "/", label: "", menuKey: "primary", parentId: "", sortOrder: "" });
   const mutationRequestIds = useRef(new Map<string, string>());
   const createRequestId = useRef<string | null>(null);
@@ -339,18 +340,51 @@ export function AdminNavigationManager() {
       {confirmReload ? <AdminConfirmDialog cancelLabel="Ở lại" confirmLabel="Tải lại" message="Tải lại sẽ bỏ các thay đổi menu chưa lưu. Bạn có muốn tiếp tục?" onConfirm={() => setAttempt((value) => value + 1)} onDismiss={() => setConfirmReload(false)} title="Bỏ thay đổi và tải lại?" /> : null}
       {loading ? <div className="admin-skeleton admin-content-skeleton" aria-label="Đang tải menu" /> : (
         <div className="admin-navigation-groups">
-          <NavigationGroup
-            canEdit={permissionsReady && canEdit}
-            canPublish={permissionsReady && canPublish}
-            items={primaryItems}
-            onChange={updateDraft}
-            onPublish={(item) => void publishItem(item)}
-            onSave={(item) => void saveItem(item)}
-            publishingId={publishingId}
-            savingId={savingId}
-            title="Menu chính"
-          />
-          {footerItems.length > 0 ? <NavigationGroup canEdit={permissionsReady && canEdit} canPublish={permissionsReady && canPublish} items={footerItems} onChange={updateDraft} onPublish={(item) => void publishItem(item)} onSave={(item) => void saveItem(item)} publishingId={publishingId} savingId={savingId} title="Menu cuối trang" /> : null}
+          <div style={{ marginBottom: 16 }}>
+            <div className="admin-filter-tabs">
+              {[
+                { label: "Tất cả menu", value: "all", count: items.length },
+                { label: "Menu chính (Header)", value: "primary", count: primaryItems.length },
+                { label: "Menu cuối trang (Footer)", value: "footer", count: footerItems.length },
+              ].map((tab) => (
+                <button
+                  key={tab.value}
+                  type="button"
+                  className={`admin-filter-tab${menuTab === tab.value ? " is-active" : ""}`}
+                  onClick={() => setMenuTab(tab.value as "all" | "primary" | "footer")}
+                >
+                  {tab.label}
+                  <span className="admin-filter-count">{tab.count}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+          {(menuTab === "all" || menuTab === "primary") ? (
+            <NavigationGroup
+              canEdit={permissionsReady && canEdit}
+              canPublish={permissionsReady && canPublish}
+              items={primaryItems}
+              onChange={updateDraft}
+              onPublish={(item) => void publishItem(item)}
+              onSave={(item) => void saveItem(item)}
+              publishingId={publishingId}
+              savingId={savingId}
+              title="Menu chính"
+            />
+          ) : null}
+          {(menuTab === "all" || menuTab === "footer") && footerItems.length > 0 ? (
+            <NavigationGroup
+              canEdit={permissionsReady && canEdit}
+              canPublish={permissionsReady && canPublish}
+              items={footerItems}
+              onChange={updateDraft}
+              onPublish={(item) => void publishItem(item)}
+              onSave={(item) => void saveItem(item)}
+              publishingId={publishingId}
+              savingId={savingId}
+              title="Menu cuối trang"
+            />
+          ) : null}
         </div>
       )}
     </div>
@@ -443,7 +477,31 @@ function NavigationEditor({ canEdit, canPublish, item, onChange, onPublish, onSa
           <input className="admin-input" disabled={!canEdit} id={`${fieldPrefix}-href`} onChange={(event) => onChange(item.id, { draftHref: event.target.value })} value={item.draftHref} />
         </AdminField>
         <AdminField id={`${fieldPrefix}-order`} label="Thứ tự">
-          <input className="admin-input" disabled={!canEdit} id={`${fieldPrefix}-order`} min="0" onChange={(event) => onChange(item.id, { draftSortOrder: Number(event.target.value) })} type="number" value={item.draftSortOrder} />
+          <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+            <input className="admin-input" disabled={!canEdit} id={`${fieldPrefix}-order`} min="0" onChange={(event) => onChange(item.id, { draftSortOrder: Number(event.target.value) })} type="number" value={item.draftSortOrder} />
+            <div style={{ display: "flex", gap: 4 }}>
+              <button
+                type="button"
+                className="admin-button admin-button-quiet"
+                disabled={!canEdit || item.draftSortOrder <= 0}
+                onClick={() => onChange(item.id, { draftSortOrder: Math.max(0, item.draftSortOrder - 1) })}
+                title="Tăng thứ tự (lên trước)"
+                style={{ padding: "4px 8px", fontSize: 12, minHeight: 32 }}
+              >
+                ↑ Lên
+              </button>
+              <button
+                type="button"
+                className="admin-button admin-button-quiet"
+                disabled={!canEdit}
+                onClick={() => onChange(item.id, { draftSortOrder: item.draftSortOrder + 1 })}
+                title="Giảm thứ tự (xuống sau)"
+                style={{ padding: "4px 8px", fontSize: 12, minHeight: 32 }}
+              >
+                ↓ Xuống
+              </button>
+            </div>
+          </div>
         </AdminField>
         {item.menuKey === "primary" && !item.capturedMenuId ? (
           <AdminField id={`${fieldPrefix}-parent`} hint="Để trống nếu là mục cấp cao nhất." label="Mục cha" optional>
@@ -464,6 +522,17 @@ function NavigationEditor({ canEdit, canPublish, item, onChange, onPublish, onSa
           <span><strong>Hiển thị mục này</strong><small>Ngoài web: {item.publishedIsActive ? "đang hiện" : "đang ẩn"} · bản {item.version}</small></span>
         </label>
         <div className="admin-setting-actions">
+          {canEdit ? (
+            <button
+              className="admin-button admin-button-quiet"
+              onClick={() => onChange(item.id, { draftIsActive: !item.draftIsActive })}
+              style={{ fontSize: 12, minHeight: 30, padding: "0 8px" }}
+              title={item.draftIsActive ? "Bấm để ẩn mục này" : "Bấm để hiện mục này"}
+              type="button"
+            >
+              {item.draftIsActive ? <><EyeOff size={13} /> Ẩn</> : <><Eye size={13} /> Hiện</>}
+            </button>
+          ) : null}
           <button className="admin-button admin-button-quiet" disabled={!canEdit || !item.localDirty || saving} onClick={() => onSave(item)} type="button"><Save size={13} /> {saving ? "Đang lưu" : item.virtual ? "Bật quản lý" : "Lưu nháp"}</button>
           <button className="admin-button admin-button-primary" disabled={!canPublish || !item.dirty || item.localDirty || publishing} onClick={() => onPublish(item)} type="button"><Send size={13} /> {publishing ? "Đang phát hành" : "Phát hành"}</button>
         </div>

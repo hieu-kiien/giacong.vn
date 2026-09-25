@@ -5,7 +5,8 @@
 // consistent; native browser dialog boxes are forbidden.
 
 import { X } from "lucide-react";
-import { useEffect, useRef, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 
 const focusableSelector = [
   "a[href]",
@@ -30,12 +31,18 @@ interface AdminModalProps {
 export function AdminModal({ children, describedBy, labelledBy, onClose, title, width = "narrow" }: AdminModalProps) {
   const surfaceRef = useRef<HTMLDivElement>(null);
   const onCloseRef = useRef(onClose);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     onCloseRef.current = onClose;
   }, [onClose]);
 
   useEffect(() => {
+    if (!mounted) return;
     const previouslyFocused = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const surface = surfaceRef.current;
 
@@ -73,13 +80,21 @@ export function AdminModal({ children, describedBy, labelledBy, onClose, title, 
     const firstFocusable = getFocusableElements()[0];
     (firstFocusable ?? surface)?.focus();
 
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
     return () => {
       document.removeEventListener("keydown", onKeyDown);
+      document.body.style.overflow = originalOverflow;
       if (previouslyFocused?.isConnected) previouslyFocused.focus();
     };
-  }, []);
+  }, [mounted]);
 
-  return (
+  if (!mounted || typeof document === "undefined") {
+    return null;
+  }
+
+  return createPortal(
     <div className="admin-modal-overlay admin-app" onClick={onClose}>
       <div
         aria-describedby={describedBy}
@@ -99,7 +114,8 @@ export function AdminModal({ children, describedBy, labelledBy, onClose, title, 
         </header>
         <div className="admin-modal-body">{children}</div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 

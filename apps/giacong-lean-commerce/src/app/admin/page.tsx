@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowUpRight, Newspaper, Package, Settings2 } from "lucide-react";
+import { ArrowUpRight, ClipboardList, Newspaper, Package, Settings2 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { AdminErrorState, AdminMetric, AdminPageHeading, AdminLoadingTable, DataReadiness } from "@/components/admin/AdminPrimitives";
@@ -23,6 +23,7 @@ export default function AdminDashboardPage() {
   const canViewServices = canManage(session.role, "services.read");
   const canViewProducts = canManage(session.role, "catalog.read");
   const canViewNews = canManage(session.role, "news.read");
+  const canViewLeads = canManage(session.role, "leads.read");
   const [data, setData] = useState<DashboardData | null>(null);
   const [error, setError] = useState<AdminClientError | null>(null);
   const [loading, setLoading] = useState(true);
@@ -54,14 +55,15 @@ export default function AdminDashboardPage() {
       {loading && !data ? <><div className="admin-skeleton-metrics">{Array.from({ length: 4 }, (_, index) => <div className="admin-skeleton admin-skeleton-metric" key={index} />)}</div><AdminLoadingTable /></> : error && !data ? <AdminErrorState error={error} onRetry={() => { setError(null); setAttempt((value) => value + 1); }} /> : data ? (
         <>
           <div className="admin-metric-grid">
-            {canViewProducts ? <><AdminMetric label="Tổng sản phẩm" value={data.counts.products} foot={`${data.counts.activeProducts} đang hoạt động`} testId="metric-products" /><AdminMetric label="Sản phẩm bản nháp" value={data.counts.draftProducts} foot="Cần hoàn thiện trước khi xuất bản" testId="metric-draft-products" /></> : null}
-            {canViewServices ? <AdminMetric label="Dịch vụ gia công" value={data.counts.services} foot={`${data.counts.activeServices} đang hoạt động`} testId="metric-services" /> : null}
-            {canViewNews ? <AdminMetric label="Bài viết tin tức" value={data.counts.news} foot="Bản nháp và bài đã xuất bản" testId="metric-news" /> : null}
+            {canViewProducts ? <><AdminMetric href="/admin/san-pham" label="Tổng sản phẩm" value={data.counts.products} foot={`${data.counts.activeProducts} đang hoạt động`} testId="metric-products" /><AdminMetric href="/admin/san-pham?status=draft" label="Sản phẩm bản nháp" value={data.counts.draftProducts} foot="Cần hoàn thiện trước khi xuất bản" testId="metric-draft-products" /></> : null}
+            {canViewServices ? <AdminMetric href="/admin/dich-vu" label="Dịch vụ gia công" value={data.counts.services} foot={`${data.counts.activeServices} đang hoạt động`} testId="metric-services" /> : null}
+            {canViewNews ? <AdminMetric href="/admin/tin-tuc" label="Bài viết tin tức" value={data.counts.news} foot="Bản nháp và bài đã xuất bản" testId="metric-news" /> : null}
           </div>
           <div className="admin-grid-2 admin-dashboard-panels">
             <section className="admin-panel admin-dashboard-shortcuts" aria-labelledby="quick-links-heading">
               <div className="admin-panel-heading"><div><h2 className="admin-panel-title" id="quick-links-heading">Công việc thường dùng</h2><p className="admin-panel-caption">Mở nhanh khu vực bạn có quyền truy cập</p></div><ArrowUpRight aria-hidden="true" color="#6e8c42" size={19} /></div>
               <div className="admin-brief-list">
+                {canViewLeads ? <Link className="admin-brief-row" data-testid="link-quick-inbox" href="/admin/yeu-cau" prefetch={false}><span className="admin-brief-icon"><ClipboardList size={16} /></span><span className="admin-brief-copy"><strong>Hộp thư yêu cầu báo giá</strong><span>{data.counts.newLeads > 0 ? `${data.counts.newLeads} yêu cầu mới cần xử lý` : `${data.counts.leads} yêu cầu trong hộp thư`}</span></span><ArrowUpRight size={14} /></Link> : null}
                 {canViewProducts ? <Link className="admin-brief-row" data-testid="link-dashboard-products" href="/admin/san-pham" prefetch={false}><span className="admin-brief-icon"><Package size={16} /></span><span className="admin-brief-copy"><strong>Quản lý sản phẩm</strong><span>{data.counts.draftProducts} bản nháp cần hoàn thiện</span></span><ArrowUpRight size={14} /></Link> : null}
                 {canViewServices ? <Link className="admin-brief-row" data-testid="link-dashboard-services" href="/admin/dich-vu" prefetch={false}><span className="admin-brief-icon"><Settings2 size={16} /></span><span className="admin-brief-copy"><strong>Rà soát dịch vụ</strong><span>{data.counts.services} dịch vụ gia công</span></span><ArrowUpRight size={14} /></Link> : null}
                 {canViewNews ? <Link className="admin-brief-row" data-testid="link-dashboard-news" href="/admin/tin-tuc" prefetch={false}><span className="admin-brief-icon"><Newspaper size={16} /></span><span className="admin-brief-copy"><strong>Biên tập tin tức</strong><span>Soạn bài, kiểm tra và xuất bản</span></span><ArrowUpRight size={14} /></Link> : null}

@@ -1,7 +1,7 @@
 "use client";
 
 import { Plus, RefreshCw, Save, ShieldCheck, UserRound } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRegisterAdminUnsaved } from "@/components/admin/AdminUnsavedGuard";
 
 import { AdminField } from "@/components/admin/AdminField";
@@ -108,6 +108,15 @@ export function AdminMembersManager() {
     })();
     return () => controller.abort();
   }, [attempt, session.memberId, session.subject]);
+
+  const [memberFilter, setMemberFilter] = useState<"all" | "active" | "inactive">("all");
+  const filteredMembers = useMemo(() => {
+    return members.filter((member) => {
+      if (memberFilter === "active") return member.draftIsActive;
+      if (memberFilter === "inactive") return !member.draftIsActive;
+      return true;
+    });
+  }, [members, memberFilter]);
 
   function updateDraft(id: string, patch: Partial<EditableMember>) {
     setMembers((current) => current.map((member) => member.id === id ? { ...member, ...patch } : member));
@@ -226,7 +235,47 @@ export function AdminMembersManager() {
       {loading ? <div className="admin-skeleton admin-content-skeleton" aria-label="Đang tải thành viên" /> : (
         <section className="admin-panel" aria-labelledby="member-list-title">
           <div className="admin-panel-heading"><div><h2 className="admin-panel-title" id="member-list-title">Danh sách tài khoản quản trị</h2><p className="admin-panel-caption">{members.length} tài khoản · thay đổi quyền được kiểm tra phiên bản và ghi lịch sử</p></div><UserRound size={17} /></div>
-          {members.length === 0 ? <div className="admin-table-empty"><strong>Chưa có tài khoản quản trị</strong><p>Thêm chủ sở hữu đầu tiên để bắt đầu.</p></div> : <div className="admin-member-list">{members.map((member) => <MemberEditor canEdit={canEdit} currentMemberId={session.memberId} currentSubject={session.subject} fieldErrors={memberFieldErrors[member.id] ?? {}} key={member.id} member={member} onChange={updateDraft} onSave={(next) => void saveMember(next)} saving={savingId === member.id} />)}</div>}
+          <div style={{ padding: "0 20px 12px" }}>
+            <div className="admin-filter-tabs">
+              {[
+                { label: "Tất cả", value: "all", count: members.length },
+                { label: "Đang hoạt động", value: "active", count: members.filter((m) => m.draftIsActive).length },
+                { label: "Đã khóa", value: "inactive", count: members.filter((m) => !m.draftIsActive).length },
+              ].map((tab) => (
+                <button
+                  key={tab.value}
+                  type="button"
+                  className={`admin-filter-tab${memberFilter === tab.value ? " is-active" : ""}`}
+                  onClick={() => setMemberFilter(tab.value as "all" | "active" | "inactive")}
+                >
+                  {tab.label}
+                  <span className="admin-filter-count">{tab.count}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+          {filteredMembers.length === 0 ? (
+            <div className="admin-table-empty">
+              <strong>Không có tài khoản quản trị</strong>
+              <p>{memberFilter === "all" ? "Thêm chủ sở hữu đầu tiên để bắt đầu." : "Không có tài khoản nào thuộc bộ lọc này."}</p>
+            </div>
+          ) : (
+            <div className="admin-member-list">
+              {filteredMembers.map((member) => (
+                <MemberEditor
+                  canEdit={canEdit}
+                  currentMemberId={session.memberId}
+                  currentSubject={session.subject}
+                  fieldErrors={memberFieldErrors[member.id] ?? {}}
+                  key={member.id}
+                  member={member}
+                  onChange={updateDraft}
+                  onSave={(next) => void saveMember(next)}
+                  saving={savingId === member.id}
+                />
+              ))}
+            </div>
+          )}
         </section>
       )}
     </div>
@@ -249,7 +298,19 @@ function MemberEditor({ canEdit, currentMemberId, currentSubject, fieldErrors, m
       </div>
       <div className="admin-member-card-footer">
         <label className={`admin-check${canEdit ? "" : " is-disabled"}`}><input checked={member.draftIsActive} disabled={!canEdit || isCurrent} onChange={(event) => onChange(member.id, { draftIsActive: event.target.checked })} type="checkbox" /><span><strong>Cho phép truy cập</strong><small>{isCurrent ? "Tài khoản hiện tại không thể tự hạ quyền hoặc vô hiệu hóa." : `Revision ${member.revision}`}</small></span></label>
-        <button className="admin-button admin-button-primary" disabled={!canEdit || !dirty || saving || !member.draftEmail.trim()} onClick={() => onSave(member)} type="button"><Save size={13} /> {saving ? "Đang lưu" : "Lưu quyền"}</button>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          {!isCurrent && canEdit ? (
+            <button
+              className={`admin-button ${member.draftIsActive ? "admin-button-danger" : "admin-button-quiet"}`}
+              onClick={() => onChange(member.id, { draftIsActive: !member.draftIsActive })}
+              style={{ fontSize: 12, minHeight: 30, padding: "0 8px" }}
+              type="button"
+            >
+              {member.draftIsActive ? "Khóa tài khoản" : "Kích hoạt lại"}
+            </button>
+          ) : null}
+          <button className="admin-button admin-button-primary" disabled={!canEdit || !dirty || saving || !member.draftEmail.trim()} onClick={() => onSave(member)} type="button"><Save size={13} /> {saving ? "Đang lưu" : "Lưu quyền"}</button>
+        </div>
       </div>
     </article>
   );
