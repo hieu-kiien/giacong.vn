@@ -47,31 +47,11 @@ jobs:
       - name: Confirm current staging deployment
         run: npx wrangler deployments status --env=staging --json
 
+      - name: Apply guarded OpenNext R2 preflight workaround
+        run: node scripts/patch-opennext-r2-preflight.mjs
+
       - name: Upload new OpenNext staging version without serving traffic
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          log_file="$RUNNER_TEMP/opennext-staging-upload.log"
-          for attempt in 1 2 3; do
-            set +e
-            npm run cf:upload:staging 2>&1 | tee "$log_file"
-            status=${PIPESTATUS[0]}
-            set -e
-
-            if [[ "$status" -eq 0 ]]; then
-              exit 0
-            fi
-
-            # OpenNext reports this before it writes cache objects or uploads a Worker version.
-            if [[ "$attempt" -eq 3 ]] || ! grep -Fq 'Failed to check whether bucket exists: Connection error.' "$log_file"; then
-              exit "$status"
-            fi
-
-            delay=$((attempt * 30))
-            echo "OpenNext could not reach the staging R2 bucket check; retrying in ${delay}s (attempt $((attempt + 1))/3)."
-            sleep "$delay"
-          done
+        run: npm run cf:upload:staging
 
       - name: List staging versions after upload
         run: npx wrangler versions list --env=staging --json
