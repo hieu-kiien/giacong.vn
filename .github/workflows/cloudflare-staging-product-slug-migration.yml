@@ -1,0 +1,161 @@
+name: Cloudflare staging product slug migration
+
+on:
+  workflow_dispatch:
+    inputs:
+      apply_migration:
+        description: "Set true only to apply migration 0031 to the staging D1 database."
+        required: true
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cloudflare-staging-product-slug-migration
+  cancel-in-progress: false
+
+jobs:
+  migrate:
+    if: ${{ inputs.apply_migration }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: staging
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      DATABASE_NAME: giacong-vn-catalog-staging
+      MIGRATION_NAME: 0031_product_slug_redirects.sql
+      WRANGLER_VERSION: "4.131.1"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 24
+
+      - name: Capture D1 baseline and export backup
+        id: before
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          state="$(npx -y "wrangler@$WRANGLER_VERSION" d1 execute "$DATABASE_NAME" --remote --json --command="
+            SELECT group_concat(name, '|') AS migration_history
+            FROM (SELECT name FROM d1_migrations ORDER BY id);
+            SELECT COUNT(*) AS redirect_table_count
+            FROM sqlite_master WHERE type='table' AND name='product_slug_redirects';
+            SELECT 'categories' AS entity, COUNT(*) AS row_count FROM categories;
+            SELECT 'products' AS entity, COUNT(*) AS row_count FROM products;
+            SELECT 'product_variants' AS entity, COUNT(*) AS row_count FROM product_variants;
+            SELECT 'variant_tier_prices' AS entity, COUNT(*) AS row_count FROM variant_tier_prices;
+            SELECT 'services' AS entity, COUNT(*) AS row_count FROM services;
+            SELECT 'product_gallery_images' AS entity, COUNT(*) AS row_count FROM product_gallery_images;
+            SELECT 'product_tech_specs' AS entity, COUNT(*) AS row_count FROM product_tech_specs;
+          ")"
+          echo "$state" | jq .
+          history="$(echo "$state" | jq -r '.[0].results[0].migration_history // ""')"
+          latest="$(echo "$history" | awk -F '|' '{print $NF}')"
+          redirect_table_count="$(echo "$state" | jq -r '.[1].results[0].redirect_table_count')"
+          test "$latest" = "0030_product_tech_specs_and_media.sql"
+          test "$redirect_table_count" = "0"
+
+          migrations="$(npx -y "wrangler@$WRANGLER_VERSION" d1 migrations list "$DATABASE_NAME" --remote --env staging)"
+          echo "$migrations"
+          pending="$(echo "$migrations" | grep -oE '[[:alnum:]_.-]+\.sql' || true)"
+          test "$pending" = "$MIGRATION_NAME"
+
+          baseline_counts="$(echo "$state" | jq -c '[.[2].results[0], .[3].results[0], .[4].results[0], .[5].results[0], .[6].results[0], .[7].results[0], .[8].results[0]] | map({entity,row_count})')"
+          echo "business_counts=$baseline_counts" >> "$GITHUB_OUTPUT"
+
+          snapshot="$RUNNER_TEMP/giacong-staging-before-0031.sql"
+          npx -y "wrangler@$WRANGLER_VERSION" d1 export "$DATABASE_NAME" --remote --env staging --output "$snapshot"
+          test -s "$snapshot"
+          snapshot_sha256="$(sha256sum "$snapshot" | cut -d ' ' -f 1)"
+          snapshot_bytes="$(wc -c < "$snapshot" | tr -d ' ')"
+          echo "snapshot_sha256=$snapshot_sha256" >> "$GITHUB_OUTPUT"
+          echo "snapshot_bytes=$snapshot_bytes" >> "$GITHUB_OUTPUT"
+          echo "D1 export saved on the ephemeral runner: bytes=$snapshot_bytes sha256=$snapshot_sha256"
+
+      - name: Recheck state and apply only migration 0031
+        id: apply
+        env:
+          BEFORE_COUNTS: ${{ steps.before.outputs.business_counts }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          current="$(npx -y "wrangler@$WRANGLER_VERSION" d1 execute "$DATABASE_NAME" --remote --json --command="
+            SELECT group_concat(name, '|') AS migration_history
+            FROM (SELECT name FROM d1_migrations ORDER BY id);
+            SELECT 'categories' AS entity, COUNT(*) AS row_count FROM categories;
+            SELECT 'products' AS entity, COUNT(*) AS row_count FROM products;
+            SELECT 'product_variants' AS entity, COUNT(*) AS row_count FROM product_variants;
+            SELECT 'variant_tier_prices' AS entity, COUNT(*) AS row_count FROM variant_tier_prices;
+            SELECT 'services' AS entity, COUNT(*) AS row_count FROM services;
+            SELECT 'product_gallery_images' AS entity, COUNT(*) AS row_count FROM product_gallery_images;
+            SELECT 'product_tech_specs' AS entity, COUNT(*) AS row_count FROM product_tech_specs;
+            SELECT COUNT(*) AS redirect_table_count
+            FROM sqlite_master WHERE type='table' AND name='product_slug_redirects';
+          ")"
+          history="$(echo "$current" | jq -r '.[0].results[0].migration_history // ""')"
+          latest="$(echo "$history" | awk -F '|' '{print $NF}')"
+          test "$latest" = "0030_product_tech_specs_and_media.sql"
+          test "$(echo "$current" | jq -r '.[8].results[0].redirect_table_count')" = "0"
+          current_counts="$(echo "$current" | jq -c '[.[1].results[0], .[2].results[0], .[3].results[0], .[4].results[0], .[5].results[0], .[6].results[0], .[7].results[0]] | map({entity,row_count})')"
+          test "$current_counts" = "$BEFORE_COUNTS"
+
+          migrations="$(npx -y "wrangler@$WRANGLER_VERSION" d1 migrations list "$DATABASE_NAME" --remote --env staging)"
+          echo "$migrations"
+          pending="$(echo "$migrations" | grep -oE '[[:alnum:]_.-]+\.sql' || true)"
+          test "$pending" = "$MIGRATION_NAME"
+
+          npx -y "wrangler@$WRANGLER_VERSION" d1 migrations apply "$DATABASE_NAME" --remote --env staging
+
+      - name: Verify schema, integrity, and unchanged business counts
+        env:
+          BEFORE_COUNTS: ${{ steps.before.outputs.business_counts }}
+          SNAPSHOT_SHA256: ${{ steps.before.outputs.snapshot_sha256 }}
+          SNAPSHOT_BYTES: ${{ steps.before.outputs.snapshot_bytes }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          after="$(npx -y "wrangler@$WRANGLER_VERSION" d1 execute "$DATABASE_NAME" --remote --json --command="
+            SELECT COUNT(*) AS migration_count FROM d1_migrations WHERE name='$MIGRATION_NAME';
+            SELECT COUNT(*) AS redirect_table_count FROM sqlite_master WHERE type='table' AND name='product_slug_redirects';
+            SELECT COUNT(*) AS redirect_index_count FROM sqlite_master WHERE type='index' AND name='idx_product_slug_redirects_product_id';
+            SELECT group_concat(name, '|') AS trigger_names
+            FROM (SELECT name FROM sqlite_master WHERE type='trigger' AND name IN ('preserve_product_slug_after_update','remove_product_redirect_for_new_canonical_slug') ORDER BY name);
+            SELECT 'categories' AS entity, COUNT(*) AS row_count FROM categories;
+            SELECT 'products' AS entity, COUNT(*) AS row_count FROM products;
+            SELECT 'product_variants' AS entity, COUNT(*) AS row_count FROM product_variants;
+            SELECT 'variant_tier_prices' AS entity, COUNT(*) AS row_count FROM variant_tier_prices;
+            SELECT 'services' AS entity, COUNT(*) AS row_count FROM services;
+            SELECT 'product_gallery_images' AS entity, COUNT(*) AS row_count FROM product_gallery_images;
+            SELECT 'product_tech_specs' AS entity, COUNT(*) AS row_count FROM product_tech_specs;
+            PRAGMA integrity_check;
+            PRAGMA foreign_key_check;
+          ")"
+          echo "$after" | jq .
+          test "$(echo "$after" | jq -r '.[0].results[0].migration_count')" = "1"
+          test "$(echo "$after" | jq -r '.[1].results[0].redirect_table_count')" = "1"
+          test "$(echo "$after" | jq -r '.[2].results[0].redirect_index_count')" = "1"
+          test "$(echo "$after" | jq -r '.[3].results[0].trigger_names')" = "preserve_product_slug_after_update|remove_product_redirect_for_new_canonical_slug"
+          after_counts="$(echo "$after" | jq -c '[.[4].results[0], .[5].results[0], .[6].results[0], .[7].results[0], .[8].results[0], .[9].results[0], .[10].results[0]] | map({entity,row_count})')"
+          test "$after_counts" = "$BEFORE_COUNTS"
+          test "$(echo "$after" | jq -r '.[11].results[0].integrity_check')" = "ok"
+          test "$(echo "$after" | jq -r '.[12].results | length')" = "0"
+
+          {
+            echo "## Staging D1 slug-history migration"
+            echo
+            echo "Applied `$MIGRATION_NAME` after verifying it was the only pending migration."
+            echo "Pre-migration export (ephemeral runner): $SNAPSHOT_BYTES bytes; SHA-256 `$SNAPSHOT_SHA256`."
+            echo "Business row counts match before/after; integrity and foreign-key checks pass."
+            echo "Wrangler also captures its managed D1 backup while applying the migration."
+          } >> "$GITHUB_STEP_SUMMARY"
