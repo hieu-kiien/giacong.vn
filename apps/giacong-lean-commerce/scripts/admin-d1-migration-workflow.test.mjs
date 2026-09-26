@@ -74,7 +74,7 @@ test("product slug migration is an opt-in, staging-only workflow", async () => {
   const workflow = await readSlugMigrationWorkflow();
 
   assert.match(workflow, /workflow_dispatch:[\s\S]*?apply_migration:[\s\S]*?default:\s*false/);
-  assert.match(workflow, /if:\s*\$\{\{\s*inputs\.apply_migration\s*\}\}/);
+  assert.match(workflow, /if:\s*\$\{\{\s*inputs\.apply_migration\s*&&\s*!inputs\.verify_existing\s*\}\}/);
   assert.match(workflow, /DATABASE_NAME:\s*giacong-vn-catalog-staging/);
   assert.match(workflow, /MIGRATION_NAME:\s*0031_product_slug_redirects\.sql/);
   assert.doesNotMatch(workflow, /production|versions deploy/i);
@@ -85,6 +85,19 @@ test("staging D1 migration runs Wrangler from the app workspace", async () => {
 
   assert.match(workflow, /migrate:[\s\S]*?defaults:\s*\n\s*run:\s*\n\s*working-directory:\s*/);
   assert.match(workflow, new RegExp(slugMigrationWranglerWorkingDirectory.replaceAll("/", "\\/")));
+});
+
+test("staging slug migration has a read-only verification mode", async () => {
+  const workflow = await readSlugMigrationWorkflow();
+  const verificationJob = workflow.split("  verify-existing:\n")[1] ?? "";
+
+  assert.match(workflow, /verify_existing:[\s\S]*?default:\s*false/);
+  assert.match(verificationJob, /if:\s*\$\{\{\s*inputs\.verify_existing\s*&&\s*!inputs\.apply_migration\s*\}\}/);
+  assert.match(verificationJob, /PRAGMA quick_check/);
+  assert.match(verificationJob, /PRAGMA foreign_key_check/);
+  assert.match(verificationJob, /EXPECTED_BUSINESS_COUNTS:\s*\$\{\{\s*inputs\.expected_business_counts\s*\}\}/);
+  assert.match(verificationJob, /test "\$business_counts" = "\$expected_counts"/);
+  assert.doesNotMatch(verificationJob, /d1 migrations apply/);
 });
 
 const gitNexusSafetyWorkflowUrl = new URL(
@@ -118,8 +131,9 @@ test("product slug migration exports a backup and verifies counts before and aft
   assert.match(workflow, /test "\$\(echo "\$current" \| jq -r '\.\[8\]\.results\[0\]\.redirect_table_count'\)" = "0"/);
   assert.match(workflow, /d1 migrations apply "\$DATABASE_NAME" --remote --env staging/);
   assert.match(workflow, /test "\$after_counts" = "\$BEFORE_COUNTS"/);
-  assert.match(workflow, /PRAGMA integrity_check/);
+  assert.match(workflow, /PRAGMA quick_check/);
   assert.match(workflow, /PRAGMA foreign_key_check/);
+  assert.match(workflow, /quick_check="\$\(npx -y "wrangler@\$WRANGLER_VERSION" d1 execute/);
 });
 
 const stagingUploadWorkflowUrl = new URL(
