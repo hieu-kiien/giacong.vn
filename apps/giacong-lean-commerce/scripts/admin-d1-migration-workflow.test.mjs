@@ -76,6 +76,7 @@ test("product slug migration is an opt-in, staging-only workflow", async () => {
   assert.match(workflow, /if:\s*\$\{\{\s*inputs\.apply_migration\s*\}\}/);
   assert.match(workflow, /DATABASE_NAME:\s*giacong-vn-catalog-staging/);
   assert.match(workflow, /MIGRATION_NAME:\s*0031_product_slug_redirects\.sql/);
+  assert.match(workflow, /migrate:[\s\S]*?defaults:\s*\n\s*run:\s*\n\s*working-directory:\s*apps\/giacong-lean-commerce/);
   assert.doesNotMatch(workflow, /production|versions deploy/i);
 });
 
