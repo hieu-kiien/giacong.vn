@@ -87,6 +87,22 @@ test("staging D1 migration runs Wrangler from the app workspace", async () => {
   assert.match(workflow, new RegExp(slugMigrationWranglerWorkingDirectory.replaceAll("/", "\\/")));
 });
 
+const gitNexusSafetyWorkflowUrl = new URL(
+  "../../../.github/workflows/gitnexus-safety.yml",
+  import.meta.url,
+);
+
+async function readGitNexusSafetyWorkflow() {
+  return (await readFile(gitNexusSafetyWorkflowUrl, "utf8")).replace(/\r\n/g, "\n");
+}
+
+test("GitNexus requires graph mapping for runtime source changes, not test scripts", async () => {
+  const workflow = await readGitNexusSafetyWorkflow();
+
+  assert.match(workflow, /if grep -Eq '\^apps\/giacong-lean-commerce\/src\//);
+  assert.doesNotMatch(workflow, /apps\/giacong-lean-commerce\/\(src\|scripts\)/);
+});
+
 test("product slug migration exports a backup and verifies counts before and after", async () => {
   const workflow = await readSlugMigrationWorkflow();
 
