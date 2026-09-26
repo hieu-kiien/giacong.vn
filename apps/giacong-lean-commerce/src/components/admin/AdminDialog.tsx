@@ -5,7 +5,7 @@
 // consistent; native browser dialog boxes are forbidden.
 
 import { X } from "lucide-react";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useSyncExternalStore, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 
 const focusableSelector = [
@@ -19,6 +19,10 @@ const focusableSelector = [
   "[tabindex]:not([tabindex='-1'])",
 ].join(",");
 
+const subscribe = () => () => {};
+const getSnapshot = () => true;
+const getServerSnapshot = () => false;
+
 interface AdminModalProps {
   children: ReactNode;
   describedBy?: string;
@@ -31,11 +35,7 @@ interface AdminModalProps {
 export function AdminModal({ children, describedBy, labelledBy, onClose, title, width = "narrow" }: AdminModalProps) {
   const surfaceRef = useRef<HTMLDivElement>(null);
   const onCloseRef = useRef(onClose);
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  const mounted = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 
   useEffect(() => {
     onCloseRef.current = onClose;

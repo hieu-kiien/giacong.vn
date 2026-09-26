@@ -13,6 +13,18 @@ import { parseAdminProductPayload } from "@/lib/admin-product-input";
 
 const editableRoles = new Set(["owner"]);
 
+function toSlug(text: string): string {
+  return text
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[đĐ]/g, "d")
+    .replace(/[^a-z0-9\s-]/g, "")
+    .trim()
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-");
+}
+
 type InlineProductForm = AdminProductFormState & {
   categoryName: string;
   id: number;
@@ -52,6 +64,7 @@ export function AdminCatalogContextualAction({ productId }: { productId: number 
   const [error, setError] = useState<AdminClientError | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
+  const [slugFollowsName, setSlugFollowsName] = useState(true);
   const [notice, setNotice] = useState<string | null>(null);
   const [confirmClose, setConfirmClose] = useState(false);
   const hasUnsavedChanges = useCallback(() => isDirty(form, snapshot), [form, snapshot]);
@@ -67,6 +80,7 @@ export function AdminCatalogContextualAction({ productId }: { productId: number 
     setError(null);
     setFieldErrors({});
     setNotice(null);
+    setSlugFollowsName(true);
     setConfirmClose(false);
   }
 
@@ -85,6 +99,7 @@ export function AdminCatalogContextualAction({ productId }: { productId: number 
     setError(null);
     setFieldErrors({});
     setNotice(null);
+    setSlugFollowsName(true);
     try {
       const result = await fetchAdmin<{ product: AdminProduct }>(`/api/admin/products/${productId}`);
       const next = toInlineForm(result.product);
@@ -183,13 +198,34 @@ export function AdminCatalogContextualAction({ productId }: { productId: number 
                 <div className="admin-editor-grid">
                   <label className="admin-field">
                     <span>Tên sản phẩm <b aria-hidden="true">*</b></span>
-                    <input className="admin-input" disabled={saving} onChange={(event) => update("name", event.target.value)} required value={form.name} />
+                    <input
+                      className="admin-input"
+                      disabled={saving}
+                      onChange={(event) => {
+                        const name = event.target.value;
+                        update("name", name);
+                        if (slugFollowsName) update("slug", toSlug(name));
+                      }}
+                      required
+                      value={form.name}
+                    />
                     {fieldErrors.name ? <small className="admin-field-error">{fieldErrors.name}</small> : null}
                   </label>
                   <label className="admin-field">
                     <span>Đường dẫn (slug) <b aria-hidden="true">*</b></span>
-                    <input className="admin-input admin-mono" disabled={saving} onChange={(event) => update("slug", event.target.value)} required value={form.slug} />
+                    <input
+                      className="admin-input admin-mono"
+                      disabled={saving}
+                      onChange={(event) => {
+                        const slug = event.target.value;
+                        update("slug", slug);
+                        setSlugFollowsName(slug.trim() === "");
+                      }}
+                      required
+                      value={form.slug}
+                    />
                     {fieldErrors.slug ? <small className="admin-field-error">{fieldErrors.slug}</small> : null}
+                    <small className="admin-field-hint">Tự tạo theo tên; nhập slug riêng để giữ đường dẫn tùy chỉnh.</small>
                   </label>
                   <label className="admin-field">
                     <span>Mã hàng (SKU) <b aria-hidden="true">*</b></span>

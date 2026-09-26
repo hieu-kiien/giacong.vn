@@ -133,6 +133,7 @@ export function CatalogList({
     || filters.sort !== DEFAULT_CATALOG_SORT
     || filters.direction !== DEFAULT_CATALOG_SORT_DIRECTION
     || filters.pageSize !== DEFAULT_CATALOG_PAGE_SIZE;
+  const isEmptyCatalog = pagination.total === 0 && !filters.query && !filters.category;
   const clearFilters = () => updateFilters({
     category: "",
     direction: DEFAULT_CATALOG_SORT_DIRECTION,
@@ -313,17 +314,30 @@ export function CatalogList({
             </div>
           ) : (
             <div className="commerce-card-surface p-6" role="status">
-              <h2 className={COMMERCE_TYPOGRAPHY.sectionTitle}>Chưa tìm thấy sản phẩm phù hợp.</h2>
+              <h2 className={COMMERCE_TYPOGRAPHY.sectionTitle}>
+                {isEmptyCatalog ? "Danh mục sản phẩm đang được cập nhật" : "Chưa tìm thấy sản phẩm phù hợp"}
+              </h2>
               <p className="mt-1.5 text-sm text-commerce-secondary">
-                Thử một từ khóa khác hoặc xem lại toàn bộ danh mục.
+                {isEmptyCatalog
+                  ? "Hiện chưa có sản phẩm được công bố. Gửi yêu cầu để trao đổi trực tiếp với chúng tôi."
+                  : "Thử một từ khóa khác hoặc xem lại toàn bộ danh mục."}
               </p>
-              <button
-                className="mt-4 min-h-11 rounded-commerce-control bg-commerce-brand-dark px-5 text-sm font-bold text-white hover:brightness-90 focus-visible:commerce-focus-ring"
-                onClick={clearFilters}
-                type="button"
-              >
-                Xem toàn bộ sản phẩm
-              </button>
+              {isEmptyCatalog ? (
+                <Link
+                  className="mt-4 inline-flex min-h-11 items-center rounded-commerce-control bg-commerce-brand-dark px-5 text-sm font-bold text-white hover:brightness-90 focus-visible:commerce-focus-ring"
+                  href="/gui-yeu-cau/"
+                >
+                  Gửi yêu cầu báo giá
+                </Link>
+              ) : (
+                <button
+                  className="mt-4 min-h-11 rounded-commerce-control bg-commerce-brand-dark px-5 text-sm font-bold text-white hover:brightness-90 focus-visible:commerce-focus-ring"
+                  onClick={clearFilters}
+                  type="button"
+                >
+                  Xem toàn bộ sản phẩm
+                </button>
+              )}
             </div>
           )}
 

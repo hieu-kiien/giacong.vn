@@ -78,7 +78,7 @@ async function loadCatalog(filters: CatalogFilters): Promise<CatalogPageData> {
 function demoCatalogData(filters: CatalogFilters): CatalogPageData {
   const demo = demoCatalogList(filters);
   return {
-    cards: buildCatalogCards(demo.products),
+    cards: buildCatalogCards(demo.products, true),
     categories: demoCatalogCategories(),
     isDemoData: true,
     pagination: demo.pagination,

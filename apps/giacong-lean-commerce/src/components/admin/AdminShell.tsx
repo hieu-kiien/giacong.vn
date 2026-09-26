@@ -1,6 +1,6 @@
 "use client";
 
-import { Building2, ClipboardList, ExternalLink, History, Image as ImageIcon, LayoutDashboard, LayoutTemplate, LogOut, Menu, Newspaper, Package, PanelTop, PenLine, Settings2, UsersRound, X } from "lucide-react";
+import { Building2, ChevronDown, ClipboardList, ExternalLink, History, Image as ImageIcon, LayoutDashboard, LayoutTemplate, LogOut, Menu, Newspaper, Package, PanelTop, PenLine, Settings2, UsersRound, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Fragment, createContext, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type MouseEvent as ReactMouseEvent, type ReactNode } from "react";
@@ -32,13 +32,15 @@ interface AdminNavItem {
 }
 
 interface AdminNavGroup {
-  label: string;
+  id: "operations" | "content" | "website" | "system";
+  displayTitle: string;
   items: ReadonlyArray<AdminNavItem>;
 }
 
 const navGroups: ReadonlyArray<AdminNavGroup> = [
   {
-    label: "Vận hành",
+    id: "operations",
+    displayTitle: "VẬN HÀNH",
     items: [
       { href: "/admin", label: "Tổng quan", icon: LayoutDashboard, readCapability: "dashboard.read" },
       { href: "/admin/yeu-cau", label: "Yêu cầu báo giá", icon: ClipboardList, readCapability: "leads.read" },
@@ -46,7 +48,18 @@ const navGroups: ReadonlyArray<AdminNavGroup> = [
     ],
   },
   {
-    label: "Chỉnh sửa website",
+    id: "content",
+    displayTitle: "NỘI DUNG",
+    items: [
+      { href: "/admin/san-pham", label: "Sản phẩm", icon: Package, readCapability: "catalog.read" },
+      { href: "/admin/dich-vu", label: "Dịch vụ gia công", icon: Settings2, readCapability: "services.read" },
+      { href: "/admin/tin-tuc", label: "Tin tức", icon: Newspaper, readCapability: "news.read" },
+      { href: "/admin/media", label: "Thư viện Media", icon: ImageIcon, readCapability: "media.read" },
+    ],
+  },
+  {
+    id: "website",
+    displayTitle: "WEBSITE",
     items: [
       { href: "/admin/noi-dung", label: "Nội dung & thương hiệu", icon: PenLine, readCapability: "content.read" },
       { href: "/admin/thiet-ke", label: "Thiết kế trang", icon: LayoutTemplate, readCapability: "pages.read" },
@@ -54,21 +67,8 @@ const navGroups: ReadonlyArray<AdminNavGroup> = [
     ],
   },
   {
-    label: "Hàng hóa",
-    items: [
-      { href: "/admin/san-pham", label: "Sản phẩm", icon: Package, readCapability: "catalog.read" },
-      { href: "/admin/dich-vu", label: "Dịch vụ gia công", icon: Settings2, readCapability: "services.read" },
-    ],
-  },
-  {
-    label: "Nội dung",
-    items: [
-      { href: "/admin/tin-tuc", label: "Tin tức", icon: Newspaper, readCapability: "news.read" },
-      { href: "/admin/media", label: "Thư viện Media", icon: ImageIcon, readCapability: "media.read" },
-    ],
-  },
-  {
-    label: "Tài khoản & quyền",
+    id: "system",
+    displayTitle: "HỆ THỐNG",
     items: [
       { href: "/admin/thanh-vien", label: "Tài khoản quản trị & quyền", icon: UsersRound, readCapability: "members.read" },
       { href: "/admin/audit", label: "Lịch sử thay đổi", icon: History, readCapability: "members.read", ownerOnly: true },
@@ -177,12 +177,21 @@ export function AdminShell({ brandName, children }: AdminShellProps) {
   const [status, setStatus] = useState<"loading" | "ready" | "blocked" | "unavailable">("loading");
   const [error, setError] = useState<AdminClientError | null>(null);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
   const sidebarRef = useRef<HTMLElement>(null);
   const menuTriggerRef = useRef<HTMLButtonElement>(null);
+  const userMenuRef = useRef<HTMLDivElement>(null);
+  const userMenuTriggerRef = useRef<HTMLButtonElement>(null);
   const [attempt, setAttempt] = useState(0);
   const isStagingHost = useSyncExternalStore(subscribeToBrowserLocation, getStagingHostSnapshot, getServerStagingHostSnapshot);
   const [pendingNav, setPendingNav] = useState<{ href: string } | { history: true } | { logout: true } | null>(null);
   const [navigatingHref, setNavigatingHref] = useState<string | null>(null);
+  const [prevPathname, setPrevPathname] = useState(pathname);
+  if (prevPathname !== pathname) {
+    setPrevPathname(pathname);
+    setNavigatingHref(null);
+    setUserMenuOpen(false);
+  }
   const [historyDiscardKey, setHistoryDiscardKey] = useState(0);
   const [unsavedSaving, setUnsavedSaving] = useState(false);
   const [unsavedRevision, setUnsavedRevision] = useState(0);
@@ -236,6 +245,26 @@ export function AdminShell({ brandName, children }: AdminShellProps) {
     };
   }, [mobileOpen]);
 
+  useEffect(() => {
+    if (!userMenuOpen) return;
+    function onDocClick(event: MouseEvent) {
+      if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
+        setUserMenuOpen(false);
+      }
+    }
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setUserMenuOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", onDocClick);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", onDocClick);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [userMenuOpen]);
+
   useLayoutEffect(() => {
     currentHrefRef.current = window.location.href;
     currentHistoryStateRef.current = window.history.state;
@@ -244,10 +273,6 @@ export function AdminShell({ brandName, children }: AdminShellProps) {
   useEffect(() => {
     pendingRef.current = pendingNav;
   }, [pendingNav]);
-
-  useEffect(() => {
-    setNavigatingHref(null);
-  }, [pathname]);
 
   const updateUnsavedState = useCallback(() => {
     unsavedIsDirtyRef.current = () => [...unsavedRegistrationsRef.current.values()].some((registration) => registration.isDirty());
@@ -500,8 +525,8 @@ export function AdminShell({ brandName, children }: AdminShellProps) {
             </Link>
             <nav aria-label="Các khu vực quản trị" className="admin-nav">
               {visibleNavGroups.map((group) => (
-                <div className="admin-nav-group" key={group.label}>
-                  <p className="admin-nav-label">{group.label}</p>
+                <div className="admin-nav-group" key={group.id}>
+                  <p className="admin-nav-label">{group.displayTitle}</p>
                   {group.items.map(({ href, icon: Icon, label }) => {
                     const isActive = isAdminNavItemActive(pathname, href);
                     const isPending = navigatingHref === href;
@@ -578,18 +603,73 @@ export function AdminShell({ brandName, children }: AdminShellProps) {
                   <ExternalLink aria-hidden="true" size={14} />
                 </Link>
                 {isStagingHost ? <span className="admin-environment-badge" data-testid="badge-admin-environment">BẢN THỬ</span> : null}
-                <span className="admin-live-dot">Kết nối trực tiếp</span>
-                <span className="admin-role-label">Vai trò: {roleLabels[session.role] ?? "Tài khoản được cấp quyền"}</span>
-                <span aria-label={`Tài khoản ${session.email ?? session.subject}`} className="admin-avatar" title={session.email ?? session.subject}>{getInitials(session.email ?? session.subject)}</span>
-                <a
-                  className="admin-storefront-link"
-                  data-testid="link-admin-logout"
-                  href={CLOUDFLARE_ACCESS_LOGOUT_PATH}
-                  onClick={handleLogoutClick}
+                <div
+                  className="admin-user-menu"
+                  onKeyDown={(event) => {
+                    if (event.key === "Escape" && userMenuOpen) {
+                      event.preventDefault();
+                      setUserMenuOpen(false);
+                      userMenuTriggerRef.current?.focus();
+                    }
+                  }}
+                  ref={userMenuRef}
                 >
-                  Đăng xuất
-                  <LogOut aria-hidden="true" size={14} />
-                </a>
+                  <button
+                    aria-expanded={userMenuOpen}
+                    aria-controls="admin-account-popover"
+                    aria-label={`${session.email ?? session.subject} · Menu tài khoản quản trị`}
+                    className="admin-user-trigger"
+                    id="admin-account-trigger"
+                    onClick={() => setUserMenuOpen((value) => !value)}
+                    ref={userMenuTriggerRef}
+                    type="button"
+                  >
+                    <span
+                      aria-label={`Tài khoản ${session.email ?? session.subject}`}
+                      className="admin-avatar"
+                      title={session.email ?? session.subject}
+                    >
+                      {getInitials(session.email ?? session.subject)}
+                    </span>
+                    <span className="admin-user-trigger-name">
+                      {session.email ?? session.subject}
+                    </span>
+                    <ChevronDown aria-hidden="true" className={`admin-user-chevron${userMenuOpen ? " is-open" : ""}`} size={14} />
+                  </button>
+                  <div
+                    aria-hidden={!userMenuOpen}
+                    className={`admin-user-popover${userMenuOpen ? " is-open" : ""}`}
+                    id="admin-account-popover"
+                    inert={!userMenuOpen}
+                  >
+                    <div className="admin-user-popover-header">
+                      <div className="admin-user-popover-identity">
+                        <strong className="admin-user-popover-name">
+                          {session.email ?? session.subject}
+                        </strong>
+                      </div>
+                      <span className="admin-live-dot">Kết nối trực tiếp</span>
+                      <span className="admin-role-label">
+                        Vai trò: {roleLabels[session.role] ?? "Tài khoản được cấp quyền"}
+                      </span>
+                    </div>
+                    <div className="admin-user-popover-divider" />
+                    <div className="admin-user-popover-actions">
+                      <a
+                        className="admin-user-popover-logout"
+                        data-testid="link-admin-logout"
+                        href={CLOUDFLARE_ACCESS_LOGOUT_PATH}
+                        onClick={(e) => {
+                          setUserMenuOpen(false);
+                          handleLogoutClick(e);
+                        }}
+                      >
+                        <span>Đăng xuất</span>
+                        <LogOut aria-hidden="true" size={14} />
+                      </a>
+                    </div>
+                  </div>
+                </div>
               </div>
             </header>
             <Fragment key={historyDiscardKey}>{children}</Fragment>
@@ -631,7 +711,8 @@ function AdminLoadingScreen() {
 
 function AdminAccessScreen({ brandName, status, error, onRetry }: { brandName: string; status: "blocked" | "unavailable"; error: AdminClientError | null; onRetry: () => void }) {
   const isBlocked = status === "blocked";
-  const showLoginLink = isBlocked || error?.code === "NETWORK_ERROR";
+  const isAdminMembershipDenied = isBlocked && error?.status === 403 && error.code === "FORBIDDEN";
+  const showLoginLink = (isBlocked && !isAdminMembershipDenied) || error?.code === "NETWORK_ERROR";
   return (
     <div className="admin-app">
       <div className="admin-access-page">
@@ -640,9 +721,11 @@ function AdminAccessScreen({ brandName, status, error, onRetry }: { brandName: s
             <span className="admin-brand-mark" aria-hidden="true">{`${brandName.slice(0, 1).toUpperCase()}.`}</span>
             <span className="admin-brand-copy"><strong>{brandName}</strong><span>Khu vực vận hành</span></span>
           </Link>
-          <h1 id="admin-access-title">{isBlocked ? "Khu vực này cần Cloudflare Access" : "Admin chưa sẵn sàng"}</h1>
+          <h1 id="admin-access-title">{isAdminMembershipDenied ? "Tài khoản chưa được cấp quyền admin" : isBlocked ? "Khu vực này cần Cloudflare Access" : "Admin chưa sẵn sàng"}</h1>
           <p>
-            {isBlocked
+            {isAdminMembershipDenied
+              ? "Tài khoản Cloudflare Access này chưa có quyền quản trị. Hãy đăng xuất rồi chọn tài khoản được cấp quyền, hoặc liên hệ người quản trị."
+              : isBlocked
               ? "Hãy chọn nút “Đăng nhập Cloudflare Access” bên dưới, hoàn tất xác minh, rồi quay lại trang này. Đường xem thử hoặc trang web không có phiên truy cập nội bộ."
               : error?.code === "NETWORK_ERROR"
                 ? "Nếu bạn chưa đăng nhập, hãy chọn nút “Đăng nhập Cloudflare Access”. Nếu đã đăng nhập, hãy thử kiểm tra lại phiên."
@@ -652,6 +735,16 @@ function AdminAccessScreen({ brandName, status, error, onRetry }: { brandName: s
             {error?.code ? `${error.code} · ` : ""}{error?.message ?? "Không nhận được phản hồi từ API session."}
           </div>
           <div className="admin-editor-actions">
+            {isAdminMembershipDenied ? (
+              <a
+                className="admin-button admin-button-quiet"
+                data-testid="link-admin-access-logout"
+                href={CLOUDFLARE_ACCESS_LOGOUT_PATH}
+              >
+                Đăng xuất tài khoản hiện tại
+                <LogOut aria-hidden="true" size={14} />
+              </a>
+            ) : null}
             {showLoginLink ? (
               <button
                 className="admin-button admin-button-primary"

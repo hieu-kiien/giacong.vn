@@ -8,6 +8,7 @@ import type {
   CatalogFilters,
   CatalogOptionGroup,
   CatalogProductDetail,
+  CatalogProductGalleryImage,
   CatalogProductList,
   CatalogProductParent,
   CatalogSort,
@@ -85,6 +86,12 @@ interface TierRow {
   min_quantity: number;
   price: number;
   variant_id: number;
+}
+
+interface ProductGalleryRow {
+  image_url: string;
+  is_primary: number;
+  sort_order: number;
 }
 
 interface CountRow {
@@ -228,6 +235,31 @@ export const getCatalogProduct = cache(async (slug: string): Promise<CatalogProd
 
   return toProductDetail(parentRow, cleanSlug, variantRows.results, tierRows.results);
 });
+
+/** Reads CMS-managed media for the storefront detail page. The primary request
+ * resolver stays on `getCatalogProduct` and does not depend on this optional table.
+ */
+export async function getCatalogProductGalleryImages(productId: number): Promise<CatalogProductGalleryImage[]> {
+  const db = getCatalogDatabase();
+  try {
+    const result = await db.prepare(`
+      SELECT image_url, sort_order, is_primary
+      FROM product_gallery_images
+      WHERE product_id = ?
+      ORDER BY is_primary DESC, sort_order ASC, id ASC
+    `).bind(productId).all<ProductGalleryRow>();
+
+    return result.results.map((row) => ({
+      imageUrl: imageUrl(row.image_url) ?? "",
+      isPrimary: row.is_primary === 1,
+      sortOrder: integer(row.sort_order, "gallery sort_order", true),
+    })).filter((image) => image.imageUrl.length > 0);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (/(?:no such table|does not exist).*product_gallery_images/i.test(message)) return [];
+    throw error;
+  }
+}
 
 const PARENT_PRODUCT_COLUMNS = `
     p.id,

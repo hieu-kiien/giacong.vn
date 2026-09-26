@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
-import { buildCatalogCard, demoCatalogList } from "../src/components/catalog/catalog-listing.ts";
+import { buildCatalogCard, buildCatalogCards, demoCatalogList } from "../src/components/catalog/catalog-listing.ts";
 import { findDemoCatalogProduct } from "../src/data/demo-catalog.ts";
 import type { CatalogProductParent } from "../src/types/catalog.ts";
 
@@ -112,4 +112,31 @@ test("cards do not show an unqualified starting price when the feed has no condi
 
   assert.equal(card.startingPrice, null);
   assert.equal(card.startingPriceCondition, null);
+});
+
+test("product images are never filled with demo packshots unless the caller explicitly uses demo data", () => {
+  const demoProduct = findDemoCatalogProduct("bot-gao-lut-xay-min");
+  assert.ok(demoProduct);
+
+  const liveCard = buildCatalogCard({
+    availableVariantCount: 1,
+    category: null,
+    description: "",
+    id: 1_001,
+    imageUrl: null,
+    minimumOrderQuantity: null,
+    name: "Sản phẩm thật chưa có ảnh",
+    shortDescription: "",
+    sku: "REAL-WITHOUT-IMAGE",
+    slug: "real-without-image",
+    startingPrice: null,
+    type: "configurable",
+    variantCount: 1,
+  });
+  const unmarkedDemoCard = buildCatalogCard(demoProduct);
+  const explicitlyDemoCards = buildCatalogCards([demoProduct], true);
+
+  assert.equal(liveCard.fallbackImageUrl, null);
+  assert.equal(unmarkedDemoCard.fallbackImageUrl, null);
+  assert.match(explicitlyDemoCards[0].fallbackImageUrl ?? "", /^\/images\/products\//);
 });

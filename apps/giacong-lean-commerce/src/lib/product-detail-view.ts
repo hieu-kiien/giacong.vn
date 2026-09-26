@@ -10,7 +10,6 @@
 // recomputed by `POST /api/gui-yeu-cau/xac-thuc`, and nothing here is ever written
 // into the request cart.
 import { buildDemoGallery } from "../data/demo-product-gallery.ts";
-import type { DemoGalleryImage } from "../data/demo-product-gallery.ts";
 import { clampCommerceQuantity } from "./commerce-ui.ts";
 import { formatVnd } from "./format-vnd.ts";
 import type { CatalogProductDetail, CatalogProductParent, CatalogTierPrice } from "../types/catalog.ts";
@@ -66,7 +65,7 @@ export interface ProductDetailRelatedCard {
   availabilityLabel: string;
   categoryLabel: string | null;
   detailHref: string;
-  imageUrl: string;
+  imageUrl: string | null;
   name: string;
   priceLabel: string;
   slug: string;
@@ -81,7 +80,7 @@ export interface ProductDetailView {
   defaultVariantSku: string;
   description: string;
   facts: readonly ProductDetailFact[];
-  gallery: readonly DemoGalleryImage[];
+  gallery: readonly ProductGalleryImage[];
   isAvailable: boolean;
   name: string;
   priceLabel: string;
@@ -99,11 +98,17 @@ export interface ProductDetailView {
 }
 
 export interface ProductDetailInput {
+  isDemo?: boolean;
   product: CatalogProductDetail;
   related?: readonly CatalogProductParent[];
 }
 
-export function buildProductDetailView({ product, related = [] }: ProductDetailInput): ProductDetailView {
+export interface ProductGalleryImage {
+  alt: string;
+  url: string;
+}
+
+export function buildProductDetailView({ product, related = [], isDemo = false }: ProductDetailInput): ProductDetailView {
   const usable = product.variants.filter((variant) => variant.isAvailable);
   const isAvailable = usable.length > 0;
   const defaultVariant = usable[0] ?? product.variants[0];
@@ -125,11 +130,7 @@ export function buildProductDetailView({ product, related = [] }: ProductDetailI
       sku: product.sku,
       variantCount: product.variantCount,
     }, buildVariantView(defaultVariant, optionGroup)),
-    gallery: buildDemoGallery({
-      categorySlug: product.category?.slug ?? null,
-      imageUrl: product.imageUrl,
-      productName: product.name,
-    }),
+    gallery: buildProductGallery(product, isDemo),
     isAvailable,
     name: product.name,
     priceLabel: product.startingPrice
@@ -137,7 +138,7 @@ export function buildProductDetailView({ product, related = [] }: ProductDetailI
       : CONTACT_PRICE_LABEL,
     relatedProducts: related
       .filter((item) => item.slug !== product.slug)
-      .map(buildRelatedCard),
+      .map((item) => buildRelatedCard(item, isDemo)),
     requestHref: REQUEST_ROUTE,
     requestLabel: "Yêu cầu báo giá",
     shortDescription: product.shortDescription,
@@ -153,6 +154,31 @@ export function buildProductDetailView({ product, related = [] }: ProductDetailI
     variantCount: product.variantCount,
     variants,
   };
+}
+
+function buildProductGallery(product: CatalogProductDetail, isDemo: boolean): ProductGalleryImage[] {
+  if (isDemo) {
+    return buildDemoGallery({
+      categorySlug: product.category?.slug ?? null,
+      imageUrl: product.imageUrl,
+      productName: product.name,
+    });
+  }
+
+  const orderedImages = [
+    ...(product.galleryImages ?? []).filter((image) => image.isPrimary).map((image) => image.imageUrl),
+    product.imageUrl,
+    ...(product.galleryImages ?? []).map((image) => image.imageUrl),
+  ];
+  const seen = new Set<string>();
+  return orderedImages
+    .filter((imageUrl): imageUrl is string => Boolean(imageUrl))
+    .filter((imageUrl) => {
+      if (seen.has(imageUrl)) return false;
+      seen.add(imageUrl);
+      return true;
+    })
+    .map((url) => ({ alt: product.name, url }));
 }
 
 function buildBreadcrumb(product: CatalogProductDetail): ProductDetailCrumb[] {
@@ -252,18 +278,20 @@ function buildTierRows(variant: CatalogProductDetail["variants"][number]): Produ
   return rows;
 }
 
-function buildRelatedCard(product: CatalogProductParent): ProductDetailRelatedCard {
+function buildRelatedCard(product: CatalogProductParent, isDemo: boolean): ProductDetailRelatedCard {
   return {
     availabilityLabel: product.availableVariantCount > 0
       ? `${product.availableVariantCount}/${product.variantCount} quy cách có sẵn`
       : "Tạm hết hàng",
     categoryLabel: product.category?.name ?? null,
     detailHref: `/san-pham/${encodeURIComponent(product.slug)}/`,
-    imageUrl: buildDemoGallery({
-      categorySlug: product.category?.slug ?? null,
-      imageUrl: product.imageUrl,
-      productName: product.name,
-    })[0].url,
+    imageUrl: product.imageUrl ?? (isDemo
+      ? buildDemoGallery({
+          categorySlug: product.category?.slug ?? null,
+          imageUrl: null,
+          productName: product.name,
+        })[0].url
+      : null),
     name: product.name,
     priceLabel: product.startingPrice
       ? `Từ ${formatVnd(product.startingPrice.price)} / ${product.startingPrice.unit} với đơn từ ${product.startingPrice.minQuantity} ${product.startingPrice.unit}`

@@ -8,11 +8,9 @@ interface CatalogProductImageProps {
   alt: string;
   className?: string;
   /**
-   * Local packshot shown when `imageUrl` is absent or fails to load. Supplied by
-   * the listing card; the detail surfaces pass nothing and keep the original
-   * "Chưa có hình ảnh" placeholder.
+   * Optional fallback used only by explicitly demo-backed listing cards.
    */
-  fallbackSrc?: string;
+  fallbackSrc?: string | null;
   imageUrl: string | null;
   /**
    * `card` renders the landscape ratio of the approved product-list reference.
@@ -29,8 +27,8 @@ export function CatalogProductImage({
   imageUrl,
   variant = "detail",
 }: CatalogProductImageProps) {
-  // An upstream URL that 404s must not leave a hole in the grid, so a failed load
-  // degrades to the local packshot instead of an empty frame.
+  // Only explicitly demo-backed cards pass a fallback. Real records keep the
+  // honest empty state when their managed media is absent or fails to load.
   const [failed, setFailed] = useState(false);
   const source = !imageUrl || failed ? fallbackSrc : imageUrl;
 
@@ -41,12 +39,12 @@ export function CatalogProductImage({
     return (
       <div className={`commerce-image-frame !aspect-[10/7] rounded-b-none bg-commerce-active-surface ${className ?? ""}`}>
         {source ? (
-          // Content-owned URLs from D1/R2 plus local packshots; the native img
-          // avoids remote-host configuration for content-managed images.
+          // Content-owned URLs from D1/R2; the native img avoids remote-host
+          // configuration for content-managed images.
           // eslint-disable-next-line @next/next/no-img-element
           <img
             alt={alt}
-            className="size-full object-cover"
+            className="size-full object-contain"
             height={400}
             loading="lazy"
             onError={() => setFailed(true)}

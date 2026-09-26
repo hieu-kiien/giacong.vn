@@ -44,9 +44,11 @@ export default function AdminContentPage() {
   const [notice, setNotice] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
   const [showReloadConfirm, setShowReloadConfirm] = useState(false);
+  const [confirmSaveAndPublish, setConfirmSaveAndPublish] = useState<AdminSiteSetting | null>(null);
   const [publishingAll, setPublishingAll] = useState(false);
   const [activeGroup, setActiveGroup] = useState<string>("all");
   const publishAllRequestId = useRef<{ key: string; requestId: string } | null>(null);
+  const saveAndPublishRequestRef = useRef<{ key: string; saveRequestId: string; publishRequestId: string } | null>(null);
   const isDirty = useCallback(() => unsavedKeys.size > 0, [unsavedKeys]);
   useRegisterAdminUnsaved(isDirty, Boolean(savingKey || uploadingKey || publishingKey || publishingAll));
 
@@ -120,23 +122,28 @@ export default function AdminContentPage() {
   async function saveAndPublish(setting: AdminSiteSetting) {
     setSavingKey(setting.key);
     setNotice(null);
+    const requestKey = JSON.stringify({ key: setting.key, value: setting.draftValue });
+    const pending = saveAndPublishRequestRef.current?.key === requestKey ? saveAndPublishRequestRef.current : null;
+    const saveRequestId = pending?.saveRequestId ?? crypto.randomUUID();
+    const publishRequestId = pending?.publishRequestId ?? crypto.randomUUID();
+    saveAndPublishRequestRef.current = { key: requestKey, saveRequestId, publishRequestId };
     try {
-      const requestId = crypto.randomUUID();
       const saveResult = await mutateAdmin<{ setting: AdminSiteSetting }>("/api/admin/site-settings", {
         method: "PATCH",
-        body: { requestId, key: setting.key, value: setting.draftValue, expectedVersion: setting.version },
+        body: { requestId: saveRequestId, key: setting.key, value: setting.draftValue, expectedVersion: setting.version },
       });
+      setSettings((current) => current.map((item) => item.key === setting.key ? saveResult.setting : item));
       setUnsavedKeys((current) => {
         const next = new Set(current);
         next.delete(setting.key);
         return next;
       });
-      const pubRequestId = crypto.randomUUID();
       const pubResult = await mutateAdmin<{ setting: AdminSiteSetting }>("/api/admin/site-settings/publish", {
         method: "POST",
-        body: { requestId: pubRequestId, key: setting.key, expectedVersion: saveResult.setting.version },
+        body: { requestId: publishRequestId, key: setting.key, expectedVersion: saveResult.setting.version },
       });
       setSettings((current) => current.map((item) => item.key === setting.key ? pubResult.setting : item));
+      if (saveAndPublishRequestRef.current?.key === requestKey) saveAndPublishRequestRef.current = null;
       setNotice(`Đã lưu và áp dụng “${setting.label}” ra website thành công.`);
     } catch (reason: unknown) {
       setError(reason instanceof AdminClientError ? reason : new AdminClientError("Không thể lưu và áp dụng nội dung.", 0));
@@ -277,6 +284,11 @@ export default function AdminContentPage() {
               {publishingAll ? "Đang phát hành..." : "Phát hành tất cả"}
             </button>
           ) : null}
+          {canEdit && unsavedKeys.size > 0 ? (
+            <p className="admin-field-hint" data-testid="publish-all-unsaved-hint" role="status">
+              Còn {unsavedKeys.size} mục chưa lưu. Hãy lưu nháp trước khi phát hành tất cả.
+            </p>
+          ) : null}
         </div>
       </div>
       {notice ? <div className="admin-content-notice" role="status">{notice}</div> : null}
@@ -289,12 +301,26 @@ export default function AdminContentPage() {
           title="Tải lại sẽ mất bản nháp?"
         />
       ) : null}
+      {confirmSaveAndPublish ? (
+        <AdminConfirmDialog
+          confirmLabel="Lưu và phát hành ngay"
+          confirmKind="primary"
+          message={`Thay đổi “${confirmSaveAndPublish.label}” sẽ được lưu và cập nhật ngay ra website. Bạn có muốn tiếp tục?`}
+          onConfirm={() => {
+            const setting = confirmSaveAndPublish;
+            setConfirmSaveAndPublish(null);
+            void saveAndPublish(setting);
+          }}
+          onDismiss={() => setConfirmSaveAndPublish(null)}
+          title="Xác nhận phát hành"
+        />
+      ) : null}
       {error ? <AdminErrorState error={error} onRetry={() => { setError(null); setAttempt((value) => value + 1); }} /> : null}
       {loading ? <div className="admin-skeleton admin-content-skeleton" aria-label="Đang tải nội dung" /> : (
         <div className="admin-content-layout">
           <div className="admin-content-sections">
             <div style={{ marginBottom: 16 }}>
-              <div className="admin-filter-tabs">
+              <div className="admin-filter-tabs" role="group" aria-label="Lọc nhóm nội dung">
                 {[
                   { label: "Tất cả nhóm", value: "all" },
                   { label: "Thương hiệu & Logo", value: "brand" },
@@ -307,6 +333,7 @@ export default function AdminContentPage() {
                   const hasDirty = groupItems.some((s) => s.dirty);
                   return (
                     <button
+                      aria-pressed={activeGroup === tab.value}
                       key={tab.value}
                       type="button"
                       className={`admin-filter-tab${activeGroup === tab.value ? " is-active" : ""}`}
@@ -341,7 +368,7 @@ export default function AdminContentPage() {
                       hasUnsavedChanges={unsavedKeys.has(setting.key)}
                       onChange={updateDraft}
                       onSave={() => void saveDraft(setting)}
-                      onSaveAndPublish={() => void saveAndPublish(setting)}
+                      onSaveAndPublish={() => setConfirmSaveAndPublish(setting)}
                       onPublish={() => void publish(setting)}
                       onImageUpload={(file) => void uploadImage(setting, file)}
                     />
@@ -451,10 +478,10 @@ function SettingEditor({
               disabled={!canEdit || saving || publishing}
               onClick={onSaveAndPublish}
               style={{ fontWeight: 600 }}
-              title="Lưu bản nháp và tự động phát hành ngay ra website"
+              title="Lưu bản nháp rồi phát hành ngay ra website"
               type="button"
             >
-              <Check size={13} /> {saving ? "Đang áp dụng…" : "Lưu & Áp dụng"}
+              <Check size={13} /> {saving ? "Đang áp dụng…" : "Lưu nháp & phát hành ngay"}
             </button>
           ) : null}
           <button className="admin-button admin-button-quiet" data-testid={`button-setting-save-${setting.key}`} disabled={!canEdit || !hasUnsavedChanges || saving} onClick={onSave} type="button"><Save size={13} /> {saving ? "Đang lưu" : "Lưu nháp"}</button>

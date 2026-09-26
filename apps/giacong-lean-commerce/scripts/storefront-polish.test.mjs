@@ -17,6 +17,13 @@ test("catalog listing uses the captured desktop rail instead of a narrow 4xl col
   assert.doesNotMatch(catalogList, /max-w-4xl/);
 });
 
+test("catalog distinguishes an unpublished empty catalogue from filters with no matches", () => {
+  assert.match(catalogList, /const isEmptyCatalog = pagination\.total === 0 && !filters\.query && !filters\.category/);
+  assert.match(catalogList, /Danh mục sản phẩm đang được cập nhật/);
+  assert.match(catalogList, /Chưa tìm thấy sản phẩm phù hợp/);
+  assert.match(catalogList, /Gửi yêu cầu báo giá/);
+});
+
 test("captured archive chrome does not force a Tin tức underline on every route", () => {
   assert.doesNotMatch(globalStyles, /archive\.category-tin-tuc #header #menu-item-1541 > a/);
 });

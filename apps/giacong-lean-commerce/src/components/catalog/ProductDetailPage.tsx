@@ -33,7 +33,7 @@ interface ProductDetailPageProps {
  * restyling detail cannot restyle the list page.
  */
 export function ProductDetailPage({ editingCartVariantSku, initialVariantSku, source, variantQueryWarning }: ProductDetailPageProps) {
-  const view = buildProductDetailView({ product: source.product, related: source.related });
+  const view = buildProductDetailView({ isDemo: source.isDemo, product: source.product, related: source.related });
 
   return (
     <div className={styles.page}>

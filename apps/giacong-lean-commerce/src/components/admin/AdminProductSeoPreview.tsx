@@ -17,13 +17,11 @@ export function AdminProductSeoPreview({
   initialData: SeoData;
   onChange: (data: SeoData) => void;
 }) {
-  const [data, setData] = useState<SeoData>(initialData);
+  const data = initialData;
   const [activeTab, setActiveTab] = useState<"google" | "social">("google");
 
-  function updateField<K extends keyof SeoData>(field: K, value: SeoData[K]) {
-    const next = { ...data, [field]: value };
-    setData(next);
-    onChange(next);
+  function updateSlug(slug: string) {
+    onChange({ ...data, slug });
   }
 
   const titleLength = data.seoTitle.length;
@@ -72,9 +70,8 @@ export function AdminProductSeoPreview({
             <input
               type="text"
               className="admin-input"
-              placeholder="Tiêu đề hiển thị trên thanh trình duyệt & Google..."
               value={data.seoTitle}
-              onChange={(e) => updateField("seoTitle", e.target.value)}
+              readOnly
               style={{ width: "100%" }}
             />
           </div>
@@ -89,12 +86,15 @@ export function AdminProductSeoPreview({
             <textarea
               className="admin-input"
               rows={3}
-              placeholder="Đoạn trích dẫn ngắn xuất hiện dưới tiêu đề tìm kiếm..."
               value={data.seoDescription}
-              onChange={(e) => updateField("seoDescription", e.target.value)}
+              readOnly
               style={{ width: "100%", resize: "vertical" }}
             />
           </div>
+
+          <small className="admin-field-hint">
+            Tiêu đề và mô tả lấy từ tên, mô tả ngắn của sản phẩm. Muốn đổi nội dung, hãy sửa ở mục Thông tin chung.
+          </small>
 
           <div>
             <label className="admin-field-label">Đường dẫn tĩnh (URL Slug)</label>
@@ -105,7 +105,7 @@ export function AdminProductSeoPreview({
                 className="admin-input"
                 placeholder="gia-cong-chi-tiet-cnc"
                 value={data.slug}
-                onChange={(e) => updateField("slug", e.target.value)}
+                onChange={(e) => updateSlug(e.target.value)}
                 style={{ flex: 1 }}
               />
             </div>

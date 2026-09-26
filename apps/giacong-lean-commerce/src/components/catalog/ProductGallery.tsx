@@ -3,19 +3,15 @@
 import { useState } from "react";
 
 import styles from "@/components/catalog/product-detail.module.css";
-import type { DemoGalleryImage } from "@/data/demo-product-gallery";
+import type { ProductGalleryImage } from "@/lib/product-detail-view";
 
 interface ProductGalleryProps {
-  images: readonly DemoGalleryImage[];
+  images: readonly ProductGalleryImage[];
 }
 
 /**
- * Main image plus a single-row thumbnail rail, as the detail specification
- * describes it.
- *
- * The main image box is sized by CSS (`aspect-ratio` on `.mainImage`) rather than by
- * the loaded image, so switching thumbnails cannot shift the layout — the behaviour
- * specification requires exactly that.
+ * Main image plus a thumbnail rail. The main image follows the
+ * uploaded asset's natural aspect ratio and uses a fallback ratio while loading.
  *
  * A native `<img>` is used rather than `next/image` for the same reason
  * `CatalogProductImage` does: a catalog image URL is content data, and routing it
@@ -25,7 +21,15 @@ export function ProductGallery({ images }: ProductGalleryProps) {
   const [activeIndex, setActiveIndex] = useState(0);
   const active = images[activeIndex] ?? images[0];
 
-  if (!active) return null;
+  if (!active) {
+    return (
+      <div className={styles.gallery} role="status">
+        <div className={styles.mainImage}>
+          <span>Ảnh sản phẩm chưa được cập nhật</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={styles.gallery}>

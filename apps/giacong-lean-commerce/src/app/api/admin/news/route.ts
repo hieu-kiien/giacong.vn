@@ -18,11 +18,22 @@ export async function GET(request: Request): Promise<Response> {
   const url = new URL(request.url);
   const page = Number(url.searchParams.get("page")) || 1;
   const pageSize = Math.min(Number(url.searchParams.get("pageSize")) || 20, 100);
+  const searchQuery = url.searchParams.get("q")?.trim() ?? "";
+  if (searchQuery.length > 120) {
+    return adminFailure(crypto.randomUUID(), 400, "INVALID_REQUEST", "Từ khóa tìm kiếm không được vượt quá 120 ký tự.");
+  }
+  const statusFilter = url.searchParams.get("status");
+  if (statusFilter && statusFilter !== "all" && statusFilter !== "draft" && statusFilter !== "published") {
+    return adminFailure(crypto.randomUUID(), 400, "INVALID_REQUEST", "Bộ lọc trạng thái bài viết không hợp lệ.");
+  }
+  const status = statusFilter === "draft" || statusFilter === "published" ? statusFilter : undefined;
 
   try {
     const data = await listAdminNewsPosts(guard.database, {
       page: page > 0 ? page : 1,
       pageSize: pageSize > 0 ? pageSize : 20,
+      query: searchQuery,
+      ...(status ? { status } : {}),
     });
     return adminSuccess(crypto.randomUUID(), {
       ...data,

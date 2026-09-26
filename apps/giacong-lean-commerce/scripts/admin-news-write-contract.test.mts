@@ -844,3 +844,66 @@ test("admin news listing marks a published draft with changes for direct update 
     database.sqlite.close();
   }
 });
+
+test("admin news status filters paginate the full result set and keep global counts", async () => {
+  const database = new SqliteNewsDatabase();
+  const requestId = (value: number) => `aaaaaaaa-aaaa-4aaa-8aaa-${value.toString(16).padStart(12, "0")}`;
+  try {
+    for (let index = 0; index < 27; index += 1) {
+      const created = await createAdminNewsPost(
+        database,
+        { ...draftInput, slug: `bai-viet-${index}`, title: `Bài viết ${index}` },
+        "owner-1",
+        requestId(index + 1),
+      );
+      if (index < 2) {
+        await publishAdminNewsPost(database, created.id, created.revision, "owner-1", requestId(index + 101));
+      }
+    }
+
+    const drafts = await listAdminNewsPosts(database, { page: 2, pageSize: 20, status: "draft" });
+    assert.equal(drafts.total, 25);
+    assert.equal(drafts.posts.length, 5);
+    assert.ok(drafts.posts.every((post) => !post.isPublished));
+    assert.deepEqual(drafts.statusCounts, { draft: 25, published: 2, total: 27 });
+
+    const published = await listAdminNewsPosts(database, { page: 1, pageSize: 1, status: "published" });
+    assert.equal(published.total, 2);
+    assert.equal(published.posts.length, 1);
+    assert.ok(published.posts[0]?.isPublished);
+    assert.deepEqual(published.statusCounts, { draft: 25, published: 2, total: 27 });
+  } finally {
+    database.sqlite.close();
+  }
+});
+
+test("admin news search matches titles and slugs literally before pagination", async () => {
+  const database = new SqliteNewsDatabase();
+  try {
+    const records = [
+      { slug: "needle-in-slug", title: "Ordinary title" },
+      { slug: "ordinary-slug", title: "Needle in title" },
+      { slug: "percent-literal", title: "100% botanical product" },
+      { slug: "ordinary-three", title: "Unrelated three" },
+    ];
+    for (const [index, record] of records.entries()) {
+      await createAdminNewsPost(
+        database,
+        { ...draftInput, ...record },
+        "owner-1",
+        `bbbbbbbb-bbbb-4bbb-8bbb-${(index + 1).toString(16).padStart(12, "0")}`,
+      );
+    }
+
+    const needle = await listAdminNewsPosts(database, { page: 1, pageSize: 1, query: "needle" });
+    assert.equal(needle.total, 2);
+    assert.equal(needle.posts.length, 1);
+    assert.deepEqual(needle.statusCounts, { draft: 2, published: 0, total: 2 });
+
+    const literalPercent = await listAdminNewsPosts(database, { page: 1, pageSize: 20, query: "%" });
+    assert.equal(literalPercent.total, 1);
+    assert.equal(literalPercent.posts[0]?.slug, "percent-literal");
+  } finally {
+    database.sqlite.close();
+  }
+});

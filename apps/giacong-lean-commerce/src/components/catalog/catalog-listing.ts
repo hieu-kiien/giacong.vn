@@ -63,7 +63,7 @@ export interface CatalogCardView {
   /** Quantity at which the feed switches to a quote, when the feed says so. */
   contactFromQuantity: number | null;
   detailHref: string;
-  fallbackImageUrl: string;
+  fallbackImageUrl: string | null;
   id: number;
   imageUrl: string | null;
   isAvailable: boolean;
@@ -90,11 +90,11 @@ function variantsOf(product: CatalogCardSource): readonly CatalogVariant[] {
   return "variants" in product && Array.isArray(product.variants) ? product.variants : [];
 }
 
-export function buildCatalogCards(products: readonly CatalogCardSource[]): CatalogCardView[] {
-  return products.map((product, index) => buildCatalogCard(product, index));
+export function buildCatalogCards(products: readonly CatalogCardSource[], allowDemoImages = false): CatalogCardView[] {
+  return products.map((product, index) => buildCatalogCard(product, index, allowDemoImages));
 }
 
-export function buildCatalogCard(product: CatalogCardSource, index = 0): CatalogCardView {
+export function buildCatalogCard(product: CatalogCardSource, index = 0, allowDemoImages = false): CatalogCardView {
   const variants = variantsOf(product);
   const usable = variants.filter((variant) => variant.isAvailable);
   // Without variants the action can only be "go to detail": `resolveCommerceCardAction`
@@ -116,7 +116,7 @@ export function buildCatalogCard(product: CatalogCardSource, index = 0): Catalog
     categoryName: product.category?.name.trim() ?? null,
     contactFromQuantity: priceVariant?.contactFromQuantity ?? null,
     detailHref: detailHref(product.slug),
-    fallbackImageUrl: demoProductImage(index),
+    fallbackImageUrl: allowDemoImages ? demoProductImage(index) : null,
     id: product.id,
     imageUrl: product.imageUrl,
     isAvailable,

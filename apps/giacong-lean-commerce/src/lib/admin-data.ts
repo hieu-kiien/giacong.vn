@@ -374,36 +374,47 @@ export async function getAdminOverview(
         ORDER BY created_at DESC
         LIMIT 5
       `).all<{ created_at: string; full_name: string; id: string; status: string }>().then(
-        (result) => result.results,
-        () => [],
-      ) : Promise.resolve([]),
+        (result) => ({ rows: result.results, ready: true }),
+        () => ({ rows: [], ready: false }),
+      ) : Promise.resolve({ rows: [], ready: false }),
   ]);
   const news = existingTables.has("news_posts")
     ? await countRowsDirect(database, "news_posts")
     : { count: 0, ready: false };
   const draftProducts = await countAdminDraftProducts(database, existingTables.has("product_admin_meta"));
+  const [activeProducts, activeServices, newLeads] = await Promise.all([
+    products.ready ? countRowsDirect(database, "products", "is_active = 1") : Promise.resolve({ count: 0, ready: false }),
+    services.ready ? countRowsDirect(database, "services", "is_active = 1") : Promise.resolve({ count: 0, ready: false }),
+    leads.ready ? countRowsDirect(database, "leads", "status = 'new'") : Promise.resolve({ count: 0, ready: false }),
+  ]);
 
   return {
     dataReadiness: {
+      activeProducts: activeProducts.ready,
+      activeServices: activeServices.ready,
       adminMembersTable: members.ready,
       auditLogsTable: existingTables.has("audit_logs"),
       leadsTable: leads.ready,
+      newLeads: newLeads.ready,
+      newsPostsTable: news.ready,
+      productDraftsReady: draftProducts.ready,
       productMetaTable: existingTables.has("product_admin_meta"),
+      productsTable: products.ready,
+      recentLeads: recentLeads.ready,
       serviceMetaTable: existingTables.has("service_admin_meta"),
+      servicesTable: services.ready,
     },
     counts: {
-      activeProducts: products.ready ? await countRowsDirect(database, "products", "is_active = 1").then((result) => result.count) : 0,
-      activeServices: services.ready ? await countRowsDirect(database, "services", "is_active = 1").then((result) => result.count) : 0,
+      activeProducts: activeProducts.count,
+      activeServices: activeServices.count,
       draftProducts: draftProducts.count,
       leads: leads.ready ? leads.count : 0,
       news: news.count,
-      newLeads: leads.ready
-        ? await countRowsDirect(database, "leads", "status = 'new'").then((result) => result.count)
-        : 0,
+      newLeads: newLeads.count,
       products: products.count,
       services: services.count,
     },
-    recentLeads: recentLeads.map((row) => ({
+    recentLeads: recentLeads.rows.map((row) => ({
       createdAt: row.created_at,
       fullName: row.full_name,
       id: row.id,
@@ -1860,18 +1871,44 @@ export async function getAdminNewsPost(database: D1DatabaseLike, id: number): Pr
 
 export async function listAdminNewsPosts(
   database: D1DatabaseLike,
-  input: { page: number; pageSize: number },
-): Promise<{ posts: AdminNewsListItem[]; total: number }> {
-  const count = await database.prepare("SELECT COUNT(*) AS total FROM news_posts").first<{ total: number }>();
+  input: { page: number; pageSize: number; query?: string; status?: "draft" | "published" },
+): Promise<{ posts: AdminNewsListItem[]; statusCounts: { draft: number; published: number; total: number }; total: number }> {
+  const searchQuery = input.query?.trim().slice(0, 120) ?? "";
+  const searchPattern = `%${searchQuery.replace(/[\\%_]/g, "\\$&")}%`;
+  const searchPredicate = searchQuery
+    ? `(COALESCE(draft_title, '') LIKE ? ESCAPE '\\'
+      OR COALESCE(draft_slug, '') LIKE ? ESCAPE '\\'
+      OR COALESCE(published_title, '') LIKE ? ESCAPE '\\'
+      OR COALESCE(published_slug, '') LIKE ? ESCAPE '\\')`
+    : "";
+  const searchValues = searchQuery ? [searchPattern, searchPattern, searchPattern, searchPattern] : [];
+  const searchWhere = searchPredicate ? `WHERE ${searchPredicate}` : "";
+  const counts = await database.prepare(`
+    SELECT COUNT(*) AS total,
+      SUM(CASE WHEN is_published = 1 AND published_slug IS NOT NULL THEN 1 ELSE 0 END) AS published,
+      SUM(CASE WHEN is_published != 1 OR published_slug IS NULL THEN 1 ELSE 0 END) AS draft
+    FROM news_posts
+    ${searchWhere}
+  `).bind(...searchValues).first<{ draft: number; published: number; total: number }>();
+  const statusCounts = {
+    draft: counts?.draft ?? 0,
+    published: counts?.published ?? 0,
+    total: counts?.total ?? 0,
+  };
+  const filters = searchPredicate ? [searchPredicate] : [];
+  if (input.status === "published") filters.push("is_published = 1 AND published_slug IS NOT NULL");
+  if (input.status === "draft") filters.push("is_published != 1 OR published_slug IS NULL");
+  const filter = filters.length ? `WHERE ${filters.map((part) => `(${part})`).join(" AND ")}` : "";
   const rows = await database.prepare(`
     SELECT id, slug, title, excerpt, content, cover_image_url,
       draft_slug, draft_title, draft_excerpt, draft_content, draft_cover_image_url,
       published_slug, published_title, published_excerpt, published_content, published_cover_image_url,
       is_published, published_at, revision, updated_at
     FROM news_posts
+    ${filter}
     ORDER BY updated_at DESC, id DESC
     LIMIT ? OFFSET ?
-  `).bind(input.pageSize, (input.page - 1) * input.pageSize).all<NewsRow & { content: string }>();
+  `).bind(...searchValues, input.pageSize, (input.page - 1) * input.pageSize).all<NewsRow & { content: string }>();
   return {
     posts: rows.results.map((row) => ({
       excerpt: row.draft_excerpt,
@@ -1890,7 +1927,8 @@ export async function listAdminNewsPosts(
       title: row.draft_title,
       updatedAt: row.updated_at,
     })),
-    total: count?.total ?? 0,
+    statusCounts,
+    total: input.status ? statusCounts[input.status] : statusCounts.total,
   };
 }
 

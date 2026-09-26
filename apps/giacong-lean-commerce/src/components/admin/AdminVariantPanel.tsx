@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { AdminConfirmDialog } from "@/components/admin/AdminDialog";
 import { useRegisterAdminUnsaved } from "@/components/admin/AdminUnsavedGuard";
 import { AdminClientError, fetchAdmin, mutateAdmin, type AdminProductVariant, type AdminTierPrice } from "@/lib/admin-client";
@@ -55,6 +55,7 @@ export function AdminVariantPanel({ productId }: { productId: number }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<AdminClientError | null>(null);
   const [draftSnapshot, setDraftSnapshot] = useState<VariantDraft>(blankDraft);
+  const variantRequestRef = useRef<{ key: string; requestId: string } | null>(null);
   const isUnsavedDirty = useCallback(() => JSON.stringify(draft) !== JSON.stringify(draftSnapshot), [draft, draftSnapshot]);
   useRegisterAdminUnsaved(isUnsavedDirty, saving);
 
@@ -111,15 +112,20 @@ export function AdminVariantPanel({ productId }: { productId: number }) {
         minQuantity: Number(tier.minQuantity),
         price: Number(tier.price),
       })),
-      requestId: crypto.randomUUID(),
     };
+    const requestKey = JSON.stringify({ payload, productId, editingId });
+    const requestId = variantRequestRef.current?.key === requestKey
+      ? variantRequestRef.current.requestId
+      : crypto.randomUUID();
+    variantRequestRef.current = { key: requestKey, requestId };
     try {
       await mutateAdmin(
         editingId
           ? `/api/admin/products/${productId}/variants/${editingId}`
           : `/api/admin/products/${productId}/variants`,
-        { body: payload, method: editingId ? "PATCH" : "POST" },
+        { body: { ...payload, requestId }, method: editingId ? "PATCH" : "POST" },
       );
+      if (variantRequestRef.current?.key === requestKey) variantRequestRef.current = null;
       await loadVariants();
       resetDraft();
     } catch (reason: unknown) {
@@ -202,10 +208,18 @@ export function AdminVariantPanel({ productId }: { productId: number }) {
           <Field label="Bước số lượng" mono type="number" min="1" value={draft.quantityStep} onChange={(value) => updateDraft("quantityStep", value)} required />
           <Field label="Ngưỡng liên hệ" mono type="number" min="2" value={draft.contactFromQuantity} onChange={(value) => updateDraft("contactFromQuantity", value)} required />
           <Field label="Thứ tự" mono type="number" min="0" value={draft.sortOrder} onChange={(value) => updateDraft("sortOrder", value)} required />
+        </div>
+        <details className="admin-variant-advanced">
+          <summary>Cấu hình nâng cao · mã phân loại</summary>
+          <p className="admin-field-hint">Chỉ thay đổi các mã này khi bạn đang đồng bộ biến thể với một nhóm thuộc tính đã có.</p>
+          <div className="admin-editor-grid">
           <Field label="Mã nhóm (số)" mono type="number" min="1" value={draft.attributeId} onChange={(value) => updateDraft("attributeId", value)} required />
           <Field label="Mã nhóm (chữ)" mono value={draft.attributeCode} onChange={(value) => updateDraft("attributeCode", value)} required />
           <Field label="Tên nhóm lựa chọn" value={draft.attributeLabel} onChange={(value) => updateDraft("attributeLabel", value)} required />
           <Field label="Mã lựa chọn (số)" mono type="number" min="1" value={draft.optionId} onChange={(value) => updateDraft("optionId", value)} required />
+          </div>
+        </details>
+        <div className="admin-editor-grid">
           <label className="admin-field admin-field-wide">
             <span>Ảnh biến thể</span>
             <input className="admin-input" onChange={(event) => updateDraft("imageUrl", event.target.value)} placeholder="/media/products/... hoặc https://..." value={draft.imageUrl} />

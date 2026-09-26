@@ -7,7 +7,7 @@ import {
   demoCatalogProductsByCategory,
   findDemoCatalogProduct,
 } from "@/data/demo-catalog";
-import { getCatalogProduct, getCatalogProducts } from "@/lib/cloudflare-catalog";
+import { getCatalogProduct, getCatalogProductGalleryImages, getCatalogProducts } from "@/lib/cloudflare-catalog";
 import { demoCatalogFallbackAllowed, demoCatalogForced, waitForDemoCatalogFallback } from "@/lib/demo-catalog-policy";
 import type { CatalogProductDetail, CatalogProductParent } from "@/types/catalog";
 
@@ -32,7 +32,11 @@ export const loadCatalogProductDetail = cache(async (slug: string): Promise<Cata
   try {
     const product = await waitForDemoCatalogFallback(getCatalogProduct(slug), process.env);
     if (product) {
-      return { isDemo: false, product, related: await readLiveRelated(product) };
+      const [galleryImages, related] = await Promise.all([
+        getCatalogProductGalleryImages(product.id),
+        readLiveRelated(product),
+      ]);
+      return { isDemo: false, product: { ...product, galleryImages }, related };
     }
   } catch (error) {
     if (!demoAllowed) throw error;
