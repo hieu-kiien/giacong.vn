@@ -25,7 +25,7 @@
     "test:commerce": "node --no-warnings --experimental-strip-types --test scripts/commerce-foundation.test.mts scripts/captured-route-runtime.test.mjs scripts/storefront-visual-contract.test.mjs scripts/storefront-polish.test.mjs scripts/site-markup-hero.test.mjs scripts/captured-style-contract.test.mjs scripts/published-read-cache.test.mjs scripts/public-document-cache-contract.test.mjs scripts/static-asset-cache-contract.test.mjs scripts/captured-motion-fidelity.test.mjs scripts/captured-mega-menu.test.mts scripts/request-cart-visual-contract.test.mjs scripts/qa-deep-staging-contract.test.mjs scripts/seo-contract.test.mjs",
     "test:listing": "node --no-warnings --experimental-strip-types --test scripts/catalog-listing.test.mts",
     "test:detail": "node --no-warnings --experimental-strip-types --test scripts/product-detail.test.mts scripts/captured-media-integrity.test.mts",
-    "test:ci-workflows": "node --test scripts/admin-d1-migration-workflow.test.mjs",
+    "test:ci-workflows": "node --test scripts/admin-d1-migration-workflow.test.mjs scripts/staging-r2-upload-workaround.test.mjs",
     "test:contact": "node --no-warnings --experimental-strip-types --test scripts/contact-cloudflare-catalog.test.mjs scripts/contact-webhook.test.mts scripts/development-port.test.mjs scripts/google-apps-script-template.test.mjs scripts/lead-queue.test.mts scripts/media-contract.test.mts scripts/request-cart-client.test.mts scripts/request-cart-storage.test.mts scripts/request-cart.test.mts",
     "qa:captured": "node scripts/verify-captured-routes.mjs",
     "qa:catalog": "node scripts/verify-catalog-storefront.mjs",
