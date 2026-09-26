@@ -59,3 +59,64 @@ test("the migration guard refuses unrelated pending files before D1 apply", asyn
   );
   assert.match(workflow, /ALREADY_APPLIED: \$\{\{ steps\.apply\.outputs\.already_applied \|\| steps\.before\.outputs\.already_applied \}\}/);
 });
+
+const slugMigrationWorkflowUrl = new URL(
+  "../../../.github/workflows/cloudflare-staging-product-slug-migration.yml",
+  import.meta.url,
+);
+
+async function readSlugMigrationWorkflow() {
+  return (await readFile(slugMigrationWorkflowUrl, "utf8")).replace(/\r\n/g, "\n");
+}
+
+test("product slug migration is an opt-in, staging-only workflow", async () => {
+  const workflow = await readSlugMigrationWorkflow();
+
+  assert.match(workflow, /workflow_dispatch:[\s\S]*?apply_migration:[\s\S]*?default:\s*false/);
+  assert.match(workflow, /if:\s*\$\{\{\s*inputs\.apply_migration\s*\}\}/);
+  assert.match(workflow, /DATABASE_NAME:\s*giacong-vn-catalog-staging/);
+  assert.match(workflow, /MIGRATION_NAME:\s*0031_product_slug_redirects\.sql/);
+  assert.doesNotMatch(workflow, /production|versions deploy/i);
+});
+
+test("product slug migration exports a backup and verifies counts before and after", async () => {
+  const workflow = await readSlugMigrationWorkflow();
+
+  const snapshotStep = workflow.indexOf("name: Capture D1 baseline and export backup");
+  const applyStep = workflow.indexOf("name: Recheck state and apply only migration 0031");
+  const verificationStep = workflow.indexOf("name: Verify schema, integrity, and unchanged business counts");
+
+  assert.ok(snapshotStep >= 0 && applyStep > snapshotStep && verificationStep > applyStep);
+  assert.match(workflow, /test "\$pending" = "\$MIGRATION_NAME"/);
+  assert.match(workflow, /d1 export "\$DATABASE_NAME" --remote --env staging --output "\$snapshot"/);
+  assert.match(workflow, /sha256sum "\$snapshot"/);
+  assert.match(workflow, /test "\$current_counts" = "\$BEFORE_COUNTS"/);
+  assert.match(workflow, /test "\$\(echo "\$current" \| jq -r '\.\[8\]\.results\[0\]\.redirect_table_count'\)" = "0"/);
+  assert.match(workflow, /d1 migrations apply "\$DATABASE_NAME" --remote --env staging/);
+  assert.match(workflow, /test "\$after_counts" = "\$BEFORE_COUNTS"/);
+  assert.match(workflow, /PRAGMA integrity_check/);
+  assert.match(workflow, /PRAGMA foreign_key_check/);
+});
+
+const stagingUploadWorkflowUrl = new URL(
+  "../../../.github/workflows/cloudflare-staging-upload-once.yml",
+  import.meta.url,
+);
+
+async function readStagingUploadWorkflow() {
+  return (await readFile(stagingUploadWorkflowUrl, "utf8")).replace(/\r\n/g, "\n");
+}
+
+test("staging upload checks R2 access before installing and building the app", async () => {
+  const workflow = await readStagingUploadWorkflow();
+
+  const r2Probe = workflow.indexOf("name: Verify staging R2 cache bucket access");
+  const dependencyInstall = workflow.indexOf("name: Install dependencies");
+  const upload = workflow.indexOf("name: Upload new OpenNext staging version without serving traffic");
+
+  assert.ok(r2Probe >= 0 && r2Probe < dependencyInstall && dependencyInstall < upload);
+  assert.match(workflow, /WRANGLER_VERSION:\s*"4\.131\.1"/);
+  assert.match(workflow, /actions\/checkout@v5/);
+  assert.match(workflow, /actions\/setup-node@v5/);
+  assert.match(workflow, /r2 bucket info giacong-vn-next-cache-staging --json/);
+});

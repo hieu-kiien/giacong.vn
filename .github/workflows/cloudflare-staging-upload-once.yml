@@ -1,6 +1,6 @@
 name: Upload Cloudflare staging version once
 
-# Upload the Cloudflare-native D1/R2 migration after the master staging gate passed.
+# Upload the Cloudflare-native staging Worker version after the master staging gate passes.
 on:
   push:
     branches:
@@ -25,19 +25,22 @@ jobs:
         working-directory: apps/giacong-lean-commerce
     env:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      WRANGLER_VERSION: "4.131.1"
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: 24
           cache: npm
           cache-dependency-path: apps/giacong-lean-commerce/package-lock.json
 
+      - name: Verify staging R2 cache bucket access
+        run: npx -y "wrangler@$WRANGLER_VERSION" r2 bucket info giacong-vn-next-cache-staging --json
       - name: Install dependencies
         run: npm ci
 
