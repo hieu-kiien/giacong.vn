@@ -7,8 +7,12 @@ const workflowUrl = new URL(
   import.meta.url,
 );
 
+async function readWorkflow() {
+  return (await readFile(workflowUrl, "utf8")).replace(/\r\n/g, "\n");
+}
+
 test("an already-applied D1 migration preserves existing admin audit history", async () => {
-  const workflow = await readFile(workflowUrl, "utf8");
+  const workflow = await readWorkflow();
 
   assert.match(
     workflow,
@@ -21,7 +25,7 @@ test("an already-applied D1 migration preserves existing admin audit history", a
 });
 
 test("the PR migration preflight accepts an already-applied staging migration", async () => {
-  const workflow = await readFile(workflowUrl, "utf8");
+  const workflow = await readWorkflow();
 
   assert.match(workflow, /id: before[\s\S]*?echo "already_applied=true"/);
   assert.match(workflow, /ALREADY_APPLIED:\s*\$\{\{\s*steps\.before\.outputs\.already_applied\s*\}\}/);
@@ -33,7 +37,7 @@ test("the PR migration preflight accepts an already-applied staging migration", 
 });
 
 test("the one-off workflow only runs for the admin foundation migration", async () => {
-  const workflow = await readFile(workflowUrl, "utf8");
+  const workflow = await readWorkflow();
 
   assert.equal(
     (workflow.match(/apps\/giacong-lean-commerce\/migrations\/0004_admin_foundation\.sql/g) ?? []).length,
@@ -43,7 +47,7 @@ test("the one-off workflow only runs for the admin foundation migration", async 
 });
 
 test("the migration guard refuses unrelated pending files before D1 apply", async () => {
-  const workflow = await readFile(workflowUrl, "utf8");
+  const workflow = await readWorkflow();
 
   assert.match(
     workflow,

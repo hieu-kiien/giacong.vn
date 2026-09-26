@@ -7,6 +7,8 @@ on:
     paths:
       - .github/workflows/cloudflare-staging-deep-qa.yml
       - apps/giacong-lean-commerce/src/**
+      - apps/giacong-lean-commerce/scripts/qa-staging-catalog.mjs
+      - apps/giacong-lean-commerce/scripts/qa-deep-staging-contract.test.mjs
       - apps/giacong-lean-commerce/wrangler.jsonc
       - apps/giacong-lean-commerce/package.json
       - apps/giacong-lean-commerce/package-lock.json
@@ -74,189 +76,40 @@ jobs:
           echo "STAGING_ACCESS_REQUIRED=true" >> "$GITHUB_ENV"
           echo "CI origin: $preview_origin"
 
-      - name: Verify catalog search, category filter and sort
+      - name: Prepare read-only catalog QA state
         shell: bash
         run: |
           set -euo pipefail
-
-          staging_curl() {
-            local -a access_headers=()
-            if [[ "${STAGING_ACCESS_REQUIRED:-false}" == "true" && -n "${CLOUDFLARE_ACCESS_CLIENT_ID:-}" && -n "${CLOUDFLARE_ACCESS_CLIENT_SECRET:-}" ]]; then
-              access_headers=(
-                -H "CF-Access-Client-Id: ${CLOUDFLARE_ACCESS_CLIENT_ID}"
-                -H "CF-Access-Client-Secret: ${CLOUDFLARE_ACCESS_CLIENT_SECRET}"
-              )
-            fi
-            command curl --user-agent 'Giacong-Staging-Deep-QA/1.0' "${access_headers[@]}" "$@"
-          }
-
-          staging_curl --fail-with-body --silent --show-error --location --max-time 25 \
-            --get --data-urlencode 'q=gạo lứt' \
-            "$STAGING_ORIGIN/san-pham" > /tmp/catalog-search.html
-          grep -q 'Bột gạo lứt xay mịn' /tmp/catalog-search.html
-          if grep -q 'Hoa cúc sấy nguyên bông' /tmp/catalog-search.html; then
-            echo 'Search returned an unrelated product.'
-            exit 1
-          fi
 
           npx wrangler d1 execute "$STAGING_DATABASE" --remote --json \
-            --command="SELECT c.slug FROM categories c INNER JOIN products p ON p.category_id = c.id WHERE p.slug = 'bot-gao-lut-xay-min' LIMIT 1;" \
-            > /tmp/category.json
-          category_slug=$(jq -r '.[0].results[0].slug // empty' /tmp/category.json)
-          test -n "$category_slug"
-          echo "Category slug: $category_slug"
+            --command="SELECT COUNT(*) AS active_count FROM products WHERE is_active = 1;" \
+            > /tmp/staging-active-count.json
+          active_count=$(jq -r '.[0].results[0].active_count // empty' /tmp/staging-active-count.json)
+          [[ "$active_count" =~ ^[0-9]+$ ]]
+          echo "STAGING_ACTIVE_PRODUCT_COUNT=$active_count" >> "$GITHUB_ENV"
 
-          staging_curl --fail-with-body --silent --show-error --location --max-time 25 \
-            --get --data-urlencode "category=$category_slug" \
-            "$STAGING_ORIGIN/san-pham" > /tmp/catalog-category.html
-          grep -q 'Bột gạo lứt xay mịn' /tmp/catalog-category.html
-          if grep -q 'Hoa cúc sấy nguyên bông' /tmp/catalog-category.html; then
-            echo 'Category filter leaked a product from another category.'
-            exit 1
+          if (( active_count > 0 )); then
+            npx wrangler d1 execute "$STAGING_DATABASE" --remote --json \
+              --command="SELECT p.slug, p.name, c.slug AS category_slug FROM products p LEFT JOIN categories c ON c.id = p.category_id WHERE p.is_active = 1 ORDER BY p.slug LIMIT 1;" \
+              > /tmp/staging-active-product.json
+            active_slug=$(jq -r '.[0].results[0].slug // empty' /tmp/staging-active-product.json)
+            test -n "$active_slug"
+          else
+            printf '{}' > /tmp/staging-active-product.json
+            active_slug=""
           fi
+          echo "STAGING_ACTIVE_PRODUCT_SLUG=$active_slug" >> "$GITHUB_ENV"
 
-          staging_curl --fail-with-body --silent --show-error --location --max-time 25 \
-            --get --data-urlencode 'sort=starting_price' --data-urlencode 'direction=desc' --data-urlencode 'per_page=48' \
-            "$STAGING_ORIGIN/san-pham" > /tmp/catalog-sort.html
-          python - <<'PY'
-          from pathlib import Path
+          npx wrangler d1 execute "$STAGING_DATABASE" --remote --json \
+            --command="SELECT slug, name FROM products WHERE is_active = 0 ORDER BY slug LIMIT 1;" \
+            > /tmp/staging-inactive-product.json
+          inactive_slug=$(jq -r '.[0].results[0].slug // empty' /tmp/staging-inactive-product.json)
+          echo "STAGING_INACTIVE_PRODUCT_SLUG=$inactive_slug" >> "$GITHUB_ENV"
+          echo "Public catalog active product count: $active_count"
 
-          html = Path('/tmp/catalog-sort.html').read_text()
-          names = [
-              'Túi zipper tráng nhôm',
-              'Lá tía tô sấy lạnh',
-              'Hoa cúc sấy nguyên bông',
-              'Bột gạo lứt xay mịn',
-          ]
-          positions = [html.find(name) for name in names]
-          if any(position < 0 for position in positions):
-              raise SystemExit(f'Missing product in sorted catalog: {dict(zip(names, positions))}')
-          if positions != sorted(positions):
-              raise SystemExit(f'Unexpected descending starting-price order: {dict(zip(names, positions))}')
-          print('Catalog sort order verified:', dict(zip(names, positions)))
-          PY
-
-      - name: Verify product API and repaired quantity thresholds
+      - name: Verify catalog and dynamic product/cart/contact guards
         shell: bash
-        run: |
-          set -euo pipefail
-
-          staging_curl() {
-            local -a access_headers=()
-            if [[ "${STAGING_ACCESS_REQUIRED:-false}" == "true" && -n "${CLOUDFLARE_ACCESS_CLIENT_ID:-}" && -n "${CLOUDFLARE_ACCESS_CLIENT_SECRET:-}" ]]; then
-              access_headers=(
-                -H "CF-Access-Client-Id: ${CLOUDFLARE_ACCESS_CLIENT_ID}"
-                -H "CF-Access-Client-Secret: ${CLOUDFLARE_ACCESS_CLIENT_SECRET}"
-              )
-            fi
-            command curl --user-agent 'Giacong-Staging-Deep-QA/1.0' "${access_headers[@]}" "$@"
-          }
-
-          staging_curl --fail-with-body --silent --show-error --max-time 25 \
-            "$STAGING_ORIGIN/api/catalog/products/nuoc-mam-cot-pha-loang" > /tmp/fish-sauce.json
-          jq -e '
-            .product.slug == "nuoc-mam-cot-pha-loang"
-            and .product.variantCount == 2
-            and .product.availableVariantCount == 1
-            and ([.product.variants[] | select(.sku == "B2B-DEMO-NMC-10" and .contactFromQuantity == 141)] | length == 1)
-            and ([.product.variants[] | select(.sku == "B2B-DEMO-NMC-30" and .isAvailable == false)] | length == 1)
-          ' /tmp/fish-sauce.json
-
-          staging_curl --fail-with-body --silent --show-error --max-time 25 \
-            "$STAGING_ORIGIN/api/catalog/products/sot-me-chua-ngot" > /tmp/tamarind.json
-          jq -e '
-            .product.slug == "sot-me-chua-ngot"
-            and ([.product.variants[] | select(.sku == "B2B-DEMO-SME-02" and .contactFromQuantity == 264)] | length == 1)
-          ' /tmp/tamarind.json
-
-          status=$(staging_curl --silent --show-error --max-time 25 --output /tmp/not-found.json --write-out '%{http_code}' \
-            "$STAGING_ORIGIN/api/catalog/products/khong-ton-tai")
-          echo "Missing product API -> HTTP $status"
-          test "$status" = "404"
-
-      - name: Verify canonical cart validation matrix
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          staging_curl() {
-            local -a access_headers=()
-            if [[ "${STAGING_ACCESS_REQUIRED:-false}" == "true" && -n "${CLOUDFLARE_ACCESS_CLIENT_ID:-}" && -n "${CLOUDFLARE_ACCESS_CLIENT_SECRET:-}" ]]; then
-              access_headers=(
-                -H "CF-Access-Client-Id: ${CLOUDFLARE_ACCESS_CLIENT_ID}"
-                -H "CF-Access-Client-Secret: ${CLOUDFLARE_ACCESS_CLIENT_SECRET}"
-              )
-            fi
-            command curl --user-agent 'Giacong-Staging-Deep-QA/1.0' "${access_headers[@]}" "$@"
-          }
-
-          post_cart() {
-            local name="$1"
-            local payload="$2"
-            staging_curl --fail-with-body --silent --show-error --max-time 25 \
-              -H 'Content-Type: application/json' \
-              --data "$payload" \
-              "$STAGING_ORIGIN/api/gui-yeu-cau/xac-thuc" > "/tmp/$name.json"
-          }
-
-          post_cart valid_tier '{"lines":[{"parentSlug":"bot-gao-lut-xay-min","variantSku":"B2B-DEMO-BGL-05","quantity":100}]}'
-          jq -e '.ok == true and .cart.isSubmittable == true and .cart.lines[0].unitPrice == 74500 and .cart.lines[0].lineTotal == 7450000' /tmp/valid_tier.json
-
-          post_cart below_moq '{"lines":[{"parentSlug":"bot-gao-lut-xay-min","variantSku":"B2B-DEMO-BGL-05","quantity":24}]}'
-          jq -e '.ok == true and .cart.isSubmittable == false and .cart.lines[0].adjustments[0].code == "QUANTITY_BELOW_MOQ" and .cart.lines[0].adjustments[0].suggestedQuantity == 25' /tmp/below_moq.json
-
-          post_cart off_step '{"lines":[{"parentSlug":"bot-gao-lut-xay-min","variantSku":"B2B-DEMO-BGL-05","quantity":26}]}'
-          jq -e '.ok == true and .cart.isSubmittable == false and .cart.lines[0].adjustments[0].code == "QUANTITY_OFF_STEP" and .cart.lines[0].adjustments[0].suggestedQuantity == 30' /tmp/off_step.json
-
-          post_cart unavailable '{"lines":[{"parentSlug":"nuoc-mam-cot-pha-loang","variantSku":"B2B-DEMO-NMC-30","quantity":2}]}'
-          jq -e '.ok == true and .cart.isSubmittable == false and .cart.lines[0].adjustments[0].code == "VARIANT_UNAVAILABLE"' /tmp/unavailable.json
-
-          post_cart missing_product '{"lines":[{"parentSlug":"khong-ton-tai","variantSku":"MISSING","quantity":1}]}'
-          jq -e '.ok == true and .cart.isSubmittable == false and .cart.lines[0].adjustments[0].code == "PRODUCT_NOT_FOUND"' /tmp/missing_product.json
-
-          post_cart missing_variant '{"lines":[{"parentSlug":"bot-gao-lut-xay-min","variantSku":"MISSING","quantity":25}]}'
-          jq -e '.ok == true and .cart.isSubmittable == false and .cart.lines[0].adjustments[0].code == "VARIANT_NOT_FOUND"' /tmp/missing_variant.json
-
-          post_cart price_on_request '{"lines":[{"parentSlug":"bot-gao-lut-xay-min","variantSku":"B2B-DEMO-BGL-05","quantity":500}]}'
-          jq -e '
-            .ok == true
-            and .cart.isSubmittable == true
-            and .cart.hasPriceOnRequest == true
-            and .cart.requestType == "Tư vấn số lượng lớn"
-            and .cart.pricedSubtotal == 0
-            and .cart.lines[0].priceOnRequest == true
-            and .cart.lines[0].unitPrice == null
-            and .cart.lines[0].adjustments[0].code == "PRICE_ON_REQUEST"
-          ' /tmp/price_on_request.json
-
-      - name: Verify contact cart drift guard without submitting
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          staging_curl() {
-            local -a access_headers=()
-            if [[ "${STAGING_ACCESS_REQUIRED:-false}" == "true" && -n "${CLOUDFLARE_ACCESS_CLIENT_ID:-}" && -n "${CLOUDFLARE_ACCESS_CLIENT_SECRET:-}" ]]; then
-              access_headers=(
-                -H "CF-Access-Client-Id: ${CLOUDFLARE_ACCESS_CLIENT_ID}"
-                -H "CF-Access-Client-Secret: ${CLOUDFLARE_ACCESS_CLIENT_SECRET}"
-              )
-            fi
-            command curl --user-agent 'Giacong-Staging-Deep-QA/1.0' "${access_headers[@]}" "$@"
-          }
-
-          status=$(staging_curl --silent --show-error --max-time 25 --output /tmp/contact-drift.json --write-out '%{http_code}' \
-            -H 'Content-Type: application/json' \
-            --data '{"address":"","companyName":"","deliveryLocation":"Hà Nội","email":"qa@example.com","lines":[{"parentSlug":"bot-gao-lut-xay-min","variantSku":"B2B-DEMO-BGL-05","quantity":25}],"message":"staging QA only","name":"Staging QA","neededBy":"","phone":"0868408115","requestId":"00000000-0000-4000-8000-000000000001","snapshotToken":"0000000000000000000000000000000000000000000000000000000000000000","source":"/gui-yeu-cau/","vatInvoice":""}' \
-            "$STAGING_ORIGIN/api/contact")
-          echo "Contact stale snapshot -> HTTP $status"
-          test "$status" = "409"
-          jq -e '.ok == false and .code == "CART_DRIFTED" and .cart.isSubmittable == true and .cart.lines[0].unitPrice == 78000' /tmp/contact-drift.json
-
-          malformed_status=$(staging_curl --silent --show-error --max-time 25 --output /tmp/contact-malformed.json --write-out '%{http_code}' \
-            -H 'Content-Type: application/json' --data '{bad json' "$STAGING_ORIGIN/api/contact")
-          echo "Contact malformed JSON -> HTTP $malformed_status"
-          test "$malformed_status" = "400"
+        run: node scripts/qa-staging-catalog.mjs
 
       - name: Verify R2 media response
         shell: bash
@@ -295,10 +148,12 @@ jobs:
           const routes = [
             '/',
             '/san-pham',
-            '/san-pham/bot-gao-lut-xay-min',
             '/gui-yeu-cau',
             '/thue-gia-cong/say-thuc-pham-say',
           ];
+          if (process.env.STAGING_ACTIVE_PRODUCT_SLUG) {
+            routes.push(`/san-pham/${encodeURIComponent(process.env.STAGING_ACTIVE_PRODUCT_SLUG)}`);
+          }
           const viewports = [
             { name: 'mobile', width: 390, height: 844 },
             { name: 'tablet', width: 768, height: 1024 },
