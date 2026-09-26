@@ -13,6 +13,11 @@ on:
       - apps/giacong-lean-commerce/package.json
       - apps/giacong-lean-commerce/package-lock.json
   workflow_dispatch:
+    inputs:
+      preview_version_id:
+        description: "Optional uploaded staging version ID; tests its isolated preview without promoting it."
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -33,6 +38,7 @@ jobs:
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       CLOUDFLARE_ACCESS_CLIENT_ID: ${{ secrets.CLOUDFLARE_ACCESS_CLIENT_ID }}
       CLOUDFLARE_ACCESS_CLIENT_SECRET: ${{ secrets.CLOUDFLARE_ACCESS_CLIENT_SECRET }}
+      PREVIEW_VERSION_ID: ${{ inputs.preview_version_id }}
       # The public hostname remains a separate smoke target. The active
       # version's isolated preview is selected after Wrangler verifies traffic
       # and is used for authenticated CI requests below.
@@ -58,7 +64,7 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Verify active staging deployment
+      - name: Select active staging version or isolated preview
         shell: bash
         run: |
           set -euo pipefail
@@ -70,7 +76,16 @@ jobs:
             and (. [0].version_id | type == "string" and length > 0)
           ' <<<"$deployment"
           active_version_id="$(echo "$deployment" | jq -r '.versions[0].version_id')"
-          preview_prefix="${active_version_id%%-*}"
+          selected_version_id="$active_version_id"
+          if [[ -n "${PREVIEW_VERSION_ID:-}" ]]; then
+            selected_version_id="$PREVIEW_VERSION_ID"
+            npx wrangler versions view "$selected_version_id" --env=staging --json > /tmp/selected-version.json
+            jq -e --arg id "$selected_version_id" '.id == $id' /tmp/selected-version.json
+            echo "Selected isolated preview version; staging traffic remains on $active_version_id"
+          else
+            echo "Selected active staging version $active_version_id"
+          fi
+          preview_prefix="${selected_version_id%%-*}"
           preview_origin="https://${preview_prefix}-${STAGING_WORKER_NAME}.${STAGING_WORKERS_SUBDOMAIN}.workers.dev"
           echo "STAGING_ORIGIN=$preview_origin" >> "$GITHUB_ENV"
           echo "STAGING_ACCESS_REQUIRED=true" >> "$GITHUB_ENV"
@@ -158,6 +173,8 @@ jobs:
             { name: 'mobile', width: 390, height: 844 },
             { name: 'tablet', width: 768, height: 1024 },
             { name: 'desktop', width: 1440, height: 900 },
+            { name: 'laptop-16x9', width: 1366, height: 768 },
+            { name: 'full-hd-16x9', width: 1920, height: 1080 },
           ];
 
           const browser = await chromium.launch({ headless: true });

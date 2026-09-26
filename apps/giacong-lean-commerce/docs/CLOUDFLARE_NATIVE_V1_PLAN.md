@@ -38,8 +38,17 @@ Schema hiện hành gồm:
 - `products`
 - `product_variants`
 - `variant_tier_prices`
+- `product_tech_specs`
+- `product_gallery_images`
+- `product_slug_redirects` (created by migration `0031` when deployed)
 - `services`
 - `d1_migrations`
+
+`product_gallery_images` and `product_tech_specs` are introduced by migration
+`0030_product_tech_specs_and_media.sql`. `product_slug_redirects` is introduced
+by `0031_product_slug_redirects.sql`; it preserves previous canonical slugs for
+future product renames and is additive to existing product rows. As of the
+2026-09-26 staging audit, `0031` is still pending there.
 
 Các invariant bắt buộc:
 

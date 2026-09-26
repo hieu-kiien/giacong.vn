@@ -1,6 +1,26 @@
-# Cloudflare current state — 2026-09-16
+# Cloudflare current state — audit 2026-09-26
 
-## Production motion/cache follow-up — 2026-09-19
+## Current staging checkpoint — 2026-09-26
+
+- Read-only Wrangler check xác nhận `giacong-vn-staging` đang có đúng một
+  version nhận 100% traffic: `2f5eb3cb-27c0-4e66-9c61-06864dfaa918`, tạo
+  ngày `2026-09-24T19:05:52Z`. Đây là code cũ đang hoạt động; thay đổi trong
+  nhánh `codex/catalog-url-gallery-safety` đã được upload thành preview version `d65949c5-8306-479a-b12f-f0d3347e26fe`; version này chưa nhận traffic và chưa được promotion.
+- D1 staging `giacong-vn-catalog-staging` có 15 sản phẩm, gồm 0 active và 15
+  inactive; `product_gallery_images` có 0 dòng. Read-only query ghi nhận
+  `changed_db=false`, `rows_written=0`.
+- Các migration gần nhất đã áp dụng đến
+  `0030_product_tech_specs_and_media.sql`; `0031_product_slug_redirects.sql`
+  còn pending. Bảng `product_tech_specs` và `product_gallery_images` đã tồn
+  tại; `product_slug_redirects` chưa tồn tại.
+- CI/build gate và deep QA run `36237470961` / `36237471060` đạt ở commit
+  `936f362be07459f7927422e3cb36d206f570e51b`, nhưng deep QA chạy trên Worker
+  đang active, không phải code mới của nhánh hiện tại. Không dùng kết quả đó
+  làm bằng chứng preview hoặc nghiệm thu code mới.
+- Không có lệnh ghi D1/R2, đổi traffic staging hoặc thay đổi production trong
+  checkpoint này. Production chưa được đụng tới.
+
+## Lịch sử production motion/cache follow-up — 2026-09-19
 
 - Production `giacong-vn` đang chạy version `a00c0f90-817b-426b-b7e2-40d91e1a43ed`
   ở mức `100%`. Đã re-enable chế độ tự động xoay chuyển slide (auto-rotation) cho carousel
@@ -15,10 +35,10 @@
   `86400` giây; HTML request có `Accept: text/html` trả public edge policy
   `s-maxage=60` và `stale-while-revalidate=300`.
 
-## Current staging checkpoint — 2026-09-16
+Checkpoint dưới đây là lịch sử; số liệu và kết luận không đại diện trạng thái
+staging hiện tại.
 
-Checkpoint này là trạng thái mới nhất; các checkpoint production/staging cũ
-ở phía dưới chỉ giữ làm lịch sử và không được dùng làm bằng chứng phát hành.
+## Historical staging checkpoint — 2026-09-16
 
 - Runtime source commit đang chạy là `8077cec1c953def8baf33e3e8d90566e973beac2`;
   workflow/contract CI deep QA được kiểm tra ở commit `4762c482` trên nhánh

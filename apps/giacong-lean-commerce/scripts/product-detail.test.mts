@@ -598,3 +598,20 @@ test("uploaded product photos stay uncropped in listing, detail, related cards, 
   assert.match(detailCss, /\.relatedImage img\s*\{[^}]*object-fit:\s*contain/);
   assert.match(adminGallery, /objectFit:\s*"contain"/);
 });
+
+test("previous product URLs permanently redirect to the current public slug before cached HTML", async () => {
+  const [page, catalog, worker] = await Promise.all([
+    readSource("src", "app", "(storefront)", "san-pham", "[slug]", "page.tsx"),
+    readSource("src", "lib", "cloudflare-catalog.ts"),
+    readSource("custom-worker.ts"),
+  ]);
+
+  assert.match(page, /getCatalogProductRedirect/);
+  assert.match(page, /permanentRedirect\(/);
+  assert.match(catalog, /FROM product_slug_redirects/);
+  assert.match(catalog, /products\.is_active = 1/);
+
+  assert.match(worker, /const targetSlug = await getPublicCatalogProductTarget/);
+  assert.match(worker, /if \(checkedDocument\.status === 308\) return checkedDocument/);
+  assert.match(worker, /status: 308/);
+});

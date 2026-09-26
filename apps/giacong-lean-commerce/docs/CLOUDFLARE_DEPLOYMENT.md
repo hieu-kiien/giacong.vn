@@ -37,29 +37,36 @@ Cloudflare Worker: Next.js + OpenNext
           `-- /api/contact -------------------> Google Apps Script -> Google Sheet
 ```
 
-## D1 staging đã xác minh
+## D1 staging — audit ngày 2026-09-26
 
 Database: `giacong-vn-catalog-staging`.
 
-Các bảng nghiệp vụ hiện có:
+Các bảng catalog/media hiện có:
 
 - `categories`
 - `products`
 - `product_variants`
 - `variant_tier_prices`
+- `product_tech_specs`
+- `product_gallery_images`
 - `services`
+- `d1_migrations`
 
-Ngoài ra có `d1_migrations` phục vụ migration metadata.
+Trạng thái dữ liệu và migration đã được kiểm tra read-only bằng Wrangler:
 
-Snapshot audit ngày 2026-08-14:
+- 15 sản phẩm: 0 active, 15 inactive;
+- 0 dòng trong `product_gallery_images`;
+- migration mới nhất đã áp dụng: `0030_product_tech_specs_and_media.sql`;
+- migration `0031_product_slug_redirects.sql` chưa áp dụng;
+- truy vấn không ghi dữ liệu (`changed_db=false`, `rows_written=0`).
 
-- 4 categories
-- 10 products
-- 18 variants
-- 54 tier-price rows
-- 0 managed service rows
+Các snapshot ngày 2026-08-14 phía dưới là số liệu lịch sử, không đại diện D1
+hiện tại. Staging đang không có sản phẩm được công bố; catalog QA phải kiểm tra
+empty state và xác nhận sản phẩm inactive không lộ ra storefront. Không tự tạo
+dữ liệu demo để làm đầy trạng thái QA.
 
-Dữ liệu catalog staging hiện là demo/test và chưa được xem là production data.
+`product_slug_redirects` sẽ được tạo bởi migration `0031`; migration này giữ
+slug cũ sau khi đổi slug trong tương lai, không sửa sản phẩm hiện có.
 
 ## Runtime boundary
 
@@ -101,11 +108,16 @@ Quy trình:
 2. `npm run cf:build:staging` xanh.
 3. Wrangler dry-run xanh và giữ đủ D1/R2 bindings.
 4. Upload một staging version **không nhận traffic**.
-5. Preview smoke test ít nhất: `/`, `/san-pham`, một product detail, `/gui-yeu-cau`, cart revalidation và `/thue-gia-cong`.
-6. Kiểm tra media R2 khi có object tương ứng.
-7. Chỉ khi preview đạt mới promotion version vào `giacong-vn-staging`.
-8. QA staging hoàn chỉnh.
-9. Sau đó mới tạo resource/migration production và promotion có kiểm soát cho `giacong-vn`; mỗi migration window phải có export D1 mới, checksum, restore-drill và rollback point.
+5. Chạy workflow `cloudflare-staging-deep-qa.yml` với input `preview_version_id`
+   để kiểm tra đúng version vừa upload qua service token, catalog/D1, R2 và
+   browser responsive. Workflow chỉ đọc traffic state, không promotion.
+6. Preview smoke test tối thiểu: `/`, `/san-pham`, product detail khi có sản
+   phẩm active, `/gui-yeu-cau`, cart revalidation và `/thue-gia-cong`.
+7. Kiểm tra media R2 khi có object tương ứng.
+8. Chỉ khi preview đạt mới promotion version vào `giacong-vn-staging`.
+9. Chạy deep QA lại trên active hostname và kiểm tra các viewport mobile,
+   tablet, desktop 16:9 (1366×768 và 1920×1080).
+10. Sau đó mới tạo resource/migration production và promotion có kiểm soát cho `giacong-vn`; mỗi migration window phải có export D1 mới, checksum, restore-drill và rollback point.
 
 ## Production safety
 
