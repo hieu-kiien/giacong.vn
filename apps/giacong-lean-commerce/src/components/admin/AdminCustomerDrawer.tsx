@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useCallback } from "react";
 import {
-  X,
   Building2,
   Mail,
   Phone,
@@ -16,6 +15,7 @@ import {
 } from "lucide-react";
 import { AdminStatusBadge } from "@/components/admin/AdminPrimitives";
 import { AdminTimelineFeed } from "@/components/admin/AdminTimelineFeed";
+import { AdminModal } from "@/components/admin/AdminDialog";
 import { fetchAdmin, formatAdminDate } from "@/lib/admin-client";
 import type { CrmCustomer, CrmContact } from "@/lib/admin-crm-types";
 
@@ -75,71 +75,40 @@ export function AdminCustomerDrawer({
   }, [loadCustomer]);
 
   return (
-    <div
-      style={{
-        position: "fixed",
-        inset: 0,
-        zIndex: 50,
-        display: "flex",
-        justifyContent: "flex-end",
-        backgroundColor: "rgba(15, 23, 42, 0.4)",
-        backdropFilter: "blur(2px)",
-      }}
-      onClick={onClose}
+    <AdminModal
+      labelledBy="customer-drawer-title"
+      onClose={onClose}
+      title={customer?.company_name || "Chi tiết Doanh nghiệp"}
+      width="wide"
     >
-      <div
-        style={{
-          width: "100%",
-          maxWidth: "580px",
-          height: "100%",
-          backgroundColor: "#ffffff",
-          boxShadow: "-4px 0 24px rgba(0, 0, 0, 0.15)",
-          display: "flex",
-          flexDirection: "column",
-          overflow: "hidden",
-        }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Header */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+        {/* Header summary */}
         <div
           style={{
-            padding: "16px 20px",
-            borderBottom: "1px solid #e2e8f0",
             display: "flex",
             justifyContent: "space-between",
-            alignItems: "flex-start",
-            background: "#f8fafc",
+            alignItems: "center",
+            flexWrap: "wrap",
+            gap: 8,
+            paddingBottom: 10,
+            borderBottom: "1px solid var(--admin-border, #e2e8f0)",
           }}
         >
-          <div>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-              <span style={{ fontSize: 11, fontWeight: 700, color: "#64748b", textTransform: "uppercase" }}>
-                {customer?.code ?? "HỒ SƠ KHÁCH HÀNG B2B"}
-              </span>
-              {customer?.tier ? (
-                <AdminStatusBadge
-                  kind={tierLabels[customer.tier]?.kind ?? "neutral"}
-                  value={tierLabels[customer.tier]?.label ?? customer.tier}
-                />
-              ) : null}
-            </div>
-            <h2 style={{ fontSize: 18, fontWeight: 700, color: "#0f172a", margin: 0 }}>
-              {customer?.company_name || "Chi tiết Doanh nghiệp"}
-            </h2>
-            <div style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>
-              MST: <strong>{customer?.tax_code || "Chưa có"}</strong> · Ngành:{" "}
-              {customer ? industryLabels[customer.industry] || customer.industry : "Chưa xác định"}
-            </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ fontSize: 11, fontWeight: 700, color: "var(--admin-ink-muted, #64748b)", textTransform: "uppercase" }}>
+              {customer?.code ?? "HỒ SƠ KHÁCH HÀNG B2B"}
+            </span>
+            {customer?.tier ? (
+              <AdminStatusBadge
+                kind={tierLabels[customer.tier]?.kind ?? "neutral"}
+                value={tierLabels[customer.tier]?.label ?? customer.tier}
+              />
+            ) : null}
           </div>
-          <button
-            type="button"
-            className="admin-button admin-button-quiet"
-            style={{ padding: "6px" }}
-            onClick={onClose}
-            aria-label="Đóng"
-          >
-            <X size={18} />
-          </button>
+          <div style={{ fontSize: 12, color: "var(--admin-ink-muted, #64748b)" }}>
+            MST: <strong>{customer?.tax_code || "Chưa có"}</strong> · Ngành:{" "}
+            {customer ? industryLabels[customer.industry] || customer.industry : "Chưa xác định"}
+          </div>
         </div>
 
         {/* Sub-tabs */}
@@ -335,6 +304,6 @@ export function AdminCustomerDrawer({
           )}
         </div>
       </div>
-    </div>
+    </AdminModal>
   );
 }

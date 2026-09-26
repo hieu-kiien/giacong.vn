@@ -71,8 +71,8 @@ function partlyUnavailableProduct() {
   return product;
 }
 
-function buildView(product: unknown, related: readonly unknown[] = []) {
-  return detailView.buildProductDetailView({ product, related } as never);
+function buildView(product: unknown, related: readonly unknown[] = [], isDemo = false) {
+  return detailView.buildProductDetailView({ product, related, isDemo } as never);
 }
 
 // ---------------------------------------------------------------------------
@@ -158,27 +158,64 @@ test("availability is derived from the variants, never hard-coded", () => {
   assert.match(soldOut.availabilityLabel, /hết hàng/i);
 });
 
-test("the gallery gives a thumbnail rail and never a gray placeholder", () => {
+test("the live gallery stays empty until it has a real, managed product image", () => {
   const view = buildView(multiVariantProduct());
 
-  assert.ok(view.gallery.length >= 3, "a thumbnail rail needs several images");
-  for (const image of view.gallery) {
-    assert.match(image.url, /^\/images\/products\/[a-z0-9-]+\.(?:png|webp)$/, "gallery falls back to local demo packshots");
-    assert.ok(image.alt.trim().length > 0, "every gallery image needs alt text");
-  }
-  assert.equal(
-    new Set(view.gallery.map((image: { url: string }) => image.url)).size,
-    view.gallery.length,
-    "the rail must not repeat one image",
-  );
+  assert.deepEqual(view.gallery, [], "a live product without an approved image must not inherit a demo packshot");
 });
 
-test("a real product image leads the gallery when the catalog supplies one", () => {
-  const product = { ...multiVariantProduct(), imageUrl: "https://cdn.example.test/bot-gao-lut.jpg" };
+test("the real gallery uses only managed product images and removes duplicate URLs", () => {
+  const product = {
+    ...multiVariantProduct(),
+    imageUrl: "https://cdn.example.test/bot-gao-lut.jpg",
+    galleryImages: [
+      { imageUrl: "https://cdn.example.test/bot-gao-lut.jpg", isPrimary: true, sortOrder: 0 },
+      { imageUrl: "https://cdn.example.test/bot-gao-lut-side.jpg", isPrimary: false, sortOrder: 1 },
+    ],
+  };
   const view = buildView(product);
 
-  assert.equal(view.gallery[0].url, "https://cdn.example.test/bot-gao-lut.jpg");
-  assert.ok(view.gallery.length >= 3, "demo packshots still fill the rail behind a real image");
+  assert.deepEqual(view.gallery.map((image: { url: string }) => image.url), [
+    "https://cdn.example.test/bot-gao-lut.jpg",
+    "https://cdn.example.test/bot-gao-lut-side.jpg",
+  ]);
+  assert.ok(view.gallery.every((image: { alt: string }) => image.alt === product.name));
+});
+
+test("demo gallery assets appear only when the detail source identifies demo data", () => {
+  const view = buildView(multiVariantProduct(), [], true);
+
+  assert.ok(view.gallery.length >= 3, "the explicitly labelled local preview keeps its sample imagery");
+  assert.ok(view.gallery.every((image: { url: string }) => image.url.startsWith("/images/products/")));
+});
+
+test("related live products without a managed image keep a neutral empty state", () => {
+  const related = { ...multiVariantProduct(), imageUrl: null, slug: "related-without-image" };
+  const view = buildView(multiVariantProduct(), [related]);
+
+  assert.equal(view.relatedProducts[0]?.imageUrl, null);
+});
+
+test("detail reads the CMS-managed gallery without changing the shared cart product resolver", async () => {
+  const catalogSource = await readSource("src", "lib", "cloudflare-catalog.ts");
+  const detailSource = await readSource("src", "lib", "catalog-detail-source.ts");
+  const contactSource = await readSource("src", "app", "api", "contact", "route.ts");
+
+  assert.match(catalogSource, /export async function getCatalogProductGalleryImages[\s\S]*?product_gallery_images/);
+  assert.match(detailSource, /getCatalogProductGalleryImages\(product\.id\)/);
+  assert.match(contactSource, /getCatalogProduct\(slug\)/);
+});
+
+test("legacy captured article has one canonical URL and a search-visible title", async () => {
+  const manifest = JSON.parse(await readFile(path.join(repoRoot, "src", "data", "pages", "manifest.json"), "utf8"));
+  const captured = JSON.parse(await readFile(path.join(repoRoot, "src", "data", "pages", "7047-2.json"), "utf8"));
+  const nextConfig = await readSource("next.config.ts");
+
+  assert.equal(manifest["/7047-2/"], undefined, "the retired numeric URL must leave the published route manifest");
+  assert.equal(manifest["/gia-cong-nuoc-chanh-mat-ong/"], "7047-2.json");
+  assert.match(captured.title, /^Gia công nước chanh mật ong$/);
+  assert.match(captured.markup, /<h1[^>]*class="entry-title"[^>]*>Gia công nước chanh mật ong<\/h1>/);
+  assert.match(nextConfig, /source:\s*"\/7047-2"[\s\S]*?destination:\s*"\/gia-cong-nuoc-chanh-mat-ong"[\s\S]*?permanent:\s*true/);
 });
 
 // ---------------------------------------------------------------------------
@@ -308,11 +345,11 @@ test("detail choices and related links remain keyboard discoverable", async () =
   assert.doesNotMatch(related, /tabIndex=\{-1\}/, "the related image link must remain reachable by keyboard");
 });
 
-test("related products are compact cards with no social proof and no invented variant", () => {
+test("demo related products are compact cards with no social proof and no invented variant", () => {
   const product = multiVariantProduct();
   const related = demoCatalog.demoCatalogProductsByCategory("bot-nguyen-lieu-kho")
     .filter((item: { slug: string }) => item.slug !== product.slug);
-  const view = buildView(product, related);
+  const view = buildView(product, related, true);
 
   assert.ok(view.relatedProducts.length >= 2, "the rail needs several related products");
   for (const card of view.relatedProducts) {
@@ -544,4 +581,20 @@ test("editing a cart line reopens the product configurator and replaces that lin
   assert.match(route, /editCart/, "The detail route must read the cart-edit marker.");
   assert.match(detail, /editingCartVariantSku/, "The product detail must carry the edit marker into the configurator.");
   assert.match(panel, /removeRequestCartLine/, "Updating a configured product must replace the old cart line instead of adding a duplicate.");
+});
+
+test("uploaded product photos stay uncropped in listing, detail, related cards, and admin gallery", async () => {
+  const [catalogImage, listingCss, detailCss, adminGallery] = await Promise.all([
+    readSource("src", "components", "catalog", "CatalogProductImage.tsx"),
+    readSource("src", "components", "catalog", "catalog.module.css"),
+    readSource("src", "components", "catalog", "product-detail.module.css"),
+    readSource("src", "components", "admin", "AdminProductGalleryManager.tsx"),
+  ]);
+
+  assert.doesNotMatch(catalogImage, /object-cover/);
+  assert.match(catalogImage, /object-contain/);
+  assert.match(listingCss, /\.image img\s*\{[^}]*object-fit:\s*contain/);
+  assert.match(detailCss, /\.thumb img\s*\{[^}]*object-fit:\s*contain/);
+  assert.match(detailCss, /\.relatedImage img\s*\{[^}]*object-fit:\s*contain/);
+  assert.match(adminGallery, /objectFit:\s*"contain"/);
 });

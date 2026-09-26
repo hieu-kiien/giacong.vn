@@ -103,3 +103,12 @@ test("page builder confirms section removal before changing the draft", async ()
   assert.match(source, /Xóa khối khỏi bản nháp/);
   assert.match(source, /Bạn có thể hủy trước khi lưu bản nháp/);
 });
+
+test("page builder picks managed media and does not seed filler copy into new blocks", async () => {
+  const source = await readSource("../src/components/admin/AdminPageBuilder.tsx");
+
+  assert.match(source, /AdminMediaPickerModal/);
+  assert.match(source, /Chọn ảnh/);
+  assert.doesNotMatch(source, /Ảnh minh họa|Tiêu đề ảnh bìa|Nội dung khối|Mục mới|Sẵn sàng bắt đầu\?/);
+  assert.doesNotMatch(source, /\/images\/home-hero\/hero-1\.png/);
+});

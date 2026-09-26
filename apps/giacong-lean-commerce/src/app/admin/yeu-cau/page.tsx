@@ -178,6 +178,8 @@ export default function AdminLeadsPage() {
     setBulkUpdating(true);
     const selectedLeads = leads.filter((l) => selectedIds.has(l.id));
     let count = 0;
+    const failedLeads: AdminLead[] = [];
+    let uncertainCount = 0;
     for (const lead of selectedLeads) {
       try {
         await mutateAdmin(`/api/admin/leads/${lead.id}`, {
@@ -185,15 +187,24 @@ export default function AdminLeadsPage() {
           method: "PATCH",
         });
         count++;
-      } catch {
-        // continue with other leads
+      } catch (reason: unknown) {
+        failedLeads.push(lead);
+        if (!(reason instanceof AdminClientError) || reason.status === 0 || reason.status >= 500) {
+          uncertainCount++;
+        }
       }
     }
     setBulkUpdating(false);
     setBulkStatusModal(false);
-    setSelectedIds(new Set());
+    setSelectedIds(new Set(failedLeads.map((lead) => lead.id)));
     setAttempt((v) => v + 1);
-    showToast("success", `Đã cập nhật ${count}/${selectedLeads.length} yêu cầu sang ${statusLabels[targetBulkStatus]}.`);
+    if (failedLeads.length === 0) {
+      showToast("success", `Đã cập nhật ${count}/${selectedLeads.length} yêu cầu sang ${statusLabels[targetBulkStatus]}.`);
+    } else if (uncertainCount > 0) {
+      showToast("error", `Đã xác nhận ${count}/${selectedLeads.length} yêu cầu. ${uncertainCount} yêu cầu chưa rõ kết quả; hãy tải lại để đối chiếu trước khi gửi lại. Các dòng cần kiểm tra vẫn được chọn.`);
+    } else {
+      showToast("error", `Đã cập nhật ${count}/${selectedLeads.length} yêu cầu. ${failedLeads.length} yêu cầu chưa cập nhật và vẫn được chọn để xử lý lại.`);
+    }
   }
 
   return (
@@ -310,7 +321,7 @@ export default function AdminLeadsPage() {
                       return (
                       <tr data-testid={`row-lead-${lead.id}`} key={lead.id}>
                         {canManage ? (
-                          <td style={{ width: 44 }}>
+                          <td className="admin-product-select" style={{ width: 44 }}>
                             <input
                               aria-label={`Chọn yêu cầu ${lead.fullName}`}
                               checked={selectedIds.has(lead.id)}
@@ -326,7 +337,7 @@ export default function AdminLeadsPage() {
                             />
                           </td>
                         ) : null}
-                        <td>
+                        <td data-label="Người liên hệ">
                           <button
                             className="admin-lead-person admin-product-name-btn"
                             data-testid={`button-lead-detail-${lead.id}`}
@@ -349,30 +360,31 @@ export default function AdminLeadsPage() {
                             </button>
                           </div>
                         </td>
-                        <td><div className="admin-lead-person">{lead.email ? <span><Mail size={12} style={{ verticalAlign: "middle" }} /> {lead.email}</span> : null}{lead.phone ? <span><Phone size={12} style={{ verticalAlign: "middle" }} /> {lead.phone}</span> : null}{!lead.email && !lead.phone ? <span>Chưa có thông tin</span> : null}</div></td>
-                        <td><div className="admin-message" title={lead.message ?? undefined}>{lead.message || "Không có nội dung"}</div><div className="admin-item-meta">{lead.source}</div></td>
-                        <td className="admin-mono" data-testid={`text-lead-reference-${lead.id}`}>{orderReference(lead)}</td>
-                        <td>
-                          <AdminStatusBadge kind={statusKind(lead.status)} value={statusLabels[lead.status] ?? lead.status} />
-                          {canManage ? (
-                            <select
-                              aria-label={`Cập nhật trạng thái cho ${lead.fullName}`}
-                              className="admin-select"
-                              data-testid={`select-lead-status-${lead.id}`}
-                              disabled={updatingId === lead.id}
-                              onChange={(event) => void updateLeadStatus(lead, event.target.value as LeadStatus)}
-                              style={{ marginTop: 7, minHeight: 34, minWidth: 150 }}
-                              value={lead.status}
-                            >
-                              {pipelineStatusOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-                            </select>
-                          ) : <span className="admin-item-meta">Chỉ xem</span>}
+                        <td data-label="Liên lạc"><div className="admin-lead-person">{lead.email ? <span><Mail size={12} style={{ verticalAlign: "middle" }} /> {lead.email}</span> : null}{lead.phone ? <span><Phone size={12} style={{ verticalAlign: "middle" }} /> {lead.phone}</span> : null}{!lead.email && !lead.phone ? <span>Chưa có thông tin</span> : null}</div></td>
+                        <td data-label="Nhu cầu"><div className="admin-message" title={lead.message ?? undefined}>{lead.message || "Không có nội dung"}</div><div className="admin-item-meta">{lead.source}</div></td>
+                        <td className="admin-mono" data-label="Mã yêu cầu" data-testid={`text-lead-reference-${lead.id}`}>{orderReference(lead)}</td>
+                        <td data-label="Trạng thái">
+                          <div className="admin-lead-status-wrap">
+                            <AdminStatusBadge kind={statusKind(lead.status)} value={statusLabels[lead.status] ?? lead.status} />
+                            {canManage ? (
+                              <select
+                                aria-label={`Cập nhật trạng thái cho ${lead.fullName}`}
+                                className="admin-select admin-lead-status-select"
+                                data-testid={`select-lead-status-${lead.id}`}
+                                disabled={updatingId === lead.id}
+                                onChange={(event) => void updateLeadStatus(lead, event.target.value as LeadStatus)}
+                                value={lead.status}
+                              >
+                                {pipelineStatusOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                              </select>
+                            ) : <span className="admin-item-meta">Chỉ xem</span>}
+                          </div>
                         </td>
-                        <td>
+                        <td data-label="Gửi dữ liệu">
                           <AdminStatusBadge kind={deliveryKind(lead.deliveryStatus)} value={deliveryLabels[lead.deliveryStatus]} />
                           {deliveryDetail ? <div className="admin-item-meta" data-testid={`text-lead-delivery-${lead.id}`}>{deliveryDetail}</div> : null}
                         </td>
-                        <td className="admin-mono">{formatAdminDate(lead.createdAt)}</td>
+                        <td className="admin-mono" data-label="Tiếp nhận">{formatAdminDate(lead.createdAt)}</td>
                       </tr>
                       );
                     })}

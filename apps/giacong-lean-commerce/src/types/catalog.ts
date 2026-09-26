@@ -56,6 +56,12 @@ export interface CatalogVariant {
   unit: string;
 }
 
+export interface CatalogProductGalleryImage {
+  imageUrl: string;
+  isPrimary: boolean;
+  sortOrder: number;
+}
+
 export interface CatalogOption {
   id: number;
   label: string;
@@ -70,6 +76,7 @@ export interface CatalogOptionGroup {
 }
 
 export interface CatalogProductDetail extends CatalogProductParent {
+  galleryImages?: readonly CatalogProductGalleryImage[];
   optionGroups: CatalogOptionGroup[];
   variantIndex: Record<string, Record<string, number>>;
   variants: CatalogVariant[];

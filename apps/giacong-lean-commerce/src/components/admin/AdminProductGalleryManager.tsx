@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { ArrowUp, ArrowDown, Image as ImageIcon, Plus, Trash2, CheckCircle2, Star, Upload, Loader2 } from "lucide-react";
+import { useRegisterAdminUnsaved } from "@/components/admin/AdminUnsavedGuard";
 import { useAdminToast } from "@/components/admin/AdminToast";
 import { AdminClientError, fetchAdmin, mutateAdmin } from "@/lib/admin-client";
 
@@ -18,21 +19,28 @@ interface GalleryResponse {
 
 export function AdminProductGalleryManager({ productId }: { productId: number }) {
   const [images, setImages] = useState<GalleryImage[]>([]);
+  const [loadError, setLoadError] = useState(false);
   const [newImageUrl, setNewImageUrl] = useState("");
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const savedImagesRef = useRef("[]");
   const { showToast } = useAdminToast();
+  const isDirty = useCallback(() => JSON.stringify(images) !== savedImagesRef.current, [images]);
+
+  useRegisterAdminUnsaved(isDirty, saving);
 
   const loadGallery = useCallback(async () => {
     if (!productId) return;
     setLoading(true);
+    setLoadError(false);
     try {
       const res = await fetchAdmin<GalleryResponse>(`/api/admin/products/${productId}/gallery`);
-      setImages(res.images ?? []);
+      const nextImages = res.images ?? [];
+      savedImagesRef.current = JSON.stringify(nextImages);
+      setImages(nextImages);
     } catch {
-      // If endpoint not yet initialized, fallback to empty
-      setImages([]);
+      setLoadError(true);
     } finally {
       setLoading(false);
     }
@@ -44,6 +52,7 @@ export function AdminProductGalleryManager({ productId }: { productId: number })
 
   function handleAddImage(e: React.FormEvent) {
     e.preventDefault();
+    if (loading || loadError) return;
     const trimmed = newImageUrl.trim();
     if (!trimmed) return;
     const isFirst = images.length === 0;
@@ -60,6 +69,7 @@ export function AdminProductGalleryManager({ productId }: { productId: number })
   const [isDragging, setIsDragging] = useState(false);
 
   async function uploadFile(file: File) {
+    if (loading || loadError) return;
     setUploading(true);
     try {
       const form = new FormData();
@@ -98,6 +108,7 @@ export function AdminProductGalleryManager({ productId }: { productId: number })
   }
 
   function handleSetPrimary(index: number) {
+    if (loading || loadError) return;
     setImages((prev) =>
       prev.map((img, idx) => ({
         ...img,
@@ -108,6 +119,7 @@ export function AdminProductGalleryManager({ productId }: { productId: number })
   }
 
   function handleRemoveImage(index: number) {
+    if (loading || loadError) return;
     setImages((prev) => {
       const next = prev.filter((_, idx) => idx !== index);
       // If we removed the primary image, make the first one primary
@@ -120,6 +132,7 @@ export function AdminProductGalleryManager({ productId }: { productId: number })
   }
 
   function handleMove(index: number, direction: "up" | "down") {
+    if (loading || loadError) return;
     const targetIndex = direction === "up" ? index - 1 : index + 1;
     if (targetIndex < 0 || targetIndex >= images.length) return;
     setImages((prev) => {
@@ -132,16 +145,18 @@ export function AdminProductGalleryManager({ productId }: { productId: number })
   }
 
   async function handleSaveGallery() {
+    if (loading || loadError) return;
     setSaving(true);
     try {
       await mutateAdmin(`/api/admin/products/${productId}/gallery`, {
         method: "POST",
         body: { images },
       });
+      savedImagesRef.current = JSON.stringify(images);
       showToast("success", "Đã lưu bộ sưu tập ảnh thành công!");
     } catch (err) {
-      const message = err instanceof AdminClientError ? err.message : "Đã lưu thư viện ảnh tại giao diện.";
-      showToast("info", message);
+      const message = err instanceof AdminClientError ? err.message : "Không thể lưu bộ sưu tập ảnh. Hãy thử lại.";
+      showToast("error", message);
     } finally {
       setSaving(false);
     }
@@ -162,12 +177,21 @@ export function AdminProductGalleryManager({ productId }: { productId: number })
             type="button"
             className="admin-button admin-button-primary"
             onClick={handleSaveGallery}
-            disabled={saving}
+            disabled={loading || loadError || saving}
           >
             <CheckCircle2 size={14} /> {saving ? "Đang lưu..." : "Lưu bộ ảnh"}
           </button>
         ) : null}
       </div>
+
+      {loadError ? (
+        <div role="alert" className="admin-field-error" style={{ alignItems: "center", display: "flex", gap: 10, margin: "8px 0 12px" }}>
+          <span>Không tải được thư viện ảnh. Hãy thử tải lại trước khi chỉnh sửa hoặc lưu.</span>
+          <button type="button" className="admin-button admin-button-quiet" onClick={() => void loadGallery()}>
+            Tải lại
+          </button>
+        </div>
+      ) : null}
 
       {/* Add Image Form */}
       <div style={{ display: "flex", gap: 8, marginTop: 12, marginBottom: 16, flexWrap: "wrap", alignItems: "center" }}>
@@ -178,15 +202,16 @@ export function AdminProductGalleryManager({ productId }: { productId: number })
             placeholder="Nhập URL ảnh kỹ thuật hoặc bản vẽ..."
             value={newImageUrl}
             onChange={(e) => setNewImageUrl(e.target.value)}
+            disabled={loading || loadError}
             style={{ flex: 1 }}
           />
-          <button type="submit" className="admin-button admin-button-quiet" disabled={!newImageUrl.trim()}>
+          <button type="submit" className="admin-button admin-button-quiet" disabled={loading || loadError || !newImageUrl.trim()}>
             <Plus size={14} /> Thêm qua URL
           </button>
         </form>
         <label
           className="admin-button admin-button-primary"
-          style={{ cursor: uploading ? "wait" : "pointer", display: "inline-flex", alignItems: "center", gap: 6 }}
+          style={{ cursor: uploading || loading || loadError ? "not-allowed" : "pointer", display: "inline-flex", alignItems: "center", gap: 6 }}
         >
           {uploading ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
           <span>{uploading ? "Đang tải lên..." : "Tải từ máy tính"}</span>
@@ -195,7 +220,7 @@ export function AdminProductGalleryManager({ productId }: { productId: number })
             accept="image/*"
             style={{ display: "none" }}
             onChange={handleDirectFileUpload}
-            disabled={uploading}
+            disabled={uploading || loading || loadError}
           />
         </label>
       </div>
@@ -205,6 +230,7 @@ export function AdminProductGalleryManager({ productId }: { productId: number })
         onDragEnter={(e) => {
           e.preventDefault();
           e.stopPropagation();
+          if (loading || loadError) return;
           setIsDragging(true);
         }}
         onDragLeave={(e) => {
@@ -220,6 +246,7 @@ export function AdminProductGalleryManager({ productId }: { productId: number })
           e.preventDefault();
           e.stopPropagation();
           setIsDragging(false);
+          if (loading || loadError) return;
           const dropped = e.dataTransfer.files?.[0];
           if (dropped) void uploadFile(dropped);
         }}
@@ -232,7 +259,9 @@ export function AdminProductGalleryManager({ productId }: { productId: number })
           transition: "all 0.2s ease",
         }}
       >
-      {images.length === 0 ? (
+      {loading && images.length === 0 ? (
+        <p role="status" className="admin-item-meta" style={{ padding: "16px 0" }}>Đang tải thư viện ảnh…</p>
+      ) : loadError ? null : images.length === 0 ? (
         <div className="admin-table-empty" style={{ padding: "24px 16px" }}>
           <ImageIcon size={28} aria-hidden="true" style={{ opacity: 0.5 }} />
           <strong>Chưa có ảnh trong thư viện</strong>
@@ -295,7 +324,7 @@ export function AdminProductGalleryManager({ productId }: { productId: number })
                 <img
                   src={img.imageUrl}
                   alt={`Sản phẩm ${idx + 1}`}
-                  style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                  style={{ width: "100%", height: "100%", objectFit: "contain" }}
                   onError={(e) => {
                     (e.target as HTMLElement).style.display = "none";
                   }}
@@ -318,7 +347,7 @@ export function AdminProductGalleryManager({ productId }: { productId: number })
                     title="Chuyển lên trước"
                     className="admin-button admin-button-quiet"
                     style={{ padding: "3px 6px" }}
-                    disabled={idx === 0}
+                    disabled={loading || loadError || saving || idx === 0}
                     onClick={() => handleMove(idx, "up")}
                   >
                     <ArrowUp size={12} />
@@ -328,7 +357,7 @@ export function AdminProductGalleryManager({ productId }: { productId: number })
                     title="Chuyển xuống sau"
                     className="admin-button admin-button-quiet"
                     style={{ padding: "3px 6px" }}
-                    disabled={idx === images.length - 1}
+                    disabled={loading || loadError || saving || idx === images.length - 1}
                     onClick={() => handleMove(idx, "down")}
                   >
                     <ArrowDown size={12} />
@@ -342,6 +371,7 @@ export function AdminProductGalleryManager({ productId }: { productId: number })
                       title="Đặt làm ảnh chính"
                       className="admin-button admin-button-quiet"
                       style={{ padding: "3px 6px" }}
+                      disabled={loading || loadError || saving}
                       onClick={() => handleSetPrimary(idx)}
                     >
                       <Star size={12} />
@@ -352,6 +382,7 @@ export function AdminProductGalleryManager({ productId }: { productId: number })
                     title="Xóa ảnh"
                     className="admin-button admin-button-quiet"
                     style={{ padding: "3px 6px", color: "#dc2626" }}
+                    disabled={loading || loadError || saving}
                     onClick={() => handleRemoveImage(idx)}
                   >
                     <Trash2 size={12} />

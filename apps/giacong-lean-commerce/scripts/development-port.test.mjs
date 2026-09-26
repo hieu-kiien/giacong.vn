@@ -53,7 +53,7 @@ test("runs focused admin, contact, catalog, and service tests before lint in the
   const packageJson = JSON.parse(await readFile(new URL("package.json", root), "utf8"));
   assert.equal(
     packageJson.scripts.check,
-    "npm run test:admin && npm run test:contact && npm run test:catalog && npm run test:catalog-purchase-ui && npm run test:service"
+    "npm run test:admin && npm run test:ci-workflows && npm run test:contact && npm run test:catalog && npm run test:catalog-purchase-ui && npm run test:service"
       + " && npm run test:commerce"
       + " && npm run test:listing && npm run test:detail"
       + " && npm run lint && npm run typecheck && npm run build",

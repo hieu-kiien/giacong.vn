@@ -125,7 +125,7 @@
 
 .consultationLink {
   align-items: center;
-  color: #4a9708;
+  color: #357400;
   display: inline-flex;
   font-size: 13px;
   font-weight: 700;
@@ -257,7 +257,7 @@
 }
 
 .groupLink {
-  color: #4a9708;
+  color: #357400;
   font-size: 13px;
   font-weight: 700;
   margin-top: auto;
@@ -293,7 +293,7 @@
 }
 
 .contentIndex summary::after {
-  color: #4a9708;
+  color: #357400;
   content: "＋";
   font-size: 20px;
 }
@@ -303,7 +303,7 @@
 }
 
 .contentIndex summary strong {
-  color: #4a9708;
+  color: #357400;
   font-size: 13px;
   font-weight: 700;
   margin-left: auto;

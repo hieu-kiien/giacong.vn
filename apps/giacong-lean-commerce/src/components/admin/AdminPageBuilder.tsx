@@ -1,12 +1,13 @@
 "use client";
 
-import { ArrowDown, ArrowUp, Eye, ExternalLink, Plus, Save, Send, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowUp, Eye, ExternalLink, Image as ImageIcon, Plus, Save, Send, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRegisterAdminUnsaved } from "@/components/admin/AdminUnsavedGuard";
 
 import { AdminConfirmDialog } from "@/components/admin/AdminDialog";
+import { AdminMediaPickerModal } from "@/components/admin/AdminMediaPickerModal";
 import { AdminErrorState, AdminPageHeading, AdminStatusBadge } from "@/components/admin/AdminPrimitives";
 import { AdminField } from "@/components/admin/AdminField";
 import { useAdminToast } from "@/components/admin/AdminToast";
@@ -323,7 +324,7 @@ export function AdminPageBuilder() {
                 <textarea className="admin-textarea" disabled={!canEdit} id="builder-seo-description" onChange={(event) => setSeoDescription(event.target.value)} rows={3} value={seoDescription} />
               </AdminField>
             </div>
-            <div className="admin-builder-section-heading"><div><h3>Các khối nội dung</h3><p>Kéo thứ tự bằng nút lên/xuống; trang web chỉ đọc bản đã đăng.</p></div><BlockTypeMenu disabled={!canEdit} onAdd={(type) => setBlocks((current) => [...current, createDefaultBlock(type)])} /></div>
+            <div className="admin-builder-section-heading"><div><h3>Các khối nội dung</h3><p>Kéo thứ tự bằng nút lên/xuống; khối mới để trống để tránh đăng nhầm nội dung mẫu.</p></div><BlockTypeMenu disabled={!canEdit} onAdd={(type) => setBlocks((current) => [...current, createDefaultBlock(type)])} /></div>
             <div className="admin-builder-blocks">
               {blocks.length === 0 ? <div className="admin-table-empty"><Eye size={24} /><strong>Trang chưa có khối</strong><p>Chọn loại khối ở nút “Thêm khối” để bắt đầu.</p></div> : blocks.map((block, index) => (
                 <AdminPageBlockEditor
@@ -429,18 +430,43 @@ function AdminPageBlockEditor({ block, disabled, index, onChange, onMove, onRemo
 }
 
 function BlockFields({ block, disabled, index, onChange }: { block: PageBlock; disabled: boolean; index: number; onChange: (block: PageBlock) => void }) {
+  const [showMediaPicker, setShowMediaPicker] = useState(false);
   const fieldId = (id: string) => `block-${index}-${id}`;
   const text = (id: string, label: string, value: string, key: string, optional = false) => { const uniqueId = fieldId(id); return <AdminField id={uniqueId} label={label} optional={optional}><input className="admin-input" disabled={disabled} id={uniqueId} onChange={(event) => onChange({ ...block, [key]: event.target.value } as PageBlock)} value={value} /></AdminField>; };
   const area = (id: string, label: string, value: string, key: string, optional = false) => { const uniqueId = fieldId(id); return <AdminField id={uniqueId} label={label} optional={optional}><textarea className="admin-textarea" disabled={disabled} id={uniqueId} onChange={(event) => onChange({ ...block, [key]: event.target.value } as PageBlock)} rows={4} value={value} /></AdminField>; };
+  const imageField = (id: string, label: string, value: string, optional = false) => {
+    const uniqueId = fieldId(id);
+    return (
+      <>
+        <AdminField hint="Chọn ảnh đã tải lên thư viện media để dùng trên trang." id={uniqueId} label={label} optional={optional}>
+          <div className="admin-builder-media-field">
+            <input className="admin-input" disabled={disabled} id={uniqueId} onChange={(event) => onChange({ ...block, imageUrl: event.target.value } as PageBlock)} value={value} />
+            <button aria-label={`Chọn ${label.toLowerCase()} từ thư viện ảnh`} className="admin-button admin-button-quiet" disabled={disabled} onClick={() => setShowMediaPicker(true)} type="button">
+              <ImageIcon aria-hidden="true" size={14} /> Chọn ảnh
+            </button>
+          </div>
+        </AdminField>
+        {showMediaPicker ? (
+          <AdminMediaPickerModal
+            onClose={() => setShowMediaPicker(false)}
+            onSelect={(publicUrl) => {
+              onChange({ ...block, imageUrl: publicUrl } as PageBlock);
+              setShowMediaPicker(false);
+            }}
+          />
+        ) : null}
+      </>
+    );
+  };
   switch (block.type) {
     case "hero":
-      return <div className="admin-editor-grid">{text("hero-eyebrow", "Dòng chữ nhỏ trên tiêu đề", block.eyebrow, "eyebrow", true)}{text("hero-title", "Tiêu đề", block.title, "title")}{area("hero-description", "Mô tả", block.description, "description")} {text("hero-image", "Đường dẫn ảnh", block.imageUrl ?? "", "imageUrl", true)}<CtaFields block={block} disabled={disabled} fieldId={fieldId} kind="primary" onChange={onChange} /><CtaFields block={block} disabled={disabled} fieldId={fieldId} kind="secondary" onChange={onChange} /></div>;
+      return <div className="admin-editor-grid">{text("hero-eyebrow", "Dòng chữ nhỏ trên tiêu đề", block.eyebrow, "eyebrow", true)}{text("hero-title", "Tiêu đề", block.title, "title")}{area("hero-description", "Mô tả", block.description, "description")} {imageField("hero-image", "Ảnh bìa", block.imageUrl ?? "", true)}<CtaFields block={block} disabled={disabled} fieldId={fieldId} kind="primary" onChange={onChange} /><CtaFields block={block} disabled={disabled} fieldId={fieldId} kind="secondary" onChange={onChange} /></div>;
     case "rich_text":
       return <div className="admin-editor-grid">{text("rich-title", "Tiêu đề", block.title, "title", true)}{area("rich-body", "Nội dung", block.body, "body")}</div>;
     case "image":
-      return <div className="admin-editor-grid">{text("image-url", "Đường dẫn ảnh", block.imageUrl, "imageUrl")}{text("image-alt", "Mô tả ảnh", block.alt, "alt")}{text("image-caption", "Chú thích", block.caption, "caption", true)}</div>;
+      return <div className="admin-editor-grid">{imageField("image-url", "Ảnh", block.imageUrl)}{text("image-alt", "Mô tả ảnh", block.alt, "alt")}{text("image-caption", "Chú thích", block.caption, "caption", true)}</div>;
     case "feature_grid":
-      return <div className="admin-builder-feature-fields">{text("feature-title", "Tiêu đề", block.title, "title", true)}<div className="admin-builder-feature-list">{block.items.map((item, index) => <div className="admin-builder-feature-item" key={`${index}-${item.title}`}><strong>Mục {index + 1}</strong><input aria-label={`Tiêu đề mục ${index + 1}`} className="admin-input" disabled={disabled} onChange={(event) => onChange({ ...block, items: block.items.map((current, itemIndex) => itemIndex === index ? { ...current, title: event.target.value } : current) })} value={item.title} /><textarea aria-label={`Mô tả mục ${index + 1}`} className="admin-textarea" disabled={disabled} onChange={(event) => onChange({ ...block, items: block.items.map((current, itemIndex) => itemIndex === index ? { ...current, description: event.target.value } : current) })} rows={2} value={item.description} /></div>)}</div><button className="admin-button admin-button-quiet" disabled={disabled || block.items.length >= 12} onClick={() => onChange({ ...block, items: [...block.items, { title: "Mục mới", description: "Mô tả mục mới" }] })} type="button"><Plus size={13} /> Thêm mục</button></div>;
+      return <div className="admin-builder-feature-fields">{text("feature-title", "Tiêu đề", block.title, "title", true)}<div className="admin-builder-feature-list">{block.items.map((item, index) => <div className="admin-builder-feature-item" key={`${index}-${item.title}`}><strong>Mục {index + 1}</strong><input aria-label={`Tiêu đề mục ${index + 1}`} className="admin-input" disabled={disabled} onChange={(event) => onChange({ ...block, items: block.items.map((current, itemIndex) => itemIndex === index ? { ...current, title: event.target.value } : current) })} value={item.title} /><textarea aria-label={`Mô tả mục ${index + 1}`} className="admin-textarea" disabled={disabled} onChange={(event) => onChange({ ...block, items: block.items.map((current, itemIndex) => itemIndex === index ? { ...current, description: event.target.value } : current) })} rows={2} value={item.description} /></div>)}</div><button className="admin-button admin-button-quiet" disabled={disabled || block.items.length >= 12} onClick={() => onChange({ ...block, items: [...block.items, { title: "", description: "" }] })} type="button"><Plus size={13} /> Thêm mục</button></div>;
     case "cta":
       return <div className="admin-editor-grid">{text("cta-title", "Tiêu đề", block.title, "title")}{area("cta-body", "Mô tả", block.body, "body", true)}{text("cta-label", "Nhãn nút", block.label, "label")}{text("cta-href", "Đường dẫn nút", block.href, "href")}</div>;
     case "contact":
@@ -461,11 +487,11 @@ function CtaFields({ block, disabled, fieldId, kind, onChange }: { block: Extrac
 
 function createDefaultBlock(type: BuilderBlockType): PageBlock {
   switch (type) {
-    case "hero": return { type, eyebrow: "", title: "Tiêu đề ảnh bìa", description: "Mô tả ảnh bìa", imageUrl: null, primaryCta: null, secondaryCta: null };
-    case "rich_text": return { type, title: "", body: "Nội dung khối" };
-    case "image": return { type, imageUrl: "/images/home-hero/hero-1.png", alt: "Ảnh minh họa", caption: "" };
-    case "feature_grid": return { type, title: "Điểm nổi bật", items: [{ title: "Mục mới", description: "Mô tả mục mới" }] };
-    case "cta": return { type, title: "Sẵn sàng bắt đầu?", body: "", label: "Liên hệ", href: "/lien-he/" };
-    case "contact": return { type, title: "Liên hệ", body: "Hãy để lại thông tin để được tư vấn." };
+    case "hero": return { type, eyebrow: "", title: "", description: "", imageUrl: null, primaryCta: null, secondaryCta: null };
+    case "rich_text": return { type, title: "", body: "" };
+    case "image": return { type, imageUrl: "", alt: "", caption: "" };
+    case "feature_grid": return { type, title: "", items: [{ title: "", description: "" }] };
+    case "cta": return { type, title: "", body: "", label: "", href: "" };
+    case "contact": return { type, title: "", body: "" };
   }
 }

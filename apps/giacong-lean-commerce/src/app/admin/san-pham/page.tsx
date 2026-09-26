@@ -1,7 +1,7 @@
 "use client";
 
-import { ArrowLeft, ExternalLink, Eye, EyeOff, FolderTree, Search, Settings2, ShoppingCart } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { ArrowLeft, ExternalLink, Eye, EyeOff, FileText, FolderTree, ImageIcon, Search, Settings2, ShoppingCart, SlidersHorizontal } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
 import { useSearchParams } from "next/navigation";
 
 function toSlug(text: string): string {
@@ -15,12 +15,28 @@ function toSlug(text: string): string {
     .replace(/\s+/g, "-")
     .replace(/-+/g, "-");
 }
+
+function handleEditorTabKeyDown(event: KeyboardEvent<HTMLButtonElement>) {
+  const tabs = Array.from(event.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>('[role="tab"]') ?? []);
+  const currentIndex = tabs.indexOf(event.currentTarget);
+  if (currentIndex < 0) return;
+
+  let nextIndex = currentIndex;
+  if (event.key === "ArrowRight") nextIndex = (currentIndex + 1) % tabs.length;
+  else if (event.key === "ArrowLeft") nextIndex = (currentIndex - 1 + tabs.length) % tabs.length;
+  else if (event.key === "Home") nextIndex = 0;
+  else if (event.key === "End") nextIndex = tabs.length - 1;
+  else return;
+
+  event.preventDefault();
+  tabs[nextIndex]?.focus();
+  tabs[nextIndex]?.click();
+}
 import { AdminCategoryPanel } from "@/components/admin/AdminCategoryPanel";
 import { AdminConfirmDialog } from "@/components/admin/AdminDialog";
 import { useAdminUnsaved, useRegisterAdminUnsaved } from "@/components/admin/AdminUnsavedGuard";
 import { AdminMediaPickerModal } from "@/components/admin/AdminMediaPickerModal";
 import { AdminEmptyState, AdminErrorState, AdminLoadingTable, AdminPageHeading, AdminPagination, AdminStatusBadge } from "@/components/admin/AdminPrimitives";
-import { AdminMediaPanel } from "@/components/admin/AdminMediaPanel";
 import { AdminModal } from "@/components/admin/AdminDialog";
 import { AdminProductImportPanel } from "@/components/admin/AdminProductImportPanel";
 import { AdminVariantPanel } from "@/components/admin/AdminVariantPanel";
@@ -72,8 +88,22 @@ type ProductFormState = {
   shortDescription: string;
   sku: string;
   slug: string;
+  slugFollowsName?: boolean;
   soldCount?: number;
   status: "archived" | "draft" | "published" | "review";
+};
+
+const productFieldLabels: Record<string, { label: string; tab: "general" | "media"; testId: string }> = {
+  name: { label: "Tên sản phẩm", tab: "general", testId: "input-product-name" },
+  slug: { label: "Đường dẫn", tab: "general", testId: "input-product-slug" },
+  shortDescription: { label: "Mô tả ngắn", tab: "general", testId: "input-product-short-description" },
+  description: { label: "Mô tả chi tiết", tab: "general", testId: "input-product-description" },
+  status: { label: "Trạng thái", tab: "general", testId: "select-product-status" },
+  isActive: { label: "Hiển thị sản phẩm", tab: "general", testId: "checkbox-product-active" },
+  categoryId: { label: "Danh mục", tab: "general", testId: "select-product-category" },
+  sku: { label: "Mã hàng", tab: "general", testId: "input-product-sku" },
+  leadTimeDays: { label: "Thời gian sản xuất", tab: "general", testId: "input-product-lead-time" },
+  imageUrl: { label: "Ảnh chính", tab: "media", testId: "input-product-image" },
 };
 
 const emptyProductForm: ProductFormState = {
@@ -192,14 +222,30 @@ export default function AdminProductsPage() {
     const sp = searchParams.get("status");
     if (sp === "draft" || sp === "active" || sp === "hidden") {
       setStatusFilter(sp);
+    } else {
+      setStatusFilter("all");
     }
   }, [searchParams]);
+
+  function updateStatusFilter(nextStatus: "all" | "active" | "draft" | "hidden") {
+    if (nextStatus === statusFilter) return;
+
+    const url = new URL(window.location.href);
+    if (nextStatus === "all") url.searchParams.delete("status");
+    else url.searchParams.set("status", nextStatus);
+    url.searchParams.delete("page");
+    window.history.pushState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`);
+    setStatusFilter(nextStatus);
+    setPage(1);
+  }
+
   const filteredProducts = useMemo(() => {
     if (statusFilter === "active") return products.filter((p) => p.isActive && p.status === "published");
     if (statusFilter === "draft") return products.filter((p) => p.status === "draft" || p.status === "review");
     if (statusFilter === "hidden") return products.filter((p) => !p.isActive || p.status === "archived");
     return products;
   }, [products, statusFilter]);
+  const selectedStatusLabel = statusFilter === "active" ? "Đang hiển thị" : statusFilter === "draft" ? "Bản nháp / Chờ duyệt" : statusFilter === "hidden" ? "Tạm ẩn" : "";
   const activeProducts = filteredProducts.filter((product) => product.isActive);
   const allVisibleSelected = canManage && filteredProducts.length > 0 && filteredProducts.every((product) => selectedIds.has(product.id));
   const { isDirty: aggregateIsDirty, revision: unsavedRevision } = useAdminUnsaved();
@@ -252,22 +298,20 @@ export default function AdminProductsPage() {
     return () => window.removeEventListener("beforeunload", onBeforeUnload);
   }, [hasUnsavedChanges, unsavedRevision]);
 
-  const applyEditorForm = useCallback((form: ProductFormState | null) => {
+  const applyEditorForm = useCallback((form: ProductFormState | null, updateHistory = true) => {
     editorGenerationRef.current += 1;
     productRequestRef.current = null;
+    handledDeepLinkRef.current = form ? (form.id ? `edit:${form.id}` : "create") : null;
     setEditor(form ? { ...form } : null);
     setEditorSnapshot(form ? { ...form } : null);
     setSaveError(null);
     setPendingRequest(null);
-    if (typeof window !== "undefined") {
-      if (form) {
-        if (form.id) {
-          window.history.pushState({ edit: form.id }, "", `/admin/san-pham?edit=${form.id}`);
-        } else {
-          window.history.pushState({ create: "1" }, "", "/admin/san-pham?create=1");
-        }
-      } else {
-        window.history.pushState(null, "", "/admin/san-pham");
+    if (updateHistory && typeof window !== "undefined") {
+      const nextHref = form ? (form.id ? `/admin/san-pham?edit=${form.id}` : "/admin/san-pham?create=1") : "/admin/san-pham";
+      const currentHref = `${window.location.pathname}${window.location.search}`;
+      if (currentHref !== nextHref) {
+        const state = form ? (form.id ? { edit: form.id } : { create: "1" }) : null;
+        window.history.pushState(state, "", nextHref);
       }
     }
   }, []);
@@ -351,22 +395,23 @@ export default function AdminProductsPage() {
       const url = new URL(window.location.href);
       const edit = url.searchParams.get("edit");
       const create = url.searchParams.get("create");
+      handledDeepLinkRef.current = edit ? `edit:${edit}` : create === "1" ? "create" : null;
       if (edit) {
         const id = Number(edit);
         if (Number.isSafeInteger(id) && id > 0) {
           void fetchAdmin<{ product: AdminProduct }>(`/api/admin/products/${id}`)
-            .then((result) => requestOpenEditor(toProductForm(result.product)))
+            .then((result) => applyEditorForm(toProductForm(result.product), false))
             .catch(() => {});
         }
       } else if (create === "1") {
-        openCreate();
+        applyEditorForm({ ...emptyProductForm }, false);
       } else {
-        applyEditorForm(null);
+        applyEditorForm(null, false);
       }
     }
     window.addEventListener("popstate", onPopState);
     return () => window.removeEventListener("popstate", onPopState);
-  }, [applyEditorForm, openCreate, requestOpenEditor]);
+  }, [applyEditorForm]);
 
   async function submitProduct(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -400,7 +445,7 @@ export default function AdminProductsPage() {
       );
       if (editorGenerationRef.current !== generationAtSubmit) return;
       productRequestRef.current = null;
-      const updatedForm = toProductForm(result.product);
+      const updatedForm = { ...toProductForm(result.product), slugFollowsName: editor.slugFollowsName };
       setEditor(updatedForm);
       setEditorSnapshot(updatedForm);
       setPendingRequest(null);
@@ -699,6 +744,7 @@ export default function AdminProductsPage() {
           categories={categories}
           error={saveError}
           form={editor}
+          isDirty={hasUnsavedChanges()}
           onCancel={requestCloseEditor}
           onChange={handleEditorChange}
           onOpenCategoryPanel={() => setCategoryPanelOpen(true)}
@@ -793,41 +839,46 @@ export default function AdminProductsPage() {
           </form>
           {error ? <AdminErrorState error={error} onRetry={() => setAttempt((value) => value + 1)} /> : loading ? <AdminLoadingTable /> : (
             <section className="admin-panel admin-table-panel" aria-labelledby="product-table-heading">
-              <div className="admin-panel-heading" style={{ padding: "21px 21px 12px" }}><div><h2 className="admin-panel-title" id="product-table-heading">Danh mục sản phẩm</h2><p className="admin-panel-caption">{query ? `Kết quả cho “${query}”` : "Sắp xếp theo cập nhật gần nhất"}</p></div><span className="admin-count">{total} bản ghi</span></div>
+              <div className="admin-panel-heading" style={{ padding: "21px 21px 12px" }}><div><h2 className="admin-panel-title" id="product-table-heading">Sản phẩm</h2><p className="admin-panel-caption">{query ? `Kết quả cho “${query}”${selectedStatusLabel ? ` · ${selectedStatusLabel}` : ""}` : selectedStatusLabel ? `Đang lọc: ${selectedStatusLabel}` : "Sắp xếp theo cập nhật gần nhất"}</p></div><span aria-live="polite" className="admin-count">{total} kết quả</span></div>
               <div style={{ padding: "0 21px" }}>
-                <div className="admin-filter-tabs">
+                <div className="admin-filter-tabs" role="group" aria-label="Lọc sản phẩm theo trạng thái">
                   <button
+                    aria-pressed={statusFilter === "all"}
                     className={`admin-filter-tab${statusFilter === "all" ? " is-active" : ""}`}
-                    onClick={() => { setStatusFilter("all"); setPage(1); }}
+                    onClick={() => updateStatusFilter("all")}
                     type="button"
                   >
-                    Tất cả <span className="admin-filter-tab-count">{products.length}</span>
+                    Tất cả
                   </button>
                   <button
+                    aria-pressed={statusFilter === "active"}
                     className={`admin-filter-tab${statusFilter === "active" ? " is-active" : ""}`}
-                    onClick={() => { setStatusFilter("active"); setPage(1); }}
+                    onClick={() => updateStatusFilter("active")}
                     type="button"
                   >
-                    Đang hiển thị <span className="admin-filter-tab-count">{products.filter((p) => p.isActive && p.status === "published").length}</span>
+                    Đang hiển thị
                   </button>
                   <button
+                    aria-pressed={statusFilter === "draft"}
                     className={`admin-filter-tab${statusFilter === "draft" ? " is-active" : ""}`}
-                    onClick={() => { setStatusFilter("draft"); setPage(1); }}
+                    onClick={() => updateStatusFilter("draft")}
                     type="button"
                   >
-                    Bản nháp / Chờ duyệt <span className="admin-filter-tab-count">{products.filter((p) => p.status === "draft" || p.status === "review").length}</span>
+                    Bản nháp / Chờ duyệt
                   </button>
                   <button
+                    aria-pressed={statusFilter === "hidden"}
                     className={`admin-filter-tab${statusFilter === "hidden" ? " is-active" : ""}`}
-                    onClick={() => { setStatusFilter("hidden"); setPage(1); }}
+                    onClick={() => updateStatusFilter("hidden")}
                     type="button"
                   >
-                    Tạm ẩn <span className="admin-filter-tab-count">{products.filter((p) => !p.isActive || p.status === "archived").length}</span>
+                    Tạm ẩn
                   </button>
                 </div>
               </div>
-              {products.length === 0 ? <AdminEmptyState title={query ? "Không tìm thấy sản phẩm phù hợp" : "Chưa có sản phẩm"} description={query ? "Thử một tên, mã hàng hoặc đường dẫn khác." : "Máy chủ chưa trả về sản phẩm nào."} /> : (
+              {products.length === 0 ? <AdminEmptyState title={query ? "Không tìm thấy sản phẩm phù hợp" : statusFilter !== "all" ? "Không có sản phẩm ở trạng thái này" : "Chưa có sản phẩm"} description={query ? "Thử một tên, mã hàng hoặc đường dẫn khác." : statusFilter !== "all" ? "Thử chọn bộ lọc khác để xem thêm sản phẩm." : "Máy chủ chưa trả về sản phẩm nào."} /> : (
                 <>
+                  <p className="admin-table-scroll-hint">Kéo ngang bảng để xem đầy đủ thông tin và thao tác.</p>
                   <div className="admin-table-scroll">
                     <table className="admin-table admin-product-table">
                        <thead><tr>{canManage ? <th scope="col"><label className="admin-check"><input aria-label="Chọn tất cả sản phẩm trong trang" checked={allVisibleSelected} onChange={(event) => toggleAllVisible(event.target.checked)} type="checkbox" /><span>Chọn</span></label></th> : null}<th scope="col">Sản phẩm</th><th scope="col">Danh mục / Mã hàng</th><th scope="col">Quy cách</th><th scope="col">Tối thiểu / Giá từ</th><th scope="col">Đã bán</th><th scope="col">Trạng thái</th><th scope="col">Thời gian làm hàng</th><th scope="col">Cập nhật</th>{canManage ? <th scope="col">Thao tác</th> : null}</tr></thead>
@@ -880,20 +931,20 @@ export default function AdminProductsPage() {
                                 </div>
                               </div>
                             </td>
-                            <td><div>{product.categoryName || "Chưa phân loại"}</div><div className="admin-item-meta">SKU: {product.sku || "chưa có"}</div></td>
-                            <td className="admin-mono">{product.variantCount ?? 0} quy cách</td>
-                            <td className="admin-product-price">
+                            <td data-label="Danh mục / Mã hàng"><div>{product.categoryName || "Chưa phân loại"}</div><div className="admin-item-meta">SKU: {product.sku || "chưa có"}</div></td>
+                            <td data-label="Quy cách" className="admin-mono">{product.variantCount ?? 0} quy cách</td>
+                            <td data-label="Tối thiểu / Giá từ" className="admin-product-price">
                               <div>{product.minimumOrderQuantity ? `Tối thiểu ${product.minimumOrderQuantity}` : "—"}</div>
                               <div className="admin-item-meta">{product.startingPrice ? `từ ${new Intl.NumberFormat("vi-VN").format(product.startingPrice)}đ` : "Chưa có giá"}</div>
                             </td>
-                            <td className="admin-mono" style={{ whiteSpace: "nowrap" }}>
+                            <td data-label="Đã bán" className="admin-mono" style={{ whiteSpace: "nowrap" }}>
                               <span title={`Đã có ${product.soldCount ?? 0} sản phẩm/lượt đặt`}>
                                 <strong>{new Intl.NumberFormat("vi-VN").format(product.soldCount ?? 0)}</strong> đã bán
                               </span>
                             </td>
-                            <td className="admin-product-state"><AdminStatusBadge kind={product.isActive && product.status === "published" ? "green" : product.status === "draft" || product.status === "review" ? "amber" : "neutral"} value={product.isActive ? statusLabelsVN[product.status as ProductFormState["status"]] ?? product.status : "Tạm ẩn"} /></td>
-                            <td className="admin-mono">{product.leadTimeDays ? `${product.leadTimeDays} ngày` : "Chưa có"}</td>
-                             <td className="admin-mono">{formatAdminDate(product.updatedAt)}</td>
+                            <td data-label="Trạng thái" className="admin-product-state"><AdminStatusBadge kind={product.isActive && product.status === "published" ? "green" : product.status === "draft" || product.status === "review" ? "amber" : "neutral"} value={product.status === "draft" || product.status === "review" || product.status === "archived" ? statusLabelsVN[product.status as ProductFormState["status"]] : product.isActive ? "Đang hiển thị" : "Đã đăng · Tạm ẩn"} /></td>
+                            <td data-label="Thời gian làm hàng" className="admin-mono">{product.leadTimeDays ? `${product.leadTimeDays} ngày` : "Chưa có"}</td>
+                            <td data-label="Cập nhật" className="admin-mono">{formatAdminDate(product.updatedAt)}</td>
                               {canManage ? <td className="admin-sticky-actions">
                                 <div className="admin-table-actions">
                                   <button className="admin-button admin-button-quiet" data-testid={`button-product-edit-${product.id}`} disabled={saving} onClick={() => openEdit(product)} type="button">Sửa</button>
@@ -1121,6 +1172,7 @@ interface ProductEditorProps {
   categories: AdminCategory[];
   error: AdminClientError | null;
   form: ProductFormState;
+  isDirty?: boolean;
   onCancel: () => void;
   onChange: (value: ProductFormState) => void;
   onOpenCategoryPanel?: () => void;
@@ -1132,17 +1184,32 @@ function ProductEditor({
   categories,
   error,
   form,
+  isDirty = false,
   onCancel,
   onChange,
   onOpenCategoryPanel,
   onSubmit,
   saving,
 }: ProductEditorProps) {
+  const [activeTab, setActiveTab] = useState<"general" | "media" | "variants_seo">("general");
+  const [mediaTabOpened, setMediaTabOpened] = useState(false);
+  const [variantsTabOpened, setVariantsTabOpened] = useState(false);
+  const [techSpecsOpened, setTechSpecsOpened] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { showToast } = useAdminToast();
+
+  function focusProductFieldError(field: string) {
+    const target = productFieldLabels[field];
+    if (!target) return;
+    setActiveTab(target.tab);
+    if (target.tab === "media") setMediaTabOpened(true);
+    window.requestAnimationFrame(() => {
+      document.querySelector<HTMLElement>(`[data-testid="${target.testId}"]`)?.focus();
+    });
+  }
 
   async function uploadProductFile(file: File) {
     if (!form.id) {
@@ -1188,17 +1255,18 @@ function ProductEditor({
 
   return (
     <section className="admin-editor admin-haravan-editor" aria-labelledby="product-editor-heading">
-      <form noValidate onSubmit={onSubmit}>
+      <form id="product-editor-save-form" noValidate onSubmit={onSubmit}>
         <div className="admin-haravan-topbar">
         <div className="admin-haravan-topbar-left">
           <button
             className="admin-button admin-button-quiet"
+            data-testid="button-product-cancel"
             disabled={saving}
             onClick={onCancel}
             style={{ alignItems: "center", display: "inline-flex", gap: 6, fontWeight: 600 }}
             type="button"
-          >
-            <ArrowLeft size={16} /> Danh sách sản phẩm
+            >
+              <ArrowLeft size={16} /> Quay lại danh sách
           </button>
           <div className="admin-haravan-title-wrap">
             <h2 className="admin-panel-title" id="product-editor-heading" style={{ fontSize: 18, margin: 0 }}>
@@ -1246,23 +1314,6 @@ function ProductEditor({
               <ExternalLink size={14} />
             </a>
           ) : null}
-          <button
-            className="admin-button admin-button-quiet"
-            data-testid="button-product-cancel"
-            disabled={saving}
-            onClick={onCancel}
-            type="button"
-          >
-            Hủy
-          </button>
-          <button
-            className="admin-button admin-button-primary"
-            data-testid="button-product-save"
-            disabled={saving}
-            type="submit"
-          >
-            {saving ? "Đang lưu..." : "Lưu sản phẩm"}
-          </button>
         </div>
       </div>
 
@@ -1270,449 +1321,541 @@ function ProductEditor({
       {error?.fieldErrors && Object.keys(error.fieldErrors).length > 0 ? (
         <ul className="admin-editor-error-list" data-testid="product-form-field-errors">
           {Object.entries(error.fieldErrors).map(([field, message]) => (
-            <li key={field}>{field}: {message}</li>
+            <li key={field}>
+              <button data-testid={`button-product-error-${field}`} onClick={() => focusProductFieldError(field)} type="button">
+                {productFieldLabels[field]?.label ?? "Thông tin sản phẩm"}: {message}
+              </button>
+            </li>
           ))}
         </ul>
       ) : null}
 
-      <div className="admin-haravan-grid">
-          {/* CỘT CHÍNH (Trái) */}
-          <div className="admin-haravan-main">
-            {/* Card 1: Thông tin cơ bản */}
-            <div className="admin-haravan-card">
-              <h3 className="admin-haravan-card-title">Thông tin chung</h3>
-              <label className="admin-field">
-                <span>Tên sản phẩm <b aria-hidden="true">*</b></span>
-                <input
-                  className="admin-input"
-                  data-testid="input-product-name"
-                  disabled={saving}
-                  onChange={(event) => {
-                    const newName = event.target.value;
-                    if (!form.id && (!form.slug || form.slug === toSlug(form.name))) {
-                      onChange({ ...form, name: newName, slug: toSlug(newName) });
-                    } else {
-                      update("name", newName);
-                    }
-                  }}
-                  placeholder="Ví dụ: Gia công cà phê hòa tan 3in1, Chai nhựa PET 500ml..."
-                  required
-                  style={{ fontSize: 15, fontWeight: 500 }}
-                  value={form.name}
-                />
-              </label>
+        <div className="admin-form-tabs" role="tablist" aria-label="Phân nhóm thông tin sản phẩm">
+          <button
+            type="button"
+            role="tab"
+            id="tab-btn-general"
+            aria-controls="tab-panel-general"
+            aria-selected={activeTab === "general"}
+            tabIndex={activeTab === "general" ? 0 : -1}
+            className={`admin-form-tab ${activeTab === "general" ? "is-active" : ""}`}
+            onClick={() => setActiveTab("general")}
+            onKeyDown={handleEditorTabKeyDown}
+          >
+            <FileText size={15} />
+            <span>Thông tin & Quy cách</span>
+          </button>
+          <button
+            type="button"
+            role="tab"
+            id="tab-btn-media"
+            aria-controls="tab-panel-media"
+            aria-selected={activeTab === "media"}
+            tabIndex={activeTab === "media" ? 0 : -1}
+            className={`admin-form-tab ${activeTab === "media" ? "is-active" : ""}`}
+            onClick={() => { setActiveTab("media"); setMediaTabOpened(true); }}
+            onKeyDown={handleEditorTabKeyDown}
+          >
+            <ImageIcon size={15} />
+            <span>Ảnh & Media</span>
+          </button>
+          <button
+            type="button"
+            role="tab"
+            id="tab-btn-variants-seo"
+            aria-controls="tab-panel-variants-seo"
+            aria-selected={activeTab === "variants_seo"}
+            tabIndex={activeTab === "variants_seo" ? 0 : -1}
+            className={`admin-form-tab ${activeTab === "variants_seo" ? "is-active" : ""}`}
+            onClick={() => { setActiveTab("variants_seo"); setVariantsTabOpened(true); }}
+            onKeyDown={handleEditorTabKeyDown}
+          >
+            <SlidersHorizontal size={15} />
+            <span>Biến thể, giá & SEO</span>
+          </button>
+        </div>
 
-              <label className="admin-field">
-                <span>Đường dẫn (slug) <b aria-hidden="true">*</b></span>
-                <input
-                  className="admin-input admin-mono"
-                  data-testid="input-product-slug"
-                  disabled={saving}
-                  onChange={(event) => update("slug", event.target.value)}
-                  placeholder="gia-cong-ca-phe-3in1"
-                  required
-                  value={form.slug}
-                />
-                <small className="admin-field-hint">
-                  Đường dẫn hiển thị trên website: /san-pham/{form.slug || "..."}
-                </small>
-              </label>
-
-              <label className="admin-field">
-                <span>Mô tả ngắn</span>
-                <textarea
-                  className="admin-textarea"
-                  data-testid="input-product-short-description"
-                  disabled={saving}
-                  onChange={(event) => update("shortDescription", event.target.value)}
-                  placeholder="Tóm tắt ngắn 1-2 câu về sản phẩm, điểm nổi bật hoặc quy cách..."
-                  rows={2}
-                  value={form.shortDescription}
-                />
-              </label>
-
-              <div className="admin-field">
-                <div style={{ alignItems: "center", display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
-                  <span className="admin-field-label">Mô tả chi tiết sản phẩm</span>
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
-                    <button
-                      className="admin-button admin-button-quiet"
-                      onClick={() => update("description", form.description + (form.description ? "\n" : "") + "**Nội dung in đậm**")}
-                      style={{ fontSize: 11, fontWeight: 700, padding: "2px 7px" }}
-                      title="In đậm"
-                      type="button"
-                    >
-                      B
-                    </button>
-                    <button
-                      className="admin-button admin-button-quiet"
-                      onClick={() => update("description", form.description + (form.description ? "\n" : "") + "*Nội dung in nghiêng*")}
-                      style={{ fontSize: 11, fontStyle: "italic", padding: "2px 7px" }}
-                      title="In nghiêng"
-                      type="button"
-                    >
-                      I
-                    </button>
-                    <button
-                      className="admin-button admin-button-quiet"
-                      onClick={() => update("description", form.description + (form.description ? "\n" : "") + "## Tiêu đề mục kỹ thuật")}
-                      style={{ fontSize: 11, padding: "2px 7px" }}
-                      title="Tiêu đề mục (H2)"
-                      type="button"
-                    >
-                      H2
-                    </button>
-                    <button
-                      className="admin-button admin-button-quiet"
-                      onClick={() => update("description", form.description + (form.description ? "\n" : "") + "- Tiêu chuẩn 1\n- Tiêu chuẩn 2")}
-                      style={{ fontSize: 11, padding: "2px 7px" }}
-                      title="Danh sách gạch đầu dòng"
-                      type="button"
-                    >
-                      • Danh sách
-                    </button>
-                    <button
-                      className="admin-button admin-button-quiet"
-                      onClick={() => update("description", form.description + (form.description ? "\n" : "") + "| Thông số | Chi tiết tiêu chuẩn |\n| :--- | :--- |\n| Vật liệu | Inox 304 / Nhôm |\n| Dung sai | ± 0.01 mm |")}
-                      style={{ fontSize: 11, padding: "2px 7px" }}
-                      title="Chèn bảng thông số mẫu"
-                      type="button"
-                    >
-                      + Bảng mẫu
-                    </button>
-                  </div>
-                </div>
-                <textarea
-                  className="admin-textarea"
-                  data-testid="input-product-description"
-                  disabled={saving}
-                  onChange={(event) => update("description", event.target.value)}
-                  placeholder="Nhập thông tin sản phẩm, tiêu chuẩn kỹ thuật, năng lực gia công... (hỗ trợ Markdown & Bảng)"
-                  rows={8}
-                  value={form.description}
-                />
-              </div>
-            </div>
-
-            {/* Card 2: Hình ảnh sản phẩm */}
-            <div className="admin-haravan-card">
-              <div style={{ alignItems: "center", display: "flex", flexWrap: "wrap", gap: 8, justifyContent: "space-between", marginBottom: 16 }}>
-                <h3 className="admin-haravan-card-title" style={{ margin: 0 }}>Hình ảnh sản phẩm</h3>
-                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                  <input
-                    accept="image/jpeg,image/png,image/webp"
-                    disabled={saving || uploadingImage}
-                    onChange={handleDirectImageUpload}
-                    ref={fileInputRef}
-                    style={{ display: "none" }}
-                    type="file"
-                  />
-                  <button
-                    className="admin-button admin-button-quiet"
-                    disabled={saving || uploadingImage}
-                    onClick={() => {
-                      if (!form.id) {
-                        showToast("info", "Hãy lưu bản nháp sản phẩm trước khi tải ảnh từ máy tính.");
-                        return;
-                      }
-                      fileInputRef.current?.click();
-                    }}
-                    style={{ fontSize: 12 }}
-                    type="button"
-                  >
-                    {uploadingImage ? "Đang tải ảnh..." : "Tải ảnh từ máy tính"}
-                  </button>
-                  <button
-                    className="admin-button admin-button-quiet"
-                    disabled={saving}
-                    onClick={() => setPickerOpen(true)}
-                    style={{ fontSize: 12 }}
-                    type="button"
-                  >
-                    Chọn từ thư viện ảnh
-                  </button>
-                </div>
-              </div>
-              <label className="admin-field">
-                <span>Ảnh sản phẩm chính</span>
-                <div className="admin-input-actions">
+        {/* TAB 1: Thông tin chung & Quy cách */}
+        <div
+          role="tabpanel"
+          id="tab-panel-general"
+          aria-labelledby="tab-btn-general"
+          className={`admin-form-tab-panel ${activeTab === "general" ? "is-active" : "is-hidden"}`}
+          style={{ display: activeTab === "general" ? "block" : "none" }}
+        >
+          <div className="admin-haravan-grid">
+            {/* Cột chính: Thông tin cơ bản & mô tả */}
+            <div className="admin-haravan-main">
+              <div className="admin-haravan-card">
+                <h3 className="admin-haravan-card-title">Thông tin chung</h3>
+                <label className="admin-field">
+                  <span>Tên sản phẩm <b aria-hidden="true">*</b></span>
                   <input
                     className="admin-input"
-                    data-testid="input-product-image"
+                    data-testid="input-product-name"
                     disabled={saving}
-                    onChange={(event) => update("imageUrl", event.target.value)}
-                    placeholder="/media/products/... hoặc https://..."
-                    value={form.imageUrl}
+                    onChange={(event) => {
+                      const newName = event.target.value;
+                      onChange({
+                        ...form,
+                        name: newName,
+                        slug: form.slugFollowsName === false ? form.slug : toSlug(newName),
+                      });
+                    }}
+                    placeholder="Ví dụ: Gia công cà phê hòa tan 3in1, Chai nhựa PET 500ml..."
+                    required
+                    style={{ fontSize: 15, fontWeight: 500 }}
+                    value={form.name}
+                  />
+                </label>
+
+                <label className="admin-field">
+                  <span>Đường dẫn (slug) <b aria-hidden="true">*</b></span>
+                  <input
+                    className="admin-input admin-mono"
+                    data-testid="input-product-slug"
+                    disabled={saving}
+                    onChange={(event) => onChange({
+                      ...form,
+                      slug: event.target.value,
+                      slugFollowsName: event.target.value.trim() === "",
+                    })}
+                    placeholder="gia-cong-ca-phe-3in1"
+                    required
+                    value={form.slug}
+                  />
+                  <small className="admin-field-hint">
+                    Tự tạo theo tên sản phẩm; nhập slug riêng để giữ đường dẫn tùy chỉnh. Đường dẫn: /san-pham/{form.slug || "..."}
+                  </small>
+                </label>
+
+                <label className="admin-field">
+                  <span>Mô tả ngắn</span>
+                  <textarea
+                    className="admin-textarea"
+                    data-testid="input-product-short-description"
+                    disabled={saving}
+                    onChange={(event) => update("shortDescription", event.target.value)}
+                    placeholder="Tóm tắt ngắn 1-2 câu về sản phẩm, điểm nổi bật hoặc quy cách..."
+                    rows={2}
+                    value={form.shortDescription}
+                  />
+                </label>
+
+                <div className="admin-field">
+                  <div style={{ alignItems: "center", display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+                    <span className="admin-field-label">Mô tả chi tiết sản phẩm</span>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                      <button
+                        className="admin-button admin-button-quiet"
+                        onClick={() => update("description", form.description + (form.description ? "\n" : "") + "**Nội dung in đậm**")}
+                        style={{ fontSize: 11, fontWeight: 700, padding: "2px 7px" }}
+                        title="In đậm"
+                        type="button"
+                      >
+                        B
+                      </button>
+                      <button
+                        className="admin-button admin-button-quiet"
+                        onClick={() => update("description", form.description + (form.description ? "\n" : "") + "*Nội dung in nghiêng*")}
+                        style={{ fontSize: 11, fontStyle: "italic", padding: "2px 7px" }}
+                        title="In nghiêng"
+                        type="button"
+                      >
+                        I
+                      </button>
+                      <button
+                        className="admin-button admin-button-quiet"
+                        onClick={() => update("description", form.description + (form.description ? "\n" : "") + "## Tiêu đề mục kỹ thuật")}
+                        style={{ fontSize: 11, padding: "2px 7px" }}
+                        title="Tiêu đề mục (H2)"
+                        type="button"
+                      >
+                        H2
+                      </button>
+                      <button
+                        className="admin-button admin-button-quiet"
+                        onClick={() => update("description", form.description + (form.description ? "\n" : "") + "- Tiêu chuẩn 1\n- Tiêu chuẩn 2")}
+                        style={{ fontSize: 11, padding: "2px 7px" }}
+                        title="Danh sách gạch đầu dòng"
+                        type="button"
+                      >
+                        • Danh sách
+                      </button>
+                      <button
+                        className="admin-button admin-button-quiet"
+                        onClick={() => update("description", form.description + (form.description ? "\n" : "") + "| Thông số | Chi tiết tiêu chuẩn |\n| :--- | :--- |\n| Vật liệu | Inox 304 / Nhôm |\n| Dung sai | ± 0.01 mm |")}
+                        style={{ fontSize: 11, padding: "2px 7px" }}
+                        title="Chèn bảng thông số mẫu"
+                        type="button"
+                      >
+                        + Bảng mẫu
+                      </button>
+                    </div>
+                  </div>
+                  <textarea
+                    className="admin-textarea"
+                    data-testid="input-product-description"
+                    disabled={saving}
+                    onChange={(event) => update("description", event.target.value)}
+                    placeholder="Nhập thông tin sản phẩm, tiêu chuẩn kỹ thuật, năng lực gia công... (hỗ trợ Markdown & Bảng)"
+                    rows={8}
+                    value={form.description}
                   />
                 </div>
-                <div
-                  className={`admin-image-preview ${isDragging ? "admin-image-preview-dragover" : ""}`}
-                  onDragEnter={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    setIsDragging(true);
-                  }}
-                  onDragLeave={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    setIsDragging(false);
-                  }}
-                  onDragOver={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                  }}
-                  onDrop={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    setIsDragging(false);
-                    const droppedFile = e.dataTransfer.files?.[0];
-                    if (droppedFile) {
-                      void uploadProductFile(droppedFile);
-                    }
-                  }}
-                  style={{
-                    alignItems: "center",
-                    background: isDragging ? "#ecfdf5" : "transparent",
-                    border: isDragging ? "2px dashed #059669" : "1px dashed var(--admin-border, #cbd5e1)",
-                    borderRadius: 8,
-                    display: "flex",
-                    flexDirection: "column",
-                    justifyContent: "center",
-                    marginTop: 10,
-                    minHeight: 120,
-                    padding: 12,
-                    position: "relative",
-                    transition: "all 0.2s ease",
-                  }}
-                >
-                  {form.imageUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img alt={`Xem trước ảnh ${form.name}`} src={form.imageUrl} style={{ maxHeight: 180, objectFit: "contain" }} />
-                  ) : (
-                    <span className="admin-image-preview-fallback" style={{ textAlign: "center" }}>
-                      {isDragging
-                        ? "Thả file ảnh vào đây để tải lên ngay..."
-                        : "Kéo thả ảnh vào đây, hoặc nhấn \"Tải ảnh từ máy tính\" / \"Chọn từ thư viện ảnh\" ở trên."}
-                    </span>
-                  )}
-                  {uploadingImage ? (
-                    <div
-                      style={{
-                        alignItems: "center",
-                        background: "rgba(255, 255, 255, 0.88)",
-                        borderRadius: 6,
-                        display: "flex",
-                        gap: 8,
-                        inset: 0,
-                        justifyContent: "center",
-                        position: "absolute",
-                      }}
+              </div>
+            </div>
+
+            {/* Cột phụ: Trạng thái, Phân loại, SKU, Lead Time */}
+            <div className="admin-haravan-sidebar">
+              {/* Card Trạng thái & Kênh hiển thị */}
+              <div className="admin-haravan-card">
+                <h3 className="admin-haravan-card-title">Trạng thái & Hiển thị</h3>
+                <label className="admin-field">
+                  <span>Trạng thái phát hành</span>
+                  <select
+                    className="admin-select"
+                    data-testid="select-product-status"
+                    disabled={saving}
+                    onChange={(event) => {
+                      const status = event.target.value as ProductFormState["status"];
+                      onChange({
+                        ...form,
+                        isActive: status === "published" ? form.isActive : false,
+                        status,
+                      });
+                    }}
+                    value={form.status}
+                  >
+                    <option value="draft">Bản nháp (Chưa bán)</option>
+                    <option value="review">Chờ duyệt</option>
+                    <option disabled={!form.id} value="published">Đã xuất bản</option>
+                    <option value="archived">Lưu trữ (Ẩn)</option>
+                  </select>
+                  {!form.id ? <small className="admin-field-hint">Lưu bản nháp trước, sau đó thêm biến thể hợp lệ rồi mới xuất bản.</small> : null}
+                </label>
+
+                <label className="admin-check" style={{ marginTop: 12 }}>
+                  <input
+                    checked={form.isActive}
+                    data-testid="checkbox-product-active"
+                    disabled={saving || form.status !== "published"}
+                    onChange={(event) => {
+                      const active = event.target.checked;
+                      onChange({ ...form, isActive: active });
+                    }}
+                    type="checkbox"
+                  />
+                  <span>
+                    <strong>Hiển thị trên trang web</strong>
+                    <small>{form.status !== "published" ? "Chỉ sản phẩm đã xuất bản mới có thể hiển thị." : form.isActive ? "Sản phẩm đang hiển thị công khai." : "Đã xuất bản nhưng đang ẩn khỏi website."}</small>
+                  </span>
+                </label>
+              </div>
+
+              {/* Card Phân loại sản phẩm */}
+              <div className="admin-haravan-card">
+                <div style={{ alignItems: "center", display: "flex", justifyContent: "space-between", marginBottom: 12 }}>
+                  <h3 className="admin-haravan-card-title" style={{ margin: 0 }}>Phân loại</h3>
+                  {onOpenCategoryPanel ? (
+                    <button
+                      className="admin-button admin-button-quiet"
+                      onClick={onOpenCategoryPanel}
+                      style={{ fontSize: 11, padding: "2px 6px" }}
+                      type="button"
                     >
-                      <span style={{ fontSize: 13, fontWeight: 600 }}>Đang tải ảnh lên Cloudflare R2...</span>
-                    </div>
+                      + Quản lý danh mục
+                    </button>
                   ) : null}
                 </div>
-              </label>
-
-              {form.id ? (
-                <div style={{ borderTop: "1px dashed var(--admin-border, #dce3dc)", marginTop: 16, paddingTop: 16 }}>
-                  <span className="admin-field-label" style={{ display: "block", marginBottom: 8 }}>
-                    Bộ sưu tập ảnh ({form.name})
-                  </span>
-                  <AdminProductGalleryManager productId={form.id} />
-                </div>
-              ) : null}
-
-              {pickerOpen ? (
-                <AdminMediaPickerModal
-                  onClose={() => setPickerOpen(false)}
-                  onSelect={(publicUrl) => {
-                    update("imageUrl", publicUrl);
-                    setPickerOpen(false);
-                  }}
-                />
-              ) : null}
-            </div>
-
-            {/* Card 3: Biến thể & Bảng giá MOQ */}
-            {form.id ? (
-              <div className="admin-haravan-card">
-                <h3 className="admin-haravan-card-title">Biến thể & Bảng giá MOQ</h3>
-                <AdminVariantPanel productId={form.id} />
+                <label className="admin-field">
+                  <span>Danh mục</span>
+                  <select
+                    className="admin-select"
+                    data-testid="select-product-category"
+                    disabled={saving}
+                    onChange={(event) => update("categoryId", event.target.value)}
+                    value={form.categoryId}
+                  >
+                    <option value="">Chưa phân loại</option>
+                    {categories.map((category) => (
+                      <option key={category.id} value={category.id}>{category.name}</option>
+                    ))}
+                  </select>
+                </label>
               </div>
-            ) : null}
 
-            {/* Card 4: Thông số kỹ thuật B2B */}
-            {form.id ? (
+              {/* Card Mã hàng & Sản xuất */}
               <div className="admin-haravan-card">
-                <h3 className="admin-haravan-card-title">Thông số kỹ thuật B2B</h3>
-                <AdminProductTechSpecs productId={form.id} />
+                <h3 className="admin-haravan-card-title">Mã hàng & Sản xuất</h3>
+                <label className="admin-field">
+                  <span>Mã hàng (SKU) <b aria-hidden="true">*</b></span>
+                  <input
+                    className="admin-input admin-mono"
+                    data-testid="input-product-sku"
+                    disabled={saving}
+                    onChange={(event) => update("sku", event.target.value)}
+                    placeholder="VD: SP-001"
+                    required
+                    value={form.sku}
+                  />
+                </label>
+                <label className="admin-field">
+                  <span>Thời gian làm hàng (ngày)</span>
+                  <input
+                    className="admin-input admin-mono"
+                    data-testid="input-product-lead-time"
+                    disabled={saving}
+                    inputMode="numeric"
+                    min="0"
+                    onChange={(event) => update("leadTimeDays", event.target.value)}
+                    type="number"
+                    value={form.leadTimeDays}
+                  />
+                  <small className="admin-field-hint">Số ngày sản xuất dự kiến</small>
+                </label>
               </div>
-            ) : null}
-
-            {/* Card 5: Tối ưu SEO */}
-            <div className="admin-haravan-card">
-              <h3 className="admin-haravan-card-title">Tối ưu hóa tìm kiếm (SEO)</h3>
-              <AdminProductSeoPreview
-                initialData={{
-                  imageUrl: form.imageUrl,
-                  seoDescription: form.shortDescription || form.description.slice(0, 160),
-                  seoTitle: form.name,
-                  slug: form.slug,
-                }}
-                onChange={(seo) => {
-                  update("slug", seo.slug);
-                }}
-              />
             </div>
           </div>
+        </div>
 
-          {/* CỘT PHỤ (Phải - Sidebar) */}
-          <div className="admin-haravan-sidebar">
-            {/* Card Trạng thái & Kênh hiển thị */}
-            <div className="admin-haravan-card">
-              <h3 className="admin-haravan-card-title">Trạng thái & Hiển thị</h3>
-              <label className="admin-field">
-                <span>Trạng thái phát hành</span>
-                <select
-                  className="admin-select"
-                  data-testid="select-product-status"
-                  disabled={saving}
-                  onChange={(event) => {
-                    const status = event.target.value as ProductFormState["status"];
-                    onChange({
-                      ...form,
-                      isActive: status === "published" ? true : false,
-                      status,
-                    });
-                  }}
-                  value={form.status}
-                >
-                  <option value="draft">Bản nháp (Chưa bán)</option>
-                  <option value="review">Chờ duyệt</option>
-                  <option value="published">Đã xuất bản (Công khai)</option>
-                  <option value="archived">Lưu trữ (Ẩn)</option>
-                </select>
-              </label>
+      </form>
 
-              <label className="admin-check" style={{ marginTop: 12 }}>
+        {/* TAB 2: Hình ảnh & Thư viện Media */}
+        <div
+          role="tabpanel"
+          id="tab-panel-media"
+          aria-labelledby="tab-btn-media"
+          className={`admin-form-tab-panel ${activeTab === "media" ? "is-active" : "is-hidden"}`}
+          style={{ display: activeTab === "media" ? "block" : "none" }}
+        >
+          <div className="admin-haravan-card">
+            <div style={{ alignItems: "center", display: "flex", flexWrap: "wrap", gap: 8, justifyContent: "space-between", marginBottom: 16 }}>
+              <h3 className="admin-haravan-card-title" style={{ margin: 0 }}>Hình ảnh sản phẩm</h3>
+              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                 <input
-                  checked={form.isActive}
-                  data-testid="checkbox-product-active"
-                  disabled={saving}
-                  onChange={(event) => {
-                    const active = event.target.checked;
-                    onChange({
-                      ...form,
-                      isActive: active,
-                      status: active ? "published" : form.status === "published" ? "draft" : form.status,
-                    });
-                  }}
-                  type="checkbox"
+                  accept="image/jpeg,image/png,image/webp"
+                  disabled={saving || uploadingImage}
+                  onChange={handleDirectImageUpload}
+                  ref={fileInputRef}
+                  style={{ display: "none" }}
+                  type="file"
                 />
-                <span>
-                  <strong>Hiển thị trên trang web</strong>
-                  <small>{form.isActive ? "Khách truy cập website sẽ thấy món này." : "Sản phẩm đang ẩn hoặc ở trạng thái nháp."}</small>
-                </span>
-              </label>
+                <button
+                  className="admin-button admin-button-quiet"
+                  disabled={saving || uploadingImage}
+                  onClick={() => {
+                    if (!form.id) {
+                      showToast("info", "Hãy lưu bản nháp sản phẩm trước khi tải ảnh từ máy tính.");
+                      return;
+                    }
+                    fileInputRef.current?.click();
+                  }}
+                  style={{ fontSize: 12 }}
+                  type="button"
+                >
+                  {uploadingImage ? "Đang tải ảnh..." : "Tải ảnh từ máy tính"}
+                </button>
+                <button
+                  className="admin-button admin-button-quiet"
+                  disabled={saving}
+                  onClick={() => setPickerOpen(true)}
+                  style={{ fontSize: 12 }}
+                  type="button"
+                >
+                  Chọn từ thư viện ảnh
+                </button>
+              </div>
             </div>
-
-            {/* Card Phân loại sản phẩm */}
-            <div className="admin-haravan-card">
-              <div style={{ alignItems: "center", display: "flex", justifyContent: "space-between", marginBottom: 12 }}>
-                <h3 className="admin-haravan-card-title" style={{ margin: 0 }}>Phân loại</h3>
-                {onOpenCategoryPanel ? (
-                  <button
-                    className="admin-button admin-button-quiet"
-                    onClick={onOpenCategoryPanel}
-                    style={{ fontSize: 11, padding: "2px 6px" }}
-                    type="button"
+            <label className="admin-field">
+              <span>Ảnh sản phẩm chính</span>
+              <div className="admin-input-actions">
+                <input
+                  className="admin-input"
+                  data-testid="input-product-image"
+                  disabled={saving}
+                  onChange={(event) => update("imageUrl", event.target.value)}
+                  placeholder="/media/products/... hoặc https://..."
+                  value={form.imageUrl}
+                />
+              </div>
+              <div
+                className={`admin-image-preview ${isDragging ? "admin-image-preview-dragover" : ""}`}
+                onDragEnter={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setIsDragging(true);
+                }}
+                onDragLeave={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setIsDragging(false);
+                }}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setIsDragging(false);
+                  const droppedFile = e.dataTransfer.files?.[0];
+                  if (droppedFile) {
+                    void uploadProductFile(droppedFile);
+                  }
+                }}
+                style={{
+                  alignItems: "center",
+                  background: isDragging ? "#ecfdf5" : "transparent",
+                  border: isDragging ? "2px dashed #059669" : "1px dashed var(--admin-border, #cbd5e1)",
+                  borderRadius: 8,
+                  display: "flex",
+                  flexDirection: "column",
+                  justifyContent: "center",
+                  marginTop: 10,
+                  minHeight: 120,
+                  padding: 12,
+                  position: "relative",
+                  transition: "background-color 0.2s ease, border-color 0.2s ease",
+                }}
+              >
+                {form.imageUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img alt={`Xem trước ảnh ${form.name}`} src={form.imageUrl} style={{ maxHeight: 180, objectFit: "contain" }} />
+                ) : (
+                  <span className="admin-image-preview-fallback" style={{ textAlign: "center" }}>
+                    {isDragging
+                      ? "Thả file ảnh vào đây để tải lên ngay..."
+                      : "Kéo thả ảnh vào đây, hoặc nhấn \"Tải ảnh từ máy tính\" / \"Chọn từ thư viện ảnh\" ở trên."}
+                  </span>
+                )}
+                {uploadingImage ? (
+                  <div
+                    style={{
+                      alignItems: "center",
+                      background: "rgba(255, 255, 255, 0.88)",
+                      borderRadius: 6,
+                      display: "flex",
+                      gap: 8,
+                      inset: 0,
+                      justifyContent: "center",
+                      position: "absolute",
+                    }}
                   >
-                    + Quản lý danh mục
-                  </button>
+                    <span style={{ fontSize: 13, fontWeight: 600 }}>Đang tải ảnh lên Cloudflare R2...</span>
+                  </div>
                 ) : null}
               </div>
-              <label className="admin-field">
-                <span>Danh mục</span>
-                <select
-                  className="admin-select"
-                  data-testid="select-product-category"
-                  disabled={saving}
-                  onChange={(event) => update("categoryId", event.target.value)}
-                  value={form.categoryId}
-                >
-                  <option value="">Chưa phân loại</option>
-                  {categories.map((category) => (
-                    <option key={category.id} value={category.id}>{category.name}</option>
-                  ))}
-                </select>
-              </label>
-            </div>
+            </label>
 
-            {/* Card Mã hàng & Sản xuất */}
+            {form.id && mediaTabOpened ? (
+              <div style={{ borderTop: "1px dashed var(--admin-border, #dce3dc)", marginTop: 16, paddingTop: 16 }}>
+                <span className="admin-field-label" style={{ display: "block", marginBottom: 8 }}>
+                  Bộ sưu tập ảnh ({form.name})
+                </span>
+                <AdminProductGalleryManager productId={form.id} />
+              </div>
+            ) : null}
+
+            {pickerOpen ? (
+              <AdminMediaPickerModal
+                onClose={() => setPickerOpen(false)}
+                onSelect={(publicUrl) => {
+                  update("imageUrl", publicUrl);
+                  setPickerOpen(false);
+                }}
+              />
+            ) : null}
+          </div>
+        </div>
+
+        {/* TAB 3: Biến thể, Bảng giá & SEO */}
+        <div
+          role="tabpanel"
+          id="tab-panel-variants-seo"
+          aria-labelledby="tab-btn-variants-seo"
+          className={`admin-form-tab-panel ${activeTab === "variants_seo" ? "is-active" : "is-hidden"}`}
+          style={{ display: activeTab === "variants_seo" ? "block" : "none" }}
+        >
+          {form.id ? (
             <div className="admin-haravan-card">
-              <h3 className="admin-haravan-card-title">Mã hàng & Sản xuất</h3>
-              <label className="admin-field">
-                <span>Mã hàng (SKU) <b aria-hidden="true">*</b></span>
-                <input
-                  className="admin-input admin-mono"
-                  data-testid="input-product-sku"
-                  disabled={saving}
-                  onChange={(event) => update("sku", event.target.value)}
-                  placeholder="VD: SP-001"
-                  required
-                  value={form.sku}
-                />
-              </label>
-              <label className="admin-field">
-                <span>Thời gian làm hàng (ngày)</span>
-                <input
-                  className="admin-input admin-mono"
-                  data-testid="input-product-lead-time"
-                  disabled={saving}
-                  inputMode="numeric"
-                  min="0"
-                  onChange={(event) => update("leadTimeDays", event.target.value)}
-                  type="number"
-                  value={form.leadTimeDays}
-                />
-                <small className="admin-field-hint">Số ngày sản xuất dự kiến</small>
-              </label>
+              <h3 className="admin-haravan-card-title">Biến thể & Bảng giá MOQ</h3>
+              {variantsTabOpened ? <AdminVariantPanel productId={form.id} /> : null}
             </div>
+          ) : (
+            <div className="admin-haravan-card" style={{ color: "var(--admin-ink-muted)", padding: "24px", textAlign: "center" }}>
+              Vui lòng lưu bản nháp sản phẩm trước khi cấu hình biến thể và bảng giá MOQ.
+            </div>
+          )}
+
+          {form.id ? (
+            <details
+              className="admin-haravan-card admin-tech-specs-disclosure"
+              onToggle={(event) => { if (event.currentTarget.open) setTechSpecsOpened(true); }}
+            >
+              <summary>
+                <span>
+                  <strong>Thông số kỹ thuật gia công · Tùy chọn</strong>
+                  <small>Dành cho sản phẩm cần khai báo vật liệu, dung sai hoặc quy trình chế tạo.</small>
+                </span>
+              </summary>
+              {techSpecsOpened ? <AdminProductTechSpecs productId={form.id} /> : null}
+            </details>
+          ) : null}
+
+          <div className="admin-haravan-card">
+            <h3 className="admin-haravan-card-title">Tối ưu hóa tìm kiếm (SEO)</h3>
+            <AdminProductSeoPreview
+              initialData={{
+                imageUrl: form.imageUrl,
+                seoDescription: form.shortDescription || form.description.slice(0, 160),
+                seoTitle: form.name,
+                slug: form.slug,
+              }}
+              onChange={(seo) => {
+                if (seo.slug === form.slug) return;
+                onChange({
+                  ...form,
+                  slug: seo.slug,
+                  slugFollowsName: seo.slug.trim() === "",
+                });
+              }}
+            />
           </div>
         </div>
 
-        {/* Footer action bar */}
-        <div className="admin-editor-footer" style={{ background: "var(--admin-surface, #fffefa)", border: "1px solid var(--admin-border, #dce3dc)", borderRadius: 8, marginTop: 24, padding: "16px 20px" }}>
-          <button
-            className="admin-button admin-button-quiet"
-            disabled={saving}
-            onClick={onCancel}
-            type="button"
-          >
-            ← Quay lại danh sách
-          </button>
-          <div className="admin-editor-actions">
-            <button
-              className="admin-button admin-button-quiet"
-              data-testid="button-product-cancel"
-              disabled={saving}
-              onClick={onCancel}
-              type="button"
-            >
-              Hủy
-            </button>
-            <button
-              className="admin-button admin-button-primary"
-              data-testid="button-product-save"
-              disabled={saving}
-              type="submit"
-            >
-              {saving ? "Đang lưu..." : "Lưu sản phẩm"}
-            </button>
+        {/* Floating Sticky Action Bar */}
+        <div
+          className={`admin-floating-action-bar ${isDirty ? "is-dirty" : ""}`}
+          role="region"
+          aria-label="Thao tác lưu biểu mẫu"
+        >
+          <div className="admin-floating-action-bar-inner">
+            <div className="admin-floating-action-bar-info">
+              {isDirty ? (
+                <span className="admin-floating-dirty-indicator">
+                  <span className="admin-floating-dirty-dot" aria-hidden="true" />
+                  Có thay đổi chưa lưu
+                </span>
+              ) : (
+                <span className="admin-floating-clean-indicator">
+                  {form.id ? `Sản phẩm #${form.id}` : "Bản ghi sản phẩm mới"} · Đã đồng bộ
+                </span>
+              )}
+            </div>
+            <div className="admin-floating-action-bar-actions">
+              <button
+                className="admin-button admin-button-primary"
+                data-testid="button-product-save"
+                disabled={saving}
+                form="product-editor-save-form"
+                type="submit"
+              >
+                {saving ? "Đang lưu..." : "Lưu sản phẩm"}
+              </button>
+            </div>
           </div>
         </div>
-      </form>
     </section>
   );
 }

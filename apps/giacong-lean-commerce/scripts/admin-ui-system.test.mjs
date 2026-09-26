@@ -86,24 +86,40 @@ test("the admin control plane exposes page, navigation and member management sur
 
 test("the shell groups routes in plain-language control-plane sections", async () => {
   const shell = await readSource("components", "admin", "AdminShell.tsx");
+  const groups = shell.slice(shell.indexOf("const navGroups:"), shell.indexOf("const roleLabels:"));
 
-  for (const label of [
-    "Chỉnh sửa website",
-    "Hàng hóa",
-    "Nội dung",
-    "Vận hành",
-    "Tài khoản & quyền",
-  ]) {
-    assert.match(shell, new RegExp(label.replace(/[&]/g, "\\&")));
-  }
+  assert.match(groups, /id: "operations",\s*displayTitle: "VẬN HÀNH"[\s\S]*?href: "\/admin\/yeu-cau", label: "Yêu cầu báo giá"[\s\S]*?href: "\/admin\/khach-hang", label: "Khách hàng B2B"/);
+  assert.match(groups, /id: "content",\s*displayTitle: "NỘI DUNG"[\s\S]*?href: "\/admin\/san-pham", label: "Sản phẩm"[\s\S]*?href: "\/admin\/dich-vu", label: "Dịch vụ gia công"[\s\S]*?href: "\/admin\/tin-tuc", label: "Tin tức"/);
+  assert.match(groups, /id: "website",\s*displayTitle: "WEBSITE"[\s\S]*?href: "\/admin\/dieu-huong", label: "Menu"/);
+  assert.match(groups, /id: "system",\s*displayTitle: "HỆ THỐNG"[\s\S]*?href: "\/admin\/thanh-vien", label: "Tài khoản quản trị & quyền"[\s\S]*?href: "\/admin\/audit", label: "Lịch sử thay đổi"/);
+  assert.doesNotMatch(shell, /Legacy section contract aliases preserved for static compatibility/);
   assert.match(shell, /Vai trò/);
   assert.match(shell, /Xem trang web/);
   assert.match(shell, /isAdminNavItemActive/);
   assert.match(shell, /badge-admin-environment/);
-  assert.match(shell, /Lịch sử thay đổi/);
+});
 
-  const websiteGroup = shell.slice(shell.indexOf('label: "Chỉnh sửa website"'), shell.indexOf('label: "Hàng hóa"'));
-  assert.match(websiteGroup, /\/admin\/dieu-huong/, "Menu belongs beside the other website editors");
+test("the account disclosure uses ordinary disclosure semantics and keyboard dismissal", async () => {
+  const shell = await readSource("components", "admin", "AdminShell.tsx");
+
+  assert.match(shell, /aria-expanded=\{userMenuOpen\}/);
+  assert.match(shell, /aria-controls="admin-account-popover"/);
+  assert.match(shell, /aria-label=\{`\$\{session\.email \?\? session\.subject\} · Menu tài khoản quản trị`\}/);
+  assert.match(shell, /aria-hidden=\{!userMenuOpen\}/);
+  assert.match(shell, /inert=\{!userMenuOpen\}/);
+  assert.match(shell, /event\.key === "Escape"[\s\S]*?userMenuTriggerRef\.current\?\.focus\(\)/);
+  assert.doesNotMatch(shell, /aria-haspopup="menu"|role="menu"|role="menuitem"/);
+});
+
+test("product status filters keep the URL and selected tab in sync", async () => {
+  const products = await readSource("app", "admin", "san-pham", "page.tsx");
+
+  assert.match(products, /function updateStatusFilter\(nextStatus: "all" \| "active" \| "draft" \| "hidden"\)/);
+  assert.match(products, /nextStatus === "all"\) url\.searchParams\.delete\("status"\)/);
+  assert.match(products, /url\.searchParams\.set\("status", nextStatus\)/);
+  assert.match(products, /window\.history\.pushState\(window\.history\.state, "",/);
+  assert.match(products, /if \(sp === "draft" \|\| sp === "active" \|\| sp === "hidden"\) \{\s*setStatusFilter\(sp\);\s*\} else \{\s*setStatusFilter\("all"\);/);
+  assert.match(products, /onClick=\{\(\) => updateStatusFilter\("all"\)\}/);
 });
 
 test("protected sidebar links do not prefetch every admin route on first paint", async () => {
@@ -114,12 +130,17 @@ test("protected sidebar links do not prefetch every admin route on first paint",
   assert.match(navLink, /prefetch=\{false\}/);
 });
 
-test("blocked admin sessions offer a direct Cloudflare Access login handoff", async () => {
+test("blocked sessions keep the Access login handoff and let unassigned accounts sign out", async () => {
   const shell = await readSource("components", "admin", "AdminShell.tsx");
 
+  assert.match(shell, /const isAdminMembershipDenied = isBlocked && error\?\.status === 403 && error\.code === "FORBIDDEN"/);
+  assert.match(shell, /const showLoginLink = \(isBlocked && !isAdminMembershipDenied\) \|\| error\?\.code === "NETWORK_ERROR"/);
   assert.match(shell, /<button[\s\S]*?data-testid="button-admin-access-login"[\s\S]*?onClick=\{\(\) => window\.location\.reload\(\)\}/);
   assert.doesNotMatch(shell, /data-testid="link-admin-access-login"/);
   assert.match(shell, /Đăng nhập Cloudflare Access/);
+  assert.match(shell, /data-testid="link-admin-access-logout"/);
+  assert.match(shell, /href=\{CLOUDFLARE_ACCESS_LOGOUT_PATH\}/);
+  assert.match(shell, /Đăng xuất tài khoản hiện tại/);
 });
 
 test("admin fallback screens use the bundled Vietnamese-safe font", async () => {
@@ -150,7 +171,7 @@ test("blocked admin sessions explain the next step without console jargon", asyn
 test("network-failed admin sessions keep the Access handoff visible", async () => {
   const shell = await readSource("components", "admin", "AdminShell.tsx");
 
-  assert.match(shell, /const showLoginLink = isBlocked \|\| error\?\.code === "NETWORK_ERROR"/);
+  assert.match(shell, /const showLoginLink = \(isBlocked && !isAdminMembershipDenied\) \|\| error\?\.code === "NETWORK_ERROR"/);
   assert.match(shell, /showLoginLink \? \(/);
 });
 
@@ -162,8 +183,13 @@ test("shared admin states explain readiness without infrastructure jargon", asyn
   assert.match(primitives, /Hệ thống chưa hoàn tất phần chuẩn bị dữ liệu/);
   assert.match(primitives, /Danh sách thành viên/);
   assert.match(primitives, /Lịch sử thay đổi/);
+  assert.match(primitives, /activeProducts: "Số sản phẩm đang hoạt động"/);
+  assert.match(primitives, /activeServices: "Số dịch vụ đang hoạt động"/);
+  assert.match(primitives, /newLeads: "Số yêu cầu mới"/);
+  assert.match(primitives, /ready \? "Sẵn sàng" : "Chưa tải được"/);
+  assert.doesNotMatch(primitives, /ready \? "Sẵn sàng" : "Chưa có"/);
   assert.match(primitives, /Dữ liệu được đọc trực tiếp từ hệ thống/);
-  assert.match(primitives, /Một số phần dữ liệu chưa được chuẩn bị/);
+  assert.match(primitives, /Một số phần dữ liệu chưa sẵn sàng hoặc chưa tải được/);
   assert.doesNotMatch(primitives, /Dữ liệu chưa sẵn sàng trong D1/);
   assert.doesNotMatch(primitives, /schema hoặc binding D1/);
   assert.doesNotMatch(primitives, /chưa được migrate/);

@@ -1,8 +1,8 @@
 "use client";
 
-import { ArrowLeft, ExternalLink, Eye, EyeOff, Newspaper, Pencil, Plus, Trash2 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
-import { useSearchParams } from "next/navigation";
+import { ArrowLeft, ExternalLink, Eye, EyeOff, Newspaper, Pencil, Plus, Search, Trash2 } from "lucide-react";
+import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { AdminConfirmDialog } from "@/components/admin/AdminDialog";
 import { AdminField } from "@/components/admin/AdminField";
 import { AdminMediaPickerModal } from "@/components/admin/AdminMediaPickerModal";
@@ -28,6 +28,7 @@ interface AdminNewsListItem {
 
 interface NewsListResponse {
   posts: AdminNewsListItem[];
+  statusCounts: { draft: number; published: number; total: number };
   total: number;
   pagination?: { currentPage: number; lastPage: number; pageSize: number; total: number };
 }
@@ -65,6 +66,7 @@ const emptyForm: NewsFormState = {
 export default function AdminNewsPage() {
   const session = useAdminSession();
   const { showToast } = useAdminToast();
+  const router = useRouter();
   const searchParams = useSearchParams();
   const canManage = canManageNews(session.role);
 
@@ -87,11 +89,20 @@ export default function AdminNewsPage() {
   const [batchAction, setBatchAction] = useState<"publish" | "unpublish" | null>(null);
   const [publicationId, setPublicationId] = useState<number | null>(null);
   const [statusFilter, setStatusFilter] = useState<"all" | "published" | "draft">("all");
-  const filteredPosts = useMemo(() => {
-    if (statusFilter === "published") return posts.filter((p) => p.isPublished);
-    if (statusFilter === "draft") return posts.filter((p) => !p.isPublished);
-    return posts;
-  }, [posts, statusFilter]);
+  const searchQuery = searchParams.get("q")?.trim() ?? "";
+  const [inputQuery, setInputQuery] = useState(searchQuery);
+  const [statusCounts, setStatusCounts] = useState({ draft: 0, published: 0, total: 0 });
+  const filteredPosts = posts;
+  const emptyListTitle = statusFilter === "all"
+    ? "Chưa có bài viết nào"
+    : statusFilter === "draft"
+      ? "Không có bài viết nháp"
+      : "Chưa có bài viết đã phát hành";
+  const emptyListDescription = searchQuery
+    ? "Không tìm thấy bài viết theo tiêu đề hoặc đường dẫn này. Hãy thử từ khóa khác."
+    : statusFilter === "all"
+      ? "Bấm “Thêm bài viết” để tạo bài đầu tiên cho /tin-tuc."
+      : "Thử bộ lọc trạng thái khác hoặc tạo bài viết mới.";
   const newsBatchRequest = useRef<PendingNewsBatch | null>(null);
   const newsBatchInFlight = useRef(false);
   const publicationInFlight = useRef(false);
@@ -101,6 +112,23 @@ export default function AdminNewsPage() {
     setEditor(form);
     setEditorSnapshot(form);
   }, []);
+
+  useEffect(() => {
+    setInputQuery(searchQuery);
+  }, [searchQuery]);
+
+  function submitSearch(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const searchQuery = inputQuery.trim().slice(0, 120);
+    const params = new URLSearchParams(searchParams.toString());
+    if (searchQuery) params.set("q", searchQuery);
+    else params.delete("q");
+    params.delete("page");
+    const queryString = params.toString();
+    router.replace(queryString ? `/admin/tin-tuc?${queryString}` : "/admin/tin-tuc", { scroll: false });
+    setPage(1);
+    setSelectedIds(new Set());
+  }
 
   const openEditById = useCallback(async (id: number) => {
     if (!canManage) {
@@ -152,10 +180,14 @@ export default function AdminNewsPage() {
       setLoading(true);
       setError(null);
       try {
-        const result = await fetchAdmin<NewsListResponse>(`/api/admin/news?page=${page}&pageSize=20`, controller.signal);
+        const params = new URLSearchParams({ page: String(page), pageSize: "20" });
+        if (statusFilter !== "all") params.set("status", statusFilter);
+        if (searchQuery) params.set("q", searchQuery);
+        const result = await fetchAdmin<NewsListResponse>(`/api/admin/news?${params.toString()}`, controller.signal);
         setPosts(result.posts ?? []);
         setTotal(result.total ?? 0);
         setLastPage(result.pagination?.lastPage ?? 1);
+        setStatusCounts(result.statusCounts ?? { draft: 0, published: 0, total: result.total ?? 0 });
       } catch (reason: unknown) {
         if (!(reason instanceof DOMException && reason.name === "AbortError")) {
           setError(reason instanceof AdminClientError ? reason : new AdminClientError("Không thể tải danh sách bài viết.", 0));
@@ -165,7 +197,7 @@ export default function AdminNewsPage() {
       }
     })();
     return () => controller.abort();
-  }, [page, attempt]);
+  }, [page, attempt, statusFilter, searchQuery]);
 
   async function submitPost(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -472,31 +504,53 @@ export default function AdminNewsPage() {
             <section className="admin-panel admin-table-panel" aria-labelledby="news-table-heading">
               <div className="admin-panel-heading" style={{ padding: "21px 21px 12px" }}><div><h2 className="admin-panel-title" id="news-table-heading">Danh sách bài viết</h2><p className="admin-panel-caption">Mới nhất hiển thị trước</p></div><Newspaper aria-hidden="true" color="#6e8c42" size={19} /></div>
               <div style={{ padding: "0 21px" }}>
-                <div className="admin-filter-tabs">
+                <form className="admin-toolbar" data-testid="form-news-search" onSubmit={submitSearch}>
+                  <div className="admin-search-wrap">
+                    <label className="admin-label" htmlFor="news-search">Tìm theo tiêu đề hoặc đường dẫn</label>
+                    <Search aria-hidden="true" />
+                    <input
+                      className="admin-input has-icon"
+                      data-testid="input-news-search"
+                      id="news-search"
+                      maxLength={120}
+                      onChange={(event) => setInputQuery(event.target.value)}
+                      placeholder="Ví dụ: nguyên liệu, hướng dẫn sử dụng..."
+                      value={inputQuery}
+                    />
+                  </div>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                    <button className="admin-button admin-button-primary" data-testid="button-news-search" type="submit">Tìm bài viết</button>
+                    {searchQuery ? <button className="admin-button admin-button-quiet" data-testid="button-news-clear-search" onClick={() => { setInputQuery(""); router.replace("/admin/tin-tuc", { scroll: false }); setPage(1); setSelectedIds(new Set()); }} type="button">Xóa tìm kiếm</button> : null}
+                  </div>
+                </form>
+                <div className="admin-filter-tabs" role="group" aria-label="Lọc bài viết theo trạng thái">
                   <button
+                    aria-pressed={statusFilter === "all"}
                     className={`admin-filter-tab${statusFilter === "all" ? " is-active" : ""}`}
-                    onClick={() => setStatusFilter("all")}
+                    onClick={() => { setStatusFilter("all"); setPage(1); }}
                     type="button"
                   >
-                    Tất cả <span className="admin-filter-tab-count">{posts.length}</span>
+                    Tất cả <span className="admin-filter-tab-count">{statusCounts.total}</span>
                   </button>
                   <button
+                    aria-pressed={statusFilter === "published"}
                     className={`admin-filter-tab${statusFilter === "published" ? " is-active" : ""}`}
-                    onClick={() => setStatusFilter("published")}
+                    onClick={() => { setStatusFilter("published"); setPage(1); }}
                     type="button"
                   >
-                    Đã phát hành <span className="admin-filter-tab-count">{posts.filter((p) => p.isPublished).length}</span>
+                    Đã phát hành <span className="admin-filter-tab-count">{statusCounts.published}</span>
                   </button>
                   <button
+                    aria-pressed={statusFilter === "draft"}
                     className={`admin-filter-tab${statusFilter === "draft" ? " is-active" : ""}`}
-                    onClick={() => setStatusFilter("draft")}
+                    onClick={() => { setStatusFilter("draft"); setPage(1); }}
                     type="button"
                   >
-                    Bản nháp <span className="admin-filter-tab-count">{posts.filter((p) => !p.isPublished).length}</span>
+                    Bản nháp <span className="admin-filter-tab-count">{statusCounts.draft}</span>
                   </button>
                 </div>
               </div>
-              {posts.length === 0 ? <AdminEmptyState title="Chưa có bài viết nào" description="Bấm “Thêm bài viết” để tạo bài đầu tiên cho /tin-tuc." /> : (
+              {posts.length === 0 ? <AdminEmptyState title={emptyListTitle} description={emptyListDescription} /> : (
                 <>
                   <div className="admin-table-scroll">
                     <table className="admin-table">

@@ -47,6 +47,21 @@ const capturedAssetAliases: Readonly<Record<string, string>> = {
     "/images/home-captured/form-bg.webp",
   "https://giacong.vn/wp-content/uploads/2024/09/form-bg.jpg":
     "/images/home-captured/form-bg.webp",
+  // The route capture contains both the December 2024 and September 2025
+  // coffee photos under the same basename. Keep the older page on its own
+  // recovered image instead of letting the basename resolver mix revisions.
+  "https://giacong.vn/wp-content/uploads/2024/12/gia-cong-ca-phe-hoa-tan.jpg":
+    "/images/captured-legacy/source/gia-cong-ca-phe-hoa-tan-2024.webp",
+  "https://giacong.vn/wp-content/uploads/2024/12/gia-cong-ca-phe-hoa-tan-510x340.jpg":
+    "/images/captured-legacy/source/gia-cong-ca-phe-hoa-tan-2024.webp",
+  "https://giacong.vn/wp-content/uploads/2024/12/gia-cong-ca-phe-hoa-tan-300x200.jpg":
+    "/images/captured-legacy/source/gia-cong-ca-phe-hoa-tan-2024.webp",
+  "https://giacong.vn/wp-content/uploads/2024/12/gia-cong-ca-phe-hoa-tan-1024x683.jpg":
+    "/images/captured-legacy/source/gia-cong-ca-phe-hoa-tan-2024.webp",
+  "https://giacong.vn/wp-content/uploads/2024/12/gia-cong-ca-phe-hoa-tan-768x512.jpg":
+    "/images/captured-legacy/source/gia-cong-ca-phe-hoa-tan-2024.webp",
+  "https://giacong.vn/wp-content/uploads/2024/12/gia-cong-ca-phe-hoa-tan-1536x1024.jpg":
+    "/images/captured-legacy/source/gia-cong-ca-phe-hoa-tan-2024.webp",
   // Restore the exact partner-strip capture from the legacy Git commit. The
   // source host no longer serves any of these generated thumbnail variants.
   "https://giacong.vn/wp-content/uploads/2024/08/doi-tac-.png":

@@ -247,130 +247,114 @@ export default function AdminCustomersPage() {
 
       {/* Create Modal */}
       {isCreateOpen ? (
-        <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            zIndex: 60,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            background: "rgba(15, 23, 42, 0.4)",
-          }}
-          onClick={() => setIsCreateOpen(false)}
+        <AdminModal
+          labelledBy="customer-create-modal-title"
+          onClose={() => setIsCreateOpen(false)}
+          title="Tạo Hồ Sơ Khách Hàng Doanh Nghiệp Mới"
         >
-          <div
-            style={{
-              width: "100%",
-              maxWidth: "500px",
-              background: "#ffffff",
-              borderRadius: "10px",
-              padding: "20px",
-              boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.1)",
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3 style={{ fontSize: 16, fontWeight: 700, margin: "0 0 12px" }}>
-              Tạo Hồ Sơ Khách Hàng Doanh Nghiệp Mới
-            </h3>
-            <form onSubmit={handleCreateCustomer} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <form onSubmit={handleCreateCustomer} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            <div>
+              <label className="admin-field-label" htmlFor="customer-company-name">Tên công ty / Đơn vị đặt hàng *</label>
+              <input
+                id="customer-company-name"
+                type="text"
+                className="admin-input"
+                required
+                placeholder="Ví dụ: Công ty Cơ khí An Phát"
+                value={newCompany}
+                onChange={(e) => setNewCompany(e.target.value)}
+                style={{ width: "100%" }}
+              />
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
               <div>
-                <label className="admin-field-label">Tên công ty / Đơn vị đặt hàng *</label>
+                <label className="admin-field-label" htmlFor="customer-tax-code">Mã số thuế (MST)</label>
                 <input
+                  id="customer-tax-code"
                   type="text"
                   className="admin-input"
-                  required
-                  placeholder="Ví dụ: Công ty Cơ khí An Phát"
-                  value={newCompany}
-                  onChange={(e) => setNewCompany(e.target.value)}
+                  placeholder="0312345678"
+                  value={newTaxCode}
+                  onChange={(e) => setNewTaxCode(e.target.value)}
                   style={{ width: "100%" }}
                 />
-              </div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                <div>
-                  <label className="admin-field-label">Mã số thuế (MST)</label>
-                  <input
-                    type="text"
-                    className="admin-input"
-                    placeholder="0312345678"
-                    value={newTaxCode}
-                    onChange={(e) => setNewTaxCode(e.target.value)}
-                    style={{ width: "100%" }}
-                  />
-                </div>
-                <div>
-                  <label className="admin-field-label">Số điện thoại</label>
-                  <input
-                    type="text"
-                    className="admin-input"
-                    placeholder="0901234567"
-                    value={newPhone}
-                    onChange={(e) => setNewPhone(e.target.value)}
-                    style={{ width: "100%" }}
-                  />
-                </div>
               </div>
               <div>
-                <label className="admin-field-label">Email liên hệ</label>
+                <label className="admin-field-label" htmlFor="customer-phone">Số điện thoại</label>
                 <input
-                  type="email"
+                  id="customer-phone"
+                  type="text"
                   className="admin-input"
-                  placeholder="contact@anphat.com"
-                  value={newEmail}
-                  onChange={(e) => setNewEmail(e.target.value)}
+                  placeholder="0901234567"
+                  value={newPhone}
+                  onChange={(e) => setNewPhone(e.target.value)}
                   style={{ width: "100%" }}
                 />
               </div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                <div>
-                  <label className="admin-field-label">Ngành nghề sản xuất</label>
-                  <select
-                    className="admin-select"
-                    value={newIndustry}
-                    onChange={(e) => setNewIndustry(e.target.value as CrmIndustry)}
-                    style={{ width: "100%" }}
-                  >
-                    {Object.entries(industryLabels).map(([val, label]) => (
-                      <option key={val} value={val}>
-                        {label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="admin-field-label">Phân hạng khách hàng</label>
-                  <select
-                    className="admin-select"
-                    value={newTier}
-                    onChange={(e) => setNewTier(e.target.value as CrmCustomerTier)}
-                    style={{ width: "100%" }}
-                  >
-                    <option value="standard">Tiêu chuẩn</option>
-                    <option value="potential">Tiềm năng</option>
-                    <option value="strategic">Chiến lược</option>
-                    <option value="vip">VIP</option>
-                  </select>
-                </div>
-              </div>
-              <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 12 }}>
-                <button
-                  type="button"
-                  className="admin-button admin-button-quiet"
-                  onClick={() => setIsCreateOpen(false)}
+            </div>
+            <div>
+              <label className="admin-field-label" htmlFor="customer-email">Email liên hệ</label>
+              <input
+                id="customer-email"
+                type="email"
+                className="admin-input"
+                placeholder="contact@anphat.com"
+                value={newEmail}
+                onChange={(e) => setNewEmail(e.target.value)}
+                style={{ width: "100%" }}
+              />
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+              <div>
+                <label className="admin-field-label" htmlFor="customer-industry">Ngành nghề sản xuất</label>
+                <select
+                  id="customer-industry"
+                  className="admin-select"
+                  value={newIndustry}
+                  onChange={(e) => setNewIndustry(e.target.value as CrmIndustry)}
+                  style={{ width: "100%" }}
                 >
-                  Hủy
-                </button>
-                <button
-                  type="submit"
-                  className="admin-button admin-button-primary"
-                  disabled={creating || !newCompany.trim()}
-                >
-                  {creating ? "Đang lưu..." : "Tạo khách hàng"}
-                </button>
+                  {Object.entries(industryLabels).map(([val, label]) => (
+                    <option key={val} value={val}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
               </div>
-            </form>
-          </div>
-        </div>
+              <div>
+                <label className="admin-field-label" htmlFor="customer-tier">Phân hạng khách hàng</label>
+                <select
+                  id="customer-tier"
+                  className="admin-select"
+                  value={newTier}
+                  onChange={(e) => setNewTier(e.target.value as CrmCustomerTier)}
+                  style={{ width: "100%" }}
+                >
+                  <option value="standard">Tiêu chuẩn</option>
+                  <option value="potential">Tiềm năng</option>
+                  <option value="strategic">Chiến lược</option>
+                  <option value="vip">VIP</option>
+                </select>
+              </div>
+            </div>
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 12 }}>
+              <button
+                type="button"
+                className="admin-button admin-button-quiet"
+                onClick={() => setIsCreateOpen(false)}
+              >
+                Hủy
+              </button>
+              <button
+                type="submit"
+                className="admin-button admin-button-primary"
+                disabled={creating || !newCompany.trim()}
+              >
+                {creating ? "Đang lưu..." : "Tạo khách hàng"}
+              </button>
+            </div>
+          </form>
+        </AdminModal>
       ) : null}
 
       {/* Main Table */}
@@ -454,7 +438,7 @@ export default function AdminCustomersPage() {
                     {customers.map((c) => (
                       <tr key={c.id}>
                         {canManage ? (
-                          <td style={{ width: 44 }}>
+                          <td className="admin-product-select" style={{ width: 44 }}>
                             <input
                               aria-label={`Chọn khách hàng ${c.company_name}`}
                               checked={selectedIds.has(c.id)}
@@ -470,7 +454,7 @@ export default function AdminCustomersPage() {
                             />
                           </td>
                         ) : null}
-                        <td>
+                        <td data-label="Doanh nghiệp">
                           <button
                             type="button"
                             className="admin-product-name-btn"
@@ -481,29 +465,31 @@ export default function AdminCustomersPage() {
                             <div style={{ fontSize: 11, color: "var(--admin-ink-muted)" }}>{c.code} · Bấm xem 360°</div>
                           </button>
                         </td>
-                        <td>
+                        <td data-label="Mã số thuế">
                           <span className="admin-mono">{c.tax_code || "—"}</span>
                         </td>
-                        <td>{industryLabels[c.industry] || c.industry}</td>
-                        <td>
+                        <td data-label="Ngành nghề">{industryLabels[c.industry] || c.industry}</td>
+                        <td data-label="Phân hạng">
                           <AdminStatusBadge
                             kind={tierLabels[c.tier]?.kind ?? "neutral"}
                             value={tierLabels[c.tier]?.label ?? c.tier}
                           />
                         </td>
-                        <td className="admin-mono">{c.total_rfq_count ?? 0} lần</td>
-                        <td className="admin-mono">
+                        <td data-label="Yêu cầu RFQ" className="admin-mono">{c.total_rfq_count ?? 0} lần</td>
+                        <td data-label="Tương tác cuối" className="admin-mono">
                           {c.last_interaction_at ? formatAdminDate(c.last_interaction_at) : "Chưa có"}
                         </td>
-                        <td>
-                          <button
-                            type="button"
-                            className="admin-button admin-button-quiet"
-                            onClick={() => setSelectedCustomerId(c.id)}
-                            style={{ fontSize: 12, padding: "4px 8px" }}
-                          >
-                            Xem 360°
-                          </button>
+                        <td className="admin-sticky-actions">
+                          <div className="admin-table-actions">
+                            <button
+                              type="button"
+                              className="admin-button admin-button-quiet"
+                              onClick={() => setSelectedCustomerId(c.id)}
+                              style={{ fontSize: 12, padding: "4px 8px" }}
+                            >
+                              Xem 360°
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}

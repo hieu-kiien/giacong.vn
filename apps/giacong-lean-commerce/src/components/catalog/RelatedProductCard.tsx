@@ -23,8 +23,12 @@ export function RelatedProductCard({ card }: RelatedProductCardProps) {
   return (
     <article className={styles.relatedCard}>
       <Link aria-label={`Xem ${card.name}`} className={styles.relatedImage} href={card.detailHref} prefetch={false}>
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img alt={card.name} loading="lazy" src={card.imageUrl} />
+        {card.imageUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img alt={card.name} loading="lazy" src={card.imageUrl} />
+        ) : (
+          <span>Chưa có hình ảnh</span>
+        )}
       </Link>
       <div className={styles.relatedBody}>
         {card.categoryLabel ? <span className={styles.relatedCategory}>{card.categoryLabel}</span> : null}

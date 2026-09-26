@@ -98,6 +98,7 @@
 /* Gallery ---------------------------------------------------------------- */
 
 .gallery {
+  align-content: start;
   display: grid;
   gap: 12px;
   min-width: 0;
@@ -105,19 +106,29 @@
 
 .mainImage {
   align-items: center;
-  aspect-ratio: 67 / 46;
+  aspect-ratio: auto;
   background: #fdf6ee;
   border: 1px solid var(--detail-border);
   border-radius: var(--radius-commerce-card);
   display: flex;
   justify-content: center;
-  overflow: hidden;
+  min-width: 0;
 }
 
 .mainImage img {
-  height: 100%;
-  object-fit: cover;
+  aspect-ratio: auto 67 / 46;
+  display: block;
+  height: auto;
+  max-height: min(72vh, 720px);
+  object-fit: contain;
   width: 100%;
+}
+
+.mainImage > span {
+  color: var(--detail-muted);
+  font-size: 0.875rem;
+  padding: 1rem;
+  text-align: center;
 }
 
 .thumbRail {
@@ -145,7 +156,7 @@
 
 .thumb img {
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
   width: 100%;
 }
 
@@ -634,7 +645,7 @@
 
 .relatedImage img {
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
   width: 100%;
 }
 
@@ -714,12 +725,6 @@
 /* Mobile: the tier table reflows into stacked rows rather than scrolling --- */
 
 @media (max-width: 639px) {
-  /* Keep the gallery from consuming the first viewport before the price. */
-  .mainImage {
-    aspect-ratio: auto;
-    height: 260px;
-  }
-
   .tierTable,
   .tierTable caption,
   .tierTable tbody,

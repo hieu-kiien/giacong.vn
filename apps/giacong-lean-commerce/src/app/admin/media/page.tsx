@@ -546,7 +546,7 @@ export default function AdminMediaPage() {
                     }}
                     title={`Mô tả: ${asset.altText}`}
                   >
-                    "{asset.altText}"
+                    &quot;{asset.altText}&quot;
                   </p>
                 ) : (
                   <p style={{ color: "#94a3b8", fontSize: 11, fontStyle: "italic", marginBottom: 10 }}>

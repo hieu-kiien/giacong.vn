@@ -1,8 +1,8 @@
 "use client";
 
-import { ArrowLeft, ExternalLink, Eye, EyeOff, Search } from "lucide-react";
+import { ArrowLeft, ExternalLink, Eye, EyeOff, FileText, ImageIcon, ListTree, Search } from "lucide-react";
 import { useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
 
 function toSlug(text: string): string {
   return text
@@ -15,12 +15,30 @@ function toSlug(text: string): string {
     .replace(/\s+/g, "-")
     .replace(/-+/g, "-");
 }
+
+function handleEditorTabKeyDown(event: KeyboardEvent<HTMLButtonElement>) {
+  const tabs = Array.from(event.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>('[role="tab"]') ?? []);
+  const currentIndex = tabs.indexOf(event.currentTarget);
+  if (currentIndex < 0) return;
+
+  let nextIndex = currentIndex;
+  if (event.key === "ArrowRight") nextIndex = (currentIndex + 1) % tabs.length;
+  else if (event.key === "ArrowLeft") nextIndex = (currentIndex - 1 + tabs.length) % tabs.length;
+  else if (event.key === "Home") nextIndex = 0;
+  else if (event.key === "End") nextIndex = tabs.length - 1;
+  else return;
+
+  event.preventDefault();
+  tabs[nextIndex]?.focus();
+  tabs[nextIndex]?.click();
+}
 import { useAdminUnsaved, useRegisterAdminUnsaved } from "@/components/admin/AdminUnsavedGuard";
 import { AdminMediaPanel } from "@/components/admin/AdminMediaPanel";
 import { AdminEmptyState, AdminErrorState, AdminLoadingTable, AdminPageHeading, AdminPagination, AdminStatusBadge } from "@/components/admin/AdminPrimitives";
 import { useAdminSession } from "@/components/admin/AdminShell";
 import { AdminConfirmDialog } from "@/components/admin/AdminDialog";
 import { useAdminToast } from "@/components/admin/AdminToast";
+import { parseOfferingLines } from "@/lib/admin-service-offerings";
 import { AdminClientError, fetchAdmin, formatAdminDate, getInitials, mutateAdmin, type AdminService } from "@/lib/admin-client";
 import { canManageServices } from "@/lib/admin-permissions";
 
@@ -68,6 +86,22 @@ type ServiceFormState = {
   revision: number;
 };
 
+const serviceFieldLabels: Record<string, { label: string; tab: "general" | "offerings" | "media_cta"; testId: string }> = {
+  name: { label: "Tên dịch vụ", tab: "general", testId: "input-service-name" },
+  slug: { label: "Đường dẫn", tab: "general", testId: "input-service-slug" },
+  summary: { label: "Mô tả ngắn", tab: "general", testId: "input-service-summary" },
+  description: { label: "Mô tả chi tiết", tab: "general", testId: "input-service-description" },
+  status: { label: "Trạng thái", tab: "general", testId: "select-service-status" },
+  isActive: { label: "Hiển thị dịch vụ", tab: "general", testId: "checkbox-service-active" },
+  sortOrder: { label: "Thứ tự hiển thị", tab: "general", testId: "input-service-sort-order" },
+  offerings: { label: "Hạng mục dịch vụ", tab: "offerings", testId: "input-service-offerings" },
+  moqSummary: { label: "Số lượng tối thiểu", tab: "offerings", testId: "input-service-moq" },
+  leadTimeDays: { label: "Thời gian thực hiện", tab: "offerings", testId: "input-service-lead-time" },
+  imageUrl: { label: "Ảnh chính", tab: "media_cta", testId: "input-service-image" },
+  ctaLabel: { label: "Nhãn nút liên hệ", tab: "media_cta", testId: "input-service-cta-label" },
+  ctaHref: { label: "Đường dẫn nút liên hệ", tab: "media_cta", testId: "input-service-cta-href" },
+};
+
 const serviceStatusLabels: Record<string, string> = {
   published: "Đang hiển thị",
   draft: "Bản nháp",
@@ -94,17 +128,6 @@ const emptyServiceForm: ServiceFormState = {
 
 function formatOfferings(offerings: AdminServiceWithRevision["offerings"]): string {
   return (offerings ?? []).map((offering) => `${offering.label} | ${offering.href}`).join("\n");
-}
-
-function parseOfferingLines(value: string): Array<{ href: string; label: string }> {
-  return value.split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .map((line) => {
-      const separator = line.indexOf("|");
-      if (separator < 0) return { href: "", label: line };
-      return { href: line.slice(separator + 1).trim(), label: line.slice(0, separator).trim() };
-    });
 }
 
 export default function AdminServicesPage() {
@@ -140,8 +163,10 @@ export default function AdminServicesPage() {
     if (statusFilter === "hidden") return services.filter((s) => !s.isActive || s.status === "archived");
     return services;
   }, [services, statusFilter]);
+  const selectedStatusLabel = statusFilter === "active" ? "Đang hiển thị" : statusFilter === "draft" ? "Bản nháp / Chờ duyệt" : statusFilter === "hidden" ? "Tạm ẩn" : "";
   const serviceBatchRequest = useRef<PendingServiceBatch | null>(null);
   const serviceBatchInFlight = useRef(false);
+  const serviceRequestRef = useRef<{ key: string; requestId: string } | null>(null);
   const { isDirty: hasUnsavedChanges, saving: nestedSaving } = useAdminUnsaved();
   const isDirty = useCallback(() => editor !== null && JSON.stringify(editor) !== JSON.stringify(editorSnapshot), [editor, editorSnapshot]);
   useRegisterAdminUnsaved(isDirty, saving);
@@ -343,9 +368,14 @@ export default function AdminServicesPage() {
       status: editor.status,
       summary: editor.summary,
     };
+    const requestKey = JSON.stringify({ fields, id: editor.id ?? null, revision: editor.revision });
+    const requestId = serviceRequestRef.current?.key === requestKey
+      ? serviceRequestRef.current.requestId
+      : crypto.randomUUID();
+    serviceRequestRef.current = { key: requestKey, requestId };
     const payload = editor.id === undefined
-      ? { ...fields, requestId: crypto.randomUUID() }
-      : { ...fields, requestId: crypto.randomUUID(), revision: editor.revision };
+      ? { ...fields, requestId }
+      : { ...fields, requestId, revision: editor.revision };
     try {
       const result = await mutateAdmin<{ service: AdminServiceWithRevision }>(
         editor.id ? `/api/admin/services/${editor.id}` : "/api/admin/services",
@@ -371,6 +401,7 @@ export default function AdminServicesPage() {
       };
       setEditor(nextForm);
       setEditorSnapshot(nextForm);
+      if (serviceRequestRef.current?.key === requestKey) serviceRequestRef.current = null;
       setAttempt((value) => value + 1);
       showToast("success", editor.id ? "Đã lưu thay đổi dịch vụ." : "Đã tạo dịch vụ mới.");
     } catch (reason: unknown) {
@@ -562,8 +593,7 @@ const serviceStatusLabels: Record<string, string> = {
       {editor ? (
         <>
           <AdminPageHeading kicker="Năng lực sản xuất" title={editor.id ? `Chỉnh sửa dịch vụ: ${editor.name}` : "Thêm dịch vụ mới"} subtitle="Quản lý danh mục năng lực sản xuất, số lượng tối thiểu và thời gian làm hàng đang công bố." stamp="DANH MỤC DỊCH VỤ" />
-          <ServiceEditor error={saveError} form={editor} onChange={setEditor} onCancel={() => requestServiceEditor(null)} onSubmit={submitService} saving={saving} />
-          {editor?.id ? <AdminMediaPanel serviceId={editor.id} title="Ảnh dịch vụ và hồ sơ năng lực" /> : null}
+          <ServiceEditor error={saveError} form={editor} isDirty={isDirty() || hasUnsavedChanges()} onChange={setEditor} onCancel={() => requestServiceEditor(null)} onSubmit={submitService} saving={saving} />
         </>
       ) : (
         <>
@@ -615,40 +645,44 @@ const serviceStatusLabels: Record<string, string> = {
       </form>
       {error ? <AdminErrorState error={error} onRetry={() => setAttempt((value) => value + 1)} /> : loading ? <AdminLoadingTable /> : (
         <section className="admin-panel admin-table-panel" aria-labelledby="service-table-heading">
-          <div className="admin-panel-heading" style={{ padding: "21px 21px 12px" }}><div><h2 className="admin-panel-title" id="service-table-heading">Danh mục dịch vụ</h2><p className="admin-panel-caption">{query ? `Kết quả cho “${query}”` : "Sắp xếp theo ID tăng dần"}</p></div><span className="admin-count">{total} bản ghi</span></div>
+          <div className="admin-panel-heading" style={{ padding: "21px 21px 12px" }}><div><h2 className="admin-panel-title" id="service-table-heading">Dịch vụ</h2><p className="admin-panel-caption">{query ? `Kết quả cho “${query}”${selectedStatusLabel ? ` · ${selectedStatusLabel}` : ""}` : selectedStatusLabel ? `Đang lọc: ${selectedStatusLabel}` : "Sắp xếp theo ID tăng dần"}</p></div><span aria-live="polite" className="admin-count">{total} kết quả</span></div>
           <div style={{ padding: "0 21px" }}>
-            <div className="admin-filter-tabs">
+            <div className="admin-filter-tabs" role="group" aria-label="Lọc dịch vụ theo trạng thái">
               <button
+                aria-pressed={statusFilter === "all"}
                 className={`admin-filter-tab${statusFilter === "all" ? " is-active" : ""}`}
                 onClick={() => { setStatusFilter("all"); setPage(1); }}
                 type="button"
               >
-                Tất cả <span className="admin-filter-tab-count">{services.length}</span>
+                Tất cả
               </button>
               <button
+                aria-pressed={statusFilter === "active"}
                 className={`admin-filter-tab${statusFilter === "active" ? " is-active" : ""}`}
                 onClick={() => { setStatusFilter("active"); setPage(1); }}
                 type="button"
               >
-                Đang hiển thị <span className="admin-filter-tab-count">{services.filter((s) => s.isActive && s.status === "published").length}</span>
+                Đang hiển thị
               </button>
               <button
+                aria-pressed={statusFilter === "draft"}
                 className={`admin-filter-tab${statusFilter === "draft" ? " is-active" : ""}`}
                 onClick={() => { setStatusFilter("draft"); setPage(1); }}
                 type="button"
               >
-                Bản nháp / Chờ duyệt <span className="admin-filter-tab-count">{services.filter((s) => s.status === "draft" || s.status === "review").length}</span>
+                Bản nháp / Chờ duyệt
               </button>
               <button
+                aria-pressed={statusFilter === "hidden"}
                 className={`admin-filter-tab${statusFilter === "hidden" ? " is-active" : ""}`}
                 onClick={() => { setStatusFilter("hidden"); setPage(1); }}
                 type="button"
               >
-                Tạm ẩn <span className="admin-filter-tab-count">{services.filter((s) => !s.isActive || s.status === "archived").length}</span>
+                Tạm ẩn
               </button>
             </div>
           </div>
-          {services.length === 0 ? <AdminEmptyState title={query ? "Không tìm thấy dịch vụ phù hợp" : "Chưa có dịch vụ"} description={query ? "Thử một từ khóa khác. Không có dữ liệu mẫu được đưa vào danh sách." : "Bạn có thể tạo dịch vụ mới từ nút Thêm dịch vụ."} /> : (
+          {services.length === 0 ? <AdminEmptyState title={query ? "Không tìm thấy dịch vụ phù hợp" : statusFilter !== "all" ? "Không có dịch vụ ở trạng thái này" : "Chưa có dịch vụ"} description={query ? "Thử một từ khóa khác. Không có dữ liệu mẫu được đưa vào danh sách." : statusFilter !== "all" ? "Thử chọn bộ lọc khác để xem thêm dịch vụ." : "Bạn có thể tạo dịch vụ mới từ nút Thêm dịch vụ."} /> : (
             <>
               <div className="admin-table-scroll">
                 <table className="admin-table admin-product-table">
@@ -656,7 +690,7 @@ const serviceStatusLabels: Record<string, string> = {
                   <tbody>
                     {filteredServices.map((service) => (
                       <tr data-testid={`row-service-${service.id}`} key={service.id}>
-                        {canManage ? <td><input aria-label={`Chọn dịch vụ ${service.name}`} checked={selectedIds.has(service.id)} disabled={batchArchiving || batchActivating} onChange={() => toggleSelected(service.id)} type="checkbox" /></td> : null}
+                        {canManage ? <td className="admin-product-select"><input aria-label={`Chọn dịch vụ ${service.name}`} checked={selectedIds.has(service.id)} disabled={batchArchiving || batchActivating} onChange={() => toggleSelected(service.id)} type="checkbox" /></td> : null}
                         <td className="admin-product-summary">
                           <div className="admin-product-cell">
                             <button
@@ -702,13 +736,13 @@ const serviceStatusLabels: Record<string, string> = {
                             </div>
                           </div>
                         </td>
-                        <td><div className="admin-description">{service.summary || service.description || "Chưa có tóm tắt"}</div></td>
-                        <td><AdminStatusBadge kind={service.isActive && service.status === "published" ? "green" : service.status === "draft" || service.status === "review" ? "amber" : "neutral"} value={service.isActive ? serviceStatusLabels[service.status] ?? service.status : "Tạm ẩn"} /></td>
-                        <td className="admin-description">{service.moqSummary || "Chưa có"}</td>
-                        <td className="admin-mono">{service.leadTimeDays !== null ? `${service.leadTimeDays} ngày` : "Chưa có"}</td>
-                        <td className="admin-mono">{formatAdminDate(service.updatedAt)}</td>
+                        <td data-label="Tóm tắt"><div className="admin-description">{service.summary || service.description || "Chưa có tóm tắt"}</div></td>
+                        <td data-label="Trạng thái"><AdminStatusBadge kind={service.isActive && service.status === "published" ? "green" : service.status === "draft" || service.status === "review" ? "amber" : "neutral"} value={service.status === "draft" || service.status === "review" || service.status === "archived" ? serviceStatusLabels[service.status] : service.isActive ? "Đang hiển thị" : "Đã đăng · Tạm ẩn"} /></td>
+                        <td data-label="Tối thiểu" className="admin-description">{service.moqSummary || "Chưa có"}</td>
+                        <td data-label="Thời gian làm hàng" className="admin-mono">{service.leadTimeDays !== null ? `${service.leadTimeDays} ngày` : "Chưa có"}</td>
+                        <td data-label="Cập nhật" className="admin-mono">{formatAdminDate(service.updatedAt)}</td>
                         {canManage ? (
-                          <td>
+                          <td className="admin-sticky-actions">
                             <div className="admin-table-actions">
                               <button className="admin-button admin-button-quiet" data-testid={`button-service-edit-${service.id}`} onClick={() => openEdit(service)} type="button">Sửa</button>
                               {service.isActive ? (
@@ -770,17 +804,33 @@ const serviceStatusLabels: Record<string, string> = {
 interface ServiceEditorProps {
   error: AdminClientError | null;
   form: ServiceFormState;
+  isDirty?: boolean;
   onCancel: () => void;
   onChange: (value: ServiceFormState) => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
   saving: boolean;
 }
 
-function ServiceEditor({ error, form, onCancel, onChange, onSubmit, saving }: ServiceEditorProps) {
+function ServiceEditor({ error, form, isDirty = false, onCancel, onChange, onSubmit, saving }: ServiceEditorProps) {
+  const [activeTab, setActiveTab] = useState<"general" | "offerings" | "media_cta">("general");
+  const [mediaTabOpened, setMediaTabOpened] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { showToast } = useAdminToast();
+
+  function focusServiceFieldError(field: string) {
+    const target = serviceFieldLabels[field];
+    if (!target) return;
+    setActiveTab(target.tab);
+    if (target.tab === "media_cta") setMediaTabOpened(true);
+    window.requestAnimationFrame(() => {
+      const control = document.querySelector<HTMLElement>(`[data-testid="${target.testId}"]`);
+      const disclosure = control?.closest("details");
+      if (disclosure) disclosure.open = true;
+      control?.focus();
+    });
+  }
 
   async function uploadServiceFile(file: File) {
     if (!form.id) {
@@ -867,12 +917,13 @@ function ServiceEditor({ error, form, onCancel, onChange, onSubmit, saving }: Se
           <div className="admin-haravan-topbar-left">
             <button
               className="admin-button admin-button-quiet"
+              data-testid="button-service-cancel"
               disabled={saving}
               onClick={onCancel}
               style={{ alignItems: "center", display: "inline-flex", gap: 6, fontWeight: 600 }}
               type="button"
             >
-              <ArrowLeft size={16} /> Danh sách dịch vụ
+              <ArrowLeft size={16} /> Quay lại danh sách
             </button>
             <div className="admin-haravan-title-wrap">
               <h2 className="admin-panel-title" id="service-editor-heading" style={{ fontSize: 18, margin: 0 }}>
@@ -900,23 +951,6 @@ function ServiceEditor({ error, form, onCancel, onChange, onSubmit, saving }: Se
                 <ExternalLink size={14} />
               </a>
             ) : null}
-            <button
-              className="admin-button admin-button-quiet"
-              data-testid="button-service-cancel"
-              disabled={saving}
-              onClick={onCancel}
-              type="button"
-            >
-              Hủy
-            </button>
-            <button
-              className="admin-button admin-button-primary"
-              data-testid="button-service-save"
-              disabled={saving}
-              type="submit"
-            >
-              {saving ? "Đang lưu..." : "Lưu dịch vụ"}
-            </button>
           </div>
         </div>
 
@@ -924,431 +958,506 @@ function ServiceEditor({ error, form, onCancel, onChange, onSubmit, saving }: Se
         {error?.fieldErrors && Object.keys(error.fieldErrors).length > 0 ? (
           <ul className="admin-editor-error-list" data-testid="service-form-field-errors">
             {Object.entries(error.fieldErrors).map(([field, message]) => (
-              <li key={field}>{field}: {message}</li>
+              <li key={field}>
+                <button data-testid={`button-service-error-${field}`} onClick={() => focusServiceFieldError(field)} type="button">
+                  {serviceFieldLabels[field]?.label ?? "Thông tin dịch vụ"}: {message}
+                </button>
+              </li>
             ))}
           </ul>
         ) : null}
 
-        <div className="admin-haravan-grid">
-          {/* CỘT CHÍNH (Trái) */}
-          <div className="admin-haravan-main">
-            {/* Card 1: Thông tin chung */}
-            <div className="admin-haravan-card">
-              <h3 className="admin-haravan-card-title">Thông tin chung</h3>
-              <label className="admin-field">
-                <span>Tên dịch vụ <b aria-hidden="true">*</b></span>
-                <input
-                  className="admin-input"
-                  data-testid="input-service-name"
-                  disabled={saving}
-                  onChange={(event) => {
-                    const newName = event.target.value;
-                    if (!form.id && (!form.slug || form.slug === toSlug(form.name))) {
-                      onChange({ ...form, name: newName, slug: toSlug(newName) });
-                    } else {
-                      update("name", newName);
-                    }
-                  }}
-                  placeholder="Ví dụ: Gia công chi tiết máy CNC, Ép nhựa kỹ thuật..."
-                  required
-                  style={{ fontSize: 15, fontWeight: 500 }}
-                  value={form.name}
-                />
-              </label>
+        {/* Progressive Form Disclosure Tabs */}
+        <div className="admin-form-tabs" role="tablist" aria-label="Phân nhóm thông tin dịch vụ">
+          <button
+            type="button"
+            role="tab"
+            id="service-tab-btn-general"
+            aria-controls="service-tab-panel-general"
+            aria-selected={activeTab === "general"}
+            tabIndex={activeTab === "general" ? 0 : -1}
+            className={`admin-form-tab ${activeTab === "general" ? "is-active" : ""}`}
+            onClick={() => setActiveTab("general")}
+            onKeyDown={handleEditorTabKeyDown}
+          >
+            <FileText size={15} />
+            <span>Thông tin chung</span>
+          </button>
+          <button
+            type="button"
+            role="tab"
+            id="service-tab-btn-offerings"
+            aria-controls="service-tab-panel-offerings"
+            aria-selected={activeTab === "offerings"}
+            tabIndex={activeTab === "offerings" ? 0 : -1}
+            className={`admin-form-tab ${activeTab === "offerings" ? "is-active" : ""}`}
+            onClick={() => setActiveTab("offerings")}
+            onKeyDown={handleEditorTabKeyDown}
+          >
+            <ListTree size={15} />
+            <span>Dịch vụ con & Quy cách</span>
+          </button>
+          <button
+            type="button"
+            role="tab"
+            id="service-tab-btn-media"
+            aria-controls="service-tab-panel-media"
+            aria-selected={activeTab === "media_cta"}
+            tabIndex={activeTab === "media_cta" ? 0 : -1}
+            className={`admin-form-tab ${activeTab === "media_cta" ? "is-active" : ""}`}
+            onClick={() => { setActiveTab("media_cta"); setMediaTabOpened(true); }}
+            onKeyDown={handleEditorTabKeyDown}
+          >
+            <ImageIcon size={15} />
+            <span>Ảnh & Liên hệ</span>
+          </button>
+        </div>
 
-              <label className="admin-field">
-                <span>Đường dẫn (slug) <b aria-hidden="true">*</b></span>
-                <input
-                  className="admin-input admin-mono"
-                  data-testid="input-service-slug"
-                  disabled={saving}
-                  onChange={(event) => update("slug", event.target.value)}
-                  placeholder="gia-cong-chi-tiet-may-cnc"
-                  required
-                  value={form.slug}
-                />
-              </label>
-
-              <label className="admin-field">
-                <span>Tóm tắt dịch vụ</span>
-                <textarea
-                  className="admin-textarea"
-                  data-testid="input-service-summary"
-                  disabled={saving}
-                  onChange={(event) => update("summary", event.target.value)}
-                  placeholder="Mô tả súc tích về năng lực sản xuất, quy mô máy móc và thế mạnh của dịch vụ này..."
-                  rows={3}
-                  value={form.summary}
-                />
-              </label>
-
-              <label className="admin-field">
-                <span>Mô tả chi tiết</span>
-                <textarea
-                  className="admin-textarea"
-                  data-testid="input-service-description"
-                  disabled={saving}
-                  onChange={(event) => update("description", event.target.value)}
-                  placeholder="Chi tiết công nghệ, quy trình sản xuất, tiêu chuẩn nghiệm thu và năng lực xuất khẩu..."
-                  rows={6}
-                  value={form.description}
-                />
-              </label>
-            </div>
-
-            {/* Card 2: Nhóm dịch vụ & Năng lực */}
-            <div className="admin-haravan-card">
-              <h3 className="admin-haravan-card-title">Dịch vụ con trong nhóm & Quy chuẩn</h3>
-              <div className="admin-field">
-                <div style={{ alignItems: "center", display: "flex", justifyContent: "space-between", marginBottom: 10 }}>
-                  <span style={{ fontWeight: 600 }}>Dịch vụ con trong nhóm ({parsedOfferingRows.length})</span>
-                  <button
-                    className="admin-button admin-button-quiet"
-                    disabled={saving}
-                    onClick={addOfferingRow}
-                    style={{ fontSize: 12, padding: "2px 8px" }}
-                    type="button"
-                  >
-                    + Thêm dòng dịch vụ con
-                  </button>
-                </div>
-                {parsedOfferingRows.length === 0 ? (
-                  <div style={{ background: "#f8faf8", border: "1px dashed var(--admin-border, #dce3dc)", borderRadius: 6, padding: "14px", textAlign: "center" }}>
-                    <p style={{ color: "var(--admin-text-subtle)", fontSize: 13, margin: "0 0 8px" }}>Chưa có dịch vụ con nào trong nhóm năng lực này.</p>
-                    <button className="admin-button admin-button-quiet" disabled={saving} onClick={addOfferingRow} style={{ fontSize: 12 }} type="button">+ Thêm dịch vụ con đầu tiên</button>
-                  </div>
-                ) : (
-                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                    {parsedOfferingRows.map((row, idx) => (
-                      <div key={idx} style={{ alignItems: "center", display: "grid", gap: 8, gridTemplateColumns: "1fr 1fr auto" }}>
-                        <input
-                          className="admin-input"
-                          disabled={saving}
-                          onChange={(e) => updateOfferingRow(idx, "name", e.target.value)}
-                          placeholder="Tên dịch vụ con (VD: Phay CNC 4 trục)"
-                          value={row.name}
-                        />
-                        <input
-                          className="admin-input admin-mono"
-                          disabled={saving}
-                          onChange={(e) => updateOfferingRow(idx, "path", e.target.value)}
-                          placeholder="Đường dẫn (VD: /dich-vu/phay-cnc/)"
-                          value={row.path}
-                        />
-                        <button
-                          className="admin-button admin-button-quiet admin-button-danger"
-                          disabled={saving}
-                          onClick={() => removeOfferingRow(idx)}
-                          style={{ minHeight: 34, padding: "0 8px" }}
-                          title="Xóa dòng này"
-                          type="button"
-                        >
-                          ✕
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-                <details style={{ marginTop: 12 }}>
-                  <summary style={{ color: "var(--admin-text-subtle)", cursor: "pointer", fontSize: 12 }}>
-                    Chỉnh sửa nhanh dạng văn bản (Tên | /đường-dẫn/)
-                  </summary>
-                  <textarea
-                    className="admin-textarea admin-mono"
-                    data-testid="input-service-offerings"
-                    disabled={saving}
-                    onChange={(event) => update("offeringsText", event.target.value)}
-                    placeholder={"Phay CNC 4-5 trục | /dich-vu/phay-cnc/\nTiện CNC chính xác | /dich-vu/tien-cnc/\nCắt dây EDM | /dich-vu/cat-day-edm/"}
-                    rows={4}
-                    style={{ marginTop: 6 }}
-                    value={form.offeringsText}
-                  />
-                </details>
-              </div>
-
-              <div style={{ display: "grid", gap: 16, gridTemplateColumns: "1fr 1fr", marginTop: 12 }}>
+        {/* TAB 1: Thông tin chung */}
+        <div
+          role="tabpanel"
+          id="service-tab-panel-general"
+          aria-labelledby="service-tab-btn-general"
+          className={`admin-form-tab-panel ${activeTab === "general" ? "is-active" : "is-hidden"}`}
+          style={{ display: activeTab === "general" ? "block" : "none" }}
+        >
+          <div className="admin-haravan-grid">
+            {/* Cột chính: Tên, slug, tóm tắt, mô tả */}
+            <div className="admin-haravan-main">
+              <div className="admin-haravan-card">
+                <h3 className="admin-haravan-card-title">Thông tin chung</h3>
                 <label className="admin-field">
-                  <span>Số lượng tối thiểu (MOQ)</span>
+                  <span>Tên dịch vụ <b aria-hidden="true">*</b></span>
                   <input
                     className="admin-input"
-                    data-testid="input-service-moq"
+                    data-testid="input-service-name"
                     disabled={saving}
-                    onChange={(event) => update("moqSummary", event.target.value)}
-                    placeholder="Ví dụ: từ 100 chiếc / mẻ"
-                    value={form.moqSummary}
+                    onChange={(event) => {
+                      const newName = event.target.value;
+                      if (!form.id && (!form.slug || form.slug === toSlug(form.name))) {
+                        onChange({ ...form, name: newName, slug: toSlug(newName) });
+                      } else {
+                        update("name", newName);
+                      }
+                    }}
+                    placeholder="Ví dụ: Gia công chi tiết máy CNC, Ép nhựa kỹ thuật..."
+                    required
+                    style={{ fontSize: 15, fontWeight: 500 }}
+                    value={form.name}
                   />
                 </label>
 
                 <label className="admin-field">
-                  <span>Thời gian làm hàng (ngày)</span>
+                  <span>Đường dẫn (slug) <b aria-hidden="true">*</b></span>
                   <input
                     className="admin-input admin-mono"
-                    data-testid="input-service-lead-time"
+                    data-testid="input-service-slug"
+                    disabled={saving}
+                    onChange={(event) => update("slug", event.target.value)}
+                    placeholder="gia-cong-chi-tiet-may-cnc"
+                    required
+                    value={form.slug}
+                  />
+                </label>
+
+                <label className="admin-field">
+                  <span>Tóm tắt dịch vụ</span>
+                  <textarea
+                    className="admin-textarea"
+                    data-testid="input-service-summary"
+                    disabled={saving}
+                    onChange={(event) => update("summary", event.target.value)}
+                    placeholder="Mô tả súc tích về năng lực sản xuất, quy mô máy móc và thế mạnh của dịch vụ này..."
+                    rows={3}
+                    value={form.summary}
+                  />
+                </label>
+
+                <label className="admin-field">
+                  <span>Mô tả chi tiết</span>
+                  <textarea
+                    className="admin-textarea"
+                    data-testid="input-service-description"
+                    disabled={saving}
+                    onChange={(event) => update("description", event.target.value)}
+                    placeholder="Chi tiết công nghệ, quy trình sản xuất, tiêu chuẩn nghiệm thu và năng lực xuất khẩu..."
+                    rows={6}
+                    value={form.description}
+                  />
+                </label>
+              </div>
+            </div>
+
+            {/* Cột phụ: Trạng thái, Sắp xếp */}
+            <div className="admin-haravan-sidebar">
+              <div className="admin-haravan-card">
+                <h3 className="admin-haravan-card-title">Trạng thái & Hiển thị</h3>
+                <label className="admin-field">
+                  <span>Trạng thái phát hành</span>
+                  <select
+                    className="admin-select"
+                    data-testid="select-service-status"
+                    disabled={saving}
+                    onChange={(event) => {
+                      const status = event.target.value as ServiceFormState["status"];
+                      onChange({
+                        ...form,
+                        isActive: status === "published" ? form.isActive : false,
+                        status,
+                      });
+                    }}
+                    value={form.status}
+                  >
+                    <option value="draft">Bản nháp</option>
+                    <option value="review">Chờ duyệt</option>
+                    <option disabled={!form.id} value="published">Đã xuất bản</option>
+                    <option value="archived">Lưu trữ</option>
+                  </select>
+                  {!form.id ? <small className="admin-field-hint">Lưu bản nháp trước rồi mới xuất bản dịch vụ.</small> : null}
+                </label>
+
+                <div style={{ marginTop: 14, paddingTop: 14, borderTop: "1px solid var(--admin-border, #dce3dc)" }}>
+                  <label className="admin-check">
+                    <input
+                      checked={form.isActive}
+                      data-testid="checkbox-service-active"
+                      disabled={saving || form.status !== "published"}
+                      onChange={(event) => {
+                        const active = event.target.checked;
+                        onChange({ ...form, isActive: active });
+                      }}
+                      type="checkbox"
+                    />
+                    <span>
+                      <strong>Hiển thị trên website</strong>
+                      <small>{form.status !== "published" ? "Chỉ dịch vụ đã xuất bản mới có thể hiển thị." : form.isActive ? "Dịch vụ đang hiển thị công khai." : "Đã xuất bản nhưng đang ẩn khỏi website."}</small>
+                    </span>
+                  </label>
+                </div>
+              </div>
+
+              <div className="admin-haravan-card">
+                <h3 className="admin-haravan-card-title">Thứ tự hiển thị</h3>
+                <label className="admin-field">
+                  <span>Thứ tự nhóm</span>
+                  <input
+                    className="admin-input admin-mono"
+                    data-testid="input-service-sort-order"
                     disabled={saving}
                     inputMode="numeric"
                     min="0"
-                    onChange={(event) => update("leadTimeDays", event.target.value)}
-                    placeholder="7"
+                    onChange={(event) => update("sortOrder", event.target.value)}
                     type="number"
-                    value={form.leadTimeDays}
+                    value={form.sortOrder}
                   />
+                  <small className="admin-item-meta">Số nhỏ hơn sẽ hiển thị trước ngoài danh mục dịch vụ.</small>
                 </label>
-              </div>
-            </div>
-
-            {/* Card 3: Ảnh chính */}
-            <div className="admin-haravan-card">
-              <div style={{ alignItems: "center", display: "flex", flexWrap: "wrap", gap: 8, justifyContent: "space-between", marginBottom: 12 }}>
-                <h3 className="admin-haravan-card-title" style={{ margin: 0 }}>Ảnh chính dịch vụ</h3>
-                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                  <input
-                    accept="image/jpeg,image/png,image/webp"
-                    disabled={saving || uploadingImage}
-                    onChange={handleDirectImageUpload}
-                    ref={fileInputRef}
-                    style={{ display: "none" }}
-                    type="file"
-                  />
-                  <button
-                    className="admin-button admin-button-quiet"
-                    disabled={saving || uploadingImage}
-                    onClick={() => {
-                      if (!form.id) {
-                        showToast("info", "Hãy lưu bản nháp dịch vụ trước khi tải ảnh từ máy tính.");
-                        return;
-                      }
-                      fileInputRef.current?.click();
-                    }}
-                    style={{ fontSize: 12 }}
-                    type="button"
-                  >
-                    {uploadingImage ? "Đang tải ảnh..." : "Tải ảnh từ máy tính"}
-                  </button>
-                </div>
-              </div>
-              <div className="admin-item-meta" data-testid="service-main-image">
-                <label className="admin-field" style={{ marginBottom: 12 }}>
-                  <span>Đường dẫn ảnh</span>
-                  <div className="admin-input-actions">
-                    <input
-                      className="admin-input"
-                      disabled={saving}
-                      onChange={(event) => update("imageUrl", event.target.value)}
-                      placeholder="/media/services/... hoặc https://..."
-                      value={form.imageUrl}
-                    />
-                  </div>
-                </label>
-                <div
-                  className={`admin-image-preview ${isDragging ? "admin-image-preview-dragover" : ""}`}
-                  onDragEnter={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    setIsDragging(true);
-                  }}
-                  onDragLeave={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    setIsDragging(false);
-                  }}
-                  onDragOver={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                  }}
-                  onDrop={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    setIsDragging(false);
-                    const droppedFile = e.dataTransfer.files?.[0];
-                    if (droppedFile) {
-                      void uploadServiceFile(droppedFile);
-                    }
-                  }}
-                  style={{
-                    alignItems: "center",
-                    background: isDragging ? "#ecfdf5" : "transparent",
-                    border: isDragging ? "2px dashed #059669" : "1px dashed var(--admin-border, #cbd5e1)",
-                    borderRadius: 8,
-                    display: "flex",
-                    flexDirection: "column",
-                    justifyContent: "center",
-                    minHeight: 100,
-                    padding: 12,
-                    position: "relative",
-                    transition: "all 0.2s ease",
-                  }}
-                >
-                  {form.imageUrl ? (
-                    <div style={{ alignItems: "center", display: "flex", gap: 14 }}>
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        alt="Ảnh chính dịch vụ"
-                        src={form.imageUrl}
-                        style={{ borderRadius: 8, height: 72, objectFit: "cover", width: 100, border: "1px solid var(--admin-border)" }}
-                      />
-                      <div>
-                        <button
-                          className="admin-button admin-button-quiet admin-button-danger"
-                          data-testid="button-service-clear-image"
-                          onClick={() => update("imageUrl", "")}
-                          type="button"
-                        >
-                          Gỡ ảnh chính
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <p style={{ color: "var(--admin-text-subtle)", fontSize: 13, margin: 0, textAlign: "center" }}>
-                      {isDragging
-                        ? "Thả file ảnh vào đây để tải lên ngay..."
-                        : "Kéo thả ảnh vào đây, hoặc nhấn \"Tải ảnh từ máy tính\" để làm đại diện cho dịch vụ."}
-                    </p>
-                  )}
-                  {uploadingImage ? (
-                    <div
-                      style={{
-                        alignItems: "center",
-                        background: "rgba(255, 255, 255, 0.88)",
-                        borderRadius: 6,
-                        display: "flex",
-                        gap: 8,
-                        inset: 0,
-                        justifyContent: "center",
-                        position: "absolute",
-                      }}
-                    >
-                      <span style={{ fontSize: 13, fontWeight: 600 }}>Đang tải ảnh lên Cloudflare R2...</span>
-                    </div>
-                  ) : null}
-                </div>
               </div>
             </div>
           </div>
+        </div>
 
-          {/* CỘT PHỤ (Phải) */}
-          <div className="admin-haravan-sidebar">
-            {/* Card 1: Trạng thái & Hiển thị */}
-            <div className="admin-haravan-card">
-              <h3 className="admin-haravan-card-title">Trạng thái & Hiển thị</h3>
-              <label className="admin-field">
-                <span>Trạng thái phát hành</span>
-                <select
-                  className="admin-select"
-                  data-testid="select-service-status"
+        {/* TAB 2: Dịch vụ con & Quy cách */}
+        <div
+          role="tabpanel"
+          id="service-tab-panel-offerings"
+          aria-labelledby="service-tab-btn-offerings"
+          className={`admin-form-tab-panel ${activeTab === "offerings" ? "is-active" : "is-hidden"}`}
+          style={{ display: activeTab === "offerings" ? "block" : "none" }}
+        >
+          <div className="admin-haravan-card">
+            <h3 className="admin-haravan-card-title">Dịch vụ con trong nhóm & Quy chuẩn</h3>
+            <div className="admin-field">
+              <div style={{ alignItems: "center", display: "flex", justifyContent: "space-between", marginBottom: 10 }}>
+                <span style={{ fontWeight: 600 }}>Dịch vụ con trong nhóm ({parsedOfferingRows.length})</span>
+                <button
+                  className="admin-button admin-button-quiet"
                   disabled={saving}
-                  onChange={(event) => {
-                    const status = event.target.value as ServiceFormState["status"];
-                    onChange({
-                      ...form,
-                      isActive: status === "published" ? true : false,
-                      status,
-                    });
-                  }}
-                  value={form.status}
+                  onClick={addOfferingRow}
+                  style={{ fontSize: 12, padding: "2px 8px" }}
+                  type="button"
                 >
-                  <option value="draft">Bản nháp</option>
-                  <option value="review">Chờ duyệt</option>
-                  <option value="published">Đã xuất bản</option>
-                  <option value="archived">Lưu trữ</option>
-                </select>
-              </label>
-
-              <div style={{ marginTop: 14, paddingTop: 14, borderTop: "1px solid var(--admin-border, #dce3dc)" }}>
-                <label className="admin-check">
-                  <input
-                    checked={form.isActive}
-                    data-testid="checkbox-service-active"
-                    disabled={saving}
-                    onChange={(event) => {
-                      const active = event.target.checked;
-                      onChange({
-                        ...form,
-                        isActive: active,
-                        status: active ? "published" : form.status === "published" ? "draft" : form.status,
-                      });
-                    }}
-                    type="checkbox"
-                  />
-                  <span>
-                    <strong>Hiển thị trên website</strong>
-                    <small>{form.isActive ? "Khách hàng ngoài website có thể xem dịch vụ này." : "Dịch vụ đang ẩn hoặc ở trạng thái nháp."}</small>
-                  </span>
-                </label>
+                  + Thêm dịch vụ con
+                </button>
               </div>
+              {parsedOfferingRows.length === 0 ? (
+                <div style={{ background: "#f8faf8", border: "1px dashed var(--admin-border, #dce3dc)", borderRadius: 6, padding: "14px", textAlign: "center" }}>
+                  <p style={{ color: "var(--admin-text-subtle)", fontSize: 13, margin: "0 0 8px" }}>Chưa có dịch vụ con nào trong nhóm năng lực này.</p>
+                </div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  {parsedOfferingRows.map((row, idx) => (
+                    <div key={idx} style={{ alignItems: "center", display: "grid", gap: 8, gridTemplateColumns: "1fr 1fr auto" }}>
+                      <input
+                        className="admin-input"
+                        disabled={saving}
+                        onChange={(e) => updateOfferingRow(idx, "name", e.target.value)}
+                        placeholder="Tên dịch vụ con (VD: Phay CNC 4 trục)"
+                        value={row.name}
+                      />
+                      <input
+                        className="admin-input admin-mono"
+                        disabled={saving}
+                        onChange={(e) => updateOfferingRow(idx, "path", e.target.value)}
+                        placeholder="Đường dẫn (VD: /dich-vu/phay-cnc/)"
+                        value={row.path}
+                      />
+                      <button
+                        className="admin-button admin-button-quiet admin-button-danger"
+                        disabled={saving}
+                        onClick={() => removeOfferingRow(idx)}
+                        style={{ minHeight: 34, padding: "0 8px" }}
+                        title="Xóa dòng này"
+                        type="button"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <details style={{ marginTop: 12 }}>
+                <summary style={{ color: "var(--admin-text-subtle)", cursor: "pointer", fontSize: 12 }}>
+                  Chỉnh sửa nhanh dạng văn bản (Tên | /đường-dẫn/)
+                </summary>
+                <textarea
+                  className="admin-textarea admin-mono"
+                  data-testid="input-service-offerings"
+                  disabled={saving}
+                  onChange={(event) => update("offeringsText", event.target.value)}
+                  placeholder={"Phay CNC 4-5 trục | /dich-vu/phay-cnc/\nTiện CNC chính xác | /dich-vu/tien-cnc/\nCắt dây EDM | /dich-vu/cat-day-edm/"}
+                  rows={4}
+                  style={{ marginTop: 6 }}
+                  value={form.offeringsText}
+                />
+              </details>
             </div>
 
-            {/* Card 2: Nút kêu gọi hành động (CTA) */}
-            <div className="admin-haravan-card">
-              <h3 className="admin-haravan-card-title">Nút kêu gọi hành động (CTA)</h3>
+            <div style={{ display: "grid", gap: 16, gridTemplateColumns: "1fr 1fr", marginTop: 16, paddingTop: 16, borderTop: "1px solid var(--admin-border, #dce3dc)" }}>
               <label className="admin-field">
-                <span>Nhãn nút liên hệ</span>
+                <span>Số lượng tối thiểu (MOQ)</span>
                 <input
                   className="admin-input"
-                  data-testid="input-service-cta-label"
+                  data-testid="input-service-moq"
                   disabled={saving}
-                  onChange={(event) => update("ctaLabel", event.target.value)}
-                  placeholder="Liên hệ tư vấn"
-                  value={form.ctaLabel}
+                  onChange={(event) => update("moqSummary", event.target.value)}
+                  placeholder="Ví dụ: từ 100 chiếc / mẻ"
+                  value={form.moqSummary}
                 />
               </label>
 
               <label className="admin-field">
-                <span>Đường dẫn nút liên hệ</span>
+                <span>Thời gian làm hàng (ngày)</span>
                 <input
                   className="admin-input admin-mono"
-                  data-testid="input-service-cta-href"
-                  disabled={saving}
-                  onChange={(event) => update("ctaHref", event.target.value)}
-                  placeholder="/lien-he/?service=..."
-                  value={form.ctaHref}
-                />
-              </label>
-            </div>
-
-            {/* Card 3: Sắp xếp */}
-            <div className="admin-haravan-card">
-              <h3 className="admin-haravan-card-title">Thứ tự hiển thị</h3>
-              <label className="admin-field">
-                <span>Thứ tự nhóm</span>
-                <input
-                  className="admin-input admin-mono"
-                  data-testid="input-service-sort-order"
+                  data-testid="input-service-lead-time"
                   disabled={saving}
                   inputMode="numeric"
                   min="0"
-                  onChange={(event) => update("sortOrder", event.target.value)}
+                  onChange={(event) => update("leadTimeDays", event.target.value)}
+                  placeholder="7"
                   type="number"
-                  value={form.sortOrder}
+                  value={form.leadTimeDays}
                 />
-                <small className="admin-item-meta">Số nhỏ hơn sẽ hiển thị trước ngoài danh mục dịch vụ.</small>
               </label>
             </div>
           </div>
         </div>
 
-        {/* Footer actions */}
-        <div className="admin-editor-footer" style={{ marginTop: 24 }}>
-          <span className="admin-item-meta">
-            {form.id ? `Mã dịch vụ #${form.id} · Cập nhật theo thời gian thực` : "Bản ghi dịch vụ mới chưa lưu"}
-          </span>
-          <div className="admin-editor-actions">
-            <button
-              className="admin-button admin-button-quiet"
-              data-testid="button-service-cancel"
-              disabled={saving}
-              onClick={onCancel}
-              type="button"
-            >
-              Hủy
-            </button>
-            <button
-              className="admin-button admin-button-primary"
-              data-testid="button-service-save"
-              disabled={saving}
-              type="submit"
-            >
-              {saving ? "Đang lưu..." : "Lưu dịch vụ"}
-            </button>
+        {/* TAB 3: Hình ảnh & Kêu gọi hành động */}
+        <div
+          role="tabpanel"
+          id="service-tab-panel-media"
+          aria-labelledby="service-tab-btn-media"
+          className={`admin-form-tab-panel ${activeTab === "media_cta" ? "is-active" : "is-hidden"}`}
+          style={{ display: activeTab === "media_cta" ? "block" : "none" }}
+        >
+          <div className="admin-haravan-card">
+            <div style={{ alignItems: "center", display: "flex", flexWrap: "wrap", gap: 8, justifyContent: "space-between", marginBottom: 12 }}>
+              <h3 className="admin-haravan-card-title" style={{ margin: 0 }}>Ảnh chính dịch vụ</h3>
+              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                <input
+                  accept="image/jpeg,image/png,image/webp"
+                  disabled={saving || uploadingImage}
+                  onChange={handleDirectImageUpload}
+                  ref={fileInputRef}
+                  style={{ display: "none" }}
+                  type="file"
+                />
+                <button
+                  className="admin-button admin-button-quiet"
+                  disabled={saving || uploadingImage}
+                  onClick={() => {
+                    if (!form.id) {
+                      showToast("info", "Hãy lưu bản nháp dịch vụ trước khi tải ảnh từ máy tính.");
+                      return;
+                    }
+                    fileInputRef.current?.click();
+                  }}
+                  style={{ fontSize: 12 }}
+                  type="button"
+                >
+                  {uploadingImage ? "Đang tải ảnh..." : "Tải ảnh từ máy tính"}
+                </button>
+              </div>
+            </div>
+            <div className="admin-item-meta" data-testid="service-main-image">
+              <label className="admin-field" style={{ marginBottom: 12 }}>
+                <span>Đường dẫn ảnh</span>
+                <div className="admin-input-actions">
+                  <input
+                    className="admin-input"
+                    data-testid="input-service-image"
+                    disabled={saving}
+                    onChange={(event) => update("imageUrl", event.target.value)}
+                    placeholder="/media/services/... hoặc https://..."
+                    value={form.imageUrl}
+                  />
+                </div>
+              </label>
+              <div
+                className={`admin-image-preview ${isDragging ? "admin-image-preview-dragover" : ""}`}
+                onDragEnter={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setIsDragging(true);
+                }}
+                onDragLeave={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setIsDragging(false);
+                }}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setIsDragging(false);
+                  const droppedFile = e.dataTransfer.files?.[0];
+                  if (droppedFile) {
+                    void uploadServiceFile(droppedFile);
+                  }
+                }}
+                style={{
+                  alignItems: "center",
+                  background: isDragging ? "#ecfdf5" : "transparent",
+                  border: isDragging ? "2px dashed #059669" : "1px dashed var(--admin-border, #cbd5e1)",
+                  borderRadius: 8,
+                  display: "flex",
+                  flexDirection: "column",
+                  justifyContent: "center",
+                  minHeight: 100,
+                  padding: 12,
+                  position: "relative",
+                  transition: "background-color 0.2s ease, border-color 0.2s ease",
+                }}
+              >
+                {form.imageUrl ? (
+                  <div style={{ alignItems: "center", display: "flex", gap: 14 }}>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      alt="Ảnh chính dịch vụ"
+                      src={form.imageUrl}
+                      style={{ borderRadius: 8, height: 72, objectFit: "cover", width: 100, border: "1px solid var(--admin-border)" }}
+                    />
+                    <div>
+                      <button
+                        className="admin-button admin-button-quiet admin-button-danger"
+                        data-testid="button-service-clear-image"
+                        onClick={() => update("imageUrl", "")}
+                        type="button"
+                      >
+                        Gỡ ảnh chính
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <p style={{ color: "var(--admin-text-subtle)", fontSize: 13, margin: 0, textAlign: "center" }}>
+                    {isDragging
+                      ? "Thả file ảnh vào đây để tải lên ngay..."
+                      : "Kéo thả ảnh vào đây, hoặc nhấn \"Tải ảnh từ máy tính\" để làm đại diện cho dịch vụ."}
+                  </p>
+                )}
+                {uploadingImage ? (
+                  <div
+                    style={{
+                      alignItems: "center",
+                      background: "rgba(255, 255, 255, 0.88)",
+                      borderRadius: 6,
+                      display: "flex",
+                      gap: 8,
+                      inset: 0,
+                      justifyContent: "center",
+                      position: "absolute",
+                    }}
+                  >
+                    <span style={{ fontSize: 13, fontWeight: 600 }}>Đang tải ảnh lên Cloudflare R2...</span>
+                  </div>
+                ) : null}
+              </div>
+            </div>
+          </div>
+
+          <div className="admin-haravan-card">
+            <h3 className="admin-haravan-card-title">Nút kêu gọi hành động (CTA)</h3>
+            <label className="admin-field">
+              <span>Nhãn nút liên hệ</span>
+              <input
+                className="admin-input"
+                data-testid="input-service-cta-label"
+                disabled={saving}
+                onChange={(event) => update("ctaLabel", event.target.value)}
+                placeholder="Liên hệ tư vấn"
+                value={form.ctaLabel}
+              />
+            </label>
+
+            <label className="admin-field">
+              <span>Đường dẫn nút liên hệ</span>
+              <input
+                className="admin-input admin-mono"
+                data-testid="input-service-cta-href"
+                disabled={saving}
+                onChange={(event) => update("ctaHref", event.target.value)}
+                placeholder="/lien-he/?service=..."
+                value={form.ctaHref}
+              />
+            </label>
+          </div>
+          {form.id && mediaTabOpened ? <AdminMediaPanel serviceId={form.id} title="Ảnh dịch vụ và hồ sơ năng lực" /> : null}
+        </div>
+
+        {/* Floating Sticky Action Bar */}
+        <div
+          className={`admin-floating-action-bar ${isDirty ? "is-dirty" : ""}`}
+          role="region"
+          aria-label="Thao tác lưu dịch vụ"
+        >
+          <div className="admin-floating-action-bar-inner">
+            <div className="admin-floating-action-bar-info">
+              {isDirty ? (
+                <span className="admin-floating-dirty-indicator">
+                  <span className="admin-floating-dirty-dot" aria-hidden="true" />
+                  Có thay đổi chưa lưu
+                </span>
+              ) : (
+                <span className="admin-floating-clean-indicator">
+                  {form.id ? `Dịch vụ #${form.id}` : "Bản ghi dịch vụ mới"} · Đã đồng bộ
+                </span>
+              )}
+            </div>
+            <div className="admin-floating-action-bar-actions">
+              <button
+                className="admin-button admin-button-primary"
+                data-testid="button-service-save"
+                disabled={saving}
+                type="submit"
+              >
+                {saving ? "Đang lưu..." : "Lưu dịch vụ"}
+              </button>
+            </div>
           </div>
         </div>
       </form>
