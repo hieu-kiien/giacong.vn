@@ -148,15 +148,34 @@ function catalogProductSlug(pathname: string): string | null {
   }
 }
 
-async function isPublicCatalogProduct(database: CatalogDatabase, slug: string): Promise<boolean | null> {
+async function getPublicCatalogProductTarget(database: CatalogDatabase, slug: string): Promise<string | null | undefined> {
   try {
-    const row = await database.prepare(
-      "SELECT id FROM products WHERE slug = ? AND is_active = 1 LIMIT 1",
-    ).bind(slug).first<{ id: number }>();
-    return row !== null;
+    const row = await database.prepare(`
+      SELECT products.slug AS slug
+      FROM products
+      LEFT JOIN product_slug_redirects
+        ON product_slug_redirects.product_id = products.id
+        AND product_slug_redirects.old_slug = ?
+      WHERE products.is_active = 1
+        AND (products.slug = ? OR product_slug_redirects.old_slug = ?)
+      ORDER BY CASE WHEN products.slug = ? THEN 0 ELSE 1 END
+      LIMIT 1
+    `).bind(slug, slug, slug, slug).first<{ slug: string }>();
+    return row?.slug ?? null;
   } catch (error) {
-    console.error("Catalog visibility lookup failed.", error);
-    return null;
+    try {
+      // Older databases may not have the additive redirect table yet.
+      const row = await database.prepare(
+        "SELECT slug FROM products WHERE slug = ? AND is_active = 1 LIMIT 1",
+      ).bind(slug).first<{ slug: string }>();
+      return row?.slug ?? null;
+    } catch (fallbackError) {
+      console.error("Catalog visibility lookup failed.", {
+        error,
+        fallbackError,
+      });
+      return undefined;
+    }
   }
 }
 
@@ -170,15 +189,26 @@ async function withCatalogProductNotFoundStatus(
   const slug = catalogProductSlug(new URL(request.url).pathname);
   if (!slug || !env.GIACONG_VN_CATALOG) return response;
 
-  const isPublic = await isPublicCatalogProduct(env.GIACONG_VN_CATALOG, slug);
-  if (isPublic !== false) return response;
+  const targetSlug = await getPublicCatalogProductTarget(env.GIACONG_VN_CATALOG, slug);
+  if (targetSlug === undefined) return response;
+  if (targetSlug === null) {
+    const headers = new Headers(response.headers);
+    return new Response(response.body, {
+      headers,
+      status: 404,
+      statusText: "Not Found",
+    });
+  }
+  if (targetSlug !== slug) {
+    const location = new URL(request.url);
+    location.pathname = `/san-pham/${encodeURIComponent(targetSlug)}/`;
+    return withIndexingHeaders(
+      request,
+      new Response(null, { headers: { Location: location.toString() }, status: 308 }),
+    );
+  }
 
-  const headers = new Headers(response.headers);
-  return new Response(response.body, {
-    headers,
-    status: 404,
-    statusText: "Not Found",
-  });
+  return response;
 }
 
 const worker = {
@@ -202,6 +232,7 @@ const worker = {
         );
         return checkedDocument;
       }
+      if (checkedDocument.status === 308) return checkedDocument;
       return cachedDocument;
     }
 

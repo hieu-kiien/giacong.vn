@@ -5,6 +5,10 @@ import { ArrowUp, ArrowDown, Image as ImageIcon, Plus, Trash2, CheckCircle2, Sta
 import { useRegisterAdminUnsaved } from "@/components/admin/AdminUnsavedGuard";
 import { useAdminToast } from "@/components/admin/AdminToast";
 import { AdminClientError, fetchAdmin, mutateAdmin } from "@/lib/admin-client";
+import {
+  MAX_PRODUCT_GALLERY_IMAGES,
+  serializeAdminProductGalleryState,
+} from "@/lib/admin-product-gallery-contract";
 
 export interface GalleryImage {
   id?: number;
@@ -15,18 +19,28 @@ export interface GalleryImage {
 
 interface GalleryResponse {
   images: GalleryImage[];
+  revision: number;
 }
 
-export function AdminProductGalleryManager({ productId }: { productId: number }) {
+export function AdminProductGalleryManager({
+  onRevisionChange,
+  productId,
+}: {
+  onRevisionChange: (revision: number) => void;
+  productId: number;
+}) {
   const [images, setImages] = useState<GalleryImage[]>([]);
   const [loadError, setLoadError] = useState(false);
+  const [conflictError, setConflictError] = useState(false);
   const [newImageUrl, setNewImageUrl] = useState("");
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const savedImagesRef = useRef("[]");
+  const savedImagesRef = useRef(serializeAdminProductGalleryState([]));
+  const productRevisionRef = useRef(0);
+  const pendingRequestRef = useRef<{ key: string; requestId: string } | null>(null);
   const { showToast } = useAdminToast();
-  const isDirty = useCallback(() => JSON.stringify(images) !== savedImagesRef.current, [images]);
+  const isDirty = useCallback(() => serializeAdminProductGalleryState(images) !== savedImagesRef.current, [images]);
 
   useRegisterAdminUnsaved(isDirty, saving);
 
@@ -34,10 +48,13 @@ export function AdminProductGalleryManager({ productId }: { productId: number })
     if (!productId) return;
     setLoading(true);
     setLoadError(false);
+    setConflictError(false);
+    pendingRequestRef.current = null;
     try {
       const res = await fetchAdmin<GalleryResponse>(`/api/admin/products/${productId}/gallery`);
       const nextImages = res.images ?? [];
-      savedImagesRef.current = JSON.stringify(nextImages);
+      productRevisionRef.current = res.revision;
+      savedImagesRef.current = serializeAdminProductGalleryState(nextImages);
       setImages(nextImages);
     } catch {
       setLoadError(true);
@@ -52,7 +69,11 @@ export function AdminProductGalleryManager({ productId }: { productId: number })
 
   function handleAddImage(e: React.FormEvent) {
     e.preventDefault();
-    if (loading || loadError) return;
+    if (loading || loadError || saving || uploading) return;
+    if (images.length >= MAX_PRODUCT_GALLERY_IMAGES) {
+      showToast("error", `Thư viện chỉ hỗ trợ tối đa ${MAX_PRODUCT_GALLERY_IMAGES} ảnh.`);
+      return;
+    }
     const trimmed = newImageUrl.trim();
     if (!trimmed) return;
     const isFirst = images.length === 0;
@@ -69,7 +90,11 @@ export function AdminProductGalleryManager({ productId }: { productId: number })
   const [isDragging, setIsDragging] = useState(false);
 
   async function uploadFile(file: File) {
-    if (loading || loadError) return;
+    if (loading || loadError || saving || uploading) return;
+    if (images.length >= MAX_PRODUCT_GALLERY_IMAGES) {
+      showToast("error", `Thư viện chỉ hỗ trợ tối đa ${MAX_PRODUCT_GALLERY_IMAGES} ảnh.`);
+      return;
+    }
     setUploading(true);
     try {
       const form = new FormData();
@@ -83,10 +108,9 @@ export function AdminProductGalleryManager({ productId }: { productId: number })
       });
       const data = await res.json() as { ok?: boolean; data?: { media: { publicUrl: string } }; message?: string };
       if (data.data?.media?.publicUrl) {
-        const isFirst = images.length === 0;
         setImages((prev) => [
           ...prev,
-          { imageUrl: data.data!.media.publicUrl, sortOrder: prev.length, isPrimary: isFirst }
+          { imageUrl: data.data!.media.publicUrl, sortOrder: prev.length, isPrimary: prev.length === 0 }
         ]);
         showToast("success", "Đã tải ảnh lên bộ sưu tập thành công!");
       } else {
@@ -108,7 +132,7 @@ export function AdminProductGalleryManager({ productId }: { productId: number })
   }
 
   function handleSetPrimary(index: number) {
-    if (loading || loadError) return;
+    if (loading || loadError || saving || uploading) return;
     setImages((prev) =>
       prev.map((img, idx) => ({
         ...img,
@@ -119,7 +143,7 @@ export function AdminProductGalleryManager({ productId }: { productId: number })
   }
 
   function handleRemoveImage(index: number) {
-    if (loading || loadError) return;
+    if (loading || loadError || saving || uploading) return;
     setImages((prev) => {
       const next = prev.filter((_, idx) => idx !== index);
       // If we removed the primary image, make the first one primary
@@ -132,7 +156,7 @@ export function AdminProductGalleryManager({ productId }: { productId: number })
   }
 
   function handleMove(index: number, direction: "up" | "down") {
-    if (loading || loadError) return;
+    if (loading || loadError || saving || uploading) return;
     const targetIndex = direction === "up" ? index - 1 : index + 1;
     if (targetIndex < 0 || targetIndex >= images.length) return;
     setImages((prev) => {
@@ -145,16 +169,31 @@ export function AdminProductGalleryManager({ productId }: { productId: number })
   }
 
   async function handleSaveGallery() {
-    if (loading || loadError) return;
+    if (loading || loadError || saving || uploading) return;
     setSaving(true);
+    const imagesToSave = images.map(({ imageUrl, isPrimary }) => ({ imageUrl, isPrimary }));
+    const key = JSON.stringify({ expectedRevision: productRevisionRef.current, images: imagesToSave });
+    const requestId = pendingRequestRef.current?.key === key
+      ? pendingRequestRef.current.requestId
+      : crypto.randomUUID();
+    pendingRequestRef.current = { key, requestId };
     try {
-      await mutateAdmin(`/api/admin/products/${productId}/gallery`, {
+      const result = await mutateAdmin<GalleryResponse & { replayed: boolean }>(`/api/admin/products/${productId}/gallery`, {
         method: "POST",
-        body: { images },
+        body: { expectedRevision: productRevisionRef.current, images: imagesToSave, requestId },
       });
-      savedImagesRef.current = JSON.stringify(images);
+      productRevisionRef.current = result.revision;
+      onRevisionChange(result.revision);
+      setImages(result.images);
+      savedImagesRef.current = serializeAdminProductGalleryState(result.images);
+      pendingRequestRef.current = null;
+      setConflictError(false);
       showToast("success", "Đã lưu bộ sưu tập ảnh thành công!");
     } catch (err) {
+      if (err instanceof AdminClientError && (err.code === "STALE_WRITE" || err.code === "IDEMPOTENCY_CONFLICT")) {
+        setConflictError(true);
+        pendingRequestRef.current = null;
+      }
       const message = err instanceof AdminClientError ? err.message : "Không thể lưu bộ sưu tập ảnh. Hãy thử lại.";
       showToast("error", message);
     } finally {
@@ -168,16 +207,16 @@ export function AdminProductGalleryManager({ productId }: { productId: number })
         <div>
           <div className="admin-kicker">Đa phương tiện</div>
           <h3 className="admin-panel-title" id="gallery-manager-heading">Thư viện ảnh sản phẩm (Gallery)</h3>
-          <p className="admin-panel-caption">
-            Quản lý nhiều góc chụp kỹ thuật, chi tiết cơ khí và bản vẽ. Kéo thả hoặc di chuyển để đổi thứ tự.
+          <p className="admin-panel-caption" aria-live="polite">
+            Quản lý nhiều góc chụp kỹ thuật, chi tiết cơ khí và bản vẽ. Kéo thả hoặc di chuyển để đổi thứ tự. {images.length}/{MAX_PRODUCT_GALLERY_IMAGES} ảnh.
           </p>
         </div>
-        {images.length > 0 ? (
+        {images.length > 0 || isDirty() ? (
           <button
             type="button"
             className="admin-button admin-button-primary"
             onClick={handleSaveGallery}
-            disabled={loading || loadError || saving}
+            disabled={loading || loadError || saving || uploading}
           >
             <CheckCircle2 size={14} /> {saving ? "Đang lưu..." : "Lưu bộ ảnh"}
           </button>
@@ -193,6 +232,15 @@ export function AdminProductGalleryManager({ productId }: { productId: number })
         </div>
       ) : null}
 
+      {conflictError ? (
+        <div role="alert" className="admin-field-error" style={{ alignItems: "center", display: "flex", gap: 10, margin: "8px 0 12px" }}>
+          <span>Sản phẩm đã được cập nhật ở phiên khác. Thay đổi của bạn vẫn đang được giữ ở đây.</span>
+          <button type="button" className="admin-button admin-button-quiet" onClick={() => void loadGallery()}>
+            Tải bản mới nhất
+          </button>
+        </div>
+      ) : null}
+
       {/* Add Image Form */}
       <div style={{ display: "flex", gap: 8, marginTop: 12, marginBottom: 16, flexWrap: "wrap", alignItems: "center" }}>
         <form onSubmit={handleAddImage} style={{ display: "flex", gap: 8, flex: 1, minWidth: 260 }}>
@@ -202,16 +250,16 @@ export function AdminProductGalleryManager({ productId }: { productId: number })
             placeholder="Nhập URL ảnh kỹ thuật hoặc bản vẽ..."
             value={newImageUrl}
             onChange={(e) => setNewImageUrl(e.target.value)}
-            disabled={loading || loadError}
+            disabled={loading || loadError || saving || uploading}
             style={{ flex: 1 }}
           />
-          <button type="submit" className="admin-button admin-button-quiet" disabled={loading || loadError || !newImageUrl.trim()}>
+          <button type="submit" className="admin-button admin-button-quiet" disabled={loading || loadError || saving || uploading || images.length >= MAX_PRODUCT_GALLERY_IMAGES || !newImageUrl.trim()}>
             <Plus size={14} /> Thêm qua URL
           </button>
         </form>
         <label
           className="admin-button admin-button-primary"
-          style={{ cursor: uploading || loading || loadError ? "not-allowed" : "pointer", display: "inline-flex", alignItems: "center", gap: 6 }}
+          style={{ cursor: uploading || loading || loadError || saving || images.length >= MAX_PRODUCT_GALLERY_IMAGES ? "not-allowed" : "pointer", display: "inline-flex", alignItems: "center", gap: 6 }}
         >
           {uploading ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
           <span>{uploading ? "Đang tải lên..." : "Tải từ máy tính"}</span>
@@ -220,7 +268,7 @@ export function AdminProductGalleryManager({ productId }: { productId: number })
             accept="image/*"
             style={{ display: "none" }}
             onChange={handleDirectFileUpload}
-            disabled={uploading || loading || loadError}
+            disabled={uploading || loading || loadError || saving || images.length >= MAX_PRODUCT_GALLERY_IMAGES}
           />
         </label>
       </div>
@@ -230,7 +278,7 @@ export function AdminProductGalleryManager({ productId }: { productId: number })
         onDragEnter={(e) => {
           e.preventDefault();
           e.stopPropagation();
-          if (loading || loadError) return;
+          if (loading || loadError || saving || uploading || images.length >= MAX_PRODUCT_GALLERY_IMAGES) return;
           setIsDragging(true);
         }}
         onDragLeave={(e) => {
@@ -246,7 +294,7 @@ export function AdminProductGalleryManager({ productId }: { productId: number })
           e.preventDefault();
           e.stopPropagation();
           setIsDragging(false);
-          if (loading || loadError) return;
+          if (loading || loadError || saving || uploading) return;
           const dropped = e.dataTransfer.files?.[0];
           if (dropped) void uploadFile(dropped);
         }}
@@ -347,7 +395,7 @@ export function AdminProductGalleryManager({ productId }: { productId: number })
                     title="Chuyển lên trước"
                     className="admin-button admin-button-quiet"
                     style={{ padding: "3px 6px" }}
-                    disabled={loading || loadError || saving || idx === 0}
+                    disabled={loading || loadError || saving || uploading || idx === 0}
                     onClick={() => handleMove(idx, "up")}
                   >
                     <ArrowUp size={12} />
@@ -357,7 +405,7 @@ export function AdminProductGalleryManager({ productId }: { productId: number })
                     title="Chuyển xuống sau"
                     className="admin-button admin-button-quiet"
                     style={{ padding: "3px 6px" }}
-                    disabled={loading || loadError || saving || idx === images.length - 1}
+                    disabled={loading || loadError || saving || uploading || idx === images.length - 1}
                     onClick={() => handleMove(idx, "down")}
                   >
                     <ArrowDown size={12} />
@@ -371,7 +419,7 @@ export function AdminProductGalleryManager({ productId }: { productId: number })
                       title="Đặt làm ảnh chính"
                       className="admin-button admin-button-quiet"
                       style={{ padding: "3px 6px" }}
-                      disabled={loading || loadError || saving}
+                      disabled={loading || loadError || saving || uploading}
                       onClick={() => handleSetPrimary(idx)}
                     >
                       <Star size={12} />
@@ -382,7 +430,7 @@ export function AdminProductGalleryManager({ productId }: { productId: number })
                     title="Xóa ảnh"
                     className="admin-button admin-button-quiet"
                     style={{ padding: "3px 6px", color: "#dc2626" }}
-                    disabled={loading || loadError || saving}
+                    disabled={loading || loadError || saving || uploading}
                     onClick={() => handleRemoveImage(idx)}
                   >
                     <Trash2 size={12} />

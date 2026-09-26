@@ -25,7 +25,26 @@ test("gallery errors never turn an unknown server state into an empty collection
 
   assert.match(loader, /setLoadError/);
   assert.doesNotMatch(loader, /setImages\(\[\]\)/);
-  assert.match(save, /if \(loading \|\| loadError\) return/);
+  assert.match(save, /if \(loading \|\| loadError \|\| saving \|\| uploading\) return/);
   assert.match(save, /showToast\("error"/);
   assert.doesNotMatch(save, /Đã lưu thư viện ảnh tại giao diện/);
+});
+
+test("gallery can save removal of its last image and the API validates before atomic replacement", async () => {
+  const [component, route] = await Promise.all([
+    readSource("../src/components/admin/AdminProductGalleryManager.tsx"),
+    readSource("../src/app/api/admin/products/[id]/gallery/route.ts"),
+  ]);
+
+  assert.match(component, /images\.length > 0 \|\| isDirty\(\)/);
+  assert.match(component, /expectedRevision: productRevisionRef\.current/);
+  assert.match(component, /pendingRequestRef\.current/);
+  assert.match(component, /Tải bản mới nhất/);
+  assert.match(route, /parseAdminProductGalleryCommand/);
+  assert.match(route, /replaceAdminProductGalleryAtomically/);
+  assert.ok(route.indexOf("command = parseAdminProductGalleryCommand(parsedRequest.body)") < route.indexOf("await replaceAdminProductGalleryAtomically"));
+  assert.match(route, /AdminProductGalleryConflictError[\s\S]*?409, "STALE_WRITE"/);
+  assert.match(route, /AdminProductGalleryIdempotencyConflictError[\s\S]*?409, "IDEMPOTENCY_CONFLICT"/);
+  assert.match(route, /SELECT revision FROM products WHERE id = \? LIMIT 1/);
+  assert.doesNotMatch(route, /DELETE FROM product_gallery_images[\s\S]*for \(let idx = 0; idx < images\.length/);
 });

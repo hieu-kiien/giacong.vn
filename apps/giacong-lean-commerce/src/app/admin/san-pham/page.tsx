@@ -1753,7 +1753,10 @@ function ProductEditor({
                 <span className="admin-field-label" style={{ display: "block", marginBottom: 8 }}>
                   Bộ sưu tập ảnh ({form.name})
                 </span>
-                <AdminProductGalleryManager productId={form.id} />
+                <AdminProductGalleryManager
+                  onRevisionChange={(revision) => onChange({ ...form, revision })}
+                  productId={form.id}
+                />
               </div>
             ) : null}
 

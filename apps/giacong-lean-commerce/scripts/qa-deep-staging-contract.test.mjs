@@ -27,6 +27,17 @@ test("deep staging QA supports the configured Cloudflare Access service token wi
   assert.doesNotMatch(workflow, /echo\s+.*CLOUDFLARE_ACCESS_CLIENT_SECRET/);
 });
 
+test("deep staging QA can target an isolated uploaded preview without changing traffic", async () => {
+  const workflow = await readFile(new URL("../../../.github/workflows/cloudflare-staging-deep-qa.yml", import.meta.url), "utf8");
+
+  assert.match(workflow, /preview_version_id:/);
+  assert.match(workflow, /PREVIEW_VERSION_ID:\s*\$\{\{\s*inputs\.preview_version_id\s*\}\}/);
+  assert.match(workflow, /wrangler versions view "\$selected_version_id"/);
+  assert.match(workflow, /preview_origin="https:\/\/\$\{preview_prefix\}-\$\{STAGING_WORKER_NAME\}/);
+  assert.match(workflow, /echo "STAGING_ORIGIN=\$preview_origin"/);
+  assert.doesNotMatch(workflow, /wrangler versions deploy/);
+});
+
 test("deep staging QA derives catalog scenarios from read-only staging data", async () => {
   const workflow = await readFile(new URL("../../../.github/workflows/cloudflare-staging-deep-qa.yml", import.meta.url), "utf8");
   const qaScript = await readFile(new URL("./qa-staging-catalog.mjs", import.meta.url), "utf8");
@@ -40,6 +51,18 @@ test("deep staging QA derives catalog scenarios from read-only staging data", as
   assert.match(workflow, /STAGING_ACTIVE_PRODUCT_SLUG/);
   assert.match(workflow, /scripts\/qa-staging-catalog\.mjs/);
   assert.doesNotMatch(workflow, /B2B-DEMO-|bot-gao-lut-xay-min/);
+});
+
+test("deep staging QA covers common 16:9 desktop viewports", async () => {
+  const workflow = await readFile(new URL("../../../.github/workflows/cloudflare-staging-deep-qa.yml", import.meta.url), "utf8");
+  const viewportBlock = workflow.match(/const viewports = \[([\s\S]*?)\];/)?.[1];
+
+  assert.ok(viewportBlock, "workflow must declare responsive browser viewports");
+  assert.match(viewportBlock, /name: ['"]laptop-16x9['"], width: 1366, height: 768/);
+  assert.match(viewportBlock, /name: ['"]full-hd-16x9['"], width: 1920, height: 1080/);
+  const desktopSizes = [...viewportBlock.matchAll(/width: (\d+), height: (\d+)/g)]
+    .map(([, width, height]) => [Number(width), Number(height)]);
+  assert.ok(desktopSizes.some(([width, height]) => width / height === 16 / 9));
 });
 
 function mockResponse(status, body, json = false) {
