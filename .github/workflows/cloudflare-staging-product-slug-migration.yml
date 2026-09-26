@@ -171,8 +171,8 @@ jobs:
           {
             echo "## Staging D1 slug-history migration"
             echo
-            echo "Applied `$MIGRATION_NAME` after verifying it was the only pending migration."
-            echo "Pre-migration export (ephemeral runner): $SNAPSHOT_BYTES bytes; SHA-256 `$SNAPSHOT_SHA256`."
+            echo "Applied $MIGRATION_NAME after verifying it was the only pending migration."
+            echo "Pre-migration export (ephemeral runner): $SNAPSHOT_BYTES bytes; SHA-256 $SNAPSHOT_SHA256."
             echo "Business row counts match before/after; quick and foreign-key checks pass."
             echo "Wrangler also captures its managed D1 backup while applying the migration."
           } >> "$GITHUB_STEP_SUMMARY"
@@ -245,6 +245,6 @@ jobs:
             echo "## Read-only staging D1 slug-history verification"
             echo
             echo "Migration, table, index, and trigger are present."
-            echo "Business row counts: `$business_counts`."
+            echo "Business row counts: $business_counts."
             echo "D1 quick check and foreign-key check pass. No writes were performed."
           } >> "$GITHUB_STEP_SUMMARY"
