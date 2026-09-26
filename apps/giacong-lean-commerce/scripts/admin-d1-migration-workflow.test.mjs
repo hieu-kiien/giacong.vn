@@ -64,6 +64,7 @@ const slugMigrationWorkflowUrl = new URL(
   "../../../.github/workflows/cloudflare-staging-product-slug-migration.yml",
   import.meta.url,
 );
+const slugMigrationWranglerWorkingDirectory = "apps/giacong-lean-commerce";
 
 async function readSlugMigrationWorkflow() {
   return (await readFile(slugMigrationWorkflowUrl, "utf8")).replace(/\r\n/g, "\n");
@@ -77,6 +78,29 @@ test("product slug migration is an opt-in, staging-only workflow", async () => {
   assert.match(workflow, /DATABASE_NAME:\s*giacong-vn-catalog-staging/);
   assert.match(workflow, /MIGRATION_NAME:\s*0031_product_slug_redirects\.sql/);
   assert.doesNotMatch(workflow, /production|versions deploy/i);
+});
+
+test("staging D1 migration runs Wrangler from the app workspace", async () => {
+  const workflow = await readSlugMigrationWorkflow();
+
+  assert.match(workflow, /migrate:[\s\S]*?defaults:\s*\n\s*run:\s*\n\s*working-directory:\s*/);
+  assert.match(workflow, new RegExp(slugMigrationWranglerWorkingDirectory.replaceAll("/", "\\/")));
+});
+
+const gitNexusSafetyWorkflowUrl = new URL(
+  "../../../.github/workflows/gitnexus-safety.yml",
+  import.meta.url,
+);
+
+async function readGitNexusSafetyWorkflow() {
+  return (await readFile(gitNexusSafetyWorkflowUrl, "utf8")).replace(/\r\n/g, "\n");
+}
+
+test("GitNexus requires graph mapping for runtime source changes, not test scripts", async () => {
+  const workflow = await readGitNexusSafetyWorkflow();
+
+  assert.match(workflow, /if grep -Eq '\^apps\/giacong-lean-commerce\/src\//);
+  assert.doesNotMatch(workflow, /apps\/giacong-lean-commerce\/\(src\|scripts\)/);
 });
 
 test("product slug migration exports a backup and verifies counts before and after", async () => {
