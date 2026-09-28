@@ -3,6 +3,14 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 import { buildServiceArticlePageSeed } from "../src/lib/admin-service-articles.ts";
+import { isSuppressedServiceArticleFallback } from "../src/lib/site-pages.ts";
+
+test("unpublishing a live service article suppresses the captured fallback for its route", () => {
+  assert.equal(isSuppressedServiceArticleFallback("service-do-uong-nuoc-ep", false, "2026-09-28T00:00:00Z"), true);
+  assert.equal(isSuppressedServiceArticleFallback("service-do-uong-nuoc-ep", true, "2026-09-28T00:00:00Z"), false);
+  assert.equal(isSuppressedServiceArticleFallback("service-do-uong-nuoc-ep", false, null), false);
+  assert.equal(isSuppressedServiceArticleFallback("gioi-thieu", false, "2026-09-28T00:00:00Z"), false);
+});
 
 test("service article identity follows its service offering and keeps the public route", () => {
   assert.deepEqual(buildServiceArticlePageSeed({

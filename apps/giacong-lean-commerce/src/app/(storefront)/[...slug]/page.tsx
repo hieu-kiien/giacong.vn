@@ -82,6 +82,14 @@ export async function generateMetadata({ params }: CapturedRouteProps): Promise<
   const { slug } = await params;
   const routePath = `/${slug.join("/")}/`;
   const [managedPage, settings] = await Promise.all([getPublishedSitePage(routePath), getPublishedSiteSettings()]);
+  if (managedPage?.isSuppressedServiceArticle) {
+    return {
+      ...noIndexMetadata(),
+      description: "Bài viết dịch vụ này đã được ẩn khỏi website.",
+      icons: settings.favicon_url ? { icon: settings.favicon_url } : undefined,
+      title: `Không tìm thấy trang | ${settings.brand_name}`,
+    };
+  }
   if (managedPage?.blocks.length) {
     return {
       ...canonicalMetadata(routePath),
@@ -114,6 +122,7 @@ export default async function CapturedRoute({ params, searchParams }: CapturedRo
   const { slug } = await params;
   const routePath = `/${slug.join("/")}/`;
   const [managedPage, settings] = await Promise.all([getPublishedSitePage(routePath), getPublishedSiteSettings()]);
+  if (managedPage?.isSuppressedServiceArticle) notFound();
   if (managedPage?.blocks.length) {
     return (
       <CapturedStorefrontShell activeNavigation={getStorefrontNavigationForPath(routePath)?.key}>

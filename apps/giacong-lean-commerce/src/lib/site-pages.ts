@@ -39,6 +39,7 @@ export interface PublishedSitePage {
   blocks: PageBlock[];
   seoTitle: string;
   seoDescription: string;
+  isSuppressedServiceArticle: boolean;
 }
 
 export class SitePageValidationError extends Error {
@@ -377,20 +378,16 @@ const readPublishedSitePage = unstable_cache(
     const database = await getSiteDatabase();
     const row = await database.prepare(`
       SELECT page_key, route_path, title, published_enabled,
-        published_blocks_json, published_seo_title, published_seo_description
+        published_blocks_json, published_seo_title, published_seo_description, published_at
       FROM site_pages
-      WHERE route_path = ? AND published_enabled = 1
+      WHERE route_path = ? AND (
+        published_enabled = 1
+        OR (page_key LIKE 'service-%' AND published_at IS NOT NULL)
+      )
       LIMIT 1
     `).bind(normalizedPath).first<PublishedSitePageRow>();
     if (!row) return null;
-    return {
-      blocks: parsePageBlocksJson(row.published_blocks_json),
-      pageKey: row.page_key,
-      routePath: row.route_path,
-      seoDescription: row.published_seo_description,
-      seoTitle: row.published_seo_title,
-      title: row.title,
-    };
+    return toPublishedSitePage(row);
   },
   ["published-site-page"],
   { revalidate: 60, tags: ["published-site-page", "site-pages"] }, /* { revalidate: 60 } */
@@ -468,6 +465,32 @@ interface PublishedSitePageRow {
   published_blocks_json: string;
   published_seo_title: string;
   published_seo_description: string;
+  published_at: string | null;
+}
+
+export function isSuppressedServiceArticleFallback(
+  pageKey: string,
+  publishedEnabled: boolean,
+  publishedAt: string | null,
+): boolean {
+  return pageKey.startsWith("service-") && !publishedEnabled && Boolean(publishedAt);
+}
+
+export function toPublishedSitePage(row: PublishedSitePageRow): PublishedSitePage {
+  const isSuppressedServiceArticle = isSuppressedServiceArticleFallback(
+    row.page_key,
+    row.published_enabled === 1,
+    row.published_at,
+  );
+  return {
+    blocks: isSuppressedServiceArticle ? [] : parsePageBlocksJson(row.published_blocks_json),
+    isSuppressedServiceArticle,
+    pageKey: row.page_key,
+    routePath: row.route_path,
+    seoDescription: row.published_seo_description,
+    seoTitle: row.published_seo_title,
+    title: row.title,
+  };
 }
 
 function toAdminSitePage(row: SitePageRow): AdminSitePage {

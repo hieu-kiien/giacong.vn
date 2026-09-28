@@ -16,6 +16,13 @@ test("published managed pages render content without a second storefront editor"
   assert.match(home, /<PageBlocks blocks=\{managedPage\.blocks\} \/>/);
 });
 
+test("an unpublished service article does not fall through to the captured public page", async () => {
+  const route = await readSource("../src/app/(storefront)/[...slug]/page.tsx");
+
+  assert.match(route, /if \(managedPage\?\.isSuppressedServiceArticle\) notFound\(\);/);
+  assert.match(route, /if \(managedPage\?\.isSuppressedServiceArticle\) \{\s*return \{\s*\.\.\.noIndexMetadata\(\)/);
+});
+
 test("content and page editors hand off to the real storefront instead of reconstructing a preview", async () => {
   const [content, builder, styles] = await Promise.all([
     readSource("../src/app/admin/noi-dung/page.tsx"),

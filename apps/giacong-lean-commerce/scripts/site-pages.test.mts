@@ -8,6 +8,7 @@ import {
   SitePageIdempotencyConflictError,
   SitePageStorageError,
   SitePageValidationError,
+  toPublishedSitePage,
   updateAdminSitePage,
 } from "../src/lib/site-pages.ts";
 import {
@@ -204,6 +205,44 @@ class FakePageDatabase {
     };
   }
 }
+
+test("only previously published service articles suppress the captured fallback", () => {
+  const hiddenArticle = toPublishedSitePage({
+    page_key: "service-do-uong-nuoc-ep",
+    route_path: "/gia-cong-nuoc-ep-trai-cay/",
+    title: "Gia công nước ép trái cây",
+    published_enabled: 0,
+    published_blocks_json: "not-json-after-withdrawal",
+    published_seo_title: "Gia công nước ép",
+    published_seo_description: "",
+    published_at: "2026-09-28T00:00:00Z",
+  });
+  const draftArticle = toPublishedSitePage({
+    page_key: "service-do-uong-nuoc-ep",
+    route_path: "/gia-cong-nuoc-ep-trai-cay/",
+    title: "Gia công nước ép trái cây",
+    published_enabled: 0,
+    published_blocks_json: "[]",
+    published_seo_title: "",
+    published_seo_description: "",
+    published_at: null,
+  });
+  const hiddenGenericPage = toPublishedSitePage({
+    page_key: "gioi-thieu",
+    route_path: "/gioi-thieu/",
+    title: "Giới thiệu",
+    published_enabled: 0,
+    published_blocks_json: "[]",
+    published_seo_title: "",
+    published_seo_description: "",
+    published_at: "2026-09-28T00:00:00Z",
+  });
+
+  assert.equal(hiddenArticle.isSuppressedServiceArticle, true);
+  assert.deepEqual(hiddenArticle.blocks, []);
+  assert.equal(draftArticle.isSuppressedServiceArticle, false);
+  assert.equal(hiddenGenericPage.isSuppressedServiceArticle, false);
+});
 
 test("page writes succeed when D1 omits batch result rows", async () => {
   const database = new FakePageDatabase();
