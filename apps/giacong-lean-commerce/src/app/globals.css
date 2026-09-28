@@ -850,6 +850,9 @@
   .managed-text-body { color: #637166; font-size: 16px; line-height: 1.75; }
   .managed-text-body p { margin: 0 0 12px; }
   .managed-text-body p:last-child { margin-bottom: 0; }
+  .managed-text-body .managed-inline-link { color: #4d770f; text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
+  .managed-text-body .managed-inline-link:hover { color: #31590a; }
+  .managed-text-body .managed-inline-link:focus-visible { border-radius: 2px; outline: 2px solid #4d770f; outline-offset: 3px; }
   .managed-hero .managed-text-body { margin-top: 20px; max-width: 640px; }
   .managed-hero-image { border-radius: 13px; display: block; max-height: 440px; object-fit: cover; width: 100%; }
   .managed-cta-group { display: flex; flex-wrap: wrap; gap: 11px; margin-top: 26px; }

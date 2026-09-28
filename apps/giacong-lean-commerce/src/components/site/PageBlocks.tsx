@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import type { PageBlock, PageCta } from "@/lib/page-builder";
+import { parseSafeInlineLinks } from "@/lib/page-builder-inline-links";
 
 export function PageBlocks({ blocks }: { blocks: readonly PageBlock[] }) {
   if (blocks.length === 0) return null;
@@ -95,7 +96,13 @@ function ManagedLink({ children, className, href }: { children: React.ReactNode;
 function TextBody({ value }: { value: string }) {
   return (
     <div className="managed-text-body">
-      {value.split(/\r?\n/).filter(Boolean).map((paragraph, index) => <p key={`${index}-${paragraph}`}>{paragraph}</p>)}
+      {value.split(/\r?\n/).filter(Boolean).map((paragraph, index) => (
+        <p key={`${index}-${paragraph}`}>
+          {parseSafeInlineLinks(paragraph).map((segment, segmentIndex) => segment.type === "link"
+            ? <ManagedLink className="managed-inline-link" href={segment.href} key={`${segmentIndex}-${segment.href}`}>{segment.text}</ManagedLink>
+            : <span key={segmentIndex}>{segment.text}</span>)}
+        </p>
+      ))}
     </div>
   );
 }

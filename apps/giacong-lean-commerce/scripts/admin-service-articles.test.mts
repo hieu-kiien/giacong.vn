@@ -7,6 +7,7 @@ import { isSuppressedServiceArticleFallback } from "../src/lib/site-pages.ts";
 import { extractLegacyArticle } from "./legacy-article-import.mjs";
 import { serviceFamilies } from "../src/data/service-families.ts";
 import { parsePageBlocks, type PageBlock } from "../src/lib/page-builder.ts";
+import { parseSafeInlineLinks } from "../src/lib/page-builder-inline-links.ts";
 
 test("unpublishing a live service article suppresses the captured fallback for its route", () => {
   assert.equal(isSuppressedServiceArticleFallback("service-do-uong-nuoc-ep", false, "2026-09-28T00:00:00Z"), true);
@@ -68,9 +69,10 @@ test("service articles open inline from the service offering and do not require 
 });
 
 test("legacy service articles import into a draft without changing the published article", async () => {
-  const [builder, assets] = await Promise.all([
+  const [builder, assets, pageBlocks] = await Promise.all([
     readFile(new URL("../src/components/admin/AdminPageBuilder.tsx", import.meta.url), "utf8"),
     readFile(new URL("./prepare-captured-assets.mjs", import.meta.url), "utf8"),
+    readFile(new URL("../src/components/site/PageBlocks.tsx", import.meta.url), "utf8"),
   ]);
 
   assert.match(builder, /Tạo bản nháp và nhập bài cũ/);
@@ -79,9 +81,12 @@ test("legacy service articles import into a draft without changing the published
   assert.match(builder, /validateBlocks\(legacy\.blocks\)/);
   assert.match(builder, /Bài trên website chưa thay đổi/);
   assert.match(builder, /!selectedPage\.publishedEnabled[\s\S]*?selectedPage\.publishedBlocks\.length === 0/);
+  assert.match(builder, /cú pháp \[chữ hiển thị\]\(https:\/\/example\.com\)/);
   assert.match(assets, /extractLegacyArticle\(source\)/);
   assert.match(assets, /editable-articles/);
   assert.match(assets, /vượt quá giới hạn|manual handling/);
+  assert.match(pageBlocks, /parseSafeInlineLinks/);
+  assert.match(pageBlocks, /managed-inline-link/);
 });
 
 test("legacy article import keeps editable text, headings, images, and captions while dropping page chrome", () => {
@@ -114,9 +119,18 @@ test("legacy article import keeps editable text, headings, images, and captions 
     secondaryCta: null,
   });
   assert.ok(article.blocks.some((block) => block.type === "image" && block.caption === "Ảnh minh họa sản phẩm"));
-  assert.ok(article.blocks.some((block) => block.type === "rich_text" && block.title === "Quy trình gia công" && block.body.includes("biểu mẫu tư vấn")));
+  assert.ok(article.blocks.some((block) => block.type === "rich_text" && block.title === "Quy trình gia công" && block.body.includes("[biểu mẫu tư vấn](https://example.com/)")));
   assert.doesNotMatch(JSON.stringify(article), /Không nhập (menu|sidebar|mục lục|mã script)/);
-  assert.doesNotMatch(JSON.stringify(article), /https:\/\/example\.com/);
+});
+
+test("inline article links render only safe local and web destinations", () => {
+  assert.deepEqual(parseSafeInlineLinks("Xem [trang dịch vụ](/gia-cong-do-uong/) và [nguồn](https://example.com). [x](javascript:alert)"), [
+    { type: "text", text: "Xem " },
+    { type: "link", text: "trang dịch vụ", href: "/gia-cong-do-uong/" },
+    { type: "text", text: " và " },
+    { type: "link", text: "nguồn", href: "https://example.com" },
+    { type: "text", text: ". x" },
+  ]);
 });
 
 test("legacy article import refuses to silently truncate articles beyond page-builder limits", () => {
@@ -128,6 +142,16 @@ test("legacy article import refuses to silently truncate articles beyond page-bu
     }),
     /vượt quá giới hạn|quá dài|không thể nhập đầy đủ/i,
   );
+});
+
+test("legacy service article imports images nested inside headings", async () => {
+  const manifest = JSON.parse(await readFile(new URL("../src/data/pages/manifest.json", import.meta.url), "utf8")) as Record<string, string>;
+  const filename = manifest["/dich-vu-say-gung/"];
+  assert.ok(filename);
+  const source = JSON.parse(await readFile(new URL(`../src/data/pages/${filename}`, import.meta.url), "utf8")) as Parameters<typeof extractLegacyArticle>[0];
+  const imported = extractLegacyArticle(source);
+
+  assert.ok(imported?.blocks.some((block) => block.type === "image" && JSON.stringify(block).includes("dich-vu-say-gung-1024x657.jpg")));
 });
 
 test("every configured service offering with a captured route can be imported into page-builder blocks", async () => {

@@ -93,11 +93,12 @@ function visitChildren(nodes, items) {
     if (tag === "FIGURE") {
       appendFigure(node, items);
     } else if (/^H[1-6]$/.test(tag)) {
+      appendImages(node, items);
       const text = plainNodeText(node);
       if (text) items.push({ kind: text.length <= maxTitleLength ? "heading" : "text", text });
     } else if (tag === "P") {
       appendImages(node, items);
-      const text = plainNodeText(node);
+      const text = plainParagraphText(node);
       if (text) items.push({ kind: "text", text });
     } else if (tag === "IMG") {
       const block = imageBlock(node);
@@ -153,12 +154,22 @@ function plainNodeText(node) {
   return normalizeText(collectText(node));
 }
 
-function collectText(node) {
+function plainParagraphText(node) {
+  return normalizeText(collectText(node, true));
+}
+
+function collectText(node, preserveLinks = false) {
   if (node.nodeType === 3) return node.text ?? node.rawText ?? "";
   const tag = node.tagName?.toUpperCase();
   if (!tag || shouldSkip(node, tag) || tag === "IMG") return "";
   if (tag === "BR") return "\n";
-  return (node.childNodes ?? []).map(collectText).join("");
+  const childText = (node.childNodes ?? []).map((child) => collectText(child, preserveLinks)).join("");
+  if (tag !== "A" || !preserveLinks) return childText;
+
+  const href = toSafeLegacyLink(node.getAttribute("href") ?? "");
+  if (!href || !childText) return childText;
+  const label = childText.replace(/\\/g, "\\\\").replace(/\[/g, "\\[").replace(/\]/g, "\\]");
+  return `[${label}](${href})`;
 }
 
 function shouldSkip(node, tag) {
@@ -192,6 +203,23 @@ function isSafeImageUrl(value) {
   } catch {
     return false;
   }
+}
+
+function toSafeLegacyLink(value) {
+  const href = value.trim();
+  if (!href || href.startsWith("#") || href.startsWith("//") || /[\u0000-\u0020\\]/.test(href)) return null;
+  if (href.startsWith("/")) return encodeMarkdownHref(href);
+  try {
+    const url = new URL(href);
+    if (!["http:", "https:", "mailto:", "tel:"].includes(url.protocol)) return null;
+    return encodeMarkdownHref(url.href);
+  } catch {
+    return null;
+  }
+}
+
+function encodeMarkdownHref(value) {
+  return value.replaceAll("(", "%28").replaceAll(")", "%29");
 }
 
 function packParagraphs(paragraphs) {

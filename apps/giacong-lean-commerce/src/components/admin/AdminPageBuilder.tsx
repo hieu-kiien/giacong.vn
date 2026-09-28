@@ -624,7 +624,7 @@ function BlockFields({ block, disabled, index, onChange }: { block: PageBlock; d
   const [showMediaPicker, setShowMediaPicker] = useState(false);
   const fieldId = (id: string) => `block-${index}-${id}`;
   const text = (id: string, label: string, value: string, key: string, optional = false) => { const uniqueId = fieldId(id); return <AdminField id={uniqueId} label={label} optional={optional}><input className="admin-input" disabled={disabled} id={uniqueId} onChange={(event) => onChange({ ...block, [key]: event.target.value } as PageBlock)} value={value} /></AdminField>; };
-  const area = (id: string, label: string, value: string, key: string, optional = false) => { const uniqueId = fieldId(id); return <AdminField id={uniqueId} label={label} optional={optional}><textarea className="admin-textarea" disabled={disabled} id={uniqueId} onChange={(event) => onChange({ ...block, [key]: event.target.value } as PageBlock)} rows={4} value={value} /></AdminField>; };
+  const area = (id: string, label: string, value: string, key: string, optional = false, hint?: string) => { const uniqueId = fieldId(id); return <AdminField hint={hint} id={uniqueId} label={label} optional={optional}><textarea className="admin-textarea" disabled={disabled} id={uniqueId} onChange={(event) => onChange({ ...block, [key]: event.target.value } as PageBlock)} rows={4} value={value} /></AdminField>; };
   const imageField = (id: string, label: string, value: string, optional = false) => {
     const uniqueId = fieldId(id);
     return (
@@ -653,7 +653,7 @@ function BlockFields({ block, disabled, index, onChange }: { block: PageBlock; d
     case "hero":
       return <div className="admin-editor-grid">{text("hero-eyebrow", "Dòng chữ nhỏ trên tiêu đề", block.eyebrow, "eyebrow", true)}{text("hero-title", "Tiêu đề", block.title, "title")}{area("hero-description", "Mô tả", block.description, "description")} {imageField("hero-image", "Ảnh bìa", block.imageUrl ?? "", true)}<CtaFields block={block} disabled={disabled} fieldId={fieldId} kind="primary" onChange={onChange} /><CtaFields block={block} disabled={disabled} fieldId={fieldId} kind="secondary" onChange={onChange} /></div>;
     case "rich_text":
-      return <div className="admin-editor-grid">{text("rich-title", "Tiêu đề", block.title, "title", true)}{area("rich-body", "Nội dung", block.body, "body")}</div>;
+      return <div className="admin-editor-grid">{text("rich-title", "Tiêu đề", block.title, "title", true)}{area("rich-body", "Nội dung", block.body, "body", false, "Gắn liên kết bằng cú pháp [chữ hiển thị](https://example.com). Chỉ hỗ trợ liên kết web và đường dẫn nội bộ an toàn.")}</div>;
     case "image":
       return <div className="admin-editor-grid">{imageField("image-url", "Ảnh", block.imageUrl)}{text("image-alt", "Mô tả ảnh", block.alt, "alt")}{text("image-caption", "Chú thích", block.caption, "caption", true)}</div>;
     case "feature_grid":
