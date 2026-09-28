@@ -259,10 +259,10 @@ export default function AdminContentPage() {
   return (
     <div className="admin-content">
       <AdminPageHeading
-        kicker="Quản lý nội dung / trang web"
-        title="Nội dung & thương hiệu"
-        subtitle="Sửa theo mẫu an toàn, lưu bản nháp trước rồi đăng từng thay đổi ra trang web."
-        stamp="QUẢN LÝ NỘI DUNG"
+        kicker="Cấu hình website"
+        title="Thông tin website"
+        subtitle="Chỉnh thương hiệu, SEO mặc định, trang chủ, liên hệ và chân trang. Bài tin tức ở mục Tin tức; bài dịch vụ mở từ từng dịch vụ."
+        stamp="THÔNG TIN WEBSITE"
       />
       <div className="admin-content-toolbar">
         <div>

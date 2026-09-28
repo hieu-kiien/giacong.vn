@@ -326,12 +326,12 @@ export function AdminPageBuilder({ articleContext = null, embedded = false, mode
           </div>
         </div>
       ) : <AdminPageHeading
-        kicker={mode === "service-article" ? `Dịch vụ · ${serviceName}` : "Quản lý trang / bố cục"}
-        title={mode === "service-article" ? `Bài viết: ${serviceArticleSeed?.title ?? "Dịch vụ"}` : "Thiết kế trang"}
+        kicker={mode === "service-article" ? `Dịch vụ · ${serviceName}` : "Trang & bố cục website"}
+        title={mode === "service-article" ? `Bài viết: ${serviceArticleSeed?.title ?? "Dịch vụ"}` : "Trang & bố cục"}
         subtitle={mode === "service-article"
           ? "Soạn nội dung, ảnh và cách trình bày ngay trong mục Dịch vụ. Bài cũ chỉ được thay khi bạn lưu và đăng bài mới."
-          : "Sắp xếp khối nội dung, chỉnh nội dung và đăng theo phiên bản. Công cụ dựng trang chỉ nhận mẫu an toàn, không chạy mã web tùy ý."}
-        stamp={mode === "service-article" ? "SOẠN BÀI DỊCH VỤ" : "CÔNG CỤ DỰNG TRANG"}
+          : "Chỉnh trang website theo các khối nội dung. Tin tức ở mục Tin tức; bài dịch vụ còn trong nhóm mở từ Dịch vụ. Bài dịch vụ đã gỡ khỏi nhóm vẫn ở đây để sửa, ẩn hoặc đăng lại."}
+        stamp={mode === "service-article" ? "SOẠN BÀI DỊCH VỤ" : "TRANG & BỐ CỤC"}
       />}
       {mode === "service-article" && !embedded ? (
         <div className="admin-toolbar">
@@ -436,12 +436,20 @@ export function AdminPageBuilder({ articleContext = null, embedded = false, mode
                 <input checked={draftEnabled} disabled={!canEdit} onChange={(event) => setDraftEnabled(event.target.checked)} type="checkbox" />
                 <span>
                   <strong>{mode === "service-article" ? "Đăng bài này tại đường dẫn dịch vụ" : "Cho phép trang này thay bản cũ đã lưu sẵn"}</strong>
-                  <small>{mode === "service-article" ? "Bài cũ chỉ được thay sau khi bạn lưu bản nháp và đăng." : "Chỉ có hiệu lực sau khi trang có khối nội dung và được đăng."}</small>
+                  <small>{mode === "service-article" ? "Bỏ chọn, lưu bản nháp rồi bấm “Ẩn bài khỏi website”. Nội dung vẫn được giữ để đăng lại sau." : "Chỉ có hiệu lực sau khi trang có khối nội dung và được đăng."}</small>
                 </span>
               </label>
               <div className="admin-editor-actions">
                 <button className="admin-button admin-button-quiet" disabled={!canEdit || saving || !blocksChanged()} onClick={() => void saveDraft()} type="button"><Save size={14} /> {saving ? "Đang lưu" : "Lưu bản nháp"}</button>
-                <button className="admin-button admin-button-primary" disabled={!canPublish || publishing || blocksChanged() || !selectedPage.dirty || (mode === "service-article" && blocks.length === 0)} onClick={() => void publishPage()} type="button"><Send size={14} /> {publishing ? "Đang đăng" : mode === "service-article" ? "Đăng bài lên website" : "Đăng lên web"}</button>
+                <button className="admin-button admin-button-primary" disabled={!canPublish || publishing || blocksChanged() || !selectedPage.dirty || (mode === "service-article" && draftEnabled && blocks.length === 0)} onClick={() => void publishPage()} type="button"><Send size={14} /> {publishing ? "Đang cập nhật" : mode === "service-article"
+                  ? !draftEnabled && selectedPage.publishedEnabled
+                    ? "Ẩn bài khỏi website"
+                    : draftEnabled && selectedPage.publishedEnabled
+                      ? "Cập nhật bài trên website"
+                      : draftEnabled
+                        ? "Đăng bài lên website"
+                        : "Lưu bản ẩn"
+                  : "Đăng lên web"}</button>
               </div>
             </div>
           </section>

@@ -61,7 +61,7 @@ test("the admin control plane exposes page, navigation and member management sur
   assert.match(shell, /\/admin\/audit/);
   assert.match(shell, /ownerOnly/);
   assert.match(builder, /\/api\/admin\/pages/);
-  assert.match(builder, /Công cụ dựng trang chỉ nhận mẫu an toàn/);
+  assert.match(builder, /Bài dịch vụ đã gỡ khỏi nhóm vẫn ở đây để sửa, ẩn hoặc đăng lại/);
   assert.doesNotMatch(builder, /dangerouslySetInnerHTML/);
   assert.match(navigation, /\/api\/admin\/navigation/);
   assert.match(navigation, /Phát hành tất cả/);
@@ -89,7 +89,7 @@ test("the shell groups routes in plain-language control-plane sections", async (
   const groups = shell.slice(shell.indexOf("const navGroups:"), shell.indexOf("const roleLabels:"));
 
   assert.match(groups, /id: "operations",\s*displayTitle: "VẬN HÀNH"[\s\S]*?href: "\/admin\/yeu-cau", label: "Yêu cầu báo giá"[\s\S]*?href: "\/admin\/khach-hang", label: "Khách hàng B2B"/);
-  assert.match(groups, /id: "content",\s*displayTitle: "NỘI DUNG"[\s\S]*?href: "\/admin\/san-pham", label: "Sản phẩm"[\s\S]*?href: "\/admin\/dich-vu", label: "Dịch vụ gia công"[\s\S]*?href: "\/admin\/tin-tuc", label: "Tin tức"/);
+  assert.match(groups, /id: "content",\s*displayTitle: "NỘI DUNG"[\s\S]*?href: "\/admin\/san-pham", label: "Sản phẩm"[\s\S]*?href: "\/admin\/dich-vu", label: "Dịch vụ"[\s\S]*?href: "\/admin\/tin-tuc", label: "Tin tức"/);
   assert.match(groups, /id: "website",\s*displayTitle: "WEBSITE"[\s\S]*?href: "\/admin\/dieu-huong", label: "Menu"/);
   assert.match(groups, /id: "system",\s*displayTitle: "HỆ THỐNG"[\s\S]*?href: "\/admin\/thanh-vien", label: "Tài khoản quản trị & quyền"[\s\S]*?href: "\/admin\/audit", label: "Lịch sử thay đổi"/);
   assert.doesNotMatch(shell, /Legacy section contract aliases preserved for static compatibility/);

@@ -31,11 +31,11 @@ const roleNavigationRoutes = {
 };
 const adminRoutes = [
   { path: "/admin", heading: "Tổng quan vận hành" },
-  { path: "/admin/noi-dung", heading: "Nội dung & thương hiệu" },
-  { path: "/admin/thiet-ke", heading: "Thiết kế trang" },
+  { path: "/admin/noi-dung", heading: "Thông tin website" },
+  { path: "/admin/thiet-ke", heading: "Trang & bố cục" },
   { path: "/admin/san-pham", heading: "Quản lý sản phẩm" },
   { path: "/admin/dich-vu", heading: "Dịch vụ gia công" },
-  { path: "/admin/tin-tuc", heading: "Viết và xuất bản tin tức" },
+  { path: "/admin/tin-tuc", heading: "Tin tức" },
   { path: "/admin/dieu-huong", heading: "Menu website" },
   { path: "/admin/thanh-vien", heading: "Tài khoản quản trị" },
   { path: "/admin/audit", heading: "Lịch sử thay đổi" },

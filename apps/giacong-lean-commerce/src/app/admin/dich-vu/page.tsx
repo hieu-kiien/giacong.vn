@@ -1191,7 +1191,8 @@ function ServiceEditor({ error, form, isDirty = false, onCancel, onChange, onSub
           style={{ display: activeTab === "offerings" ? "block" : "none" }}
         >
           <div className="admin-haravan-card">
-            <h3 className="admin-haravan-card-title">Nội dung từng dịch vụ con</h3>
+            <h3 className="admin-haravan-card-title">Bài viết cho từng dịch vụ con</h3>
+            <p className="admin-field-hint">Bấm “Viết / sửa bài” để soạn ngay tại đây. Nút “Xóa dòng” chỉ gỡ hạng mục khỏi nhóm; bài đã đăng vẫn còn. Nếu cần sửa hoặc ẩn bài sau khi xóa dòng, vào “Trang & bố cục” và chọn đúng đường dẫn.</p>
             <div className="admin-field">
               <div style={{ alignItems: "center", display: "flex", justifyContent: "space-between", marginBottom: 10 }}>
               <span style={{ fontWeight: 600 }}>Dịch vụ con trong nhóm ({parsedOfferingRows.length})</span>
@@ -1247,11 +1248,11 @@ function ServiceEditor({ error, form, isDirty = false, onCancel, onChange, onSub
                           title={isDirty && !articleIsOpen ? "Lưu dịch vụ trước khi viết bài để dùng đúng đường dẫn." : undefined}
                           type="button"
                         >
-                          {articleIsOpen ? "Đóng trình soạn" : "Mở trình soạn"}
+                          {articleIsOpen ? "Đóng trình soạn" : "Viết / sửa bài"}
                         </button>
                       ) : (
                         <button className="admin-button admin-button-quiet" disabled title="Lưu nhóm dịch vụ và đường dẫn trước khi viết bài" type="button">
-                          Mở trình soạn
+                          Viết / sửa bài
                         </button>
                       )}
                       <button

@@ -89,7 +89,7 @@ async function publicReadback(width, expectedDark = "/media/qa/logo_dark_url.png
 }
 
 await page.goto(`${origin}/admin/noi-dung`, { waitUntil: "domcontentloaded" });
-await expect(page.getByRole("heading", { name: "Nội dung & thương hiệu" })).toBeVisible();
+await expect(page.getByRole("heading", { name: "Thông tin website" })).toBeVisible();
 
 for (const [label, fileName] of [["Logo sáng", "logo-light.png"], ["Logo tối", "logo-dark.png"], ["Favicon", "favicon.png"]]) {
   await page.getByLabel(`Tải ảnh lên cho ${label}`).setInputFiles({ name: fileName, mimeType: "image/png", buffer: imageBytes });

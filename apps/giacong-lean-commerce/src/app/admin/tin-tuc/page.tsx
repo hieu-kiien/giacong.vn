@@ -350,7 +350,7 @@ export default function AdminNewsPage() {
 
   return (
     <div className="admin-content">
-      <AdminPageHeading kicker="Nội dung / tin tức" title="Viết và xuất bản tin tức" subtitle="Bài viết xuất bản hiển thị tại /tin-tuc trên trang web. Bản nháp chỉ nhìn thấy trong admin." stamp="TIN TỨC" />
+      <AdminPageHeading kicker="Tin tức" title="Tin tức" subtitle="Tìm, viết, sửa, đăng, ẩn hoặc xóa bài tin tức. Bài mô tả dịch vụ được sửa ngay trong mục Dịch vụ." stamp="TIN TỨC" />
       {editor ? (
         <section className="admin-editor admin-haravan-editor" aria-labelledby="news-editor-heading">
           <form noValidate onSubmit={submitPost}>

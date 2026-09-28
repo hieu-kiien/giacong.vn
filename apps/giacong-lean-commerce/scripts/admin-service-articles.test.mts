@@ -38,8 +38,10 @@ test("service articles open inline from the service offering and do not require 
     readFile(new URL("../src/components/admin/AdminPageBuilder.tsx", import.meta.url), "utf8"),
   ]);
 
-  assert.match(services, /Nội dung từng dịch vụ con/);
-  assert.match(services, /Mở trình soạn/);
+  assert.match(services, /Bài viết cho từng dịch vụ con/);
+  assert.match(services, /Viết \/ sửa bài/);
+  assert.match(services, /chỉ gỡ hạng mục khỏi nhóm; bài đã đăng vẫn còn/);
+  assert.match(services, /Trang & bố cục/);
   assert.match(services, /articleContext=\{inlineArticle\}/);
   assert.match(services, /admin-service-article-inline-slot/);
   assert.match(services, /onClose=\{\(\) => requestArticleSelection\(inlineArticle\)\}/);
@@ -47,4 +49,9 @@ test("service articles open inline from the service offering and do not require 
   assert.match(builder, /embedded/);
   assert.match(builder, /Bắt đầu viết bài/);
   assert.match(builder, /Nội dung bài viết/);
+  assert.match(builder, /Bài dịch vụ đã gỡ khỏi nhóm vẫn ở đây để sửa, ẩn hoặc đăng lại/);
+  assert.match(builder, /Bỏ chọn, lưu bản nháp rồi bấm “Ẩn bài khỏi website”/);
+  assert.match(builder, /mode === "service-article" && draftEnabled && blocks\.length === 0/);
+  assert.match(builder, /!draftEnabled && selectedPage\.publishedEnabled[\s\S]*?"Ẩn bài khỏi website"/);
+  assert.match(builder, /draftEnabled && selectedPage\.publishedEnabled[\s\S]*?"Cập nhật bài trên website"/);
 });
