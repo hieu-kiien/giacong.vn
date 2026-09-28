@@ -6,6 +6,21 @@ interface LegacyProductRedirect {
 export const legacyProductRedirects: Readonly<Record<string, LegacyProductRedirect>> = {
 };
 
+/** Move old captured WooCommerce product pages into the managed catalog. */
+export function isLegacyCapturedProductPage(bodyClasses: string): boolean {
+  return /(?:^|\s)single-product(?:\s|$)/.test(bodyClasses);
+}
+
+export function getLegacyCapturedProductRedirectPath(
+  bodyClasses: string,
+  catalogProductSlug: string | null,
+): string | null {
+  if (!isLegacyCapturedProductPage(bodyClasses)) return null;
+  if (!catalogProductSlug) return "/san-pham/";
+
+  return `/san-pham/${encodeURIComponent(catalogProductSlug)}/`;
+}
+
 /**
  * Demo catalog parents were removed from the current D1 feed. Keep their old
  * URLs recoverable by redirecting them to the live catalog, never to a

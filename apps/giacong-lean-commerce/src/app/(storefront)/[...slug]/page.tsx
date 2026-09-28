@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
 import { cache } from "react";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { CapturedPage } from "@/components/CapturedPage";
@@ -14,6 +14,8 @@ import { getPublishedSitePage } from "@/lib/site-pages";
 import { getPublishedSiteSettings } from "@/lib/site-settings";
 import { getServiceFamilyForRoute } from "@/lib/service-content-index";
 import { getManagedServiceFamily } from "@/lib/cloudflare-services";
+import { getCatalogProduct, getCatalogProductRedirect } from "@/lib/cloudflare-catalog";
+import { getLegacyCapturedProductRedirectPath, isLegacyCapturedProductPage } from "@/lib/catalog-legacy-redirects";
 import type { CapturedPageData } from "@/types/captured-page";
 import { canonicalMetadata, noIndexMetadata } from "@/lib/seo";
 
@@ -134,6 +136,18 @@ export default async function CapturedRoute({ params, searchParams }: CapturedRo
     readCapturedPath(routePath),
     getPublishedSiteNavigation(),
   ]);
+  if (isLegacyCapturedProductPage(data.bodyClasses)) {
+    const legacySlug = slug.length === 1 ? slug[0] : "";
+    const activeProduct = legacySlug ? await getCatalogProduct(legacySlug) : null;
+    const redirectedSlug = legacySlug && !activeProduct
+      ? await getCatalogProductRedirect(legacySlug)
+      : null;
+    const destination = getLegacyCapturedProductRedirectPath(
+      data.bodyClasses,
+      redirectedSlug ?? activeProduct?.slug ?? null,
+    );
+    if (destination) permanentRedirect(destination);
+  }
   const query = searchParams ? await searchParams : {};
   const requestedService = typeof query.service === "string" ? query.service : "";
   const serviceFamily = getServiceFamilyForRoute(routePath)

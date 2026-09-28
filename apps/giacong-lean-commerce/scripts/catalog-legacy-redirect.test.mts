@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  getLegacyCapturedProductRedirectPath,
   getRetiredLegacyProductRedirect,
   legacyProductRedirects,
   retiredLegacyProductSlugs,
@@ -39,4 +40,35 @@ test("retired demo product URLs redirect at the edge without carrying stale vari
     getRetiredLegacyProductRedirect(new URL("https://staging.kienhieu.id.vn/san-pham/bot-gao-lut-xay-min")),
     null,
   );
+});
+
+test("captured legacy product pages redirect to the matching active catalog product", () => {
+  assert.equal(
+    getLegacyCapturedProductRedirectPath(
+      "wp-singular product-template-default single single-product postid-5580",
+      "sua-casein-current",
+    ),
+    "/san-pham/sua-casein-current/",
+  );
+});
+
+test("captured legacy product pages without an active catalog match return to the catalog", () => {
+  assert.equal(
+    getLegacyCapturedProductRedirectPath(
+      "wp-singular product-template-default single single-product postid-5580",
+      null,
+    ),
+    "/san-pham/",
+  );
+});
+
+test("ordinary captured pages are not redirected by product cleanup", () => {
+  assert.equal(
+    getLegacyCapturedProductRedirectPath("wp-singular page-template-default", null),
+    null,
+  );
+});
+
+test("product detection matches a complete body-class token", () => {
+  assert.equal(getLegacyCapturedProductRedirectPath("wp-singular not-single-product", null), null);
 });
