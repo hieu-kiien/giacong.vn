@@ -49,6 +49,7 @@ import { AdminClientError, fetchAdmin, formatAdminDate, getInitials, mutateAdmin
 import { canManageCatalog } from "@/lib/admin-permissions";
 import { buildAdminProductPayload } from "@/lib/admin-product-form";
 import { parseAdminProductPayload } from "@/lib/admin-product-input";
+import { getAdminProductVisibilityAction } from "@/lib/admin-product-visibility";
 
 interface ProductResponse {
   categories?: AdminCategory[];
@@ -503,11 +504,14 @@ export default function AdminProductsPage() {
 
   async function unhideProduct(product: AdminProduct) {
     if (!canManage) return;
+    if (getAdminProductVisibilityAction(product) !== "show") {
+      showToast("info", "Chỉ sản phẩm đã xuất bản mới có thể bật hiển thị. Hãy xuất bản bản nháp trước.");
+      return;
+    }
     setActivatingId(product.id);
     setSaveError(null);
     try {
-      const targetStatus: ProductFormState["status"] = product.status === "archived" ? "draft" : (product.status as ProductFormState["status"]);
-      await mutateAdmin<{ product: AdminProduct }>(`/api/admin/products/${product.id}`, {
+      const result = await mutateAdmin<{ product: AdminProduct }>(`/api/admin/products/${product.id}`, {
         body: {
           categoryId: product.categoryId ?? null,
           description: product.description,
@@ -520,16 +524,19 @@ export default function AdminProductsPage() {
           shortDescription: product.shortDescription,
           sku: product.sku,
           slug: product.slug,
-          status: targetStatus,
+          status: "published",
         },
         method: "PATCH",
       });
+      if (!result.product.isActive || result.product.status !== "published") {
+        throw new Error("Máy chủ chưa xác nhận trạng thái hiển thị.");
+      }
       if (editor?.id === product.id) {
-        setEditor((current) => (current ? { ...current, isActive: true, status: targetStatus } : null));
-        setEditorSnapshot((current) => (current ? { ...current, isActive: true, status: targetStatus } : null));
+        setEditor((current) => (current ? { ...current, isActive: true, status: "published" } : null));
+        setEditorSnapshot((current) => (current ? { ...current, isActive: true, status: "published" } : null));
       }
       setAttempt((value) => value + 1);
-      showToast("success", `Đã bật hiển thị cho sản phẩm “${product.name}”.`);
+      showToast("success", `Đã hiện sản phẩm đã xuất bản “${product.name}”.`);
     } catch (reason: unknown) {
       setSaveError(reason instanceof AdminClientError ? reason : new AdminClientError("Không thể hiển thị lại sản phẩm.", 0));
       showToast("error", reason instanceof AdminClientError ? reason.message : "Không thể hiển thị lại sản phẩm.");
@@ -538,16 +545,60 @@ export default function AdminProductsPage() {
     }
   }
 
+  async function restoreProductDraft(product: AdminProduct) {
+    if (!canManage || getAdminProductVisibilityAction(product) !== "restore-draft") return;
+    setActivatingId(product.id);
+    setSaveError(null);
+    try {
+      const result = await mutateAdmin<{ product: AdminProduct }>(`/api/admin/products/${product.id}`, {
+        body: {
+          categoryId: product.categoryId ?? null,
+          description: product.description,
+          imageUrl: product.imageUrl,
+          isActive: false,
+          leadTimeDays: product.leadTimeDays,
+          name: product.name,
+          requestId: crypto.randomUUID(),
+          revision: product.revision,
+          shortDescription: product.shortDescription,
+          sku: product.sku,
+          slug: product.slug,
+          status: "draft",
+        },
+        method: "PATCH",
+      });
+      if (result.product.isActive || result.product.status !== "draft") {
+        throw new Error("Máy chủ chưa xác nhận trạng thái bản nháp.");
+      }
+      if (editor?.id === product.id) {
+        setEditor((current) => (current ? { ...current, isActive: false, status: "draft" } : null));
+        setEditorSnapshot((current) => (current ? { ...current, isActive: false, status: "draft" } : null));
+      }
+      setAttempt((value) => value + 1);
+      showToast("success", `Đã khôi phục “${product.name}” thành bản nháp. Sản phẩm chưa hiển thị trên website.`);
+    } catch (reason: unknown) {
+      setSaveError(reason instanceof AdminClientError ? reason : new AdminClientError("Không thể khôi phục sản phẩm.", 0));
+      showToast("error", reason instanceof AdminClientError ? reason.message : "Không thể khôi phục sản phẩm.");
+    } finally {
+      setActivatingId(null);
+    }
+  }
+
   async function activateSelectedProducts() {
     if (!canManage || selectedIds.size === 0) return;
+    const selectedProducts = products.filter((p) => selectedIds.has(p.id));
+    const activationTargets = selectedProducts.filter((product) => getAdminProductVisibilityAction(product) === "show");
+    const skippedCount = selectedProducts.length - activationTargets.length;
+    if (activationTargets.length === 0) {
+      showToast("info", "Không có sản phẩm đã xuất bản đang tạm ẩn. Bản nháp cần xuất bản trước; sản phẩm lưu trữ cần khôi phục thành bản nháp.");
+      return;
+    }
     setBatchActivating(true);
     let successCount = 0;
     let failCount = 0;
-    const selectedProducts = products.filter((p) => selectedIds.has(p.id));
-    for (const product of selectedProducts) {
+    for (const product of activationTargets) {
       try {
-        const targetStatus: ProductFormState["status"] = product.status === "archived" ? "draft" : (product.status as ProductFormState["status"]);
-        await mutateAdmin<{ product: AdminProduct }>(`/api/admin/products/${product.id}`, {
+        const result = await mutateAdmin<{ product: AdminProduct }>(`/api/admin/products/${product.id}`, {
           body: {
             categoryId: product.categoryId ?? null,
             description: product.description,
@@ -560,10 +611,14 @@ export default function AdminProductsPage() {
             shortDescription: product.shortDescription,
             sku: product.sku,
             slug: product.slug,
-            status: targetStatus,
+            status: "published",
           },
           method: "PATCH",
         });
+        if (!result.product.isActive || result.product.status !== "published") {
+          failCount += 1;
+          continue;
+        }
         successCount += 1;
       } catch {
         failCount += 1;
@@ -573,9 +628,11 @@ export default function AdminProductsPage() {
     setAttempt((value) => value + 1);
     setBatchActivating(false);
     if (failCount > 0) {
-      showToast("error", `Đã bật hiển thị ${successCount} sản phẩm (${failCount} sản phẩm lỗi).`);
+      showToast("error", `Đã hiện ${successCount} sản phẩm; ${failCount} thao tác không đạt trạng thái yêu cầu. Đã bỏ qua ${skippedCount} sản phẩm không ở trạng thái đã xuất bản.`);
+    } else if (skippedCount > 0) {
+      showToast("info", `Đã hiện ${successCount} sản phẩm đã xuất bản. Bỏ qua ${skippedCount} sản phẩm chưa thể hiện; hãy xuất bản hoặc khôi phục riêng.`);
     } else {
-      showToast("success", `Đã bật hiển thị cho ${successCount} sản phẩm đã chọn.`);
+      showToast("success", `Đã hiện ${successCount} sản phẩm đã xuất bản.`);
     }
   }
 
@@ -631,10 +688,17 @@ export default function AdminProductsPage() {
       showToast("info", "Chưa có thiết lập nào được chọn để thay đổi hàng loạt.");
       return;
     }
+    const selectedProducts = products.filter((p) => selectedIds.has(p.id));
+    if (batchEditVisibility === "active" && selectedProducts.some((product) => {
+      const targetStatus = batchEditStatus === "keep" ? product.status : batchEditStatus;
+      return targetStatus !== "published";
+    })) {
+      showToast("error", "Chỉ sản phẩm đã xuất bản mới được bật hiển thị. Hãy chọn trạng thái “Đã xuất bản” trong cùng thao tác hoặc bỏ bản nháp khỏi lựa chọn.");
+      return;
+    }
     setBatchEditLoading(true);
     let successCount = 0;
     let failCount = 0;
-    const selectedProducts = products.filter((p) => selectedIds.has(p.id));
     for (const product of selectedProducts) {
       try {
         const nextStatus = batchEditStatus !== "keep" ? batchEditStatus : product.status;
@@ -643,6 +707,7 @@ export default function AdminProductsPage() {
         else if (batchEditVisibility === "inactive") nextIsActive = false;
         else if (batchEditStatus === "published") nextIsActive = true;
         else if (batchEditStatus === "archived") nextIsActive = false;
+        if (nextStatus !== "published") nextIsActive = false;
 
         let nextCategoryId: number | null = product.categoryId;
         if (batchEditCategory === "none") nextCategoryId = null;
@@ -655,7 +720,7 @@ export default function AdminProductsPage() {
           nextLeadTimeDays = Number.isSafeInteger(val) && val >= 0 ? val : product.leadTimeDays;
         }
 
-        await mutateAdmin<{ product: AdminProduct }>(`/api/admin/products/${product.id}`, {
+        const result = await mutateAdmin<{ product: AdminProduct }>(`/api/admin/products/${product.id}`, {
           body: {
             categoryId: nextCategoryId,
             description: product.description,
@@ -672,6 +737,10 @@ export default function AdminProductsPage() {
           },
           method: "PATCH",
         });
+        if (result.product.status !== nextStatus || result.product.isActive !== nextIsActive) {
+          failCount += 1;
+          continue;
+        }
         successCount += 1;
       } catch {
         failCount += 1;
@@ -682,7 +751,7 @@ export default function AdminProductsPage() {
     setAttempt((value) => value + 1);
     setBatchEditLoading(false);
     if (failCount > 0) {
-      showToast("error", `Đã cập nhật ${successCount} sản phẩm (${failCount} lỗi).`);
+      showToast("error", `Đã cập nhật đúng yêu cầu ${successCount} sản phẩm; ${failCount} thao tác không đạt trạng thái yêu cầu hoặc bị lỗi.`);
     } else {
       showToast("success", `Đã cập nhật hàng loạt thành công cho ${successCount} sản phẩm.`);
     }
@@ -961,15 +1030,19 @@ export default function AdminProductsPage() {
                               {canManage ? <td className="admin-sticky-actions">
                                 <div className="admin-table-actions">
                                   <button className="admin-button admin-button-quiet" data-testid={`button-product-edit-${product.id}`} disabled={saving} onClick={() => openEdit(product)} type="button">Sửa</button>
-                                  {product.isActive ? (
+                                  {getAdminProductVisibilityAction(product) === "hide" ? (
                                     <button className="admin-button admin-button-danger" data-testid={`button-product-archive-${product.id}`} disabled={archivingId === product.id || activatingId === product.id} onClick={() => setConfirmArchive(product)} type="button">
                                       {archivingId === product.id ? "Đang ẩn" : "Ẩn"}
                                     </button>
-                                  ) : (
+                                  ) : getAdminProductVisibilityAction(product) === "show" ? (
                                     <button className="admin-button admin-button-primary" data-testid={`button-product-activate-${product.id}`} disabled={activatingId === product.id || archivingId === product.id} onClick={() => void unhideProduct(product)} style={{ fontSize: 12, minHeight: 28, padding: "0 8px" }} type="button">
                                       {activatingId === product.id ? "Đang hiện…" : "Hiện"}
                                     </button>
-                                  )}
+                                  ) : getAdminProductVisibilityAction(product) === "restore-draft" ? (
+                                    <button className="admin-button admin-button-quiet" data-testid={`button-product-restore-${product.id}`} disabled={activatingId === product.id || archivingId === product.id} onClick={() => void restoreProductDraft(product)} style={{ fontSize: 12, minHeight: 28, padding: "0 8px" }} type="button">
+                                      {activatingId === product.id ? "Đang khôi phục…" : "Khôi phục nháp"}
+                                    </button>
+                                  ) : null}
                                 </div>
                               </td> : null}
                           </tr>

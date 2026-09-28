@@ -7,6 +7,7 @@ import test from "node:test";
 import { buildAdminProductPayload } from "../src/lib/admin-product-form.ts";
 import { parseAdminProductCreateCommand } from "../src/lib/admin-product-command.ts";
 import { parseAdminProductPayload } from "../src/lib/admin-product-input.ts";
+import { getAdminProductVisibilityAction } from "../src/lib/admin-product-visibility.ts";
 
 const REQUEST_ID = "123e4567-e89b-42d3-a456-426614174000";
 
@@ -62,4 +63,18 @@ test("product editor rejects an empty name before a write", () => {
 
   assert.equal(parsed.input, null);
   assert.match(parsed.fieldErrors.name ?? "", /Tên sản phẩm/);
+});
+
+test("only a published hidden product can be shown directly", () => {
+  assert.equal(getAdminProductVisibilityAction({ isActive: false, status: "published" }), "show");
+  assert.equal(getAdminProductVisibilityAction({ isActive: false, status: "draft" }), "none");
+  assert.equal(getAdminProductVisibilityAction({ isActive: false, status: "review" }), "none");
+});
+
+test("archived products are restored as drafts, not falsely reported as visible", () => {
+  assert.equal(getAdminProductVisibilityAction({ isActive: false, status: "archived" }), "restore-draft");
+});
+
+test("active products keep the hide action even if stored status is inconsistent", () => {
+  assert.equal(getAdminProductVisibilityAction({ isActive: true, status: "draft" }), "hide");
 });
