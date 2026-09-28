@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowDown, ArrowUp, Eye, ExternalLink, Image as ImageIcon, Plus, Save, Send, Trash2, X } from "lucide-react";
+import { ArrowDown, ArrowUp, Download, Eye, ExternalLink, Image as ImageIcon, Plus, Save, Send, Trash2, X } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -15,7 +15,7 @@ import { useAdminSession } from "@/components/admin/AdminShell";
 import { AdminClientError, fetchAdmin, mutateAdmin } from "@/lib/admin-client";
 import { buildServiceArticlePageSeed } from "@/lib/admin-service-articles";
 import type { ServiceArticleContext } from "@/lib/admin-service-articles";
-import type { PageBlock, PageCta } from "@/lib/page-builder";
+import { parsePageBlocks as validateBlocks, type PageBlock, type PageCta } from "@/lib/page-builder";
 
 interface AdminPageRecord {
   pageKey: string;
@@ -84,6 +84,7 @@ export function AdminPageBuilder({ articleContext = null, embedded = false, mode
   const [saving, setSaving] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [importingLegacy, setImportingLegacy] = useState(false);
   const [error, setError] = useState<AdminClientError | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(mode === "service-article" && Boolean(serviceArticleSeed));
@@ -96,6 +97,7 @@ export function AdminPageBuilder({ articleContext = null, embedded = false, mode
   const saveInFlight = useRef(false);
   const publishInFlight = useRef(false);
   const createInFlight = useRef(false);
+  const legacyImportInFlight = useRef(false);
   const { showToast } = useAdminToast();
 
   const selectedPage = mode === "service-article"
@@ -115,11 +117,18 @@ export function AdminPageBuilder({ articleContext = null, embedded = false, mode
   const createFormDirty = mode === "service-article"
     ? Boolean(serviceArticleSeed && (createForm.title !== serviceArticleSeed.title || createForm.routePath !== serviceArticleSeed.routePath))
     : Boolean(createForm.pageKey || createForm.title || createForm.routePath !== "/");
+  const canImportLegacyArticle = mode === "service-article"
+    && canEdit
+    && selectedPage !== null
+    && !selectedPage.publishedEnabled
+    && selectedPage.draftBlocks.length === 0
+    && selectedPage.publishedBlocks.length === 0
+    && blocks.length === 0;
   const isDirty = useCallback(() => Boolean(
     (selectedPage && (JSON.stringify(blocks) !== JSON.stringify(selectedPage.draftBlocks) || draftEnabled !== selectedPage.draftEnabled || seoTitle !== selectedPage.draftSeoTitle || seoDescription !== selectedPage.draftSeoDescription))
     || (showCreate && createFormDirty)
   ), [blocks, createFormDirty, draftEnabled, selectedPage, seoDescription, seoTitle, showCreate]);
-  useRegisterAdminUnsaved(isDirty, saving || publishing || creating);
+  useRegisterAdminUnsaved(isDirty, saving || publishing || creating || importingLegacy);
 
   async function loadPages() {
     setLoading(true);
@@ -300,10 +309,11 @@ export function AdminPageBuilder({ articleContext = null, embedded = false, mode
         setDraftEnabled(true);
         setSeoTitle(result.page.title);
         setSeoDescription("");
+        const imported = await importLegacyArticle(result.page, false);
+        if (imported) showToast("success", "Đã tạo bản nháp và nhập nội dung trang cũ. Hãy rà soát, lưu rồi đăng khi sẵn sàng.");
+      } else {
+        showToast("success", "Đã tạo trang mới. Hãy thêm khối rồi lưu bản nháp.");
       }
-      showToast("success", mode === "service-article"
-        ? "Đã mở bản nháp bài dịch vụ. Thêm nội dung, lưu rồi đăng khi sẵn sàng."
-        : "Đã tạo trang mới. Hãy thêm khối rồi lưu bản nháp.");
     } catch (reason: unknown) {
       if (!shouldRetryPageRequest(reason)) createRequest.current = null;
       const clientError = reason instanceof AdminClientError ? reason : new AdminClientError("Không thể tạo page.", 0);
@@ -312,6 +322,64 @@ export function AdminPageBuilder({ articleContext = null, embedded = false, mode
     } finally {
       createInFlight.current = false;
       setCreating(false);
+    }
+  }
+
+  async function importLegacyArticle(targetPage: AdminPageRecord | null = selectedPage, showSuccessToast = true): Promise<boolean> {
+    if (
+      mode !== "service-article"
+      || !targetPage
+      || !canEdit
+      || targetPage.publishedEnabled
+      || targetPage.draftBlocks.length > 0
+      || targetPage.publishedBlocks.length > 0
+      || legacyImportInFlight.current
+    ) return false;
+
+    legacyImportInFlight.current = true;
+    setImportingLegacy(true);
+    setError(null);
+    setNotice(null);
+    try {
+      const manifestResponse = await fetch("/captured-pages/manifest.json", { cache: "no-store" });
+      if (!manifestResponse.ok) throw new Error("Không tải được danh sách trang cũ để nhập.");
+      const manifest = await manifestResponse.json() as Record<string, unknown>;
+      const filename = manifest[normalizePageRoute(targetPage.routePath)];
+      if (typeof filename !== "string" || !/^[A-Za-z0-9_-]+\.json$/.test(filename)) {
+        throw new Error("Không tìm thấy bản nội dung trang cũ cho đường dẫn này.");
+      }
+
+      const articleResponse = await fetch(`/captured-pages/editable-articles/${encodeURIComponent(filename)}`, { cache: "no-store" });
+      if (!articleResponse.ok) throw new Error("Chưa có dữ liệu nhập cho bài cũ này. Hãy cập nhật lại ứng dụng rồi thử lần nữa.");
+      const legacy = await articleResponse.json() as {
+        available?: unknown;
+        blocks?: unknown;
+        reason?: unknown;
+        seoDescription?: unknown;
+        seoTitle?: unknown;
+      };
+      if (legacy.available !== true) {
+        throw new Error(typeof legacy.reason === "string" ? legacy.reason : "Bài cũ này chưa thể nhập tự động.");
+      }
+
+      const importedBlocks = validateBlocks(legacy.blocks);
+      if (importedBlocks.length === 0) throw new Error("Bài cũ không có nội dung để nhập.");
+      setBlocks(importedBlocks);
+      setDraftEnabled(true);
+      setSeoTitle(typeof legacy.seoTitle === "string" ? legacy.seoTitle : targetPage.title);
+      setSeoDescription(typeof legacy.seoDescription === "string" ? legacy.seoDescription : "");
+      setNotice("Đã nhập nội dung cũ vào bản nháp. Bài trên website chưa thay đổi; hãy rà soát, lưu bản nháp rồi đăng khi sẵn sàng.");
+      if (showSuccessToast) showToast("success", "Đã nhập nội dung bài cũ vào trình soạn.");
+      return true;
+    } catch (reason: unknown) {
+      const message = reason instanceof Error ? reason.message : "Không thể nhập nội dung bài cũ.";
+      const clientError = new AdminClientError(message, 0);
+      setError(clientError);
+      showToast("error", message);
+      return false;
+    } finally {
+      legacyImportInFlight.current = false;
+      setImportingLegacy(false);
     }
   }
 
@@ -382,7 +450,7 @@ export function AdminPageBuilder({ articleContext = null, embedded = false, mode
           <div className="admin-panel-heading">
             <div>
               <h2 className="admin-panel-title" id="service-article-start-heading">Viết bài dịch vụ</h2>
-              <p className="admin-panel-caption">Trang cũ đang tiếp tục hiển thị. Bạn tạo bản nháp ở đây; khách chỉ thấy bài mới sau khi đăng.</p>
+              <p className="admin-panel-caption">Trang cũ vẫn hiển thị. Tạo bản nháp sẽ tự nhập nội dung cũ để anh sửa; khách chỉ thấy bài mới sau khi anh lưu và đăng.</p>
             </div>
           </div>
           <div className="admin-editor-grid">
@@ -395,7 +463,7 @@ export function AdminPageBuilder({ articleContext = null, embedded = false, mode
           </div>
           <div className="admin-editor-actions">
             <button className="admin-button admin-button-primary" disabled={!createForm.title.trim() || !canEdit || creating} onClick={() => void createPage()} type="button">
-              <Plus size={14} /> {creating ? "Đang tạo bản nháp" : "Bắt đầu viết bài"}
+              <Plus size={14} /> {creating ? "Đang tạo và nhập bài cũ" : "Tạo bản nháp và nhập bài cũ"}
             </button>
           </div>
         </section>
@@ -411,18 +479,29 @@ export function AdminPageBuilder({ articleContext = null, embedded = false, mode
             </div>
             <div className="admin-builder-meta">
               <AdminField id="builder-seo-title" label="Tiêu đề tìm kiếm Google" optional>
-                <input className="admin-input" disabled={!canEdit} id="builder-seo-title" onChange={(event) => setSeoTitle(event.target.value)} value={seoTitle} />
+                <input className="admin-input" disabled={!canEdit || importingLegacy} id="builder-seo-title" onChange={(event) => setSeoTitle(event.target.value)} value={seoTitle} />
               </AdminField>
               <AdminField id="builder-seo-description" label="Mô tả tìm kiếm Google" optional>
-                <textarea className="admin-textarea" disabled={!canEdit} id="builder-seo-description" onChange={(event) => setSeoDescription(event.target.value)} rows={3} value={seoDescription} />
+                <textarea className="admin-textarea" disabled={!canEdit || importingLegacy} id="builder-seo-description" onChange={(event) => setSeoDescription(event.target.value)} rows={3} value={seoDescription} />
               </AdminField>
             </div>
-            <div className="admin-builder-section-heading"><div><h3>{mode === "service-article" ? "Nội dung bài viết" : "Các khối nội dung"}</h3><p>{mode === "service-article" ? "Thêm tiêu đề, đoạn văn, ảnh có chú thích hoặc phần liên hệ; sắp xếp thứ tự bằng nút lên/xuống." : "Kéo thứ tự bằng nút lên/xuống; khối mới để trống để tránh đăng nhầm nội dung mẫu."}</p></div><BlockTypeMenu disabled={!canEdit} onAdd={(type) => setBlocks((current) => [...current, createDefaultBlock(type)])} /></div>
+            {canImportLegacyArticle ? (
+              <div className="admin-content-toolbar" data-testid="service-article-legacy-import">
+                <div className="admin-content-toolbar-title"><Download aria-hidden="true" size={15} /><span>Trang cũ có sẵn</span></div>
+                <div><p>Nhập tiêu đề, nội dung, ảnh và chú thích vào bản nháp có thể chỉnh sửa. Bài đang hiển thị không đổi cho đến khi anh đăng.</p></div>
+                <div className="admin-content-toolbar-actions">
+                  <button className="admin-button admin-button-quiet" disabled={importingLegacy} onClick={() => void importLegacyArticle()} type="button">
+                    <Download aria-hidden="true" size={14} /> {importingLegacy ? "Đang nhập nội dung" : "Nhập nội dung trang cũ"}
+                  </button>
+                </div>
+              </div>
+            ) : null}
+            <div className="admin-builder-section-heading"><div><h3>{mode === "service-article" ? "Nội dung bài viết" : "Các khối nội dung"}</h3><p>{mode === "service-article" ? "Thêm tiêu đề, đoạn văn, ảnh có chú thích hoặc phần liên hệ; sắp xếp thứ tự bằng nút lên/xuống." : "Kéo thứ tự bằng nút lên/xuống; khối mới để trống để tránh đăng nhầm nội dung mẫu."}</p></div><BlockTypeMenu disabled={!canEdit || importingLegacy} onAdd={(type) => setBlocks((current) => [...current, createDefaultBlock(type)])} /></div>
             <div className="admin-builder-blocks">
               {blocks.length === 0 ? <div className="admin-table-empty"><Eye size={24} /><strong>Trang chưa có khối</strong><p>Chọn loại khối ở nút “Thêm khối” để bắt đầu.</p></div> : blocks.map((block, index) => (
                 <AdminPageBlockEditor
                   block={block}
-                  disabled={!canEdit}
+                  disabled={!canEdit || importingLegacy}
                   index={index}
                   key={`${block.type}-${index}`}
                   onChange={(next) => updateBlock(index, next)}
@@ -433,15 +512,15 @@ export function AdminPageBuilder({ articleContext = null, embedded = false, mode
             </div>
             <div className="admin-editor-footer">
               <label className={`admin-check${canEdit ? "" : " is-disabled"}`}>
-                <input checked={draftEnabled} disabled={!canEdit} onChange={(event) => setDraftEnabled(event.target.checked)} type="checkbox" />
+                <input checked={draftEnabled} disabled={!canEdit || importingLegacy} onChange={(event) => setDraftEnabled(event.target.checked)} type="checkbox" />
                 <span>
                   <strong>{mode === "service-article" ? "Đăng bài này tại đường dẫn dịch vụ" : "Cho phép trang này thay bản cũ đã lưu sẵn"}</strong>
                   <small>{mode === "service-article" ? "Bỏ chọn, lưu bản nháp rồi bấm “Ẩn bài khỏi website”. Nội dung vẫn được giữ để đăng lại sau." : "Chỉ có hiệu lực sau khi trang có khối nội dung và được đăng."}</small>
                 </span>
               </label>
               <div className="admin-editor-actions">
-                <button className="admin-button admin-button-quiet" disabled={!canEdit || saving || !blocksChanged()} onClick={() => void saveDraft()} type="button"><Save size={14} /> {saving ? "Đang lưu" : "Lưu bản nháp"}</button>
-                <button className="admin-button admin-button-primary" disabled={!canPublish || publishing || blocksChanged() || !selectedPage.dirty || (mode === "service-article" && draftEnabled && blocks.length === 0)} onClick={() => void publishPage()} type="button"><Send size={14} /> {publishing ? "Đang cập nhật" : mode === "service-article"
+                <button className="admin-button admin-button-quiet" disabled={!canEdit || importingLegacy || saving || !blocksChanged()} onClick={() => void saveDraft()} type="button"><Save size={14} /> {saving ? "Đang lưu" : "Lưu bản nháp"}</button>
+                <button className="admin-button admin-button-primary" disabled={!canPublish || importingLegacy || publishing || blocksChanged() || !selectedPage.dirty || (mode === "service-article" && draftEnabled && blocks.length === 0)} onClick={() => void publishPage()} type="button"><Send size={14} /> {publishing ? "Đang cập nhật" : mode === "service-article"
                   ? !draftEnabled && selectedPage.publishedEnabled
                     ? "Ẩn bài khỏi website"
                     : draftEnabled && selectedPage.publishedEnabled

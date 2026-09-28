@@ -33,7 +33,7 @@ test("content and page editors hand off to the real storefront instead of recons
   assert.doesNotMatch(content, /ContentPreview|admin-preview-page|Live draft preview|Preview dùng bản nháp/);
   assert.match(content, /Mở trang web thật/);
   assert.match(content, /href="\/"/);
-  assert.doesNotMatch(builder, /PageBlocks|admin-builder-preview-frame|Live draft preview|Preview dùng draft/);
+  assert.doesNotMatch(builder, /<PageBlocks\b|admin-builder-preview-frame|Live draft preview|Preview dùng draft/);
   assert.match(builder, /selectedPage\.routePath/);
   assert.match(builder, /Mở trang thật/);
   assert.doesNotMatch(styles, /admin-preview-|admin-content-preview|admin-builder-preview/);
