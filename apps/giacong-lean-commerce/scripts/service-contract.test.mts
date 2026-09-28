@@ -49,6 +49,13 @@ test("service content index makes captured routes reachable without expanding th
   assert.ok(content.every((item) => item.label.trim().length > 0));
 });
 
+test("admin service previews target the canonical managed service route", async () => {
+  const adminPage = await readFile(new URL("../src/app/admin/dich-vu/page.tsx", import.meta.url), "utf8");
+
+  assert.ok(adminPage.includes('href={`/thue-gia-cong/${service.slug}/`}'), "service row preview must use the managed service route");
+  assert.ok(adminPage.includes('href={`/thue-gia-cong/${form.slug}/`}'), "service editor preview must use the managed service route");
+});
+
 test("captured consultation forms carry the canonical family context", () => {
   const markup = '<form class="wpcf7-form"><input type="text"/><button type="submit">Gửi</button></form>';
   const result = addCapturedServiceContext(markup, {

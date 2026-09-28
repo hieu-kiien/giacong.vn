@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useState, type FormEvent } from "react";
 
 import { AdminConfirmDialog, AdminModal } from "./AdminDialog";
+import { AdminNewsContentEditor } from "./AdminNewsContentEditor";
 import { useRegisterAdminUnsaved } from "./AdminUnsavedGuard";
 import { useAdminVisualContext } from "./AdminVisualMode";
 import styles from "./AdminNewsContextualAction.module.css";
@@ -225,11 +226,9 @@ function InlineNewsAction({ label, newsId }: { label: string; newsId?: number })
                     <textarea className="admin-textarea" disabled={saving} onChange={(event) => update("excerpt", event.target.value)} rows={3} value={form.excerpt} />
                     {fieldErrors.excerpt ? <small className="admin-field-error">{fieldErrors.excerpt}</small> : null}
                   </label>
-                  <label className="admin-field admin-field-wide">
-                    <span>Nội dung bài viết</span>
-                    <textarea className="admin-textarea" disabled={saving} onChange={(event) => update("content", event.target.value)} rows={10} value={form.content} />
-                    {fieldErrors.content ? <small className="admin-field-error">{fieldErrors.content}</small> : null}
-                  </label>
+                  <div className="admin-field admin-field-wide">
+                    <AdminNewsContentEditor disabled={saving} error={fieldErrors.content} onChange={(content) => update("content", content)} value={form.content} />
+                  </div>
                 </div>
                 <div className="admin-editor-footer">
                   <p className="admin-item-meta">Nút phát hành/gỡ xuất bản và xóa vẫn ở trang Tin tức trong admin.</p>

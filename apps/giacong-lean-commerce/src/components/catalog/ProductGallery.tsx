@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { ImageOff } from "lucide-react";
 
 import styles from "@/components/catalog/product-detail.module.css";
 import type { ProductGalleryImage } from "@/lib/product-detail-view";
@@ -19,7 +20,15 @@ interface ProductGalleryProps {
  */
 export function ProductGallery({ images }: ProductGalleryProps) {
   const [activeIndex, setActiveIndex] = useState(0);
+  const [failedImageUrls, setFailedImageUrls] = useState<Set<string>>(() => new Set());
   const active = images[activeIndex] ?? images[0];
+
+  function markImageFailed(url: string) {
+    setFailedImageUrls((current) => {
+      if (current.has(url)) return current;
+      return new Set(current).add(url);
+    });
+  }
 
   if (!active) {
     return (
@@ -34,8 +43,15 @@ export function ProductGallery({ images }: ProductGalleryProps) {
   return (
     <div className={styles.gallery}>
       <div className={styles.mainImage}>
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img alt={active.alt} src={active.url} />
+        {failedImageUrls.has(active.url) ? (
+          <div aria-label="Không thể tải ảnh sản phẩm" className={styles.mainImageFallback} role="img">
+            <ImageOff aria-hidden="true" size={28} />
+            <span>Không thể tải ảnh sản phẩm</span>
+          </div>
+        ) : (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img alt={active.alt} onError={() => markImageFailed(active.url)} src={active.url} />
+        )}
       </div>
       {images.length > 1 ? (
         <ul aria-label="Ảnh sản phẩm" className={styles.thumbRail}>
@@ -48,8 +64,14 @@ export function ProductGallery({ images }: ProductGalleryProps) {
                 onClick={() => setActiveIndex(index)}
                 type="button"
               >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img alt="" loading="lazy" src={image.url} />
+                {failedImageUrls.has(image.url) ? (
+                  <span aria-hidden="true" className={styles.thumbFallback} title="Ảnh không khả dụng">
+                    <ImageOff size={18} />
+                  </span>
+                ) : (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img alt="" loading="lazy" onError={() => markImageFailed(image.url)} src={image.url} />
+                )}
               </button>
             </li>
           ))}

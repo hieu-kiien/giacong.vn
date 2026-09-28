@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
 import { CapturedStorefrontShell } from "@/components/site/CapturedStorefrontShell";
+import { NewsArticleBody } from "@/components/NewsArticleBody";
 import { AdminNewsContextualAction } from "@/components/admin/AdminNewsContextualAction";
 import { getPublishedNewsPost, getPublishedNewsRedirect } from "@/lib/news-public";
 import { canonicalMetadata } from "@/lib/seo";
@@ -63,7 +64,7 @@ export default async function NewsDetailPage({ params }: NewsDetailPageProps) {
           ? // eslint-disable-next-line @next/next/no-img-element
             <img alt="" src={post.coverImageUrl} style={{ borderRadius: 10, height: "auto", marginBottom: 20, maxWidth: "100%" }} />
           : null}
-        <div style={{ color: "#2c3833", fontSize: 16, lineHeight: 1.75, whiteSpace: "pre-wrap" }}>{post.content}</div>
+        <NewsArticleBody content={post.content} />
         </article>
       </main>
     </CapturedStorefrontShell>

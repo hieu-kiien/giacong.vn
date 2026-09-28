@@ -59,6 +59,7 @@ export function AdminTimelineFeed({
 }) {
   const [events, setEvents] = useState<CrmTimelineEvent[]>([]);
   const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState(false);
   const [newTitle, setNewTitle] = useState("");
   const [newContent, setNewContent] = useState("");
   const [eventType, setEventType] = useState<CrmTimelineEventType>("note_internal");
@@ -70,13 +71,14 @@ export function AdminTimelineFeed({
   const loadTimeline = useCallback(async () => {
     if (!customerId) return;
     setLoading(true);
+    setLoadError(false);
     try {
       const res = await fetchAdmin<{ events: CrmTimelineEvent[] }>(
         `/api/admin/crm/customers/${customerId}/timeline`
       );
       setEvents(res.events ?? []);
     } catch {
-      setEvents([]);
+      setLoadError(true);
     } finally {
       setLoading(false);
     }
@@ -201,24 +203,57 @@ export function AdminTimelineFeed({
       </form>
 
       {/* Events Timeline Feed */}
+      {loadError ? (
+        <div
+          role="alert"
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 12,
+            padding: "10px 12px",
+            marginBottom: 10,
+            border: "1px solid #fecaca",
+            borderRadius: 8,
+            background: "#fef2f2",
+            color: "#991b1b",
+            fontSize: 12,
+          }}
+        >
+          <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <AlertCircle size={15} /> Không tải được dòng thời gian. Vui lòng thử lại.
+          </span>
+          <button
+            type="button"
+            className="admin-button"
+            onClick={() => void loadTimeline()}
+            disabled={loading}
+            style={{ padding: "4px 10px", fontSize: 12, whiteSpace: "nowrap" }}
+          >
+            Tải lại
+          </button>
+        </div>
+      ) : null}
       {loading ? (
         <div style={{ textAlign: "center", padding: "16px", color: "#64748b", fontSize: 12 }}>
           Đang tải dòng thời gian...
         </div>
       ) : events.length === 0 ? (
-        <div
-          style={{
-            textAlign: "center",
-            padding: "24px 16px",
-            background: "#f8fafc",
-            borderRadius: 8,
-            color: "#64748b",
-            fontSize: 12,
-          }}
-        >
-          <Clock size={20} style={{ margin: "0 auto 6px", opacity: 0.5 }} />
-          Chưa có ghi chép tương tác nào cho khách hàng này.
-        </div>
+        loadError ? null : (
+          <div
+            style={{
+              textAlign: "center",
+              padding: "24px 16px",
+              background: "#f8fafc",
+              borderRadius: 8,
+              color: "#64748b",
+              fontSize: 12,
+            }}
+          >
+            <Clock size={20} style={{ margin: "0 auto 6px", opacity: 0.5 }} />
+            Chưa có ghi chép tương tác nào cho khách hàng này.
+          </div>
+        )
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           {events.map((evt) => (

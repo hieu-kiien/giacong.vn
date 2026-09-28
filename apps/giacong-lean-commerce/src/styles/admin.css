@@ -15,7 +15,8 @@
 }
 
 @layer components {
-  .admin-app {
+  .admin-app,
+  .admin-toast-stack {
     --admin-ink: #1e2a27;
     --admin-ink-soft: #55635d;
     --admin-ink-muted: #637168;
@@ -31,6 +32,9 @@
     --admin-red-wash: #fff0ed;
     --admin-blue: #3b6175;
     --admin-blue-wash: #edf5f7;
+  }
+
+  .admin-app {
     background: var(--admin-paper);
     color: var(--admin-ink);
     font-family: "Admin Sans", system-ui, sans-serif;
@@ -621,9 +625,9 @@
   .admin-field > span b { color: var(--admin-red); }
   .admin-field-wide { grid-column: 1 / -1; }
   .admin-textarea { background: var(--admin-surface); border: 1px solid #cbd7c9; border-radius: 6px; color: var(--admin-ink); display: block; line-height: 1.5; padding: 10px 12px; resize: vertical; width: 100%; }
-  .admin-editor-error { background: var(--admin-red-wash); border-left: 3px solid var(--admin-red); color: #823b34; font-size: 13px; line-height: 1.5; margin: 0 0 17px; padding: 10px 12px; }
+  .admin-editor-error { background: var(--admin-red-wash); border-left: 3px solid var(--admin-red); color: #823b34; font-size: 13px; line-height: 1.5; margin: 0 0 17px; overflow-wrap: anywhere; padding: 10px 12px; }
   .admin-editor-error-list { color: #823b34; display: grid; gap: 5px; margin: -8px 0 17px; padding: 0 0 0 20px; }
-  .admin-editor-error-list button { background: none; border: 0; color: inherit; cursor: pointer; font: inherit; padding: 1px 2px; text-align: left; text-decoration: underline; text-underline-offset: 2px; }
+  .admin-editor-error-list button { background: none; border: 0; color: inherit; cursor: pointer; font: inherit; overflow-wrap: anywhere; padding: 1px 2px; text-align: left; text-decoration: underline; text-underline-offset: 2px; }
   .admin-editor-error-list button:focus-visible { border-radius: 3px; outline: 2px solid currentColor; outline-offset: 2px; }
   .admin-variant-advanced { border: 1px solid var(--admin-border); border-radius: 8px; margin: 4px 0 14px; padding: 12px 14px; }
   .admin-variant-advanced summary { color: var(--admin-ink-soft); cursor: pointer; font-size: 13px; font-weight: 650; }
@@ -1015,15 +1019,23 @@
 /* --- UI system additions (2026-08-23): toast, modal, confirm, form fields --- */
 
 .admin-toast-stack {
+  font-family: "Admin Sans", system-ui, sans-serif;
   display: flex;
   flex-direction: column;
   gap: 8px;
+  max-height: calc(100dvh - 78px);
   max-width: min(92vw, 380px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
   position: fixed;
   right: 18px;
-  top: 18px;
+  top: calc(54px + 12px);
   z-index: 90;
 }
+.admin-toast-stack,
+.admin-toast-stack *,
+.admin-toast-stack *::before,
+.admin-toast-stack *::after { box-sizing: border-box; }
 @keyframes toastSlideIn {
   from { opacity: 0; transform: translateY(-8px) scale(0.96); }
   to { opacity: 1; transform: translateY(0) scale(1); }
@@ -1044,23 +1056,41 @@
 .admin-toast-error { border-color: #ecc8c2; }
 .admin-toast-error .admin-toast-icon { color: var(--admin-red); }
 .admin-toast-info .admin-toast-icon { color: var(--admin-blue); }
-.admin-toast-message { flex: 1; font-size: 13px; line-height: 1.45; }
+.admin-toast-message { flex: 1; font-size: 13px; line-height: 1.45; min-width: 0; overflow-wrap: anywhere; }
 .admin-toast-close {
+  align-items: center;
   background: none;
   border: none;
   color: var(--admin-ink-muted);
   cursor: pointer;
-  padding: 2px;
+  display: inline-flex;
+  flex: 0 0 24px;
+  height: 24px;
+  justify-content: center;
+  padding: 0;
+  width: 24px;
+}
+.admin-toast-close:focus-visible { border-radius: 4px; outline: 2px solid #7ea947; outline-offset: 2px; }
+
+@media (max-width: 768px) {
+  .admin-toast-stack {
+    bottom: 120px;
+    max-height: calc(100dvh - 136px);
+    top: auto;
+  }
 }
 
 @media (max-width: 640px) {
   .admin-toast-stack {
-    bottom: 16px;
     left: 12px;
     max-width: none;
     right: 12px;
-    top: auto;
   }
+}
+
+@media (max-width: 768px) {
+  .admin-product-gallery-heading { flex-direction: column; gap: 12px; }
+  .admin-product-gallery-heading > .admin-button { align-self: flex-start; }
 }
 
 .admin-modal-overlay {
@@ -1118,7 +1148,7 @@
 .admin-field-label { font-size: 13px; font-weight: 600; }
 .admin-field-optional { color: var(--admin-ink-muted); font-weight: 400; }
 .admin-field-hint { color: var(--admin-ink-muted); font-size: 13px; margin: 0; }
-.admin-field-error { color: var(--admin-red); font-size: 13px; font-weight: 500; margin: 0; }
+.admin-field-error { color: var(--admin-red); font-size: 13px; font-weight: 500; margin: 0; overflow-wrap: anywhere; }
 .admin-field.has-error input,
 .admin-field.has-error select,
 .admin-field.has-error textarea { border-color: #d99389; }

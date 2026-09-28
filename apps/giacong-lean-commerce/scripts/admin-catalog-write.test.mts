@@ -15,6 +15,12 @@ import {
   updateAdminProductAtomically,
   updateAdminProductVariantAtomically,
 } from "../src/lib/admin-catalog-write.ts";
+import {
+  AdminProductGalleryValidationError,
+  parseAdminProductGalleryPayload,
+  replaceAdminProductGalleryAtomically,
+} from "../src/lib/admin-product-gallery.ts";
+import { serializeAdminProductGalleryState } from "../src/lib/admin-product-gallery-contract.ts";
 import { parseAdminProductCreateCommand, parseAdminProductUpdateCommand } from "../src/lib/admin-product-command.ts";
 import { parseAdminProductVariantCreateCommand, parseAdminProductVariantUpdateCommand } from "../src/lib/admin-variant-command.ts";
 import type { D1DatabaseLike, D1PreparedStatementLike } from "../src/lib/admin-data.ts";
@@ -845,4 +851,164 @@ test("catalog write routes and UI carry request ids, revisions and atomic writer
   assert.match(variantPanel, /requestId: crypto\.randomUUID\(\)/);
   assert.match(data, /p\.revision/);
   assert.match(data, /image_url, revision/);
+});
+
+test("product slug migration keeps every previous public URL pointed at the product", async () => {
+  const database = new SqliteCatalogDatabase();
+  database.sqlite.exec(await read("migrations/0031_product_slug_redirects.sql"));
+
+  database.sqlite.prepare("UPDATE products SET slug = ? WHERE id = 1").run("san-pham-moi");
+  database.sqlite.prepare("UPDATE products SET slug = ? WHERE id = 1").run("san-pham-moi-lan-hai");
+
+  const redirects = database.sqlite.prepare(`
+    SELECT old_slug, product_id FROM product_slug_redirects ORDER BY old_slug
+  `).all() as Array<{ old_slug: string; product_id: number }>;
+  assert.deepEqual(redirects.map(({ old_slug, product_id }) => ({ old_slug, product_id })), [
+    { old_slug: "san-pham-cu", product_id: 1 },
+    { old_slug: "san-pham-moi", product_id: 1 },
+  ]);
+
+  database.sqlite.prepare("UPDATE products SET slug = ? WHERE id = 1").run("san-pham-cu");
+  assert.equal(database.sqlite.prepare("SELECT old_slug FROM product_slug_redirects WHERE old_slug = ?").get("san-pham-cu"), undefined);
+  assert.equal(database.sqlite.prepare("SELECT product_id FROM product_slug_redirects WHERE old_slug = ?").get("san-pham-moi")?.product_id, 1);
+});
+
+type SqliteGalleryBindValue = null | number | bigint | string | NodeJS.ArrayBufferView;
+
+class SqliteGalleryStatement implements D1PreparedStatementLike {
+  private values: SqliteGalleryBindValue[] = [];
+  private readonly database: DatabaseSync;
+  readonly query: string;
+
+  constructor(database: DatabaseSync, query: string) {
+    this.database = database;
+    this.query = query;
+  }
+
+  bind(...values: unknown[]): D1PreparedStatementLike {
+    this.values = values as SqliteGalleryBindValue[];
+    return this;
+  }
+
+  async all<T = Record<string, unknown>>(): Promise<{ results: T[] }> {
+    return { results: this.database.prepare(this.query).all(...this.values) as T[] };
+  }
+
+  async first<T = Record<string, unknown>>(): Promise<T | null> {
+    return (this.database.prepare(this.query).get(...this.values) as T | undefined) ?? null;
+  }
+
+  async run(): Promise<unknown> {
+    return this.database.prepare(this.query).run(...this.values);
+  }
+}
+
+class SqliteGalleryDatabase implements D1DatabaseLike {
+  readonly sqlite = new DatabaseSync(":memory:");
+
+  constructor() {
+    this.sqlite.exec(`
+      PRAGMA foreign_keys = ON;
+      CREATE TABLE products (id INTEGER PRIMARY KEY);
+      INSERT INTO products (id) VALUES (1);
+      CREATE TABLE product_gallery_images (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+        image_url TEXT NOT NULL CHECK (image_url <> 'reject-me'),
+        sort_order INTEGER NOT NULL,
+        is_primary INTEGER NOT NULL CHECK (is_primary IN (0, 1))
+      );
+      INSERT INTO product_gallery_images (product_id, image_url, sort_order, is_primary)
+      VALUES (1, '/media/original.jpg', 0, 1);
+    `);
+  }
+
+  prepare(query: string): D1PreparedStatementLike {
+    return new SqliteGalleryStatement(this.sqlite, query);
+  }
+
+  async batch(statements: D1PreparedStatementLike[]): Promise<unknown[]> {
+    this.sqlite.exec("BEGIN");
+    try {
+      for (const statement of statements) await statement.run();
+      this.sqlite.exec("COMMIT");
+      return statements.map(() => ({ success: true }));
+    } catch (error) {
+      this.sqlite.exec("ROLLBACK");
+      throw error;
+    }
+  }
+}
+
+test("product gallery validates the replacement and rolls back on a mid-batch failure", async () => {
+  const database = new SqliteGalleryDatabase();
+  const images = parseAdminProductGalleryPayload({
+    images: [
+      { imageUrl: "/media/front.jpg", isPrimary: true },
+      { imageUrl: "https://cdn.example.test/side.jpg", isPrimary: false },
+    ],
+  });
+  await replaceAdminProductGalleryAtomically(database, 1, images);
+
+  const saved = database.sqlite.prepare(`
+    SELECT image_url, sort_order, is_primary
+    FROM product_gallery_images WHERE product_id = 1 ORDER BY sort_order
+  `).all() as Array<{ image_url: string; sort_order: number; is_primary: number }>;
+  assert.deepEqual(saved.map(({ image_url, sort_order, is_primary }) => ({ image_url, sort_order, is_primary })), [
+    { image_url: "/media/front.jpg", sort_order: 0, is_primary: 1 },
+    { image_url: "https://cdn.example.test/side.jpg", sort_order: 1, is_primary: 0 },
+  ]);
+
+  await assert.rejects(
+    () => replaceAdminProductGalleryAtomically(database, 1, [
+      { imageUrl: "/media/partial.jpg", sortOrder: 0, isPrimary: true },
+      { imageUrl: "reject-me", sortOrder: 1, isPrimary: false },
+    ]),
+    /CHECK constraint failed/,
+  );
+  const afterFailure = database.sqlite.prepare(`
+    SELECT image_url FROM product_gallery_images WHERE product_id = 1 ORDER BY sort_order
+  `).all() as Array<{ image_url: string }>;
+  assert.deepEqual(afterFailure.map(({ image_url }) => image_url), ["/media/front.jpg", "https://cdn.example.test/side.jpg"]);
+});
+
+test("product gallery payload rejects missing, duplicate, and multiple-primary images", () => {
+  assert.throws(() => parseAdminProductGalleryPayload({}), AdminProductGalleryValidationError);
+  assert.throws(() => parseAdminProductGalleryPayload({ images: [
+    { imageUrl: "/media/same.jpg" },
+    { imageUrl: "/media/same.jpg" },
+  ] }), AdminProductGalleryValidationError);
+  assert.throws(() => parseAdminProductGalleryPayload({ images: [
+    { imageUrl: "/media/a.jpg", isPrimary: true },
+    { imageUrl: "/media/b.jpg", isPrimary: true },
+  ] }), AdminProductGalleryValidationError);
+  assert.throws(() => parseAdminProductGalleryPayload({ images: [
+    { imageUrl: "javascript:alert(1)" },
+  ] }), AdminProductGalleryValidationError);
+  assert.throws(() => parseAdminProductGalleryPayload({ images: [
+    { imageUrl: "http://cdn.example.test/insecure.jpg" },
+  ] }), AdminProductGalleryValidationError);
+  assert.throws(() => parseAdminProductGalleryPayload({
+    images: Array.from({ length: 41 }, (_, index) => ({ imageUrl: `/media/${index}.jpg` })),
+  }), AdminProductGalleryValidationError);
+  assert.deepEqual(parseAdminProductGalleryPayload({ images: [] }), []);
+});
+
+test("product gallery accepts an empty replacement to persist removing the final image", async () => {
+  const database = new SqliteGalleryDatabase();
+  await replaceAdminProductGalleryAtomically(database, 1, []);
+
+  const savedCount = database.sqlite.prepare(
+    "SELECT COUNT(*) AS count FROM product_gallery_images WHERE product_id = 1",
+  ).get() as { count: number };
+  assert.equal(savedCount.count, 0);
+});
+
+test("product gallery saved state ignores regenerated row ids but tracks visible changes", () => {
+  const beforeSave = [{ id: 12, imageUrl: "/media/front.jpg", sortOrder: 0, isPrimary: true }];
+  const afterReload = [{ id: 34, imageUrl: "/media/front.jpg", sortOrder: 0, isPrimary: true }];
+  const changedOrder = [{ id: 34, imageUrl: "/media/front.jpg", sortOrder: 1, isPrimary: true }];
+
+  assert.equal(serializeAdminProductGalleryState(beforeSave), serializeAdminProductGalleryState(afterReload));
+  assert.notEqual(serializeAdminProductGalleryState(beforeSave), serializeAdminProductGalleryState(changedOrder));
 });

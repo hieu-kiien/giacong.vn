@@ -158,7 +158,8 @@ test("lỗi validation/mạng giữ form + fieldErrors", async () => {
   assert.doesNotMatch(catchBlock, /setEditorSnapshot\(null\)/, "catch lỗi không được xóa snapshot");
   assert.match(source, /fieldErrors/, "phải đọc fieldErrors từ AdminClientError");
   assert.match(source, /data-testid="product-form-field-errors"/, "phải render fieldErrors với testid thật");
-  assert.match(source, /role="alert"/, "lỗi phải có role=alert");
+  assert.equal(/className="admin-editor-error" role="alert"/.test(source), false, "form summary must not announce the same network error as the toast");
+  assert.match(submitSource, /showToast\("error"/, "non-field save errors are announced by the shared error toast");
 });
 
 test("retry cùng payload giữ nguyên requestId, đổi editor thì tạo requestId mới", async () => {

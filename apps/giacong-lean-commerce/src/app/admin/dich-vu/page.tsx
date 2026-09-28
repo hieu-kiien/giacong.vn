@@ -1,6 +1,7 @@
 "use client";
 
 import { ArrowLeft, ExternalLink, Eye, EyeOff, FileText, ImageIcon, ListTree, Search } from "lucide-react";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
 
@@ -407,7 +408,7 @@ export default function AdminServicesPage() {
       setAttempt((value) => value + 1);
       showToast("success", editor.id ? "Đã lưu thay đổi dịch vụ." : "Đã tạo dịch vụ mới.");
     } catch (reason: unknown) {
-      setSaveError(reason instanceof AdminClientError ? reason : new AdminClientError("Không thể lưu dịch vụ.", 0));
+      setSaveError(reason instanceof AdminClientError ? reason : new AdminClientError("Không thể lưu dịch vụ.", 0, undefined, undefined, requestId));
     } finally {
       setSaving(false);
     }
@@ -725,7 +726,7 @@ const serviceStatusLabels: Record<string, string> = {
                                 {service.slug && service.isActive ? (
                                   <a
                                     className="admin-external-link-btn"
-                                    href={`/dich-vu/${service.slug}/`}
+                                    href={`/thue-gia-cong/${service.slug}/`}
                                     onClick={(event) => event.stopPropagation()}
                                     rel="noreferrer"
                                     target="_blank"
@@ -967,7 +968,7 @@ function ServiceEditor({ error, form, isDirty = false, onCancel, onChange, onSub
             {form.slug && form.isActive ? (
               <a
                 className="admin-button admin-button-quiet"
-                href={`/dich-vu/${form.slug}/`}
+                href={`/thue-gia-cong/${form.slug}/`}
                 rel="noreferrer"
                 style={{ alignItems: "center", display: "inline-flex", gap: 6 }}
                 target="_blank"
@@ -979,9 +980,16 @@ function ServiceEditor({ error, form, isDirty = false, onCancel, onChange, onSub
           </div>
         </div>
 
-        {error ? <p className="admin-editor-error" role="alert">{error.code ? `${error.code} · ` : ""}{error.message}</p> : null}
+        {error ? (
+          <p
+            className="admin-editor-error"
+            role={Object.keys(error.fieldErrors ?? {}).length > 0 ? undefined : "alert"}
+          >
+            {error.code ? `${error.code} · ` : ""}{error.message}
+          </p>
+        ) : null}
         {error?.fieldErrors && Object.keys(error.fieldErrors).length > 0 ? (
-          <ul className="admin-editor-error-list" data-testid="service-form-field-errors">
+          <ul className="admin-editor-error-list" data-testid="service-form-field-errors" role="alert" aria-atomic="true">
             {Object.entries(error.fieldErrors).map(([field, message]) => (
               <li key={field}>
                 <button data-testid={`button-service-error-${field}`} onClick={() => focusServiceFieldError(field)} type="button">

@@ -156,14 +156,16 @@ export interface AdminLeadItem {
 export class AdminClientError extends Error {
   readonly code?: string;
   readonly fieldErrors?: Record<string, string>;
+  readonly requestId?: string;
   readonly status: number;
 
-  constructor(message: string, status: number, code?: string, fieldErrors?: Record<string, string>) {
-    super(message);
+  constructor(message: string, status: number, code?: string, fieldErrors?: Record<string, string>, requestId?: string) {
+    super(status >= 500 && requestId ? `${message} (Mã yêu cầu: ${requestId})` : message);
     this.name = "AdminClientError";
     this.status = status;
     this.code = code;
     this.fieldErrors = fieldErrors;
+    this.requestId = requestId;
   }
 }
 
@@ -181,11 +183,17 @@ export async function fetchAdmin<T>(path: string, signal?: AbortSignal): Promise
     throw new AdminClientError("Không thể kết nối tới máy chủ admin.", 0, "NETWORK_ERROR");
   }
 
-  let body: { fieldErrors?: Record<string, string>; ok?: boolean; data?: T; code?: string; message?: string };
+  let body: { fieldErrors?: Record<string, string>; ok?: boolean; data?: T; code?: string; message?: string; requestId?: string };
   try {
     body = await response.json();
   } catch {
-    throw new AdminClientError("Máy chủ trả về dữ liệu không hợp lệ.", response.status);
+    throw new AdminClientError(
+      "Máy chủ trả về dữ liệu không hợp lệ.",
+      response.status,
+      undefined,
+      undefined,
+      response.headers.get("X-Request-ID") ?? undefined,
+    );
   }
 
   if (!response.ok || body.ok === false || !body.data) {
@@ -193,6 +201,8 @@ export async function fetchAdmin<T>(path: string, signal?: AbortSignal): Promise
       body.message ?? "Không thể tải dữ liệu admin.",
       response.status,
       body.code,
+      body.fieldErrors,
+      body.requestId ?? response.headers.get("X-Request-ID") ?? undefined,
     );
   }
   return body.data;
@@ -217,11 +227,17 @@ export async function mutateAdmin<T>(
     throw new AdminClientError("Không thể kết nối tới máy chủ admin.", 0, "NETWORK_ERROR");
   }
 
-  let body: { fieldErrors?: Record<string, string>; ok?: boolean; data?: T; code?: string; message?: string };
+  let body: { fieldErrors?: Record<string, string>; ok?: boolean; data?: T; code?: string; message?: string; requestId?: string };
   try {
     body = await response.json();
   } catch {
-    throw new AdminClientError("Máy chủ trả về dữ liệu không hợp lệ.", response.status);
+    throw new AdminClientError(
+      "Máy chủ trả về dữ liệu không hợp lệ.",
+      response.status,
+      undefined,
+      undefined,
+      response.headers.get("X-Request-ID") ?? undefined,
+    );
   }
   if (!response.ok || body.ok === false || !body.data) {
     throw new AdminClientError(
@@ -229,6 +245,7 @@ export async function mutateAdmin<T>(
       response.status,
       body.code,
       body.fieldErrors,
+      body.requestId ?? response.headers.get("X-Request-ID") ?? undefined,
     );
   }
   return body.data;

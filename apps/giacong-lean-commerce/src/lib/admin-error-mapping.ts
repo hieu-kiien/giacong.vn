@@ -50,7 +50,7 @@ export function adminErrorFrom(
   fallbackMessage: string,
   conflict?: AdminConflictShape,
 ): Response {
-  console.error("[admin] write failed", error);
+  console.error("[admin] write failed", { requestId, error });
   const mapped = mapAdminWriteError(error, fallbackMessage, conflict);
   return adminFailure(requestId, mapped.status, mapped.code, mapped.message, mapped.fieldErrors);
 }

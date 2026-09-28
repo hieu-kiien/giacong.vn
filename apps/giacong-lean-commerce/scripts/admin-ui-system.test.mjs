@@ -1,19 +1,84 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
+import { appendAdminToast } from "../src/lib/admin-toast-state.ts";
 
 async function readSource(...segments) {
   return readFile(new URL(`../src/${segments.join("/")}`, import.meta.url), "utf8");
 }
 
-test("the toast system renders a live region and auto-dismisses without alert()", async () => {
+test("four distinct errors stay available until dismissed when more toasts arrive", () => {
+  let toasts = [];
+  for (let id = 1; id <= 4; id += 1) {
+    toasts = appendAdminToast(toasts, { id, kind: "error", message: `Lỗi ${id}` });
+  }
+
+  assert.deepEqual(toasts.map(({ id }) => id), [1, 2, 3, 4]);
+  assert.deepEqual(
+    appendAdminToast(toasts, { id: 5, kind: "success", message: "Đã lưu" }).filter(({ kind }) => kind === "error").map(({ id }) => id),
+    [1, 2, 3, 4],
+  );
+});
+
+test("the toast stack bounds a long error backlog and keeps the most recent diagnostics", () => {
+  let toasts = [];
+  for (let id = 1; id <= 12; id += 1) {
+    toasts = appendAdminToast(toasts, { id, kind: "error", message: `Lỗi ${id} · Mã yêu cầu: req-${id}` });
+  }
+
+  assert.deepEqual(toasts.map(({ id }) => id), [7, 8, 9, 10, 11, 12]);
+});
+
+test("the toast stack replaces its oldest routine message before dropping an error", () => {
+  const initial = [
+    { id: 1, kind: "success", message: "Đã lưu" },
+    { id: 2, kind: "info", message: "Đang tải" },
+    { id: 3, kind: "error", message: "Không lưu được" },
+  ];
+
+  assert.deepEqual(
+    appendAdminToast(initial, { id: 4, kind: "success", message: "Đã xóa" }).map(({ id }) => id),
+    [2, 3, 4],
+  );
+});
+
+test("the toast system keeps actionable errors visible until dismissed and auto-dismisses routine feedback", async () => {
   const source = await readSource("components", "admin", "AdminToast.tsx");
 
-  assert.match(source, /aria-live="polite"/);
+  assert.match(source, /role=\{kind === "error" \? "alert" : "status"\}/);
+  assert.doesNotMatch(source, /aria-live="polite"/);
   assert.doesNotMatch(source, /\balert\(/, "admin feedback must not use window.alert");
+  assert.match(source, /kind !== "error"[\s\S]*?setTimeout/);
+  assert.match(source, /clearTimeout\(timeout\)/);
+  assert.match(source, /useEffect\(\(\) => \(\) => \{[\s\S]*?clearTimeout\(timeout\)/);
   assert.match(source, /AUTO_DISMISS_MS/);
   assert.match(source, /export function useAdminToast/);
   assert.match(source, /export function AdminToastProvider/);
+});
+
+test("admin toasts stay below the sticky topbar and move to the bottom at tablet widths", async () => {
+  const styles = await readSource("styles", "admin.css");
+  const stack = [...styles.matchAll(/\.admin-toast-stack\s*\{([^}]+)\}/g)]
+    .map((match) => match[1])
+    .find((rule) => /position:\s*fixed/.test(rule)) ?? "";
+  const tabletStack = styles.match(/@media \(max-width: 768px\)\s*\{\s*\.admin-toast-stack\s*\{([^}]+)\}/)?.[1] ?? "";
+  const sharedTokens = styles.match(/\.admin-app,\s*\.admin-toast-stack\s*\{([^}]+)\}/)?.[1] ?? "";
+  const inlineError = styles.match(/\.admin-editor-error\s*\{([^}]+)\}/)?.[1] ?? "";
+  const closeButton = styles.match(/\.admin-toast-close\s*\{([^}]+)\}/)?.[1] ?? "";
+
+  assert.match(stack, /top:\s*calc\(54px\s*\+\s*12px\)/);
+  assert.match(stack, /max-height:\s*calc\(100dvh\s*-\s*78px\)/);
+  assert.match(stack, /overflow-y:\s*auto/);
+  assert.match(stack, /font-family:\s*"Admin Sans"/);
+  assert.match(sharedTokens, /--admin-surface:/);
+  assert.match(styles, /\.admin-toast-message\s*\{[^}]*min-width:\s*0[^}]*overflow-wrap:\s*anywhere/);
+  assert.match(inlineError, /overflow-wrap:\s*anywhere/);
+  assert.match(closeButton, /height:\s*24px/);
+  assert.match(closeButton, /width:\s*24px/);
+  assert.match(styles, /\.admin-toast-close:focus-visible\s*\{/);
+  assert.match(tabletStack, /bottom:\s*120px/);
+  assert.match(tabletStack, /max-height:\s*calc\(100dvh\s*-\s*136px\)/);
+  assert.match(tabletStack, /top:\s*auto/);
 });
 
 test("destructive actions route through the confirm dialog, never window.confirm", async () => {
@@ -41,6 +106,20 @@ test("form fields keep label, hint and error wiring consistent", async () => {
 
   assert.match(field, /htmlFor=\{id\}/);
   assert.match(field, /role="alert"/);
+});
+
+test("form-level save error summaries do not announce alongside the shared error toast", async () => {
+  const [products, services, leads] = await Promise.all([
+    readSource("app", "admin", "san-pham", "page.tsx"),
+    readSource("app", "admin", "dich-vu", "page.tsx"),
+    readSource("app", "admin", "yeu-cau", "page.tsx"),
+  ]);
+
+  assert.equal(/className="admin-editor-error" role="alert"/.test(products), false, "the toast announces product network failures");
+  assert.match(products, /error && Object\.keys\(error\.fieldErrors \?\? \{\}\)\.length > 0 \? \(\s*<p className="admin-editor-error">/, "product summary remains only for field validation and does not repeat standalone save errors");
+  assert.equal(/className="admin-editor-error" role="alert"/.test(leads), false, "the toast announces request status failures");
+  assert.ok(/role=\{Object\.keys\(error\.fieldErrors \?\? \{\}\)\.length > 0 \? undefined : "alert"\}/.test(services), "service failures announce inline only when no field errors can announce themselves");
+  assert.ok(/Object\.keys\(parsed\.fieldErrors \?\? \{\}\)\.length === 0\) showToast\("error", validationError\.message\)/.test(products), "field validation stays with the fields instead of repeating through a toast");
 });
 
 test("the shell mounts the toast provider so every admin page shares feedback", async () => {

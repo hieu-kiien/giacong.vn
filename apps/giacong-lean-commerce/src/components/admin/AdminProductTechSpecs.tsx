@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Wrench, CheckCircle2, ShieldCheck, Scale, Cpu, Layers } from "lucide-react";
+import { useRegisterAdminUnsaved } from "@/components/admin/AdminUnsavedGuard";
 import { useAdminToast } from "@/components/admin/AdminToast";
 import { AdminClientError, fetchAdmin, mutateAdmin } from "@/lib/admin-client";
 
@@ -67,20 +68,29 @@ const certPresets = ["ISO 9001:2015", "RoHS Compliant", "REACH", "IATF 16949", "
 
 export function AdminProductTechSpecs({ productId }: { productId: number }) {
   const [specs, setSpecs] = useState<TechSpecsData>(emptySpecs);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [saving, setSaving] = useState(false);
+  const savedSpecsRef = useRef(JSON.stringify(emptySpecs));
   const { showToast } = useAdminToast();
+  const isDirty = useCallback(() => JSON.stringify(specs) !== savedSpecsRef.current, [specs]);
+
+  useRegisterAdminUnsaved(isDirty, saving);
 
   const loadSpecs = useCallback(async () => {
-    if (!productId) return;
+    if (!productId) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
+    setLoadError(false);
     try {
       const res = await fetchAdmin<{ specs: TechSpecsData }>(`/api/admin/products/${productId}/specs`);
-      if (res.specs) {
-        setSpecs(res.specs);
-      }
+      if (!res.specs) throw new Error("Response không có thông số kỹ thuật.");
+      savedSpecsRef.current = JSON.stringify(res.specs);
+      setSpecs(res.specs);
     } catch {
-      // Default to empty specs
+      setLoadError(true);
     } finally {
       setLoading(false);
     }
@@ -101,16 +111,18 @@ export function AdminProductTechSpecs({ productId }: { productId: number }) {
   }
 
   async function handleSave() {
+    if (loading || loadError || saving || !isDirty()) return;
     setSaving(true);
     try {
       await mutateAdmin(`/api/admin/products/${productId}/specs`, {
         method: "POST",
         body: specs,
       });
+      savedSpecsRef.current = JSON.stringify(specs);
       showToast("success", "Đã lưu thông số kỹ thuật gia công thành công!");
     } catch (err) {
-      const msg = err instanceof AdminClientError ? err.message : "Đã cập nhật thông số kỹ thuật trên giao diện.";
-      showToast("info", msg);
+      const msg = err instanceof AdminClientError ? err.message : "Không thể lưu thông số kỹ thuật. Hãy thử lại.";
+      showToast("error", msg);
     } finally {
       setSaving(false);
     }
@@ -130,11 +142,20 @@ export function AdminProductTechSpecs({ productId }: { productId: number }) {
           type="button"
           className="admin-button admin-button-primary"
           onClick={handleSave}
-          disabled={saving || loading}
+          disabled={saving || loading || loadError || !isDirty()}
         >
           <CheckCircle2 size={14} /> {saving ? "Đang lưu..." : "Lưu thông số"}
         </button>
       </div>
+
+      {loadError ? (
+        <div role="alert" className="admin-field-error" style={{ alignItems: "center", display: "flex", gap: 10, margin: "8px 0 12px" }}>
+          <span>Không tải được thông số đã lưu. Hãy tải lại trước khi chỉnh sửa hoặc lưu.</span>
+          <button type="button" className="admin-button admin-button-quiet" onClick={() => void loadSpecs()}>
+            Tải lại
+          </button>
+        </div>
+      ) : null}
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginTop: 16 }}>
         {/* Material */}
@@ -145,6 +166,7 @@ export function AdminProductTechSpecs({ productId }: { productId: number }) {
           <input
             type="text"
             className="admin-input"
+            disabled={loading || loadError || saving}
             placeholder="Ví dụ: Nhôm 6061-T6, Inox 304..."
             value={specs.material}
             onChange={(e) => setSpecs({ ...specs, material: e.target.value })}
@@ -156,6 +178,7 @@ export function AdminProductTechSpecs({ productId }: { productId: number }) {
                 key={mat}
                 type="button"
                 className="admin-badge"
+                disabled={loading || loadError || saving}
                 style={{
                   cursor: "pointer",
                   background: specs.material === mat ? "#2563eb" : "#f1f5f9",
@@ -179,6 +202,7 @@ export function AdminProductTechSpecs({ productId }: { productId: number }) {
           <input
             type="text"
             className="admin-input"
+            disabled={loading || loadError || saving}
             placeholder="Ví dụ: ± 0.01 mm, ISO 2768-m..."
             value={specs.tolerance}
             onChange={(e) => setSpecs({ ...specs, tolerance: e.target.value })}
@@ -190,6 +214,7 @@ export function AdminProductTechSpecs({ productId }: { productId: number }) {
                 key={tol}
                 type="button"
                 className="admin-badge"
+                disabled={loading || loadError || saving}
                 style={{
                   cursor: "pointer",
                   background: specs.tolerance === tol ? "#2563eb" : "#f1f5f9",
@@ -213,6 +238,7 @@ export function AdminProductTechSpecs({ productId }: { productId: number }) {
           <input
             type="text"
             className="admin-input"
+            disabled={loading || loadError || saving}
             placeholder="Ví dụ: Phay CNC 5 trục, Tiện CNC..."
             value={specs.manufacturingProcess}
             onChange={(e) => setSpecs({ ...specs, manufacturingProcess: e.target.value })}
@@ -224,6 +250,7 @@ export function AdminProductTechSpecs({ productId }: { productId: number }) {
                 key={proc}
                 type="button"
                 className="admin-badge"
+                disabled={loading || loadError || saving}
                 style={{
                   cursor: "pointer",
                   background: specs.manufacturingProcess === proc ? "#2563eb" : "#f1f5f9",
@@ -247,6 +274,7 @@ export function AdminProductTechSpecs({ productId }: { productId: number }) {
           <input
             type="text"
             className="admin-input"
+            disabled={loading || loadError || saving}
             placeholder="Ví dụ: Anode hóa, Mạ Niken, Sơn tĩnh điện..."
             value={specs.surfaceFinish}
             onChange={(e) => setSpecs({ ...specs, surfaceFinish: e.target.value })}
@@ -258,6 +286,7 @@ export function AdminProductTechSpecs({ productId }: { productId: number }) {
                 key={fin}
                 type="button"
                 className="admin-badge"
+                disabled={loading || loadError || saving}
                 style={{
                   cursor: "pointer",
                   background: specs.surfaceFinish === fin ? "#2563eb" : "#f1f5f9",
@@ -283,6 +312,7 @@ export function AdminProductTechSpecs({ productId }: { productId: number }) {
             min="0"
             step="1"
             className="admin-input"
+            disabled={loading || loadError || saving}
             placeholder="Ví dụ: 350"
             value={specs.weightGrams || ""}
             onChange={(e) => setSpecs({ ...specs, weightGrams: parseFloat(e.target.value) || 0 })}
@@ -303,6 +333,7 @@ export function AdminProductTechSpecs({ productId }: { productId: number }) {
                   key={cert}
                   type="button"
                   className="admin-button"
+                  disabled={loading || loadError || saving}
                   style={{
                     padding: "4px 8px",
                     fontSize: 11,

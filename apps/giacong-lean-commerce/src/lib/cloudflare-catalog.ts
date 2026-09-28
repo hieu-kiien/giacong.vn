@@ -236,6 +236,28 @@ export const getCatalogProduct = cache(async (slug: string): Promise<CatalogProd
   return toProductDetail(parentRow, cleanSlug, variantRows.results, tierRows.results);
 });
 
+/** Resolve an old public product URL while its current product remains active. */
+export const getCatalogProductRedirect = cache(async (slug: string): Promise<string | null> => {
+  const cleanSlug = slug.trim();
+  if (!cleanSlug) return null;
+
+  try {
+    const row = await getCatalogDatabase().prepare(`
+      SELECT products.slug AS slug
+      FROM product_slug_redirects
+      INNER JOIN products ON products.id = product_slug_redirects.product_id
+      WHERE product_slug_redirects.old_slug = ?
+        AND products.is_active = 1
+      LIMIT 1
+    `).bind(cleanSlug).first<{ slug?: unknown }>();
+    const target = typeof row?.slug === "string" ? row.slug.trim() : "";
+    return target && target !== cleanSlug ? target : null;
+  } catch {
+    // The redirect table is additive; older local databases keep the normal 404 behavior.
+    return null;
+  }
+});
+
 /** Reads CMS-managed media for the storefront detail page. The primary request
  * resolver stays on `getCatalogProduct` and does not depend on this optional table.
  */

@@ -23,6 +23,7 @@ const readyDataSources = {
 };
 let dashboardReadiness = { ...readyDataSources };
 const output = ".runtime/admin-quality";
+const localFilter = process.env.QA_LOCAL_FILTER?.trim().toLocaleLowerCase() ?? "";
 await mkdir(output, { recursive: true });
 const browser = await chromium.launch({ headless: true });
 const results = [];
@@ -50,6 +51,7 @@ const navigationItems = [
 ];
 
 async function run(name, check, role = "owner", width = 1440, height = 900) {
+  if (localFilter && !name.toLocaleLowerCase().includes(localFilter)) return;
   const context = await browser.newContext({ viewport: { width, height }, reducedMotion: "reduce" });
   const page = await context.newPage();
   page.setDefaultTimeout(8000);
@@ -206,10 +208,29 @@ await run("Product validation link opens the correct tab and focuses the invalid
   await page.getByTestId("input-product-image").fill("javascript:alert(1)");
   await page.getByTestId("button-product-save").click();
   const fieldError = page.getByTestId("button-product-error-imageUrl");
+  const alertTexts = await page.locator('[role="alert"]').evaluateAll((elements) => elements.map((element) => element.textContent?.trim()).filter(Boolean));
+  assert.equal(alertTexts.length, 1, `Validation should be announced once: ${JSON.stringify(alertTexts)}`);
+  await expect(page.locator(".admin-toast-error")).toHaveCount(0);
   await expect(fieldError).toContainText("Ảnh chính");
   await fieldError.click();
   await expect(page.getByRole("tab", { name: "Ảnh & Media" })).toHaveAttribute("aria-selected", "true");
   await expect(page.getByTestId("input-product-image")).toBeFocused();
+}, "owner", 1920, 1080);
+
+await run("Product slug follows the edited name until a custom slug is entered", async (page) => {
+  await open(page, "/admin/san-pham");
+  await page.getByTestId("button-product-create").click();
+  const name = page.getByTestId("input-product-name");
+  const slug = page.getByTestId("input-product-slug");
+
+  await name.fill("Bột đậu xanh rau má");
+  await expect(slug).toHaveValue("bot-dau-xanh-rau-ma");
+  await slug.fill("bot-dau-xanh-dac-biet");
+  await name.fill("Bột đậu xanh rau má cao cấp");
+  await expect(slug).toHaveValue("bot-dau-xanh-dac-biet");
+  await slug.fill("");
+  await name.fill("Bột đậu xanh rau má phiên bản mới");
+  await expect(slug).toHaveValue("bot-dau-xanh-rau-ma-phien-ban-moi");
 }, "owner", 1920, 1080);
 
 await run("Service validation links focus the field and retry the same request id", async (page) => {
@@ -228,6 +249,9 @@ await run("Service validation links focus the field and retry the same request i
   await page.getByTestId("input-service-slug").fill("dich-vu-kiem-tra");
   await page.getByTestId("button-service-save").click();
   const fieldError = page.getByTestId("button-service-error-offerings");
+  const alertTexts = await page.locator('[role="alert"]').evaluateAll((elements) => elements.map((element) => element.textContent?.trim()).filter(Boolean));
+  assert.equal(alertTexts.length, 1, `Validation should be announced once: ${JSON.stringify(alertTexts)}`);
+  await expect(page.locator(".admin-toast-error")).toHaveCount(0);
   await expect(fieldError).toContainText("Hạng mục dịch vụ");
   await fieldError.click();
   await expect(page.locator("#service-tab-btn-offerings")).toHaveAttribute("aria-selected", "true");
@@ -238,6 +262,37 @@ await run("Service validation links focus the field and retry the same request i
   assert.equal(requestIds.length, 2);
   assert.equal(requestIds[0], requestIds[1], "The same service payload reuses its idempotency key after an error");
 }, "owner", 1920, 1080);
+
+for (const [width, height] of [[390, 844], [1440, 900]]) {
+  await run(`Broken product gallery images offer recovery controls at ${width}×${height}`, async (page) => {
+    await page.route("**/api/admin/products/1/gallery", async (route) => {
+      if (route.request().method() !== "GET") return route.fallback();
+      await route.fulfill({
+        json: {
+          ok: true,
+          data: {
+            images: [{ id: 44, imageUrl: `${origin}/broken-image.png`, isPrimary: true, sortOrder: 0 }],
+          },
+        },
+      });
+    });
+    await page.route("**/broken-image.png", (route) => route.fulfill({ status: 404, body: "not found" }));
+    await open(page, "/admin/san-pham");
+    await page.getByTestId("button-product-edit-1").click();
+    await page.getByRole("tab", { name: "Ảnh & Media" }).click();
+    await expect(page.getByText("Ảnh lỗi tải", { exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Sửa URL" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Xóa ảnh" })).toBeVisible();
+    await page.getByRole("button", { name: "Sửa URL" }).click();
+    const saveGalleryButton = page.getByRole("button", { name: "Lưu bộ ảnh" });
+    await saveGalleryButton.scrollIntoViewIfNeeded();
+    await expect(saveGalleryButton).toHaveCSS("white-space", "nowrap");
+    await expect(saveGalleryButton).toBeInViewport();
+    await expect(page.getByLabel("URL thay thế ảnh 1")).toHaveValue(`${origin}/broken-image.png`);
+    await expect(page.getByRole("button", { name: "Áp dụng" })).toBeVisible();
+    await page.screenshot({ path: `${output}/admin-gallery-image-error-${width}x${height}.png` });
+  }, "owner", width, height);
+}
 
 await run("Retired sales role receives no dashboard action links", async (page) => {
   await open(page);
@@ -264,6 +319,67 @@ await run("Failed product request announces error and retry recovers", async (pa
   await page.getByTestId("button-retry-data").click();
   await expect(page.getByTestId("row-product-1")).toBeVisible();
 });
+
+for (const [width, height] of [[390, 844], [1440, 900]]) {
+  await run(`Product save error toast stays readable at ${width}×${height}`, async (page) => {
+    await page.route("**/api/admin/products/1", async (route) => {
+      if (route.request().method() !== "PATCH") return route.fallback();
+      await route.fulfill({
+        status: 503,
+        json: {
+          ok: false,
+          code: "UNAVAILABLE",
+          message: `Lỗi lưu ${"x".repeat(128)}`,
+          requestId: "qa-toast-long-request-id-1234567890",
+        },
+        headers: { "X-Request-ID": "qa-toast-long-request-id-1234567890" },
+      });
+    });
+
+    await open(page, "/admin/san-pham");
+    await page.getByTestId("button-product-edit-1").click();
+    await page.getByTestId("input-product-name").fill(`Sản phẩm lỗi ${width}`);
+    await page.getByTestId("button-product-save").click();
+
+    const toast = page.locator(".admin-toast-error");
+    await expect(toast).toHaveAttribute("role", "alert");
+    await expect(page.locator('.admin-toast-error[role="alert"]')).toHaveCount(1);
+    await expect(page.locator('.admin-editor-error')).toHaveCount(0);
+    await expect(toast).toContainText("Mã yêu cầu: qa-toast-long-request-id-1234567890");
+    await expect(toast).toContainText("Lỗi lưu");
+    await expect(page.locator(".admin-editor-error")).toHaveCount(0);
+    await page.waitForTimeout(4700);
+    await expect(toast).toBeVisible();
+
+    const layout = await page.evaluate(() => {
+      const toastBox = document.querySelector(".admin-toast-error").getBoundingClientRect();
+      const toastMessage = document.querySelector(".admin-toast-error .admin-toast-message");
+      const header = document.querySelector(".admin-topbar").getBoundingClientRect();
+      const floatingBar = document.querySelector(".admin-floating-action-bar")?.getBoundingClientRect();
+      return {
+        documentWidth: document.documentElement.scrollWidth,
+        viewportWidth: innerWidth,
+        toastTop: toastBox.top,
+        toastBottom: toastBox.bottom,
+        headerBottom: header.bottom,
+        floatingBarTop: floatingBar?.top ?? null,
+        viewportHeight: innerHeight,
+        toastMessageFits: toastMessage.scrollWidth <= toastMessage.clientWidth + 1,
+      };
+    });
+    assert.ok(layout.documentWidth <= layout.viewportWidth + 1, "long server errors must not widen the page");
+    assert.equal(layout.toastMessageFits, true, "the toast message wraps inside the viewport");
+    if (width > 768) assert.ok(layout.toastTop >= layout.headerBottom, "desktop feedback must not cover the sticky topbar");
+    else {
+      assert.ok(layout.toastBottom <= height - 8 && layout.toastTop > height / 2, "mobile feedback stays near the bottom edge");
+      assert.ok(layout.floatingBarTop !== null && layout.toastBottom <= layout.floatingBarTop - 8, "mobile error feedback stays above the sticky save actions");
+    }
+
+    await page.screenshot({ path: `${output}/toast-error-${width}x${height}.png` });
+    await toast.getByRole("button", { name: "Đóng thông báo" }).click();
+    await expect(toast).toHaveCount(0);
+  }, "owner", width, height);
+}
 
 await run("Owner dashboard desktop evidence", async (page) => {
   await open(page);
@@ -352,6 +468,33 @@ await run("News draft survives sidebar navigation and cancelled discard", async 
   await page.getByRole("button", { name: "Ở lại", exact: true }).click();
   await expect(page.getByTestId("input-news-title")).toHaveValue("Bản nháp cần giữ lại");
 });
+
+await run("News articles compose headings, lists and uncropped captioned images", async (page) => {
+  await page.route("**/media/qa-article.svg", (route) => route.fulfill({
+    contentType: "image/svg+xml",
+    body: '<svg xmlns="http://www.w3.org/2000/svg" width="480" height="240" viewBox="0 0 480 240"><rect width="480" height="240" fill="#dcebd0"/></svg>',
+  }));
+  await open(page, "/admin/tin-tuc");
+  await page.getByTestId("button-news-create").click();
+  const editor = page.getByTestId("news-content-editor");
+  await editor.getByRole("button", { name: "Tiêu đề", exact: true }).click();
+  await editor.getByLabel("Tiêu đề 1").fill("Tiêu đề bài QA");
+  await editor.getByRole("button", { name: "Đoạn văn", exact: true }).click();
+  await editor.getByLabel("Đoạn văn 2").fill("Phần mở đầu của bài viết.");
+  await editor.getByRole("button", { name: "Danh sách", exact: true }).click();
+  await editor.getByLabel("Các mục danh sách 3").fill("Lợi ích thứ nhất\nLợi ích thứ hai");
+  await editor.getByRole("button", { name: "Ảnh + chú thích", exact: true }).click();
+  await editor.getByLabel("Đường dẫn ảnh 4").fill("/media/qa-article.svg");
+  await editor.getByLabel("Mô tả ảnh 4").fill("Ảnh minh họa kiểm thử");
+  await editor.getByLabel("Chú thích ảnh 4").fill("Ảnh co đúng tỷ lệ");
+  await editor.getByText("Xem trước bài viết", { exact: true }).click();
+  await expect(editor.getByRole("heading", { name: "Tiêu đề bài QA", level: 2 })).toBeVisible();
+  await expect(editor.getByRole("listitem")).toHaveCount(2);
+  await expect(editor.getByText("Ảnh co đúng tỷ lệ", { exact: true })).toBeVisible();
+  await expect(editor.locator("details img")).toHaveCSS("object-fit", "contain");
+  assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), "mobile article editor fits the viewport");
+  await page.screenshot({ path: `${output}/news-editor-mobile-390x844.png`, fullPage: true });
+}, "owner", 390, 844);
 
 await run("News status filters include records beyond the first unfiltered page", async (page) => {
   await open(page, "/admin/tin-tuc");
@@ -526,6 +669,7 @@ await run("Product editor protects dirty browser Back and restores browser Forwa
   await expect(page.getByRole("dialog")).toHaveCount(0);
 });
 
+if (localFilter) assert.ok(results.length > 0, `No QA scenario matched QA_LOCAL_FILTER=${localFilter}`);
 await browser.close();
 await writeFile(`${output}/results.json`, JSON.stringify(results, null, 2));
 for (const result of results) console.log(`${result.pass ? "PASS" : "FAIL"} ${result.name}${result.error ? `: ${result.error.split("\n")[0]}` : ""}`);

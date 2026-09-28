@@ -512,6 +512,18 @@ test("the gallery swaps the main image without layout shift", async () => {
   assert.match(css, /\.thumbRail\b/, "the thumbnail rail must be a single styled row");
 });
 
+test("the product gallery replaces broken images with accessible fallbacks", async () => {
+  const gallery = await readSource("src", "components", "catalog", "ProductGallery.tsx");
+
+  assert.ok(/onError=/.test(gallery), "failed image requests must be handled");
+  assert.ok(/Không thể tải ảnh sản phẩm/.test(gallery), "the fallback explains why the image is absent");
+  assert.ok(/role="img"/.test(gallery), "the main fallback has an accessible name");
+  assert.ok(/Ảnh không khả dụng/.test(gallery), "failed thumbnails have a useful fallback label");
+  const css = await readSource("src", "components", "catalog", "product-detail.module.css");
+  assert.ok(/\.mainImageFallback\s*\{[^}]*aspect-ratio:\s*67\s*\/\s*46/.test(css), "the failed main image keeps a reserved frame");
+  assert.ok(/\.thumbFallback\s*\{[^}]*height:\s*100%/.test(css), "the failed thumbnail keeps its existing height");
+});
+
 test("the purchase panel wires the CTA to the existing request cart", async () => {
   const panel = await readSource("src", "components", "catalog", "ProductPurchasePanel.tsx");
 
@@ -597,4 +609,21 @@ test("uploaded product photos stay uncropped in listing, detail, related cards, 
   assert.match(detailCss, /\.thumb img\s*\{[^}]*object-fit:\s*contain/);
   assert.match(detailCss, /\.relatedImage img\s*\{[^}]*object-fit:\s*contain/);
   assert.match(adminGallery, /objectFit:\s*"contain"/);
+});
+
+test("previous product URLs permanently redirect to the current public slug before cached HTML", async () => {
+  const [page, catalog, worker] = await Promise.all([
+    readSource("src", "app", "(storefront)", "san-pham", "[slug]", "page.tsx"),
+    readSource("src", "lib", "cloudflare-catalog.ts"),
+    readSource("custom-worker.ts"),
+  ]);
+
+  assert.match(page, /getCatalogProductRedirect/);
+  assert.match(page, /permanentRedirect\(/);
+  assert.match(catalog, /FROM product_slug_redirects/);
+  assert.match(catalog, /products\.is_active = 1/);
+
+  assert.match(worker, /const targetSlug = await getPublicCatalogProductTarget/);
+  assert.match(worker, /if \(checkedDocument\.status === 308\) return checkedDocument/);
+  assert.match(worker, /status: 308/);
 });

@@ -116,6 +116,7 @@ const emptyProductForm: ProductFormState = {
   shortDescription: "",
   sku: "",
   slug: "",
+  slugFollowsName: true,
   status: "draft",
 };
 
@@ -145,6 +146,8 @@ function isProductEditorDirty(editor: ProductFormState | null, snapshot: Product
 }
 
 function toProductForm(product: AdminProduct): ProductFormState {
+  const generatedSlug = toSlug(product.name);
+  const slugFollowsName = product.slug === "" || product.slug === generatedSlug;
   return {
     categoryId: product.categoryId ? String(product.categoryId) : "",
     description: product.description,
@@ -157,6 +160,7 @@ function toProductForm(product: AdminProduct): ProductFormState {
     shortDescription: product.shortDescription,
     sku: product.sku,
     slug: product.slug,
+    slugFollowsName,
     soldCount: product.soldCount ?? 0,
     status: product.status as ProductFormState["status"],
   };
@@ -426,7 +430,7 @@ export default function AdminProductsPage() {
     if (!parsed.input) {
       const validationError = new AdminClientError("Dữ liệu sản phẩm chưa hợp lệ.", 422, "VALIDATION_ERROR", parsed.fieldErrors);
       setSaveError(validationError);
-      showToast("error", validationError.message);
+      if (Object.keys(parsed.fieldErrors ?? {}).length === 0) showToast("error", validationError.message);
       return;
     }
     saveInFlightRef.current = true;
@@ -453,8 +457,17 @@ export default function AdminProductsPage() {
       showToast("success", editor.id ? "Đã lưu thay đổi sản phẩm thành công." : "Đã tạo sản phẩm mới thành công.");
     } catch (reason: unknown) {
       if (editorGenerationRef.current !== generationAtSubmit) return;
-      setSaveError(reason instanceof AdminClientError ? reason : new AdminClientError("Không thể lưu sản phẩm.", 0));
-      showToast("error", reason instanceof AdminClientError ? reason.message : "Không thể lưu sản phẩm.");
+      const saveError = reason instanceof AdminClientError
+        ? reason
+        : new AdminClientError("Không thể lưu sản phẩm.", 0, undefined, undefined, effectiveRequestId);
+      setSaveError(saveError);
+      if (Object.keys(saveError.fieldErrors ?? {}).length === 0) {
+        const reqId = saveError.requestId || effectiveRequestId;
+        const message = reqId && !saveError.message.includes(reqId)
+          ? `${saveError.message} (Mã yêu cầu: ${reqId})`
+          : saveError.message;
+        showToast("error", message);
+      }
     } finally {
       saveInFlightRef.current = false;
       if (editorGenerationRef.current === generationAtSubmit) setSaving(false);
@@ -1317,9 +1330,11 @@ function ProductEditor({
         </div>
       </div>
 
-      {error ? <p className="admin-editor-error" role="alert">{error.code ? `${error.code} · ` : ""}{error.message}</p> : null}
+      {error && Object.keys(error.fieldErrors ?? {}).length > 0 ? (
+        <p className="admin-editor-error">{error.code ? `${error.code} · ` : ""}{error.message}</p>
+      ) : null}
       {error?.fieldErrors && Object.keys(error.fieldErrors).length > 0 ? (
-        <ul className="admin-editor-error-list" data-testid="product-form-field-errors">
+        <ul className="admin-editor-error-list" data-testid="product-form-field-errors" role="alert" aria-atomic="true">
           {Object.entries(error.fieldErrors).map(([field, message]) => (
             <li key={field}>
               <button data-testid={`button-product-error-${field}`} onClick={() => focusProductFieldError(field)} type="button">

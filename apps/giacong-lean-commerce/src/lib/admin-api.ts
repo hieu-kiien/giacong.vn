@@ -42,5 +42,8 @@ export function adminFailure(
     requestId: string;
   } = { code, message, ok: false, requestId };
   if (fieldErrors && Object.keys(fieldErrors).length > 0) body.fieldErrors = fieldErrors;
-  return Response.json(body, { headers: adminResponseHeaders, status });
+  return Response.json(body, {
+    headers: { ...adminResponseHeaders, "X-Request-ID": requestId },
+    status,
+  });
 }

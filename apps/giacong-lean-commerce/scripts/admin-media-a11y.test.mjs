@@ -25,7 +25,32 @@ test("gallery errors never turn an unknown server state into an empty collection
 
   assert.match(loader, /setLoadError/);
   assert.doesNotMatch(loader, /setImages\(\[\]\)/);
-  assert.match(save, /if \(loading \|\| loadError\) return/);
+  assert.match(save, /if \(loading \|\| loadError \|\| saving \|\| uploading\) return/);
   assert.match(save, /showToast\("error"/);
   assert.doesNotMatch(save, /Đã lưu thư viện ảnh tại giao diện/);
+});
+
+test("broken gallery images show a repairable fallback instead of an empty tile", async () => {
+  const source = await readSource("../src/components/admin/AdminProductGalleryManager.tsx");
+
+  assert.equal(/style\.display\s*=\s*"none"/.test(source), false);
+  assert.ok(/onError=/.test(source));
+  assert.ok(/Ảnh lỗi tải/.test(source));
+  assert.ok(/Sửa URL/.test(source));
+  assert.ok(/Xóa ảnh/.test(source));
+});
+
+test("gallery can save removal of its last image and the API validates before atomic replacement", async () => {
+  const [component, route] = await Promise.all([
+    readSource("../src/components/admin/AdminProductGalleryManager.tsx"),
+    readSource("../src/app/api/admin/products/[id]/gallery/route.ts"),
+  ]);
+
+  assert.match(component, /images\.length > 0 \|\| isDirty\(\)/);
+  assert.match(component, /serializeAdminProductGalleryState\(images\)/);
+  assert.match(route, /parseAdminProductGalleryPayload/);
+  assert.match(route, /replaceAdminProductGalleryAtomically/);
+  assert.ok(route.indexOf("images = parseAdminProductGalleryPayload(parsedRequest.body)") < route.indexOf("await replaceAdminProductGalleryAtomically"));
+  assert.match(route, /first<\{ id: number \}>\(\)[\s\S]*?if \(!product\) return adminFailure\([\s\S]*?404, "NOT_FOUND"/);
+  assert.doesNotMatch(route, /DELETE FROM product_gallery_images[\s\S]*for \(let idx = 0; idx < images\.length/);
 });

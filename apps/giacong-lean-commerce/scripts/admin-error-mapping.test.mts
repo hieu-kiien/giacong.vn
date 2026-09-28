@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 import { isUniqueConstraintError, mapAdminWriteError } from "../src/lib/admin-error-mapping.ts";
+import "./admin-error-correlation.test.mts";
 
 test("classifies D1 constraint violations from the message shapes D1 actually emits", () => {
   for (const message of [

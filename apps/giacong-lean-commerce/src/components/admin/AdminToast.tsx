@@ -1,16 +1,13 @@
 "use client";
 
-// Toast notifications for admin mutations. Success/error feedback renders an
-// aria-live stack that auto-dismisses; native browser dialog boxes are forbidden.
+// Toast notifications for admin mutations use a status role for routine feedback
+// and an alert role for failures; native browser dialog boxes are forbidden.
 
 import { AlertTriangle, CheckCircle2, Info, X } from "lucide-react";
-import { createContext, useCallback, useContext, useMemo, useRef, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { appendAdminToast, type AdminToastItem } from "@/lib/admin-toast-state";
 
-export interface AdminToast {
-  id: number;
-  kind: "success" | "error" | "info";
-  message: string;
-}
+export type AdminToast = AdminToastItem;
 
 interface AdminToastContextValue {
   showToast: (kind: AdminToast["kind"], message: string) => void;
@@ -27,25 +24,39 @@ export function useAdminToast(): AdminToastContextValue {
 export function AdminToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<AdminToast[]>([]);
   const nextId = useRef(1);
+  const timeouts = useRef(new Map<number, ReturnType<typeof setTimeout>>());
 
   const dismiss = useCallback((id: number) => {
+    const timeout = timeouts.current.get(id);
+    if (timeout !== undefined) {
+      clearTimeout(timeout);
+      timeouts.current.delete(id);
+    }
     setToasts((current) => current.filter((toast) => toast.id !== id));
   }, []);
 
   const showToast = useCallback((kind: AdminToast["kind"], message: string) => {
     const id = nextId.current++;
-    setToasts((current) => [...current.slice(-2), { id, kind, message }]);
-    setTimeout(() => dismiss(id), AUTO_DISMISS_MS);
+    setToasts((current) => appendAdminToast(current, { id, kind, message }));
+    if (kind !== "error") {
+      const timeout = setTimeout(() => dismiss(id), AUTO_DISMISS_MS);
+      timeouts.current.set(id, timeout);
+    }
   }, [dismiss]);
+
+  useEffect(() => () => {
+    for (const timeout of timeouts.current.values()) clearTimeout(timeout);
+    timeouts.current.clear();
+  }, []);
 
   const value = useMemo(() => ({ showToast }), [showToast]);
 
   return (
     <AdminToastContext.Provider value={value}>
       {children}
-      <div aria-live="polite" className="admin-toast-stack">
+      <div className="admin-toast-stack">
         {toasts.map(({ id, kind, message }) => (
-          <div className={`admin-toast admin-toast-${kind}`} key={id} role="status">
+          <div className={`admin-toast admin-toast-${kind}`} key={id} role={kind === "error" ? "alert" : "status"}>
             <span aria-hidden="true" className="admin-toast-icon">
               {kind === "success" ? <CheckCircle2 size={16} /> : kind === "error" ? <AlertTriangle size={16} /> : <Info size={16} />}
             </span>

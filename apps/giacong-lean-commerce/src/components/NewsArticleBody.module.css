@@ -1,0 +1,65 @@
+.body {
+  color: #2c3833;
+  display: grid;
+  font-size: 16px;
+  gap: 16px;
+  line-height: 1.8;
+  min-width: 0;
+}
+
+.body > p,
+.body > blockquote {
+  margin: 0;
+  white-space: pre-line;
+}
+
+.body > h2,
+.body > h3 {
+  color: #24372c;
+  line-height: 1.35;
+  margin: 12px 0 0;
+}
+
+.body > h2 { font-size: clamp(21px, 3vw, 27px); }
+.body > h3 { font-size: clamp(18px, 2.5vw, 21px); }
+
+.body > ul,
+.body > ol {
+  display: grid;
+  gap: 7px;
+  margin: 0;
+  padding-inline-start: 24px;
+}
+
+.body > blockquote {
+  border-inline-start: 4px solid #6b9d20;
+  color: #49623f;
+  padding: 8px 16px;
+}
+
+.body a { color: #4d770f; text-decoration: underline; text-underline-offset: 3px; }
+
+.figure {
+  margin: 4px auto;
+  max-width: min(900px, 100%);
+  text-align: center;
+  width: 100%;
+}
+
+.image {
+  border-radius: 8px;
+  display: block;
+  height: auto;
+  margin-inline: auto;
+  max-height: none;
+  max-width: 100%;
+  object-fit: contain;
+  width: auto;
+}
+
+.figure figcaption {
+  color: #66736b;
+  font-size: 14px;
+  line-height: 1.5;
+  margin-top: 8px;
+}

@@ -2,6 +2,11 @@ import { adminFailure, adminSuccess } from "@/lib/admin-api";
 import { adminErrorFrom } from "@/lib/admin-error-mapping";
 import { requireAdmin } from "@/lib/admin-guard";
 import { canManage, canManageCatalog } from "@/lib/admin-permissions";
+import {
+  AdminProductGalleryValidationError,
+  parseAdminProductGalleryPayload,
+  replaceAdminProductGalleryAtomically,
+} from "@/lib/admin-product-gallery";
 import { readBoundedAdminJson } from "@/lib/admin-request";
 
 export const dynamic = "force-dynamic";
@@ -13,13 +18,6 @@ interface RouteContext {
 function parsePositiveInt(value: string): number | null {
   const parsed = Number(value);
   return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
-}
-
-interface GalleryImageInput {
-  id?: number;
-  imageUrl: string;
-  sortOrder?: number;
-  isPrimary?: boolean;
 }
 
 export async function GET(request: Request, context: RouteContext): Promise<Response> {
@@ -66,21 +64,23 @@ export async function POST(request: Request, context: RouteContext): Promise<Res
     return adminFailure(parsedRequest.requestId, parsedRequest.status, parsedRequest.code, parsedRequest.message);
   }
 
-  const body = parsedRequest.body as { images?: GalleryImageInput[] };
-  const images = Array.isArray(body?.images) ? body.images : [];
+  let images: ReturnType<typeof parseAdminProductGalleryPayload>;
+  try {
+    images = parseAdminProductGalleryPayload(parsedRequest.body);
+  } catch (error) {
+    if (error instanceof AdminProductGalleryValidationError) {
+      return adminFailure(parsedRequest.requestId, 422, "VALIDATION_ERROR", error.message);
+    }
+    return adminErrorFrom(parsedRequest.requestId, error, "Không thể kiểm tra thư viện ảnh sản phẩm.");
+  }
 
   try {
-    await guard.database.prepare("DELETE FROM product_gallery_images WHERE product_id = ?").bind(productId).run();
+    const product = await guard.database.prepare(
+      "SELECT id FROM products WHERE id = ? LIMIT 1",
+    ).bind(productId).first<{ id: number }>();
+    if (!product) return adminFailure(parsedRequest.requestId, 404, "NOT_FOUND", "Không tìm thấy sản phẩm.");
 
-    for (let idx = 0; idx < images.length; idx++) {
-      const img = images[idx];
-      await guard.database
-        .prepare(
-          "INSERT INTO product_gallery_images (product_id, image_url, sort_order, is_primary) VALUES (?, ?, ?, ?)"
-        )
-        .bind(productId, img.imageUrl.trim(), typeof img.sortOrder === "number" ? img.sortOrder : idx, img.isPrimary ? 1 : 0)
-        .run();
-    }
+    await replaceAdminProductGalleryAtomically(guard.database, productId, images);
 
     return adminSuccess(parsedRequest.requestId, { success: true, count: images.length });
   } catch (error) {

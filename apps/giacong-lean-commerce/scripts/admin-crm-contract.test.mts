@@ -46,3 +46,16 @@ test("CRM Route capabilities - creation, timeline and concurrency locking", asyn
   assert.match(timelineRoute, /INSERT INTO crm_timeline_events/, "Should contain timeline creation logic");
   assert.match(timelineRoute, /guard\.member\.id/, "Should track event author automatically");
 });
+
+test("CRM timeline load failures stay distinct from an empty timeline and can be retried", async () => {
+  const component = await readFile(
+    new URL("../src/components/admin/AdminTimelineFeed.tsx", import.meta.url),
+    "utf8"
+  );
+
+  assert.match(component, /const \[loadError, setLoadError\] = useState\(false\)/);
+  assert.match(component, /catch\s*\{\s*setLoadError\(true\);?\s*\}/);
+  assert.doesNotMatch(component, /catch\s*\{\s*setEvents\(\[\]\)/);
+  assert.match(component, /role="alert"[\s\S]*Không tải được dòng thời gian/);
+  assert.match(component, /onClick=\{\(\) => void loadTimeline\(\)\}/);
+});

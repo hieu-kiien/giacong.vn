@@ -32,3 +32,17 @@ test("Product Gallery & Specs Component Contract", async () => {
   assert.match(specsComponent, /export.*AdminProductTechSpecs/, "Should export AdminProductTechSpecs component");
   assert.match(galleryComponent, /export.*AdminProductGalleryManager/, "Should export AdminProductGalleryManager component");
 });
+
+test("tech spec load errors are visible and cannot be saved as an empty record", async () => {
+  const component = await readFile(new URL("../src/components/admin/AdminProductTechSpecs.tsx", import.meta.url), "utf8");
+  const loader = component.slice(component.indexOf("const loadSpecs"), component.indexOf("useEffect", component.indexOf("const loadSpecs")));
+  const save = component.slice(component.indexOf("async function handleSave"), component.indexOf("return (", component.indexOf("async function handleSave")));
+
+  assert.match(component, /useRegisterAdminUnsaved/);
+  assert.match(component, /const \[loadError, setLoadError\] = useState\(false\)/);
+  assert.match(loader, /setLoadError\(true\)/);
+  assert.match(save, /if \(loading \|\| loadError \|\| saving \|\| !isDirty\(\)\) return/);
+  assert.match(save, /showToast\("error"/);
+  assert.doesNotMatch(component, /Đã cập nhật thông số kỹ thuật trên giao diện/);
+  assert.match(component, /onClick=\{\(\) => void loadSpecs\(\)\}/);
+});

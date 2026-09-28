@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState, type FormEvent } from "react"
 import { useRouter, useSearchParams } from "next/navigation";
 import { AdminConfirmDialog } from "@/components/admin/AdminDialog";
 import { AdminField } from "@/components/admin/AdminField";
+import { AdminNewsContentEditor } from "@/components/admin/AdminNewsContentEditor";
 import { AdminMediaPickerModal } from "@/components/admin/AdminMediaPickerModal";
 import { AdminEmptyState, AdminErrorState, AdminLoadingTable, AdminPageHeading, AdminPagination, AdminStatusBadge } from "@/components/admin/AdminPrimitives";
 import { useAdminSession } from "@/components/admin/AdminShell";
@@ -445,9 +446,7 @@ export default function AdminNewsPage() {
                 </AdminField>
               </div>
               <div className="admin-field admin-field-wide">
-                <AdminField error={fieldErrors.content} hint="Xuống dòng hai lần để tách đoạn văn." id="news-content" label="Nội dung bài viết">
-                  <textarea className="admin-textarea" data-testid="input-news-content" id="news-content" onChange={(event) => setEditor({ ...editor, content: event.target.value })} rows={14} value={editor.content} />
-                </AdminField>
+                <AdminNewsContentEditor error={fieldErrors.content} onChange={(content) => setEditor({ ...editor, content })} value={editor.content} />
               </div>
             </div>
             <div className="admin-editor-footer">

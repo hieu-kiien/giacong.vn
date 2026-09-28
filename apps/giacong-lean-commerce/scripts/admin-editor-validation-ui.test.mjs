@@ -41,10 +41,12 @@ test("product and service validation summaries use Vietnamese labels and navigat
   assert.match(product, /productFieldLabels/);
   assert.match(product, /button-product-error-\$\{field\}/);
   assert.match(product, /focusProductFieldError/);
+  assert.match(product, /<ul className="admin-editor-error-list" data-testid="product-form-field-errors" role="alert" aria-atomic="true">/);
   assert.doesNotMatch(product, /\{field\}: \{message\}/);
   assert.match(service, /serviceFieldLabels/);
   assert.match(service, /button-service-error-\$\{field\}/);
   assert.match(service, /focusServiceFieldError/);
+  assert.match(service, /<ul className="admin-editor-error-list" data-testid="service-form-field-errors" role="alert" aria-atomic="true">/);
   assert.doesNotMatch(service, /\{field\}: \{message\}/);
 });
 

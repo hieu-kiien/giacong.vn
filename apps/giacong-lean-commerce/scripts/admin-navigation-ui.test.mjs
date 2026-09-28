@@ -27,8 +27,9 @@ test("navigation publish is enabled for a saved draft but not for unsaved local 
 test("admin toast stack leaves the mobile toolbar unobstructed", async () => {
   const css = await readFile(new URL("../src/styles/admin.css", import.meta.url), "utf8");
   const source = await readFile(new URL("../src/components/admin/AdminToast.tsx", import.meta.url), "utf8");
-  assert.match(css, /@media\s*\(max-width:\s*640px\)[\s\S]*\.admin-toast-stack[\s\S]*bottom:/);
-  assert.match(css, /@media\s*\(max-width:\s*640px\)[\s\S]*\.admin-toast-stack[\s\S]*top:\s*auto/);
-  assert.match(source, /current\.slice\(-2\)/);
+  assert.match(css, /@media\s*\(max-width:\s*768px\)[\s\S]*\.admin-toast-stack[\s\S]*bottom:/);
+  assert.match(css, /@media\s*\(max-width:\s*768px\)[\s\S]*\.admin-toast-stack[\s\S]*top:\s*auto/);
+  assert.match(css, /@media\s*\(max-width:\s*640px\)[\s\S]*\.admin-toast-stack[\s\S]*left:/);
+  assert.match(source, /appendAdminToast\(current,\s*\{ id, kind, message \}\)/);
   assert.match(source, /aria-label="Đóng thông báo"/);
 });

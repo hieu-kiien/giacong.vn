@@ -210,7 +210,7 @@ export default function AdminLeadsPage() {
   return (
     <div className="admin-content">
       <AdminPageHeading kicker="Bán hàng / tiếp nhận" title="Yêu cầu báo giá" subtitle="Hộp thư chung cho các yêu cầu báo giá gửi về từ trang web và các kênh liên hệ." stamp="HỘP YÊU CẦU" />
-      {mutationError ? <p className="admin-editor-error" role="alert">{mutationError.code ? `${mutationError.code} · ` : ""}{mutationError.message}</p> : null}
+      {mutationError ? <p className="admin-editor-error">{mutationError.code ? `${mutationError.code} · ` : ""}{mutationError.message}</p> : null}
       <div className="admin-toolbar">
         <form className="admin-search-wrap" id="lead-search-form" onSubmit={submitSearch}>
           <label className="admin-label" htmlFor="lead-search">Tìm theo tên, công ty, email, SĐT</label>
