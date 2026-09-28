@@ -1172,6 +1172,22 @@
 .admin-builder-advanced-summary:focus-visible { outline: 3px solid rgb(108 190 69 / 35%); outline-offset: 2px; }
 .admin-builder-create { margin-bottom: 18px; }
 .admin-builder-layout { align-items: start; display: grid; gap: 18px; grid-template-columns: minmax(0, 1fr) minmax(300px, .48fr); }
+.admin-service-article-embedded { background: #fbfcf9; border: 1px solid var(--admin-border); border-radius: 10px; margin-top: 16px; padding: 16px; }
+.admin-service-article-inline-heading { align-items: center; border-bottom: 1px solid var(--admin-border); display: flex; flex-wrap: wrap; gap: 8px 18px; justify-content: space-between; margin-bottom: 16px; padding-bottom: 13px; }
+.admin-service-article-inline-heading .admin-kicker { color: var(--admin-green-deep); display: block; font-size: 10px; font-weight: 800; letter-spacing: .08em; margin-bottom: 4px; }
+.admin-service-article-inline-heading h3 { color: var(--admin-ink); font-size: 16px; margin: 0; }
+.admin-service-article-inline-heading .admin-item-meta { overflow-wrap: anywhere; }
+.admin-service-article-inline-actions { align-items: center; display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; min-width: 0; }
+.admin-service-article-inline-layout { grid-template-columns: minmax(0, 1fr); }
+.admin-service-article-inline-slot { margin-top: 14px; }
+.admin-service-article-inline-note { color: var(--admin-ink-muted); font-size: 12px; line-height: 1.45; margin: 12px 0 0; }
+.admin-service-offering-row { align-items: center; display: grid; gap: 8px; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto auto; }
+@media (max-width: 640px) {
+  .admin-service-offering-row { grid-template-columns: minmax(0, 1fr) auto auto; }
+  .admin-service-offering-row > input { grid-column: 1 / -1; }
+  .admin-service-offering-row > :nth-child(3) { grid-column: 1 / 3; }
+  .admin-service-offering-row > :nth-child(4) { grid-column: 3; }
+}
 .admin-builder-editor { min-width: 0; }
 .admin-builder-meta { border-bottom: 1px solid #e5ece2; display: grid; gap: 15px; grid-template-columns: 1fr 1fr; margin-bottom: 19px; padding-bottom: 5px; }
 .admin-builder-section-heading { align-items: center; display: flex; gap: 12px; justify-content: space-between; margin-bottom: 12px; }

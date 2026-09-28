@@ -37,8 +37,10 @@ import { AdminMediaPanel } from "@/components/admin/AdminMediaPanel";
 import { AdminEmptyState, AdminErrorState, AdminLoadingTable, AdminPageHeading, AdminPagination, AdminStatusBadge } from "@/components/admin/AdminPrimitives";
 import { useAdminSession } from "@/components/admin/AdminShell";
 import { AdminConfirmDialog } from "@/components/admin/AdminDialog";
+import { AdminPageBuilder } from "@/components/admin/AdminPageBuilder";
 import { useAdminToast } from "@/components/admin/AdminToast";
 import { parseOfferingLines } from "@/lib/admin-service-offerings";
+import { buildServiceArticlePageSeed, type ServiceArticleContext } from "@/lib/admin-service-articles";
 import { AdminClientError, fetchAdmin, formatAdminDate, getInitials, mutateAdmin, type AdminService } from "@/lib/admin-client";
 import { canManageServices } from "@/lib/admin-permissions";
 
@@ -813,11 +815,34 @@ interface ServiceEditorProps {
 
 function ServiceEditor({ error, form, isDirty = false, onCancel, onChange, onSubmit, saving }: ServiceEditorProps) {
   const [activeTab, setActiveTab] = useState<"general" | "offerings" | "media_cta">("general");
+  const [inlineArticle, setInlineArticle] = useState<ServiceArticleContext | null>(null);
+  const [pendingArticleSelection, setPendingArticleSelection] = useState<{ next: ServiceArticleContext | null } | null>(null);
   const [mediaTabOpened, setMediaTabOpened] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const articleEditorRef = useRef<HTMLDivElement>(null);
   const { showToast } = useAdminToast();
+  const { isDirty: hasUnsavedChanges, saving: nestedSaving } = useAdminUnsaved();
+
+  useEffect(() => {
+    if (!inlineArticle) return;
+    const frame = window.requestAnimationFrame(() => articleEditorRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
+    return () => window.cancelAnimationFrame(frame);
+  }, [inlineArticle]);
+
+  function requestArticleSelection(context: ServiceArticleContext) {
+    if (nestedSaving) {
+      showToast("info", "Đang lưu bài viết. Chờ lưu xong rồi hãy đóng trình soạn.");
+      return;
+    }
+    const next = inlineArticle?.articleRoute === context.articleRoute ? null : context;
+    if (inlineArticle && hasUnsavedChanges()) {
+      setPendingArticleSelection({ next });
+      return;
+    }
+    setInlineArticle(next);
+  }
 
   function focusServiceFieldError(field: string) {
     const target = serviceFieldLabels[field];
@@ -1166,13 +1191,13 @@ function ServiceEditor({ error, form, isDirty = false, onCancel, onChange, onSub
           style={{ display: activeTab === "offerings" ? "block" : "none" }}
         >
           <div className="admin-haravan-card">
-            <h3 className="admin-haravan-card-title">Dịch vụ con trong nhóm & Quy chuẩn</h3>
+            <h3 className="admin-haravan-card-title">Nội dung từng dịch vụ con</h3>
             <div className="admin-field">
               <div style={{ alignItems: "center", display: "flex", justifyContent: "space-between", marginBottom: 10 }}>
-                <span style={{ fontWeight: 600 }}>Dịch vụ con trong nhóm ({parsedOfferingRows.length})</span>
+              <span style={{ fontWeight: 600 }}>Dịch vụ con trong nhóm ({parsedOfferingRows.length})</span>
                 <button
                   className="admin-button admin-button-quiet"
-                  disabled={saving}
+                  disabled={saving || inlineArticle !== null}
                   onClick={addOfferingRow}
                   style={{ fontSize: 12, padding: "2px 8px" }}
                   type="button"
@@ -1186,25 +1211,52 @@ function ServiceEditor({ error, form, isDirty = false, onCancel, onChange, onSub
                 </div>
               ) : (
                 <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                  {parsedOfferingRows.map((row, idx) => (
-                    <div key={idx} style={{ alignItems: "center", display: "grid", gap: 8, gridTemplateColumns: "1fr 1fr auto" }}>
+                  {parsedOfferingRows.map((row, idx) => {
+                    const articleContext: ServiceArticleContext = {
+                      articleRoute: row.path,
+                      articleTitle: row.name,
+                      serviceName: form.name,
+                      serviceSlug: form.slug,
+                    };
+                    const articleEditorSeed = buildServiceArticlePageSeed(articleContext);
+                    const articleIsOpen = inlineArticle?.articleRoute === row.path;
+                    return (
+                    <div className="admin-service-offering-row" key={idx}>
                       <input
                         className="admin-input"
-                        disabled={saving}
+                        disabled={saving || inlineArticle !== null}
                         onChange={(e) => updateOfferingRow(idx, "name", e.target.value)}
                         placeholder="Tên dịch vụ con (VD: Phay CNC 4 trục)"
                         value={row.name}
                       />
                       <input
                         className="admin-input admin-mono"
-                        disabled={saving}
+                        disabled={saving || inlineArticle !== null}
                         onChange={(e) => updateOfferingRow(idx, "path", e.target.value)}
                         placeholder="Đường dẫn (VD: /dich-vu/phay-cnc/)"
                         value={row.path}
                       />
+                      {articleEditorSeed && form.id ? (
+                        <button
+                          aria-expanded={articleIsOpen}
+                          aria-controls={articleIsOpen ? "service-article-inline-editor" : undefined}
+                          className="admin-button admin-button-quiet"
+                          data-testid={`button-service-article-${idx}`}
+                          disabled={saving || nestedSaving || (isDirty && !articleIsOpen)}
+                          onClick={() => requestArticleSelection(articleContext)}
+                          title={isDirty && !articleIsOpen ? "Lưu dịch vụ trước khi viết bài để dùng đúng đường dẫn." : undefined}
+                          type="button"
+                        >
+                          {articleIsOpen ? "Đóng trình soạn" : "Mở trình soạn"}
+                        </button>
+                      ) : (
+                        <button className="admin-button admin-button-quiet" disabled title="Lưu nhóm dịch vụ và đường dẫn trước khi viết bài" type="button">
+                          Mở trình soạn
+                        </button>
+                      )}
                       <button
                         className="admin-button admin-button-quiet admin-button-danger"
-                        disabled={saving}
+                        disabled={saving || inlineArticle !== null}
                         onClick={() => removeOfferingRow(idx)}
                         style={{ minHeight: 34, padding: "0 8px" }}
                         title="Xóa dòng này"
@@ -1213,7 +1265,8 @@ function ServiceEditor({ error, form, isDirty = false, onCancel, onChange, onSub
                         ✕
                       </button>
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
               <details style={{ marginTop: 12 }}>
@@ -1223,7 +1276,7 @@ function ServiceEditor({ error, form, isDirty = false, onCancel, onChange, onSub
                 <textarea
                   className="admin-textarea admin-mono"
                   data-testid="input-service-offerings"
-                  disabled={saving}
+                  disabled={saving || inlineArticle !== null}
                   onChange={(event) => update("offeringsText", event.target.value)}
                   placeholder={"Phay CNC 4-5 trục | /dich-vu/phay-cnc/\nTiện CNC chính xác | /dich-vu/tien-cnc/\nCắt dây EDM | /dich-vu/cat-day-edm/"}
                   rows={4}
@@ -1461,6 +1514,27 @@ function ServiceEditor({ error, form, isDirty = false, onCancel, onChange, onSub
           </div>
         </div>
       </form>
+      {inlineArticle ? (
+        <div aria-label={`Trình soạn ${inlineArticle.articleTitle}`} className="admin-service-article-inline-slot" id="service-article-inline-editor" ref={articleEditorRef} role="region">
+          <p className="admin-service-article-inline-note" role="status">Đang soạn “{inlineArticle.articleTitle}”. Đóng trình soạn để đổi tên hoặc đường dẫn dịch vụ con.</p>
+          <AdminPageBuilder
+            articleContext={inlineArticle}
+            embedded
+            key={`${inlineArticle.serviceSlug}:${inlineArticle.articleRoute}:${inlineArticle.articleTitle}`}
+            mode="service-article"
+            onClose={() => requestArticleSelection(inlineArticle)}
+          />
+        </div>
+      ) : null}
+      {pendingArticleSelection ? (
+        <AdminConfirmDialog
+          confirmLabel="Bỏ thay đổi và tiếp tục"
+          message="Đóng trình soạn sẽ bỏ các thay đổi chưa lưu trong bài viết (nếu có). Những chỉnh sửa ở biểu mẫu dịch vụ vẫn được giữ."
+          onConfirm={() => { setInlineArticle(pendingArticleSelection.next); setPendingArticleSelection(null); }}
+          onDismiss={() => setPendingArticleSelection(null)}
+          title="Đóng trình soạn bài?"
+        />
+      ) : null}
     </section>
   );
 }
