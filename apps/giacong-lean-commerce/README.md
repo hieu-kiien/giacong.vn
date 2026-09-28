@@ -1,6 +1,6 @@
 # Kienhieu
 
-Storefront B2B cho dịch vụ gia công và catalog sản phẩm. Khách có thể xem nội dung, chọn sản phẩm/quy cách, tạo request cart và gửi yêu cầu báo giá. Admin Cloudflare-native quản lý catalog, lead, media R2, nội dung, page, menu và quyền thành viên.
+Website thương mại điện tử gọn cho khách mua lẻ và mua sỉ theo [brief phạm vi dự án](docs/PROJECT_SCOPE_2026-09-27.md): khách đăng nhập để gửi yêu cầu; website lưu yêu cầu trước khi chuyển sang Zalo để tư vấn/chốt mọi đơn. Không có checkout hay thanh toán online. D1/Admin là nguồn gốc cho yêu cầu và giao dịch đã chốt; Google Sheet nhận dữ liệu đồng bộ. Ứng dụng chạy trên Cloudflare-native.
 
 ## Kiến trúc
 
@@ -62,7 +62,4 @@ Migration `0009_admin_control_plane.sql` phải được apply vào môi trườ
 
 Không đưa `.env`, `.env.local`, `.dev.vars` hoặc secret Cloudflare/Google lên GitHub. Kiến trúc vận hành chi tiết nằm trong thư mục `docs/`.
 
-Lộ trình admin visual và bản đồ file cần đọc trước khi bắt đầu thay đổi admin:
-
-- [`docs/ADMIN_VISUAL_ROADMAP.md`](docs/ADMIN_VISUAL_ROADMAP.md)
-- [`docs/ADMIN_VISUAL_FILE_MAP.md`](docs/ADMIN_VISUAL_FILE_MAP.md)
+Tài liệu cũ đã chuyển vào [`docs/archive/legacy-2026-09-27/`](docs/archive/legacy-2026-09-27/) để tra cứu; không dùng làm yêu cầu sản phẩm hiện hành.

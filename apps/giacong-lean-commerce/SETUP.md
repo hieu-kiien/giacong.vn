@@ -67,8 +67,8 @@ npm run build
 
 Đối với công việc admin visual, đọc và cập nhật đồng thời:
 
-- [`docs/ADMIN_VISUAL_ROADMAP.md`](docs/ADMIN_VISUAL_ROADMAP.md);
-- [`docs/ADMIN_VISUAL_FILE_MAP.md`](docs/ADMIN_VISUAL_FILE_MAP.md);
+- [`docs/PROJECT_SCOPE_2026-09-27.md`](docs/PROJECT_SCOPE_2026-09-27.md);
+- [`docs/CLOUDFLARE_ADMIN_WRITE_CONTRACT.md`](docs/CLOUDFLARE_ADMIN_WRITE_CONTRACT.md);
 - [`docs/CLOUDFLARE_ADMIN_WRITE_CONTRACT.md`](docs/CLOUDFLARE_ADMIN_WRITE_CONTRACT.md).
 
 Mỗi lát triển khai phải có test contract/server trước UI, browser QA trên staging

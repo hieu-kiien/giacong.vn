@@ -16,7 +16,7 @@ Staging admin target:
 
 The browser never receives D1/R2 credentials and never calls D1/R2 APIs directly. All reads and writes cross a server-side Worker boundary. Public storefront hosts, `workers.dev` URLs and preview URLs must not become alternate admin-write paths.
 
-Request inbox management is outside this contract. Google Sheet + Apps Script remains the request queue until a separate product decision changes it.
+This contract covers Admin writes only. Every product purchase inquiry requires a customer session, is saved with the server-derived account ID in D1 before the Zalo handoff, and is distinct from a confirmed sale. Staff record confirmed Zalo sales canonically through Admin/D1; Google Sheets receives synchronized copies and must not become a duplicate manual source. Customer auth, account-scoped request/history reads and writes, confirmed-sale schema, and the sync/retry mechanism need separate reviewed contracts before implementation. Zalo messages are not automatically ingested.
 
 ## 2. Authentication and request admission
 
@@ -35,7 +35,7 @@ Required checks:
 
 Wrong-host requests to `/api/admin/**` should be hidden with `404`. Invalid/missing Access identity on the correct admin host is rejected with a safe `401` or `403` response. Do not return JWT/JWKS details, claims, stack traces or internal configuration values.
 
-Lean V1 has no customer identity or customer team management. As approved by the user on 2026-09-07, the sole active role is **Admin toàn quyền**, persisted as `owner`. Retired roles fail both admission and capability checks; they are never promoted implicitly. Cloudflare Access authenticates the operator; the `admin_members` record authorizes the operation. Member changes remain owner-only, same-origin, audited and fail closed, with last-active-owner protections preserved.
+This contract covers internal Admin identity and authorization only. Storefront customer accounts and account-visible purchase history are separate; they do not grant Admin access and must use a separate customer authentication boundary. The product scope includes Admin access to customer contact/request history and confirmed sales for care/operations, but not a general-purpose CRM. As approved by the user on 2026-09-07, the sole active Admin role is **Admin toàn quyền**, persisted as `owner`. Retired roles fail both admission and capability checks; they are never promoted implicitly. Cloudflare Access authenticates the operator; the `admin_members` record authorizes the operation. Member changes remain owner-only, same-origin, audited and fail closed, with last-active-owner protections preserved.
 
 ## 3. HTTP and JSON contract
 

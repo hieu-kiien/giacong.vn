@@ -35,7 +35,7 @@ Kích hoạt khi yêu cầu liên quan đến:
 - review UI/UX, accessibility, responsive, loading/error/empty state hoặc kiểm duyệt thay đổi admin;
 - kiểm tra admin có còn lẫn Bagisto, route cũ hoặc hợp đồng ghi dữ liệu sai hay không.
 
-Không tự mở rộng sang tài khoản khách hàng, checkout, đơn hàng, thanh toán hoặc marketplace. Quản lý thành viên ở đây chỉ là thành viên nội bộ của admin theo quyết định Lean V1 và phải giữ owner/auth contract. Page builder tự do HTML/CSS/JS không được thêm; chỉ dùng schema section an toàn đã được quyết định.
+Storefront phải có mục tài khoản dễ thấy với đăng ký/đăng nhập. Khách dùng Google hoặc mật khẩu của tài khoản mình; username/email/phone là các cách đăng nhập thay thế, và đăng ký chọn email hoặc phone. Mọi yêu cầu mua hàng phải đăng nhập, được lưu vào D1 cùng account ID do server xác định trước khi mở Zalo. Tất cả giao dịch được tư vấn/chốt qua Zalo; không checkout hay thanh toán online. Nhân viên ghi giao dịch đã chốt trong Admin/D1 làm nguồn gốc, Sheet nhận bản đồng bộ; tài khoản khách xem cả lịch sử yêu cầu và giao dịch đã chốt với trạng thái phân biệt. Chat Zalo không tự đổ ngược về site. Phạm vi quản lý khách trong Admin chỉ gồm thông tin liên hệ/yêu cầu cần chăm sóc và giao dịch; không mở rộng thành CRM tổng quát. Catalog phục vụ mua lẻ và sỉ bằng bậc giá theo số lượng. Không theo dõi tồn kho hoặc hiện nhãn còn/hết hàng; nhân viên ẩn sản phẩm hết hàng bằng trạng thái đăng bán hiện có. Chưa suy ra vận chuyển. Kênh xác minh/khôi phục/liên kết tài khoản và URL Zalo chính thức còn phải chốt. Thành viên admin chỉ là nhân sự nội bộ và phải giữ owner/auth contract. Page builder tự do HTML/CSS/JS không được thêm; chỉ dùng schema section an toàn đã được quyết định.
 
 ## Cách gọi
 

@@ -1,5 +1,18 @@
 # Cloudflare current state — 2026-09-16
 
+## Customer account and Zalo sales audit — 2026-09-27 (read-only at HEAD `dd93ca64`)
+
+This is a source-code audit against the committed HEAD, not a staging/production runtime check. Product decisions are recorded in `PROJECT_SCOPE_2026-09-27.md`; this section records verified implementation gaps only.
+
+- Customer auth is absent: existing `admin_members` and Cloudflare Access protect staff only. There are no customer identity/session tables, public login/register routes, or account-history page. Do not reuse the B2B CRM customer table as a credential store.
+- `POST /api/contact` currently saves a lead and item/event snapshots into D1, then queues or sends a Google Sheets lead copy. The lead pipeline has no authenticated `customer_id`; the browser's accepted request is not customer account history.
+- Current request UI has a direct Zalo action in `RequestForm` that bypasses the contact POST/D1 write. A separate Zalo action exists after a successful POST, but the current channel configuration marks all channels as demo, so that action is hidden. There are conflicting Zalo defaults; the official destination must be verified and configured once.
+- `product_variants.is_available` is a per-variant selectable flag, not an inventory count, but storefront cards/details currently translate it into “Còn hàng/Tạm hết hàng”. Admin already has product-level publish/visibility controls for hiding a whole unavailable product. Tier-price UI exists; legacy `contactFromQuantity` also changes high-quantity display to “Liên hệ” and must not be removed until the canonical high-quantity price behavior is defined and its server resolver is updated together.
+- Admin lead status `won` is only a pipeline state. There is no canonical confirmed-sale ledger or sales-to-Sheet sync. Product/listing “sold” quantity currently counts lead item quantities, not confirmed sales; do not present it as actual sales until backed by a confirmed-sale record.
+- Existing CRM is a business-customer/care model, not customer login or an order ledger. Keep public customer identity separate, and link every request/sale using a verified server-side account ID.
+- Required target flow: authenticated customer submits a request → server re-reads product/variant/tier data and stores the request in D1 → accepted page offers configured Zalo handoff → staff records a separately confirmed sale in Admin/D1 → Sheet receives an idempotent synchronized copy. Zalo chat is not ingested automatically; a request is never counted as a purchase.
+- GitNexus pre-edit impact from this baseline: `toProductDetail` is **CRITICAL** (12 symbols, 3 flows, includes contact POST); `getCatalogProducts`, `toParentProduct` and `resolveLine` are **HIGH**; catalog presentation/purchase panel and request acceptance/form symbols were LOW. Re-run impact on the implementation checkout before editing; do not infer safety from the old index.
+
 ## Production motion/cache follow-up — 2026-09-19
 
 - Production `giacong-vn` đang chạy version `a00c0f90-817b-426b-b7e2-40d91e1a43ed`
@@ -194,7 +207,7 @@ Checkpoint này là trạng thái mới nhất; các checkpoint production/stagi
   Không reset/clean/commit/push; không mutation D1/R2; production chỉ đọc.
 - P0 mapping khóa có điều kiện tại
   `.runtime/admin-commerce-recovery/p0-mapping-2026-09-07.md`; chi tiết ở
-  `docs/ADMIN_COMMERCE_RECOVERY_HANDOFF.md` §7.
+  `docs/archive/legacy-2026-09-27/ADMIN_COMMERCE_RECOVERY_HANDOFF.md` §7.
 - Runtime staging do Đội D đo độc lập: `/gia-cong-sot-cham/` HTTP 200
   (breadcrumb SSR `Trang chủ » Gia Công Sốt Chấm`), `/thue-gia-cong/gia-cong-sot-cham`
   HTTP 200 (crumb `Trang chủ / Thuê gia công`); trailing-slash 308; submenu SSR
@@ -249,7 +262,7 @@ Danh sách thành viên staging hiện chỉ có 1 owner. Quyết định 2026-0
 Admin toàn quyền (`owner`) đã thay thế mô hình năm role; không còn yêu cầu bốn
 identity cho role cũ. Các gate production còn mở theo
 `PRODUCTION_ACCEPTANCE_CHECKLIST.md`. Chi tiết kiểm chứng ở
-[ADMIN_QUALITY_REVIEW.md](ADMIN_QUALITY_REVIEW.md).
+[archive/legacy-2026-09-27/ADMIN_QUALITY_REVIEW.md](archive/legacy-2026-09-27/ADMIN_QUALITY_REVIEW.md).
 
 Hồ sơ này ghi bằng chứng runtime đã xác minh trong quá trình chuyển Lean V1 sang Cloudflare-native.
 
@@ -781,7 +794,7 @@ Deep QA workflow tự chạy khi storefront/runtime source, Wrangler config ho�
 
 ## Governance Cloudflare-native
 
-Nguồn quyết định là `docs/CLOUDFLARE_NATIVE_V1_PLAN.md`. `COMMERCE_PLATFORM_MASTER_PLAN.md` được giữ làm hồ sơ lịch sử Bagisto-era, không còn quyết định runtime/admin đích.
+Nguồn phạm vi sản phẩm là `docs/PROJECT_SCOPE_2026-09-27.md`; kiến trúc kỹ thuật nằm trong `docs/CLOUDFLARE_NATIVE_V1_PLAN.md`. `archive/legacy-2026-09-27/COMMERCE_PLATFORM_MASTER_PLAN.md` là hồ sơ Bagisto-era, không quyết định runtime/admin đích.
 
 Plan khóa các nguyên tắc:
 
