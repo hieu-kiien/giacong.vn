@@ -9,7 +9,8 @@ This document defines the security, data-integrity and HTTP behavior that must e
 Staging admin target:
 
 - hostname: `admin-staging.kienhieu.id.vn`;
-- edge protection: Cloudflare Access self-hosted application and allow policy;
+- account login: the shared Better Auth website account, gated by a separate active `owner` membership in D1;
+- rollout fallback: keep Cloudflare Access JWT admission available until staging acceptance is complete;
 - Worker route: `admin-staging.kienhieu.id.vn/*` → `giacong-vn-staging`;
 - canonical D1 binding: `GIACONG_VN_CATALOG`;
 - canonical R2 binding: `GIACONG_VN_PRODUCT_MEDIA`.
@@ -25,17 +26,19 @@ Every `/api/admin/**` route fails closed unless its admission checks pass.
 Required checks:
 
 1. In staging, request hostname is exactly `admin-staging.kienhieu.id.vn`.
-2. Read `Cf-Access-Jwt-Assertion`; never trust an arbitrary identity/email header as proof of authentication.
-3. Cryptographically verify the Access JWT against the account JWKS and the configured issuer/team domain and application audience. Signature, issuer, audience and token time validity must pass.
-4. Missing auth configuration is a deployment failure and must fail closed, not disable authentication.
-5. Mutation methods require an exact same-origin `Origin` matching the admin origin. Cross-origin browser mutations are rejected.
-6. Enforce the endpoint `Content-Type` before parsing.
-7. Enforce a byte limit before accepting/parsing the full request body.
-8. Admin responses use `Cache-Control: no-store`.
+2. Account admission is enabled only with `ADMIN_ACCOUNT_AUTH=true`; production keeps it false until separately approved.
+3. The server must read the Better Auth session from its host-only cookie. The user ID, verified email and verification flag come from that server-side session; arbitrary identity, email or role headers are never trusted.
+4. Require a verified email and exactly one case-insensitive matching `admin_members` row with an active `owner` role. This account lookup is read-only and must not rewrite the Cloudflare Access `access_subject`.
+5. During rollout, the existing Access JWT path remains available as a rollback path. If used, cryptographically verify the JWT against configured issuer/team domain and application audience, including signature and time validity.
+6. Missing authentication or D1 configuration fails closed; it must never enable public admin mode.
+7. Mutation methods require an exact same-origin `Origin` matching the admin origin. Cross-origin browser mutations are rejected.
+8. Enforce the endpoint `Content-Type` before parsing.
+9. Enforce a byte limit before accepting/parsing the full request body.
+10. Admin responses use `Cache-Control: no-store`.
 
-Wrong-host requests to `/api/admin/**` should be hidden with `404`. Invalid/missing Access identity on the correct admin host is rejected with a safe `401` or `403` response. Do not return JWT/JWKS details, claims, stack traces or internal configuration values.
+Wrong-host requests to `/api/admin/**` should be hidden with `404`. Missing/invalid website sessions and accounts without active D1 membership receive safe `401` or `403` responses. Do not return JWT/JWKS details, claims, stack traces or internal configuration values.
 
-Lean V1 has no customer identity or customer team management. As approved by the user on 2026-09-07, the sole active role is **Admin toàn quyền**, persisted as `owner`. Retired roles fail both admission and capability checks; they are never promoted implicitly. Cloudflare Access authenticates the operator; the `admin_members` record authorizes the operation. Member changes remain owner-only, same-origin, audited and fail closed, with last-active-owner protections preserved.
+The website account is shared between storefront sign-in and the admin sign-in screen. That does not grant admin access by itself: `admin_members` is the separate authorization source. The sole active role is **Admin toàn quyền**, persisted as `owner`. Retired roles fail both admission and capability checks; they are never promoted implicitly. Member changes remain owner-only, same-origin, audited and fail closed, with last-active-owner protections preserved.
 
 ## 3. HTTP and JSON contract
 

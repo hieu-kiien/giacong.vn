@@ -27,7 +27,12 @@ export default async function CustomerSignInPage({
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
   const query = await searchParams;
-  const callbackURL = query.next === "gui-yeu-cau" ? "/gui-yeu-cau/" : "/tai-khoan/";
+  const callbackURL = query.next === "gui-yeu-cau"
+    ? "/gui-yeu-cau/"
+    : query.next === "admin"
+      ? "/admin/"
+      : "/tai-khoan/";
+  const isAdminSignIn = query.next === "admin";
 
   return (
     <CapturedStorefrontShell>
@@ -50,7 +55,9 @@ export default async function CustomerSignInPage({
           <div className="giacong-content-rail">
             <div className={styles.card}>
               <h2 className={styles.cardTitle} id="sign-in-title">Đăng nhập hoặc tạo tài khoản</h2>
-              <p className={styles.cardCopy}>Dùng Google hoặc tên đăng nhập/email và mật khẩu.</p>
+              <p className={styles.cardCopy}>{isAdminSignIn
+                ? "Đăng nhập bằng tài khoản website. Chỉ tài khoản đã được cấp quyền admin mới vào được khu vực quản trị."
+                : "Dùng Google hoặc tên đăng nhập/email và mật khẩu."}</p>
 
               <CustomerAccountAuth callbackURL={callbackURL} />
 

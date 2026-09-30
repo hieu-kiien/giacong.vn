@@ -7,6 +7,8 @@ export interface AdminSessionDependencies {
   requestId(): string;
   /** Resolves an active D1 member; an absent member must remain blocked. */
   resolveRole?(subject: string, email: string | null): Promise<AdminSessionRoleResolution | null>;
+  /** Account sessions use a read-only lookup by their server-verified email. */
+  resolveAccountRole?(email: string): Promise<AdminSessionRoleResolution | null>;
 }
 
 export interface AdminSessionRoleResolution {
@@ -35,6 +37,43 @@ export async function handleAdminSession(
   let memberId: string | undefined;
   if (admission.actor.publicAdmin) {
     role = "owner";
+  } else if (admission.actor.authMethod === "account") {
+    if (!admission.actor.email) {
+      return adminFailure(
+        requestId,
+        403,
+        "ADMIN_MEMBERSHIP_REQUIRED",
+        "Tài khoản website chưa được cấp quyền admin trong D1.",
+      );
+    }
+    if (!dependencies.resolveAccountRole) {
+      return adminFailure(
+        requestId,
+        503,
+        "INTERNAL_ERROR",
+        "Không thể xác minh quyền admin lúc này.",
+      );
+    }
+    try {
+      const resolved = await dependencies.resolveAccountRole(admission.actor.email);
+      if (!resolved || !isAdminRole(resolved.role)) {
+        return adminFailure(
+          requestId,
+          403,
+          "ADMIN_MEMBERSHIP_REQUIRED",
+          "Tài khoản website chưa được cấp quyền admin trong D1.",
+        );
+      }
+      role = resolved.role;
+      memberId = resolved.memberId;
+    } catch {
+      return adminFailure(
+        requestId,
+        503,
+        "INTERNAL_ERROR",
+        "Không thể xác minh quyền admin lúc này.",
+      );
+    }
   } else if (!dependencies.resolveRole) {
     return adminFailure(
       requestId,
@@ -67,6 +106,7 @@ export async function handleAdminSession(
 
   return adminSuccess(requestId, {
     authenticated: true,
+    ...(admission.actor.authMethod === "account" ? { authMethod: "account" } : {}),
     ...(admission.actor.email ? { email: admission.actor.email } : {}),
     ...(memberId ? { memberId } : {}),
     role,

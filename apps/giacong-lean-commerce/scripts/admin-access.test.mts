@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { admitAdminRequest, normalizeAdminAccessConfig } from "../src/lib/admin-access.ts";
+import { admitAdminAccountSessionRequest, admitAdminRequest, normalizeAdminAccessConfig } from "../src/lib/admin-access.ts";
 
 const baseConfig = {
   adminHostname: "admin-staging.example.test",
@@ -95,4 +95,54 @@ test("requires and verifies Access JWTs when public mode is off", async () => {
   const result = await admitAdminRequest(request, baseConfig, verify);
   assert.deepEqual(result, { actor: { subject: "access-user" }, ok: true });
   assert.equal(calls, 1);
+});
+
+test("admits only verified Better Auth accounts on the exact enabled admin host", () => {
+  const result = admitAdminAccountSessionRequest(
+    new Request("https://admin-staging.example.test/api/admin/session"),
+    { ...baseConfig, accountAdminEnabled: true },
+    { id: "user-1", email: " OWNER@EXAMPLE.COM ", emailVerified: true },
+  );
+  assert.deepEqual(result, {
+    actor: { authMethod: "account", email: "owner@example.com", subject: "better-auth:user-1" },
+    ok: true,
+  });
+});
+
+test("rejects unverified account sessions and cross-origin admin mutations", () => {
+  const unverified = admitAdminAccountSessionRequest(
+    new Request("https://admin-staging.example.test/api/admin/session"),
+    { ...baseConfig, accountAdminEnabled: true },
+    { id: "user-1", email: "owner@example.com", emailVerified: false },
+  );
+  assert.equal(unverified.ok, false);
+  if (!unverified.ok) assert.equal(unverified.status, 401);
+
+  const crossOrigin = admitAdminAccountSessionRequest(
+    new Request("https://admin-staging.example.test/api/admin/products", {
+      method: "POST",
+      headers: { Origin: "https://staging.kienhieu.id.vn" },
+    }),
+    { ...baseConfig, accountAdminEnabled: true },
+    { id: "user-1", email: "owner@example.com", emailVerified: true },
+  );
+  assert.equal(crossOrigin.ok, false);
+  if (!crossOrigin.ok) assert.equal(crossOrigin.status, 403);
+});
+
+test("does not admit account sessions on unconfigured or wrong hosts", () => {
+  const disabled = admitAdminAccountSessionRequest(
+    new Request("https://admin-staging.example.test/api/admin/session"),
+    baseConfig,
+    { id: "user-1", email: "owner@example.com", emailVerified: true },
+  );
+  assert.equal(disabled.ok, false);
+
+  const wrongHost = admitAdminAccountSessionRequest(
+    new Request("https://staging.kienhieu.id.vn/api/admin/session"),
+    { ...baseConfig, accountAdminEnabled: true },
+    { id: "user-1", email: "owner@example.com", emailVerified: true },
+  );
+  assert.equal(wrongHost.ok, false);
+  if (!wrongHost.ok) assert.equal(wrongHost.status, 404);
 });

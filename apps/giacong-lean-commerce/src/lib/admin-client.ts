@@ -1,5 +1,6 @@
 export interface AdminSession {
   authenticated: boolean;
+  authMethod?: "account";
   email?: string;
   memberId?: string;
   subject: string;

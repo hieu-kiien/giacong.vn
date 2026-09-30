@@ -17,6 +17,7 @@ interface CustomerAuthEnvironment {
 const CUSTOMER_AUTH_ORIGINS = [
   "https://kienhieu.id.vn",
   "https://staging.kienhieu.id.vn",
+  "https://admin-staging.kienhieu.id.vn",
   "http://localhost:3000",
 ] as const;
 
@@ -24,6 +25,7 @@ const CUSTOMER_AUTH_ORIGIN_SET = new Set<string>(CUSTOMER_AUTH_ORIGINS);
 const CUSTOMER_AUTH_ORIGIN_BY_HOST = new Map<string, string>([
   ["kienhieu.id.vn", "https://kienhieu.id.vn"],
   ["staging.kienhieu.id.vn", "https://staging.kienhieu.id.vn"],
+  ["admin-staging.kienhieu.id.vn", "https://admin-staging.kienhieu.id.vn"],
   ["localhost:3000", "http://localhost:3000"],
 ]);
 const DEFAULT_CUSTOMER_AUTH_ORIGIN = "https://kienhieu.id.vn";

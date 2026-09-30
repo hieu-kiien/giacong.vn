@@ -10,6 +10,7 @@ import { AdminConfirmDialog } from "@/components/admin/AdminDialog";
 import { AdminUnsavedContext, type AdminUnsavedState, shouldBlockUnsavedNavigation, shouldBypassUnsavedClick } from "@/components/admin/AdminUnsavedGuard";
 import { AdminToastProvider } from "@/components/admin/AdminToast";
 import { canManage, type AdminCapability } from "@/lib/admin-permissions";
+import { customerAuthClient } from "@/lib/customer-auth-client";
 
 interface AdminShellProps { brandName: string; children: ReactNode; }
 interface SessionContextValue { session: AdminSession | null; }
@@ -178,6 +179,7 @@ export function AdminShell({ brandName, children }: AdminShellProps) {
   const [error, setError] = useState<AdminClientError | null>(null);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [logoutError, setLogoutError] = useState("");
   const sidebarRef = useRef<HTMLElement>(null);
   const menuTriggerRef = useRef<HTMLButtonElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
@@ -342,10 +344,41 @@ export function AdminShell({ brandName, children }: AdminShellProps) {
     setPendingNav(nextPending);
   }
 
+  async function signOutAccount() {
+    setLogoutError("");
+    try {
+      const result = await customerAuthClient.signOut();
+      if (result.error) throw result.error;
+      window.location.assign(new URL("/tai-khoan/dang-nhap/?next=admin", window.location.origin).toString());
+    } catch {
+      setLogoutError("Chưa thể đăng xuất. Hãy thử lại.");
+      setUserMenuOpen(true);
+    }
+  }
+
   function handleLogoutClick(event: ReactMouseEvent<HTMLAnchorElement>) {
     if (event.defaultPrevented) return;
     if (event.button !== 0) return;
     if (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
+
+    if (session?.authMethod === "account") {
+      event.preventDefault();
+      let dirty = false;
+      try {
+        dirty = unsavedIsDirtyRef.current();
+      } catch {
+        dirty = false;
+      }
+      if (shouldBlockUnsavedNavigation({ isDirty: dirty, saving: unsavedSavingRef.current, hasPending: pendingRef.current !== null })) {
+        if (pendingRef.current) return;
+        const nextPending = { logout: true } as const;
+        pendingRef.current = nextPending;
+        setPendingNav(nextPending);
+        return;
+      }
+      void signOutAccount();
+      return;
+    }
 
     let dirty = false;
     try {
@@ -433,7 +466,7 @@ export function AdminShell({ brandName, children }: AdminShellProps) {
     setPendingNav(null);
   }
 
-  function confirmPendingNav() {
+  async function confirmPendingNav() {
     const pending = pendingNav;
     setPendingNav(null);
     pendingRef.current = null;
@@ -441,6 +474,10 @@ export function AdminShell({ brandName, children }: AdminShellProps) {
     setMobileOpen(false);
     if ("logout" in pending) {
       pendingHistoryRef.current = null;
+      if (session?.authMethod === "account") {
+        await signOutAccount();
+        return;
+      }
       window.location.assign(new URL(CLOUDFLARE_ACCESS_LOGOUT_PATH, window.location.origin).toString());
       return;
     }
@@ -655,10 +692,11 @@ export function AdminShell({ brandName, children }: AdminShellProps) {
                     </div>
                     <div className="admin-user-popover-divider" />
                     <div className="admin-user-popover-actions">
+                      {logoutError ? <p className="admin-access-detail" role="alert">{logoutError}</p> : null}
                       <a
                         className="admin-user-popover-logout"
                         data-testid="link-admin-logout"
-                        href={CLOUDFLARE_ACCESS_LOGOUT_PATH}
+                        href={session.authMethod === "account" ? "/tai-khoan/dang-nhap/?next=admin" : CLOUDFLARE_ACCESS_LOGOUT_PATH}
                         onClick={(e) => {
                           setUserMenuOpen(false);
                           handleLogoutClick(e);
@@ -710,9 +748,24 @@ function AdminLoadingScreen() {
 }
 
 function AdminAccessScreen({ brandName, status, error, onRetry }: { brandName: string; status: "blocked" | "unavailable"; error: AdminClientError | null; onRetry: () => void }) {
+  const router = useRouter();
+  const [logoutError, setLogoutError] = useState("");
   const isBlocked = status === "blocked";
-  const isAdminMembershipDenied = isBlocked && error?.status === 403 && error.code === "FORBIDDEN";
-  const showLoginLink = (isBlocked && !isAdminMembershipDenied) || error?.code === "NETWORK_ERROR";
+  const isAccountMembershipDenied = isBlocked && error?.status === 403 && error.code === "ADMIN_MEMBERSHIP_REQUIRED";
+  const isAccessMembershipDenied = isBlocked && error?.status === 403 && error.code === "FORBIDDEN";
+  const showLoginLink = isBlocked || error?.code === "NETWORK_ERROR";
+
+  async function signOutWebsiteAccount() {
+    setLogoutError("");
+    try {
+      const result = await customerAuthClient.signOut();
+      if (result.error) throw result.error;
+      window.location.assign(new URL("/tai-khoan/dang-nhap/?next=admin", window.location.origin).toString());
+    } catch {
+      setLogoutError("Chưa thể đăng xuất. Hãy thử lại.");
+    }
+  }
+
   return (
     <div className="admin-app">
       <div className="admin-access-page">
@@ -721,21 +774,23 @@ function AdminAccessScreen({ brandName, status, error, onRetry }: { brandName: s
             <span className="admin-brand-mark" aria-hidden="true">{`${brandName.slice(0, 1).toUpperCase()}.`}</span>
             <span className="admin-brand-copy"><strong>{brandName}</strong><span>Khu vực vận hành</span></span>
           </Link>
-          <h1 id="admin-access-title">{isAdminMembershipDenied ? "Tài khoản chưa được cấp quyền admin" : isBlocked ? "Khu vực này cần Cloudflare Access" : "Admin chưa sẵn sàng"}</h1>
+          <h1 id="admin-access-title">{isAccountMembershipDenied || isAccessMembershipDenied ? "Tài khoản chưa được cấp quyền admin" : isBlocked ? "Đăng nhập để vào khu vực quản trị" : "Admin chưa sẵn sàng"}</h1>
           <p>
-            {isAdminMembershipDenied
-              ? "Tài khoản Cloudflare Access này chưa có quyền quản trị. Hãy đăng xuất rồi chọn tài khoản được cấp quyền, hoặc liên hệ người quản trị."
+            {isAccountMembershipDenied
+              ? "Tài khoản website này chưa được cấp quyền admin trong D1. Hãy đăng xuất và dùng tài khoản đã được người quản trị cấp quyền."
+              : isAccessMembershipDenied
+              ? "Danh tính Cloudflare Access hiện tại chưa được cấp quyền quản trị. Hãy đăng xuất hoặc dùng tài khoản admin đã được cấp quyền."
               : isBlocked
-              ? "Hãy chọn nút “Đăng nhập Cloudflare Access” bên dưới, hoàn tất xác minh, rồi quay lại trang này. Đường xem thử hoặc trang web không có phiên truy cập nội bộ."
+              ? "Dùng tài khoản website đã được cấp quyền admin để tiếp tục."
               : error?.code === "NETWORK_ERROR"
-                ? "Nếu bạn chưa đăng nhập, hãy chọn nút “Đăng nhập Cloudflare Access”. Nếu đã đăng nhập, hãy thử kiểm tra lại phiên."
+                ? "Kiểm tra kết nối mạng rồi đăng nhập lại nếu phiên đã hết hạn."
                 : "Không thể kết nối tới phiên admin lúc này. Kiểm tra lại kết nối mạng và thử lại."}
           </p>
           <div className="admin-access-detail">
             {error?.code ? `${error.code} · ` : ""}{error?.message ?? "Không nhận được phản hồi từ API session."}
           </div>
           <div className="admin-editor-actions">
-            {isAdminMembershipDenied ? (
+            {isAccessMembershipDenied ? (
               <a
                 className="admin-button admin-button-quiet"
                 data-testid="link-admin-access-logout"
@@ -745,16 +800,27 @@ function AdminAccessScreen({ brandName, status, error, onRetry }: { brandName: s
                 <LogOut aria-hidden="true" size={14} />
               </a>
             ) : null}
-            {showLoginLink ? (
+            {isAccountMembershipDenied ? (
               <button
-                className="admin-button admin-button-primary"
-                data-testid="button-admin-access-login"
-                onClick={() => window.location.reload()}
+                className="admin-button admin-button-quiet"
+                data-testid="button-admin-account-logout"
+                onClick={() => void signOutWebsiteAccount()}
                 type="button"
               >
-                Đăng nhập Cloudflare Access
+                Đăng xuất tài khoản hiện tại
+                <LogOut aria-hidden="true" size={14} />
               </button>
             ) : null}
+            {showLoginLink ? (
+              <Link
+                className="admin-button admin-button-primary"
+                data-testid="link-admin-account-login"
+                href="/tai-khoan/dang-nhap/?next=admin"
+              >
+                Đăng nhập tài khoản website
+              </Link>
+            ) : null}
+            {logoutError ? <p className="admin-access-detail" role="alert">{logoutError}</p> : null}
             <button className="admin-button admin-button-quiet" data-testid="button-retry-admin-session" onClick={onRetry} type="button">
               Thử kiểm tra lại
             </button>

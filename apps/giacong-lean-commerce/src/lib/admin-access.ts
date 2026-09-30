@@ -4,6 +4,7 @@ export interface AdminAccessConfig {
   adminHostname: string;
   additionalAdminHostnames?: string[];
   productionAdminHostname: string;
+  accountAdminEnabled?: boolean;
   policyAudience: string;
   teamDomain: string;
   publicAdmin?: boolean;
@@ -14,6 +15,13 @@ export interface AdminActor {
   email?: string;
   subject: string;
   publicAdmin?: boolean;
+  authMethod?: "account";
+}
+
+export interface VerifiedAdminAccountIdentity {
+  id: string;
+  email: string;
+  emailVerified: boolean;
 }
 
 export type AdminAdmissionFailureCode = "FORBIDDEN" | "INTERNAL_ERROR" | "NOT_FOUND";
@@ -47,6 +55,7 @@ export interface NormalizedAdminAccessConfig {
   teamDomain: string;
   publicAdmin: boolean;
   publicSubject: string;
+  accountAdminEnabled: boolean;
 }
 
 const mutationMethods = new Set(["DELETE", "PATCH", "POST", "PUT"]);
@@ -121,6 +130,57 @@ export async function admitAdminRequest(
   }
 }
 
+/** Admits a verified Better Auth session only on the explicitly enabled admin host. */
+export function admitAdminAccountSessionRequest(
+  request: Request,
+  rawConfig: AdminAccessConfig,
+  identity: VerifiedAdminAccountIdentity | null,
+): AdminAdmissionResult {
+  const config = normalizeAdminAccessConfig(rawConfig);
+  if (!config) {
+    return failure(500, "INTERNAL_ERROR", "Cấu hình quản trị chưa sẵn sàng.");
+  }
+
+  let requestUrl: URL;
+  try {
+    requestUrl = new URL(request.url);
+  } catch {
+    return failure(404, "NOT_FOUND", "Không tìm thấy.");
+  }
+
+  const hostname = requestUrl.hostname.toLowerCase();
+  if (requestUrl.protocol !== "https:" || !config.adminHostnames.includes(hostname)) {
+    return failure(404, "NOT_FOUND", "Không tìm thấy.");
+  }
+  if (config.publicAdmin) {
+    return failure(500, "INTERNAL_ERROR", "Cấu hình quản trị chưa sẵn sàng.");
+  }
+  if (!config.accountAdminEnabled) {
+    return failure(401, "FORBIDDEN", "Cần xác thực quản trị.");
+  }
+  if (mutationMethods.has(request.method.toUpperCase())) {
+    const origin = request.headers.get("origin")?.trim() ?? "";
+    if (!config.adminOrigins.includes(origin)) {
+      return failure(403, "FORBIDDEN", "Yêu cầu quản trị không được phép.");
+    }
+  }
+
+  const id = identity?.id.trim() ?? "";
+  const email = identity?.email.trim().toLowerCase() ?? "";
+  if (!identity?.emailVerified || !id || id.length > 128 || !email || email.length > 254 || !email.includes("@")) {
+    return failure(401, "FORBIDDEN", "Phiên quản trị chưa được xác minh.");
+  }
+
+  return {
+    actor: {
+      authMethod: "account",
+      email,
+      subject: `better-auth:${id}`,
+    },
+    ok: true,
+  };
+}
+
 /**
  * Verifies Cloudflare Access signature and registered claims against the exact
  * Zero Trust team issuer and application audience. Algorithms are allow-listed
@@ -187,6 +247,7 @@ export function normalizeAdminAccessConfig(
     teamDomain,
     publicAdmin: config.publicAdmin === true,
     publicSubject: normalizePublicSubject(config.publicSubject),
+    accountAdminEnabled: config.accountAdminEnabled === true,
   };
 }
 

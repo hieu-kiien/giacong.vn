@@ -22,6 +22,7 @@
   "vars": {
     "ADMIN_HOSTNAME": "admin.kienhieu.id.vn",
     "ADMIN_HOSTNAMES": "admin.kienhieu.id.vn",
+    "ADMIN_ACCOUNT_AUTH": "false",
     "ADMIN_PUBLIC": "false",
     "PRODUCTION_ADMIN_HOSTNAME": "admin.kienhieu.id.vn",
     "TEAM_DOMAIN": "https://jolly-brook-7bc8.cloudflareaccess.com",
@@ -109,11 +110,12 @@
           "zone_name": "kienhieu.id.vn"
         }
       ],
-      // Staging admin is protected by Cloudflare Access so role and write
-      // acceptance runs against a real identity. The storefront remains public.
+      // Account-session admin auth is staging-only. Keep Access JWT admission
+      // available as a rollback path until staging acceptance is complete.
       "vars": {
         "ADMIN_HOSTNAME": "admin-staging.kienhieu.id.vn",
         "ADMIN_HOSTNAMES": "admin-staging.kienhieu.id.vn",
+        "ADMIN_ACCOUNT_AUTH": "true",
         "ADMIN_PUBLIC": "false",
         "PRODUCTION_ADMIN_HOSTNAME": "admin.kienhieu.id.vn",
         "TEAM_DOMAIN": "https://jolly-brook-7bc8.cloudflareaccess.com",

@@ -28,6 +28,57 @@ test("returns an authenticated session carrying the operator role", async () => 
   });
 });
 
+test("Better Auth admin sessions resolve only through the dedicated D1 membership lookup", async () => {
+  let accountEmail = "";
+  let legacyAccessResolverCalled = false;
+  const response = await handleAdminSession(new Request("https://admin-staging.example.test/api/admin/session"), {
+    admit: async () => ({
+      actor: { authMethod: "account", email: "owner@example.com", subject: "better-auth:user-1" },
+      ok: true,
+    }),
+    requestId: () => "account-session",
+    resolveAccountRole: async (email) => {
+      accountEmail = email;
+      return { memberId: "owner-1", role: "owner" };
+    },
+    resolveRole: async () => {
+      legacyAccessResolverCalled = true;
+      return null;
+    },
+  });
+
+  assert.equal(response.status, 200);
+  assert.deepEqual((await response.json() as { data: Record<string, unknown> }).data, {
+    authenticated: true,
+    authMethod: "account",
+    email: "owner@example.com",
+    memberId: "owner-1",
+    role: "owner",
+    subject: "better-auth:user-1",
+  });
+  assert.equal(accountEmail, "owner@example.com");
+  assert.equal(legacyAccessResolverCalled, false);
+});
+
+test("a verified website account without an active D1 admin membership is denied", async () => {
+  const response = await handleAdminSession(new Request("https://admin-staging.example.test/api/admin/session"), {
+    admit: async () => ({
+      actor: { authMethod: "account", email: "customer@example.com", subject: "better-auth:user-2" },
+      ok: true,
+    }),
+    requestId: () => "non-admin-account",
+    resolveAccountRole: async () => null,
+  });
+
+  assert.equal(response.status, 403);
+  assert.deepEqual(await response.json(), {
+    code: "ADMIN_MEMBERSHIP_REQUIRED",
+    message: "Tài khoản website chưa được cấp quyền admin trong D1.",
+    ok: false,
+    requestId: "non-admin-account",
+  });
+});
+
 test("returns the verified Cloudflare email when present", async () => {
   const response = await handleAdminSession(new Request("https://admin.example.test/api/admin/session"), {
     admit: async () => ({ actor: { email: "owner@example.com", subject: "access-subject" }, ok: true }),

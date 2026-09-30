@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 import type { D1DatabaseLike, D1PreparedStatementLike } from "../src/lib/admin-data.ts";
-import { findAdminMember } from "../src/lib/admin-data.ts";
+import { findAdminMember, findAdminMemberByAuthenticatedEmail } from "../src/lib/admin-data.ts";
 import { parseAdminMemberCreatePayload, parseAdminMemberPayload } from "../src/lib/admin-members-input.ts";
 import { ADMIN_CAPABILITIES, canManage, canManageMembers, canManageNavigation, canManagePages } from "../src/lib/admin-permissions.ts";
 
@@ -139,7 +139,46 @@ test("first verified-email login binds a pending Access subject", async () => {
   assert.ok(database.queries.some((query) => /UPDATE admin_members/.test(query)));
 });
 
-test("admin account UI hides accessSubject and exposes Cloudflare logout", async () => {
+test("verified account admission resolves one active owner by email without changing Access identity", async () => {
+  const owner: LookupRow = {
+    access_subject: "existing-access-subject",
+    display_name: "Chủ sở hữu",
+    email: "owner@example.test",
+    id: "owner-1",
+    role: "owner",
+  };
+  const database = new LookupDatabase(null, [owner]);
+  const member = await findAdminMemberByAuthenticatedEmail(database, " OWNER@EXAMPLE.TEST ");
+
+  assert.deepEqual(member, {
+    accessSubject: "existing-access-subject",
+    displayName: "Chủ sở hữu",
+    email: "owner@example.test",
+    id: "owner-1",
+    role: "owner",
+  });
+  assert.match(database.queries[0], /SELECT id, access_subject, email, display_name, role/);
+  assert.match(database.queries[0], /lower\(email\) = lower\(\?\)/);
+  assert.doesNotMatch(database.queries.join("\n"), /UPDATE admin_members/);
+});
+
+test("verified account admission rejects unknown, duplicate, and retired email memberships", async () => {
+  const owner: LookupRow = {
+    access_subject: "owner-subject",
+    display_name: "Chủ sở hữu",
+    email: "owner@example.test",
+    id: "owner-1",
+    role: "owner",
+  };
+  const duplicate: LookupRow = { ...owner, id: "owner-2", access_subject: "other-owner" };
+  const retired: LookupRow = { ...owner, role: "viewer" };
+
+  assert.equal(await findAdminMemberByAuthenticatedEmail(new LookupDatabase(null, []), "unknown@example.test"), null);
+  assert.equal(await findAdminMemberByAuthenticatedEmail(new LookupDatabase(null, [owner, duplicate]), owner.email!), null);
+  assert.equal(await findAdminMemberByAuthenticatedEmail(new LookupDatabase(null, [retired]), owner.email!), null);
+});
+
+test("admin account UI hides accessSubject and uses website logout with Access fallback", async () => {
   const [manager, shell] = await Promise.all([
     readFile(new URL("../src/components/admin/AdminMembersManager.tsx", import.meta.url), "utf8"),
     readFile(new URL("../src/components/admin/AdminShell.tsx", import.meta.url), "utf8"),
@@ -148,6 +187,7 @@ test("admin account UI hides accessSubject and exposes Cloudflare logout", async
   assert.match(manager, /Email đăng nhập/);
   assert.match(manager, /newMember\.email\.trim\(\)/);
   assert.match(shell, /\/cdn-cgi\/access\/logout/);
+  assert.match(shell, /customerAuthClient\.signOut\(\)/);
   assert.match(shell, /link-admin-logout/);
 });
 

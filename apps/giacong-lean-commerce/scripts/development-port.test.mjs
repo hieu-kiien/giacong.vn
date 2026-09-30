@@ -40,12 +40,16 @@ test("Cloudflare bindings replace the former Bagisto proxy boundary", async () =
   assert.match(catalog, /GIACONG_VN_CATALOG/);
 });
 
-test("staging admin stays behind Cloudflare Access instead of public demo mode", async () => {
+test("account admin auth is enabled only in staging and public demo mode stays disabled", async () => {
   const wrangler = await readFile(new URL("wrangler.jsonc", root), "utf8");
+  const productionVars = wrangler.match(/"vars":\s*\{([\s\S]*?)\n\s*\},\s*"assets":/);
   const stagingVars = wrangler.match(/"staging":\s*\{[\s\S]*?"vars":\s*\{([\s\S]*?)\n\s*\},\s*"assets":/);
 
+  assert.ok(productionVars, "expected a production vars block");
   assert.ok(stagingVars, "expected a staging vars block");
+  assert.match(productionVars[1], /"ADMIN_ACCOUNT_AUTH":\s*"false"/);
   assert.match(stagingVars[1], /"ADMIN_PUBLIC":\s*"false"/);
+  assert.match(stagingVars[1], /"ADMIN_ACCOUNT_AUTH":\s*"true"/);
   assert.doesNotMatch(stagingVars[1], /"ADMIN_PUBLIC_SUBJECT"/);
 });
 

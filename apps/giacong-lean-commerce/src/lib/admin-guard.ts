@@ -4,6 +4,7 @@ import { adminFailure } from "./admin-api.ts";
 import { admitRuntimeAdminRequest } from "./admin-access-runtime";
 import {
   findAdminMember,
+  findAdminMemberByAuthenticatedEmail,
   getAdminDatabase,
   type AdminMember,
   type D1DatabaseLike,
@@ -34,7 +35,11 @@ export async function requireAdmin(
           displayName: "Public demo",
           role: "owner" as const,
         }
-      : await findAdminMember(database, admission.actor.subject, admission.actor.email);
+      : admission.actor.authMethod === "account"
+        ? admission.actor.email
+          ? await findAdminMemberByAuthenticatedEmail(database, admission.actor.email)
+          : null
+        : await findAdminMember(database, admission.actor.subject, admission.actor.email);
     if (!member) {
       return adminFailure(
         requestId,

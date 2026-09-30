@@ -320,6 +320,33 @@ export async function findAdminMember(
   return toAdminMember(matched);
 }
 
+/** Resolves account-authenticated operators by a server-verified email without rebinding Access identity. */
+export async function findAdminMemberByAuthenticatedEmail(
+  database: D1DatabaseLike,
+  authenticatedEmail: string,
+): Promise<AdminMember | null> {
+  const email = authenticatedEmail.trim().toLowerCase();
+  if (!email || email.length > 254 || !email.includes("@")) return null;
+
+  const matches = await database.prepare(`
+    SELECT id, access_subject, email, display_name, role
+    FROM admin_members
+    WHERE is_active = 1
+      AND lower(email) = lower(?)
+    ORDER BY id ASC
+    LIMIT 2
+  `).bind(email).all<{
+    id: string;
+    access_subject: string;
+    email: string | null;
+    display_name: string;
+    role: AdminRole;
+  }>();
+
+  if (matches.results.length !== 1 || !isAdminRole(matches.results[0].role)) return null;
+  return toAdminMember(matches.results[0]);
+}
+
 function toAdminMember(row: {
   id: string;
   access_subject: string;

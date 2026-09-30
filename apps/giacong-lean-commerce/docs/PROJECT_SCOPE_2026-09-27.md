@@ -19,7 +19,7 @@ Cập nhật: 2026-09-29. Tài liệu này tách yêu cầu khách đã xác nh�
 
 - Không có thanh toán online.
 - Không phát sinh chi phí mới cho xác thực; không nâng gói Cloudflare hoặc bật dịch vụ gửi email trả phí.
-- Đăng nhập phục vụ nhận diện, chăm sóc khách và xem lịch sử mua hàng; mục đăng nhập phải hiện ở góc trang.
+- Đăng nhập website phục vụ nhận diện, chăm sóc khách và xem lịch sử mua hàng; cùng tài khoản Google hoặc tên đăng nhập/email + mật khẩu được dùng để mở màn hình Admin, nhưng chỉ thành viên `owner` đang hoạt động trong D1 mới có quyền quản trị. Mục đăng nhập phải hiện ở góc trang.
 - Khách phải có tài khoản bắt nguồn từ Google đã xác minh email trước khi gửi yêu cầu mua hàng trên website. Có thể đăng nhập sau đó bằng tên đăng nhập/mật khẩu đã thêm vào tài khoản Google ấy. Website lưu hồ sơ khách và nội dung yêu cầu vào D1, gắn với ID từ session phía máy chủ; chỉ sau khi lưu thành công mới mở bước tiếp theo để trao đổi trên Zalo. Không mở Zalo trực tiếp trước khi ghi nhận yêu cầu. Không ghép tài khoản theo tên hoặc dữ liệu do browser gửi.
 - Nhân viên chốt đơn qua Zalo rồi cập nhật giao dịch trong Admin. Website không xác nhận đơn hay thanh toán online.
 - Khách đã đăng nhập xem lịch sử yêu cầu và giao dịch đã chốt trong tài khoản; hai loại bản ghi phải có trạng thái/nhãn phân biệt rõ. Không coi yêu cầu đang tư vấn là giao dịch mua.
@@ -32,7 +32,7 @@ SEO cần tập trung vào trang sản phẩm, danh mục và nội dung công k
 ## Thứ tự làm tiếp
 
 1. Dùng Google miễn phí để tạo/xác minh tài khoản; sau khi đăng nhập, khách có thể đặt tên đăng nhập và mật khẩu để dùng lần sau. Chỉ email Google đã xác minh mới được gửi yêu cầu hoặc xem lịch sử; đăng nhập chỉ bằng số điện thoại chưa được bật.
-2. Làm một luồng khách hàng thống nhất: đăng ký/đăng nhập ở storefront, gắn lịch sử giao dịch với đúng khách; tách hoàn toàn khỏi đăng nhập Admin.
+2. Dùng chung tài khoản website cho storefront và màn hình đăng nhập Admin; giữ quyền Admin là membership riêng trong D1, không tự cấp quyền cho tài khoản khách. Gắn lịch sử giao dịch với đúng khách.
 3. Làm luồng yêu cầu đăng nhập → lưu yêu cầu vào D1 → mở Zalo sau khi lưu thành công; nhân viên ghi giao dịch đã chốt trong Admin/D1 và đồng bộ một chiều sang Google Sheet theo mã giao dịch để retry không nhân đôi.
 4. Tinh gọn form sản phẩm theo bán lẻ + sỉ: giá lẻ, giá theo bậc số lượng, quy cách/đơn vị và MOQ khi cần. Bỏ ngưỡng chuyển Zalo và không thêm tồn kho; nhân viên tự ẩn sản phẩm hết hàng.
 5. Kiểm tra trọn hành trình trên điện thoại và desktop: đăng ký/đăng nhập, yêu cầu được lưu trước khi mở Zalo, lịch sử yêu cầu và giao dịch phân biệt trong tài khoản, nhân viên cập nhật giao dịch và Sheet nhận đồng bộ; không có checkout/thanh toán online.

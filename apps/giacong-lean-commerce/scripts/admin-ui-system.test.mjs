@@ -130,16 +130,16 @@ test("protected sidebar links do not prefetch every admin route on first paint",
   assert.match(navLink, /prefetch=\{false\}/);
 });
 
-test("blocked sessions keep the Access login handoff and let unassigned accounts sign out", async () => {
+test("blocked sessions direct operators to website login and keep Access logout as fallback", async () => {
   const shell = await readSource("components", "admin", "AdminShell.tsx");
 
-  assert.match(shell, /const isAdminMembershipDenied = isBlocked && error\?\.status === 403 && error\.code === "FORBIDDEN"/);
-  assert.match(shell, /const showLoginLink = \(isBlocked && !isAdminMembershipDenied\) \|\| error\?\.code === "NETWORK_ERROR"/);
-  assert.match(shell, /<button[\s\S]*?data-testid="button-admin-access-login"[\s\S]*?onClick=\{\(\) => window\.location\.reload\(\)\}/);
-  assert.doesNotMatch(shell, /data-testid="link-admin-access-login"/);
-  assert.match(shell, /Đăng nhập Cloudflare Access/);
+  assert.match(shell, /error\.code === "ADMIN_MEMBERSHIP_REQUIRED"/);
+  assert.match(shell, /data-testid="link-admin-account-login"/);
+  assert.match(shell, /href="\/tai-khoan\/dang-nhap\/\?next=admin"/);
+  assert.match(shell, /data-testid="button-admin-account-logout"/);
+  assert.match(shell, /customerAuthClient\.signOut\(\)/);
   assert.match(shell, /data-testid="link-admin-access-logout"/);
-  assert.match(shell, /href=\{CLOUDFLARE_ACCESS_LOGOUT_PATH\}/);
+  assert.match(shell, /isAccessMembershipDenied/);
   assert.match(shell, /Đăng xuất tài khoản hiện tại/);
 });
 
@@ -164,15 +164,29 @@ test("blocked admin sessions explain the next step without console jargon", asyn
   const shell = await readSource("components", "admin", "AdminShell.tsx");
 
   assert.doesNotMatch(shell, /mở console/i);
-  assert.match(shell, /hoàn tất xác minh/);
-  assert.match(shell, /quay lại trang này/);
+  assert.match(shell, /Dùng tài khoản website đã được cấp quyền admin để tiếp tục/);
+  assert.match(shell, /chưa được cấp quyền admin trong D1/);
 });
 
-test("network-failed admin sessions keep the Access handoff visible", async () => {
+test("network-failed admin sessions keep website login and retry visible", async () => {
   const shell = await readSource("components", "admin", "AdminShell.tsx");
 
-  assert.match(shell, /const showLoginLink = \(isBlocked && !isAdminMembershipDenied\) \|\| error\?\.code === "NETWORK_ERROR"/);
+  assert.match(shell, /const showLoginLink = isBlocked \|\| error\?\.code === "NETWORK_ERROR"/);
   assert.match(shell, /showLoginLink \? \(/);
+});
+
+test("admin account login trusts only the exact staging host and returns to admin", async () => {
+  const [auth, page, wrangler] = await Promise.all([
+    readSource("lib", "customer-auth.ts"),
+    readSource("app", "(storefront)", "tai-khoan", "dang-nhap", "page.tsx"),
+    readFile(new URL("../wrangler.jsonc", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(auth, /\["admin-staging\.kienhieu\.id\.vn", "https:\/\/admin-staging\.kienhieu\.id\.vn"\]/);
+  assert.doesNotMatch(auth, /admin-\*\.kienhieu\.id\.vn|https:\/\/\*\.kienhieu\.id\.vn/);
+  assert.match(page, /query\.next === "admin"\s*\? "\/admin\/"/);
+  assert.match(wrangler, /"ADMIN_ACCOUNT_AUTH":\s*"false"/);
+  assert.match(wrangler, /"ADMIN_ACCOUNT_AUTH":\s*"true"/);
 });
 
 test("shared admin states explain readiness without infrastructure jargon", async () => {
