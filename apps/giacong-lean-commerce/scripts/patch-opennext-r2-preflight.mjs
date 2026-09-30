@@ -30,10 +30,10 @@ if (!match) {
 
 const replacement = [
   "if (!result.success) {",
-  '  if (result.error === ' + JSON.stringify(ACCEPTED_ERROR) + ') {',
-  "    logger.warn(\"OpenNext R2 preflight bypass: Cloudflare bucket-existence check failed with Connection error; continuing to the R2 Worker population path.\");",
+  "  if (result.error === " + JSON.stringify(ACCEPTED_ERROR) + ") {",
+  '    logger.warn("OpenNext R2 preflight bypass: Cloudflare bucket-existence check failed with Connection error; continuing to the R2 Worker population path.");',
   "  } else {",
-  "    throw new Error(`Failed to provision remote R2 bucket \"${bucketName}\" for binding \"${R2_CACHE_BINDING_NAME}\": ${result.error}`);",
+  '    throw new Error(`Failed to provision remote R2 bucket "${bucketName}" for binding "${R2_CACHE_BINDING_NAME}": ${result.error}`);',
   "  }",
   "}",
 ].join("\n");

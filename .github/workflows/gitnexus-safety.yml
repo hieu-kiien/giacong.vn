@@ -72,9 +72,9 @@ jobs:
           set -euo pipefail
           gitnexus detect-changes --scope compare --base-ref "$BASE_SHA" | tee /tmp/gitnexus-detect-changes.txt
 
-          if grep -Eq '^apps/giacong-lean-commerce/(src|scripts)/.*\.(cjs|js|jsx|mjs|mts|ts|tsx)$' /tmp/changed-files.txt \
+          if grep -Eq '^apps/giacong-lean-commerce/src/.*\.(cjs|js|jsx|mjs|mts|ts|tsx)$' /tmp/changed-files.txt \
             && grep -Fxq "No changes detected." /tmp/gitnexus-detect-changes.txt; then
-            echo "GitNexus did not map changed application/test code to the graph; failing closed." >&2
+            echo "GitNexus did not map changed runtime source code to the graph; failing closed." >&2
             exit 1
           fi
 

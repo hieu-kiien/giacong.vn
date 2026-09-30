@@ -282,9 +282,9 @@
     display: flex;
     font-size: 12px;
     font-weight: 700;
-    height: 32px;
+    height: 28px;
     justify-content: center;
-    width: 32px;
+    width: 28px;
   }
   .admin-role-label { color: var(--admin-ink-soft); font-size: 11px; white-space: normal; }
   .admin-mobile-menu { display: none; }

@@ -5,6 +5,7 @@ import { ProductDetailPage } from "@/components/catalog/ProductDetailPage";
 import { CapturedStorefrontTabFrame } from "@/components/site/CapturedStorefrontTabFrame";
 import { legacyProductRedirects, retiredLegacyProductSlugs } from "@/lib/catalog-legacy-redirects";
 import { loadCatalogProductDetail } from "@/lib/catalog-detail-source";
+import { getCatalogProductRedirect } from "@/lib/cloudflare-catalog";
 import { canonicalMetadata } from "@/lib/seo";
 import { getPublishedSiteSettings } from "@/lib/site-settings";
 
@@ -19,7 +20,11 @@ export async function generateMetadata({ params }: CatalogDetailPageProps): Prom
     loadCatalogProductDetail(slug),
     getPublishedSiteSettings(),
   ]);
-  if (!source) return { title: `Không tìm thấy sản phẩm | ${settings.brand_name}` };
+  if (!source) {
+    const destination = await getCatalogProductRedirect(slug);
+    if (destination) permanentRedirect(`/san-pham/${encodeURIComponent(destination)}/`);
+    return { title: `Không tìm thấy sản phẩm | ${settings.brand_name}` };
+  }
   const { product } = source;
   return {
     ...canonicalMetadata(`/san-pham/${product.slug}/`),
@@ -32,11 +37,24 @@ export async function generateMetadata({ params }: CatalogDetailPageProps): Prom
 export default async function CatalogDetailPage({ params, searchParams }: CatalogDetailPageProps) {
   const { slug } = await params;
   redirectLegacyProduct(slug);
+  const requestedQuery = await searchParams;
   const source = await loadCatalogProductDetail(slug);
-  if (!source) notFound();
+  if (!source) {
+    const destination = await getCatalogProductRedirect(slug);
+    if (destination) {
+      const query = new URLSearchParams();
+      const variant = firstValue(requestedQuery.variant);
+      const editCart = firstValue(requestedQuery.editCart);
+      if (variant) query.set("variant", variant);
+      if (editCart) query.set("editCart", editCart);
+      const suffix = query.toString();
+      permanentRedirect(`/san-pham/${encodeURIComponent(destination)}/${suffix ? `?${suffix}` : ""}`);
+    }
+    notFound();
+  }
 
-  const requestedVariant = firstValue((await searchParams).variant);
-  const requestedCartEdit = firstValue((await searchParams).editCart);
+  const requestedVariant = firstValue(requestedQuery.variant);
+  const requestedCartEdit = firstValue(requestedQuery.editCart);
   const selectedVariant = source.product.variants.find((variant) => (
     variant.sku === requestedVariant && variant.isAvailable
   ));

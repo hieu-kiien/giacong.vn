@@ -292,6 +292,44 @@ Product detail response includes variants and tier prices so the editor starts
 from one canonical snapshot. Publishing still requires the existing variant
 validation gate.
 
+### Product image gallery
+
+Routes:
+
+- `GET /api/admin/products/[id]/gallery` returns `{ revision, images }` for an
+  existing product;
+- `POST /api/admin/products/[id]/gallery` replaces the full image list with
+  `{ requestId, expectedRevision, images }`. Each image is `{ imageUrl,
+  isPrimary? }`; list position defines `sortOrder`.
+
+The gallery is capped at 40 unique images and each URL at 2,048 characters.
+URLs must be a same-site single-slash path or credential-free HTTPS URL. At most
+one image may be primary; the first image becomes primary when none is selected.
+An empty list deliberately clears the gallery. Unknown request/image keys,
+duplicate URLs, malformed UUIDs and non-positive revisions are rejected.
+
+Gallery replacement increments the parent product revision once and records an
+`update` audit row for the product in the same D1 batch. The request ID and
+canonical payload fingerprint make retries idempotent; reusing the ID for a
+different payload returns `409 IDEMPOTENCY_CONFLICT`. A stale product revision
+returns `409 STALE_WRITE` without changing gallery rows. A conflict keeps the
+operator's unsaved images visible until they choose to load the latest version.
+The gallery route only manages image references: upload uses the existing R2
+media endpoint, and saving or clearing a gallery never deletes R2 objects.
+
+Migration `0030_product_tech_specs_and_media.sql` creates
+`product_gallery_images`; apply it before enabling the gallery route.
+
+### Product URL history
+
+Migration `0031_product_slug_redirects.sql` adds an additive alias table for
+slugs changed after the migration is installed. A product slug update preserves
+its previous slug, while reusing that slug as a canonical URL removes the alias.
+The public product page and cached Worker response issue a permanent `308` to
+the active product's current slug and preserve supported query parameters.
+This migration does not infer or seed historical URL mappings; any legacy
+mapping must be confirmed against a real product before it is added.
+
 ### Product bulk import P5 contract
 
 `POST /api/admin/products/import` is the JSON-only bulk import boundary. It

@@ -7,8 +7,12 @@ const workflowUrl = new URL(
   import.meta.url,
 );
 
+async function readWorkflow() {
+  return (await readFile(workflowUrl, "utf8")).replace(/\r\n/g, "\n");
+}
+
 test("an already-applied D1 migration preserves existing admin audit history", async () => {
-  const workflow = (await readFile(workflowUrl, "utf8")).replace(/\r\n/g, "\n");
+  const workflow = await readWorkflow();
 
   assert.match(
     workflow,
@@ -21,7 +25,7 @@ test("an already-applied D1 migration preserves existing admin audit history", a
 });
 
 test("the PR migration preflight accepts an already-applied staging migration", async () => {
-  const workflow = (await readFile(workflowUrl, "utf8")).replace(/\r\n/g, "\n");
+  const workflow = await readWorkflow();
 
   assert.match(workflow, /id: before[\s\S]*?echo "already_applied=true"/);
   assert.match(workflow, /ALREADY_APPLIED:\s*\$\{\{\s*steps\.before\.outputs\.already_applied\s*\}\}/);
@@ -33,7 +37,7 @@ test("the PR migration preflight accepts an already-applied staging migration", 
 });
 
 test("the one-off workflow only runs for the admin foundation migration", async () => {
-  const workflow = (await readFile(workflowUrl, "utf8")).replace(/\r\n/g, "\n");
+  const workflow = await readWorkflow();
 
   assert.equal(
     (workflow.match(/apps\/giacong-lean-commerce\/migrations\/0004_admin_foundation\.sql/g) ?? []).length,
@@ -43,7 +47,7 @@ test("the one-off workflow only runs for the admin foundation migration", async 
 });
 
 test("the migration guard refuses unrelated pending files before D1 apply", async () => {
-  const workflow = (await readFile(workflowUrl, "utf8")).replace(/\r\n/g, "\n");
+  const workflow = await readWorkflow();
 
   assert.match(
     workflow,
@@ -54,4 +58,103 @@ test("the migration guard refuses unrelated pending files before D1 apply", asyn
     /name: Apply pending migration with Wrangler\n        id: apply[\s\S]*?BEFORE_COUNTS: \$\{\{ steps\.before\.outputs\.business_counts \}\}[\s\S]*?test "\$names" = "0001_catalog\.sql\|0002_catalog_variant_options\.sql\|0003_services\.sql"[\s\S]*?test "\$audit_count" = "0"[\s\S]*?test "\$after" = "\$BEFORE_COUNTS"[\s\S]*?test "\$pending" = "\$MIGRATION_NAME"[\s\S]*?d1 migrations apply/,
   );
   assert.match(workflow, /ALREADY_APPLIED: \$\{\{ steps\.apply\.outputs\.already_applied \|\| steps\.before\.outputs\.already_applied \}\}/);
+});
+
+const slugMigrationWorkflowUrl = new URL(
+  "../../../.github/workflows/cloudflare-staging-product-slug-migration.yml",
+  import.meta.url,
+);
+const slugMigrationWranglerWorkingDirectory = "apps/giacong-lean-commerce";
+
+async function readSlugMigrationWorkflow() {
+  return (await readFile(slugMigrationWorkflowUrl, "utf8")).replace(/\r\n/g, "\n");
+}
+
+test("product slug migration is an opt-in, staging-only workflow", async () => {
+  const workflow = await readSlugMigrationWorkflow();
+
+  assert.match(workflow, /workflow_dispatch:[\s\S]*?apply_migration:[\s\S]*?default:\s*false/);
+  assert.match(workflow, /if:\s*\$\{\{\s*inputs\.apply_migration\s*&&\s*!inputs\.verify_existing\s*\}\}/);
+  assert.match(workflow, /DATABASE_NAME:\s*giacong-vn-catalog-staging/);
+  assert.match(workflow, /MIGRATION_NAME:\s*0031_product_slug_redirects\.sql/);
+  assert.doesNotMatch(workflow, /production|versions deploy/i);
+});
+
+test("staging D1 migration runs Wrangler from the app workspace", async () => {
+  const workflow = await readSlugMigrationWorkflow();
+
+  assert.match(workflow, /migrate:[\s\S]*?defaults:\s*\n\s*run:\s*\n\s*working-directory:\s*/);
+  assert.match(workflow, new RegExp(slugMigrationWranglerWorkingDirectory.replaceAll("/", "\\/")));
+});
+
+test("staging slug migration has a read-only verification mode", async () => {
+  const workflow = await readSlugMigrationWorkflow();
+  const verificationJob = workflow.split("  verify-existing:\n")[1] ?? "";
+
+  assert.match(workflow, /verify_existing:[\s\S]*?default:\s*false/);
+  assert.match(verificationJob, /if:\s*\$\{\{\s*inputs\.verify_existing\s*&&\s*!inputs\.apply_migration\s*\}\}/);
+  assert.match(verificationJob, /PRAGMA quick_check/);
+  assert.match(verificationJob, /PRAGMA foreign_key_check/);
+  assert.match(verificationJob, /EXPECTED_BUSINESS_COUNTS:\s*\$\{\{\s*inputs\.expected_business_counts\s*\}\}/);
+  assert.match(verificationJob, /test "\$business_counts" = "\$expected_counts"/);
+  assert.doesNotMatch(verificationJob, /d1 migrations apply/);
+});
+
+const gitNexusSafetyWorkflowUrl = new URL(
+  "../../../.github/workflows/gitnexus-safety.yml",
+  import.meta.url,
+);
+
+async function readGitNexusSafetyWorkflow() {
+  return (await readFile(gitNexusSafetyWorkflowUrl, "utf8")).replace(/\r\n/g, "\n");
+}
+
+test("GitNexus requires graph mapping for runtime source changes, not test scripts", async () => {
+  const workflow = await readGitNexusSafetyWorkflow();
+
+  assert.match(workflow, /if grep -Eq '\^apps\/giacong-lean-commerce\/src\//);
+  assert.doesNotMatch(workflow, /apps\/giacong-lean-commerce\/\(src\|scripts\)/);
+});
+
+test("product slug migration exports a backup and verifies counts before and after", async () => {
+  const workflow = await readSlugMigrationWorkflow();
+
+  const snapshotStep = workflow.indexOf("name: Capture D1 baseline and export backup");
+  const applyStep = workflow.indexOf("name: Recheck state and apply only migration 0031");
+  const verificationStep = workflow.indexOf("name: Verify schema, integrity, and unchanged business counts");
+
+  assert.ok(snapshotStep >= 0 && applyStep > snapshotStep && verificationStep > applyStep);
+  assert.match(workflow, /test "\$pending" = "\$MIGRATION_NAME"/);
+  assert.match(workflow, /d1 export "\$DATABASE_NAME" --remote --env staging --output "\$snapshot"/);
+  assert.match(workflow, /sha256sum "\$snapshot"/);
+  assert.match(workflow, /test "\$current_counts" = "\$BEFORE_COUNTS"/);
+  assert.match(workflow, /test "\$\(echo "\$current" \| jq -r '\.\[8\]\.results\[0\]\.redirect_table_count'\)" = "0"/);
+  assert.match(workflow, /d1 migrations apply "\$DATABASE_NAME" --remote --env staging/);
+  assert.match(workflow, /test "\$after_counts" = "\$BEFORE_COUNTS"/);
+  assert.match(workflow, /PRAGMA quick_check/);
+  assert.match(workflow, /PRAGMA foreign_key_check/);
+  assert.match(workflow, /quick_check="\$\(npx -y "wrangler@\$WRANGLER_VERSION" d1 execute/);
+});
+
+const stagingUploadWorkflowUrl = new URL(
+  "../../../.github/workflows/cloudflare-staging-upload-once.yml",
+  import.meta.url,
+);
+
+async function readStagingUploadWorkflow() {
+  return (await readFile(stagingUploadWorkflowUrl, "utf8")).replace(/\r\n/g, "\n");
+}
+
+test("staging upload checks R2 access before installing and building the app", async () => {
+  const workflow = await readStagingUploadWorkflow();
+
+  const r2Probe = workflow.indexOf("name: Verify staging R2 cache bucket access");
+  const dependencyInstall = workflow.indexOf("name: Install dependencies");
+  const upload = workflow.indexOf("name: Upload new OpenNext staging version without serving traffic");
+
+  assert.ok(r2Probe >= 0 && r2Probe < dependencyInstall && dependencyInstall < upload);
+  assert.match(workflow, /WRANGLER_VERSION:\s*"4\.131\.1"/);
+  assert.match(workflow, /actions\/checkout@v5/);
+  assert.match(workflow, /actions\/setup-node@v5/);
+  assert.match(workflow, /r2 bucket info giacong-vn-next-cache-staging --json/);
 });
