@@ -268,8 +268,6 @@
 .variantLabel { align-items: center; cursor: pointer; display: flex; font-size: 14px; font-weight: 700; gap: 10px; min-height: 44px; }
 .variantLabel input { accent-color: #465c35; height: 18px; margin: 0; width: 18px; }
 .variantLabel:focus-within { outline: 2px solid #111; outline-offset: 3px; }
-.unavailableVariant { color: #777; cursor: not-allowed; }
-.variantReason { color: #8c3a24; display: block; font-size: 12px; margin-left: 28px; }
 .selectionPrompt { background: #f7f7f7; border: 1px solid #e1e1e1; color: #555; line-height: 1.6; padding: 16px; }
 .variantCommerce { display: grid; gap: 14px; }
 

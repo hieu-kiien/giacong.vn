@@ -372,7 +372,7 @@ export const DEMO_CATALOG_PRODUCTS: readonly CatalogProductDetail[] = [
   product({
     categorySlug: "sot-gia-vi-long",
     description:
-      "Nước mắm cốt pha loãng theo độ đạm đặt trước. Quy cách can 30 lít tạm hết hàng trong giai đoạn demo.",
+      "Nước mắm cốt pha loãng theo độ đạm đặt trước. Quy cách can 30 lít đang được cập nhật trong giai đoạn demo.",
     id: 71_007,
     name: "Nước mắm cốt pha loãng",
     shortDescription: "Nước mắm cốt, một quy cách đang cung cấp.",

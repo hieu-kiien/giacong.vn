@@ -1,7 +1,6 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { useId, useState } from "react";
 
 import { TierPriceTable } from "@/components/catalog/TierPriceTable";
@@ -36,9 +35,9 @@ const INVALID_MESSAGE = "Không thêm được lựa chọn này. Vui lòng th�
 /**
  * Variant choice, quantity, tier table and the two detail actions.
  *
- * The primary action adds a line to the existing request cart through the locked
- * `request-cart-storage` contract — three key fields only, so no money and no PII
- * is written. The secondary action continues to `/gui-yeu-cau/`, the one cart route.
+ * Both purchase actions use the request cart — three key fields only, so no money
+ * and no PII is written to browser storage. Contact-only variants use the same cart
+ * route; the server keeps their price blank and records them for a Zalo quote.
  *
  * The figures beside the stepper are display values derived from the tier bands the
  * server already sent. They are never submitted: the request route re-reads the
@@ -48,15 +47,18 @@ export function ProductPurchasePanel({ editingCartVariantSku, initialVariantSku,
   const router = useRouter();
   const quantityFieldId = useId();
   const [selectedSku, setSelectedSku] = useState(initialVariantSku ?? view.defaultVariantSku);
-  const selected = view.variants.find((variant) => variant.sku === selectedSku)
-    ?? view.variants.find((variant) => variant.sku === view.defaultVariantSku)
+  const availableVariants = view.variants.filter((variant) => variant.isAvailable);
+  const availableVariantChoices = view.variantChoices.filter((choice) => choice.isAvailable);
+  const selected = availableVariants.find((variant) => variant.sku === selectedSku)
+    ?? availableVariants.find((variant) => variant.sku === view.defaultVariantSku)
+    ?? availableVariants[0]
     ?? view.variants[0];
   const [quantity, setQuantity] = useState(selected.minimumOrderQuantity);
   const [addState, setAddState] = useState<AddState>({ kind: "idle" });
 
   const pricing = resolveQuantityPricing(selected, quantity);
   const contactOnly = selected.tierPrices.length === 0;
-  const canOrder = selected.isAvailable && !contactOnly;
+  const canOrder = selected.isAvailable;
 
   function selectVariant(sku: string) {
     const next = view.variants.find((variant) => variant.sku === sku);
@@ -114,14 +116,16 @@ export function ProductPurchasePanel({ editingCartVariantSku, initialVariantSku,
       <div className={styles.currentPrice} aria-live="polite">
         <p>Đơn giá hiện tại</p>
         <strong>{pricing.unitPriceLabel}</strong>
-        <span>Giá chưa bao gồm VAT và phí vận chuyển.</span>
+        <span>{pricing.unitPrice === null
+          ? "Nhân viên sẽ báo giá qua Zalo sau khi nhận yêu cầu."
+          : "Giá chưa bao gồm VAT và phí vận chuyển."}</span>
       </div>
 
-      {view.variantChoices.length > 1 ? (
+      {availableVariantChoices.length > 1 ? (
         <fieldset className={styles.variantGroup}>
           <legend><span className={styles.purchaseStep}>1</span> Chọn {view.variantAxisLabel.toLowerCase()}</legend>
           <div className={styles.variantOptions}>
-            {view.variantChoices.map((choice) => (
+            {availableVariantChoices.map((choice) => (
               <label
                 className={styles.variantOption}
                 data-unavailable={choice.isAvailable ? undefined : "true"}
@@ -137,7 +141,6 @@ export function ProductPurchasePanel({ editingCartVariantSku, initialVariantSku,
                   value={choice.sku}
                 />
                 <span>{choice.label}</span>
-                {choice.isAvailable ? null : <small>Tạm hết hàng</small>}
               </label>
             ))}
           </div>
@@ -146,7 +149,7 @@ export function ProductPurchasePanel({ editingCartVariantSku, initialVariantSku,
 
       {variantQueryWarning ? (
         <p className={styles.warning} role="alert">
-          Lựa chọn trong liên kết không còn khả dụng. Chúng tôi đã chọn quy cách đang có sẵn.
+          Lựa chọn trong liên kết không hợp lệ.
         </p>
       ) : null}
 
@@ -156,7 +159,7 @@ export function ProductPurchasePanel({ editingCartVariantSku, initialVariantSku,
       </p>
 
       <TierPriceTable
-        activeMinQuantity={pricing.needsContact ? selected.contactFromQuantity : null}
+        activeMinQuantity={pricing.needsContact ? selected.minimumOrderQuantity : selected.tierPrices.filter((tier) => tier.minQuantity <= pricing.quantity).at(-1)?.minQuantity ?? null}
         rows={selected.tierRows}
         variantLabel={selected.label}
       />
@@ -211,15 +214,17 @@ export function ProductPurchasePanel({ editingCartVariantSku, initialVariantSku,
         </div>
       </dl>
 
-      {pricing.needsContact ? (
+      {contactOnly ? (
         <p className={styles.contactNote}>
-          Số lượng từ {selected.contactFromQuantity} {selected.unit} được báo giá riêng. Hãy gửi yêu cầu để nhận mức giá theo sản lượng thực tế.
+          Quy cách này chưa có giá niêm yết. Gửi yêu cầu để nhân viên tư vấn và báo giá qua Zalo.
         </p>
       ) : null}
 
       <div className={styles.actions}>
         {contactOnly ? (
-          <Link className={styles.primaryAction} href="/lien-he/">Liên hệ tư vấn</Link>
+          <button className={styles.primaryAction} disabled={!canOrder} onClick={requestQuote} type="button">
+            Gửi yêu cầu báo giá
+          </button>
         ) : <>
           <button
             className={styles.secondaryAction}
@@ -243,9 +248,6 @@ export function ProductPurchasePanel({ editingCartVariantSku, initialVariantSku,
             : ""}
       </p>
 
-      {!canOrder && !contactOnly ? (
-        <p className={styles.warning}>Quy cách này tạm hết hàng. Hãy chọn quy cách khác hoặc gửi yêu cầu tư vấn.</p>
-      ) : null}
     </div>
   );
 }

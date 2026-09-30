@@ -136,6 +136,38 @@ export interface ContactCartWebhookPayload extends ContactWebhookPayload {
 
 export type ContactQueuedPayload = ContactWebhookPayload | ContactCartWebhookPayload;
 
+export interface ZaloSaleWebhookPayload {
+  event: "sale.confirmed";
+  sale_id: string;
+  sale_code: string;
+  source_lead_id: string;
+  confirmed_at: string;
+  currency: "VND";
+  total_amount: number;
+  customer: {
+    full_name: string;
+    company_name: string | null;
+    email: string | null;
+    phone: string | null;
+  };
+  items: Array<{
+    sale_line_id: string;
+    source_lead_item_id: string;
+    product_slug: string | null;
+    service_slug: string | null;
+    product_name: string;
+    variant_name: string | null;
+    variant_sku: string | null;
+    unit: string | null;
+    quantity: number;
+    unit_price: number;
+    line_total: number;
+    currency: "VND";
+    notes: string | null;
+  }>;
+  snapshot_sha256: string;
+}
+
 interface WebhookResponse {
   ok: true;
   reference: string;
@@ -384,7 +416,7 @@ async function resolvePayload(
     product: product.name,
     qty,
     request_id: requestId,
-    request_type: qty >= variant.contactFromQuantity ? "Tư vấn số lượng lớn" : "Đặt sản phẩm",
+    request_type: "Đặt sản phẩm",
     service: "",
     variant: variant.label,
   };
@@ -822,6 +854,76 @@ export async function deliverToWebhook(
       controller.signal.aborted
         ? "Dịch vụ tiếp nhận yêu cầu phản hồi quá chậm."
         : "Không thể kết nối dịch vụ tiếp nhận yêu cầu.",
+      controller.signal.aborted ? 504 : 502,
+    );
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+export async function deliverZaloSaleToWebhook(
+  payload: ZaloSaleWebhookPayload,
+  environment: Readonly<Record<string, string | undefined>>,
+  fetcher: typeof globalThis.fetch = globalThis.fetch,
+): Promise<Response> {
+  const url = webhookUrl(environment.GOOGLE_SHEETS_WEBHOOK_URL);
+  if (!url) return failure("Dịch vụ đồng bộ giao dịch chưa được cấu hình.", 503);
+
+  const signedPayload: ZaloSaleWebhookPayload & { secret?: string } = { ...payload };
+  const secret = environment.GOOGLE_SHEETS_WEBHOOK_SECRET?.trim();
+  if (!secret) return failure("Dịch vụ đồng bộ giao dịch chưa được cấu hình.", 503);
+  signedPayload.secret = secret;
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), DEFAULT_TIMEOUT_MS);
+  try {
+    let requestUrl = url;
+    let requestInit: RequestInit = {
+      body: JSON.stringify(signedPayload),
+      cache: "no-store",
+      headers: { Accept: "application/json", "Content-Type": "application/json" },
+      method: "POST",
+    };
+
+    for (let redirects = 0; redirects <= MAX_REDIRECTS; redirects += 1) {
+      const response = await fetcher(requestUrl, {
+        ...requestInit,
+        redirect: "manual",
+        signal: controller.signal,
+      });
+      if ([301, 302, 303, 307, 308].includes(response.status)) {
+        if (redirects === MAX_REDIRECTS) return failure("Không thể đồng bộ giao dịch.", 502);
+        const destination = redirectUrl(response.headers.get("location"), requestUrl);
+        if (!destination) return failure("Không thể đồng bộ giao dịch.", 502);
+        requestUrl = destination;
+        if ([301, 302, 303].includes(response.status)) {
+          requestInit = { cache: "no-store", headers: { Accept: "application/json" }, method: "GET" };
+        }
+        continue;
+      }
+      if (!response.ok || !hasJsonContentType(response)) return failure("Webhook không tiếp nhận giao dịch.", 502);
+
+      let result: unknown;
+      try {
+        result = await readJsonBeforeTimeout(response, controller.signal);
+      } catch {
+        if (controller.signal.aborted) throw new Error("sales_webhook_timeout");
+        return failure("Webhook trả về dữ liệu không hợp lệ.", 502);
+      }
+      if (!isRecord(result) || result.ok !== true
+        || result.sale_id !== payload.sale_id
+        || result.sale_code !== payload.sale_code) {
+        return failure("Webhook chưa xác nhận đúng mã giao dịch.", 502);
+      }
+      return Response.json(
+        { ok: true, sale_id: payload.sale_id, sale_code: payload.sale_code },
+        { headers: { "Cache-Control": "no-store" }, status: 202 },
+      );
+    }
+    return failure("Không thể đồng bộ giao dịch.", 502);
+  } catch {
+    return failure(
+      controller.signal.aborted ? "Webhook đồng bộ giao dịch phản hồi quá chậm." : "Không thể kết nối webhook đồng bộ giao dịch.",
       controller.signal.aborted ? 504 : 502,
     );
   } finally {

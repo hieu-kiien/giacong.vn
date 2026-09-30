@@ -98,13 +98,6 @@ export function CatalogProductCard({ card }: CatalogProductCardProps) {
           </p>
         ) : null}
 
-        <p
-          className={`!mb-0 text-[10px] !leading-4 font-semibold ${card.isAvailable ? "text-commerce-brand-dark" : "text-commerce-secondary"}`}
-          data-catalog-stock
-        >
-          {card.isAvailable ? <span aria-hidden className="mr-1 inline-block size-1.5 rounded-full bg-commerce-brand" /> : null}
-          {card.isAvailable ? "Còn hàng" : card.availabilityLabel}
-        </p>
 
         <div className="mt-auto w-full pt-2" data-catalog-action-tray>
           <Link

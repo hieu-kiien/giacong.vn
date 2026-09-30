@@ -204,7 +204,7 @@ export interface RequestCartContact {
 
 export interface AcceptedRequestSnapshot {
   cart: ResolvedRequestCart;
-  contact: RequestCartContact;
+  contact: RequestCartContact | null;
   receivedAt: string;
   reference: string;
 }
@@ -226,51 +226,34 @@ export type SubmitResult =
   | { message: string; status: "failed" };
 
 /**
- * Keeps the last accepted confirmation available after a refresh in this tab only. The server
- * never exposes a public lookup by reference, and the URL never contains customer details.
+ * Keeps the last accepted confirmation available after a refresh in this tab only, without
+ * persisting contact details. The server never exposes a public lookup by reference.
  */
 export function serializeAcceptedRequest(snapshot: AcceptedRequestSnapshot): string {
-  return JSON.stringify(snapshot);
+  return JSON.stringify({
+    cart: snapshot.cart,
+    receivedAt: snapshot.receivedAt,
+    reference: snapshot.reference,
+  });
 }
 
 export function parseAcceptedRequest(value: string | null): AcceptedRequestSnapshot | null {
   if (!value) return null;
   try {
     const parsed: unknown = JSON.parse(value);
-    if (!isRecord(parsed) || !exactKeys(parsed, ["cart", "contact", "receivedAt", "reference"])) return null;
-    if (!isResolvedRequestCart(parsed.cart) || !isStoredRequestContact(parsed.contact)) return null;
+    if (!isRecord(parsed) || !exactKeys(parsed, ["cart", "receivedAt", "reference"])) return null;
+    if (!isResolvedRequestCart(parsed.cart)) return null;
     if (typeof parsed.receivedAt !== "string" || !Number.isFinite(Date.parse(parsed.receivedAt))) return null;
     if (typeof parsed.reference !== "string" || !/^[^\u0000-\u001f<>]{1,120}$/.test(parsed.reference)) return null;
     return {
       cart: parsed.cart,
-      contact: parsed.contact,
+      contact: null,
       receivedAt: parsed.receivedAt,
       reference: parsed.reference,
     };
   } catch {
     return null;
   }
-}
-
-function isStoredRequestContact(value: unknown): value is RequestCartContact {
-  if (!isRecord(value) || !exactKeys(value, [
-    "address", "companyName", "deliveryLocation", "email", "message", "name", "neededBy", "phone", "vatInvoice",
-  ])) return false;
-  const limits: Record<RequestCartField, number> = {
-    address: 300,
-    companyName: 160,
-    deliveryLocation: 120,
-    email: 254,
-    message: 2_000,
-    name: 120,
-    neededBy: 120,
-    phone: 24,
-    vatInvoice: 10,
-  };
-  for (const [field, maxLength] of Object.entries(limits) as Array<[RequestCartField, number]>) {
-    if (typeof value[field] !== "string" || value[field].length > maxLength) return false;
-  }
-  return value.vatInvoice === "" || value.vatInvoice === "yes" || value.vatInvoice === "no";
 }
 
 const CONTACT_FIELDS: RequestCartField[] = [

@@ -7,7 +7,11 @@ import {
   type StorefrontNavigationKey,
 } from "@/components/site/storefront-navigation";
 import newsPage from "@/data/pages/tin-tuc.json";
-import { layerCapturedStyles, normalizeCapturedMarkup } from "@/lib/captured-markup";
+import {
+  appendAccountLinksToCapturedMarkup,
+  layerCapturedStyles,
+  normalizeCapturedMarkup,
+} from "@/lib/captured-markup";
 import { applySiteSettingsToMarkup, siteBrandStyles } from "@/lib/site-markup";
 import {
   applyFooterNavigationToMarkup,
@@ -75,6 +79,7 @@ export async function CapturedStorefrontShell({
     ),
     settings,
   );
+  const headerWithAccountLinks = appendAccountLinksToCapturedMarkup(headerMarkup);
   const footerMarkup = applySiteSettingsToMarkup(
     applyFooterNavigationToMarkup(capturedFooter.markup, navigation),
     settings,
@@ -90,7 +95,7 @@ export async function CapturedStorefrontShell({
       <div className={newsPage.bodyClasses}>
         <a className="skip-link screen-reader-text" href="#main">Skip to content</a>
         <div id="wrapper">
-          <div dangerouslySetInnerHTML={{ __html: headerMarkup }} />
+          <div dangerouslySetInnerHTML={{ __html: headerWithAccountLinks }} />
           {children}
           <div dangerouslySetInnerHTML={{ __html: footerMarkup }} />
         </div>

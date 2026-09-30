@@ -14,7 +14,6 @@ import {
 import type { CatalogTierPrice } from "@/types/catalog";
 
 interface PurchaseQuantityProps {
-  contactFromQuantity: number;
   minimumOrderQuantity: number;
   parentSlug: string;
   productName: string;
@@ -25,7 +24,6 @@ interface PurchaseQuantityProps {
 }
 
 export function PurchaseQuantity({
-  contactFromQuantity,
   minimumOrderQuantity,
   parentSlug,
   productName,
@@ -40,7 +38,7 @@ export function PurchaseQuantity({
   const isValid = Number.isInteger(quantity)
     && quantity >= minimumOrderQuantity
     && (quantity - minimumOrderQuantity) % quantityStep === 0;
-  const needsContact = isValid && quantity >= contactFromQuantity;
+  const needsContact = tierPrices.length === 0;
   const unitPrice = isValid && !needsContact
     ? [...tierPrices].reverse().find((tier) => tier.minQuantity <= quantity)?.price
     : undefined;
@@ -113,8 +111,8 @@ export function PurchaseQuantity({
         </p>
       ) : needsContact ? (
         <div className={styles.purchaseSummary} aria-live="polite">
-          <strong>Giá riêng cho đơn từ {contactFromQuantity} {unit}</strong>
-          <span>Hãy liên hệ để nhận mức giá theo số lượng thực tế.</span>
+          <strong>Liên hệ báo giá</strong>
+          <span>Gửi yêu cầu để nhân viên báo giá qua Zalo.</span>
         </div>
       ) : (
         <div className={styles.purchaseSummary} aria-live="polite">

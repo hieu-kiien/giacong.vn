@@ -166,10 +166,10 @@ test("does not include secret when it is not configured", async () => {  let rec
   assert.equal("secret" in JSON.parse(receivedBody), false);
 });
 
-test("derives canonical product requests at MOQ and the inclusive contact threshold", async () => {
+test("derives one canonical product request type at every valid quantity", async () => {
   const cases = [
     { qty: "10", requestType: "Đặt sản phẩm" },
-    { qty: "20", requestType: "Tư vấn số lượng lớn" },
+    { qty: "20", requestType: "Đặt sản phẩm" },
   ] as const;
 
   for (const sample of cases) {
@@ -714,7 +714,7 @@ test("rejects a cart quote without a delivery province/city before catalog or si
   assert.equal(called, false);
 });
 
-test("assigns the highest cart tier and blanks price on request lines", async () => {
+test("assigns the highest cart tier above its minimum", async () => {
   const lines = [cartLine("B2B-DEMO-VANILLA", 30), cartLine("B2B-DEMO-LOWSUGAR", 10)];
   let receivedBody = "";
   const response = await handleContactSubmission(requestWithJson(await cartBody({
@@ -734,15 +734,15 @@ test("assigns the highest cart tier and blanks price on request lines", async ()
 
   assert.equal(response.status, 202);
   const payload = JSON.parse(receivedBody);
-  assert.equal(payload.request_type, "Tư vấn số lượng lớn");
+  assert.equal(payload.request_type, "Đặt sản phẩm");
   assert.equal(payload.product, "Giỏ yêu cầu (2 dòng)");
   assert.equal(payload.variant, "");
   assert.equal(payload.qty, "");
-  assert.equal(payload.cart[0].unit_price, "");
-  assert.equal(payload.cart[0].line_total, "");
-  assert.equal(payload.cart[0].note, "SKU B2B-DEMO-VANILLA · Liên hệ báo giá");
-  assert.equal(payload.cart_subtotal, 950_000);
-  assert.equal(payload.cart_price_incomplete, true);
+  assert.equal(payload.cart[0].unit_price, 84_000);
+  assert.equal(payload.cart[0].line_total, 2_520_000);
+  assert.equal(payload.cart[0].note, "SKU B2B-DEMO-VANILLA");
+  assert.equal(payload.cart_subtotal, 3_470_000);
+  assert.equal(payload.cart_price_incomplete, false);
 });
 
 test("refuses any client-supplied price, total, or request type instead of trusting it", async () => {

@@ -151,6 +151,50 @@ export function needsCapturedShopStyles(markup: string): boolean {
   return /\b(?:product-small|product-main|product-gallery|woocommerce-product-gallery|shop-page-title|woocommerce-ordering|shop_table)\b/i.test(markup);
 }
 
+export function appendAccountLinksToCapturedMarkup(markup: string): string {
+  return appendCapturedAccountLink(
+    appendCapturedAccountLink(
+      markup,
+      'class="header-nav header-nav-main nav nav-right',
+      '<li class="menu-item menu-item-type-custom menu-item-object-custom menu-item-account"><a class="nav-top-link" href="/tai-khoan/">Tài khoản</a></li>',
+    ),
+    'class="mobile-nav nav nav-right',
+    '<li class="header-account"><a aria-label="Tài khoản" class="is-small" href="/tai-khoan/" title="Tài khoản"><i aria-hidden="true" class="icon-user"></i><span class="screen-reader-text">Tài khoản</span></a></li>',
+  );
+}
+
+function appendCapturedAccountLink(markup: string, navMarker: string, itemMarkup: string): string {
+  const navStart = markup.indexOf(navMarker);
+  if (navStart < 0) return markup;
+
+  const tagStart = markup.lastIndexOf("<", navStart);
+  const tagEnd = markup.indexOf(">", navStart);
+  if (tagStart < 0 || tagEnd < 0) return markup;
+
+  const markerTag = markup.slice(tagStart, tagEnd + 1);
+  const listStart = /^<ul\b/i.test(markerTag) ? tagStart : markup.indexOf("<ul", tagEnd + 1);
+  if (listStart < 0) return markup;
+
+  const listTags = /<\/?ul\b[^>]*>/gi;
+  listTags.lastIndex = listStart;
+  let depth = 0;
+  let match: RegExpExecArray | null;
+
+  while ((match = listTags.exec(markup))) {
+    if (match[0].startsWith("</")) {
+      depth -= 1;
+      if (depth === 0) {
+        if (/href=(["'])\/tai-khoan\/?\1/i.test(markup.slice(listStart, match.index))) return markup;
+        return `${markup.slice(0, match.index)}${itemMarkup}${markup.slice(match.index)}`;
+      }
+    } else {
+      depth += 1;
+    }
+  }
+
+  return markup;
+}
+
 function normalizeCapturedFontDisplay(styles: string): string {
   return styles.replace(/@font-face\s*{[^}]*}/gi, (fontFace) => {
     if (!/font-family\s*:\s*["']fl-icons["']/i.test(fontFace)) return fontFace;

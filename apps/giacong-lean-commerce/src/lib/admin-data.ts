@@ -579,8 +579,7 @@ export async function validateAdminProductVariants(
           AND v.is_available IN (0, 1)
           AND v.moq > 0
           AND v.quantity_step > 0
-          AND v.contact_from_quantity > v.moq
-          AND (v.contact_from_quantity - v.moq) % v.quantity_step = 0
+          AND v.contact_from_quantity > 0
           AND (
             v.image_url IS NULL
             OR TRIM(v.image_url) = ''
@@ -593,7 +592,6 @@ export async function validateAdminProductVariants(
             WHERE tp.variant_id = v.id
               AND (
                 tp.min_quantity < v.moq
-                OR tp.min_quantity >= v.contact_from_quantity
                 OR tp.min_quantity <= 0
                 OR tp.price <= 0
                 OR tp.currency <> 'VND'

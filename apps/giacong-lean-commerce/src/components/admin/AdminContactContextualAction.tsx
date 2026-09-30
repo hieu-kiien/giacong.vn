@@ -93,8 +93,8 @@ export function AdminContactContextualAction() {
     button.textContent = "Sửa thông tin liên hệ";
     const handleClick = () => { void openEditor(); };
     button.addEventListener("click", handleClick);
-    wrapper.append(button);
-    target.prepend(wrapper);
+    wrapper.appendChild(button);
+    target.insertBefore(wrapper, target.firstChild);
     return () => {
       button.removeEventListener("click", handleClick);
       wrapper.remove();

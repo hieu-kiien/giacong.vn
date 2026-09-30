@@ -98,7 +98,7 @@ function assembleResolvedCart(
     lineCount: resolved.length,
     lines: resolved,
     pricedSubtotal: resolved.reduce((total, line) => total + (line.lineTotal ?? 0), 0),
-    requestType: resolved.some((line) => line.priceOnRequest) ? "Tư vấn số lượng lớn" : "Đặt sản phẩm",
+    requestType: "Đặt sản phẩm",
     snapshotToken: snapshotToken(resolved),
     totalQuantity: uniformUnit ? resolved.reduce((total, line) => total + line.quantity, 0) : null,
     uniformUnit,
@@ -271,17 +271,6 @@ function resolveLine(
       suggestedQuantity: nextStepQuantity(line.quantity, variant),
     });
   }
-  if (line.quantity >= variant.contactFromQuantity) {
-    return {
-      ...base,
-      adjustments: [{
-        code: "PRICE_ON_REQUEST",
-        message: `Từ ${variant.contactFromQuantity} ${variant.unit}, giá được báo riêng theo số lượng.`,
-      }],
-      priceOnRequest: true,
-    };
-  }
-
   const matchedTier = resolveTier(line.quantity, variant.tierPrices);
   if (matchedTier === null) {
     return {

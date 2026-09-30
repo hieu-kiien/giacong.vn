@@ -81,7 +81,7 @@ export function replaceMobileMenuIcons(menu: HTMLElement | null) {
     if (!link) return;
     const icon = createMobileMenuIcon(paths);
     if (original) link.replaceChild(icon, original);
-    else link.prepend(icon);
+    else link.insertBefore(icon, link.firstChild);
     replacements.push({ icon, original: original ?? undefined });
   });
 
@@ -114,7 +114,7 @@ export function addMobileAccordionToggles(menu: HTMLElement | null) {
       if (submenu) {
         item.insertBefore(button, submenu);
       } else {
-        item.append(button);
+        item.appendChild(button);
       }
       generatedToggles.push(button);
     });

@@ -10,7 +10,7 @@ test("single admin session refuses every retired role", async () => {
       resolveRole: async () => ({memberId:"retired-member",role}),
     });
     assert.equal(response.status,403,role);
-    assert.equal((await response.json()).ok,false);
+    assert.equal((await response.json() as { ok: boolean }).ok,false);
   }
 });
 
@@ -35,7 +35,7 @@ test("returns the verified Cloudflare email when present", async () => {
     resolveRole: async () => ({ memberId: "owner-1", role: "owner" }),
   });
   assert.equal(response.status, 200);
-  assert.deepEqual((await response.json()).data, {
+  assert.deepEqual((await response.json() as { data: Record<string, unknown> }).data, {
     authenticated: true,
     email: "owner@example.com",
     memberId: "owner-1",
@@ -51,7 +51,7 @@ test("returns the resolved member id so the UI can protect the current account",
     resolveRole: async () => ({ memberId: "owner-1", role: "owner" }),
   });
   assert.equal(response.status, 200);
-  assert.deepEqual((await response.json()).data, {
+  assert.deepEqual((await response.json() as { data: Record<string, unknown> }).data, {
     authenticated: true,
     memberId: "owner-1",
     role: "owner",
@@ -73,7 +73,7 @@ test("public demo actors are owners without a D1 role lookup", async () => {
     },
   });
   assert.equal(response.status, 200);
-  const body = await response.json();
+  const body = await response.json() as { data: { role: string } };
   assert.equal(body.data.role, "owner");
   assert.equal(resolveRoleCalled, false);
 });

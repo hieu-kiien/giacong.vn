@@ -39,6 +39,29 @@ test("resolves highest matching tier and recomputes subtotal server-side", async
   assert.equal(cart.lines[0].lineTotal, 2_100_000);
   assert.equal(cart.pricedSubtotal, 2_100_000);
   assert.equal(cart.isSubmittable, true);
+
+  const aboveLegacyThreshold = await resolveRequestCart(
+    [{ parentSlug: "bot-demo", quantity: 100, variantSku: "SKU-DEMO" }],
+    async () => product,
+  );
+  assert.equal(aboveLegacyThreshold.lines[0].unitPrice, 79000);
+  assert.equal(aboveLegacyThreshold.lines[0].lineTotal, 7_900_000);
+  assert.equal(aboveLegacyThreshold.lines[0].priceOnRequest, false);
+  assert.equal(aboveLegacyThreshold.requestType, "Đặt sản phẩm");
+});
+
+test("a variant without configured tiers remains quote-only", async () => {
+  const quoteProduct = {
+    ...product,
+    variants: [{ ...product.variants[0], tierPrices: [] }],
+  };
+  const cart = await resolveRequestCart(
+    [{ parentSlug: "bot-demo", quantity: 100, variantSku: "SKU-DEMO" }],
+    async () => quoteProduct,
+  );
+  assert.equal(cart.lines[0].priceOnRequest, true);
+  assert.equal(cart.lines[0].unitPrice, null);
+  assert.equal(cart.requestType, "Đặt sản phẩm");
 });
 
 test("resolves the whole cart through one deduplicated batch lookup", async () => {

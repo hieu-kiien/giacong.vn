@@ -15,6 +15,15 @@ var DETAIL_HEADERS = [
   "Mã", "Dòng", "Sản phẩm", "Biến thể", "Đơn vị", "Số lượng",
   "Đơn giá", "Thành tiền", "Ghi chú hệ thống",
 ];
+var ZALO_SALE_HEADERS = [
+  "sale_id", "Mã giao dịch", "Mã yêu cầu nguồn", "Thời gian chốt", "Tiền tệ",
+  "Tổng tiền", "Khách hàng", "Công ty", "Email", "Điện thoại", "snapshot_sha256",
+];
+var ZALO_SALE_ITEM_HEADERS = [
+  "sale_id", "sale_line_id", "lead_item_id", "Mã giao dịch", "product_slug",
+  "service_slug", "Sản phẩm", "Biến thể", "SKU", "Đơn vị", "Số lượng",
+  "Đơn giá", "Thành tiền", "Tiền tệ", "Ghi chú", "snapshot_sha256",
+];
 var TYPES = ["Đặt sản phẩm", "Tư vấn số lượng lớn", "Tư vấn dịch vụ"];
 var STATUSES = ["Mới", "Đang tư vấn", "Chờ khách phản hồi", "Đã hoàn tất", "Không tiếp tục"];
 var CACHE_SECONDS = 21600;
@@ -24,9 +33,14 @@ function doPost(event) {
   if (!lock.tryLock(2000)) return output({ ok: false, reference: "" });
   try {
     var payload = parsePayload(event);
-    if (!payload || !validSecret(payload) || !validPayload(payload)) {
+    if (!payload || !validSecret(payload)) {
       return output({ ok: false, reference: "" });
     }
+    if (payload.event === "sale.confirmed") {
+      if (!validSalePayload(payload)) return output({ ok: false, sale_id: "", sale_code: "" });
+      return writeConfirmedZaloSale(payload);
+    }
+    if (!validPayload(payload)) return output({ ok: false, reference: "" });
 
     var requestId = typeof payload.request_id === "string" ? payload.request_id : "";
     var cache = CacheService.getScriptCache();
@@ -104,8 +118,9 @@ function onEdit(event) {
   if (column === 12) {
     var oldValue = event.oldValue || "";
     var value = event.value || range.getValue();
-    var assignee = sheet.getCell(range.getRow(), 13);
-    var valid = validTransition(oldValue, value) && (oldValue !== "Mới" || value !== "Đang tư vấn" || assignee !== "");
+    var assignee = sheet.getRange(range.getRow(), 13).getValue();
+    var hasAssignee = typeof assignee === "string" && assignee.trim() !== "";
+    var valid = validTransition(oldValue, value) && (oldValue !== "Mới" || value !== "Đang tư vấn" || hasAssignee);
     if (!valid) {
       range.setValue(oldValue);
       workbook().toast("Trạng thái hoặc người phụ trách không hợp lệ.");
@@ -131,7 +146,253 @@ function parsePayload(event) {
 
 function validSecret(payload) {
   var expected = PropertiesService.getScriptProperties().getProperty("CONTACT_WEBHOOK_SECRET");
-  return typeof payload.secret === "string" && payload.secret === (expected || "shared-secret");
+  return typeof expected === "string" && expected.length > 0
+    && typeof payload.secret === "string" && payload.secret.length > 0
+    && payload.secret === expected;
+}
+
+function validSalePayload(payload) {
+  if (!hasExactKeys(payload, [
+    "event", "sale_id", "sale_code", "source_lead_id", "confirmed_at", "currency",
+    "total_amount", "customer", "items", "snapshot_sha256", "secret",
+  ]) || payload.event !== "sale.confirmed" || !isUuid(payload.sale_id)
+    || !/^ZL-[0-9]{8}-[0-9A-F]{8}$/.test(payload.sale_code)
+    || !isUuid(payload.source_lead_id) || typeof payload.confirmed_at !== "string"
+    || !payload.confirmed_at || payload.currency !== "VND"
+    || !validMoney(payload.total_amount)
+    || !/^[0-9a-f]{64}$/.test(payload.snapshot_sha256)) return false;
+  if (!payload.customer || typeof payload.customer !== "object" || Array.isArray(payload.customer)
+    || !hasExactKeys(payload.customer, ["full_name", "company_name", "email", "phone"])
+    || !validRequiredText(payload.customer.full_name)
+    || !validOptionalText(payload.customer.company_name)
+    || !validOptionalText(payload.customer.email)
+    || !validOptionalText(payload.customer.phone)) return false;
+  if (!Array.isArray(payload.items) || payload.items.length < 1 || payload.items.length > 50) return false;
+
+  var lineIds = {};
+  var total = 0;
+  for (var index = 0; index < payload.items.length; index += 1) {
+    var item = payload.items[index];
+    if (!item || typeof item !== "object" || Array.isArray(item)
+      || !hasExactKeys(item, [
+        "sale_line_id", "source_lead_item_id", "product_slug", "service_slug", "product_name",
+        "variant_name", "variant_sku", "unit", "quantity", "unit_price", "line_total", "currency", "notes",
+      ]) || !isUuid(item.sale_line_id) || !isUuid(item.source_lead_item_id)
+      || lineIds[item.sale_line_id] || !validOptionalText(item.product_slug)
+      || !validOptionalText(item.service_slug) || !validRequiredText(item.product_name)
+      || !validOptionalText(item.variant_name) || !validOptionalText(item.variant_sku)
+      || !validOptionalText(item.unit) || !Number.isSafeInteger(item.quantity) || item.quantity < 1
+      || !validMoney(item.unit_price) || !validMoney(item.line_total)
+      || item.quantity * item.unit_price !== item.line_total || item.currency !== "VND"
+      || !validOptionalText(item.notes)) return false;
+    lineIds[item.sale_line_id] = true;
+    total += item.line_total;
+    if (!Number.isSafeInteger(total)) return false;
+  }
+  return total === payload.total_amount && saleSnapshotHash(payload) === payload.snapshot_sha256;
+}
+
+function writeConfirmedZaloSale(payload) {
+  try {
+    var sheets = ensureZaloSaleWorkbook();
+    var salesSheet = sheets.sales;
+    var itemsSheet = sheets.items;
+    var saleRow = findUniqueValueRow(salesSheet, 1, payload.sale_id);
+    if (saleRow > 0) {
+      var oldHash = salesSheet.getRange(saleRow, ZALO_SALE_HEADERS.length).getValue();
+      if (oldHash !== payload.snapshot_sha256) {
+        return output({ ok: false, sale_id: "", sale_code: "" });
+      }
+    }
+
+    upsertZaloSaleItems(itemsSheet, payload);
+    var saleValues = [[
+      safeText(payload.sale_id), safeText(payload.sale_code), safeText(payload.source_lead_id),
+      safeText(payload.confirmed_at), "VND", payload.total_amount,
+      safeText(payload.customer.full_name), sheetText(payload.customer.company_name),
+      sheetText(payload.customer.email), sheetText(payload.customer.phone), payload.snapshot_sha256,
+    ]];
+    if (saleRow > 0) salesSheet.getRange(saleRow, 1, 1, ZALO_SALE_HEADERS.length).setValues(saleValues);
+    else salesSheet.getRange(salesSheet.getLastRow() + 1, 1, 1, ZALO_SALE_HEADERS.length).setValues(saleValues);
+
+    SpreadsheetApp.flush();
+    var committedRow = findUniqueValueRow(salesSheet, 1, payload.sale_id);
+    if (committedRow < 2
+      || salesSheet.getRange(committedRow, ZALO_SALE_HEADERS.length).getValue() !== payload.snapshot_sha256
+      || !zaloSaleItemsMatch(itemsSheet, payload)) {
+      return output({ ok: false, sale_id: "", sale_code: "" });
+    }
+    return output({ ok: true, sale_id: payload.sale_id, sale_code: payload.sale_code, reference: payload.sale_code });
+  } catch (_error) {
+    return output({ ok: false, sale_id: "", sale_code: "" });
+  }
+}
+
+function ensureZaloSaleWorkbook() {
+  var book = workbook();
+  var sales = book.getSheetByName("Giao dịch đã chốt") || book.insertSheet("Giao dịch đã chốt");
+  var items = book.getSheetByName("Chi tiết giao dịch") || book.insertSheet("Chi tiết giao dịch");
+  ensureExactHeaders(sales, ZALO_SALE_HEADERS);
+  ensureExactHeaders(items, ZALO_SALE_ITEM_HEADERS);
+  sales.setFrozenRows(1);
+  items.setFrozenRows(1);
+  protectSheet(sales, "Lean V1: Giao dịch đã chốt chỉ đọc", null);
+  protectSheet(items, "Lean V1: Chi tiết giao dịch chỉ đọc", null);
+  return { sales: sales, items: items };
+}
+
+function upsertZaloSaleItems(sheet, payload) {
+  var existingRows = sheet.getLastRow() > 1
+    ? sheet.getRange(2, 1, sheet.getLastRow() - 1, 2).getValues()
+    : [];
+  var rowByLineId = {};
+  var expectedIds = {};
+  payload.items.forEach(function (item) { expectedIds[item.sale_line_id] = true; });
+  existingRows.forEach(function (row, index) {
+    if (row[0] !== payload.sale_id) return;
+    var lineId = row[1];
+    if (!expectedIds[lineId] || rowByLineId[lineId]) throw new Error("sale_detail_snapshot_conflict");
+    rowByLineId[lineId] = index + 2;
+  });
+
+  var firstAppendRow = sheet.getLastRow() + 1;
+  var appendRows = [];
+  payload.items.forEach(function (item) {
+    var row = zaloSaleItemRow(payload, item);
+    var existingRow = rowByLineId[item.sale_line_id];
+    if (existingRow) {
+      var oldValues = sheet.getRange(existingRow, 1, 1, ZALO_SALE_ITEM_HEADERS.length).getValues()[0];
+      if (!sameRow(oldValues, row)) {
+        sheet.getRange(existingRow, 1, 1, ZALO_SALE_ITEM_HEADERS.length).setValues([row]);
+      }
+    } else {
+      appendRows.push(row);
+    }
+  });
+  if (appendRows.length) {
+    sheet.getRange(firstAppendRow, 1, appendRows.length, ZALO_SALE_ITEM_HEADERS.length).setValues(appendRows);
+  }
+}
+
+function zaloSaleItemsMatch(sheet, payload) {
+  var rows = sheet.getLastRow() > 1
+    ? sheet.getRange(2, 1, sheet.getLastRow() - 1, ZALO_SALE_ITEM_HEADERS.length).getValues()
+    : [];
+  var actual = {};
+  rows.forEach(function (row) {
+    if (row[0] !== payload.sale_id) return;
+    if (actual[row[1]]) throw new Error("duplicate_sale_line_id");
+    actual[row[1]] = row;
+  });
+  if (Object.keys(actual).length !== payload.items.length) return false;
+  return payload.items.every(function (item) {
+    return actual[item.sale_line_id]
+      && sameRow(actual[item.sale_line_id], zaloSaleItemRow(payload, item));
+  });
+}
+
+function zaloSaleItemRow(payload, item) {
+  return [
+    safeText(payload.sale_id), safeText(item.sale_line_id), safeText(item.source_lead_item_id),
+    safeText(payload.sale_code), sheetText(item.product_slug), sheetText(item.service_slug),
+    safeText(item.product_name), sheetText(item.variant_name), sheetText(item.variant_sku),
+    sheetText(item.unit), item.quantity, item.unit_price, item.line_total, "VND",
+    sheetText(item.notes), payload.snapshot_sha256,
+  ];
+}
+
+function findUniqueValueRow(sheet, column, value) {
+  var lastRow = sheet.getLastRow();
+  if (lastRow < 2) return -1;
+  var values = sheet.getRange(2, column, lastRow - 1, 1).getValues();
+  var found = -1;
+  values.forEach(function (row, index) {
+    if (row[0] !== value) return;
+    if (found > 0) throw new Error("duplicate_sale_id");
+    found = index + 2;
+  });
+  return found;
+}
+
+function saleSnapshotHash(payload) {
+  var canonical = {
+    sale_id: payload.sale_id,
+    sale_code: payload.sale_code,
+    source_lead_id: payload.source_lead_id,
+    confirmed_at: payload.confirmed_at,
+    currency: "VND",
+    total_amount: payload.total_amount,
+    customer: {
+      full_name: payload.customer.full_name,
+      company_name: payload.customer.company_name,
+      email: payload.customer.email,
+      phone: payload.customer.phone,
+    },
+    items: payload.items.map(function (item) {
+      return {
+        sale_line_id: item.sale_line_id,
+        source_lead_item_id: item.source_lead_item_id,
+        product_slug: item.product_slug,
+        service_slug: item.service_slug,
+        product_name: item.product_name,
+        variant_name: item.variant_name,
+        variant_sku: item.variant_sku,
+        unit: item.unit,
+        quantity: item.quantity,
+        unit_price: item.unit_price,
+        line_total: item.line_total,
+        currency: "VND",
+        notes: item.notes,
+      };
+    }),
+  };
+  var bytes = Utilities.computeDigest(
+    Utilities.DigestAlgorithm.SHA_256,
+    JSON.stringify(canonical),
+    Utilities.Charset.UTF_8,
+  );
+  return bytes.map(function (byte) {
+    return ("0" + ((byte + 256) % 256).toString(16)).slice(-2);
+  }).join("");
+}
+
+function ensureExactHeaders(sheet, headers) {
+  if (sheet.getLastRow() === 0) {
+    sheet.appendRow(headers);
+    return;
+  }
+  if (sheet.getLastColumn() !== headers.length) throw new Error("sale_sheet_column_count_mismatch");
+  var actual = sheet.getRange(1, 1, 1, headers.length).getValues()[0];
+  if (headers.some(function (header, index) { return actual[index] !== header; })) {
+    throw new Error("sale_sheet_headers_mismatch");
+  }
+}
+
+function hasExactKeys(value, keys) {
+  var actual = Object.keys(value);
+  return actual.length === keys.length && actual.every(function (key) { return keys.includes(key); });
+}
+
+function validRequiredText(value) {
+  return typeof value === "string" && value.trim().length > 0;
+}
+
+function validOptionalText(value) {
+  return value === null || typeof value === "string";
+}
+
+function validMoney(value) {
+  return Number.isSafeInteger(value) && value >= 0;
+}
+
+function sheetText(value) {
+  return value === null ? "" : safeText(value);
+}
+
+function sameRow(left, right) {
+  return left.length === right.length && left.every(function (value, index) {
+    return value === right[index];
+  });
 }
 
 function validPayload(payload) {

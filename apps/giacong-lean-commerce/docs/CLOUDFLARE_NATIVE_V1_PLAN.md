@@ -1,31 +1,32 @@
 # Cloudflare-native Lean V1 plan
 
-**Trạng thái:** nguồn quyết định hiện hành cho Lean V1 kể từ 2026-08-14.
+**Trạng thái:** kế hoạch kiến trúc và cổng an toàn Lean V1. Phạm vi sản phẩm hiện hành theo [PROJECT_SCOPE_2026-09-27.md](PROJECT_SCOPE_2026-09-27.md).
 
-Tài liệu này thay thế `COMMERCE_PLATFORM_MASTER_PLAN.md` làm nguồn quyết định. Hồ sơ cũ được giữ lại để truy vết lịch sử thiết kế Bagisto nhưng không còn quyết định runtime, admin hoặc hạ tầng đích. `CLOUDFLARE_CURRENT_STATE.md` là hồ sơ bằng chứng triển khai và QA, không phải nơi mở rộng scope sản phẩm.
+Tài liệu này thay thế `COMMERCE_PLATFORM_MASTER_PLAN.md` về kiến trúc và ranh giới vận hành. Hồ sơ cũ được giữ lại để truy vết lịch sử thiết kế Bagisto nhưng không còn quyết định runtime, admin hoặc hạ tầng đích. `CLOUDFLARE_CURRENT_STATE.md` là hồ sơ bằng chứng triển khai và QA, không phải nơi mở rộng phạm vi sản phẩm.
 
 ## 1. Mục tiêu V1
 
-Lean V1 là storefront B2B cho phép khách:
+Lean V1 phục vụ khách mua lẻ và mua sỉ:
 
 - xem catalog nhiều danh mục và sản phẩm;
 - chọn một biến thể hợp lệ, MOQ và bước số lượng;
 - xem giá bậc VND do server tính;
-- gom nhiều dòng vào guest request cart trong `localStorage`;
-- gửi yêu cầu sản phẩm hoặc tư vấn dịch vụ;
-- kết thúc trách nhiệm website khi request intake được chấp nhận.
+- gom nhiều dòng yêu cầu trong `localStorage` trước khi gửi;
+- đăng nhập bằng Google với email đã xác minh để gửi yêu cầu mua sản phẩm và xem lịch sử của chính mình;
+- gửi yêu cầu mua sản phẩm vào D1 gắn với tài khoản, rồi mở Zalo để nhân viên tư vấn và chốt;
+- xem riêng lịch sử yêu cầu và giao dịch đã được nhân viên xác nhận.
 
-Không có customer account, checkout, `/thanh-toan`, payment, shipping, Bagisto order, quote lifecycle, rating, review hoặc favorite.
+Mọi yêu cầu mua sản phẩm, lẻ hoặc sỉ, đều chuyển sang Zalo sau khi lưu D1 thành công. Admin ghi giao dịch đã chốt; website không tự xác nhận đơn. Không có checkout, `/thanh-toan`, thanh toán online, quy trình shipping trên web, Bagisto order, rating, review hoặc favorite. Luồng yêu cầu tư vấn dịch vụ có dùng chung đăng nhập → D1 → Zalo hay không vẫn cần quyết định sản phẩm.
 
 ## 2. Kiến trúc đích
 
 Runtime đích là Cloudflare-native:
 
 - Next.js/OpenNext Worker phục vụ storefront và API;
-- Cloudflare D1 là nguồn dữ liệu canonical cho catalog, variant, tier price và managed service copy;
+- Cloudflare D1 là nguồn dữ liệu canonical cho catalog, variant, tier price, managed service copy, tài khoản khách, yêu cầu và giao dịch đã chốt;
 - Cloudflare R2 là nguồn media sản phẩm;
 - R2 riêng phục vụ incremental cache của OpenNext;
-- Google Sheet + Apps Script tiếp tục là request queue cho đến khi có quyết định khác được duyệt;
+- Google Sheet + Apps Script nhận bản đồng bộ phục vụ vận hành; Admin/D1 là nguồn gốc của yêu cầu và giao dịch đã chốt;
 - không dùng VPS, Cloudflare Tunnel, PHP origin hoặc Bagisto làm commerce runtime.
 
 Production và staging tách riêng resource. Dữ liệu demo staging không được copy ngầm sang production.
@@ -46,16 +47,16 @@ Các invariant bắt buộc:
 - slug và SKU duy nhất theo constraint hiện hành;
 - MOQ > 0;
 - quantity step > 0;
-- contact threshold > 0 và phải nằm trên một quantity hợp lệ tính từ MOQ theo step;
+- `contact_threshold` hiện còn trong schema phải nằm trên quantity hợp lệ tính từ MOQ theo step; không dùng ngưỡng này để quyết định có chuyển Zalo hay không;
 - tier quantity > 0, duy nhất trên mỗi variant và phải nằm trên quantity hợp lệ;
 - tier price > 0 và currency là VND;
-- storefront chỉ dùng record active và trạng thái availability của variant;
+- storefront chỉ hiển thị sản phẩm được xuất bản; nhân viên ẩn sản phẩm không còn bán bằng trạng thái hiển thị hiện có;
 - server là nguồn duy nhất tính unit price, subtotal, request type và price-on-request;
 - client không được gửi tiền canonical để server tin lại.
 
 Mọi write path quản trị phải validate các invariant trước khi ghi và không được tạo trạng thái mà read path hiện hành sẽ từ chối.
 
-## 4. Guest request cart
+## 4. Request cart
 
 Cart chỉ giữ ba key canonical trên client cho mỗi dòng:
 
@@ -65,11 +66,11 @@ Cart chỉ giữ ba key canonical trên client cho mỗi dòng:
 
 Server re-read D1 cho mọi revalidation và submit. Các case tối thiểu phải được giữ trong regression gate: product/variant mất, unavailable, dưới MOQ, lệch step, tier boundary, price-on-request, cart drift và canonical money.
 
-Không tạo server cart table hoặc session cart trong Lean V1.
+Không tạo server cart table hoặc session cart trong Lean V1. Khách có thể chuẩn bị giỏ trước khi đăng nhập, nhưng phải đăng nhập bằng Google đã xác minh trước khi gửi yêu cầu mua sản phẩm.
 
 ## 5. Request intake
 
-Google Sheet + Apps Script vẫn là queue vận hành hiện hành. Submit được server canonicalize trước khi gọi webhook. Cart drift phải trả snapshot mới và không gọi webhook.
+D1 lưu yêu cầu với ID tài khoản lấy từ session phía server trước khi mở Zalo; Admin đọc và chăm sóc yêu cầu từ D1. Google Sheet + Apps Script nhận bản đồng bộ vận hành qua queue/webhook. Submit được server canonicalize; cart drift phải trả snapshot mới và không ghi yêu cầu hoặc gọi webhook. Sheet không phải nguồn lịch sử khách hay nơi nhân viên nhập giao dịch lần hai.
 
 Trước production acceptance phải xác minh trên tài khoản Google thật:
 
@@ -81,7 +82,7 @@ Trước production acceptance phải xác minh trên tài khoản Google thật
 - validation/protection và workflow trạng thái;
 - timeout/redirect allowlist hiện hành.
 
-Nếu request inbox được chuyển sang D1 thì phải có quyết định riêng; không thay đổi queue ngầm định.
+Luồng giao dịch đã chốt lưu snapshot dòng hàng, audit và outbox cùng batch D1; đồng bộ Sheet theo `sale_id`/`sale_line_id` để retry không nhân đôi. Cấu hình secret, redeploy Apps Script và Worker, cùng kiểm tra giao dịch thử/replay là cổng vận hành trước khi dùng thật.
 
 ## 6. Cloudflare-native admin
 
@@ -95,7 +96,7 @@ thay ảnh; giữ phần inline đã làm nhưng không mở rộng, xử lý m�
 Đối chiếu menu/href với bản đã làm trên `kienhieu.id.vn`; các mục gia công được
 chỉ ra phải vào luồng Thuê gia công, không rơi về phân loại bài viết cũ. Phân biệt
 SKU bán hàng với nội dung dịch vụ trước khi đổi link. Chi tiết thực thi và ảnh:
-[ADMIN_COMMERCE_RECOVERY_HANDOFF.md](./ADMIN_COMMERCE_RECOVERY_HANDOFF.md).
+[hồ sơ recovery cũ](./archive/legacy-2026-09-27/ADMIN_COMMERCE_RECOVERY_HANDOFF.md).
 Quyết định này thay thứ tự ưu tiên homepage/storefront-first trong roadmap cũ;
 không tự mở rộng mô hình thanh toán hoặc thay các ranh giới Lean V1 bên dưới.
 
@@ -103,7 +104,7 @@ Các năng lực admin trong phạm vi hiện hành (thứ tự triển khai the
 
 1. categories: xem, tạo, sửa, active, sort order;
 2. products: xem, tạo, sửa, active, category, nội dung và image reference;
-3. variants: SKU, option label, unit, MOQ, quantity step, contact threshold, availability, sort order và image reference;
+3. variants: SKU, option label, unit, MOQ, quantity step, sort order và image reference; giữ validation cho `contact_threshold`/`availability` hiện có trong schema nhưng không dùng chúng làm ngưỡng chuyển Zalo hoặc nhãn tồn kho cho khách;
 4. tier prices: create/update/delete với validation quantity/price;
 5. product media: upload R2, chọn media cho product/variant, xóa object chỉ khi không còn reference;
 6. services: sửa managed copy trong D1.
@@ -112,7 +113,7 @@ Các năng lực admin trong phạm vi hiện hành (thứ tự triển khai the
 
 Page builder V1 dùng schema section an toàn gồm hero, rich text, image, feature grid, CTA và contact. Đây là quyền tự chủ với nội dung/layout đã được mô hình hóa; không cấp quyền chạy HTML/CSS/JavaScript tùy ý hoặc tự tạo server code từ admin.
 
-Request queue vẫn ở Google Sheet trong pha này; không xây request inbox admin trước khi có quyết định riêng.
+Admin đọc yêu cầu đã lưu ở D1, chăm sóc liên hệ/yêu cầu và ghi giao dịch đã chốt qua Zalo. Giới hạn bề mặt khách hàng ở lịch sử liên hệ, yêu cầu và giao dịch; không mở rộng thành CRM tổng quát nếu chưa có quyết định sản phẩm.
 
 ### 6.2 Ranh giới bảo mật
 
@@ -121,7 +122,7 @@ Request queue vẫn ở Google Sheet trong pha này; không xây request inbox a
 - Public storefront hostname không được trở thành đường tắt tới admin write API.
 - Không dùng credential D1/R2 phía client.
 - Không log secret, token hoặc PII không cần thiết.
-- V1 không có customer identity.
+- Xác thực khách hàng storefront tách khỏi Cloudflare Access và quyền Admin; server chỉ trả lịch sử gắn với ID tài khoản từ session đã xác minh.
 - Admin nội bộ chỉ dùng một quyền **Admin toàn quyền**, lưu bằng khóa `owner` để giữ nguyên tài khoản và audit (quyết định trực tiếp của chủ dự án ngày 2026-09-07, thay thế mô hình năm role ngày 2026-08-23). Các role cũ không được đăng nhập, đọc hoặc ghi API; không tự nâng quyền tài khoản cũ. Giữ Cloudflare Access, kiểm tra quyền phía server và bảo vệ admin hoạt động cuối cùng. Staging đã có đúng một tài khoản owner nên không cần chuyển đổi dữ liệu tài khoản.
 
 Cloudflare Access là phương án bảo vệ staging admin. Cấu hình Access self-hosted, allow policy và identity-provider state cho `admin-staging.kienhieu.id.vn` đã được audit qua Cloudflare API; Worker route staging cũng đã được khai báo trong Wrangler. Việc triển khai write API vẫn phải tự fail closed nếu request không đạt admission contract, không chỉ dựa vào việc hostname đã có Access.

@@ -83,7 +83,7 @@ export function GiacongInteractions({
     menuBackdrop.type = "button";
     menuBackdrop.className = "clone-menu-backdrop";
     menuBackdrop.setAttribute("aria-label", "Đóng menu");
-    document.body.append(menuBackdrop);
+    document.body.appendChild(menuBackdrop);
     const menuClose = document.createElement("button");
     menuClose.type = "button";
     menuClose.className = "clone-menu-close";
@@ -96,7 +96,7 @@ export function GiacongInteractions({
       '<line x1="6" y1="6" x2="18" y2="18"></line>',
       "</svg>",
     ].join("");
-    document.body.append(menuClose);
+    document.body.appendChild(menuClose);
     const headerWrapper = document.querySelector<HTMLElement>(".header-wrapper");
     const taxonomy = document.querySelector<HTMLElement>(".taxonomy-description");
     let taxonomyShow: HTMLDivElement | undefined;
@@ -171,7 +171,8 @@ export function GiacongInteractions({
       taxonomyLess = document.createElement("div");
       taxonomyLess.className = "giuseart_readmore_taxonomy_flatsome giuseart_readmore_taxonomy_flatsome_less";
       taxonomyLess.innerHTML = '<a title="Thu gọn" href="#">Thu gọn</a>';
-      taxonomy.append(taxonomyShow, taxonomyLess);
+      taxonomy.appendChild(taxonomyShow);
+      taxonomy.appendChild(taxonomyLess);
       taxonomyShow.addEventListener("click", expandTaxonomy);
       taxonomyLess.addEventListener("click", collapseTaxonomy);
       collapseTaxonomy();

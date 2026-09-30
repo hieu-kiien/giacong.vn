@@ -103,7 +103,7 @@ export function AdminProductImportPanel({ categories, onImported, role }: AdminP
     const anchor = document.createElement("a");
     anchor.href = url;
     anchor.download = "product-import-sample.csv";
-    document.body.append(anchor);
+    document.body.appendChild(anchor);
     anchor.click();
     setTimeout(() => { anchor.remove(); URL.revokeObjectURL(url); }, 1000);
   }

@@ -476,10 +476,10 @@ function createSliderDots(slider: HTMLElement, count: number): HTMLOListElement 
     button.className = "dot";
     button.setAttribute("aria-label", "Nội dung " + (index + 1));
     button.setAttribute("aria-current", index === 0 ? "true" : "false");
-    item.append(button);
-    dots.append(item);
+    item.appendChild(button);
+    dots.appendChild(item);
   }
-  slider.append(dots);
+  slider.appendChild(dots);
   return dots;
 }
 

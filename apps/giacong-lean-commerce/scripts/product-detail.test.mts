@@ -6,9 +6,9 @@
 //  - the `.tsx` components and the CSS module are asserted as source text, which is
 //    how `scripts/commerce-foundation.test.mts` already covers presentation files.
 //
-// References: docs/research/components/product-detail.spec.md,
-// docs/research/{BEHAVIORS,PAGE_TOPOLOGY,DESIGN_TOKENS}.md and
-// docs/handoff-references/references/approved/preview-600/SCR-04-product-detail.webp.
+// References: docs/archive/legacy-2026-09-27/research/components/product-detail.spec.md,
+// docs/archive/legacy-2026-09-27/research/{BEHAVIORS,PAGE_TOPOLOGY,DESIGN_TOKENS}.md and
+// docs/archive/legacy-2026-09-27/handoff-references/references/approved/preview-600/SCR-04-product-detail.webp.
 import assert from "node:assert/strict";
 import { readFile, stat } from "node:fs/promises";
 import path from "node:path";
@@ -143,7 +143,7 @@ test("the purchase panel presents the unit price for the selected quantity, not 
 
 test("availability is derived from the variants, never hard-coded", () => {
   const available = buildView(multiVariantProduct());
-  assert.match(available.availabilityLabel, /có sẵn|còn hàng/i);
+  assert.match(available.availabilityLabel, /^\d+ quy cách$/i);
   assert.equal(available.isAvailable, true);
 
   const partly = buildView(partlyUnavailableProduct());
@@ -155,7 +155,7 @@ test("availability is derived from the variants, never hard-coded", () => {
     variants: partlyUnavailableProduct().variants.map((variant: object) => ({ ...variant, isAvailable: false })),
   });
   assert.equal(soldOut.isAvailable, false);
-  assert.match(soldOut.availabilityLabel, /hết hàng/i);
+  assert.equal(soldOut.availabilityLabel, partly.availabilityLabel, "storefront-facing labels do not expose availability");
 });
 
 test("the live gallery stays empty until it has a real, managed product image", () => {
@@ -266,15 +266,13 @@ test("each variant publishes MOQ, step and its tier bands with savings", () => {
   }
 });
 
-test("the tier table ends with the contact band instead of inventing a price", () => {
+test("the tier table contains only configured price bands", () => {
   const view = buildView(multiVariantProduct());
   const variant = view.variants[0];
   const last = variant.tierRows.at(-1);
 
-  assert.equal(last.price, null, "the contact band carries no price");
-  assert.equal(last.savingPercent, null);
-  assert.match(last.priceLabel, /liên hệ/i);
-  assert.equal(last.minQuantity, variant.contactFromQuantity);
+  assert.equal(last.price, variant.tierPrices.at(-1)?.price);
+  assert.equal(last.minQuantity, variant.tierPrices.at(-1)?.minQuantity);
 });
 
 test("tier savings use a positive benefit label", async () => {
@@ -285,7 +283,7 @@ test("tier savings use a positive benefit label", async () => {
   assert.doesNotMatch(table, /Tiết kiệm/, "the ambiguous savings heading must be removed");
 });
 
-test("quantity pricing clamps to MOQ, moves by step and switches to contact", () => {
+test("quantity pricing clamps to MOQ, moves by step and carries the last tier upward", () => {
   const view = buildView(multiVariantProduct());
   const variant = view.variants.find((item: { sku: string }) => item.sku.endsWith("BGL-05"));
 
@@ -303,11 +301,10 @@ test("quantity pricing clamps to MOQ, moves by step and switches to contact", ()
   assert.equal(band.unitPrice, 74_500, "the tier band applies at its minimum quantity");
   assert.equal(band.subtotal, 100 * 74_500);
 
-  const contact = detailView.resolveQuantityPricing(variant, 500);
-  assert.equal(contact.needsContact, true, "at the contact threshold no price is shown");
-  assert.equal(contact.unitPrice, null);
-  assert.equal(contact.subtotal, null);
-  assert.match(contact.subtotalLabel, /liên hệ/i);
+  const aboveLastTier = detailView.resolveQuantityPricing(variant, 500);
+  assert.equal(aboveLastTier.needsContact, false);
+  assert.equal(aboveLastTier.unitPrice, 71_000);
+  assert.equal(aboveLastTier.subtotal, 500 * 71_000);
 });
 
 // ---------------------------------------------------------------------------
@@ -552,6 +549,7 @@ test("the reviewed runtime dependency baseline and reserved ports stay locked", 
     Object.keys(manifest.dependencies).sort(),
     [
       "@base-ui/react",
+      "better-auth",
       "class-variance-authority",
       "clsx",
       "jose",

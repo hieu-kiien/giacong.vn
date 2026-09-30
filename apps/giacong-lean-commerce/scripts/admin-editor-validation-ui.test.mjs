@@ -64,17 +64,24 @@ test("service and variant saves reuse request ids when retrying the same payload
   assert.match(variantSubmit, /variantRequestRef\.current\?\.key === requestKey/);
 });
 
-test("product SEO preview follows saved product fields and marks an edited slug as custom", async () => {
+test("product SEO preview is optional and uses the single product slug field", async () => {
   const [product, seo] = await Promise.all([
     readFile(new URL("../src/app/admin/san-pham/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../src/components/admin/AdminProductSeoPreview.tsx", import.meta.url), "utf8"),
   ]);
   const preview = product.slice(product.indexOf("<AdminProductSeoPreview"), product.indexOf("\n            />", product.indexOf("<AdminProductSeoPreview")));
+  const seoPreviewStart = product.indexOf("<AdminProductSeoPreview");
+  const seoDisclosureStart = product.lastIndexOf('<details className="admin-haravan-card admin-tech-specs-disclosure">', seoPreviewStart);
+  const seoDisclosureEnd = product.indexOf("</details>", seoPreviewStart);
+  const seoDisclosure = product.slice(seoDisclosureStart, seoDisclosureEnd + "</details>".length);
 
-  assert.match(preview, /seo\.slug === form\.slug/);
-  assert.match(preview, /slugFollowsName:\s*seo\.slug\.trim\(\) === ""/);
+  assert.match(preview, /slug:\s*form\.slug/);
+  assert.ok(seoDisclosureStart >= 0 && seoDisclosureEnd > seoDisclosureStart);
+  assert.match(seoDisclosure, /SEO & chia sẻ · Tùy chọn[\s\S]*?<AdminProductSeoPreview/);
   assert.match(seo, /const data = initialData/);
   assert.match(seo, /readOnly/);
+  assert.match(seo, /data\.slug/);
+  assert.doesNotMatch(seo, /updateSlug|URL Slug/);
   assert.match(seo, /tên, mô tả ngắn/i);
 });
 

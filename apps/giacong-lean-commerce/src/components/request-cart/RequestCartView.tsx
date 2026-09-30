@@ -30,10 +30,10 @@ import type { RequestCartState, ResolvedRequestCart, ResolvedRequestCartLine } f
 const REVALIDATE_FAILURE_MESSAGE = "Không thể xác thực giỏ yêu cầu. Vui lòng thử lại.";
 
 interface RequestCartViewProps {
-  contactEmail?: string;
+  contactZaloUrl?: string;
 }
 
-export function RequestCartView({ contactEmail }: RequestCartViewProps = {}) {
+export function RequestCartView({ contactZaloUrl }: RequestCartViewProps = {}) {
   const [cart, setCart] = useState<RequestCartState | null>(null);
   const [storageNotice, setStorageNotice] = useState<string | null>(null);
   const [resolved, setResolved] = useState<ResolvedRequestCart | null>(null);
@@ -207,7 +207,7 @@ export function RequestCartView({ contactEmail }: RequestCartViewProps = {}) {
         <RequestAccepted
           cart={accepted.cart}
           contact={accepted.contact}
-          contactEmail={contactEmail}
+          contactZaloUrl={contactZaloUrl}
           receivedAt={accepted.receivedAt}
           reference={accepted.reference}
           onStartNewRequest={startNewRequest}
@@ -395,6 +395,8 @@ interface CartSummaryProps {
  * controls or the content beside it. Below `lg` it stays in flow.
  */
 function CartSummary({ cart }: CartSummaryProps) {
+  const hasPricedLines = cart.lines.some((line) => line.lineTotal !== null);
+
   return (
     <aside
       aria-label="Tạm tính giỏ yêu cầu"
@@ -414,13 +416,15 @@ function CartSummary({ cart }: CartSummaryProps) {
         )}
         <div className="flex items-baseline justify-between gap-3 border-t border-neutral-200 pt-2">
           <dt className="text-neutral-700">Tạm tính</dt>
-          <dd className="text-xl font-bold text-neutral-900" data-cart-subtotal>{formatVnd(cart.pricedSubtotal)}</dd>
+          <dd className="text-xl font-bold text-neutral-900" data-cart-subtotal>{hasPricedLines ? formatVnd(cart.pricedSubtotal) : "Liên hệ báo giá"}</dd>
         </div>
       </dl>
       <p className="mt-3 text-sm text-neutral-600">Tạm tính chưa gồm phí vận chuyển và chưa phải là báo giá cuối.</p>
       {cart.hasPriceOnRequest ? (
         <p className="mt-2 text-sm text-[#8a3a06]">
-          Tạm tính chưa gồm dòng chưa có giá; những dòng đó sẽ được báo giá riêng.
+          {hasPricedLines
+            ? "Tạm tính chưa gồm dòng chưa có giá; những dòng đó sẽ được báo giá riêng."
+            : "Đơn giá và tạm tính sẽ được nhân viên báo riêng sau khi trao đổi qua Zalo."}
         </p>
       ) : null}
       {cart.isSubmittable ? null : (

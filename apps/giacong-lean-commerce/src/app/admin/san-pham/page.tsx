@@ -1803,8 +1803,13 @@ function ProductEditor({
             </details>
           ) : null}
 
-          <div className="admin-haravan-card">
-            <h3 className="admin-haravan-card-title">Tối ưu hóa tìm kiếm (SEO)</h3>
+          <details className="admin-haravan-card admin-tech-specs-disclosure">
+            <summary>
+              <span>
+                <strong>SEO & chia sẻ · Tùy chọn</strong>
+                <small>Tiêu đề và mô tả được tạo từ tên, mô tả ngắn; mở để xem trước.</small>
+              </span>
+            </summary>
             <AdminProductSeoPreview
               initialData={{
                 imageUrl: form.imageUrl,
@@ -1812,16 +1817,8 @@ function ProductEditor({
                 seoTitle: form.name,
                 slug: form.slug,
               }}
-              onChange={(seo) => {
-                if (seo.slug === form.slug) return;
-                onChange({
-                  ...form,
-                  slug: seo.slug,
-                  slugFollowsName: seo.slug.trim() === "",
-                });
-              }}
             />
-          </div>
+          </details>
         </div>
 
         {/* Floating Sticky Action Bar */}

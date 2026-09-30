@@ -47,7 +47,7 @@ export function resolveCommerceCardAction(product: CommerceCardProductInput): Co
   const usable = product.variants.filter((variant) => variant.isAvailable);
 
   if (usable.length === 0) {
-    return { kind: "unavailable", label: "Tạm hết hàng" };
+    return { kind: "unavailable", label: "Chưa nhận yêu cầu qua website" };
   }
   if (usable.length > 1) {
     return { href: `/san-pham/${product.slug}/`, kind: "select-variant", label: "Chọn quy cách" };

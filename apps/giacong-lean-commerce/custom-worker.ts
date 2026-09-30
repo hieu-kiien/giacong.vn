@@ -2,12 +2,17 @@
 import generatedWorker from "./.open-next/worker.js";
 import { getRetiredLegacyProductRedirect } from "./src/lib/catalog-legacy-redirects";
 import { deliverQueuedLead, type LeadDeliveryEnvironment, type LeadDeliveryMessage } from "./src/lib/lead-delivery-worker";
+import { deliverQueuedZaloSale } from "./src/lib/zalo-sale-delivery-worker";
+import type { ZaloSaleDeliveryMessage as ZaloSaleQueueMessage } from "./src/lib/zalo-sale-queue";
 
 interface WorkerEnv extends LeadDeliveryEnvironment {
   GIACONG_VN_CATALOG?: CatalogDatabase;
 }
 
+type WorkerQueueMessage = (LeadDeliveryMessage & { type?: undefined }) | ZaloSaleQueueMessage;
+
 interface CatalogPreparedStatement {
+  all<T = Record<string, unknown>>(): Promise<{ results: T[] }>;
   bind(...values: unknown[]): CatalogPreparedStatement;
   first<T = Record<string, unknown>>(): Promise<T | null>;
   run(): Promise<unknown>;
@@ -18,6 +23,7 @@ interface CatalogDatabase {
 }
 
 interface QueueMessage<T> {
+  attempts: number;
   body: T;
   retry(options?: { delaySeconds?: number }): void;
 }
@@ -247,18 +253,35 @@ const worker = {
     return finalResponse;
   },
 
-  async queue(batch: QueueBatch<LeadDeliveryMessage>, env: WorkerEnv): Promise<void> {
+  async queue(batch: QueueBatch<WorkerQueueMessage>, env: WorkerEnv): Promise<void> {
     if (!env.GIACONG_VN_CATALOG) throw new Error("Missing GIACONG_VN_CATALOG binding.");
     for (const message of batch.messages) {
       try {
-        await deliverQueuedLead(message.body, env, env.GIACONG_VN_CATALOG);
+        if (message.body.type === "zalo-sale") {
+          await deliverQueuedZaloSale(
+            { saleId: message.body.saleId },
+            env,
+            env.GIACONG_VN_CATALOG,
+            message.attempts <= 3,
+          );
+        } else {
+          await deliverQueuedLead(message.body, env, env.GIACONG_VN_CATALOG);
+        }
       } catch (error) {
         message.retry({ delaySeconds: 60 });
-        console.error("Lead queue delivery failed.", {
-          error: error instanceof Error ? error.message : "unknown_error",
-          leadId: message.body.leadId,
-          queue: batch.queue,
-        });
+        if (message.body.type === "zalo-sale") {
+          console.error("Zalo sale queue delivery failed.", {
+            error: error instanceof Error ? error.message : "unknown_error",
+            saleId: message.body.saleId,
+            queue: batch.queue,
+          });
+        } else {
+          console.error("Lead queue delivery failed.", {
+            error: error instanceof Error ? error.message : "unknown_error",
+            leadId: message.body.leadId,
+            queue: batch.queue,
+          });
+        }
       }
     }
   },

@@ -101,7 +101,7 @@ Admin quality/inline editor đã triển khai staging và kiểm tra owner 10 ro
 desktop/mobile; save → publish → public read-back của hero image đã đạt và dữ
 liệu được hoàn nguyên. Version hiện hành và bằng chứng chi tiết nằm ở
 [CLOUDFLARE_CURRENT_STATE.md](CLOUDFLARE_CURRENT_STATE.md) và
-[ADMIN_QUALITY_REVIEW.md](ADMIN_QUALITY_REVIEW.md).
+[bản review cũ](archive/legacy-2026-09-27/ADMIN_QUALITY_REVIEW.md).
 
 Quyết định 2026-09-07: chỉ giữ **Admin toàn quyền** (`owner`), thay thế năm role;
 staging hiện có đúng một tài khoản owner. Gate bốn identity/role cũ được thay
@@ -159,7 +159,7 @@ trước rollout, không tự nâng quyền. Staging đã kiểm tra chỉ có m
   vẫn mở.
 
 > Lưu ý trạng thái: các checkbox dưới đây giữ evidence lịch sử của đợt nghiệm thu
-> trước. Chúng không tự đóng các acceptance mới trong `ADMIN_VISUAL_ROADMAP.md`.
+> trước. Chúng không tự đóng các acceptance mới; roadmap quản trị cũ đã được lưu trong `archive/legacy-2026-09-27/ADMIN_VISUAL_ROADMAP.md`.
 > Follow-up staging mới nhất được ghi ở mục 9 bên dưới; các mốc cũ trong mục 8
 > không được dùng để suy ra trạng thái runtime hiện tại.
 

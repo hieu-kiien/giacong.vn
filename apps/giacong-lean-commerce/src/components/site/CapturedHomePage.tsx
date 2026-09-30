@@ -1,6 +1,10 @@
 import { GiacongInteractions } from "@/components/GiacongInteractions";
 import { CapturedFloatingContact } from "@/components/CapturedPage";
-import { layerCapturedStyles, normalizeCapturedMarkup } from "@/lib/captured-markup";
+import {
+  appendAccountLinksToCapturedMarkup,
+  layerCapturedStyles,
+  normalizeCapturedMarkup,
+} from "@/lib/captured-markup";
 import { optimizeHomepageResponsiveImages } from "@/lib/homepage-image-optimization";
 import { applyHomepageSiteSettingsToMarkup, siteBrandStyles } from "@/lib/site-markup";
 import {
@@ -125,13 +129,15 @@ export async function CapturedHomePage({
       ),
     ),
   );
-  const homeMarkup = replaceCompositeHeroWithGallery(
-    applyFooterNavigationToMarkup(
-      applyNavigationToMarkup(normalizedMarkup, navigation, "menu-item-4618"),
-      navigation,
+  const homeMarkup = appendAccountLinksToCapturedMarkup(
+    replaceCompositeHeroWithGallery(
+      applyFooterNavigationToMarkup(
+        applyNavigationToMarkup(normalizedMarkup, navigation, "menu-item-4618"),
+        navigation,
+      ),
+      settings.hero_image_url,
+      settings.brand_name,
     ),
-    settings.hero_image_url,
-    settings.brand_name,
   );
 
   return (

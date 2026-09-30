@@ -25,6 +25,17 @@ Next/Worker dev server đang chạy trong app rồi chạy lại. Không xóa `.
 
 Chỉ thêm các secret cần thiết vào `.env.local` hoặc Cloudflare secrets. Không thêm `BAGISTO_API_URL`, `BAGISTO_PROXY_ORIGIN` hay credential D1/R2 phía client. `GOOGLE_SHEETS_WEBHOOK_URL` chỉ cần khi kiểm thử request intake thật.
 
+### Google đăng nhập khách hàng
+
+Giai đoạn hiện tại chỉ bật Google OAuth; email/mật khẩu và đăng nhập bằng số điện thoại chưa được mở. Tạo/cấu hình OAuth client ở Google Cloud và khai báo đúng callback theo môi trường:
+
+| Môi trường | Authorized redirect URI |
+| --- | --- |
+| Staging | `https://staging.kienhieu.id.vn/api/auth/callback/google` |
+| Production | `https://kienhieu.id.vn/api/auth/callback/google` |
+
+Worker cần các secret `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` và `BETTER_AUTH_SECRET`. Đặt riêng trên từng môi trường bằng Cloudflare secrets; không ghi giá trị vào Git, `.env.example`, ticket hoặc chat. Lịch sử tài khoản chỉ được cấp cho phiên Google có email đã xác minh. Nếu chưa cấu hình đủ OAuth secrets, đăng nhập không sẵn sàng để nghiệm thu.
+
 ## 2. Chuẩn bị D1 local
 
 Các migration trong `migrations/` là migration bổ sung cho catalog D1 đã tồn tại;
@@ -65,11 +76,13 @@ npm run typecheck
 npm run build
 ```
 
-Đối với công việc admin visual, đọc và cập nhật đồng thời:
+Với thay đổi sản phẩm hoặc admin, bắt đầu từ phạm vi sản phẩm hiện hành và giữ đúng hợp đồng ghi an toàn:
 
-- [`docs/ADMIN_VISUAL_ROADMAP.md`](docs/ADMIN_VISUAL_ROADMAP.md);
-- [`docs/ADMIN_VISUAL_FILE_MAP.md`](docs/ADMIN_VISUAL_FILE_MAP.md);
+- [`docs/PROJECT_SCOPE_2026-09-27.md`](docs/PROJECT_SCOPE_2026-09-27.md);
+- [`docs/PRODUCT_FORM_FIELD_AUDIT_2026-09-27.md`](docs/PRODUCT_FORM_FIELD_AUDIT_2026-09-27.md);
 - [`docs/CLOUDFLARE_ADMIN_WRITE_CONTRACT.md`](docs/CLOUDFLARE_ADMIN_WRITE_CONTRACT.md).
+
+Roadmap admin cũ và bản đồ UI được lưu trong `docs/archive/legacy-2026-09-27/`; chúng không còn là kế hoạch triển khai hiện hành.
 
 Mỗi lát triển khai phải có test contract/server trước UI, browser QA trên staging
 cho flow liên quan và ghi rõ bằng chứng đạt trong pull request hoặc handoff. Không

@@ -62,7 +62,8 @@ Migration `0009_admin_control_plane.sql` phải được apply vào môi trườ
 
 Không đưa `.env`, `.env.local`, `.dev.vars` hoặc secret Cloudflare/Google lên GitHub. Kiến trúc vận hành chi tiết nằm trong thư mục `docs/`.
 
-Lộ trình admin visual và bản đồ file cần đọc trước khi bắt đầu thay đổi admin:
+Phạm vi storefront hiện tại và giới hạn kỹ thuật admin:
 
-- [`docs/ADMIN_VISUAL_ROADMAP.md`](docs/ADMIN_VISUAL_ROADMAP.md)
-- [`docs/ADMIN_VISUAL_FILE_MAP.md`](docs/ADMIN_VISUAL_FILE_MAP.md)
+- [`docs/PROJECT_SCOPE_2026-09-27.md`](docs/PROJECT_SCOPE_2026-09-27.md)
+- [`docs/PRODUCT_FORM_FIELD_AUDIT_2026-09-27.md`](docs/PRODUCT_FORM_FIELD_AUDIT_2026-09-27.md)
+- [`docs/CLOUDFLARE_ADMIN_WRITE_CONTRACT.md`](docs/CLOUDFLARE_ADMIN_WRITE_CONTRACT.md)

@@ -39,12 +39,10 @@ export function ProductConfigurator({ initialVariantSku, product, variantQueryWa
             {optionGroup.options.map((option) => {
               const variant = product.variants.find((item) => item.id === option.variantIds[0]);
               if (!variant) return null;
-              const reasonId = `variant-reason-${variant.id}`;
               return (
                 <div className={styles.variantOption} key={option.id}>
-                  <label className={`${styles.variantLabel} ${!variant.isAvailable ? styles.unavailableVariant : ""}`}>
+                  <label className={styles.variantLabel}>
                     <input
-                      aria-describedby={!variant.isAvailable ? reasonId : undefined}
                       checked={selectedOptionId === option.id}
                       disabled={!variant.isAvailable}
                       name={`catalog-option-${optionGroup.attributeId}`}
@@ -54,7 +52,6 @@ export function ProductConfigurator({ initialVariantSku, product, variantQueryWa
                     />
                     <span>{option.label}</span>
                   </label>
-                  {!variant.isAvailable ? <span className={styles.variantReason} id={reasonId}>Tạm hết hàng</span> : null}
                 </div>
               );
             })}
@@ -63,7 +60,7 @@ export function ProductConfigurator({ initialVariantSku, product, variantQueryWa
 
         {variantQueryWarning && !selectedVariant ? (
           <p className={styles.quantityError} role="alert">
-            Lựa chọn trong liên kết không còn khả dụng. Vui lòng chọn một lựa chọn khác.
+            Lựa chọn trong liên kết không hợp lệ. Vui lòng chọn một lựa chọn khác.
           </p>
         ) : null}
 
@@ -71,7 +68,7 @@ export function ProductConfigurator({ initialVariantSku, product, variantQueryWa
           <div className={styles.variantCommerce} aria-live="polite">
             <p className={styles.selectedVariantName}>{selectedVariant.name}</p>
             <p className={styles.sku}>SKU: {selectedVariant.sku}</p>
-            <span className={styles.price}>{formatVnd(selectedVariant.tierPrices[0].price)}</span>
+            <span className={styles.price}>{selectedVariant.tierPrices[0] ? formatVnd(selectedVariant.tierPrices[0].price) : "Liên hệ báo giá"}</span>
             <table className={styles.facts}>
               <caption className="sr-only">Thông tin đặt hàng của lựa chọn đã chọn</caption>
               <tbody>
@@ -81,7 +78,6 @@ export function ProductConfigurator({ initialVariantSku, product, variantQueryWa
               </tbody>
             </table>
             <PurchaseQuantity
-              contactFromQuantity={selectedVariant.contactFromQuantity}
               key={selectedVariant.sku}
               minimumOrderQuantity={selectedVariant.minimumOrderQuantity}
               parentSlug={product.slug}
@@ -91,17 +87,16 @@ export function ProductConfigurator({ initialVariantSku, product, variantQueryWa
               unit={selectedVariant.unit}
               variantSku={selectedVariant.sku}
             />
-            <section>
+            {selectedVariant.tierPrices.length > 0 ? <section>
               <h2 className={styles.sectionTitle}>Giá theo số lượng</h2>
               <table className={styles.tierTable}>
                 <caption className="sr-only">Bảng giá theo số lượng của lựa chọn đã chọn</caption>
                 <thead><tr><th scope="col">Số lượng từ</th><th scope="col">Đơn giá</th></tr></thead>
                 <tbody>
                   {selectedVariant.tierPrices.map((tier) => <tr key={tier.minQuantity}><td>{tier.minQuantity} {selectedVariant.unit}</td><td>{formatVnd(tier.price)}</td></tr>)}
-                  <tr><td>Từ {selectedVariant.contactFromQuantity} {selectedVariant.unit}</td><td><strong>Liên hệ</strong></td></tr>
                 </tbody>
               </table>
-            </section>
+            </section> : null}
           </div>
         ) : (
           <div className={styles.selectionPrompt} role="status">

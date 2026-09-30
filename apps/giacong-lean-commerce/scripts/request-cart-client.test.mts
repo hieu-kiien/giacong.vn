@@ -251,29 +251,31 @@ test("an accepted submit returns the reference to show as Mã", () => {
   assert.equal(parsed.status === "accepted" ? parsed.receivedAt : null, "2026-09-15T12:30:00.000Z");
 });
 
-test("an accepted RFQ snapshot can be restored in the same browser session", () => {
+test("an accepted RFQ snapshot restores without customer contact details", () => {
   const snapshot = {
     cart: resolvedCart(),
     contact,
     receivedAt: "2026-09-15T12:30:00.000Z",
     reference: "LEAD-ABC1234567",
   };
-  const restored = parseAcceptedRequest(serializeAcceptedRequest(snapshot));
+  const serialized = serializeAcceptedRequest(snapshot);
+  const restored = parseAcceptedRequest(serialized);
 
   assert.equal(REQUEST_CART_ACCEPTED_STORAGE_KEY, "giacong.request-cart.accepted.v1");
-  assert.deepEqual(restored, snapshot);
+  assert.equal(serialized.includes(contact.email), false);
+  assert.equal(serialized.includes(contact.phone), false);
+  assert.deepEqual(restored, { ...snapshot, contact: null });
 });
 
 test("an invalid or tampered accepted snapshot is never rendered", () => {
   const snapshot = {
     cart: resolvedCart(),
-    contact,
     receivedAt: "2026-09-15T12:30:00.000Z",
     reference: "LEAD-ABC1234567",
   };
   for (const value of [
     "not-json",
-    JSON.stringify({ ...snapshot, contact: { ...contact, email: 7 } }),
+    JSON.stringify({ ...snapshot, contact }),
     JSON.stringify({ ...snapshot, cart: { ...snapshot.cart, currency: "USD" } }),
     JSON.stringify({ ...snapshot, reference: "<script>" }),
   ]) {

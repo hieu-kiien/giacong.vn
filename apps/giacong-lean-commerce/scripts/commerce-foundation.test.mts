@@ -164,7 +164,7 @@ test("design tokens carry the measured commerce geometry", () => {
 
 // `brand` is the real giacong.vn green, taken from the Flatsome block every captured
 // page embeds inline (`:root {--primary-color: #5aa400}`). It supersedes the `#2f9e0b`
-// still recorded in `docs/research/DESIGN_TOKENS.md`, which is kept as historical
+// still recorded in `docs/archive/legacy-2026-09-27/research/DESIGN_TOKENS.md`, which is kept as historical
 // evidence. `brandDark` is derived from it, not measured. The rest are the measured
 // values from that document.
 test("commerce colour tokens match the live giacong.vn palette", () => {
@@ -294,10 +294,6 @@ test("demo products carry single-axis variants and ascending tier prices", () =>
       assert.ok(variant.unit.length > 0, `${variant.sku} must declare a unit`);
       assert.ok(variant.minimumOrderQuantity >= 1, `${variant.sku} must declare a MOQ`);
       assert.ok(variant.quantityStep >= 1, `${variant.sku} must declare a quantity step`);
-      assert.ok(
-        variant.contactFromQuantity > variant.minimumOrderQuantity,
-        `${variant.sku} must leave room below the contact threshold`,
-      );
       assert.ok(variant.tierPrices.length >= 2, `${variant.sku} must show a tier-price band`);
 
       let previousMin = 0;
@@ -372,7 +368,7 @@ test("a product with no usable variant is reported unavailable", () => {
       slug: "demo-het-hang",
       variants: [{ isAvailable: false, minimumOrderQuantity: 10, sku: "DEMO-OOS" }],
     }),
-    { kind: "unavailable", label: "Tạm hết hàng" },
+    { kind: "unavailable", label: "Chưa nhận yêu cầu qua website" },
   );
 });
 
@@ -459,6 +455,7 @@ test("the runtime dependency baseline stays explicit and no forbidden route appe
     Object.keys(manifest.dependencies).sort(),
     [
       "@base-ui/react",
+      "better-auth",
       "class-variance-authority",
       "clsx",
       "jose",

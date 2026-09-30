@@ -5,6 +5,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { AdminEmptyState, AdminErrorState, AdminLoadingTable, AdminPageHeading, AdminPagination, AdminStatusBadge } from "@/components/admin/AdminPrimitives";
 import { AdminModal } from "@/components/admin/AdminDialog";
 import { AdminCustomerDrawer } from "@/components/admin/AdminCustomerDrawer";
+import { AdminLeadSaleDialog } from "@/components/admin/AdminLeadSaleDialog";
 import { useAdminSession } from "@/components/admin/AdminShell";
 import { useAdminToast } from "@/components/admin/AdminToast";
 import { AdminClientError, fetchAdmin, formatAdminDate, mutateAdmin, type AdminLead, type LeadStatus } from "@/lib/admin-client";
@@ -107,6 +108,7 @@ export default function AdminLeadsPage() {
   const [query, setQuery] = useState("");
   const [inputQuery, setInputQuery] = useState("");
   const [detailLead, setDetailLead] = useState<LeadListItem | null>(null);
+  const [saleLead, setSaleLead] = useState<LeadListItem | null>(null);
   const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
@@ -447,7 +449,31 @@ export default function AdminLeadsPage() {
                 </ul>
               </section>
             ) : null}
+            {canManage && detailLead.items?.length ? (
+              <footer className="admin-modal-footer" style={{ justifyContent: "flex-start" }}>
+                <button
+                  className="admin-button admin-button-primary"
+                  data-testid="button-record-zalo-sale"
+                  onClick={() => {
+                    setSaleLead(detailLead);
+                    setDetailLead(null);
+                  }}
+                  type="button"
+                >
+                  Ghi nhận giao dịch đã chốt qua Zalo
+                </button>
+              </footer>
+            ) : null}
           </AdminModal>
+        ) : null}
+        {saleLead ? (
+          <AdminLeadSaleDialog
+            lead={saleLead}
+            onClose={() => {
+              setSaleLead(null);
+              setDetailLead(saleLead);
+            }}
+          />
         ) : null}
         {bulkStatusModal ? (
           <AdminModal labelledBy="lead-bulk-title" onClose={() => setBulkStatusModal(false)} title="Chuyển trạng thái yêu cầu hàng loạt">

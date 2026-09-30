@@ -118,9 +118,7 @@ export function buildProductDetailView({ product, related = [], isDemo = false }
 
   return {
     addToCartLabel: "Thêm vào giỏ yêu cầu",
-    availabilityLabel: isAvailable
-      ? `${usable.length}/${product.variants.length} quy cách có sẵn`
-      : "Tạm hết hàng",
+    availabilityLabel: `${product.variants.length} quy cách`,
     breadcrumb: buildBreadcrumb(product),
     categoryLabel: product.category?.name ?? null,
     defaultVariantSku: defaultVariant.sku,
@@ -244,7 +242,7 @@ function buildVariantView(
 }
 
 /**
- * Tier bands plus the closing contact band. The saving percentage is measured
+ * Configured tier bands. The saving percentage is measured
  * against the first band, and is only shown where that baseline is canonical —
  * the first band itself therefore reports no saving.
  */
@@ -268,21 +266,12 @@ function buildTierRows(variant: CatalogProductDetail["variants"][number]): Produ
     savingPercent: index === 0 || !baseline ? null : Math.round(((baseline - tier.price) / baseline) * 100),
   }));
 
-  rows.push({
-    minQuantity: variant.contactFromQuantity,
-    price: null,
-    priceLabel: CONTACT_PRICE_LABEL,
-    quantityLabel: `Từ ${variant.contactFromQuantity} ${variant.unit}`,
-    savingPercent: null,
-  });
   return rows;
 }
 
 function buildRelatedCard(product: CatalogProductParent, isDemo: boolean): ProductDetailRelatedCard {
   return {
-    availabilityLabel: product.availableVariantCount > 0
-      ? `${product.availableVariantCount}/${product.variantCount} quy cách có sẵn`
-      : "Tạm hết hàng",
+    availabilityLabel: `${product.variantCount} quy cách`,
     categoryLabel: product.category?.name ?? null,
     detailHref: `/san-pham/${encodeURIComponent(product.slug)}/`,
     imageUrl: product.imageUrl ?? (isDemo
@@ -312,14 +301,13 @@ export interface ProductDetailQuantityPricing {
 }
 
 /**
- * Snaps a requested quantity onto the variant's MOQ/step grid, then reads the tier
- * band that applies. At or above `contactFromQuantity` no figure is shown at all:
- * that band is quoted, so displaying the last tier price there would be wrong.
+ * Snaps a requested quantity onto the variant's MOQ/step grid, then reads the
+ * highest configured tier whose minimum does not exceed that quantity.
  */
 export function resolveQuantityPricing(
   variant: Pick<
     ProductDetailVariantView,
-    "contactFromQuantity" | "minimumOrderQuantity" | "quantityStep" | "tierPrices" | "unit"
+    "minimumOrderQuantity" | "quantityStep" | "tierPrices" | "unit"
   >,
   requested: number,
 ): ProductDetailQuantityPricing {
@@ -329,17 +317,6 @@ export function resolveQuantityPricing(
   });
 
   if (variant.tierPrices.length === 0) {
-    return {
-      needsContact: true,
-      quantity,
-      subtotal: null,
-      subtotalLabel: CONTACT_PRICE_LABEL,
-      unitPrice: null,
-      unitPriceLabel: CONTACT_PRICE_LABEL,
-    };
-  }
-
-  if (quantity >= variant.contactFromQuantity) {
     return {
       needsContact: true,
       quantity,

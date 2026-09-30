@@ -175,9 +175,8 @@ function specLabel(product: CatalogCardSource, priceVariant: CatalogVariant | nu
   return option && product.variantCount > 1 ? `${option} · ${count}` : option ?? count;
 }
 
-function availabilityLabel(product: CatalogCardSource, isAvailable: boolean): string {
-  if (!isAvailable) return "Tạm hết hàng";
-  return `Còn hàng · ${product.availableVariantCount}/${product.variantCount} quy cách`;
+function availabilityLabel(product: CatalogCardSource, _isAvailable: boolean): string {
+  return `${product.variantCount} quy cách`;
 }
 
 // ---------------------------------------------------------------------------

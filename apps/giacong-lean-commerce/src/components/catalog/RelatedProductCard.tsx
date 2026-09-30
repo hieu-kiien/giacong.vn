@@ -37,7 +37,6 @@ export function RelatedProductCard({ card }: RelatedProductCardProps) {
         </h3>
         <span className={styles.relatedPrice}>{card.priceLabel}</span>
         <span className={styles.relatedMeta}>{card.specificationLabel}</span>
-        <span className={styles.relatedAvailability}>{card.availabilityLabel}</span>
       </div>
     </article>
   );

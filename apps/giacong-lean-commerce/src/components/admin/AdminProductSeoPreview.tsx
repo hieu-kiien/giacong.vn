@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Globe, Share2, Search, Check } from "lucide-react";
+import { Globe, Share2, Search } from "lucide-react";
 
 export interface SeoData {
   seoTitle: string;
@@ -10,19 +10,11 @@ export interface SeoData {
   imageUrl?: string;
 }
 
-export function AdminProductSeoPreview({
-  initialData,
-  onChange,
-}: {
+export function AdminProductSeoPreview({ initialData }: {
   initialData: SeoData;
-  onChange: (data: SeoData) => void;
 }) {
   const data = initialData;
   const [activeTab, setActiveTab] = useState<"google" | "social">("google");
-
-  function updateSlug(slug: string) {
-    onChange({ ...data, slug });
-  }
 
   const titleLength = data.seoTitle.length;
   const descLength = data.seoDescription.length;
@@ -96,20 +88,6 @@ export function AdminProductSeoPreview({
             Tiêu đề và mô tả lấy từ tên, mô tả ngắn của sản phẩm. Muốn đổi nội dung, hãy sửa ở mục Thông tin chung.
           </small>
 
-          <div>
-            <label className="admin-field-label">Đường dẫn tĩnh (URL Slug)</label>
-            <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-              <span style={{ fontSize: 12, color: "#64748b" }}>/san-pham/</span>
-              <input
-                type="text"
-                className="admin-input"
-                placeholder="gia-cong-chi-tiet-cnc"
-                value={data.slug}
-                onChange={(e) => updateSlug(e.target.value)}
-                style={{ flex: 1 }}
-              />
-            </div>
-          </div>
         </div>
 
         {/* Live Visual Preview Card */}

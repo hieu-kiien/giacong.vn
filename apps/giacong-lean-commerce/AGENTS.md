@@ -12,14 +12,15 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 ## Decision source
 
-- [docs/CLOUDFLARE_NATIVE_V1_PLAN.md](docs/CLOUDFLARE_NATIVE_V1_PLAN.md) is the only current product/architecture decision source.
+- [docs/PROJECT_SCOPE_2026-09-27.md](docs/PROJECT_SCOPE_2026-09-27.md) is the current customer/product scope source.
+- [docs/CLOUDFLARE_NATIVE_V1_PLAN.md](docs/CLOUDFLARE_NATIVE_V1_PLAN.md) records technical architecture and safety constraints; it does not override the current customer scope.
 - [docs/CLOUDFLARE_CURRENT_STATE.md](docs/CLOUDFLARE_CURRENT_STATE.md) is the current runtime/audit evidence log. It records verified state but does not expand product scope by itself.
-- [docs/COMMERCE_PLATFORM_MASTER_PLAN.md](docs/COMMERCE_PLATFORM_MASTER_PLAN.md) is historical Bagisto-era planning evidence and is no longer a decision source.
-- [docs/README.md](docs/README.md) is the documentation index; keep new material under its existing categories.
-- `docs/research/` and `docs/design-references/` are historical research evidence, not target scope or product decisions.
-- [docs/UI_CURRENT_MAP.md](docs/UI_CURRENT_MAP.md) and [docs/ORIGINAL_GIACONG_VN_MAP.md](docs/ORIGINAL_GIACONG_VN_MAP.md) are descriptive interface evidence only.
+- [docs/archive/legacy-2026-09-27/COMMERCE_PLATFORM_MASTER_PLAN.md](docs/archive/legacy-2026-09-27/COMMERCE_PLATFORM_MASTER_PLAN.md) is historical Bagisto-era planning evidence and is not a decision source.
+- [docs/README.md](docs/README.md) is the documentation index; keep active documentation small and archive superseded planning material.
+- `docs/archive/legacy-2026-09-27/` contains historical planning and research, not current product decisions.
+- [docs/archive/legacy-2026-09-27/UI_CURRENT_MAP.md](docs/archive/legacy-2026-09-27/UI_CURRENT_MAP.md) and [docs/archive/legacy-2026-09-27/ORIGINAL_GIACONG_VN_MAP.md](docs/archive/legacy-2026-09-27/ORIGINAL_GIACONG_VN_MAP.md) are descriptive interface evidence only.
 - [docs/GOOGLE_SHEETS_CONTACT_WEBHOOK.md](docs/GOOGLE_SHEETS_CONTACT_WEBHOOK.md) describes the current request-intake webhook contract.
-- The `giacong-product-ai-handoff` pack is design input, not a decision source. Where it conflicts with the Cloudflare-native plan, the plan wins.
+- The `giacong-product-ai-handoff` pack is design input, not a decision source. [PROJECT_SCOPE_2026-09-27.md](docs/PROJECT_SCOPE_2026-09-27.md) governs customer/product behavior; the Cloudflare-native plan governs architecture and operational safety.
 
 ## Commands
 
@@ -49,15 +50,16 @@ Do not revive Bagisto as a runtime boundary. `bagisto/`, Bagisto-era adapters/te
 
 ## Lean V1 boundaries
 
-- Cloudflare D1 is the canonical commerce data source for catalog, variants, tier prices and managed service copy.
+- Cloudflare D1 is the canonical data source for catalog, variants, tier prices, customer contact/request history and confirmed sales. Customer/request/sales schemas and write contracts are product work to design before implementation.
 - Cloudflare R2 is the canonical product-media store; browser code never receives D1/R2 credentials.
-- The guest cart is preview-only `localStorage`; no server cart state or cart table. `/gui-yeu-cau` is the only cart route.
+- A visible storefront account entry with registration/login and customer history is in the confirmed product scope. Phase one uses Google; Google email must be verified before account history is available. Email/password waits until an email-verification service is configured, and phone-only login waits for a verification method. Every product purchase inquiry requires login, is saved to D1 with the authenticated account before handoff, and then opens the configured Zalo destination for consultation/closing. All sales are closed through Zalo; there is no web checkout or online payment. Staff records confirmed Zalo sales in Admin/D1, the canonical source, then syncs to Google Sheets without manual double entry. Zalo messages themselves are not automatically captured by the site. Do not add stock tracking or customer-facing in-stock/out-of-stock labels; staff hides unavailable products with the existing publish/visibility status. Keep customer admin to contact/request care and sale history; do not add a broad CRM, checkout or shipping workflow without a product decision.
+- The storefront request cart is a way to collect items for a consultation, not an order or checkout. Do not open Zalo before the authenticated request is persisted successfully. The account history shows requests and confirmed sales as distinct records with clear statuses. The server derives account ID from the authenticated session and returns only that account's records; never trust a client-supplied account ID. No PII is embedded in the prefilled Zalo message. Exact request status labels and contact verification/recovery/account linking still need configuration/design decisions. The official Zalo URL is https://zalo.me/0947142999. Product quantity tiers stay visible; no quantity-based routing threshold.
 - The server re-reads D1 and computes canonical price/totals/request type; never trust client-supplied money.
-- There are no customer accounts, checkout, `/thanh-toan`, payment, shipping, Bagisto order or quote engine in V1.
+- Online payment is out of scope. Extra checkout/shipping behavior beyond submitting a request and recording confirmed sales remains unconfirmed; do not add it without a product decision.
 - Do not add rating, review or favorite.
-- Google Sheet + Apps Script remains the request queue until a separate decision changes it.
+- Google Sheet + Apps Script receives synchronized operational copies. Admin/D1 is canonical for request history and confirmed sales; sale sync must upsert by stable sale ID and remain retry-safe. The Apps Script source is `docs/google-apps-script-contact-webhook.gs`.
 - A Cloudflare-native admin is now in scope, but only behind an audited admin authentication boundary and only after server-side D1/R2 write contracts and tests are locked. Do not expose admin writes on the public storefront as an unauthenticated shortcut.
-- The V1 admin has no customer identity. The sole active role is “Admin toàn quyền”, persisted as `owner` (user decision 2026-09-07, superseding the five-role decision of 2026-08-23). Retired roles must fail admission and capability checks; never promote them implicitly. Preserve Access authentication, last-owner protections and audit history.
+- Storefront customer accounts and account-visible purchase history do not grant access to Admin; customer care in Admin is limited to the contact/request history and confirmed sales specified in the product brief. This is not a general-purpose CRM and uses a separate customer authentication boundary. The sole active Admin role is “Admin toàn quyền”, persisted as `owner` (user decision 2026-09-07, superseding the five-role decision of 2026-08-23). Retired roles must fail admission and capability checks; never promote them implicitly. Preserve Access authentication, last-owner protections and audit history.
 - `admin-staging.kienhieu.id.vn` is the staging admin hostname target. `admin.kienhieu.id.vn` is production-only and must not be activated before the production acceptance gate.
 - Production Worker/data/routes stay untouched until all gates in the Cloudflare-native plan are satisfied.
 - Do not create demo production data implicitly; staging demo data is not production seed data.

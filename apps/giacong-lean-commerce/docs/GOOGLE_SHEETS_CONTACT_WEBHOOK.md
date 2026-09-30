@@ -1,6 +1,16 @@
 # Webhook liên hệ Google Sheets
 
-Template [google-apps-script-contact-webhook.gs](google-apps-script-contact-webhook.gs) nhận JSON từ `POST /api/contact` và lưu vào tab `Yêu cầu`. Nếu tab chưa có, script tạo đúng 15 cột A:O: `Mã`, `Thời gian`, `Loại`, `Sản phẩm/Dịch vụ`, `Biến thể`, `Số lượng`, `Họ tên`, `Điện thoại`, `Email`, `Nội dung`, `Nguồn`, `Trạng thái`, `Người phụ trách`, `Ghi chú`, `Cập nhật lần cuối`.
+Template [google-apps-script-contact-webhook.gs](google-apps-script-contact-webhook.gs) nhận intake từ `POST /api/contact` vào tab `Yêu cầu` và bản sao giao dịch nhân viên đã chốt qua Zalo từ D1 vào hai tab giao dịch. Sheet là bản sao vận hành; Admin/D1 vẫn là nguồn dữ liệu gốc.
+
+## Đồng bộ giao dịch Zalo đã chốt
+
+Admin lưu giao dịch, các dòng hàng snapshot, audit và một dòng `google_sheet_sales_outbox` trạng thái `pending` trong cùng batch D1. Worker chỉ nhận `{ type: "zalo-sale", saleId }`, đọc lại giá và nội dung từ D1 rồi gửi `sale.confirmed`; browser không gửi giá làm nguồn đồng bộ. Nếu binding queue không có hoặc enqueue lỗi, route thử webhook đồng bộ ngay. Outbox chỉ thành `delivered` sau JSON ACK có đúng cả `sale_id` và `sale_code`; lỗi giữ `pending` để queue retry hoặc thành `failed` khi hết lần thử/synchronous fallback lỗi.
+
+Apps Script dùng cùng `ScriptLock` như intake. Tab `Giao dịch đã chốt` có `sale_id`, mã, yêu cầu nguồn, thời điểm, khách và tổng; `Chi tiết giao dịch` có `sale_id`, `sale_line_id`, snapshot sản phẩm, số lượng và đơn giá. Cả hai tab được bảo vệ chỉ đọc. Các khóa UUID ổn định được upsert chính xác dưới lock; cùng ID và cùng `snapshot_sha256` được replay an toàn, còn cùng ID với snapshot khác bị từ chối. Chi tiết được ghi trước và dòng giao dịch là commit marker; script chỉ trả ACK sau `flush()` và đọc lại xác nhận đủ header cùng toàn bộ 16 cột snapshot của mọi dòng hàng.
+
+Queue producer/consumer `GIACONG_VN_LEAD_QUEUE` và DLQ hiện có được tái dùng, không cần queue binding mới. Consumer đặt tối đa ba lần retry theo Wrangler; bản ghi vào DLQ cần được vận hành viên kiểm tra và replay sau khi sửa lỗi cấu hình/webhook. D1/outbox là nơi đối soát trạng thái, không nhập giao dịch bằng tay lần nữa trong Sheet.
+
+Nếu đồng bộ kết thúc ở trạng thái `failed`, nhân viên mở lại giao dịch trong Admin và bấm **Thử đồng bộ lại Google Sheets**. Endpoint gửi lại snapshot đọc từ D1 theo đúng `sale_id` hiện có nên không tạo giao dịch hoặc dòng bán mới; Apps Script upsert theo ID ổn định. Nếu lần thử vẫn lỗi, trạng thái tiếp tục là `failed` và nút thử lại còn hiển thị. Lỗi còn nằm trong queue/DLQ vẫn cần vận hành viên kiểm tra và replay theo hướng dẫn queue.
 
 Mỗi submit được server chấp nhận tạo một `Mã` và dòng mới. Mỗi form public
 tạo một `request_id` ổn định cho một lần gửi; server giữ và truyền mã này qua
@@ -31,16 +41,16 @@ Ba tính chất vận hành cần biết:
 ## Thiết lập thủ công
 
 1. Tạo Google Sheet của đội ngũ, mở **Extensions → Apps Script** và dán template.
-2. **Production bắt buộc đặt secret:** thêm Script Property `WEBHOOK_SECRET`; đặt đúng cùng giá trị trong biến môi trường Next.js. Code vẫn hỗ trợ secret trống cho local/test theo quyết định Lean V1, nhưng không được dùng cấu hình đó ở production.
-3. Deploy **Web app**, chạy dưới tài khoản sở hữu sheet, cấp quyền ghi sheet và chọn quyền truy cập cho phép request **không đăng nhập** (webhook không có phiên Google). Secret ở bước 2 là lớp bảo vệ bắt buộc cho deployment public này.
+2. Trước khi redeploy script, xác nhận Script Property `CONTACT_WEBHOOK_SECRET` tồn tại và khớp giá trị Worker `GOOGLE_SHEETS_WEBHOOK_SECRET`. Script từ chối mọi request (cả intake hiện tại và giao dịch mới) nếu property thiếu/rỗng hoặc secret không khớp; không có secret mặc định.
+3. Deploy **Web app**, chạy dưới tài khoản sở hữu sheet, cấp quyền ghi sheet và chọn quyền truy cập cho phép request **không đăng nhập** (webhook không có phiên Google). Secret ở bước 2 bảo vệ deployment public này.
 4. Sao chép URL `/exec` rồi đặt `GOOGLE_SHEETS_WEBHOOK_URL`. Chỉ dùng URL HTTPS của `script.google.com` hoặc `script.googleusercontent.com`; không đưa URL hoặc secret vào mã nguồn hay biến `NEXT_PUBLIC_*`.
-5. Gửi một form liên hệ thử và kiểm tra dòng mới có trạng thái `Mới` trong tab `Yêu cầu`.
+5. Gửi một form liên hệ thử và kiểm tra dòng mới có trạng thái `Mới` trong tab `Yêu cầu`. Sau khi rollout phần giao dịch, xác nhận Admin ghi một giao dịch thử vào D1 rồi kiểm tra hai tab giao dịch có một header cùng dòng hàng, và replay cùng `sale_id` không tạo hàng trùng.
 
-Template kiểm tra cơ bản tên, điện thoại, email và contract context do server gửi; đồng thời ép mọi dữ liệu text thành text an toàn trước khi ghi Sheet để không thực thi công thức bắt đầu bằng `=`, `+`, `-` hoặc `@`. Next.js chỉ chấp nhận phản hồi JSON chính xác dạng `{ "ok": true, "reference": "..." }`. Khi thay đổi deployment hoặc secret, cập nhật biến môi trường trên host rồi redeploy Next.js.
+Template kiểm tra cơ bản tên, điện thoại, email và contract context do server gửi; đồng thời ép mọi dữ liệu text thành text an toàn trước khi ghi Sheet để không thực thi công thức bắt đầu bằng `=`, `+`, `-` hoặc `@`. Next.js chỉ chấp nhận JSON phù hợp của intake hoặc ACK giao dịch khớp `sale_id`/`sale_code`. Khi thay đổi script hoặc secret, owner phải cập nhật và redeploy Apps Script Web app; cập nhật `GOOGLE_SHEETS_WEBHOOK_SECRET` trên host tương ứng rồi redeploy Worker.
 
 ## Thiết lập vận hành bởi owner
 
-Sau khi dán script, owner chạy một lần `setupRequestWorkbook()` trong Apps Script. Hàm này tạo/làm mới validation cho `Loại` và `Trạng thái`, bảo vệ sheet với vùng L:N là vùng vận hành, tạo `Chi tiết giỏ hàng` được bảo vệ toàn bộ, và tạo `Tổng quan` với hai số đếm. `onEdit(event)` là simple trigger cho sửa một ô L:N: kiểm tra transition trạng thái, yêu cầu người phụ trách khi rời `Mới`, rồi cập nhật cột O.
+Sau khi dán script, owner chạy một lần `setupRequestWorkbook()` trong Apps Script. Hàm này tạo/làm mới validation cho `Loại` và `Trạng thái`, bảo vệ sheet với vùng L:N là vùng vận hành, tạo `Chi tiết giỏ hàng` được bảo vệ toàn bộ, và tạo `Tổng quan` với hai số đếm. Hai tab giao dịch được tạo và khóa khi sale đầu tiên được nhận; nếu tạo trước, tên/cột phải khớp header trong template. `onEdit(event)` là simple trigger cho sửa một ô L:N: kiểm tra transition trạng thái, yêu cầu người phụ trách khi rời `Mới`, rồi cập nhật cột O.
 
 Sau khi cập nhật template lên bản có nhánh giỏ, owner phải **chạy lại `setupRequestWorkbook()`** rồi redeploy Web app; chạy lại là idempotent và không xóa dòng chi tiết đã có.
 

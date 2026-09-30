@@ -1,0 +1,316 @@
+.main {
+  min-height: 50vh;
+}
+
+.contentSection {
+  background: linear-gradient(180deg, #fff 0%, #f5f9f1 100%);
+  min-height: 430px;
+  padding: 60px 24px 88px;
+}
+
+.card {
+  background: #fff;
+  border: 1px solid #e2eadc;
+  border-radius: 20px;
+  box-shadow: 0 16px 42px rgb(31 58 30 / 8%);
+  margin: 0 auto;
+  max-width: 500px;
+  padding: 34px;
+}
+
+.cardTitle {
+  color: #202b20;
+  font-size: clamp(24px, 3vw, 30px);
+  font-weight: 720;
+  letter-spacing: -0.035em;
+  line-height: 1.2;
+  margin: 0;
+}
+
+.cardCopy {
+  color: #5e695c;
+  font-size: 15px;
+  line-height: 1.6;
+  margin: 10px 0 0;
+}
+
+.authMethods {
+  margin-top: 23px;
+}
+
+.modeSwitcher {
+  background: #f1f5ee;
+  border: 1px solid #e1e9dc;
+  border-radius: 13px;
+  display: grid;
+  gap: 4px;
+  grid-template-columns: 1fr 1fr;
+  margin-bottom: 19px;
+  padding: 4px;
+}
+
+.modeSwitcher button {
+  background: transparent;
+  border: 0;
+  border-radius: 9px;
+  color: #5d6958;
+  cursor: pointer;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 650;
+  min-height: 44px;
+  padding: 9px 12px;
+}
+
+.modeSwitcher .modeActive {
+  background: #fff;
+  box-shadow: 0 1px 4px rgb(28 48 25 / 9%);
+  color: #315f19;
+}
+
+.modeSwitcher button:focus-visible {
+  outline: 3px solid #3f7300;
+  outline-offset: 2px;
+}
+
+.authForm {
+  display: grid;
+  gap: 15px;
+}
+
+.field {
+  color: #344632;
+  display: grid;
+  font-size: 14px;
+  font-weight: 650;
+  gap: 7px;
+}
+
+.field input {
+  appearance: none;
+  background: #fff !important;
+  border: 1px solid #d4dfcf !important;
+  border-radius: 11px !important;
+  box-shadow: none !important;
+  color: #243223 !important;
+  font: inherit !important;
+  font-size: 15px !important;
+  height: 49px !important;
+  margin: 0 !important;
+  min-width: 0;
+  padding: 11px 13px !important;
+  text-transform: none !important;
+}
+
+.field input:focus {
+  border-color: #4b7c30 !important;
+  box-shadow: 0 0 0 3px rgb(82 131 54 / 20%) !important;
+  outline: none;
+}
+
+.submitButton {
+  background: #3f7a25;
+  border: 1px solid #3f7a25;
+  border-radius: 11px;
+  color: #fff;
+  cursor: pointer;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 700;
+  min-height: 50px;
+  padding: 12px 18px;
+  transition: background-color 150ms ease, box-shadow 150ms ease;
+}
+
+.submitButton:hover:not(:disabled) {
+  background: #356b24;
+  box-shadow: 0 4px 10px rgb(37 68 31 / 15%);
+}
+
+.submitButton:focus-visible {
+  outline: 3px solid #3f7300;
+  outline-offset: 3px;
+}
+
+.submitButton:disabled {
+  cursor: wait;
+  opacity: 0.72;
+}
+
+.formError,
+.formNotice {
+  border-radius: 10px;
+  font-size: 13px;
+  line-height: 1.55;
+  margin: 0;
+  padding: 10px 12px;
+}
+
+.formError {
+  background: #fff6f3;
+  border: 1px solid #f2d4ca;
+  color: #963b25;
+}
+
+.formNotice {
+  background: #f1f7eb;
+  border: 1px solid #d8e8cc;
+  color: #315f19;
+}
+
+.divider {
+  align-items: center;
+  color: #697466;
+  display: flex;
+  font-size: 12px;
+  gap: 12px;
+  margin: 15px 0 0;
+}
+
+.divider::before,
+.divider::after {
+  background: #e6ebe2;
+  content: "";
+  flex: 1;
+  height: 1px;
+}
+
+.googleButtonWrap {
+  margin: 18px 0 0;
+}
+
+.googleButtonWrap :global(button.button.primary.is-large.expand) {
+  align-items: center;
+  background: #fff !important;
+  border: 1px solid #d3dfce !important;
+  border-radius: 13px !important;
+  box-shadow: 0 2px 5px rgb(28 48 25 / 4%) !important;
+  color: #263526 !important;
+  cursor: pointer;
+  display: flex;
+  font-family: inherit !important;
+  font-size: 15px !important;
+  font-weight: 700 !important;
+  gap: 11px;
+  justify-content: center;
+  letter-spacing: 0 !important;
+  line-height: 1.35 !important;
+  min-height: 54px;
+  padding: 14px 18px !important;
+  text-transform: none !important;
+  transition: background-color 150ms ease, border-color 150ms ease, box-shadow 150ms ease, transform 150ms ease;
+  width: 100%;
+}
+
+.googleButtonWrap :global(button.button.primary.is-large.expand)::before {
+  color: #4285f4;
+  content: "G";
+  font-family: Arial, sans-serif;
+  font-size: 20px;
+  font-weight: 750;
+  line-height: 1;
+}
+
+.googleButtonWrap :global(button.button.primary.is-large.expand:hover:not(:disabled)) {
+  background: #fbfdf9 !important;
+  border-color: #91ad7f !important;
+  box-shadow: 0 5px 12px rgb(37 68 31 / 8%) !important;
+  transform: translateY(-1px);
+}
+
+.googleButtonWrap :global(button.button.primary.is-large.expand:focus-visible) {
+  outline: 3px solid #3f7300;
+  outline-offset: 3px;
+}
+
+.googleButtonWrap :global(button.button.primary.is-large.expand:disabled) {
+  cursor: wait;
+  opacity: 0.72;
+}
+
+.googleButtonWrap :global([role="alert"]) {
+  background: #fff6f3;
+  border: 1px solid #f2d4ca;
+  border-radius: 10px;
+  color: #963b25;
+  line-height: 1.55;
+  margin: 12px 0 0;
+  padding: 10px 12px;
+}
+
+.emailNote {
+  background: #f7faf4;
+  border: 1px solid #e2ebdc;
+  border-radius: 12px;
+  color: #52604e;
+  font-size: 13px;
+  line-height: 1.6;
+  margin: 0;
+  padding: 12px 14px;
+}
+
+.homeLink {
+  align-items: center;
+  border: 1px solid #e2eadc;
+  border-radius: 10px;
+  color: #3f7300;
+  display: flex;
+  font-size: 14px;
+  font-weight: 650;
+  gap: 8px;
+  justify-content: center;
+  margin: 18px auto 0;
+  min-height: 44px;
+  padding: 9px 14px;
+  text-decoration: none;
+  width: fit-content;
+}
+
+.homeLink:hover {
+  background: #f7faf4;
+  border-color: #b9cfae;
+  color: #315f19;
+}
+
+.homeLink:focus-visible {
+  outline: 3px solid #3f7300;
+  outline-offset: 3px;
+}
+
+@media (max-width: 820px) {
+  .contentSection {
+    min-height: 380px;
+    padding: 42px 18px 68px;
+  }
+
+  .card {
+    border-radius: 17px;
+    padding: 28px 24px;
+  }
+
+  .cardTitle {
+    font-size: 26px;
+  }
+
+  .authMethods {
+    margin-top: 20px;
+  }
+}
+
+@media (max-width: 360px) {
+  .contentSection {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
+  .card {
+    padding: 24px 18px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .submitButton,
+  .googleButtonWrap :global(button.button.primary.is-large.expand) {
+    transition: none;
+  }
+}

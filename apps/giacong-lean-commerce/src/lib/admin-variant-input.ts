@@ -16,18 +16,14 @@ export function parseAdminVariantPayload(
   const imageUrl = parseImage(merged.imageUrl, fieldErrors);
   const moq = positiveInteger(merged.moq, "MOQ", fieldErrors, "moq");
   const quantityStep = positiveInteger(merged.quantityStep, "Bước số lượng", fieldErrors, "quantityStep");
+  // Legacy D1/API field. It no longer controls the price bands or request route.
   const contactFromQuantity = positiveInteger(merged.contactFromQuantity, "Ngưỡng liên hệ", fieldErrors, "contactFromQuantity");
   const attributeId = positiveInteger(merged.attributeId, "Attribute ID", fieldErrors, "attributeId");
   const optionId = nonNegativeInteger(merged.optionId, "Option ID", fieldErrors, "optionId");
   const sortOrder = nonNegativeInteger(merged.sortOrder, "Thứ tự", fieldErrors, "sortOrder");
   const isAvailable = merged.isAvailable !== false;
-  const tierPrices = parseTiers(merged.tierPrices, moq, quantityStep, contactFromQuantity, fieldErrors);
+  const tierPrices = parseTiers(merged.tierPrices, moq, quantityStep, fieldErrors);
   const revision = merged.revision === undefined ? undefined : positiveInteger(merged.revision, "Revision", fieldErrors, "revision");
-
-  if (contactFromQuantity <= moq) fieldErrors.contactFromQuantity = "Ngưỡng liên hệ phải lớn hơn MOQ.";
-  if (quantityStep > 0 && (contactFromQuantity - moq) % quantityStep !== 0) {
-    fieldErrors.contactFromQuantity = "Ngưỡng liên hệ phải khớp MOQ và bước số lượng.";
-  }
 
   if (Object.keys(fieldErrors).length > 0) return { fieldErrors, input: null };
   return {
@@ -78,7 +74,6 @@ function parseTiers(
   value: unknown,
   moq: number,
   step: number,
-  contactFromQuantity: number,
   errors: Record<string, string>,
 ): AdminProductVariantInput["tierPrices"] {
   if (value === undefined || value === null) return [];
@@ -93,8 +88,8 @@ function parseTiers(
     const price = positiveInteger(row.price, `Bậc ${index + 1} · giá`, errors, `tierPrices.${index}.price`);
     if (seen.has(minQuantity)) errors.tierPrices = "Không được lặp số lượng tối thiểu.";
     seen.add(minQuantity);
-    if (minQuantity < moq || minQuantity >= contactFromQuantity || (minQuantity - moq) % step !== 0) {
-      errors.tierPrices = "Mỗi bậc phải từ MOQ đến trước ngưỡng liên hệ và khớp bước số lượng.";
+    if (minQuantity < moq || (minQuantity - moq) % step !== 0) {
+      errors.tierPrices = "Mỗi bậc phải từ MOQ và khớp bước số lượng.";
     }
     return { currency: "VND" as const, minQuantity, price };
   }).sort((a, b) => a.minQuantity - b.minQuantity);

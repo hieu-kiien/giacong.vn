@@ -13,7 +13,6 @@ interface VariantDraft {
   attributeCode: string;
   attributeId: string;
   attributeLabel: string;
-  contactFromQuantity: string;
   imageUrl: string;
   isAvailable: boolean;
   moq: string;
@@ -32,7 +31,6 @@ const blankDraft: VariantDraft = {
   attributeCode: "b2b_variant",
   attributeId: "31",
   attributeLabel: "Phiên bản",
-  contactFromQuantity: "100",
   imageUrl: "",
   isAvailable: true,
   moq: "1",
@@ -102,7 +100,9 @@ export function AdminVariantPanel({ productId }: { productId: number }) {
     const payload = {
       ...draft,
       attributeId: Number(draft.attributeId),
-      contactFromQuantity: Number(draft.contactFromQuantity),
+      contactFromQuantity: editingId
+        ? variants.find((variant) => variant.id === editingId)?.contactFromQuantity ?? 1
+        : Math.max(Number(draft.moq), ...draft.tierPrices.map((tier) => Number(tier.minQuantity))) + Number(draft.quantityStep),
       moq: Number(draft.moq),
       optionId: Number(draft.optionId),
       quantityStep: Number(draft.quantityStep),
@@ -173,13 +173,12 @@ export function AdminVariantPanel({ productId }: { productId: number }) {
       {error ? <p className="admin-editor-error" role="alert">{error.code ? `${error.code} · ` : ""}{error.message}</p> : null}
       <div className="admin-table-scroll">
         <table className="admin-table">
-          <thead><tr><th>Biến thể</th><th>Tối thiểu / bước</th><th>Ngưỡng liên hệ</th><th>Bảng giá</th><th>Trạng thái</th><th /></tr></thead>
+          <thead><tr><th>Biến thể</th><th>Tối thiểu / bước</th><th>Bảng giá</th><th>Trạng thái</th><th /></tr></thead>
           <tbody>
             {variants.map((variant) => (
               <tr key={variant.id}>
                 <td><strong>{variant.name}</strong><div className="admin-item-meta">{variant.sku} · {variant.optionLabel}</div></td>
                 <td className="admin-mono">{variant.moq} / {variant.quantityStep} {variant.unit}</td>
-                <td className="admin-mono">{variant.contactFromQuantity}</td>
                 <td className="admin-mono">{formatTiers(variant.tierPrices)}</td>
                 <td>{variant.isAvailable ? "Đang bán" : "Đã ẩn"}</td>
                 <td>
@@ -206,7 +205,6 @@ export function AdminVariantPanel({ productId }: { productId: number }) {
           <Field label="Đơn vị" value={draft.unit} onChange={(value) => updateDraft("unit", value)} required />
           <Field label="Số lượng tối thiểu (MOQ)" mono type="number" min="1" value={draft.moq} onChange={(value) => updateDraft("moq", value)} required />
           <Field label="Bước số lượng" mono type="number" min="1" value={draft.quantityStep} onChange={(value) => updateDraft("quantityStep", value)} required />
-          <Field label="Ngưỡng liên hệ" mono type="number" min="2" value={draft.contactFromQuantity} onChange={(value) => updateDraft("contactFromQuantity", value)} required />
           <Field label="Thứ tự" mono type="number" min="0" value={draft.sortOrder} onChange={(value) => updateDraft("sortOrder", value)} required />
         </div>
         <details className="admin-variant-advanced">
@@ -232,9 +230,9 @@ export function AdminVariantPanel({ productId }: { productId: number }) {
             <tbody>
               {draft.tierPrices.map((tier, index) => (
                 <tr key={`${index}-${tier.minQuantity}`}>
-                  <td><input aria-label={`Bậc ${index + 1} số lượng`} className="admin-input admin-mono" min="1" onChange={(event) => updateTier(index, "minQuantity", event.target.value)} required={index === 0} type="number" value={tier.minQuantity} /></td>
-                  <td><input aria-label={`Bậc ${index + 1} giá`} className="admin-input admin-mono" min="1" onChange={(event) => updateTier(index, "price", event.target.value)} required={index === 0} type="number" value={tier.price} /></td>
-                  <td>{draft.tierPrices.length > 1 ? <button className="admin-button admin-button-danger" onClick={() => updateDraft("tierPrices", draft.tierPrices.filter((_, tierIndex) => tierIndex !== index))} type="button">Xóa</button> : null}</td>
+                  <td><input aria-label={`Bậc ${index + 1} số lượng`} className="admin-input admin-mono" min="1" onChange={(event) => updateTier(index, "minQuantity", event.target.value)} required type="number" value={tier.minQuantity} /></td>
+                  <td><input aria-label={`Bậc ${index + 1} giá`} className="admin-input admin-mono" min="1" onChange={(event) => updateTier(index, "price", event.target.value)} required type="number" value={tier.price} /></td>
+                  <td><button className="admin-button admin-button-danger" onClick={() => updateDraft("tierPrices", draft.tierPrices.filter((_, tierIndex) => tierIndex !== index))} type="button">Xóa</button></td>
                 </tr>
               ))}
             </tbody>
@@ -284,7 +282,6 @@ function toDraft(variant: AdminProductVariant): VariantDraft {
     attributeCode: variant.attributeCode,
     attributeId: String(variant.attributeId),
     attributeLabel: variant.attributeLabel,
-    contactFromQuantity: String(variant.contactFromQuantity),
     imageUrl: variant.imageUrl ?? "",
     isAvailable: variant.isAvailable,
     moq: String(variant.moq),

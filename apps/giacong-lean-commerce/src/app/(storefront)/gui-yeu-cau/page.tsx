@@ -38,7 +38,7 @@ export default async function RequestCartPage() {
             </div>
           </header>
           <div className="row align-center">
-            <div className="large-12 col"><RequestCartView contactEmail={settings.contact_email} /></div>
+            <div className="large-12 col"><RequestCartView contactZaloUrl={settings.contact_zalo_url} /></div>
           </div>
         </div>
       </main>

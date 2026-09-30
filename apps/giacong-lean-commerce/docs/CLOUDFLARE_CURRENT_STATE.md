@@ -1,4 +1,17 @@
-# Cloudflare current state — 2026-09-16
+# Cloudflare current state — 2026-09-28
+
+> Các mục dưới đây là snapshot theo ngày và môi trường, không phải quyết định phạm vi sản phẩm hiện hành. Những phát biểu cũ về tài khoản khách, request inbox, Google Sheet hoặc vai trò Admin đã được [phạm vi 2026-09-27](PROJECT_SCOPE_2026-09-27.md) và [AGENTS.md](../AGENTS.md) thay thế. Đọc mốc ngày và bằng chứng triển khai trước khi suy ra trạng thái runtime hiện tại.
+
+## Khách hàng Google, giao dịch Zalo và Sheets — cập nhật staging 2026-09-28
+
+- Code trong worktree hiện có các migration `0032_customer_auth.sql` đến `0034_link_leads_to_customer.sql`, nối tiếp migration `0031_product_slug_redirects.sql` đã có trên D1. Snapshot staging trước migration nằm tại `.runtime/handover-20260927/staging-before-customer-orders.sql`, SHA-256 `add647d0965258a49360e56ef75191543657a6642b4249e0e57ec02b5ec9944d`; restore-drill trên snapshot đạt `integrity_check=ok`, 0 lỗi khóa ngoại, giữ nguyên 10 yêu cầu. Cả ba migration đã apply trên D1 staging ngày 2026-09-27; `migrations list` không còn pending, bảy bảng mới và hai cột liên kết yêu cầu đã đọc lại, 10 yêu cầu vẫn còn và `foreign_key_check` rỗng. Production chưa apply migration.
+- Google Cloud project `Giacong VN Staging Auth` có OAuth client Web `Kienhieu Staging Web`, chế độ External/Testing, callback duy nhất `https://staging.kienhieu.id.vn/api/auth/callback/google`. Vì Google không hiển thị lại secret cũ, đã tạo secret thay thế rồi lưu `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` và `BETTER_AUTH_SECRET` dưới dạng encrypted secrets trên Worker `giacong-vn-staging`; dashboard vẫn giữ đủ ba biến sau deploy. Production OAuth và secrets production không bị thay đổi.
+- Đã xác định đúng tài khoản Google dự án, Sheet `Yêu cầu báo giá Giacong` và Apps Script gắn với Sheet. Web App đang hoạt động ở phiên bản 3, quyền truy cập hiện tại là `Bất kỳ ai`; Script Property tên `CONTACT_WEBHOOK_SECRET` có tồn tại. Cây trợ năng của Chrome đã trả kèm giá trị property trong kết quả kiểm tra; giá trị không được sao chép vào source, nhưng cần xem là lộ trong task trace và xoay trước khi tiếp tục dùng. Worker staging/production đều có secrets webhook, nhưng chưa đối chiếu endpoint theo môi trường; chưa redeploy Apps Script vì có thể ảnh hưởng intake đang chạy. Template local giữ contract intake 15 cột, bổ sung `sale.confirmed`, và trước ACK đối chiếu lại toàn bộ 16 cột của từng dòng giao dịch; bản kiểm tra đầy đủ này mới nằm trong worktree, chưa được deploy lên Apps Script đang chạy. Đồng bộ giao dịch chưa được nghiệm thu live.
+- Chủ dự án xác nhận giữ URL Zalo `https://zalo.me/0947142999`; cấu hình đã được đọc lại và khớp ở staging lẫn production.
+- OpenNext build ngày 2026-09-28 compile TypeScript và tạo 41/41 route; do D1 local thiếu `site_settings`, `site_navigation_items` và `site_pages`, generator dùng defaults/fallback capture. Candidate đã deploy staging bằng Wrangler `--keep-vars`, giữ lại routes, domains và dashboard vars; Cloudflare Deployments xác nhận version `fed705b0-f2c9-4624-a0c4-b043857d58f2` đang nhận 100% traffic. Browser trên `https://staging.kienhieu.id.vn/` thấy link `Tài khoản`; trang `/tai-khoan/dang-nhap/` hiện nút Google. GET `/api/auth/get-session` trả `200 null` khi chưa đăng nhập; POST `/api/auth/sign-in/social` tạo Google authorization URL có callback staging chính xác và scope `openid email profile`. `/tai-khoan/` chuyển khách chưa đăng nhập sang trang đăng nhập. Chưa hoàn thành callback/Google consent hoặc ghi hồ sơ khách vào D1; không đưa profile Google cá nhân vào website trong lần kiểm tra này.
+- Production vẫn chưa đổi: Worker tiếp tục chạy version `a2ffab9c-1dfa-4c10-9edb-57154a44c02d` ở 100%; D1 production còn pending `0029_b2b_crm_core_schema.sql`, `0030_product_tech_specs_and_media.sql` và `0032–0034` (chỉ đọc, không apply). Không deploy production hoặc sửa production secrets.
+- Kiểm tra local ngày 2026-09-27: `npm run check`, `npm run cf:build:staging` và Wrangler dry-run đều exit `0`; các test suite pass. Build dùng committed defaults do D1 local chưa có `site_settings`/`site_navigation_items`; kết quả này không thay thế runtime QA với D1 đã migrate. Chưa đưa code candidate vào staging traffic.
+- Staging còn cần đăng nhập Google end-to-end bằng identity/dữ liệu thử được duyệt, rồi xác nhận tạo tài khoản và đọc lịch sử trong D1/Admin. Riêng đồng bộ Sheet vẫn chưa nghiệm thu: cần xác nhận webhook staging tách khỏi intake đang chạy, xoay secret webhook từng xuất hiện trong task trace, rồi triển khai Apps Script đúng đích và chạy round-trip với dữ liệu thử. Không đưa các thay đổi này lên production; chỉ xét production sau các gate và phê duyệt riêng.
 
 ## Production motion/cache follow-up — 2026-09-19
 
@@ -194,7 +207,7 @@ Checkpoint này là trạng thái mới nhất; các checkpoint production/stagi
   Không reset/clean/commit/push; không mutation D1/R2; production chỉ đọc.
 - P0 mapping khóa có điều kiện tại
   `.runtime/admin-commerce-recovery/p0-mapping-2026-09-07.md`; chi tiết ở
-  `docs/ADMIN_COMMERCE_RECOVERY_HANDOFF.md` §7.
+  `docs/archive/legacy-2026-09-27/ADMIN_COMMERCE_RECOVERY_HANDOFF.md` §7.
 - Runtime staging do Đội D đo độc lập: `/gia-cong-sot-cham/` HTTP 200
   (breadcrumb SSR `Trang chủ » Gia Công Sốt Chấm`), `/thue-gia-cong/gia-cong-sot-cham`
   HTTP 200 (crumb `Trang chủ / Thuê gia công`); trailing-slash 308; submenu SSR
@@ -249,7 +262,7 @@ Danh sách thành viên staging hiện chỉ có 1 owner. Quyết định 2026-0
 Admin toàn quyền (`owner`) đã thay thế mô hình năm role; không còn yêu cầu bốn
 identity cho role cũ. Các gate production còn mở theo
 `PRODUCTION_ACCEPTANCE_CHECKLIST.md`. Chi tiết kiểm chứng ở
-[ADMIN_QUALITY_REVIEW.md](ADMIN_QUALITY_REVIEW.md).
+[bản review cũ](archive/legacy-2026-09-27/ADMIN_QUALITY_REVIEW.md).
 
 Hồ sơ này ghi bằng chứng runtime đã xác minh trong quá trình chuyển Lean V1 sang Cloudflare-native.
 

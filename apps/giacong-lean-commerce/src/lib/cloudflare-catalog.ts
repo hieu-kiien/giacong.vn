@@ -535,15 +535,11 @@ function toVariant(row: VariantRow, tierPrices: CatalogTierPrice[]): CatalogVari
   const quantityStep = positiveInteger(row.quantity_step, "variant quantity_step");
   const contactFromQuantity = positiveInteger(row.contact_from_quantity, "variant contact_from_quantity");
 
-  if (contactFromQuantity <= minimumOrderQuantity || (contactFromQuantity - minimumOrderQuantity) % quantityStep !== 0) {
-    throw new CatalogDataError(`Variant ${row.sku} có contact_from_quantity không khớp MOQ/bước số lượng.`);
-  }
   if (tierPrices.length && tierPrices[0]?.minQuantity !== minimumOrderQuantity) {
     throw new CatalogDataError(`Variant ${row.sku} thiếu giá tại MOQ.`);
   }
   if (tierPrices.some((tier, index) => (
-    tier.minQuantity >= contactFromQuantity
-    || (tier.minQuantity - minimumOrderQuantity) % quantityStep !== 0
+    (tier.minQuantity - minimumOrderQuantity) % quantityStep !== 0
     || (index > 0 && tier.minQuantity <= tierPrices[index - 1].minQuantity)
   ))) {
     throw new CatalogDataError(`Variant ${row.sku} có bảng giá không khớp quy tắc số lượng.`);

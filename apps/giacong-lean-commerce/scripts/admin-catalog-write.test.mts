@@ -597,6 +597,11 @@ test("catalog mutation commands require exact request envelopes and positive rev
   assert.equal(parseAdminProductVariantCreateCommand({ requestId: variantRequest, ...variantFields, optionId: 0 }).command?.input.optionId, 0);
   assert.equal(parseAdminProductVariantCreateCommand({ requestId: variantRequest, ...variantFields, revision: 1 }).command, null);
   assert.equal(parseAdminProductVariantCreateCommand({ requestId: variantRequest, ...variantFields, tierPrices: [{ currency: "VND", minQuantity: "10", price: 78000 }] }).command, null);
+  assert.equal(parseAdminProductVariantCreateCommand({ requestId: variantRequest, ...variantFields, tierPrices: [
+    { currency: "VND", minQuantity: 10, price: 78000 },
+    { currency: "VND", minQuantity: 100, price: 70000 },
+  ] }).command?.input.tierPrices.at(-1)?.minQuantity, 100);
+  assert.equal(parseAdminProductVariantCreateCommand({ requestId: variantRequest, ...variantFields, tierPrices: [] }).command?.input.tierPrices.length, 0);
   assert.equal(parseAdminProductVariantUpdateCommand({ requestId: variantRequest, revision: 1, ...variantFields }).command?.revision, 1);
 });
 
