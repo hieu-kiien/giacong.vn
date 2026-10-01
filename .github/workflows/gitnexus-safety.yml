@@ -25,6 +25,8 @@ jobs:
     name: GitNexus detect changes
     runs-on: ubuntu-latest
     timeout-minutes: 25
+    env:
+      GITNEXUS_LBUG_BUFFER_POOL_SIZE: "4294967296"
 
     steps:
       - name: Checkout with full history
@@ -40,7 +42,7 @@ jobs:
       - name: Install pinned GitNexus
         env:
           GITNEXUS_SKIP_OPTIONAL_GRAMMARS: "1"
-        run: npm install --global gitnexus@1.6.9
+        run: npm install --global gitnexus@1.6.10
 
       - name: Checkout the proposed PR head
         if: github.event_name == 'pull_request'
@@ -67,15 +69,45 @@ jobs:
         if: github.event_name == 'pull_request'
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          GITNEXUS_SKIP_OPTIONAL_GRAMMARS: "1"
         shell: bash
         run: |
           set -euo pipefail
+          runtime_pattern='^apps/giacong-lean-commerce/src/.*\.(cjs|js|jsx|mjs|mts|ts|tsx)$'
+
+          git diff --diff-filter=D --name-only "$BASE_SHA" "$HEAD_SHA" \
+            | grep -E "$runtime_pattern" > /tmp/deleted-runtime-files.txt || true
+          git diff --diff-filter=ACMRTUXB --name-only "$BASE_SHA" "$HEAD_SHA" \
+            | grep -E "$runtime_pattern" > /tmp/nondeleted-runtime-files.txt || true
+
           gitnexus detect-changes --scope compare --base-ref "$BASE_SHA" | tee /tmp/gitnexus-detect-changes.txt
 
-          if grep -Eq '^apps/giacong-lean-commerce/src/.*\.(cjs|js|jsx|mjs|mts|ts|tsx)$' /tmp/changed-files.txt \
+          if grep -Eq "$runtime_pattern" /tmp/changed-files.txt \
             && grep -Fxq "No changes detected." /tmp/gitnexus-detect-changes.txt; then
-            echo "GitNexus did not map changed runtime source code to the graph; failing closed." >&2
-            exit 1
+            if test -s /tmp/deleted-runtime-files.txt && ! test -s /tmp/nondeleted-runtime-files.txt; then
+              echo "Head graph cannot contain deleted symbols; auditing incoming dependencies against the base graph."
+              deleted_json="$(node -e 'const fs=require("node:fs"); const files=fs.readFileSync("/tmp/deleted-runtime-files.txt","utf8").trim().split(/\n+/).filter(Boolean); process.stdout.write(JSON.stringify(files));')"
+
+              git checkout --detach "$BASE_SHA"
+              gitnexus analyze . --force --skip-agents-md --skip-skills
+
+              dependency_types='["CALLS","IMPORTS","ACCESSES","EXTENDS","IMPLEMENTS","METHOD_OVERRIDES","METHOD_IMPLEMENTS","WRAPS","FETCHES","HANDLES_ROUTE","HANDLES_TOOL","ENTRY_POINT_OF","QUERIES","INJECTS"]'
+              query="MATCH (a)-[r:CodeRelation]->(b) WHERE b.filePath IN ${deleted_json} AND a.filePath IS NOT NULL AND NOT (a.filePath IN ${deleted_json}) AND r.type IN ${dependency_types} RETURN 'EXTERNAL_DEPENDENCY' AS finding, a.filePath AS source_file, a.name AS source_symbol, r.type AS relation, b.filePath AS deleted_file, b.name AS deleted_symbol"
+              gitnexus cypher "$query" -l 200 | tee /tmp/gitnexus-deleted-impact.txt
+
+              if grep -Fq "EXTERNAL_DEPENDENCY" /tmp/gitnexus-deleted-impact.txt; then
+                echo "Deleted runtime source still has incoming semantic dependencies outside the deletion set; failing closed." >&2
+                exit 1
+              fi
+
+              echo "No external incoming semantic graph dependencies target the deleted runtime files."
+              git checkout --detach "$HEAD_SHA"
+              gitnexus analyze . --force --skip-agents-md --skip-skills
+            else
+              echo "GitNexus did not map changed runtime source code to the head graph; failing closed." >&2
+              exit 1
+            fi
           fi
 
           {
@@ -86,6 +118,14 @@ jobs:
             echo '```text'
             cat /tmp/gitnexus-detect-changes.txt
             echo '```'
+            if test -f /tmp/gitnexus-deleted-impact.txt; then
+              echo
+              echo "### Deleted-source base-graph audit"
+              echo
+              echo '```text'
+              cat /tmp/gitnexus-deleted-impact.txt
+              echo '```'
+            fi
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Structural graph cycle report
