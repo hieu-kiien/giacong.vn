@@ -109,11 +109,24 @@ async function readGitNexusSafetyWorkflow() {
   return (await readFile(gitNexusSafetyWorkflowUrl, "utf8")).replace(/\r\n/g, "\n");
 }
 
-test("GitNexus requires graph mapping for runtime source changes, not test scripts", async () => {
+test("GitNexus keeps runtime mapping fail-closed and audits deletion-only source against the base graph", async () => {
   const workflow = await readGitNexusSafetyWorkflow();
+  const dependencyTypes = workflow.match(/dependency_types='([^']+)'/)?.[1] ?? "";
 
-  assert.match(workflow, /if grep -Eq '\^apps\/giacong-lean-commerce\/src\//);
+  assert.match(workflow, /runtime_pattern='\^apps\/giacong-lean-commerce\/src\//);
   assert.doesNotMatch(workflow, /apps\/giacong-lean-commerce\/\(src\|scripts\)/);
+  assert.match(workflow, /git diff --diff-filter=D --name-only/);
+  assert.match(workflow, /deleted-runtime-files\.txt/);
+  assert.match(workflow, /nondeleted-runtime-files\.txt/);
+  assert.match(workflow, /Head graph cannot contain deleted symbols/);
+  assert.match(workflow, /git checkout --detach "\$BASE_SHA"/);
+  assert.match(workflow, /r\.type IN \$\{dependency_types\}/);
+  assert.match(workflow, /GitNexus did not map changed runtime source code to the head graph; failing closed/);
+  assert.match(workflow, /npm install --global gitnexus@1\.6\.10/);
+  assert.match(workflow, /GITNEXUS_LBUG_BUFFER_POOL_SIZE: "4294967296"/);
+  assert.match(dependencyTypes, /IMPORTS/);
+  assert.match(dependencyTypes, /CALLS/);
+  assert.doesNotMatch(dependencyTypes, /CONTAINS/);
 });
 
 test("product slug migration exports a backup and verifies counts before and after", async () => {
