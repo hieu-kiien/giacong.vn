@@ -40,7 +40,7 @@ jobs:
       - name: Install pinned GitNexus
         env:
           GITNEXUS_SKIP_OPTIONAL_GRAMMARS: "1"
-        run: npm install --global gitnexus@1.6.9
+        run: npm install --global gitnexus@1.6.10
 
       - name: Checkout the proposed PR head
         if: github.event_name == 'pull_request'
