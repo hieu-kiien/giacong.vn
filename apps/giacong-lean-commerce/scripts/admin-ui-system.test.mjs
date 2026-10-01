@@ -130,14 +130,17 @@ test("protected sidebar links do not prefetch every admin route on first paint",
   assert.match(navLink, /prefetch=\{false\}/);
 });
 
-test("blocked sessions keep the Access login handoff and let unassigned accounts sign out", async () => {
+test("blocked sessions keep the Access handoff and let unassigned accounts sign out", async () => {
   const shell = await readSource("components", "admin", "AdminShell.tsx");
 
   assert.match(shell, /const isAdminMembershipDenied = isBlocked && error\?\.status === 403 && error\.code === "FORBIDDEN"/);
-  assert.match(shell, /const showLoginLink = \(isBlocked && !isAdminMembershipDenied\) \|\| error\?\.code === "NETWORK_ERROR"/);
+  assert.match(shell, /const isAuthenticationRequired = isBlocked && error\?\.status === 401/);
+  assert.match(shell, /const isNetworkError = error\?\.code === "NETWORK_ERROR"/);
+  assert.match(shell, /const showLoginLink = isAuthenticationRequired \|\| isNetworkError/);
   assert.match(shell, /<button[\s\S]*?data-testid="button-admin-access-login"[\s\S]*?onClick=\{\(\) => window\.location\.reload\(\)\}/);
   assert.doesNotMatch(shell, /data-testid="link-admin-access-login"/);
-  assert.match(shell, /Đăng nhập Cloudflare Access/);
+  assert.match(shell, /Tiếp tục đăng nhập/);
+  assert.doesNotMatch(shell, /Đăng nhập Cloudflare Access/);
   assert.match(shell, /data-testid="link-admin-access-logout"/);
   assert.match(shell, /href=\{CLOUDFLARE_ACCESS_LOGOUT_PATH\}/);
   assert.match(shell, /Đăng xuất tài khoản hiện tại/);
@@ -160,18 +163,22 @@ test("admin loading and Access states inherit the admin design tokens", async ()
   assert.match(shell, /function AdminAccessScreen[\s\S]*?return \(\s*<div className="admin-app">\s*<div className="admin-access-page"/);
 });
 
-test("blocked admin sessions explain the next step without console jargon", async () => {
+test("blocked admin sessions explain the next step without implementation jargon", async () => {
   const shell = await readSource("components", "admin", "AdminShell.tsx");
 
   assert.doesNotMatch(shell, /mở console/i);
-  assert.match(shell, /hoàn tất xác minh/);
-  assert.match(shell, /quay lại trang này/);
+  assert.match(shell, /Đăng nhập khu vực quản trị/);
+  assert.match(shell, /Sử dụng tài khoản đã được cấp quyền/);
+  assert.match(shell, /khu vực vận hành nội bộ/);
+  assert.doesNotMatch(shell, /Khu vực này cần Cloudflare Access/);
+  assert.match(shell, /Chi tiết kỹ thuật/);
 });
 
-test("network-failed admin sessions keep the Access handoff visible", async () => {
+test("network-failed admin sessions keep the authentication handoff visible", async () => {
   const shell = await readSource("components", "admin", "AdminShell.tsx");
 
-  assert.match(shell, /const showLoginLink = \(isBlocked && !isAdminMembershipDenied\) \|\| error\?\.code === "NETWORK_ERROR"/);
+  assert.match(shell, /const isNetworkError = error\?\.code === "NETWORK_ERROR"/);
+  assert.match(shell, /const showLoginLink = isAuthenticationRequired \|\| isNetworkError/);
   assert.match(shell, /showLoginLink \? \(/);
 });
 
