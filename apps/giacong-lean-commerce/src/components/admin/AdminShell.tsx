@@ -698,11 +698,11 @@ function AdminLoadingScreen() {
   return (
     <div className="admin-app">
       <div className="admin-access-page" aria-live="polite" data-testid="status-admin-session-loading">
-        <div className="admin-access-card">
-          <span className="admin-skeleton" style={{ display: "block", height: 34, marginBottom: 32, width: 180 }} />
-          <span className="admin-skeleton" style={{ display: "block", height: 30, marginBottom: 14, width: "66%" }} />
-          <span className="admin-skeleton" style={{ display: "block", height: 16, marginBottom: 8, width: "92%" }} />
-          <span className="admin-skeleton" style={{ display: "block", height: 16, width: "78%" }} />
+        <div className="admin-access-card admin-access-card--auth">
+          <span className="admin-skeleton admin-access-skeleton admin-access-skeleton--brand" />
+          <span className="admin-skeleton admin-access-skeleton admin-access-skeleton--title" />
+          <span className="admin-skeleton admin-access-skeleton admin-access-skeleton--line-wide" />
+          <span className="admin-skeleton admin-access-skeleton admin-access-skeleton--line-short" />
         </div>
       </div>
     </div>
@@ -733,20 +733,20 @@ function AdminAccessScreen({ brandName, status, error, onRetry }: { brandName: s
   return (
     <div className="admin-app">
       <div className="admin-access-page" aria-live="polite">
-        <section className="admin-access-card" aria-labelledby="admin-access-title" style={{ maxWidth: 500 }}>
+        <section className="admin-access-card admin-access-card--auth" aria-labelledby="admin-access-title">
           <Link className="admin-brand" href="/admin">
             <span className="admin-brand-mark" aria-hidden="true">{`${brandName.slice(0, 1).toUpperCase()}.`}</span>
             <span className="admin-brand-copy"><strong>{brandName}</strong><span>Khu vực vận hành</span></span>
           </Link>
           <div className="admin-kicker">TRUY CẬP NỘI BỘ</div>
-          <h1 id="admin-access-title" style={{ fontSize: 30, fontWeight: 700, lineHeight: 1.2 }}>{title}</h1>
+          <h1 className="admin-access-title" id="admin-access-title">{title}</h1>
           <p>{description}</p>
           {error ? (
             <details className="admin-access-detail">
-              <summary style={{ cursor: "pointer", fontFamily: '"Admin Sans", system-ui, sans-serif', fontWeight: 700 }}>
+              <summary className="admin-access-detail__summary">
                 Chi tiết kỹ thuật
               </summary>
-              <div style={{ marginTop: 8 }}>
+              <div className="admin-access-detail__body">
                 {error.code ? `${error.code} · ` : ""}{error.message}
               </div>
             </details>
