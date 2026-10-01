@@ -123,20 +123,17 @@ test("product and service create shortcuts reuse inline forms and the canonical 
 });
 
 test("buying and news entry points expose their next action", async () => {
-  const [badge, navigation, listing, newsData, catalog] = await Promise.all([
-    readSource("../src/components/storefront/RequestCartBadge.tsx"),
-    readSource("../src/components/storefront/navigation.ts"),
+  const [listing, newsData, catalog] = await Promise.all([
     readSource("../src/app/(storefront)/tin-tuc/page.tsx"),
     readSource("../src/lib/news-public.ts"),
     readSource("../src/components/catalog/CatalogList.tsx"),
   ]);
 
-  assert.match(badge, /href="\/gui-yeu-cau\/"/);
-  assert.match(navigation, /request-cart entry is kept in the header badge/);
+  assert.match(catalog, /data-catalog-request-cart-link/);
+  assert.match(catalog, /href="\/gui-yeu-cau\/"/);
   assert.match(listing, /searchParams/);
   assert.match(listing, /name="s"/);
   assert.match(newsData, /published_content LIKE/);
-  assert.match(catalog, /data-catalog-request-cart-link/);
 });
 
 test("contextual action has a bounded responsive style", async () => {
