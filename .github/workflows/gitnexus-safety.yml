@@ -92,15 +92,16 @@ jobs:
               git checkout --detach "$BASE_SHA"
               gitnexus analyze . --force --skip-agents-md --skip-skills
 
-              query="MATCH (a)-[r:CodeRelation]->(b) WHERE b.filePath IN ${deleted_json} AND a.filePath IS NOT NULL AND NOT (a.filePath IN ${deleted_json}) RETURN 'EXTERNAL_DEPENDENCY' AS finding, a.filePath AS source_file, a.name AS source_symbol, r.type AS relation, b.filePath AS deleted_file, b.name AS deleted_symbol"
+              dependency_types='["CALLS","IMPORTS","ACCESSES","EXTENDS","IMPLEMENTS","METHOD_OVERRIDES","METHOD_IMPLEMENTS","WRAPS","FETCHES","HANDLES_ROUTE","HANDLES_TOOL","ENTRY_POINT_OF","QUERIES","INJECTS"]'
+              query="MATCH (a)-[r:CodeRelation]->(b) WHERE b.filePath IN ${deleted_json} AND a.filePath IS NOT NULL AND NOT (a.filePath IN ${deleted_json}) AND r.type IN ${dependency_types} RETURN 'EXTERNAL_DEPENDENCY' AS finding, a.filePath AS source_file, a.name AS source_symbol, r.type AS relation, b.filePath AS deleted_file, b.name AS deleted_symbol"
               gitnexus cypher "$query" -l 200 | tee /tmp/gitnexus-deleted-impact.txt
 
               if grep -Fq "EXTERNAL_DEPENDENCY" /tmp/gitnexus-deleted-impact.txt; then
-                echo "Deleted runtime source still has incoming dependencies outside the deletion set; failing closed." >&2
+                echo "Deleted runtime source still has incoming semantic dependencies outside the deletion set; failing closed." >&2
                 exit 1
               fi
 
-              echo "No external incoming graph dependencies target the deleted runtime files."
+              echo "No external incoming semantic graph dependencies target the deleted runtime files."
               git checkout --detach "$HEAD_SHA"
               gitnexus analyze . --force --skip-agents-md --skip-skills
             else
