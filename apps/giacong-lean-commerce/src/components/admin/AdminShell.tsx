@@ -712,28 +712,45 @@ function AdminLoadingScreen() {
 function AdminAccessScreen({ brandName, status, error, onRetry }: { brandName: string; status: "blocked" | "unavailable"; error: AdminClientError | null; onRetry: () => void }) {
   const isBlocked = status === "blocked";
   const isAdminMembershipDenied = isBlocked && error?.status === 403 && error.code === "FORBIDDEN";
-  const showLoginLink = (isBlocked && !isAdminMembershipDenied) || error?.code === "NETWORK_ERROR";
+  const isAuthenticationRequired = isBlocked && error?.status === 401;
+  const isNetworkError = error?.code === "NETWORK_ERROR";
+  const showLoginLink = isAuthenticationRequired || isNetworkError;
+  const title = isAdminMembershipDenied
+    ? "Tài khoản chưa được cấp quyền"
+    : isAuthenticationRequired
+      ? "Đăng nhập khu vực quản trị"
+      : isNetworkError
+        ? "Chưa thể xác minh phiên đăng nhập"
+        : "Khu vực quản trị chưa sẵn sàng";
+  const description = isAdminMembershipDenied
+    ? "Tài khoản hiện tại đã được xác minh nhưng chưa có quyền quản trị. Hãy đăng xuất để chọn tài khoản khác, hoặc liên hệ người quản trị."
+    : isAuthenticationRequired
+      ? "Sử dụng tài khoản đã được cấp quyền để tiếp tục vào khu vực vận hành nội bộ."
+      : isNetworkError
+        ? "Chưa thể kiểm tra phiên hiện tại. Bạn có thể tiếp tục đăng nhập hoặc thử kiểm tra lại kết nối."
+        : "Không thể kết nối tới khu vực quản trị lúc này. Hãy kiểm tra kết nối và thử lại.";
+
   return (
     <div className="admin-app">
-      <div className="admin-access-page">
-        <section className="admin-access-card" aria-labelledby="admin-access-title">
+      <div className="admin-access-page" aria-live="polite">
+        <section className="admin-access-card" aria-labelledby="admin-access-title" style={{ maxWidth: 500 }}>
           <Link className="admin-brand" href="/admin">
             <span className="admin-brand-mark" aria-hidden="true">{`${brandName.slice(0, 1).toUpperCase()}.`}</span>
             <span className="admin-brand-copy"><strong>{brandName}</strong><span>Khu vực vận hành</span></span>
           </Link>
-          <h1 id="admin-access-title">{isAdminMembershipDenied ? "Tài khoản chưa được cấp quyền admin" : isBlocked ? "Khu vực này cần Cloudflare Access" : "Admin chưa sẵn sàng"}</h1>
-          <p>
-            {isAdminMembershipDenied
-              ? "Tài khoản Cloudflare Access này chưa có quyền quản trị. Hãy đăng xuất rồi chọn tài khoản được cấp quyền, hoặc liên hệ người quản trị."
-              : isBlocked
-              ? "Hãy chọn nút “Đăng nhập Cloudflare Access” bên dưới, hoàn tất xác minh, rồi quay lại trang này. Đường xem thử hoặc trang web không có phiên truy cập nội bộ."
-              : error?.code === "NETWORK_ERROR"
-                ? "Nếu bạn chưa đăng nhập, hãy chọn nút “Đăng nhập Cloudflare Access”. Nếu đã đăng nhập, hãy thử kiểm tra lại phiên."
-                : "Không thể kết nối tới phiên admin lúc này. Kiểm tra lại kết nối mạng và thử lại."}
-          </p>
-          <div className="admin-access-detail">
-            {error?.code ? `${error.code} · ` : ""}{error?.message ?? "Không nhận được phản hồi từ API session."}
-          </div>
+          <div className="admin-kicker">TRUY CẬP NỘI BỘ</div>
+          <h1 id="admin-access-title" style={{ fontSize: 30, fontWeight: 700, lineHeight: 1.2 }}>{title}</h1>
+          <p>{description}</p>
+          {error ? (
+            <details className="admin-access-detail">
+              <summary style={{ cursor: "pointer", fontFamily: '"Admin Sans", system-ui, sans-serif', fontWeight: 700 }}>
+                Chi tiết kỹ thuật
+              </summary>
+              <div style={{ marginTop: 8 }}>
+                {error.code ? `${error.code} · ` : ""}{error.message}
+              </div>
+            </details>
+          ) : null}
           <div className="admin-editor-actions">
             {isAdminMembershipDenied ? (
               <a
@@ -752,11 +769,11 @@ function AdminAccessScreen({ brandName, status, error, onRetry }: { brandName: s
                 onClick={() => window.location.reload()}
                 type="button"
               >
-                Đăng nhập Cloudflare Access
+                Tiếp tục đăng nhập
               </button>
             ) : null}
             <button className="admin-button admin-button-quiet" data-testid="button-retry-admin-session" onClick={onRetry} type="button">
-              Thử kiểm tra lại
+              Kiểm tra lại phiên
             </button>
           </div>
         </section>
