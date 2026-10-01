@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { getPublishedSiteSettings } from "@/lib/site-settings";
 import "../../styles/admin.css";
+import "../../styles/admin-access.css";
 
 export async function generateMetadata(): Promise<Metadata> {
   const settings = await getPublishedSiteSettings();
