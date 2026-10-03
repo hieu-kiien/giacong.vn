@@ -160,18 +160,22 @@ test("admin loading and Access states inherit the admin design tokens", async ()
   assert.match(shell, /function AdminAccessScreen[\s\S]*?return \(\s*<div className="admin-app">\s*<div className="admin-access-page"/);
 });
 
-test("blocked admin sessions explain the next step without console jargon", async () => {
+test("blocked admin sessions explain the next step without implementation jargon", async () => {
   const shell = await readSource("components", "admin", "AdminShell.tsx");
 
   assert.doesNotMatch(shell, /mở console/i);
   assert.match(shell, /Dùng tài khoản website đã được cấp quyền admin để tiếp tục/);
-  assert.match(shell, /chưa được cấp quyền admin trong D1/);
+  assert.match(shell, /khu vực vận hành nội bộ/);
+  assert.doesNotMatch(shell, /trong D1/);
+  assert.doesNotMatch(shell, /Khu vực này cần Cloudflare Access/);
+  assert.match(shell, /Chi tiết kỹ thuật/);
 });
 
 test("network-failed admin sessions keep website login and retry visible", async () => {
   const shell = await readSource("components", "admin", "AdminShell.tsx");
 
-  assert.match(shell, /const showLoginLink = isBlocked \|\| error\?\.code === "NETWORK_ERROR"/);
+  assert.match(shell, /const isNetworkError = error\?\.code === "NETWORK_ERROR"/);
+  assert.match(shell, /const showLoginLink = isBlocked \|\| isNetworkError/);
   assert.match(shell, /showLoginLink \? \(/);
 });
 

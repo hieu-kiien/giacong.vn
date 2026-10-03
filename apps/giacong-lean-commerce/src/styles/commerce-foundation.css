@@ -3,7 +3,7 @@
  *
  * `--color-commerce-brand` is the real giacong.vn green. Every captured page embeds
  * the site's own Flatsome block inline in its HTML — `:root {--primary-color: #5aa400}`
- * plus `.header-bg-color {background-color: #5aa400}` — so `#5aa400` is what the ~234
+ * plus `.header-bg-color {background-color: #5aa400}` — so `#5aa400` is what the
  * captured routes actually render, and the product and service routes now match it
  * instead of approximating it. This supersedes the measured `#2f9e0b` in
  * `docs/archive/legacy-2026-09-27/research/DESIGN_TOKENS.md` and the approved screenshots `SCR-01`…`SCR-04`,
@@ -16,9 +16,9 @@
  *
  * The remaining values are the measured ones in `docs/archive/legacy-2026-09-27/research/DESIGN_TOKENS.md`. The
  * `activeSurface` and `supportStrip` tints are within 1/255 of low-alpha `#5aa400` over
- * white, so they needed no change. Names stay `commerce-*`: the `brand-*` ramp in
- * `globals.css` is read by the four `components/storefront/` components until phase C
- * deletes them, so the two palettes coexist until then.
+ * white, so they needed no change. `commerce-*` is now the only app-owned React
+ * colour namespace; the retired `brand-*`/`ink` compatibility theme has been removed
+ * from `globals.css` and a commerce contract prevents it from being reintroduced.
  *
  * Imported from `globals.css` rather than the commerce layout, because Tailwind
  * only collects `@theme`/`@utility` from the stylesheet that pulls in

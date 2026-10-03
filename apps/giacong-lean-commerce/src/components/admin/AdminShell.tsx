@@ -736,11 +736,11 @@ function AdminLoadingScreen() {
   return (
     <div className="admin-app">
       <div className="admin-access-page" aria-live="polite" data-testid="status-admin-session-loading">
-        <div className="admin-access-card">
-          <span className="admin-skeleton" style={{ display: "block", height: 34, marginBottom: 32, width: 180 }} />
-          <span className="admin-skeleton" style={{ display: "block", height: 30, marginBottom: 14, width: "66%" }} />
-          <span className="admin-skeleton" style={{ display: "block", height: 16, marginBottom: 8, width: "92%" }} />
-          <span className="admin-skeleton" style={{ display: "block", height: 16, width: "78%" }} />
+        <div className="admin-access-card admin-access-card--auth">
+          <span className="admin-skeleton admin-access-skeleton admin-access-skeleton--brand" />
+          <span className="admin-skeleton admin-access-skeleton admin-access-skeleton--title" />
+          <span className="admin-skeleton admin-access-skeleton admin-access-skeleton--line-wide" />
+          <span className="admin-skeleton admin-access-skeleton admin-access-skeleton--line-short" />
         </div>
       </div>
     </div>
@@ -753,7 +753,24 @@ function AdminAccessScreen({ brandName, status, error, onRetry }: { brandName: s
   const isBlocked = status === "blocked";
   const isAccountMembershipDenied = isBlocked && error?.status === 403 && error.code === "ADMIN_MEMBERSHIP_REQUIRED";
   const isAccessMembershipDenied = isBlocked && error?.status === 403 && error.code === "FORBIDDEN";
-  const showLoginLink = isBlocked || error?.code === "NETWORK_ERROR";
+  const isNetworkError = error?.code === "NETWORK_ERROR";
+  const showLoginLink = isBlocked || isNetworkError;
+  const title = isAccountMembershipDenied || isAccessMembershipDenied
+    ? "Tài khoản chưa được cấp quyền admin"
+    : isBlocked
+      ? "Đăng nhập khu vực quản trị"
+      : isNetworkError
+        ? "Chưa thể xác minh phiên đăng nhập"
+        : "Khu vực quản trị chưa sẵn sàng";
+  const description = isAccountMembershipDenied
+    ? "Tài khoản website này chưa được cấp quyền admin. Hãy đăng xuất và dùng tài khoản đã được người quản trị cấp quyền."
+    : isAccessMembershipDenied
+      ? "Danh tính Cloudflare Access hiện tại chưa được cấp quyền quản trị. Hãy đăng xuất hoặc dùng tài khoản admin đã được cấp quyền."
+      : isBlocked
+        ? "Dùng tài khoản website đã được cấp quyền admin để tiếp tục vào khu vực vận hành nội bộ."
+        : isNetworkError
+          ? "Chưa thể kiểm tra phiên hiện tại. Bạn có thể tiếp tục đăng nhập hoặc thử kiểm tra lại kết nối."
+          : "Không thể kết nối tới khu vực quản trị lúc này. Hãy kiểm tra kết nối và thử lại.";
 
   async function signOutWebsiteAccount() {
     setLogoutError("");
@@ -768,27 +785,25 @@ function AdminAccessScreen({ brandName, status, error, onRetry }: { brandName: s
 
   return (
     <div className="admin-app">
-      <div className="admin-access-page">
-        <section className="admin-access-card" aria-labelledby="admin-access-title">
+      <div className="admin-access-page" aria-live="polite">
+        <section className="admin-access-card admin-access-card--auth" aria-labelledby="admin-access-title">
           <Link className="admin-brand" href="/admin">
             <span className="admin-brand-mark" aria-hidden="true">{`${brandName.slice(0, 1).toUpperCase()}.`}</span>
             <span className="admin-brand-copy"><strong>{brandName}</strong><span>Khu vực vận hành</span></span>
           </Link>
-          <h1 id="admin-access-title">{isAccountMembershipDenied || isAccessMembershipDenied ? "Tài khoản chưa được cấp quyền admin" : isBlocked ? "Đăng nhập để vào khu vực quản trị" : "Admin chưa sẵn sàng"}</h1>
-          <p>
-            {isAccountMembershipDenied
-              ? "Tài khoản website này chưa được cấp quyền admin trong D1. Hãy đăng xuất và dùng tài khoản đã được người quản trị cấp quyền."
-              : isAccessMembershipDenied
-              ? "Danh tính Cloudflare Access hiện tại chưa được cấp quyền quản trị. Hãy đăng xuất hoặc dùng tài khoản admin đã được cấp quyền."
-              : isBlocked
-              ? "Dùng tài khoản website đã được cấp quyền admin để tiếp tục."
-              : error?.code === "NETWORK_ERROR"
-                ? "Kiểm tra kết nối mạng rồi đăng nhập lại nếu phiên đã hết hạn."
-                : "Không thể kết nối tới phiên admin lúc này. Kiểm tra lại kết nối mạng và thử lại."}
-          </p>
-          <div className="admin-access-detail">
-            {error?.code ? `${error.code} · ` : ""}{error?.message ?? "Không nhận được phản hồi từ API session."}
-          </div>
+          <div className="admin-kicker">TRUY CẬP NỘI BỘ</div>
+          <h1 className="admin-access-title" id="admin-access-title">{title}</h1>
+          <p>{description}</p>
+          {error ? (
+            <details className="admin-access-detail">
+              <summary className="admin-access-detail__summary">
+                Chi tiết kỹ thuật
+              </summary>
+              <div className="admin-access-detail__body">
+                {error.code ? `${error.code} · ` : ""}{error.message}
+              </div>
+            </details>
+          ) : null}
           <div className="admin-editor-actions">
             {isAccessMembershipDenied ? (
               <a
@@ -822,7 +837,7 @@ function AdminAccessScreen({ brandName, status, error, onRetry }: { brandName: s
             ) : null}
             {logoutError ? <p className="admin-access-detail" role="alert">{logoutError}</p> : null}
             <button className="admin-button admin-button-quiet" data-testid="button-retry-admin-session" onClick={onRetry} type="button">
-              Thử kiểm tra lại
+              Kiểm tra lại phiên
             </button>
           </div>
         </section>

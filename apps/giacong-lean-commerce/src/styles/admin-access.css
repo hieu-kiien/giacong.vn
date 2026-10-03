@@ -1,0 +1,49 @@
+.admin-access-card--auth {
+  max-width: 500px;
+}
+
+.admin-access-card .admin-access-title {
+  font-size: 30px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.admin-access-detail__summary {
+  cursor: pointer;
+  font-family: "Admin Sans", system-ui, sans-serif;
+  font-weight: 700;
+}
+
+.admin-access-detail__body {
+  margin-top: 8px;
+}
+
+.admin-access-skeleton {
+  display: block;
+}
+
+.admin-access-skeleton--brand {
+  height: 34px;
+  margin-bottom: 32px;
+  width: 180px;
+}
+
+.admin-access-skeleton--title {
+  height: 30px;
+  margin-bottom: 14px;
+  width: 66%;
+}
+
+.admin-access-skeleton--line-wide,
+.admin-access-skeleton--line-short {
+  height: 16px;
+}
+
+.admin-access-skeleton--line-wide {
+  margin-bottom: 8px;
+  width: 92%;
+}
+
+.admin-access-skeleton--line-short {
+  width: 78%;
+}
