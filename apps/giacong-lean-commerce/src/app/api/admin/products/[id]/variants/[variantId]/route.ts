@@ -31,14 +31,14 @@ export async function GET(request: Request, context: RouteContext): Promise<Resp
     return adminFailure(crypto.randomUUID(), 403, "FORBIDDEN", "Vai trò hiện tại không được xem sản phẩm.");
   }
   const ids = await parseIds(context);
-  if (!ids) return adminFailure(crypto.randomUUID(), 404, "NOT_FOUND", "Không tìm thấy variant.");
+  if (!ids) return adminFailure(crypto.randomUUID(), 404, "NOT_FOUND", "Không tìm thấy quy cách.");
   try {
     const variant = await getAdminProductVariant(guard.database, ids.productId, ids.variantId);
     return variant
       ? adminSuccess(crypto.randomUUID(), { variant })
-      : adminFailure(crypto.randomUUID(), 404, "NOT_FOUND", "Không tìm thấy variant.");
+      : adminFailure(crypto.randomUUID(), 404, "NOT_FOUND", "Không tìm thấy quy cách.");
   } catch (error) {
-    return adminErrorFrom(crypto.randomUUID(), error, "Không thể tải variant.");
+    return adminErrorFrom(crypto.randomUUID(), error, "Không thể tải quy cách.");
   }
 }
 
@@ -46,12 +46,12 @@ export async function PATCH(request: Request, context: RouteContext): Promise<Re
   const guard = await requireAdmin(request);
   if (guard instanceof Response) return guard;
   if (!canManageCatalog(guard.member.role)) {
-    return adminFailure(crypto.randomUUID(), 403, "FORBIDDEN", "Vai trò hiện tại không được cập nhật variant.");
+    return adminFailure(crypto.randomUUID(), 403, "FORBIDDEN", "Vai trò hiện tại không được cập nhật quy cách.");
   }
   const ids = await parseIds(context);
-  if (!ids) return adminFailure(crypto.randomUUID(), 404, "NOT_FOUND", "Không tìm thấy variant.");
+  if (!ids) return adminFailure(crypto.randomUUID(), 404, "NOT_FOUND", "Không tìm thấy quy cách.");
   const existing = await getAdminProductVariant(guard.database, ids.productId, ids.variantId);
-  if (!existing) return adminFailure(crypto.randomUUID(), 404, "NOT_FOUND", "Không tìm thấy variant.");
+  if (!existing) return adminFailure(crypto.randomUUID(), 404, "NOT_FOUND", "Không tìm thấy quy cách.");
   const parsedRequest = await readBoundedAdminJson(request);
   if (!parsedRequest.ok) return adminFailure(parsedRequest.requestId, parsedRequest.status, parsedRequest.code, parsedRequest.message);
   const parsed = parseAdminProductVariantUpdateCommand(parsedRequest.body);
@@ -72,9 +72,9 @@ export async function PATCH(request: Request, context: RouteContext): Promise<Re
     );
     return variant
       ? adminSuccess(requestId, { variant })
-      : adminFailure(requestId, 404, "NOT_FOUND", "Không tìm thấy variant.");
+      : adminFailure(requestId, 404, "NOT_FOUND", "Không tìm thấy quy cách.");
   } catch (error) {
-    return mapCatalogWriteError(requestId, error, "Không thể cập nhật variant.", { fieldErrors: { sku: "SKU đã tồn tại." } });
+    return mapCatalogWriteError(requestId, error, "Không thể cập nhật quy cách.", { fieldErrors: { sku: "Mã hàng đã tồn tại." } });
   }
 }
 
@@ -82,10 +82,10 @@ export async function DELETE(request: Request, context: RouteContext): Promise<R
   const guard = await requireAdmin(request);
   if (guard instanceof Response) return guard;
   if (!canManageCatalog(guard.member.role)) {
-    return adminFailure(crypto.randomUUID(), 403, "FORBIDDEN", "Vai trò hiện tại không được ẩn variant.");
+    return adminFailure(crypto.randomUUID(), 403, "FORBIDDEN", "Vai trò hiện tại không được ẩn quy cách.");
   }
   const ids = await parseIds(context);
-  if (!ids) return adminFailure(crypto.randomUUID(), 404, "NOT_FOUND", "Không tìm thấy variant.");
+  if (!ids) return adminFailure(crypto.randomUUID(), 404, "NOT_FOUND", "Không tìm thấy quy cách.");
   const parsedRequest = await readBoundedAdminJson(request);
   if (!parsedRequest.ok) return adminFailure(parsedRequest.requestId, parsedRequest.status, parsedRequest.code, parsedRequest.message);
   const parsed = parseAdminProductVariantArchiveCommand(parsedRequest.body);
@@ -104,9 +104,9 @@ export async function DELETE(request: Request, context: RouteContext): Promise<R
     );
     return variant
       ? adminSuccess(requestId, { variant })
-      : adminFailure(requestId, 404, "NOT_FOUND", "Không tìm thấy variant.");
+      : adminFailure(requestId, 404, "NOT_FOUND", "Không tìm thấy quy cách.");
   } catch (error) {
-    return mapCatalogWriteError(requestId, error, "Không thể ẩn variant.", {});
+    return mapCatalogWriteError(requestId, error, "Không thể ẩn quy cách.", {});
   }
 }
 

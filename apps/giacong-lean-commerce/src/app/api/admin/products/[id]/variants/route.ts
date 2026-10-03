@@ -33,7 +33,7 @@ export async function GET(request: Request, context: RouteContext): Promise<Resp
     const variants = await listAdminProductVariants(guard.database, productId);
     return adminSuccess(crypto.randomUUID(), { variants });
   } catch (error) {
-    return adminErrorFrom(crypto.randomUUID(), error, "Không thể tải variants.");
+    return adminErrorFrom(crypto.randomUUID(), error, "Không thể tải danh sách quy cách.");
   }
 }
 
@@ -41,7 +41,7 @@ export async function POST(request: Request, context: RouteContext): Promise<Res
   const guard = await requireAdmin(request);
   if (guard instanceof Response) return guard;
   if (!canManageCatalog(guard.member.role)) {
-    return adminFailure(crypto.randomUUID(), 403, "FORBIDDEN", "Vai trò hiện tại không được tạo variant.");
+    return adminFailure(crypto.randomUUID(), 403, "FORBIDDEN", "Vai trò hiện tại không được tạo quy cách.");
   }
   const productId = parsePositiveInt((await context.params).id);
   if (!productId) return adminFailure(crypto.randomUUID(), 404, "NOT_FOUND", "Không tìm thấy sản phẩm.");
@@ -59,7 +59,7 @@ export async function POST(request: Request, context: RouteContext): Promise<Res
       ? adminSuccess(requestId, { variant }, 201)
       : adminFailure(requestId, 404, "NOT_FOUND", "Không tìm thấy sản phẩm.");
   } catch (error) {
-    return mapCatalogWriteError(requestId, error, "Không thể tạo variant.", { fieldErrors: { sku: "SKU đã tồn tại." } });
+    return mapCatalogWriteError(requestId, error, "Không thể tạo quy cách.", { fieldErrors: { sku: "Mã hàng đã tồn tại." } });
   }
 }
 

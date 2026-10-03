@@ -7,20 +7,20 @@ export function parseAdminVariantPayload(
   const source = isRecord(payload) ? payload : {};
   const merged = { ...defaults, ...source };
   const fieldErrors: Record<string, string> = {};
-  const name = text(merged.name, "Tên variant", 160, fieldErrors, "name");
-  const sku = text(merged.sku, "SKU", 100, fieldErrors, "sku");
-  const optionLabel = text(merged.optionLabel, "Tên lựa chọn", 160, fieldErrors, "optionLabel");
+  const name = text(merged.name, "Tên quy cách", 160, fieldErrors, "name");
+  const sku = text(merged.sku, "Mã hàng", 100, fieldErrors, "sku");
+  const optionLabel = text(merged.optionLabel, "Tên quy cách", 160, fieldErrors, "optionLabel");
   const unit = text(merged.unit, "Đơn vị", 40, fieldErrors, "unit");
   const attributeCode = text(merged.attributeCode, "Mã nhóm lựa chọn", 80, fieldErrors, "attributeCode");
   const attributeLabel = text(merged.attributeLabel, "Tên nhóm lựa chọn", 120, fieldErrors, "attributeLabel");
   const imageUrl = parseImage(merged.imageUrl, fieldErrors);
-  const moq = positiveInteger(merged.moq, "MOQ", fieldErrors, "moq");
-  const quantityStep = positiveInteger(merged.quantityStep, "Bước số lượng", fieldErrors, "quantityStep");
+  const moq = positiveInteger(merged.moq, "Số lượng mua tối thiểu", fieldErrors, "moq");
+  const quantityStep = positiveInteger(merged.quantityStep, "Số lượng tăng theo bước", fieldErrors, "quantityStep");
   // Legacy D1/API field. It no longer controls the price bands or request route.
   const contactFromQuantity = positiveInteger(merged.contactFromQuantity, "Ngưỡng liên hệ", fieldErrors, "contactFromQuantity");
-  const attributeId = positiveInteger(merged.attributeId, "Attribute ID", fieldErrors, "attributeId");
-  const optionId = nonNegativeInteger(merged.optionId, "Option ID", fieldErrors, "optionId");
-  const sortOrder = nonNegativeInteger(merged.sortOrder, "Thứ tự", fieldErrors, "sortOrder");
+  const attributeId = positiveInteger(merged.attributeId, "Mã nhóm", fieldErrors, "attributeId");
+  const optionId = nonNegativeInteger(merged.optionId, "Mã lựa chọn", fieldErrors, "optionId");
+  const sortOrder = nonNegativeInteger(merged.sortOrder, "Thứ tự hiển thị", fieldErrors, "sortOrder");
   const isAvailable = merged.isAvailable !== false;
   const tierPrices = parseTiers(merged.tierPrices, moq, quantityStep, fieldErrors);
   const revision = merged.revision === undefined ? undefined : positiveInteger(merged.revision, "Revision", fieldErrors, "revision");
@@ -89,11 +89,11 @@ function parseTiers(
     if (seen.has(minQuantity)) errors.tierPrices = "Không được lặp số lượng tối thiểu.";
     seen.add(minQuantity);
     if (minQuantity < moq || (minQuantity - moq) % step !== 0) {
-      errors.tierPrices = "Mỗi bậc phải từ MOQ và khớp bước số lượng.";
+      errors.tierPrices = "Mỗi mức giá phải từ số lượng mua tối thiểu trở lên và khớp bước tăng số lượng.";
     }
     return { currency: "VND" as const, minQuantity, price };
   }).sort((a, b) => a.minQuantity - b.minQuantity);
-  if (tiers.length > 0 && tiers[0].minQuantity !== moq) errors.tierPrices = "Bậc đầu tiên phải bắt đầu tại MOQ.";
+  if (tiers.length > 0 && tiers[0].minQuantity !== moq) errors.tierPrices = "Mức giá đầu tiên phải bắt đầu từ số lượng mua tối thiểu.";
   return tiers;
 }
 

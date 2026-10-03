@@ -268,7 +268,7 @@ async function runNestedEditorsCase() {
   captureRuntimeSignals(page);
   try {
     await setupProductForBack(page);
-    const variantInput = page.getByLabel(/^Tên biến thể/);
+    const variantInput = page.getByLabel(/^Tên quy cách/);
     await variantInput.waitFor({ state: "visible", timeout: 10_000 });
     const variantMarker = `QA-DOT2-VARIANT-${Date.now()}`;
     await variantInput.fill(variantMarker);
