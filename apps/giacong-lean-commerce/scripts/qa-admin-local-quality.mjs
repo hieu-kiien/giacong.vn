@@ -201,14 +201,15 @@ await run("Product validation link opens the correct tab and focuses the invalid
   await open(page, "/admin/san-pham");
   await page.getByTestId("button-product-create").click();
   await page.getByTestId("input-product-name").fill("Sản phẩm kiểm tra");
-  await page.getByTestId("input-product-slug").fill("san-pham-kiem-tra");
-  await page.getByRole("tab", { name: "Ảnh & Media" }).click();
+  await expect(page.getByTestId("input-product-slug")).toHaveValue("san-pham-kiem-tra");
+  await expect(page.locator("details", { hasText: "Nâng cao · Tùy chọn" })).not.toHaveAttribute("open", "");
+  await page.getByRole("tab", { name: "Hình ảnh" }).click();
   await page.getByTestId("input-product-image").fill("javascript:alert(1)");
   await page.getByTestId("button-product-save").click();
   const fieldError = page.getByTestId("button-product-error-imageUrl");
   await expect(fieldError).toContainText("Ảnh chính");
   await fieldError.click();
-  await expect(page.getByRole("tab", { name: "Ảnh & Media" })).toHaveAttribute("aria-selected", "true");
+  await expect(page.getByRole("tab", { name: "Hình ảnh" })).toHaveAttribute("aria-selected", "true");
   await expect(page.getByTestId("input-product-image")).toBeFocused();
 }, "owner", 1920, 1080);
 

@@ -99,7 +99,7 @@ const productFieldLabels: Record<string, { label: string; tab: "general" | "medi
   shortDescription: { label: "Mô tả ngắn", tab: "general", testId: "input-product-short-description" },
   description: { label: "Mô tả chi tiết", tab: "general", testId: "input-product-description" },
   status: { label: "Trạng thái", tab: "general", testId: "select-product-status" },
-  isActive: { label: "Hiển thị sản phẩm", tab: "general", testId: "checkbox-product-active" },
+  isActive: { label: "Hiển thị sản phẩm", tab: "general", testId: "select-product-status" },
   categoryId: { label: "Danh mục", tab: "general", testId: "select-product-category" },
   sku: { label: "Mã hàng", tab: "general", testId: "input-product-sku" },
   leadTimeDays: { label: "Thời gian sản xuất", tab: "general", testId: "input-product-lead-time" },
@@ -125,6 +125,21 @@ const statusLabelsVN: Record<ProductFormState["status"], string> = {
   published: "Đã xuất bản",
   review: "Chờ duyệt",
 };
+
+type ProductVisibilityChoice = "draft" | "live" | "hidden";
+
+function getProductVisibilityChoice(form: ProductFormState): ProductVisibilityChoice {
+  if (form.status === "published") return form.isActive ? "live" : "hidden";
+  if (form.status === "archived") return "hidden";
+  return "draft";
+}
+
+function applyProductVisibilityChoice(form: ProductFormState, choice: ProductVisibilityChoice): ProductFormState {
+  if (choice === getProductVisibilityChoice(form)) return form;
+  if (choice === "live") return { ...form, isActive: true, status: "published" };
+  if (choice === "hidden") return { ...form, isActive: false, status: form.id ? "published" : "archived" };
+  return { ...form, isActive: false, status: "draft" };
+}
 
 function isProductEditorDirty(editor: ProductFormState | null, snapshot: ProductFormState | null): boolean {
   if (!editor) return false;
@@ -1207,7 +1222,10 @@ function ProductEditor({
     setActiveTab(target.tab);
     if (target.tab === "media") setMediaTabOpened(true);
     window.requestAnimationFrame(() => {
-      document.querySelector<HTMLElement>(`[data-testid="${target.testId}"]`)?.focus();
+      const element = document.querySelector<HTMLElement>(`[data-testid="${target.testId}"]`);
+      const disclosure = element?.closest("details");
+      if (disclosure) disclosure.open = true;
+      element?.focus();
     });
   }
 
@@ -1343,7 +1361,7 @@ function ProductEditor({
             onKeyDown={handleEditorTabKeyDown}
           >
             <FileText size={15} />
-            <span>Thông tin & Quy cách</span>
+            <span>Thông tin</span>
           </button>
           <button
             type="button"
@@ -1357,7 +1375,7 @@ function ProductEditor({
             onKeyDown={handleEditorTabKeyDown}
           >
             <ImageIcon size={15} />
-            <span>Ảnh & Media</span>
+            <span>Hình ảnh</span>
           </button>
           <button
             type="button"
@@ -1371,7 +1389,7 @@ function ProductEditor({
             onKeyDown={handleEditorTabKeyDown}
           >
             <SlidersHorizontal size={15} />
-            <span>Biến thể, giá & SEO</span>
+            <span>Giá & quy cách</span>
           </button>
         </div>
 
@@ -1407,26 +1425,6 @@ function ProductEditor({
                     style={{ fontSize: 15, fontWeight: 500 }}
                     value={form.name}
                   />
-                </label>
-
-                <label className="admin-field">
-                  <span>Đường dẫn (slug) <b aria-hidden="true">*</b></span>
-                  <input
-                    className="admin-input admin-mono"
-                    data-testid="input-product-slug"
-                    disabled={saving}
-                    onChange={(event) => onChange({
-                      ...form,
-                      slug: event.target.value,
-                      slugFollowsName: event.target.value.trim() === "",
-                    })}
-                    placeholder="gia-cong-ca-phe-3in1"
-                    required
-                    value={form.slug}
-                  />
-                  <small className="admin-field-hint">
-                    Tự tạo theo tên sản phẩm; nhập slug riêng để giữ đường dẫn tùy chỉnh. Đường dẫn: /san-pham/{form.slug || "..."}
-                  </small>
                 </label>
 
                 <label className="admin-field">
@@ -1466,30 +1464,12 @@ function ProductEditor({
                       </button>
                       <button
                         className="admin-button admin-button-quiet"
-                        onClick={() => update("description", form.description + (form.description ? "\n" : "") + "## Tiêu đề mục kỹ thuật")}
-                        style={{ fontSize: 11, padding: "2px 7px" }}
-                        title="Tiêu đề mục (H2)"
-                        type="button"
-                      >
-                        H2
-                      </button>
-                      <button
-                        className="admin-button admin-button-quiet"
                         onClick={() => update("description", form.description + (form.description ? "\n" : "") + "- Tiêu chuẩn 1\n- Tiêu chuẩn 2")}
                         style={{ fontSize: 11, padding: "2px 7px" }}
                         title="Danh sách gạch đầu dòng"
                         type="button"
                       >
                         • Danh sách
-                      </button>
-                      <button
-                        className="admin-button admin-button-quiet"
-                        onClick={() => update("description", form.description + (form.description ? "\n" : "") + "| Thông số | Chi tiết tiêu chuẩn |\n| :--- | :--- |\n| Vật liệu | Inox 304 / Nhôm |\n| Dung sai | ± 0.01 mm |")}
-                        style={{ fontSize: 11, padding: "2px 7px" }}
-                        title="Chèn bảng thông số mẫu"
-                        type="button"
-                      >
-                        + Bảng mẫu
                       </button>
                     </div>
                   </div>
@@ -1498,7 +1478,7 @@ function ProductEditor({
                     data-testid="input-product-description"
                     disabled={saving}
                     onChange={(event) => update("description", event.target.value)}
-                    placeholder="Nhập thông tin sản phẩm, tiêu chuẩn kỹ thuật, năng lực gia công... (hỗ trợ Markdown & Bảng)"
+                    placeholder="Giới thiệu chi tiết sản phẩm: thành phần, quy cách, cách dùng, lưu ý... (không bắt buộc)"
                     rows={8}
                     value={form.description}
                   />
@@ -1508,48 +1488,31 @@ function ProductEditor({
 
             {/* Cột phụ: Trạng thái, Phân loại, SKU, Lead Time */}
             <div className="admin-haravan-sidebar">
-              {/* Card Trạng thái & Kênh hiển thị */}
+              {/* Card Trạng thái: một lựa chọn duy nhất thay cho trạng thái + công tắc hiển thị */}
               <div className="admin-haravan-card">
-                <h3 className="admin-haravan-card-title">Trạng thái & Hiển thị</h3>
+                <h3 className="admin-haravan-card-title">Trạng thái</h3>
                 <label className="admin-field">
-                  <span>Trạng thái phát hành</span>
+                  <span>Hiển thị trên website</span>
                   <select
                     className="admin-select"
                     data-testid="select-product-status"
                     disabled={saving}
-                    onChange={(event) => {
-                      const status = event.target.value as ProductFormState["status"];
-                      onChange({
-                        ...form,
-                        isActive: status === "published" ? form.isActive : false,
-                        status,
-                      });
-                    }}
-                    value={form.status}
+                    onChange={(event) => onChange(applyProductVisibilityChoice(form, event.target.value as ProductVisibilityChoice))}
+                    value={getProductVisibilityChoice(form)}
                   >
-                    <option value="draft">Bản nháp (Chưa bán)</option>
-                    <option value="review">Chờ duyệt</option>
-                    <option disabled={!form.id} value="published">Đã xuất bản</option>
-                    <option value="archived">Lưu trữ (Ẩn)</option>
+                    <option value="draft">Bản nháp (chưa hiện trên web)</option>
+                    <option disabled={!form.id} value="live">Đang hiển thị trên web</option>
+                    <option value="hidden">Tạm ẩn (hết hàng / ngừng bán)</option>
                   </select>
-                  {!form.id ? <small className="admin-field-hint">Lưu bản nháp trước, sau đó thêm biến thể hợp lệ rồi mới xuất bản.</small> : null}
-                </label>
-
-                <label className="admin-check" style={{ marginTop: 12 }}>
-                  <input
-                    checked={form.isActive}
-                    data-testid="checkbox-product-active"
-                    disabled={saving || form.status !== "published"}
-                    onChange={(event) => {
-                      const active = event.target.checked;
-                      onChange({ ...form, isActive: active });
-                    }}
-                    type="checkbox"
-                  />
-                  <span>
-                    <strong>Hiển thị trên trang web</strong>
-                    <small>{form.status !== "published" ? "Chỉ sản phẩm đã xuất bản mới có thể hiển thị." : form.isActive ? "Sản phẩm đang hiển thị công khai." : "Đã xuất bản nhưng đang ẩn khỏi website."}</small>
-                  </span>
+                  <small className="admin-field-hint">
+                    {!form.id
+                      ? "Lưu bản nháp trước, thêm giá và quy cách rồi mới bật hiển thị."
+                      : getProductVisibilityChoice(form) === "live"
+                        ? "Khách đang thấy sản phẩm này trên website."
+                        : getProductVisibilityChoice(form) === "hidden"
+                          ? "Sản phẩm đang ẩn khỏi website. Chọn \"Đang hiển thị\" để bán lại."
+                          : "Chưa hiện trên website. Chọn \"Đang hiển thị\" khi sẵn sàng bán."}
+                  </small>
                 </label>
               </div>
 
@@ -1585,11 +1548,11 @@ function ProductEditor({
                 </label>
               </div>
 
-              {/* Card Mã hàng & Sản xuất */}
+              {/* Card Mã sản phẩm */}
               <div className="admin-haravan-card">
-                <h3 className="admin-haravan-card-title">Mã hàng & Sản xuất</h3>
+                <h3 className="admin-haravan-card-title">Mã sản phẩm</h3>
                 <label className="admin-field">
-                  <span>Mã hàng (SKU) <b aria-hidden="true">*</b></span>
+                  <span>Mã sản phẩm (SKU) <b aria-hidden="true">*</b></span>
                   <input
                     className="admin-input admin-mono"
                     data-testid="input-product-sku"
@@ -1599,22 +1562,54 @@ function ProductEditor({
                     required
                     value={form.sku}
                   />
-                </label>
-                <label className="admin-field">
-                  <span>Thời gian làm hàng (ngày)</span>
-                  <input
-                    className="admin-input admin-mono"
-                    data-testid="input-product-lead-time"
-                    disabled={saving}
-                    inputMode="numeric"
-                    min="0"
-                    onChange={(event) => update("leadTimeDays", event.target.value)}
-                    type="number"
-                    value={form.leadTimeDays}
-                  />
-                  <small className="admin-field-hint">Số ngày sản xuất dự kiến</small>
+                  <small className="admin-field-hint">Mã nội bộ để phân biệt sản phẩm, không được trùng.</small>
                 </label>
               </div>
+
+              {/* Nâng cao: đường dẫn tự tạo theo tên, thời gian làm hàng */}
+              <details className="admin-haravan-card admin-tech-specs-disclosure">
+                <summary>
+                  <span>
+                    <strong>Nâng cao · Tùy chọn</strong>
+                    <small>Đường dẫn trang và thời gian làm hàng. Thường không cần chỉnh.</small>
+                  </span>
+                </summary>
+                <div style={{ paddingTop: 12 }}>
+                  <label className="admin-field">
+                    <span>Đường dẫn (slug)</span>
+                    <input
+                      className="admin-input admin-mono"
+                      data-testid="input-product-slug"
+                      disabled={saving}
+                      onChange={(event) => onChange({
+                        ...form,
+                        slug: event.target.value,
+                        slugFollowsName: event.target.value.trim() === "",
+                      })}
+                      placeholder="gia-cong-ca-phe-3in1"
+                      required
+                      value={form.slug}
+                    />
+                    <small className="admin-field-hint">
+                      Tự tạo theo tên sản phẩm; chỉ nhập khi cần giữ đường dẫn riêng. Đường dẫn: /san-pham/{form.slug || "..."}
+                    </small>
+                  </label>
+                  <label className="admin-field">
+                    <span>Thời gian làm hàng (ngày)</span>
+                    <input
+                      className="admin-input admin-mono"
+                      data-testid="input-product-lead-time"
+                      disabled={saving}
+                      inputMode="numeric"
+                      min="0"
+                      onChange={(event) => update("leadTimeDays", event.target.value)}
+                      type="number"
+                      value={form.leadTimeDays}
+                    />
+                    <small className="admin-field-hint">Số ngày làm hàng dự kiến. Để trống nếu không áp dụng.</small>
+                  </label>
+                </div>
+              </details>
             </div>
           </div>
         </div>
@@ -1782,12 +1777,12 @@ function ProductEditor({
         >
           {form.id ? (
             <div className="admin-haravan-card">
-              <h3 className="admin-haravan-card-title">Biến thể & Bảng giá MOQ</h3>
+              <h3 className="admin-haravan-card-title">Quy cách & bảng giá</h3>
               {variantsTabOpened ? <AdminVariantPanel productId={form.id} /> : null}
             </div>
           ) : (
             <div className="admin-haravan-card" style={{ color: "var(--admin-ink-muted)", padding: "24px", textAlign: "center" }}>
-              Vui lòng lưu bản nháp sản phẩm trước khi cấu hình biến thể và bảng giá MOQ.
+              Hãy lưu bản nháp sản phẩm trước, sau đó thêm quy cách và bảng giá.
             </div>
           )}
 

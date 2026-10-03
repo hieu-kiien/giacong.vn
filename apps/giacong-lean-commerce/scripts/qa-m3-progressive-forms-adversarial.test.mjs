@@ -91,7 +91,6 @@ test("M3 Product: Inactive tabs use CSS display toggle and NEVER unmount inputs"
     "select-product-category",
     "input-product-sku",
     "select-product-status",
-    "checkbox-product-active",
     "input-product-lead-time",
     "input-product-image",
     "button-product-save",
@@ -101,6 +100,44 @@ test("M3 Product: Inactive tabs use CSS display toggle and NEVER unmount inputs"
   for (const tid of requiredTestIds) {
     assert.match(source, new RegExp(`data-testid="${tid}"`), `Product form must retain data-testid "${tid}"`);
   }
+
+  // Status + visibility are one control; the old separate checkbox must not return.
+  assert.doesNotMatch(source, /data-testid="checkbox-product-active"/);
+  assert.match(source, /applyProductVisibilityChoice\(form, event\.target\.value as ProductVisibilityChoice\)/);
+
+  // Rarely edited fields live in a collapsed section but remain in the DOM.
+  const advancedStart = source.indexOf("Nâng cao · Tùy chọn");
+  assert.ok(advancedStart > 0, "Advanced disclosure must exist");
+  const advanced = source.slice(source.lastIndexOf("<details", advancedStart), source.indexOf("</details>", advancedStart));
+  assert.match(advanced, /data-testid="input-product-slug"/);
+  assert.match(advanced, /data-testid="input-product-lead-time"/);
+});
+
+test("M3 Product: visibility choices map onto the existing status and isActive contract", async () => {
+  const source = await readSource("app", "admin", "san-pham", "page.tsx");
+  const getFn = extractFunction(source, "getProductVisibilityChoice").replace(/:\s*ProductFormState/g, "").replace(/:\s*ProductVisibilityChoice/g, "");
+  const applyFn = extractFunction(source, "applyProductVisibilityChoice")
+    .replace(/:\s*ProductFormState/g, "")
+    .replace(/:\s*ProductVisibilityChoice/g, "");
+  const { get, apply } = new Function(`${getFn}; ${applyFn}; return { get: getProductVisibilityChoice, apply: applyProductVisibilityChoice };`)();
+
+  assert.equal(get({ status: "published", isActive: true }), "live");
+  assert.equal(get({ status: "published", isActive: false }), "hidden");
+  assert.equal(get({ status: "archived", isActive: false }), "hidden");
+  assert.equal(get({ status: "draft", isActive: false }), "draft");
+  assert.equal(get({ status: "review", isActive: false }), "draft");
+
+  const saved = { id: 7, status: "draft", isActive: false };
+  assert.deepEqual(apply(saved, "live"), { id: 7, status: "published", isActive: true });
+  const live = { id: 7, status: "published", isActive: true };
+  assert.deepEqual(apply(live, "hidden"), { id: 7, status: "published", isActive: false });
+  assert.deepEqual(apply(live, "draft"), { id: 7, status: "draft", isActive: false });
+
+  const unsaved = { status: "draft", isActive: false };
+  assert.deepEqual(apply(unsaved, "hidden"), { status: "archived", isActive: false });
+
+  const review = { id: 7, status: "review", isActive: false };
+  assert.equal(apply(review, "draft"), review, "an unchanged choice must return the same object so it cannot mark the form dirty");
 });
 
 test("M3 Product: Floating Sticky Action Bar configured with dirty indicator & guard hooks", async () => {
