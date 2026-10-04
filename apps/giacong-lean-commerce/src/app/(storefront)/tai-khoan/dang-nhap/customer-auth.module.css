@@ -158,6 +158,41 @@
   color: #315f19;
 }
 
+.linkButton {
+  background: none;
+  border: 0;
+  color: #3f7300;
+  cursor: pointer;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 650;
+  justify-self: center;
+  min-height: 44px;
+  padding: 8px 10px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.linkButton:hover:not(:disabled) {
+  color: #315f19;
+}
+
+.linkButton:focus-visible {
+  outline: 3px solid #3f7300;
+  outline-offset: 2px;
+}
+
+.linkButton:disabled {
+  cursor: wait;
+  opacity: 0.72;
+}
+
+.optional {
+  color: #697466;
+  font-size: 12px;
+  font-weight: 500;
+}
+
 .divider {
   align-items: center;
   color: #697466;

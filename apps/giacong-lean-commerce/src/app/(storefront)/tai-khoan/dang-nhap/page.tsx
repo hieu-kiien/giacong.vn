@@ -57,7 +57,7 @@ export default async function CustomerSignInPage({
               <h2 className={styles.cardTitle} id="sign-in-title">Đăng nhập hoặc tạo tài khoản</h2>
               <p className={styles.cardCopy}>{isAdminSignIn
                 ? "Đăng nhập bằng tài khoản website. Chỉ tài khoản đã được cấp quyền admin mới vào được khu vực quản trị."
-                : "Dùng Google hoặc tên đăng nhập/email và mật khẩu."}</p>
+                : "Dùng Google, hoặc email và mật khẩu. Tên đăng nhập là tùy chọn."}</p>
 
               <CustomerAccountAuth callbackURL={callbackURL} />
 

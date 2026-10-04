@@ -4,11 +4,22 @@ import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { betterAuth } from "better-auth";
 import { username } from "better-auth/plugins";
 
+import {
+  buildPasswordResetEmail,
+  buildVerificationEmail,
+  resolveCustomerEmailConfig,
+  sendCustomerEmail,
+} from "./customer-email.ts";
+
 type BetterAuthOptions = Parameters<typeof betterAuth>[0];
 type BetterAuthDatabase = NonNullable<BetterAuthOptions["database"]>;
 
 interface CustomerAuthEnvironment {
   BETTER_AUTH_SECRET?: string;
+  /** Sender shown on verification / reset e-mails, e.g. "Kienhieu <no-reply@kienhieu.id.vn>". */
+  CUSTOMER_EMAIL_FROM?: string;
+  /** Resend API key; without it e-mail sign-up and password reset stay switched off. */
+  RESEND_API_KEY?: string;
   GOOGLE_CLIENT_ID?: string;
   GOOGLE_CLIENT_SECRET?: string;
   GIACONG_VN_CATALOG?: BetterAuthDatabase;
@@ -107,17 +118,42 @@ function createCustomerAuth(origin: string) {
     throw new CustomerAuthConfigurationError();
   }
 
+  // Self-service e-mail accounts need working e-mail delivery (verification and
+  // password reset). Without Resend configured, sign-up fails closed and only
+  // Google sign-in (plus password set-up after Google) is available.
+  const emailConfig = resolveCustomerEmailConfig(environment);
+  const brand = "Kienhieu";
+
   return betterAuth({
-    appName: "Kienhieu",
+    appName: brand,
     baseURL: origin,
     trustedOrigins: [...CUSTOMER_AUTH_ORIGINS],
     secret,
     database,
     emailAndPassword: {
       enabled: true,
-      disableSignUp: true,
+      disableSignUp: !emailConfig,
       requireEmailVerification: true,
+      minPasswordLength: 8,
+      maxPasswordLength: 128,
+      resetPasswordTokenExpiresIn: 60 * 60,
+      sendResetPassword: emailConfig
+        ? async ({ user, url }) => {
+            await sendCustomerEmail(emailConfig, buildPasswordResetEmail({ brand, name: user.name, to: user.email, url }));
+          }
+        : undefined,
     },
+    emailVerification: emailConfig
+      ? {
+          autoSignInAfterVerification: true,
+          expiresIn: 60 * 60 * 24,
+          sendOnSignIn: true,
+          sendOnSignUp: true,
+          sendVerificationEmail: async ({ user, url }) => {
+            await sendCustomerEmail(emailConfig, buildVerificationEmail({ brand, name: user.name, to: user.email, url }));
+          },
+        }
+      : undefined,
     plugins: [username({ displayUsername: false, immutableUsername: true })],
     socialProviders: {
       google: {
