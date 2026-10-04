@@ -361,8 +361,8 @@ test("the demo contact channels are exactly the locked values", () => {
   );
 
   const byId = new Map<string, Channel>(REQUEST_CART_CHANNELS.map((channel) => [channel.id, channel]));
-  assert.equal(byId.get("zalo")?.href, "https://zalo.me/06408115");
-  assert.equal(byId.get("zalo")?.contact, "06408115");
+  assert.equal(byId.get("zalo")?.href, "https://zalo.me/0868408115");
+  assert.equal(byId.get("zalo")?.contact, "0868408115");
   assert.equal(byId.get("messenger")?.href, "https://m.me/qtudepdai");
   assert.equal(byId.get("email")?.href, "mailto:contact@kienhieu.id.vn");
   assert.equal(byId.get("hotline")?.href, "tel:0868408115");

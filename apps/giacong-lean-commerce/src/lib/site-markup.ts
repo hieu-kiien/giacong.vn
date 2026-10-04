@@ -29,7 +29,7 @@ export function applySiteSettingsToMarkup(
   }
   if (phone) {
     result = result.replace(/href=(["'])tel:[^"']*\1/gi, `href="${phoneHref}"`);
-    result = result.replace(/0947142999/g, phone);
+    result = result.replace(/(?:0947142999|0868408115)/g, phone);
   }
   if (settings.contact_zalo_url) result = result.replace(/https:\/\/zalo\.me\/[^"' ]+/gi, zalo);
   if (settings.contact_messenger_url) result = result.replace(/https:\/\/m\.me\/[^"' ]+/gi, messenger);

@@ -17,16 +17,25 @@ export interface RequestCartChannel {
 
 export interface RequestCartChannelSettings {
   contactEmail?: string;
+  contactPhone?: string;
+  contactZaloUrl?: string;
+  contactMessengerUrl?: string;
 }
 
 export function getRequestCartChannels(settings: RequestCartChannelSettings = {}): readonly RequestCartChannel[] {
   const contactEmail = settings.contactEmail?.trim() || "contact@kienhieu.id.vn";
+  const contactPhone = settings.contactPhone?.trim() || "0868408115";
+  const contactZaloUrl = settings.contactZaloUrl?.trim() || "https://zalo.me/0868408115";
+  const zaloContact = contactZaloUrl.replace(/^https?:\/\/zalo\.me\//i, "") || contactPhone;
+  const contactMessengerUrl = settings.contactMessengerUrl?.trim() || "https://m.me/qtudepdai";
+  const messengerContact = contactMessengerUrl.replace(/^https?:\/\//i, "") || "m.me/qtudepdai";
+  const phoneDigits = contactPhone.replace(/[^\d+]/g, "");
 
   return [
-    { contact: "06408115", copyFirst: true, demo: true, href: "https://zalo.me/06408115", id: "zalo", label: "Zalo" },
-    { contact: "m.me/qtudepdai", copyFirst: true, demo: true, href: "https://m.me/qtudepdai", id: "messenger", label: "Messenger" },
+    { contact: zaloContact, copyFirst: true, demo: true, href: contactZaloUrl, id: "zalo", label: "Zalo" },
+    { contact: messengerContact, copyFirst: true, demo: true, href: contactMessengerUrl, id: "messenger", label: "Messenger" },
     { contact: contactEmail, copyFirst: false, demo: true, href: `mailto:${contactEmail}`, id: "email", label: "Email" },
-    { contact: "0868408115", copyFirst: false, demo: true, href: "tel:0868408115", id: "hotline", label: "Hotline" },
+    { contact: contactPhone, copyFirst: false, demo: true, href: `tel:${phoneDigits}`, id: "hotline", label: "Hotline" },
   ];
 }
 
