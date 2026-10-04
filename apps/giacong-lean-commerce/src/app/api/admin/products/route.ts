@@ -9,6 +9,8 @@ import { adminErrorFrom } from "@/lib/admin-error-mapping.ts";
 import {
   listAdminCategories,
   listAdminProducts,
+  parseAdminProductCategoryFilter,
+  parseAdminProductSort,
 } from "@/lib/admin-data";
 import { requireAdmin } from "@/lib/admin-guard";
 import { canManage, canManageCatalog } from "@/lib/admin-permissions.ts";
@@ -31,9 +33,11 @@ export async function GET(request: Request): Promise<Response> {
   try {
     const [data, categories] = await Promise.all([
       listAdminProducts(guard.database, {
+        categoryId: parseAdminProductCategoryFilter(url.searchParams.get("categoryId")),
         page,
         pageSize,
         query: url.searchParams.get("query") ?? undefined,
+        sort: parseAdminProductSort(url.searchParams.get("sort")),
         status: url.searchParams.get("status") ?? undefined,
       }),
       listAdminCategories(guard.database),

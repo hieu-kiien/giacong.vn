@@ -43,32 +43,15 @@ test("AdminModal: Core accessibility primitives and WAI-ARIA compliance in Admin
   assert.match(dialogSrc, /document\.body\.style\.overflow = originalOverflow/, "AdminModal must restore body overflow on unmount");
 });
 
-test("AdminModal instance 1: khach-hang Create Customer modal uses AdminModal with WAI-ARIA and no hand-rolled overlays", async () => {
+test("AdminModal instance 1: khach-hang detail modal uses AdminModal with WAI-ARIA and no hand-rolled overlays", async () => {
   const pageSrc = await readSource("app", "admin", "khach-hang", "page.tsx");
 
-  // 1. Clean import and instantiation
   assert.match(pageSrc, /import \{[^}]*AdminModal[^}]*\} from "@\/components\/admin\/AdminDialog"/, "Must import AdminModal");
-  assert.match(pageSrc, /<AdminModal\s+labelledBy="customer-create-modal-title"\s+onClose=\{\(\) => setIsCreateOpen\(false\)\}\s+title="Tạo Hồ Sơ Khách Hàng Doanh Nghiệp Mới"/, "Create customer modal must be instantiated via AdminModal with explicit title and labelledBy");
-
-  // 2. Hand-rolled fixed overlay elimination
+  assert.match(pageSrc, /<AdminModal\s+labelledBy="customer-detail-title"\s+onClose=\{\(\) => setSelectedId\(null\)\}/, "Customer detail must be instantiated via AdminModal with labelledBy and a close handler");
+  assert.match(pageSrc, /<h2 hidden id="customer-detail-title">/, "The modal title element must exist for aria-labelledby");
   assert.doesNotMatch(pageSrc, /position:\s*"fixed",\s*inset:\s*0,\s*zIndex:\s*60/, "Must not contain raw inline fixed modal overlay");
   assert.doesNotMatch(pageSrc, /backgroundColor:\s*"rgba\(0,\s*0,\s*0,\s*0\.4\)"/, "Must not contain inline rgba backdrop");
-
-  // 3. Form elements and accessible buttons inside modal
-  assert.match(pageSrc, /Tên công ty \/ Đơn vị đặt hàng \*/, "Company name field must be clearly labeled");
-  for (const [fieldId, element] of [
-    ["customer-company-name", "input"],
-    ["customer-tax-code", "input"],
-    ["customer-phone", "input"],
-    ["customer-email", "input"],
-    ["customer-industry", "select"],
-    ["customer-tier", "select"],
-  ]) {
-    assert.match(pageSrc, new RegExp(`<label[^>]*htmlFor="${fieldId}"`), `${fieldId} needs a connected label`);
-    assert.match(pageSrc, new RegExp(`<${element}[^>]*id="${fieldId}"`), `${fieldId} needs a matching control id`);
-  }
-  assert.match(pageSrc, /onClick=\{\(\) => setIsCreateOpen\(false\)\}/, "Cancel button must dismiss modal");
-  assert.match(pageSrc, /disabled=\{creating \|\| !newCompany\.trim\(\)\}/, "Submit button must have guarded disabled state");
+  assert.doesNotMatch(pageSrc, /B2B|RFQ|CRM|công nợ|Phân hạng/, "Customer page must use plain retail wording");
 });
 
 test("AdminModal instance 2: AdminCustomerDrawer uses AdminModal with WAI-ARIA, portal and wide layout", async () => {

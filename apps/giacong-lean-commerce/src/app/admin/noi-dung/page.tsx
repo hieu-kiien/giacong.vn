@@ -1,6 +1,7 @@
 "use client";
 
 import { Check, ExternalLink, RefreshCw, Save, Send, SendHorizonal, ShieldCheck, Upload } from "lucide-react";
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRegisterAdminUnsaved } from "@/components/admin/AdminUnsavedGuard";
 import { AdminConfirmDialog } from "@/components/admin/AdminDialog";
@@ -264,6 +265,10 @@ export default function AdminContentPage() {
         subtitle="Sửa theo mẫu an toàn, lưu bản nháp trước rồi đăng từng thay đổi ra trang web."
         stamp="QUẢN LÝ NỘI DUNG"
       />
+      <p className="admin-panel-caption" style={{ margin: "-4px 0 12px" }}>
+        Muốn đổi thứ tự các khối trên trang chủ?{" "}
+        <Link data-testid="link-content-page-design" href="/admin/thiet-ke" prefetch={false}>Mở phần thiết kế trang →</Link>
+      </p>
       <div className="admin-content-toolbar">
         <div>
           <div className="admin-content-toolbar-title"><ShieldCheck size={16} /> Quy trình đăng an toàn</div>

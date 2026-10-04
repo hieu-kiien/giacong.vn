@@ -93,6 +93,8 @@ async function run(name, check, role = "owner", width = 1440, height = 900) {
       : path.endsWith("/services") ? { services: [], total: 0 }
       : path.endsWith("/leads") ? { leads: [], total: 0 }
       : path.endsWith("/audit") ? { entries: [], total: 0, pagination: { currentPage: 1, lastPage: 1, pageSize: 20, total: 0 } }
+      : path.endsWith("/customers") ? { customers: [{ id: "cust-1", name: "Nguyễn Thị Lan", email: "lan@example.test", username: null, phone: "0912345678", createdAt: "2026-09-01T00:00:00Z", lastRequestAt: "2026-09-20T00:00:00Z", requestCount: 2, saleCount: 1, saleTotal: 450000 }], ready: true, total: 1, pagination: { currentPage: 1, lastPage: 1, pageSize: 20, total: 1 } }
+      : /\/customers\/cust-1$/.test(path) ? { customer: { id: "cust-1", name: "Nguyễn Thị Lan", email: "lan@example.test", username: null, phone: "0912345678", createdAt: "2026-09-01T00:00:00Z", lastRequestAt: "2026-09-20T00:00:00Z", requestCount: 2, saleCount: 1, saleTotal: 450000, requests: [{ id: "lead-1", status: "new", createdAt: "2026-09-20T00:00:00Z", items: ["Bột ngũ cốc · Gói 500g × 3"] }], sales: [{ id: "sale-1", saleCode: "ZS-0001", confirmedAt: "2026-09-21T00:00:00Z", totalAmount: 450000 }] } }
       : path.endsWith("/crm/customers") ? { items: [], pagination: { currentPage: 1, lastPage: 1, pageSize: 20, total: 0 } }
       : path.endsWith("/members") ? { members: [], role }
       : path.endsWith("/navigation") ? { items: navigationItems, canEdit: true, canPublish: true }
@@ -180,21 +182,41 @@ await run("Product status filters stay shareable and reset when cleared", async 
   await expect(drafts).toHaveAttribute("aria-pressed", "true");
 });
 
-await run("Customer creation fields expose their accessible names", async (page) => {
-  await open(page, "/admin/khach-hang");
-  await page.getByRole("button", { name: "Thêm khách hàng" }).click();
-  const dialog = page.getByRole("dialog");
+await run("Product list sort and category filter are shareable and feed the CSV export link", async (page) => {
+  await open(page, "/admin/san-pham?sort=name&categoryId=1&status=active");
+  await expect(page.getByTestId("select-product-sort")).toHaveValue("name");
+  await expect(page.getByTestId("select-product-category-filter")).toHaveValue("1");
+  const exportLink = page.getByTestId("link-product-export");
+  await expect(exportLink).toBeVisible();
+  const href = (await exportLink.getAttribute("href")) ?? "";
+  assert.match(href, /^\/api\/admin\/products\/export\?/);
+  for (const part of ["sort=name", "categoryId=1", "status=active"]) assert.ok(href.includes(part), `export link keeps ${part}`);
 
-  for (const label of [
-    "Tên công ty / Đơn vị đặt hàng *",
-    "Mã số thuế (MST)",
-    "Số điện thoại",
-    "Email liên hệ",
-    "Ngành nghề sản xuất",
-    "Phân hạng khách hàng",
-  ]) {
-    await expect(dialog.getByLabel(label, { exact: true })).toBeVisible();
+  await page.getByTestId("select-product-sort").selectOption("price_asc");
+  await expect(page).toHaveURL(/sort=price_asc/);
+  await page.getByTestId("select-product-category-filter").selectOption("none");
+  await expect(page).toHaveURL(/categoryId=none/);
+  await page.reload();
+  await expect(page.getByTestId("select-product-sort")).toHaveValue("price_asc");
+  await expect(page.getByTestId("select-product-category-filter")).toHaveValue("none");
+  await page.getByTestId("select-product-sort").selectOption("newest");
+  await expect(page).not.toHaveURL(/sort=/);
+});
+
+await run("Customers are plain: searchable list, detail with requests and sales, Excel export", async (page) => {
+  await open(page, "/admin/khach-hang");
+  await expect(page.getByRole("heading", { level: 1, name: "Khách hàng", exact: true })).toBeVisible();
+  const bodyText = await page.locator("main").innerText();
+  for (const jargon of ["B2B", "RFQ", "CRM", "MST", "công nợ", "Phân hạng"]) {
+    assert.equal(bodyText.includes(jargon), false, `customers page must not mention ${jargon}`);
   }
+  await expect(page.getByTestId("row-customer-cust-1")).toContainText("Nguyễn Thị Lan");
+  await expect(page.getByTestId("link-customer-export")).toHaveAttribute("href", /\/api\/admin\/customers\/export/);
+  await page.getByTestId("row-customer-cust-1").getByRole("button", { name: "Xem chi tiết" }).click();
+  const detail = page.getByTestId("customer-detail");
+  await expect(detail).toContainText("lan@example.test");
+  await expect(detail).toContainText("Bột ngũ cốc");
+  await expect(detail).toContainText("ZS-0001");
 });
 
 await run("Product validation link opens the correct tab and focuses the invalid field", async (page) => {

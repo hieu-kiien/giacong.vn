@@ -1,493 +1,232 @@
 "use client";
 
-import { useState, useEffect, useCallback, type FormEvent } from "react";
-import { Search, Building2, UserPlus, Phone, Mail, CreditCard, ShieldCheck } from "lucide-react";
+import { Download, Search } from "lucide-react";
+import { useEffect, useState, type FormEvent } from "react";
+import { AdminModal } from "@/components/admin/AdminDialog";
 import {
-  AdminPageHeading,
-  AdminLoadingTable,
   AdminEmptyState,
   AdminErrorState,
-  AdminStatusBadge,
+  AdminLoadingTable,
+  AdminPageHeading,
   AdminPagination,
+  AdminStatusBadge,
 } from "@/components/admin/AdminPrimitives";
-import { AdminCustomerDrawer } from "@/components/admin/AdminCustomerDrawer";
-import { AdminModal } from "@/components/admin/AdminDialog";
-import { useAdminToast } from "@/components/admin/AdminToast";
-import { useAdminSession } from "@/components/admin/AdminShell";
-import { AdminClientError, fetchAdmin, formatAdminDate, mutateAdmin } from "@/lib/admin-client";
-import { canManageCrm } from "@/lib/admin-permissions";
-import type { CrmCustomer, CrmIndustry, CrmCustomerTier } from "@/lib/admin-crm-types";
+import { AdminClientError, fetchAdmin, formatAdminDate } from "@/lib/admin-client";
+import type { AdminCustomerDetail, AdminCustomerSummary } from "@/lib/admin-customers";
 
-const tierLabels: Record<string, { label: string; kind: "green" | "amber" | "blue" | "neutral" }> = {
-  vip: { label: "VIP", kind: "green" },
-  strategic: { label: "Chiến lược", kind: "blue" },
-  potential: { label: "Tiềm năng", kind: "amber" },
-  standard: { label: "Tiêu chuẩn", kind: "neutral" },
-  dormant: { label: "Ít liên hệ", kind: "neutral" },
-};
-
-const industryLabels: Record<string, string> = {
-  mechanical_cnc: "Cơ khí CNC",
-  sheet_metal: "Kim loại tấm",
-  plastic_injection: "Ép nhựa kỹ thuật",
-  casting_forging: "Đúc - Rèn",
-  apparel_textile: "May mặc công nghiệp",
-  packaging_carton: "Bao bì carton",
-  electronics_pcba: "Mạch điện tử PCBA",
-  wood_furniture: "Nội thất gỗ",
-  automation_jigs: "Đồ gá & Jigs",
-  other: "Khác",
-};
-
-interface CustomerResponse {
-  items: CrmCustomer[];
-  pagination: {
-    currentPage: number;
-    lastPage: number;
-    pageSize: number;
-    total: number;
-  };
+interface CustomerListResponse {
+  customers: AdminCustomerSummary[];
+  pagination?: { currentPage: number; lastPage: number; pageSize: number; total: number };
+  ready?: boolean;
+  total: number;
 }
 
+const PAGE_SIZE = 20;
+
+const requestStatusLabels: Record<string, { kind: "green" | "amber" | "red" | "blue" | "neutral"; label: string }> = {
+  contacted: { kind: "blue", label: "Đã liên hệ" },
+  lost: { kind: "red", label: "Không mua" },
+  negotiation: { kind: "blue", label: "Đang trao đổi" },
+  new: { kind: "green", label: "Mới" },
+  qualified: { kind: "green", label: "Mới" },
+  quotation_sent: { kind: "blue", label: "Đã liên hệ" },
+  sampling: { kind: "blue", label: "Đang trao đổi" },
+  spam: { kind: "red", label: "Rác" },
+  won: { kind: "green", label: "Đã chốt" },
+};
+
+const money = new Intl.NumberFormat("vi-VN");
+
 export default function AdminCustomersPage() {
-  const session = useAdminSession();
-  const { showToast } = useAdminToast();
-  const canManage = canManageCrm(session.role);
-  const [customers, setCustomers] = useState<CrmCustomer[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<AdminClientError | null>(null);
+  const [customers, setCustomers] = useState<AdminCustomerSummary[]>([]);
   const [query, setQuery] = useState("");
   const [inputQuery, setInputQuery] = useState("");
-  const [tierFilter, setTierFilter] = useState<string>("all");
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [lastPage, setLastPage] = useState(1);
-  const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
-  const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const [creating, setCreating] = useState(false);
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [bulkTierModal, setBulkTierModal] = useState(false);
-  const [targetBulkTier, setTargetBulkTier] = useState<CrmCustomerTier>("standard");
-  const [bulkUpdating, setBulkUpdating] = useState(false);
-
-  // New Customer Form State
-  const [newCompany, setNewCompany] = useState("");
-  const [newTaxCode, setNewTaxCode] = useState("");
-  const [newPhone, setNewPhone] = useState("");
-  const [newEmail, setNewEmail] = useState("");
-  const [newIndustry, setNewIndustry] = useState<CrmIndustry>("mechanical_cnc");
-  const [newTier, setNewTier] = useState<CrmCustomerTier>("standard");
-
-  const loadCustomers = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const params = new URLSearchParams({
-        page: String(page),
-        pageSize: "20",
-        query,
-      });
-      if (tierFilter !== "all") {
-        params.set("tier", tierFilter);
-      }
-      const res = await fetchAdmin<CustomerResponse>(`/api/admin/crm/customers?${params.toString()}`);
-      setCustomers(res.items ?? []);
-      setTotal(res.pagination?.total ?? 0);
-      setLastPage(res.pagination?.lastPage ?? 1);
-    } catch (err) {
-      setError(
-        err instanceof AdminClientError
-          ? err
-          : new AdminClientError("Chưa thể tải danh sách khách hàng CRM.", 0)
-      );
-    } finally {
-      setLoading(false);
-    }
-  }, [page, query, tierFilter]);
+  const [ready, setReady] = useState(true);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<AdminClientError | null>(null);
+  const [attempt, setAttempt] = useState(0);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [detail, setDetail] = useState<AdminCustomerDetail | null>(null);
+  const [detailError, setDetailError] = useState<string | null>(null);
 
   useEffect(() => {
-    void loadCustomers();
-  }, [loadCustomers]);
-
-  async function handleBulkUpdateTier() {
-    if (!canManage || selectedIds.size === 0 || bulkUpdating) return;
-    setBulkUpdating(true);
-    const selectedCustomers = customers.filter((c) => selectedIds.has(c.id));
-    let successCount = 0;
-    for (const cust of selectedCustomers) {
+    const controller = new AbortController();
+    const params = new URLSearchParams({ page: String(page), pageSize: String(PAGE_SIZE) });
+    if (query) params.set("query", query);
+    void (async () => {
+      await Promise.resolve();
+      if (controller.signal.aborted) return;
+      setLoading(true);
+      setError(null);
       try {
-        await mutateAdmin(`/api/admin/crm/customers/${cust.id}`, {
-          method: "PATCH",
-          body: {
-            requestId: crypto.randomUUID(),
-            revision: cust.revision,
-            tier: targetBulkTier,
-          },
-        });
-        successCount++;
-      } catch {
-        // continue
+        const result = await fetchAdmin<CustomerListResponse>(`/api/admin/customers?${params.toString()}`, controller.signal);
+        setCustomers(result.customers ?? []);
+        setTotal(result.total ?? 0);
+        setReady(result.ready !== false);
+        setLastPage(result.pagination?.lastPage ?? Math.max(1, Math.ceil((result.total ?? 0) / PAGE_SIZE)));
+      } catch (reason: unknown) {
+        if (!(reason instanceof DOMException && reason.name === "AbortError")) {
+          setError(reason instanceof AdminClientError ? reason : new AdminClientError("Không thể tải danh sách khách hàng.", 0));
+        }
+      } finally {
+        if (!controller.signal.aborted) setLoading(false);
       }
-    }
-    setBulkUpdating(false);
-    setBulkTierModal(false);
-    setSelectedIds(new Set());
-    showToast("success", `Đã cập nhật phân hạng ${successCount}/${selectedCustomers.length} khách hàng sang ${tierLabels[targetBulkTier]?.label || targetBulkTier}.`);
-    await loadCustomers();
-  }
+    })();
+    return () => controller.abort();
+  }, [page, query, attempt]);
 
-  function handleSearch(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
+  useEffect(() => {
+    if (!selectedId) return;
+    const controller = new AbortController();
+    void (async () => {
+      await Promise.resolve();
+      if (controller.signal.aborted) return;
+      setDetail(null);
+      setDetailError(null);
+      try {
+        const result = await fetchAdmin<{ customer: AdminCustomerDetail }>(
+          `/api/admin/customers/${encodeURIComponent(selectedId)}`,
+          controller.signal,
+        );
+        setDetail(result.customer);
+      } catch (reason: unknown) {
+        if (!(reason instanceof DOMException && reason.name === "AbortError")) {
+          setDetailError(reason instanceof AdminClientError ? reason.message : "Không thể tải thông tin khách hàng.");
+        }
+      }
+    })();
+    return () => controller.abort();
+  }, [selectedId]);
+
+  function submitSearch(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
     setPage(1);
     setQuery(inputQuery.trim());
   }
 
-  async function handleCreateCustomer(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    if (!newCompany.trim()) return;
-    setCreating(true);
-    try {
-      await mutateAdmin("/api/admin/crm/customers", {
-        method: "POST",
-        body: {
-          company_name: newCompany.trim(),
-          tax_code: newTaxCode.trim() || null,
-          phone: newPhone.trim() || null,
-          email: newEmail.trim() || null,
-          industry: newIndustry,
-          tier: newTier,
-        },
-      });
-      showToast("success", "Đã tạo hồ sơ khách hàng doanh nghiệp thành công.");
-      setIsCreateOpen(false);
-      setNewCompany("");
-      setNewTaxCode("");
-      setNewPhone("");
-      setNewEmail("");
-      await loadCustomers();
-    } catch (err) {
-      const msg = err instanceof AdminClientError ? err.message : "Lỗi khi tạo khách hàng.";
-      showToast("error", msg);
-    } finally {
-      setCreating(false);
-    }
+  function clearSearch() {
+    setInputQuery("");
+    setQuery("");
+    setPage(1);
   }
+
+  const exportHref = `/api/admin/customers/export${query ? `?query=${encodeURIComponent(query)}` : ""}`;
 
   return (
     <div className="admin-content">
       <AdminPageHeading
-        kicker="Khách hàng & Báo giá"
-        title="Quản lý Khách hàng Doanh nghiệp (CRM)"
-        subtitle="Hồ sơ hợp nhất (Customer 360), dòng thời gian tương tác, lịch sử báo giá và công nợ B2B."
-        stamp="B2B CRM"
+        kicker="Bán hàng / khách hàng"
+        title="Khách hàng"
+        subtitle="Những người đã đăng ký tài khoản trên website, cùng yêu cầu mua và đơn đã chốt của họ."
       />
 
-      {/* Toolbar */}
-      <form className="admin-toolbar" onSubmit={handleSearch}>
+      <form className="admin-toolbar" onSubmit={submitSearch}>
         <div className="admin-search-wrap">
-          <label className="admin-label" htmlFor="crm-search">
-            Tìm theo tên công ty, mã khách hàng, MST hoặc số điện thoại
-          </label>
+          <label className="admin-label" htmlFor="customer-search">Tìm theo tên, email hoặc số điện thoại</label>
           <Search aria-hidden="true" />
           <input
             className="admin-input has-icon"
-            id="crm-search"
-            placeholder="Tìm theo tên công ty, MST, SĐT..."
+            data-testid="input-customer-search"
+            id="customer-search"
+            onChange={(event) => setInputQuery(event.target.value)}
+            placeholder="Ví dụ: Nguyễn Văn A, 0912…, email"
             value={inputQuery}
-            onChange={(e) => setInputQuery(e.target.value)}
           />
         </div>
-        <button className="admin-button admin-button-primary" type="submit">
-          <Search size={15} /> Tìm kiếm
+        <button className="admin-button admin-button-primary" data-testid="button-customer-search" type="submit">
+          <Search size={15} /> Tìm khách hàng
         </button>
         {query ? (
-          <button
-            className="admin-button admin-button-quiet"
-            type="button"
-            onClick={() => {
-              setInputQuery("");
-              setQuery("");
-            }}
-          >
-            Xóa tìm
-          </button>
+          <button className="admin-button admin-button-quiet" onClick={clearSearch} type="button">Xóa tìm kiếm</button>
         ) : null}
-        {canManage && selectedIds.size > 0 ? (
-          <div className="admin-bulk-toolbar" style={{ alignItems: "center", display: "inline-flex", flexWrap: "wrap", gap: 8 }}>
-            <span aria-live="polite" className="admin-item-meta" data-testid="customer-selection-count">
-              Đã chọn <strong>{selectedIds.size}</strong>
-            </span>
-            <button
-              className="admin-button admin-button-primary"
-              data-testid="button-customer-batch-tier"
-              onClick={() => setBulkTierModal(true)}
-              style={{ fontSize: 12, minHeight: 30, padding: "0 10px" }}
-              type="button"
-            >
-              Đổi phân hạng đã chọn
-            </button>
-            <button
-              className="admin-button admin-button-quiet"
-              onClick={() => setSelectedIds(new Set())}
-              style={{ fontSize: 12, minHeight: 30, padding: "0 8px" }}
-              type="button"
-            >
-              Bỏ chọn
-            </button>
-          </div>
-        ) : null}
-        <button
-          className="admin-button admin-button-primary"
-          type="button"
-          onClick={() => setIsCreateOpen(true)}
+        <a
+          className="admin-button admin-button-quiet"
+          data-testid="link-customer-export"
+          download
+          href={exportHref}
+          style={{ alignItems: "center", display: "inline-flex", gap: 5 }}
         >
-          <UserPlus size={15} /> Thêm khách hàng
-        </button>
+          <Download size={14} /> Xuất Excel (CSV)
+        </a>
       </form>
 
-      {/* Create Modal */}
-      {isCreateOpen ? (
-        <AdminModal
-          labelledBy="customer-create-modal-title"
-          onClose={() => setIsCreateOpen(false)}
-          title="Tạo Hồ Sơ Khách Hàng Doanh Nghiệp Mới"
-        >
-          <form onSubmit={handleCreateCustomer} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            <div>
-              <label className="admin-field-label" htmlFor="customer-company-name">Tên công ty / Đơn vị đặt hàng *</label>
-              <input
-                id="customer-company-name"
-                type="text"
-                className="admin-input"
-                required
-                placeholder="Ví dụ: Công ty Cơ khí An Phát"
-                value={newCompany}
-                onChange={(e) => setNewCompany(e.target.value)}
-                style={{ width: "100%" }}
-              />
-            </div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-              <div>
-                <label className="admin-field-label" htmlFor="customer-tax-code">Mã số thuế (MST)</label>
-                <input
-                  id="customer-tax-code"
-                  type="text"
-                  className="admin-input"
-                  placeholder="0312345678"
-                  value={newTaxCode}
-                  onChange={(e) => setNewTaxCode(e.target.value)}
-                  style={{ width: "100%" }}
-                />
-              </div>
-              <div>
-                <label className="admin-field-label" htmlFor="customer-phone">Số điện thoại</label>
-                <input
-                  id="customer-phone"
-                  type="text"
-                  className="admin-input"
-                  placeholder="0901234567"
-                  value={newPhone}
-                  onChange={(e) => setNewPhone(e.target.value)}
-                  style={{ width: "100%" }}
-                />
-              </div>
-            </div>
-            <div>
-              <label className="admin-field-label" htmlFor="customer-email">Email liên hệ</label>
-              <input
-                id="customer-email"
-                type="email"
-                className="admin-input"
-                placeholder="contact@anphat.com"
-                value={newEmail}
-                onChange={(e) => setNewEmail(e.target.value)}
-                style={{ width: "100%" }}
-              />
-            </div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-              <div>
-                <label className="admin-field-label" htmlFor="customer-industry">Ngành nghề sản xuất</label>
-                <select
-                  id="customer-industry"
-                  className="admin-select"
-                  value={newIndustry}
-                  onChange={(e) => setNewIndustry(e.target.value as CrmIndustry)}
-                  style={{ width: "100%" }}
-                >
-                  {Object.entries(industryLabels).map(([val, label]) => (
-                    <option key={val} value={val}>
-                      {label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="admin-field-label" htmlFor="customer-tier">Phân hạng khách hàng</label>
-                <select
-                  id="customer-tier"
-                  className="admin-select"
-                  value={newTier}
-                  onChange={(e) => setNewTier(e.target.value as CrmCustomerTier)}
-                  style={{ width: "100%" }}
-                >
-                  <option value="standard">Tiêu chuẩn</option>
-                  <option value="potential">Tiềm năng</option>
-                  <option value="strategic">Chiến lược</option>
-                  <option value="vip">VIP</option>
-                </select>
-              </div>
-            </div>
-            <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 12 }}>
-              <button
-                type="button"
-                className="admin-button admin-button-quiet"
-                onClick={() => setIsCreateOpen(false)}
-              >
-                Hủy
-              </button>
-              <button
-                type="submit"
-                className="admin-button admin-button-primary"
-                disabled={creating || !newCompany.trim()}
-              >
-                {creating ? "Đang lưu..." : "Tạo khách hàng"}
-              </button>
-            </div>
-          </form>
-        </AdminModal>
-      ) : null}
-
-      {/* Main Table */}
       {error ? (
-        <AdminErrorState error={error} onRetry={() => void loadCustomers()} />
+        <AdminErrorState error={error} onRetry={() => setAttempt((value) => value + 1)} />
       ) : loading ? (
         <AdminLoadingTable />
       ) : (
-        <section className="admin-panel admin-table-panel" aria-labelledby="customers-table-heading">
-          <div className="admin-panel-heading" style={{ padding: "20px 20px 12px" }}>
+        <section className="admin-panel admin-table-panel" aria-labelledby="customer-table-heading">
+          <div className="admin-panel-heading" style={{ padding: "21px 21px 12px" }}>
             <div>
-              <h2 className="admin-panel-title" id="customers-table-heading">
-                Hồ sơ khách hàng
-              </h2>
-              <p className="admin-panel-caption">
-                {query ? `Kết quả tìm kiếm cho “${query}”` : "Sắp xếp theo thời gian tương tác gần nhất"}
-              </p>
+              <h2 className="admin-panel-title" id="customer-table-heading">Danh sách khách hàng</h2>
+              <p className="admin-panel-caption">{query ? `Kết quả cho “${query}”` : "Khách có yêu cầu gần đây nhất hiển thị trước"}</p>
             </div>
-            <span className="admin-count">{total} doanh nghiệp</span>
+            <span aria-live="polite" className="admin-count">{total} khách</span>
           </div>
-
-          <div style={{ padding: "0 20px 12px" }}>
-            <div className="admin-filter-tabs">
-              {[
-                { label: "Tất cả", value: "all" },
-                { label: "VIP", value: "vip" },
-                { label: "Chiến lược", value: "strategic" },
-                { label: "Tiềm năng", value: "potential" },
-                { label: "Tiêu chuẩn", value: "standard" },
-                { label: "Ít liên hệ", value: "dormant" },
-              ].map((tab) => (
-                <button
-                  key={tab.value}
-                  type="button"
-                  className={`admin-filter-tab${tierFilter === tab.value ? " is-active" : ""}`}
-                  onClick={() => { setTierFilter(tab.value); setPage(1); }}
-                >
-                  {tab.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
           {customers.length === 0 ? (
             <AdminEmptyState
-              title={query ? "Không tìm thấy khách hàng phù hợp" : "Chưa có khách hàng B2B"}
-              description={query ? "Thử tìm kiếm với tên công ty hoặc MST khác." : "Hệ thống sẽ tự động liên kết khi khách hàng nộp yêu cầu báo giá."}
+              title={query ? "Không tìm thấy khách hàng phù hợp" : ready ? "Chưa có khách hàng đăng ký" : "Chưa có dữ liệu khách hàng"}
+              description={
+                query
+                  ? "Thử tên, email hoặc số điện thoại khác."
+                  : ready
+                    ? "Khi khách đăng nhập và gửi yêu cầu mua hàng, họ sẽ xuất hiện ở đây."
+                    : "Tính năng tài khoản khách hàng chưa được bật trên máy chủ này."
+              }
             />
           ) : (
             <>
               <div className="admin-table-scroll">
-                <table className="admin-table admin-product-table">
+                <table className="admin-table">
                   <thead>
                     <tr>
-                      {canManage ? (
-                        <th style={{ width: 44 }} scope="col">
-                          <input
-                            aria-label="Chọn tất cả khách hàng trên trang này"
-                            checked={customers.length > 0 && selectedIds.size === customers.length}
-                            onChange={(e) => {
-                              if (e.target.checked) {
-                                setSelectedIds(new Set(customers.map((c) => c.id)));
-                              } else {
-                                setSelectedIds(new Set());
-                              }
-                            }}
-                            type="checkbox"
-                          />
-                        </th>
-                      ) : null}
-                      <th scope="col">Doanh nghiệp / Mã</th>
-                      <th scope="col">Mã số thuế</th>
-                      <th scope="col">Ngành nghề</th>
-                      <th scope="col">Phân hạng</th>
-                      <th scope="col">Yêu cầu RFQ</th>
-                      <th scope="col">Tương tác cuối</th>
+                      <th scope="col">Khách hàng</th>
+                      <th scope="col">Liên hệ</th>
+                      <th scope="col">Yêu cầu mua</th>
+                      <th scope="col">Đã chốt</th>
+                      <th scope="col">Gần nhất</th>
                       <th scope="col">Thao tác</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {customers.map((c) => (
-                      <tr key={c.id}>
-                        {canManage ? (
-                          <td className="admin-product-select" style={{ width: 44 }}>
-                            <input
-                              aria-label={`Chọn khách hàng ${c.company_name}`}
-                              checked={selectedIds.has(c.id)}
-                              onChange={() => {
-                                setSelectedIds((prev) => {
-                                  const next = new Set(prev);
-                                  if (next.has(c.id)) next.delete(c.id);
-                                  else next.add(c.id);
-                                  return next;
-                                });
-                              }}
-                              type="checkbox"
-                            />
-                          </td>
-                        ) : null}
-                        <td data-label="Doanh nghiệp">
+                    {customers.map((customer) => (
+                      <tr data-testid={`row-customer-${customer.id}`} key={customer.id}>
+                        <td data-label="Khách hàng">
                           <button
-                            type="button"
                             className="admin-product-name-btn"
-                            onClick={() => setSelectedCustomerId(c.id)}
+                            onClick={() => setSelectedId(customer.id)}
                             style={{ background: "none", border: "none", cursor: "pointer", padding: 0, textAlign: "left" }}
+                            type="button"
                           >
-                            <div style={{ fontWeight: 600, color: "var(--admin-brand)", fontSize: 14 }}>{c.company_name}</div>
-                            <div style={{ fontSize: 11, color: "var(--admin-ink-muted)" }}>{c.code} · Bấm xem 360°</div>
+                            <div style={{ color: "var(--admin-brand)", fontSize: 14, fontWeight: 600 }}>{customer.name}</div>
+                            <div style={{ color: "var(--admin-ink-muted)", fontSize: 11 }}>
+                              Đăng ký {formatAdminDate(customer.createdAt)}
+                            </div>
                           </button>
                         </td>
-                        <td data-label="Mã số thuế">
-                          <span className="admin-mono">{c.tax_code || "—"}</span>
+                        <td data-label="Liên hệ">
+                          <div>{customer.email}</div>
+                          <div className="admin-item-meta">{customer.phone || "Chưa có số điện thoại"}</div>
                         </td>
-                        <td data-label="Ngành nghề">{industryLabels[c.industry] || c.industry}</td>
-                        <td data-label="Phân hạng">
-                          <AdminStatusBadge
-                            kind={tierLabels[c.tier]?.kind ?? "neutral"}
-                            value={tierLabels[c.tier]?.label ?? c.tier}
-                          />
+                        <td className="admin-mono" data-label="Yêu cầu mua">{customer.requestCount} lần</td>
+                        <td className="admin-mono" data-label="Đã chốt">
+                          {customer.saleCount > 0 ? `${customer.saleCount} đơn · ${money.format(customer.saleTotal)}đ` : "—"}
                         </td>
-                        <td data-label="Yêu cầu RFQ" className="admin-mono">{c.total_rfq_count ?? 0} lần</td>
-                        <td data-label="Tương tác cuối" className="admin-mono">
-                          {c.last_interaction_at ? formatAdminDate(c.last_interaction_at) : "Chưa có"}
+                        <td className="admin-mono" data-label="Gần nhất">
+                          {customer.lastRequestAt ? formatAdminDate(customer.lastRequestAt) : "Chưa có"}
                         </td>
                         <td className="admin-sticky-actions">
                           <div className="admin-table-actions">
                             <button
-                              type="button"
                               className="admin-button admin-button-quiet"
-                              onClick={() => setSelectedCustomerId(c.id)}
+                              onClick={() => setSelectedId(customer.id)}
                               style={{ fontSize: 12, padding: "4px 8px" }}
+                              type="button"
                             >
-                              Xem 360°
+                              Xem chi tiết
                             </button>
                           </div>
                         </td>
@@ -496,71 +235,84 @@ export default function AdminCustomersPage() {
                   </tbody>
                 </table>
               </div>
-              <AdminPagination
-                lastPage={lastPage}
-                onPage={setPage}
-                page={page}
-                pageSize={20}
-                total={total}
-              />
+              <AdminPagination lastPage={lastPage} onPage={setPage} page={page} pageSize={PAGE_SIZE} total={total} />
             </>
           )}
         </section>
       )}
 
-      {/* Bulk Tier Modal */}
-      {bulkTierModal ? (
+      {selectedId ? (
         <AdminModal
-          labelledBy="customer-bulk-title"
-          onClose={() => setBulkTierModal(false)}
-          title="Đổi phân hạng khách hàng hàng loạt"
+          labelledBy="customer-detail-title"
+          onClose={() => setSelectedId(null)}
+          title={detail?.name ?? "Thông tin khách hàng"}
+          width="wide"
         >
-          <h2 hidden id="customer-bulk-title">Đổi phân hạng khách hàng hàng loạt</h2>
-          <p style={{ margin: "0 0 16px", color: "var(--admin-ink-muted)" }}>
-            Đang chọn <strong>{selectedIds.size}</strong> khách hàng. Vui lòng chọn phân hạng mới:
-          </p>
-          <div className="admin-field">
-            <label className="admin-label" htmlFor="bulk-target-tier">Phân hạng mới</label>
-            <select
-              className="admin-select"
-              id="bulk-target-tier"
-              onChange={(e) => setTargetBulkTier(e.target.value as CrmCustomerTier)}
-              style={{ width: "100%", minHeight: 38 }}
-              value={targetBulkTier}
-            >
-              <option value="standard">Tiêu chuẩn</option>
-              <option value="potential">Tiềm năng</option>
-              <option value="strategic">Chiến lược</option>
-              <option value="vip">VIP</option>
-              <option value="dormant">Ít liên hệ</option>
-            </select>
-          </div>
-          <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 24 }}>
-            <button
-              className="admin-button admin-button-quiet"
-              onClick={() => setBulkTierModal(false)}
-              type="button"
-            >
-              Hủy
-            </button>
-            <button
-              className="admin-button admin-button-primary"
-              disabled={bulkUpdating}
-              onClick={() => void handleBulkUpdateTier()}
-              type="button"
-            >
-              {bulkUpdating ? "Đang cập nhật..." : "Xác nhận đổi"}
-            </button>
-          </div>
-        </AdminModal>
-      ) : null}
+          <h2 hidden id="customer-detail-title">Thông tin khách hàng</h2>
+          {detailError ? (
+            <p role="alert">{detailError}</p>
+          ) : !detail ? (
+            <AdminLoadingTable />
+          ) : (
+            <div data-testid="customer-detail" style={{ display: "grid", gap: 18 }}>
+              <dl style={{ display: "grid", gap: 8, gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", margin: 0 }}>
+                {[
+                  ["Họ tên", detail.name],
+                  ["Email", detail.email],
+                  ["Tên đăng nhập", detail.username || "—"],
+                  ["Số điện thoại", detail.phone || "Chưa có"],
+                  ["Ngày đăng ký", formatAdminDate(detail.createdAt)],
+                  ["Tổng đã chốt", detail.saleCount > 0 ? `${detail.saleCount} đơn · ${money.format(detail.saleTotal)}đ` : "Chưa có đơn"],
+                ].map(([label, value]) => (
+                  <div key={label}>
+                    <dt className="admin-item-meta">{label}</dt>
+                    <dd style={{ margin: 0, overflowWrap: "anywhere" }}>{value}</dd>
+                  </div>
+                ))}
+              </dl>
 
-      {/* Customer 360 Drawer */}
-      {selectedCustomerId ? (
-        <AdminCustomerDrawer
-          customerId={selectedCustomerId}
-          onClose={() => setSelectedCustomerId(null)}
-        />
+              <section aria-labelledby="customer-requests-title">
+                <h3 className="admin-panel-title" id="customer-requests-title">Yêu cầu mua gần đây</h3>
+                {detail.requests.length === 0 ? (
+                  <p className="admin-panel-caption">Khách chưa gửi yêu cầu nào.</p>
+                ) : (
+                  <ul style={{ display: "grid", gap: 10, listStyle: "none", margin: "8px 0 0", padding: 0 }}>
+                    {detail.requests.map((request) => {
+                      const status = requestStatusLabels[request.status] ?? { kind: "neutral" as const, label: request.status };
+                      return (
+                        <li key={request.id} style={{ borderBottom: "1px solid var(--admin-line, #e5e7eb)", paddingBottom: 8 }}>
+                          <div style={{ alignItems: "center", display: "flex", flexWrap: "wrap", gap: 8, justifyContent: "space-between" }}>
+                            <span className="admin-mono">{formatAdminDate(request.createdAt)}</span>
+                            <AdminStatusBadge kind={status.kind} value={status.label} />
+                          </div>
+                          {request.items.length > 0 ? (
+                            <div className="admin-item-meta" style={{ marginTop: 4 }}>{request.items.join(" · ")}</div>
+                          ) : null}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </section>
+
+              <section aria-labelledby="customer-sales-title">
+                <h3 className="admin-panel-title" id="customer-sales-title">Đơn đã chốt qua Zalo</h3>
+                {detail.sales.length === 0 ? (
+                  <p className="admin-panel-caption">Chưa có đơn nào được ghi nhận.</p>
+                ) : (
+                  <ul style={{ display: "grid", gap: 6, listStyle: "none", margin: "8px 0 0", padding: 0 }}>
+                    {detail.sales.map((sale) => (
+                      <li key={sale.id} style={{ display: "flex", flexWrap: "wrap", gap: 8, justifyContent: "space-between" }}>
+                        <span><strong className="admin-mono">{sale.saleCode}</strong> · {formatAdminDate(sale.confirmedAt)}</span>
+                        <span className="admin-mono">{money.format(sale.totalAmount)}đ</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </section>
+            </div>
+          )}
+        </AdminModal>
       ) : null}
     </div>
   );

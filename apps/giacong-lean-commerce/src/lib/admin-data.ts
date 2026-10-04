@@ -450,10 +450,40 @@ export async function getAdminOverview(
   };
 }
 
+/** Product row as shown in the admin list: the editable fields plus price/variant summary. */
+export type AdminProductListItem = AdminProduct & {
+  minimumOrderQuantity: number | null;
+  startingPrice: number | null;
+  variantCount: number | null;
+};
+
+export const ADMIN_PRODUCT_SORTS = ["newest", "name", "price_asc", "price_desc", "updated"] as const;
+export type AdminProductSort = (typeof ADMIN_PRODUCT_SORTS)[number];
+
+export function parseAdminProductSort(value: string | null | undefined): AdminProductSort {
+  return (ADMIN_PRODUCT_SORTS as readonly string[]).includes(value ?? "")
+    ? (value as AdminProductSort)
+    : "newest";
+}
+
+/** Accepts a positive integer id or the literal "none" (uncategorised products). */
+export function parseAdminProductCategoryFilter(value: string | null | undefined): number | "none" | undefined {
+  if (value === "none") return "none";
+  if (value && /^[1-9][0-9]{0,9}$/.test(value)) return Number(value);
+  return undefined;
+}
+
 export async function listAdminProducts(
   database: D1DatabaseLike,
-  input: { page: number; pageSize: number; query?: string; status?: string },
-): Promise<{ products: AdminProduct[]; total: number }> {
+  input: {
+    categoryId?: number | "none";
+    page: number;
+    pageSize: number;
+    query?: string;
+    sort?: AdminProductSort;
+    status?: string;
+  },
+): Promise<{ products: AdminProductListItem[]; total: number }> {
   const hasMeta = await tableExists(database, "product_admin_meta");
   const hasLeadItems = await tableExists(database, "lead_items");
   const where: string[] = [];
@@ -482,6 +512,29 @@ export async function listAdminProducts(
       where.push("p.is_active = 0");
     }
   }
+  if (input.categoryId === "none") {
+    where.push("p.category_id IS NULL");
+  } else if (typeof input.categoryId === "number" && Number.isSafeInteger(input.categoryId)) {
+    where.push("p.category_id = ?");
+    params.push(input.categoryId);
+  }
+  const startingPriceSql = `(SELECT MIN(tp.price) FROM variant_tier_prices tp
+        INNER JOIN product_variants v2 ON v2.id = tp.variant_id
+        WHERE v2.product_id = p.id)`;
+  const orderSql = (() => {
+    switch (input.sort) {
+      case "name":
+        return "p.name COLLATE NOCASE ASC, p.id DESC";
+      case "price_asc":
+        return `${startingPriceSql} IS NULL, ${startingPriceSql} ASC, p.id DESC`;
+      case "price_desc":
+        return `${startingPriceSql} IS NULL, ${startingPriceSql} DESC, p.id DESC`;
+      case "updated":
+        return hasMeta ? "m.updated_at IS NULL, m.updated_at DESC, p.id DESC" : "p.id DESC";
+      default:
+        return "p.id DESC";
+    }
+  })();
   const whereSql = where.length ? `WHERE ${where.join(" AND ")}` : "";
   const count = await database.prepare(`
     SELECT COUNT(*) AS total
@@ -504,7 +557,7 @@ export async function listAdminProducts(
     LEFT JOIN categories c ON c.id = p.category_id
     ${hasMeta ? "LEFT JOIN product_admin_meta m ON m.product_id = p.id" : ""}
     ${whereSql}
-    ORDER BY p.id DESC
+    ORDER BY ${orderSql}
     LIMIT ? OFFSET ?
   `).bind(...params, input.pageSize, (input.page - 1) * input.pageSize).all<{
     id: number;

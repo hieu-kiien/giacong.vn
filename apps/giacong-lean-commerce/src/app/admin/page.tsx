@@ -78,8 +78,8 @@ export default function AdminDashboardPage() {
     <div className="admin-content">
       <AdminPageHeading
         kicker="Vận hành"
-        title="Tổng quan vận hành"
-        subtitle="Trung tâm điều phối tác vụ B2B và theo dõi luồng công việc thời gian thực."
+        title="Tổng quan"
+        subtitle="Việc cần làm hôm nay: yêu cầu mua hàng mới, sản phẩm chưa hoàn thiện và nội dung cần đăng."
       />
       {loading && !data ? (
         <>
@@ -140,7 +140,7 @@ export default function AdminDashboardPage() {
           </div>
 
           <div className="admin-grid-2 admin-dashboard-panels">
-            {/* Primary Operations Hub: Actionable B2B Work Queue */}
+            {/* Primary work queue: new purchase requests first */}
             <AdminOperationsQueue
               counts={data.counts}
               dataReadiness={data.dataReadiness}
@@ -168,7 +168,7 @@ export default function AdminDashboardPage() {
                     <Link className="admin-brief-row" data-testid="link-quick-inbox" href="/admin/yeu-cau" prefetch={false}>
                       <span className="admin-brief-icon"><ClipboardList size={16} /></span>
                       <span className="admin-brief-copy">
-                        <strong>Hộp thư yêu cầu báo giá</strong>
+                        <strong>Yêu cầu mua hàng</strong>
                         <span>{!data.dataReadiness.leadsTable ? "Chưa tải được số lượng yêu cầu" : !data.dataReadiness.newLeads ? "Chưa xác định được số yêu cầu mới" : data.counts.newLeads > 0 ? `${data.counts.newLeads} yêu cầu mới cần xử lý` : `${data.counts.leads} yêu cầu trong hộp thư`}</span>
                       </span>
                       <ArrowUpRight size={14} />

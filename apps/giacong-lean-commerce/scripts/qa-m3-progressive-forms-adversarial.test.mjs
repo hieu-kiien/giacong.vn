@@ -217,11 +217,11 @@ test("M3 Service: Floating Sticky Action Bar configured with dirty indicator & g
 });
 
 // 3. MODAL STANDARDIZATION
-test("M3 Modals: khach-hang bulk tier dialog standardizes to AdminModal", async () => {
+test("M3 Modals: khach-hang detail dialog standardizes to AdminModal", async () => {
   const source = await readSource("app", "admin", "khach-hang", "page.tsx");
 
   assert.match(source, /import\s*\{\s*AdminModal\s*\}\s*from\s*["']@\/components\/admin\/AdminDialog["']/);
-  assert.match(source, /<AdminModal[\s\S]*?labelledBy="customer-bulk-title"[\s\S]*?title="Đổi phân hạng khách hàng hàng loạt"/);
+  assert.match(source, /<AdminModal[\s\S]*?labelledBy="customer-detail-title"[\s\S]*?width="wide"/);
 
   // Ensure no hand-rolled overlay remains
   assert.doesNotMatch(source, /style=\{\{\s*position:\s*["']fixed["'],\s*inset:\s*0/);

@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, ExternalLink, Eye, EyeOff, FileText, FolderTree, ImageIcon, Search, Settings2, ShoppingCart, SlidersHorizontal } from "lucide-react";
+import { ArrowLeft, Download, ExternalLink, Eye, EyeOff, FileText, FolderTree, ImageIcon, Search, Settings2, ShoppingCart, SlidersHorizontal } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
 import { useSearchParams } from "next/navigation";
 
@@ -177,6 +177,40 @@ function toProductForm(product: AdminProduct): ProductFormState {
   };
 }
 
+type ProductListSort = "newest" | "name" | "price_asc" | "price_desc" | "updated";
+
+const PRODUCT_SORT_OPTIONS: ReadonlyArray<{ label: string; value: ProductListSort }> = [
+  { label: "Mới thêm nhất", value: "newest" },
+  { label: "Cập nhật gần đây", value: "updated" },
+  { label: "Tên A → Z", value: "name" },
+  { label: "Giá thấp → cao", value: "price_asc" },
+  { label: "Giá cao → thấp", value: "price_desc" },
+];
+
+function parseProductListSort(value: string | null): ProductListSort {
+  return PRODUCT_SORT_OPTIONS.some((option) => option.value === value) ? (value as ProductListSort) : "newest";
+}
+
+function parseProductListCategory(value: string | null): string {
+  if (value === "none") return "none";
+  return value && /^[1-9][0-9]{0,9}$/.test(value) ? value : "all";
+}
+
+function buildProductExportHref(filters: {
+  categoryFilter: string;
+  query: string;
+  sortOrder: ProductListSort;
+  statusFilter: "all" | "active" | "draft" | "hidden";
+}): string {
+  const params = new URLSearchParams();
+  if (filters.query) params.set("query", filters.query);
+  if (filters.statusFilter !== "all") params.set("status", filters.statusFilter);
+  if (filters.categoryFilter !== "all") params.set("categoryId", filters.categoryFilter);
+  if (filters.sortOrder !== "newest") params.set("sort", filters.sortOrder);
+  const search = params.toString();
+  return `/api/admin/products/export${search ? `?${search}` : ""}`;
+}
+
 export default function AdminProductsPage() {
   const session = useAdminSession();
   const { showToast } = useAdminToast();
@@ -233,6 +267,9 @@ export default function AdminProductsPage() {
     return "all";
   });
 
+  const [sortOrder, setSortOrder] = useState<ProductListSort>(() => parseProductListSort(searchParams.get("sort")));
+  const [categoryFilter, setCategoryFilter] = useState<string>(() => parseProductListCategory(searchParams.get("categoryId")));
+
   useEffect(() => {
     const sp = searchParams.get("status");
     if (sp === "draft" || sp === "active" || sp === "hidden") {
@@ -240,7 +277,20 @@ export default function AdminProductsPage() {
     } else {
       setStatusFilter("all");
     }
+    setSortOrder(parseProductListSort(searchParams.get("sort")));
+    setCategoryFilter(parseProductListCategory(searchParams.get("categoryId")));
   }, [searchParams]);
+
+  function updateListParam(key: "sort" | "categoryId", value: string) {
+    const url = new URL(window.location.href);
+    if (!value || value === "all" || value === "newest") url.searchParams.delete(key);
+    else url.searchParams.set(key, value);
+    url.searchParams.delete("page");
+    window.history.pushState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`);
+    if (key === "sort") setSortOrder(parseProductListSort(value));
+    else setCategoryFilter(parseProductListCategory(value));
+    setPage(1);
+  }
 
   function updateStatusFilter(nextStatus: "all" | "active" | "draft" | "hidden") {
     if (nextStatus === statusFilter) return;
@@ -280,6 +330,8 @@ export default function AdminProductsPage() {
     const params = new URLSearchParams({ page: String(page), pageSize: "20" });
     if (query) params.set("query", query);
     if (statusFilter !== "all") params.set("status", statusFilter);
+    if (sortOrder !== "newest") params.set("sort", sortOrder);
+    if (categoryFilter !== "all") params.set("categoryId", categoryFilter);
     void (async () => {
       await Promise.resolve();
       if (controller.signal.aborted) return;
@@ -302,7 +354,7 @@ export default function AdminProductsPage() {
       }
     })();
     return () => controller.abort();
-  }, [session.subject, page, query, statusFilter, attempt]);
+  }, [session.subject, page, query, statusFilter, sortOrder, categoryFilter, attempt]);
 
   useEffect(() => {
     if (!hasUnsavedChanges()) return;
@@ -796,6 +848,15 @@ export default function AdminProductsPage() {
                 Nhập CSV
               </button>
             ) : null}
+            <a
+              className="admin-button admin-button-quiet"
+              data-testid="link-product-export"
+              download
+              href={buildProductExportHref({ categoryFilter, query, sortOrder, statusFilter })}
+              style={{ alignItems: "center", display: "inline-flex", gap: 5 }}
+            >
+              <Download size={14} /> Xuất CSV
+            </a>
             {canManage && selectedIds.size > 0 ? (
               <div className="admin-bulk-toolbar" style={{ alignItems: "center", background: "#f0f4ee", border: "1px solid #d5e2c6", borderRadius: 8, display: "flex", flexWrap: "wrap", gap: 8, padding: "6px 12px", width: "100%" }}>
                 <span aria-live="polite" className="admin-badge admin-badge-green" data-testid="product-selection-count" style={{ fontWeight: 700 }}>
@@ -854,7 +915,7 @@ export default function AdminProductsPage() {
           </form>
           {error ? <AdminErrorState error={error} onRetry={() => setAttempt((value) => value + 1)} /> : loading ? <AdminLoadingTable /> : (
             <section className="admin-panel admin-table-panel" aria-labelledby="product-table-heading">
-              <div className="admin-panel-heading" style={{ padding: "21px 21px 12px" }}><div><h2 className="admin-panel-title" id="product-table-heading">Sản phẩm</h2><p className="admin-panel-caption">{query ? `Kết quả cho “${query}”${selectedStatusLabel ? ` · ${selectedStatusLabel}` : ""}` : selectedStatusLabel ? `Đang lọc: ${selectedStatusLabel}` : "Sắp xếp theo cập nhật gần nhất"}</p></div><span aria-live="polite" className="admin-count">{total} kết quả</span></div>
+              <div className="admin-panel-heading" style={{ padding: "21px 21px 12px" }}><div><h2 className="admin-panel-title" id="product-table-heading">Sản phẩm</h2><p className="admin-panel-caption">{query ? `Kết quả cho “${query}”${selectedStatusLabel ? ` · ${selectedStatusLabel}` : ""}` : selectedStatusLabel ? `Đang lọc: ${selectedStatusLabel}` : `Sắp xếp: ${PRODUCT_SORT_OPTIONS.find((option) => option.value === sortOrder)?.label.toLowerCase() ?? "mới nhất"}`}</p></div><span aria-live="polite" className="admin-count">{total} kết quả</span></div>
               <div style={{ padding: "0 21px" }}>
                 <div className="admin-filter-tabs" role="group" aria-label="Lọc sản phẩm theo trạng thái">
                   <button
@@ -890,13 +951,45 @@ export default function AdminProductsPage() {
                     Tạm ẩn
                   </button>
                 </div>
+                <div className="admin-list-controls" style={{ alignItems: "end", display: "flex", flexWrap: "wrap", gap: 12, margin: "12px 0 4px" }}>
+                  <div style={{ display: "grid", gap: 4, minWidth: 180 }}>
+                    <label className="admin-label" htmlFor="product-category-filter">Danh mục</label>
+                    <select
+                      className="admin-select"
+                      data-testid="select-product-category-filter"
+                      id="product-category-filter"
+                      onChange={(event) => updateListParam("categoryId", event.target.value)}
+                      value={categoryFilter}
+                    >
+                      <option value="all">Tất cả danh mục</option>
+                      <option value="none">Chưa phân loại</option>
+                      {categories.map((category) => (
+                        <option key={category.id} value={String(category.id)}>{category.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div style={{ display: "grid", gap: 4, minWidth: 180 }}>
+                    <label className="admin-label" htmlFor="product-sort">Sắp xếp</label>
+                    <select
+                      className="admin-select"
+                      data-testid="select-product-sort"
+                      id="product-sort"
+                      onChange={(event) => updateListParam("sort", event.target.value)}
+                      value={sortOrder}
+                    >
+                      {PRODUCT_SORT_OPTIONS.map((option) => (
+                        <option key={option.value} value={option.value}>{option.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
               </div>
-              {products.length === 0 ? <AdminEmptyState title={query ? "Không tìm thấy sản phẩm phù hợp" : statusFilter !== "all" ? "Không có sản phẩm ở trạng thái này" : "Chưa có sản phẩm"} description={query ? "Thử một tên, mã hàng hoặc đường dẫn khác." : statusFilter !== "all" ? "Thử chọn bộ lọc khác để xem thêm sản phẩm." : "Máy chủ chưa trả về sản phẩm nào."} /> : (
+              {products.length === 0 ? <AdminEmptyState title={query ? "Không tìm thấy sản phẩm phù hợp" : statusFilter !== "all" || categoryFilter !== "all" ? "Không có sản phẩm khớp bộ lọc" : "Chưa có sản phẩm"} description={query ? "Thử một tên, mã hàng hoặc đường dẫn khác." : statusFilter !== "all" || categoryFilter !== "all" ? "Thử chọn bộ lọc khác để xem thêm sản phẩm." : "Máy chủ chưa trả về sản phẩm nào."} /> : (
                 <>
                   <p className="admin-table-scroll-hint">Kéo ngang bảng để xem đầy đủ thông tin và thao tác.</p>
                   <div className="admin-table-scroll">
                     <table className="admin-table admin-product-table">
-                       <thead><tr>{canManage ? <th scope="col"><label className="admin-check"><input aria-label="Chọn tất cả sản phẩm trong trang" checked={allVisibleSelected} onChange={(event) => toggleAllVisible(event.target.checked)} type="checkbox" /><span>Chọn</span></label></th> : null}<th scope="col">Sản phẩm</th><th scope="col">Danh mục / Mã hàng</th><th scope="col">Quy cách</th><th scope="col">Tối thiểu / Giá từ</th><th scope="col">Đã bán</th><th scope="col">Trạng thái</th><th scope="col">Thời gian làm hàng</th><th scope="col">Cập nhật</th>{canManage ? <th scope="col">Thao tác</th> : null}</tr></thead>
+                       <thead><tr>{canManage ? <th scope="col"><label className="admin-check"><input aria-label="Chọn tất cả sản phẩm trong trang" checked={allVisibleSelected} onChange={(event) => toggleAllVisible(event.target.checked)} type="checkbox" /><span>Chọn</span></label></th> : null}<th scope="col">Sản phẩm</th><th scope="col">Danh mục / Mã hàng</th><th scope="col">Quy cách</th><th scope="col">Tối thiểu / Giá từ</th><th scope="col">Yêu cầu</th><th scope="col">Trạng thái</th><th scope="col">Thời gian làm hàng</th><th scope="col">Cập nhật</th>{canManage ? <th scope="col">Thao tác</th> : null}</tr></thead>
                       <tbody>
                         {filteredProducts.map((product) => (
                           <tr data-testid={`row-product-${product.id}`} key={product.id}>
@@ -952,9 +1045,9 @@ export default function AdminProductsPage() {
                               <div>{product.minimumOrderQuantity ? `Tối thiểu ${product.minimumOrderQuantity}` : "—"}</div>
                               <div className="admin-item-meta">{product.startingPrice ? `từ ${new Intl.NumberFormat("vi-VN").format(product.startingPrice)}đ` : "Chưa có giá"}</div>
                             </td>
-                            <td data-label="Đã bán" className="admin-mono" style={{ whiteSpace: "nowrap" }}>
-                              <span title={`Đã có ${product.soldCount ?? 0} sản phẩm/lượt đặt`}>
-                                <strong>{new Intl.NumberFormat("vi-VN").format(product.soldCount ?? 0)}</strong> đã bán
+                            <td data-label="Yêu cầu mua" className="admin-mono" style={{ whiteSpace: "nowrap" }}>
+                              <span title={`Khách đã gửi yêu cầu mua ${product.soldCount ?? 0} sản phẩm (chưa tính là đã bán)`}>
+                                <strong>{new Intl.NumberFormat("vi-VN").format(product.soldCount ?? 0)}</strong>
                               </span>
                             </td>
                             <td data-label="Trạng thái" className="admin-product-state"><AdminStatusBadge kind={product.isActive && product.status === "published" ? "green" : product.status === "draft" || product.status === "review" ? "amber" : "neutral"} value={product.status === "draft" || product.status === "review" || product.status === "archived" ? statusLabelsVN[product.status as ProductFormState["status"]] : product.isActive ? "Đang hiển thị" : "Đã đăng · Tạm ẩn"} /></td>
@@ -1311,10 +1404,10 @@ function ProductEditor({
                   gap: 5,
                   padding: "3px 8px",
                 }}
-                title="Tổng số lượng đã đặt/bán qua các phiếu yêu cầu gia công"
+                title="Tổng số lượng khách đã yêu cầu mua (chưa tính là đã bán)"
               >
                 <ShoppingCart size={13} />
-                <span>Đã bán: {new Intl.NumberFormat("vi-VN").format(form.soldCount ?? 0)}</span>
+                <span>Yêu cầu mua: {new Intl.NumberFormat("vi-VN").format(form.soldCount ?? 0)}</span>
               </span>
             ) : null}
           </div>

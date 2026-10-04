@@ -29,6 +29,8 @@ interface AdminNavItem {
   label: string;
   icon: typeof LayoutDashboard;
   readCapability: AdminCapability;
+  /** Reachable by URL and used for the page title, but not listed in the sidebar. */
+  hidden?: boolean;
   ownerOnly?: boolean;
 }
 
@@ -41,11 +43,11 @@ interface AdminNavGroup {
 const navGroups: ReadonlyArray<AdminNavGroup> = [
   {
     id: "operations",
-    displayTitle: "VẬN HÀNH",
+    displayTitle: "BÁN HÀNG",
     items: [
       { href: "/admin", label: "Tổng quan", icon: LayoutDashboard, readCapability: "dashboard.read" },
-      { href: "/admin/yeu-cau", label: "Yêu cầu báo giá", icon: ClipboardList, readCapability: "leads.read" },
-      { href: "/admin/khach-hang", label: "Khách hàng B2B", icon: Building2, readCapability: "crm.read" },
+      { href: "/admin/yeu-cau", label: "Yêu cầu mua hàng", icon: ClipboardList, readCapability: "leads.read" },
+      { href: "/admin/khach-hang", label: "Khách hàng", icon: Building2, readCapability: "crm.read" },
     ],
   },
   {
@@ -55,7 +57,7 @@ const navGroups: ReadonlyArray<AdminNavGroup> = [
       { href: "/admin/san-pham", label: "Sản phẩm", icon: Package, readCapability: "catalog.read" },
       { href: "/admin/dich-vu", label: "Dịch vụ gia công", icon: Settings2, readCapability: "services.read" },
       { href: "/admin/tin-tuc", label: "Tin tức", icon: Newspaper, readCapability: "news.read" },
-      { href: "/admin/media", label: "Thư viện Media", icon: ImageIcon, readCapability: "media.read" },
+      { href: "/admin/media", label: "Thư viện ảnh", icon: ImageIcon, readCapability: "media.read" },
     ],
   },
   {
@@ -63,7 +65,7 @@ const navGroups: ReadonlyArray<AdminNavGroup> = [
     displayTitle: "WEBSITE",
     items: [
       { href: "/admin/noi-dung", label: "Nội dung & thương hiệu", icon: PenLine, readCapability: "content.read" },
-      { href: "/admin/thiet-ke", label: "Thiết kế trang", icon: LayoutTemplate, readCapability: "pages.read" },
+      { href: "/admin/thiet-ke", label: "Thiết kế trang", icon: LayoutTemplate, readCapability: "pages.read", hidden: true },
       { href: "/admin/dieu-huong", label: "Menu", icon: PanelTop, readCapability: "navigation.read" },
     ],
   },
@@ -526,7 +528,7 @@ export function AdminShell({ brandName, children }: AdminShellProps) {
   }
 
   const visibleNavGroups = navGroups
-    .map((group) => ({ ...group, items: group.items.filter((item) => canManage(session.role, item.readCapability) && (!item.ownerOnly || session.role === "owner")) }))
+    .map((group) => ({ ...group, items: group.items.filter((item) => !item.hidden && canManage(session.role, item.readCapability) && (!item.ownerOnly || session.role === "owner")) }))
     .filter((group) => group.items.length > 0);
   const currentNavItem = navGroups.flatMap((group) => group.items).find((item) => isAdminNavItemActive(pathname, item.href));
 

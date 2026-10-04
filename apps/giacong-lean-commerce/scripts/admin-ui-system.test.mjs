@@ -88,7 +88,7 @@ test("the shell groups routes in plain-language control-plane sections", async (
   const shell = await readSource("components", "admin", "AdminShell.tsx");
   const groups = shell.slice(shell.indexOf("const navGroups:"), shell.indexOf("const roleLabels:"));
 
-  assert.match(groups, /id: "operations",\s*displayTitle: "VẬN HÀNH"[\s\S]*?href: "\/admin\/yeu-cau", label: "Yêu cầu báo giá"[\s\S]*?href: "\/admin\/khach-hang", label: "Khách hàng B2B"/);
+  assert.match(groups, /id: "operations",\s*displayTitle: "BÁN HÀNG"[\s\S]*?href: "\/admin\/yeu-cau", label: "Yêu cầu mua hàng"[\s\S]*?href: "\/admin\/khach-hang", label: "Khách hàng"/);
   assert.match(groups, /id: "content",\s*displayTitle: "NỘI DUNG"[\s\S]*?href: "\/admin\/san-pham", label: "Sản phẩm"[\s\S]*?href: "\/admin\/dich-vu", label: "Dịch vụ gia công"[\s\S]*?href: "\/admin\/tin-tuc", label: "Tin tức"/);
   assert.match(groups, /id: "website",\s*displayTitle: "WEBSITE"[\s\S]*?href: "\/admin\/dieu-huong", label: "Menu"/);
   assert.match(groups, /id: "system",\s*displayTitle: "HỆ THỐNG"[\s\S]*?href: "\/admin\/thanh-vien", label: "Tài khoản quản trị & quyền"[\s\S]*?href: "\/admin\/audit", label: "Lịch sử thay đổi"/);
@@ -225,7 +225,7 @@ test("request inbox is reachable from the Lean V1 admin control plane", async ()
   ]);
 
   assert.match(shell, /\/admin\/yeu-cau/);
-  assert.match(shell, /Yêu cầu báo giá/);
+  assert.match(shell, /Yêu cầu mua hàng/);
   assert.match(news, /canManageNews\(session\.role\)/);
   assert.match(news, /if \(!canManage\)/);
   assert.doesNotMatch(dashboard, /link-dashboard-leads/);

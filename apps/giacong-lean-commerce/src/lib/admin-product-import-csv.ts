@@ -10,6 +10,11 @@ export const ADMIN_PRODUCT_IMPORT_HEADERS = [
 ] as const;
 
 export const ADMIN_PRODUCT_IMPORT_REQUIRED_HEADERS = ["name", "slug", "sku"] as const;
+/**
+ * Read-only columns written by the CSV export. They are accepted and ignored
+ * on import so an exported file can be edited and imported again.
+ */
+export const ADMIN_PRODUCT_IMPORT_IGNORED_HEADERS = ["status", "starting_price", "variant_count"] as const;
 export const MAX_ADMIN_PRODUCT_IMPORT_BIND_VARIABLES = 100;
 export const ADMIN_PRODUCT_IMPORT_MARKER_BIND_COUNT = 4;
 export const ADMIN_PRODUCT_IMPORT_PRODUCT_BIND_COUNT = 7;
@@ -78,7 +83,7 @@ export function parseProductImportCsv(text: string): ProductImportCsvResult {
   if (parsed.errors.length > 0) return { errors: parsed.errors, headers: [], rows: [] };
 
   const headers = parsed.rows[0]!.map((value, index) => normalizeHeader(value, index));
-  const expected = new Set<string>(ADMIN_PRODUCT_IMPORT_HEADERS);
+  const expected = new Set<string>([...ADMIN_PRODUCT_IMPORT_HEADERS, ...ADMIN_PRODUCT_IMPORT_IGNORED_HEADERS]);
   const required = new Set<string>(ADMIN_PRODUCT_IMPORT_REQUIRED_HEADERS);
   const errors: string[] = [];
   const seen = new Set<string>();
@@ -115,7 +120,9 @@ export function parseProductImportCsv(text: string): ProductImportCsvResult {
       errors.push(`Dòng ${index + 2} có ${values.length} cột, cần đúng ${headers.length} cột.`);
       continue;
     }
-    const row = Object.fromEntries(headers.map((header, valueIndex) => [header, values[valueIndex] ?? ""]));
+    const row = Object.fromEntries(
+      headers.map((header, valueIndex) => [header, unwrapExportedFormulaGuard(values[valueIndex] ?? "")]),
+    );
     rows.push({
       categorySlug: row.category_slug ?? "",
       description: row.description ?? "",
@@ -129,6 +136,11 @@ export function parseProductImportCsv(text: string): ProductImportCsvResult {
   }
 
   return { errors, headers, rows };
+}
+
+/** The export prefixes an apostrophe to text that spreadsheets would read as a formula. */
+function unwrapExportedFormulaGuard(value: string): string {
+  return /^'[=+\-@]/.test(value) ? value.slice(1) : value;
 }
 
 function parseCsvMatrix(text: string): { errors: string[]; rows: string[][] } {

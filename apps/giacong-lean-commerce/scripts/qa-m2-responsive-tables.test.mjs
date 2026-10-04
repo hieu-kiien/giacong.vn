@@ -85,7 +85,7 @@ test("M2 Products Table (/admin/san-pham): data-labels and action cell layout on
   assert.match(page, /data-label="Danh mục \/ Mã hàng"/);
   assert.match(page, /data-label="Quy cách"/);
   assert.match(page, /data-label="Tối thiểu \/ Giá từ"/);
-  assert.match(page, /data-label="Đã bán"/);
+  assert.match(page, /data-label="Yêu cầu mua"/);
   assert.match(page, /data-label="Trạng thái"/);
   assert.match(page, /data-label="Thời gian làm hàng"/);
   assert.match(page, /data-label="Cập nhật"/);
@@ -108,12 +108,11 @@ test("M2 Services Table (/admin/dich-vu): data-labels and responsive actions", a
 test("M2 Customers Table (/admin/khach-hang): data-labels and responsive card styling", async () => {
   const page = await readSource("app", "admin", "khach-hang", "page.tsx");
 
-  assert.match(page, /data-label="Doanh nghiệp"/);
-  assert.match(page, /data-label="Mã số thuế"/);
-  assert.match(page, /data-label="Ngành nghề"/);
-  assert.match(page, /data-label="Phân hạng"/);
-  assert.match(page, /data-label="Yêu cầu RFQ"/);
-  assert.match(page, /data-label="Tương tác cuối"/);
+  assert.match(page, /data-label="Khách hàng"/);
+  assert.match(page, /data-label="Liên hệ"/);
+  assert.match(page, /data-label="Yêu cầu mua"/);
+  assert.match(page, /data-label="Đã chốt"/);
+  assert.match(page, /data-label="Gần nhất"/);
   assert.match(page, /className="admin-sticky-actions"/);
   assert.match(page, /className="admin-table-actions"/);
 });
