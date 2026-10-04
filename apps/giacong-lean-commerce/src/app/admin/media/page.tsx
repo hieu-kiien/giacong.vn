@@ -236,7 +236,7 @@ export default function AdminMediaPage() {
       <AdminPageHeading
         kicker="Quản lý tập trung"
         stamp="CLOUDFLARE R2"
-        subtitle="Quản lý toàn bộ tài sản hình ảnh sản phẩm, dịch vụ gia công và bản vẽ kỹ thuật lưu trữ trực tiếp trên Cloudflare R2 Bucket."
+        subtitle="Quản lý ảnh sản phẩm, dịch vụ, tin tức và banner của trang web."
         title="Thư viện Media (R2)"
       />
 

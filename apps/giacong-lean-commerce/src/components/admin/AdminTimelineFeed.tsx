@@ -155,7 +155,7 @@ export function AdminTimelineFeed({
         <textarea
           className="admin-textarea"
           rows={2}
-          placeholder="Nội dung trao đổi, ghi chú thỏa thuận vật liệu, dung sai, hẹn lịch..."
+          placeholder="Nội dung trao đổi, ghi chú thỏa thuận, hẹn lịch..."
           value={newContent}
           onChange={(e) => setNewContent(e.target.value)}
           required

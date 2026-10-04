@@ -165,7 +165,7 @@ test("dashboard queue uses accurate copy when no items need review", async () =>
 
   assert.match(primitives, /Không có yêu cầu mới/);
   assert.doesNotMatch(primitives, /Đã xử lý hết/);
-  assert.match(primitives, /Không có sản phẩm ở trạng thái nháp hoặc chờ duyệt/);
+  assert.match(primitives, /Không có sản phẩm đang soạn/);
   assert.doesNotMatch(primitives, /100% hoàn tất|đã được phê duyệt và sẵn sàng/);
 });
 
@@ -180,7 +180,7 @@ test("dashboard presents unavailable counts as unavailable instead of zero", asy
   assert.match(primitives, /dataReadiness\.leadsTable/);
   assert.match(primitives, /dataReadiness\.recentLeads/);
   assert.match(primitives, /dataReadiness\.newLeads/);
-  assert.match(primitives, /Chưa thể tải yêu cầu báo giá/);
+  assert.match(primitives, /Chưa thể tải yêu cầu mua hàng/);
   assert.match(primitives, /Chưa thể tải danh sách yêu cầu gần đây/);
   assert.match(primitives, /dataReadiness\.productDraftsReady/);
   assert.match(primitives, /Chưa xác định trạng thái bản nháp/);

@@ -22,7 +22,7 @@ interface PolicyDefinition {
 
 const policyDefinitions: Record<PolicyKey, PolicyDefinition> = {
   privacy: {
-    description: "Bản nháp chính sách bảo mật cho quy trình tiếp nhận yêu cầu báo giá B2B.",
+    description: "Bản nháp chính sách bảo mật cho quy trình tiếp nhận yêu cầu mua hàng.",
     path: "/chinh-sach-bao-mat/",
     sections: [
       "Xác nhận loại thông tin được thu thập từ biểu mẫu yêu cầu báo giá và mục đích sử dụng.",
@@ -32,7 +32,7 @@ const policyDefinitions: Record<PolicyKey, PolicyDefinition> = {
     title: "Chính sách bảo mật",
   },
   terms: {
-    description: "Bản nháp điều khoản sử dụng cho website catalogue và yêu cầu báo giá B2B.",
+    description: "Bản nháp điều khoản sử dụng cho website và yêu cầu mua hàng.",
     path: "/dieu-khoan-su-dung/",
     sections: [
       "Xác nhận website là catalogue và kênh tiếp nhận yêu cầu, không phải quy trình thanh toán trực tuyến tự động.",
@@ -42,17 +42,17 @@ const policyDefinitions: Record<PolicyKey, PolicyDefinition> = {
     title: "Điều khoản sử dụng",
   },
   payment: {
-    description: "Bản nháp chính sách thanh toán theo thỏa thuận trong quy trình B2B.",
+    description: "Bản nháp chính sách thanh toán theo thỏa thuận qua Zalo.",
     path: "/chinh-sach-thanh-toan/",
     sections: [
-      "Xác nhận thời điểm phát sinh nghĩa vụ thanh toán: sau khi doanh nghiệp xác nhận báo giá và điều kiện giao dịch.",
+      "Xác nhận thời điểm phát sinh nghĩa vụ thanh toán: sau khi khách và nhân viên xác nhận giá và điều kiện giao dịch qua Zalo.",
       "Bổ sung phương thức nhận tiền, thông tin xuất hóa đơn và các điều kiện đối soát thực tế.",
       "Không sử dụng trang này để tạo cảm giác website đã thanh toán hoặc chốt đơn tự động.",
     ],
     title: "Chính sách thanh toán",
   },
   shipping: {
-    description: "Bản nháp chính sách vận chuyển và giao nhận cho yêu cầu mua hàng B2B.",
+    description: "Bản nháp chính sách vận chuyển và giao nhận cho yêu cầu mua hàng.",
     path: "/chinh-sach-van-chuyen/",
     sections: [
       "Xác nhận khu vực giao hàng, cách tính phí và thời gian giao theo từng sản phẩm hoặc báo giá.",
@@ -62,7 +62,7 @@ const policyDefinitions: Record<PolicyKey, PolicyDefinition> = {
     title: "Chính sách vận chuyển / giao nhận",
   },
   returns: {
-    description: "Bản nháp quy trình đổi trả và xử lý khiếu nại cho giao dịch B2B.",
+    description: "Bản nháp quy trình đổi trả và xử lý khiếu nại.",
     path: "/chinh-sach-doi-tra/",
     sections: [
       "Xác nhận cách tiếp nhận khiếu nại về sai SKU, thiếu số lượng, sai quy cách, bao bì hoặc chất lượng.",
@@ -72,14 +72,14 @@ const policyDefinitions: Record<PolicyKey, PolicyDefinition> = {
     title: "Đổi trả và xử lý khiếu nại",
   },
   "purchase-process": {
-    description: "Quy trình mua hàng B2B từ catalogue đến báo giá và giao hàng.",
+    description: "Quy trình mua hàng từ chọn sản phẩm, gửi yêu cầu đến chốt đơn qua Zalo và giao hàng.",
     path: "/quy-trinh-mua-hang/",
     sections: [
-      "Chọn sản phẩm, kiểm tra SKU, quy cách, MOQ và điều kiện giá theo số lượng.",
-      "Thêm một hoặc nhiều SKU vào giỏ yêu cầu, sau đó gửi thông tin liên hệ và địa điểm giao hàng.",
-      "Doanh nghiệp xác nhận tồn kho, VAT, vận chuyển và giá cuối trước khi hai bên xác nhận giao dịch.",
+      "Chọn sản phẩm, kiểm tra quy cách, số lượng đặt tối thiểu và giá theo số lượng.",
+      "Chọn một hoặc nhiều sản phẩm, đăng nhập và gửi yêu cầu kèm địa điểm giao hàng.",
+      "Nhân viên liên hệ qua Zalo để xác nhận hàng, VAT, vận chuyển và giá cuối trước khi chốt đơn.",
     ],
-    title: "Quy trình mua hàng B2B",
+    title: "Quy trình mua hàng",
   },
 };
 

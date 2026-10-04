@@ -139,11 +139,11 @@ test("Responsive Stress: Mobile padding under <= 768px is compact and leaves amp
 /* ========================================================================== */
 
 test("Edge Case: Fallback for empty or missing lead fullName", () => {
-  // Verifies lead.fullName || "Khách hàng doanh nghiệp"
+  // Verifies lead.fullName || "Khách hàng"
   assert.match(
     primitivesCode,
-    /lead\.fullName\s*\|\|\s*"Khách hàng doanh nghiệp"/,
-    "Lead name must fallback gracefully to 'Khách hàng doanh nghiệp' when empty"
+    /lead\.fullName\s*\|\|\s*"Khách hàng"/,
+    "Lead name must fallback gracefully to 'Khách hàng' when empty"
   );
 });
 
@@ -155,7 +155,7 @@ test("Edge Case: Empty queue handling when recentLeads is empty or absent", () =
   );
   assert.match(
     primitivesCode,
-    /Chưa có yêu cầu báo giá nào trong hàng đợi\./,
+    /Chưa có yêu cầu mua hàng nào cần xử lý\./,
     "Must display polite empty state message when no leads are pending"
   );
 });

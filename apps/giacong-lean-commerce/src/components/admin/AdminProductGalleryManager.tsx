@@ -313,7 +313,7 @@ export function AdminProductGalleryManager({
         <div className="admin-table-empty" style={{ padding: "24px 16px" }}>
           <ImageIcon size={28} aria-hidden="true" style={{ opacity: 0.5 }} />
           <strong>Chưa có ảnh trong thư viện</strong>
-          <p>Thêm các góc chụp kỹ thuật hoặc hình ảnh minh họa cho sản phẩm gia công này.</p>
+          <p>Thêm nhiều góc chụp hoặc ảnh minh họa cho sản phẩm này.</p>
         </div>
       ) : (
         <div

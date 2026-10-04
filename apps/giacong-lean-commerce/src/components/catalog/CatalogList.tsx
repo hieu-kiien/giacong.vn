@@ -365,7 +365,7 @@ export function CatalogList({
         <aside className="mt-10 flex flex-wrap items-center justify-between gap-3 rounded-commerce-control bg-commerce-support-strip px-5 py-4">
           <p className="text-sm text-commerce-body">
             <strong className="font-bold">Cần báo giá theo sản lượng?</strong>{" "}
-            Gửi quy cách và số lượng dự kiến, bộ phận kinh doanh B2B sẽ phản hồi bằng bảng giá chi tiết.
+            Gửi quy cách và số lượng dự kiến, nhân viên sẽ phản hồi bảng giá chi tiết qua Zalo.
           </p>
           <Link
             className="flex min-h-11 items-center rounded-commerce-control border border-commerce-brand px-4 text-sm font-bold text-commerce-brand-dark hover:bg-white focus-visible:commerce-focus-ring"

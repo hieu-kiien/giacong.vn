@@ -89,6 +89,16 @@ const subscribeToBrowserLocation = () => () => undefined;
 const getStagingHostSnapshot = () => isStagingAdminHost(window.location.hostname);
 const getServerStagingHostSnapshot = () => false;
 
+// The admin host (admin.example / admin-staging.example) serves the admin only,
+// so "Xem trang web" must point at the matching public host.
+function resolveStorefrontHref(location: Pick<Location, "hostname" | "port" | "protocol">): string {
+  const publicHost = location.hostname.replace(/^admin(-staging)?\./, (_match, staging: string | undefined) => (staging ? "staging." : ""));
+  if (publicHost === location.hostname) return "/";
+  return `${location.protocol}//${publicHost}${location.port ? `:${location.port}` : ""}/`;
+}
+const getStorefrontHrefSnapshot = () => resolveStorefrontHref(window.location);
+const getServerStorefrontHrefSnapshot = () => "/";
+
 // Fix1.1: theo doi href day du (pathname+search+hash) ma khong can useSearchParams
 // (tranh missing-suspense khi prerender). Patch push/replace de bat Next App Router
 // navigations (pushState khong tu fire popstate), + popstate/hashchange cho Back/Forward/hash.
@@ -188,6 +198,7 @@ export function AdminShell({ brandName, children }: AdminShellProps) {
   const userMenuTriggerRef = useRef<HTMLButtonElement>(null);
   const [attempt, setAttempt] = useState(0);
   const isStagingHost = useSyncExternalStore(subscribeToBrowserLocation, getStagingHostSnapshot, getServerStagingHostSnapshot);
+  const storefrontHref = useSyncExternalStore(subscribeToBrowserLocation, getStorefrontHrefSnapshot, getServerStorefrontHrefSnapshot);
   const [pendingNav, setPendingNav] = useState<{ href: string } | { history: true } | { logout: true } | null>(null);
   const [navigatingHref, setNavigatingHref] = useState<string | null>(null);
   const [prevPathname, setPrevPathname] = useState(pathname);
@@ -637,7 +648,7 @@ export function AdminShell({ brandName, children }: AdminShellProps) {
                 <span>{brandName} / <strong>{currentNavItem?.label ?? "Quản trị"}</strong></span>
               </div>
               <div className="admin-topbar-meta">
-                <Link className="admin-storefront-link" href="/" rel="noreferrer" target="_blank">
+                <Link className="admin-storefront-link" href={storefrontHref} rel="noreferrer" target="_blank">
                   Xem trang web
                   <ExternalLink aria-hidden="true" size={14} />
                 </Link>

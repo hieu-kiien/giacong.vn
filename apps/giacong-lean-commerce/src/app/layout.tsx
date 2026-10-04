@@ -5,7 +5,7 @@ import "./globals.css";
 
 const defaultMetadata: Metadata = {
   title: "Kienhieu",
-  description: "Danh mục sản phẩm, dịch vụ gia công và kênh gửi yêu cầu báo giá B2B.",
+  description: "Danh mục sản phẩm, dịch vụ gia công và kênh gửi yêu cầu mua hàng.",
 };
 
 export async function generateMetadata(): Promise<Metadata> {

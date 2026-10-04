@@ -149,7 +149,7 @@ export function AdminProductCreateContextualAction() {
       setForm(null);
       setSnapshot(null);
       setFieldErrors({});
-      setNotice("Đã lưu bản nháp sản phẩm. Sản phẩm chưa xuất hiện công khai cho tới khi được xuất bản và bật hiển thị.");
+      setNotice("Đã lưu bản nháp sản phẩm. Sản phẩm chưa hiện trên trang web cho tới khi được đăng và bật hiển thị.");
       router.refresh();
     } catch (reason: unknown) {
       const clientError = reason instanceof AdminClientError
@@ -182,7 +182,7 @@ export function AdminProductCreateContextualAction() {
               <div>
                 <div className="admin-kicker">Mua hàng / tạo mới</div>
                 <h2 className="admin-panel-title" id="admin-inline-product-create-title">Sản phẩm mới</h2>
-                <p className="admin-panel-caption">Lưu dưới dạng bản nháp trước; chỉ sản phẩm đã xuất bản và bật hiển thị mới hiện ra website.</p>
+                <p className="admin-panel-caption">Lưu dưới dạng bản nháp trước; chỉ sản phẩm đã đăng và bật hiển thị mới hiện ra trang web.</p>
               </div>
               <span className="admin-stamp">BẢN GHI MỚI</span>
             </div>
@@ -255,8 +255,8 @@ export function AdminProductCreateContextualAction() {
                     }} value={form.status}>
                       <option value="draft">Bản nháp</option>
                       <option value="review">Chờ duyệt</option>
-                      <option value="published">Đã xuất bản</option>
-                      <option value="archived">Lưu trữ</option>
+                      <option value="published">Đã đăng</option>
+                      <option value="archived">Tạm ẩn</option>
                     </select>
                     {fieldErrors.status ? <small className="admin-field-error">{fieldErrors.status}</small> : null}
                   </label>
@@ -296,7 +296,7 @@ export function AdminProductCreateContextualAction() {
                 <div className="admin-editor-footer">
                   <label className={`admin-check${form.status !== "published" ? " is-disabled" : ""}`}>
                     <input checked={form.isActive} disabled={saving || form.status !== "published"} onChange={(event) => update("isActive", event.target.checked)} type="checkbox" />
-                    <span><strong>Hiển thị trên website</strong><small>{form.status === "published" ? "Khách có thể nhìn thấy sản phẩm." : "Chỉ sản phẩm đã xuất bản mới có thể hiển thị."}</small></span>
+                    <span><strong>Hiển thị trên website</strong><small>{form.status === "published" ? "Khách có thể nhìn thấy sản phẩm." : "Chỉ sản phẩm đã đăng mới có thể hiển thị."}</small></span>
                   </label>
                   <div className="admin-editor-actions">
                     <button className="admin-button admin-button-quiet" disabled={saving} onClick={requestClose} type="button">Hủy</button>

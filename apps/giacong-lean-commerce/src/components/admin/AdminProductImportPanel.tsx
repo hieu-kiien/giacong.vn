@@ -24,7 +24,7 @@ interface AdminProductImportPanelProps {
   role: string;
 }
 
-const sampleCsv = "name,slug,sku,category_slug,short_description,description,image_url,lead_time_days\nBột mẫu,bot-mau,B2B-SAMPLE-01,,Mô tả ngắn dùng thử,,,7";
+const sampleCsv = "name,slug,sku,category_slug,short_description,description,image_url,lead_time_days\nBột mẫu,bot-mau,SP-MAU-01,,Mô tả ngắn dùng thử,,,7";
 
 export function AdminProductImportPanel({ categories, onImported, role }: AdminProductImportPanelProps) {
   const canImport = role === "owner";

@@ -311,7 +311,7 @@ await run("Dashboard never presents unavailable data as a genuine zero", async (
     await expect(page.getByTestId("metric-products").locator(".admin-metric-value")).toHaveText("—");
     await expect(page.getByTestId("metric-draft-products").locator(".admin-metric-value")).toHaveText("—");
     await expect(page.getByTestId("metric-news").locator(".admin-metric-value")).toHaveText("—");
-    await expect(page.getByText("Chưa thể tải yêu cầu báo giá.")).toBeVisible();
+    await expect(page.getByText("Chưa thể tải yêu cầu mua hàng.")).toBeVisible();
     await expect(page.getByText("Chưa xác định trạng thái bản nháp vì dữ liệu sản phẩm chưa sẵn sàng.")).toBeVisible();
     await page.screenshot({ path: `${output}/dashboard-unavailable-1920x1080.png`, fullPage: true });
   } finally {
@@ -356,7 +356,7 @@ await run("Dashboard reports an unavailable recent-lead preview separately", asy
     await expect(page.getByText("3 yêu cầu mới", { exact: true })).toBeVisible();
     await expect(page.locator(".admin-queue-view-all")).toContainText("12");
     await expect(page.getByText("Chưa thể tải danh sách yêu cầu gần đây.")).toBeVisible();
-    await expect(page.getByText("Chưa có yêu cầu báo giá nào trong hàng đợi.")).toHaveCount(0);
+    await expect(page.getByText("Chưa có yêu cầu mua hàng nào cần xử lý.")).toHaveCount(0);
   } finally {
     dashboardReadiness = { ...readyDataSources };
   }

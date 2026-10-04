@@ -106,7 +106,7 @@ const serviceStatusLabels: Record<string, string> = {
   published: "Đang hiển thị",
   draft: "Bản nháp",
   review: "Chờ duyệt",
-  archived: "Đã lưu trữ",
+  archived: "Tạm ẩn",
 };
 
 const emptyServiceForm: ServiceFormState = {
@@ -1040,7 +1040,7 @@ function ServiceEditor({ error, form, isDirty = false, onCancel, onChange, onSub
                         update("name", newName);
                       }
                     }}
-                    placeholder="Ví dụ: Gia công chi tiết máy CNC, Ép nhựa kỹ thuật..."
+                    placeholder="Ví dụ: Gia công cà phê hòa tan 3in1, Sữa hạt đóng chai..."
                     required
                     style={{ fontSize: 15, fontWeight: 500 }}
                     value={form.name}
@@ -1054,7 +1054,7 @@ function ServiceEditor({ error, form, isDirty = false, onCancel, onChange, onSub
                     data-testid="input-service-slug"
                     disabled={saving}
                     onChange={(event) => update("slug", event.target.value)}
-                    placeholder="gia-cong-chi-tiet-may-cnc"
+                    placeholder="gia-cong-ca-phe-hoa-tan"
                     required
                     value={form.slug}
                   />
@@ -1093,7 +1093,7 @@ function ServiceEditor({ error, form, isDirty = false, onCancel, onChange, onSub
               <div className="admin-haravan-card">
                 <h3 className="admin-haravan-card-title">Trạng thái & Hiển thị</h3>
                 <label className="admin-field">
-                  <span>Trạng thái phát hành</span>
+                  <span>Trạng thái</span>
                   <select
                     className="admin-select"
                     data-testid="select-service-status"
@@ -1110,10 +1110,10 @@ function ServiceEditor({ error, form, isDirty = false, onCancel, onChange, onSub
                   >
                     <option value="draft">Bản nháp</option>
                     <option value="review">Chờ duyệt</option>
-                    <option disabled={!form.id} value="published">Đã xuất bản</option>
-                    <option value="archived">Lưu trữ</option>
+                    <option disabled={!form.id} value="published">Đã đăng</option>
+                    <option value="archived">Tạm ẩn</option>
                   </select>
-                  {!form.id ? <small className="admin-field-hint">Lưu bản nháp trước rồi mới xuất bản dịch vụ.</small> : null}
+                  {!form.id ? <small className="admin-field-hint">Lưu bản nháp trước rồi mới đăng dịch vụ.</small> : null}
                 </label>
 
                 <div style={{ marginTop: 14, paddingTop: 14, borderTop: "1px solid var(--admin-border, #dce3dc)" }}>
@@ -1130,7 +1130,7 @@ function ServiceEditor({ error, form, isDirty = false, onCancel, onChange, onSub
                     />
                     <span>
                       <strong>Hiển thị trên website</strong>
-                      <small>{form.status !== "published" ? "Chỉ dịch vụ đã xuất bản mới có thể hiển thị." : form.isActive ? "Dịch vụ đang hiển thị công khai." : "Đã xuất bản nhưng đang ẩn khỏi website."}</small>
+                      <small>{form.status !== "published" ? "Chỉ dịch vụ đã đăng mới có thể hiển thị." : form.isActive ? "Dịch vụ đang hiển thị công khai." : "Đã đăng nhưng đang ẩn khỏi trang web."}</small>
                     </span>
                   </label>
                 </div>
@@ -1192,14 +1192,14 @@ function ServiceEditor({ error, form, isDirty = false, onCancel, onChange, onSub
                         className="admin-input"
                         disabled={saving}
                         onChange={(e) => updateOfferingRow(idx, "name", e.target.value)}
-                        placeholder="Tên dịch vụ con (VD: Phay CNC 4 trục)"
+                        placeholder="Tên dịch vụ con (VD: Đóng gói stick 3in1)"
                         value={row.name}
                       />
                       <input
                         className="admin-input admin-mono"
                         disabled={saving}
                         onChange={(e) => updateOfferingRow(idx, "path", e.target.value)}
-                        placeholder="Đường dẫn (VD: /dich-vu/phay-cnc/)"
+                        placeholder="Đường dẫn (VD: /dich-vu/dong-goi-stick/)"
                         value={row.path}
                       />
                       <button
@@ -1225,7 +1225,7 @@ function ServiceEditor({ error, form, isDirty = false, onCancel, onChange, onSub
                   data-testid="input-service-offerings"
                   disabled={saving}
                   onChange={(event) => update("offeringsText", event.target.value)}
-                  placeholder={"Phay CNC 4-5 trục | /dich-vu/phay-cnc/\nTiện CNC chính xác | /dich-vu/tien-cnc/\nCắt dây EDM | /dich-vu/cat-day-edm/"}
+                  placeholder={"Đóng gói stick 3in1 | /dich-vu/dong-goi-stick/\nSữa hạt đóng chai | /dich-vu/sua-hat-dong-chai/\nTrà túi lọc | /dich-vu/tra-tui-loc/"}
                   rows={4}
                   style={{ marginTop: 6 }}
                   value={form.offeringsText}
@@ -1235,7 +1235,7 @@ function ServiceEditor({ error, form, isDirty = false, onCancel, onChange, onSub
 
             <div style={{ display: "grid", gap: 16, gridTemplateColumns: "1fr 1fr", marginTop: 16, paddingTop: 16, borderTop: "1px solid var(--admin-border, #dce3dc)" }}>
               <label className="admin-field">
-                <span>Số lượng tối thiểu (MOQ)</span>
+                <span>Số lượng đặt tối thiểu</span>
                 <input
                   className="admin-input"
                   data-testid="input-service-moq"

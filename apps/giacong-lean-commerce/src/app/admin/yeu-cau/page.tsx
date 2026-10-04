@@ -1,10 +1,9 @@
 "use client";
 
-import { Building2, ClipboardList, Filter, Mail, Phone, Search } from "lucide-react";
+import { ClipboardList, Filter, Mail, Phone, Search } from "lucide-react";
 import { useEffect, useState, type FormEvent } from "react";
 import { AdminEmptyState, AdminErrorState, AdminLoadingTable, AdminPageHeading, AdminPagination, AdminStatusBadge } from "@/components/admin/AdminPrimitives";
 import { AdminModal } from "@/components/admin/AdminDialog";
-import { AdminCustomerDrawer } from "@/components/admin/AdminCustomerDrawer";
 import { AdminLeadSaleDialog } from "@/components/admin/AdminLeadSaleDialog";
 import { useAdminSession } from "@/components/admin/AdminShell";
 import { useAdminToast } from "@/components/admin/AdminToast";
@@ -30,18 +29,23 @@ interface LeadListItem extends AdminLead {
 
 const statusOptions: Array<{ value: LeadStatus | ""; label: string }> = [
   { value: "", label: "Tất cả trạng thái" },
-  { value: "new", label: "Mới tiếp nhận" },
-  { value: "qualified", label: "Đã xác thực" },
+  { value: "new", label: "Mới" },
   { value: "contacted", label: "Đã liên hệ" },
-  { value: "quotation_sent", label: "Đã gửi báo giá" },
-  { value: "sampling", label: "Đang làm mẫu" },
-  { value: "negotiation", label: "Đàm phán" },
   { value: "won", label: "Đã chốt" },
-  { value: "lost", label: "Không tiếp tục" },
+  { value: "lost", label: "Không mua" },
   { value: "spam", label: "Rác" },
 ];
 
-const statusLabels = Object.fromEntries(statusOptions.map(({ value, label }) => [value, label]));
+// Older in-between pipeline statuses remain in D1 but are shown as "Đã liên hệ".
+const legacyContactedStatuses: LeadStatus[] = ["qualified", "quotation_sent", "sampling", "negotiation"];
+const statusLabels: Record<string, string> = {
+  ...Object.fromEntries(statusOptions.map(({ value, label }) => [value, label])),
+  ...Object.fromEntries(legacyContactedStatuses.map((value) => [value, "Đã liên hệ"])),
+};
+
+function simpleStatus(status: LeadStatus): LeadStatus {
+  return legacyContactedStatuses.includes(status) ? "contacted" : status;
+}
 const deliveryLabels: Record<AdminLead["deliveryStatus"], string> = {
   pending: "Đang chờ",
   queued: "Đang gửi đi",
@@ -109,7 +113,6 @@ export default function AdminLeadsPage() {
   const [inputQuery, setInputQuery] = useState("");
   const [detailLead, setDetailLead] = useState<LeadListItem | null>(null);
   const [saleLead, setSaleLead] = useState<LeadListItem | null>(null);
-  const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [lastPage, setLastPage] = useState(1);
@@ -120,7 +123,7 @@ export default function AdminLeadsPage() {
   const [mutationError, setMutationError] = useState<AdminClientError | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkStatusModal, setBulkStatusModal] = useState(false);
-  const [targetBulkStatus, setTargetBulkStatus] = useState<LeadStatus>("qualified");
+  const [targetBulkStatus, setTargetBulkStatus] = useState<LeadStatus>("contacted");
   const [bulkUpdating, setBulkUpdating] = useState(false);
 
   useEffect(() => {
@@ -140,7 +143,7 @@ export default function AdminLeadsPage() {
         setLastPage(result.pagination?.lastPage ?? Math.max(1, Math.ceil((result.total ?? 0) / 20)));
       } catch (reason: unknown) {
         if (!(reason instanceof DOMException && reason.name === "AbortError")) {
-          setError(reason instanceof AdminClientError ? reason : new AdminClientError("Không thể tải inbox yêu cầu.", 0));
+          setError(reason instanceof AdminClientError ? reason : new AdminClientError("Không thể tải danh sách yêu cầu.", 0));
         }
       } finally {
         if (!controller.signal.aborted) setLoading(false);
@@ -168,8 +171,8 @@ export default function AdminLeadsPage() {
       if (detailLead?.id === lead.id) setDetailLead(result.lead);
       showToast("success", `Đã chuyển “${lead.fullName}” sang ${statusLabels[nextStatus]}.`);
     } catch (reason: unknown) {
-      setMutationError(reason instanceof AdminClientError ? reason : new AdminClientError("Không thể cập nhật trạng thái lead.", 0));
-      showToast("error", reason instanceof AdminClientError ? reason.message : "Không thể cập nhật trạng thái lead.");
+      setMutationError(reason instanceof AdminClientError ? reason : new AdminClientError("Không thể cập nhật trạng thái yêu cầu.", 0));
+      showToast("error", reason instanceof AdminClientError ? reason.message : "Không thể cập nhật trạng thái yêu cầu.");
     } finally {
       setUpdatingId(null);
     }
@@ -211,13 +214,13 @@ export default function AdminLeadsPage() {
 
   return (
     <div className="admin-content">
-      <AdminPageHeading kicker="Bán hàng / tiếp nhận" title="Yêu cầu báo giá" subtitle="Hộp thư chung cho các yêu cầu báo giá gửi về từ trang web và các kênh liên hệ." stamp="HỘP YÊU CẦU" />
+      <AdminPageHeading kicker="Bán hàng / tiếp nhận" title="Yêu cầu mua hàng" subtitle="Khách đăng nhập gửi yêu cầu từ trang web. Nhân viên liên hệ qua Zalo, chốt đơn rồi ghi nhận giao dịch tại đây." stamp="HỘP YÊU CẦU" />
       {mutationError ? <p className="admin-editor-error" role="alert">{mutationError.code ? `${mutationError.code} · ` : ""}{mutationError.message}</p> : null}
       <div className="admin-toolbar">
         <form className="admin-search-wrap" id="lead-search-form" onSubmit={submitSearch}>
-          <label className="admin-label" htmlFor="lead-search">Tìm theo tên, công ty, email, SĐT</label>
+          <label className="admin-label" htmlFor="lead-search">Tìm theo tên, email, SĐT</label>
           <Search aria-hidden="true" />
-          <input className="admin-input has-icon" data-testid="input-lead-search" id="lead-search" onChange={(event) => setInputQuery(event.target.value)} placeholder="Ví dụ: Nguyễn, công ty ABC, gmail..." value={inputQuery} />
+          <input className="admin-input has-icon" data-testid="input-lead-search" id="lead-search" onChange={(event) => setInputQuery(event.target.value)} placeholder="Ví dụ: Nguyễn, gmail, 09..." value={inputQuery} />
         </form>
         <button className="admin-button admin-button-primary" data-testid="button-lead-search" form="lead-search-form" type="submit">Tìm</button>
         {query ? (
@@ -267,12 +270,10 @@ export default function AdminLeadsPage() {
             <div className="admin-filter-tabs">
               {[
                 { label: "Tất cả", value: "" },
-                { label: "Mới tiếp nhận", value: "new" },
-                { label: "Đã xác thực", value: "qualified" },
+                { label: "Mới", value: "new" },
                 { label: "Đã liên hệ", value: "contacted" },
-                { label: "Báo giá", value: "quotation_sent" },
                 { label: "Đã chốt", value: "won" },
-                { label: "Không tiếp tục", value: "lost" },
+                { label: "Không mua", value: "lost" },
                 { label: "Rác", value: "spam" },
               ].map((tab) => (
                 <button
@@ -350,17 +351,6 @@ export default function AdminLeadsPage() {
                             <strong style={{ display: "block" }}>{lead.fullName}</strong>
                             <span>{lead.companyName || "Chưa có tên công ty"}{lead.country ? ` · ${lead.country}` : ""} · Xem chi tiết</span>
                           </button>
-                          <div style={{ marginTop: 6 }}>
-                            <button
-                              className="admin-button admin-button-quiet"
-                              onClick={() => setSelectedLeadId(lead.id)}
-                              style={{ alignItems: "center", display: "inline-flex", gap: 5, fontSize: 11, minHeight: 26, padding: "2px 8px" }}
-                              title="Xem hồ sơ khách hàng & tiến độ báo giá"
-                              type="button"
-                            >
-                              <Building2 size={12} /> Hồ sơ khách hàng
-                            </button>
-                          </div>
                         </td>
                         <td data-label="Liên lạc"><div className="admin-lead-person">{lead.email ? <span><Mail size={12} style={{ verticalAlign: "middle" }} /> {lead.email}</span> : null}{lead.phone ? <span><Phone size={12} style={{ verticalAlign: "middle" }} /> {lead.phone}</span> : null}{!lead.email && !lead.phone ? <span>Chưa có thông tin</span> : null}</div></td>
                         <td data-label="Nhu cầu"><div className="admin-message" title={lead.message ?? undefined}>{lead.message || "Không có nội dung"}</div><div className="admin-item-meta">{lead.source}</div></td>
@@ -375,7 +365,7 @@ export default function AdminLeadsPage() {
                                 data-testid={`select-lead-status-${lead.id}`}
                                 disabled={updatingId === lead.id}
                                 onChange={(event) => void updateLeadStatus(lead, event.target.value as LeadStatus)}
-                                value={lead.status}
+                                value={simpleStatus(lead.status)}
                               >
                                 {pipelineStatusOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
                               </select>
@@ -431,7 +421,7 @@ export default function AdminLeadsPage() {
             </div>
             {detailLead.items?.length ? (
               <section aria-labelledby="admin-lead-items-title" style={{ marginTop: 16 }}>
-                <strong id="admin-lead-items-title" style={{ fontSize: 13 }}>Danh sách dòng RFQ</strong>
+                <strong id="admin-lead-items-title" style={{ fontSize: 13 }}>Sản phẩm khách yêu cầu</strong>
                 <ul data-testid="admin-lead-items" style={{ display: "grid", gap: 8, listStyle: "none", margin: "8px 0 0", padding: 0 }}>
                   {detailLead.items.map((item) => (
                     <li key={item.id} style={{ border: "1px solid var(--admin-border)", borderRadius: 8, padding: "9px 10px" }}>
@@ -441,7 +431,7 @@ export default function AdminLeadsPage() {
                       </div>
                       <div className="admin-item-meta">
                         {item.quantity !== null ? `${item.quantity} ${item.unit || "đơn vị"}` : "Chưa có số lượng"}
-                        {item.unitPrice !== null ? ` · ${formatLeadMoney(item.unitPrice)}` : " · Liên hệ báo giá"}
+                        {item.unitPrice !== null ? ` · ${formatLeadMoney(item.unitPrice)}` : " · Chưa có giá niêm yết"}
                         {item.lineTotal !== null ? ` · Tạm tính ${formatLeadMoney(item.lineTotal)}` : ""}
                       </div>
                     </li>
@@ -513,13 +503,6 @@ export default function AdminLeadsPage() {
               </button>
             </div>
           </AdminModal>
-        ) : null}
-        {selectedLeadId ? (
-          <AdminCustomerDrawer
-            customerId={selectedLeadId}
-            leadId={selectedLeadId}
-            onClose={() => setSelectedLeadId(null)}
-          />
         ) : null}
       </div>
   );

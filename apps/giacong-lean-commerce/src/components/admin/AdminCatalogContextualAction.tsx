@@ -145,7 +145,7 @@ export function AdminCatalogContextualAction({ productId }: { productId: number 
       setForm(next);
       setSnapshot(next);
       setFieldErrors({});
-      setNotice("Đã lưu bản nháp sản phẩm. Website chỉ đổi sau khi bản ghi được xuất bản và bật hiển thị.");
+      setNotice("Đã lưu bản nháp sản phẩm. Trang web chỉ đổi sau khi sản phẩm được đăng và bật hiển thị.");
       router.refresh();
     } catch (reason: unknown) {
       const clientError = reason instanceof AdminClientError
@@ -179,7 +179,7 @@ export function AdminCatalogContextualAction({ productId }: { productId: number 
               <div>
                 <div className="admin-kicker">Mua hàng / đang xem</div>
                 <h2 className="admin-panel-title" id={`admin-inline-product-title-${productId}`}>{form?.name ?? "Đang tải sản phẩm"}</h2>
-                <p className="admin-panel-caption">Lưu bản nháp trước; website chỉ hiển thị sản phẩm đã xuất bản và bật hiển thị.</p>
+                <p className="admin-panel-caption">Lưu bản nháp trước; trang web chỉ hiển thị sản phẩm đã đăng và đang bật hiển thị.</p>
               </div>
               {form ? <span className="admin-stamp">Mã {form.id}</span> : null}
             </div>
@@ -238,7 +238,7 @@ export function AdminCatalogContextualAction({ productId }: { productId: number 
                     <input name="categoryId" type="hidden" value={form.categoryId} />
                   </label>
                   <label className="admin-field">
-                    <span>Trạng thái phát hành</span>
+                    <span>Trạng thái</span>
                     <select className="admin-select" disabled={saving} onChange={(event) => {
                       const status = event.target.value;
                       update("status", status);
@@ -246,8 +246,8 @@ export function AdminCatalogContextualAction({ productId }: { productId: number 
                     }} value={form.status}>
                       <option value="draft">Bản nháp</option>
                       <option value="review">Chờ duyệt</option>
-                      <option value="published">Đã xuất bản</option>
-                      <option value="archived">Lưu trữ</option>
+                      <option value="published">Đã đăng</option>
+                      <option value="archived">Tạm ẩn</option>
                     </select>
                     {fieldErrors.status ? <small className="admin-field-error">{fieldErrors.status}</small> : null}
                   </label>
@@ -275,7 +275,7 @@ export function AdminCatalogContextualAction({ productId }: { productId: number 
                 <div className="admin-editor-footer">
                   <label className={`admin-check${form.status !== "published" ? " is-disabled" : ""}`}>
                     <input checked={form.isActive} disabled={saving || form.status !== "published"} onChange={(event) => update("isActive", event.target.checked)} type="checkbox" />
-                    <span><strong>Hiển thị trên trang web</strong><small>{form.status === "published" ? "Khách vào trang web sẽ thấy sản phẩm." : "Chỉ sản phẩm đã xuất bản mới có thể hiển thị."}</small></span>
+                    <span><strong>Hiển thị trên trang web</strong><small>{form.status === "published" ? "Khách vào trang web sẽ thấy sản phẩm." : "Chỉ sản phẩm đã đăng mới có thể hiển thị."}</small></span>
                   </label>
                   <div className="admin-editor-actions">
                     <Link className="admin-button admin-button-quiet" href={`/admin/san-pham?edit=${form.id}`} prefetch={false}>Mở quản trị đầy đủ</Link>

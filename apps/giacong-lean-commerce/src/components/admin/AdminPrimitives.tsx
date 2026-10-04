@@ -81,7 +81,7 @@ export function DataReadiness({ data }: { data: Record<string, boolean> }) {
     activeServices: "Số dịch vụ đang hoạt động",
     adminMembersTable: "Danh sách thành viên",
     auditLogsTable: "Lịch sử thay đổi",
-    leadsTable: "Yêu cầu báo giá",
+    leadsTable: "Yêu cầu mua hàng",
     newsPostsTable: "Bài viết tin tức",
     newLeads: "Số yêu cầu mới",
     productDraftsReady: "Trạng thái bản nháp sản phẩm",
@@ -148,14 +148,14 @@ export interface AdminOperationsQueueProps {
 }
 
 const queueLeadStatusLabels: Record<string, string> = {
-  new: "Mới tiếp nhận",
-  qualified: "Đã xác thực",
+  new: "Mới",
+  qualified: "Đã liên hệ",
   contacted: "Đã liên hệ",
-  quotation_sent: "Đã báo giá",
-  sampling: "Đang làm mẫu",
-  negotiation: "Đàm phán",
+  quotation_sent: "Đã liên hệ",
+  sampling: "Đã liên hệ",
+  negotiation: "Đã liên hệ",
   won: "Đã chốt",
-  lost: "Không tiếp tục",
+  lost: "Không mua",
   spam: "Rác",
 };
 
@@ -181,14 +181,14 @@ export function AdminOperationsQueue({
 
   return (
     <div className="admin-operations-queue" data-testid="panel-operations-queue">
-      {/* Task 1: Pending RFQ Leads Queue */}
+      {/* Task 1: Pending purchase requests queue */}
       {canViewLeads ? (
         <section className="admin-panel admin-queue-section" aria-labelledby="queue-rfq-heading">
           <div className="admin-panel-heading">
             <div>
               <div className="admin-queue-title-wrap">
                 <h2 className="admin-panel-title" id="queue-rfq-heading">
-                  Hàng đợi yêu cầu báo giá B2B
+                  Yêu cầu mua hàng cần xử lý
                 </h2>
                 {!leadsReady ? (
                   <span className="admin-badge admin-badge-neutral">Chưa tải được</span>
@@ -205,7 +205,7 @@ export function AdminOperationsQueue({
                 )}
               </div>
               <p className="admin-panel-caption">
-                Yêu cầu báo giá và năng lực gia công tiếp nhận từ khách hàng doanh nghiệp
+                Khách gửi yêu cầu từ trang web, nhân viên liên hệ qua Zalo để chốt đơn
               </p>
             </div>
             <Link
@@ -222,7 +222,7 @@ export function AdminOperationsQueue({
           {!leadsReady ? (
             <div className="admin-queue-empty">
               <ClipboardList size={22} className="admin-queue-empty-icon" />
-              <p>Chưa thể tải yêu cầu báo giá. Hãy kiểm tra trạng thái kết nối dữ liệu.</p>
+              <p>Chưa thể tải yêu cầu mua hàng. Hãy kiểm tra trạng thái kết nối dữ liệu.</p>
             </div>
           ) : !recentLeadsReady ? (
             <div className="admin-queue-empty">
@@ -235,7 +235,7 @@ export function AdminOperationsQueue({
                 <div className="admin-queue-lead-row" key={lead.id}>
                   <div className="admin-queue-lead-info">
                     <span className="admin-queue-lead-name">
-                      {lead.fullName || "Khách hàng doanh nghiệp"}
+                      {lead.fullName || "Khách hàng"}
                     </span>
                     <span className="admin-queue-lead-meta">
                       <AdminStatusBadge
@@ -265,7 +265,7 @@ export function AdminOperationsQueue({
           ) : (
             <div className="admin-queue-empty">
               <ClipboardList size={22} className="admin-queue-empty-icon" />
-              <p>Chưa có yêu cầu báo giá nào trong hàng đợi.</p>
+              <p>Chưa có yêu cầu mua hàng nào cần xử lý.</p>
             </div>
           )}
 
@@ -298,7 +298,7 @@ export function AdminOperationsQueue({
             <div>
               <div className="admin-queue-title-wrap">
                 <h2 className="admin-panel-title" id="queue-drafts-heading">
-                  Sản phẩm chờ duyệt &amp; xuất bản
+                  Sản phẩm chưa đăng bán
                 </h2>
                 {!productDraftsReady ? (
                   <span className="admin-badge admin-badge-neutral">Chưa xác định</span>
@@ -313,7 +313,7 @@ export function AdminOperationsQueue({
                 )}
               </div>
               <p className="admin-panel-caption">
-                Tiến độ chuẩn hóa danh mục, thông số kỹ thuật và hình ảnh hàng hóa
+                Sản phẩm đang soạn, chưa hiển thị trên trang web
               </p>
             </div>
             <Package aria-hidden="true" color="#6e8c42" size={19} />
@@ -334,7 +334,7 @@ export function AdminOperationsQueue({
             ) : counts.draftProducts > 0 ? (
               <>
                 <p className="admin-queue-pipeline-desc">
-                  Ghi nhận <strong>{counts.draftProducts}</strong> sản phẩm đang soạn thảo hoặc chờ kiểm duyệt. Cần bổ sung đầy đủ thông số kỹ thuật, bảng giá MOQ và ảnh minh họa trước khi phát hành.
+                  Ghi nhận <strong>{counts.draftProducts}</strong> sản phẩm đang soạn, chưa hiển thị trên trang web. Hãy bổ sung ảnh, giá và mô tả rồi chuyển sang “Đang bán”.
                 </p>
                 <div className="admin-queue-pipeline-stats">
                   {dataReadiness.activeProducts ? (
@@ -349,7 +349,7 @@ export function AdminOperationsQueue({
                     className="admin-button admin-button-primary admin-button-compact"
                     prefetch={false}
                   >
-                    Duyệt bản nháp ngay ({counts.draftProducts})
+                    Hoàn thiện bản nháp ({counts.draftProducts})
                     <ArrowRight size={13} />
                   </Link>
                   <Link
@@ -364,7 +364,7 @@ export function AdminOperationsQueue({
             ) : (
               <>
                 <p className="admin-queue-pipeline-desc">
-                  Không có sản phẩm ở trạng thái nháp hoặc chờ duyệt. Danh mục có <strong>{counts.products}</strong> hồ sơ{dataReadiness.activeProducts ? <>, trong đó <strong>{counts.activeProducts}</strong> sản phẩm đang hiển thị công khai.</> : "; chưa tải được số lượng sản phẩm đang hoạt động."}
+                  Không có sản phẩm đang soạn. Danh mục có <strong>{counts.products}</strong> hồ sơ{dataReadiness.activeProducts ? <>, trong đó <strong>{counts.activeProducts}</strong> sản phẩm đang hiển thị công khai.</> : "; chưa tải được số lượng sản phẩm đang hoạt động."}
                 </p>
                 <div className="admin-queue-pipeline-actions">
                   <Link

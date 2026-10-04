@@ -41,7 +41,6 @@ import { AdminModal } from "@/components/admin/AdminDialog";
 import { AdminProductImportPanel } from "@/components/admin/AdminProductImportPanel";
 import { AdminVariantPanel } from "@/components/admin/AdminVariantPanel";
 import { AdminProductGalleryManager } from "@/components/admin/AdminProductGalleryManager";
-import { AdminProductTechSpecs } from "@/components/admin/AdminProductTechSpecs";
 import { AdminProductSeoPreview } from "@/components/admin/AdminProductSeoPreview";
 import { useAdminSession } from "@/components/admin/AdminShell";
 import { useAdminToast } from "@/components/admin/AdminToast";
@@ -120,10 +119,10 @@ const emptyProductForm: ProductFormState = {
 };
 
 const statusLabelsVN: Record<ProductFormState["status"], string> = {
-  archived: "Lưu trữ",
+  archived: "Tạm ẩn",
   draft: "Bản nháp",
-  published: "Đã xuất bản",
-  review: "Chờ duyệt",
+  published: "Đã đăng",
+  review: "Bản nháp",
 };
 
 type ProductVisibilityChoice = "draft" | "live" | "hidden";
@@ -1172,7 +1171,7 @@ export default function AdminProductsPage() {
 
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
               <div>
-                <label className="admin-label" style={{ fontWeight: 600 }}>Trạng thái phát hành</label>
+                <label className="admin-label" style={{ fontWeight: 600 }}>Trạng thái</label>
                 <select
                   className="admin-select"
                   disabled={batchEditLoading}
@@ -1180,10 +1179,9 @@ export default function AdminProductsPage() {
                   value={batchEditStatus}
                 >
                   <option value="keep">— Giữ nguyên hiện tại —</option>
-                  <option value="published">Đã xuất bản (Published)</option>
-                  <option value="draft">Bản nháp (Draft)</option>
-                  <option value="review">Chờ duyệt (Review)</option>
-                  <option value="archived">Lưu trữ (Archived)</option>
+                  <option value="published">Đã đăng</option>
+                  <option value="draft">Bản nháp</option>
+                  <option value="archived">Tạm ẩn</option>
                 </select>
               </div>
 
@@ -1302,7 +1300,6 @@ function ProductEditor({
   const [activeTab, setActiveTab] = useState<"general" | "media" | "variants_seo">("general");
   const [mediaTabOpened, setMediaTabOpened] = useState(false);
   const [variantsTabOpened, setVariantsTabOpened] = useState(false);
-  const [techSpecsOpened, setTechSpecsOpened] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
@@ -1878,21 +1875,6 @@ function ProductEditor({
               Hãy lưu bản nháp sản phẩm trước, sau đó thêm quy cách và bảng giá.
             </div>
           )}
-
-          {form.id ? (
-            <details
-              className="admin-haravan-card admin-tech-specs-disclosure"
-              onToggle={(event) => { if (event.currentTarget.open) setTechSpecsOpened(true); }}
-            >
-              <summary>
-                <span>
-                  <strong>Thông số kỹ thuật gia công · Tùy chọn</strong>
-                  <small>Dành cho sản phẩm cần khai báo vật liệu, dung sai hoặc quy trình chế tạo.</small>
-                </span>
-              </summary>
-              {techSpecsOpened ? <AdminProductTechSpecs productId={form.id} /> : null}
-            </details>
-          ) : null}
 
           <details className="admin-haravan-card admin-tech-specs-disclosure">
             <summary>

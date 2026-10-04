@@ -140,7 +140,7 @@ export function AdminProductSeoPreview({ initialData }: {
               </div>
               <div style={{ fontSize: 13, color: "#4d5156", marginTop: 4, lineHeight: "1.4" }}>
                 {data.seoDescription ||
-                  "Dịch vụ gia công chi tiết theo yêu cầu, phay tiện CNC dung sai ±0.01mm, cam kết chất lượng theo tiêu chuẩn ISO 9001:2015. Báo giá nhanh trong 24h."}
+                  "Cà phê hòa tan 3in1 đóng gói theo yêu cầu, nguyên liệu rõ nguồn gốc, giao hàng toàn quốc. Nhắn Zalo để được tư vấn nhanh."}
               </div>
             </div>
           ) : (
@@ -177,7 +177,7 @@ export function AdminProductSeoPreview({ initialData }: {
                   {data.seoTitle || "Tiêu đề sản phẩm gia công cơ khí chính xác"}
                 </div>
                 <div style={{ fontSize: 12, color: "#64748b", marginTop: 4, lineClamp: 2 }}>
-                  {data.seoDescription || "Gia công chế tạo chi tiết theo yêu cầu kỹ thuật với dung sai cực nhỏ..."}
+                  {data.seoDescription || "Mô tả ngắn gọn về sản phẩm sẽ hiển thị trên Google..."}
                 </div>
               </div>
             </div>

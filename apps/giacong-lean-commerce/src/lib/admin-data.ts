@@ -1146,7 +1146,11 @@ export async function listAdminLeads(
 ): Promise<{ leads: AdminLead[]; total: number }> {
   const conditions: string[] = [];
   const params: Array<string | number> = [];
-  if (input.status) {
+  if (input.status === "contacted") {
+    // The admin UI shows one "Đã liên hệ" step; older in-between pipeline
+    // statuses stay in D1 and are grouped under it when filtering.
+    conditions.push("status IN ('qualified', 'contacted', 'quotation_sent', 'sampling', 'negotiation')");
+  } else if (input.status) {
     conditions.push("status = ?");
     params.push(input.status);
   }
