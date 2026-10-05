@@ -34,9 +34,12 @@ export default async function CustomerSignInPage({
   const destination = customerLoginDestination(query.next);
   const callbackURL = customerContactDestination(query.next);
   const isAdminSignIn = destination === "/admin/" || destination.startsWith("/admin/");
+  const settings = await getPublishedSiteSettings();
   let emailRegistrationEnabled = false;
+  let emailDeliveryEnabled = false;
   try {
-    emailRegistrationEnabled = Boolean(resolveCustomerEmailConfig(getCloudflareContext().env as CustomerEmailEnvironment));
+    emailDeliveryEnabled = Boolean(resolveCustomerEmailConfig(getCloudflareContext().env as CustomerEmailEnvironment));
+    emailRegistrationEnabled = settings.customer_email_registration === "on" && emailDeliveryEnabled;
   } catch {
     // Google remains the primary account entry when email delivery is unavailable.
   }
@@ -66,7 +69,7 @@ export default async function CustomerSignInPage({
                 : "Đăng nhập để gửi yêu cầu và theo dõi giao dịch của bạn."}</p>
               {query.error ? <p className={styles.formError} role="alert">Đăng nhập Google chưa hoàn tất. Bạn có thể thử lại bằng nút bên dưới.</p> : null}
 
-              <CustomerAccountAuth callbackURL={callbackURL} emailRegistrationEnabled={emailRegistrationEnabled} />
+              <CustomerAccountAuth callbackURL={callbackURL} emailDeliveryEnabled={emailDeliveryEnabled} emailRegistrationEnabled={emailRegistrationEnabled} />
 
               <Link className={styles.homeLink} href="/">
                 <span aria-hidden="true">←</span> Quay lại trang chủ

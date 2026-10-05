@@ -5,9 +5,7 @@
 }
 .modeTitle { color: #293e27; font-size: 20px; line-height: 1.3; margin: 0 0 10px; }
 .methodCopy { color: #62705e; font-size: 14px; line-height: 1.6; margin: 0 0 16px; }
-.passwordOption { border-top: 1px solid #e4ebdf; margin-top: 24px; padding-top: 18px; }
-.passwordOption summary { color: #355f24; cursor: pointer; font-size: 14px; font-weight: 650; min-height: 28px; }
-.passwordOption summary:focus-visible { outline: 3px solid #477d2f; outline-offset: 3px; }
+.passwordOption { margin-top: 24px; }
 .passwordOption .authForm { margin-top: 16px; }
 .showPassword { align-items: center; color: #52634c; display: flex; font-size: 14px; gap: 8px; }
 .showPassword input { accent-color: #3f7a25; height: 18px; margin: 0; width: 18px; }

@@ -47,10 +47,17 @@ Người dùng đã cho phép push nhánh, mở PR và triển khai staging. PR 
 ## Giao diện tài khoản — bổ sung 05/10
 
 - Dùng nguyên thanh điều hướng, logo, footer và phần tiêu đề xanh của website; sửa CSS trang tin tức kéo nội dung tài khoản lên 120px. Cách hiển thị tài khoản chỉ áp dụng cho đăng nhập, tài khoản và đặt lại mật khẩu.
-- Google là cách đăng nhập/đăng ký chính theo lựa chọn khách hàng. Đăng ký email và khôi phục mật khẩu chỉ hiển thị khi dịch vụ gửi email đã cấu hình; mật khẩu đã thiết lập vẫn đăng nhập được trong mục phụ.
+- Google và form email/mật khẩu hiển thị rõ trên màn hình đăng nhập. Đăng ký email và khôi phục mật khẩu cần dịch vụ gửi email đã cấu hình; không thu gọn form mật khẩu.
 - Thông tin tài khoản, yêu cầu và giao dịch chia khối rõ ràng; phần thêm mật khẩu được thu gọn.
 - `scripts/qa-account-ui.mjs` sinh lại ảnh và kiểm tra khoảng cách menu/tiêu đề, tràn ngang, chuyển đăng ký/đăng nhập và hiện mật khẩu ở 390, 958, 1366px; không gửi tài khoản mới hoặc sửa dữ liệu.
 - Deep QA staging kiểm tra thêm trang đăng nhập trên năm kích thước màn hình.
+
+### Bổ sung đăng ký email — đang hoàn thiện trên nhánh
+
+- Admin → Nội dung & cài đặt → Liên hệ có lựa chọn bật/tắt đăng ký email, dùng hợp đồng lưu nháp/phát hành hiện có. Migration `0038_customer_email_registration.sql` chưa áp dụng staging.
+- API đọc lựa chọn đã phát hành trực tiếp mỗi lần đăng ký; lỗi đọc D1 trả 503. Tắt đăng ký mới không tắt Google, đăng nhập hiện có, khôi phục mật khẩu hoặc gửi lại xác minh.
+- `npm run check`: 877 kiểm tra, lint/typecheck/build, mã thoát 0. QA trình duyệt đăng nhập ở 390/958/1366 px qua; review độc lập chưa tìm thấy lỗi cụ thể.
+- Resend đã đăng nhập bằng Google sau xác nhận của người dùng. Tên miền gửi thử `auth.staging.kienhieu.id.vn` đã tạo; đang chờ xác nhận DNS/khóa gửi mới. Chưa xác minh email, chưa nghiệm thu tài khoản thử và chưa triển khai thay đổi này lên staging.
 
 ### Tài liệu định dạng
 

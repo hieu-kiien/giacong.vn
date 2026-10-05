@@ -436,7 +436,12 @@ function SettingEditor({
       </div>
       <div className={`admin-setting-input-wrap${setting.type === "color" ? " is-color" : ""}`}>
         {setting.type === "color" ? <input aria-label={`${setting.label} preview`} className="admin-color-input" disabled={!canEdit} onChange={(event) => onChange(setting.key, event.target.value)} type="color" value={/^#[0-9a-f]{6}$/i.test(setting.draftValue) ? setting.draftValue : "#6cbe45"} /> : null}
-        {isMultiline ? (
+        {setting.key === "customer_email_registration" ? (
+          <select className="admin-input" data-testid={`input-setting-${setting.key}`} disabled={!canEdit} id={`setting-${setting.key}`} onChange={(event) => onChange(setting.key, event.target.value)} value={setting.draftValue}>
+            <option value="on">Bật đăng ký bằng email</option>
+            <option value="off">Tắt đăng ký bằng email</option>
+          </select>
+        ) : isMultiline ? (
           <textarea className="admin-textarea" data-testid={`input-setting-${setting.key}`} disabled={!canEdit} id={`setting-${setting.key}`} onChange={(event) => onChange(setting.key, event.target.value)} placeholder={setting.isDefaultValue && setting.effectiveValue ? `Mặc định: ${setting.effectiveValue}` : undefined} rows={4} value={setting.draftValue} />
         ) : (
           <input className={`admin-input${setting.type === "color" ? " admin-input-color-value" : ""}`} data-testid={`input-setting-${setting.key}`} disabled={!canEdit} id={`setting-${setting.key}`} onChange={(event) => onChange(setting.key, event.target.value)} placeholder={setting.isDefaultValue && setting.effectiveValue ? `Mặc định: ${setting.effectiveValue}` : undefined} type={setting.type === "url" ? "url" : "text"} value={setting.draftValue} />

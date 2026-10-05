@@ -26,7 +26,7 @@ function getErrorMessage(result: unknown): string {
 
 const MIN_PASSWORD_LENGTH = 8;
 
-export function CustomerAccountAuth({ callbackURL, emailRegistrationEnabled = false }: { callbackURL: string; emailRegistrationEnabled?: boolean }) {
+export function CustomerAccountAuth({ callbackURL, emailRegistrationEnabled = false, emailDeliveryEnabled = emailRegistrationEnabled }: { callbackURL: string; emailRegistrationEnabled?: boolean; emailDeliveryEnabled?: boolean }) {
   const router = useRouter();
   const [mode, setMode] = useState<AuthMode>("sign-in");
   const [identifier, setIdentifier] = useState("");
@@ -72,10 +72,10 @@ export function CustomerAccountAuth({ callbackURL, emailRegistrationEnabled = fa
 
       const code = getErrorCode(result);
       if (code === "EMAIL_NOT_VERIFIED") {
-        setError(emailRegistrationEnabled
+        setError(emailDeliveryEnabled
           ? "Email này chưa được xác nhận. Hãy mở email xác nhận chúng tôi đã gửi, hoặc gửi lại email mới."
           : "Email này chưa được xác nhận. Vui lòng đăng nhập bằng Google để tiếp tục.");
-        if (emailRegistrationEnabled && value.includes("@")) setUnverifiedEmail(value);
+        if (emailDeliveryEnabled && value.includes("@")) setUnverifiedEmail(value);
         return;
       }
       if (code) {
@@ -170,7 +170,7 @@ export function CustomerAccountAuth({ callbackURL, emailRegistrationEnabled = fa
 
   async function requestReset(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (isPending || !emailRegistrationEnabled) return;
+    if (isPending || !emailDeliveryEnabled) return;
     setError("");
     setNotice("");
     setIsPending(true);
@@ -255,9 +255,8 @@ export function CustomerAccountAuth({ callbackURL, emailRegistrationEnabled = fa
         </div>
       ) : null}
       {mode === "sign-in" ? (
-        <details className={styles.passwordOption}>
-          <summary>Đăng nhập bằng mật khẩu</summary>
-          <p className={styles.methodCopy}>Dành cho tài khoản đã thiết lập mật khẩu.</p>
+        <section aria-label="Đăng nhập bằng mật khẩu" className={styles.passwordOption}>
+          <p className={styles.divider}>hoặc dùng email và mật khẩu</p>
         <form className={styles.authForm} onSubmit={signIn}>
           <label className={styles.field}>
             <span>Tên đăng nhập hoặc email</span>
@@ -292,16 +291,16 @@ export function CustomerAccountAuth({ callbackURL, emailRegistrationEnabled = fa
           <button aria-busy={isPending} className={styles.submitButton} data-testid="button-auth-submit" disabled={isPending} type="submit">
             {isPending ? "Đang đăng nhập…" : "Đăng nhập"}
           </button>
-          {emailRegistrationEnabled ? <button className={styles.linkButton} data-testid="button-auth-forgot" disabled={isPending} onClick={() => changeMode("forgot-password")} type="button">
+          {emailDeliveryEnabled ? <button className={styles.linkButton} data-testid="button-auth-forgot" disabled={isPending} onClick={() => changeMode("forgot-password")} type="button">
             Quên mật khẩu?
           </button> : null}
         </form>
-        </details>
+        </section>
       ) : null}
 
       {mode === "create-account" && emailRegistrationEnabled ? (
-        <details className={styles.passwordOption}>
-          <summary>Tạo tài khoản bằng email</summary>
+        <section aria-label="Tạo tài khoản bằng email" className={styles.passwordOption}>
+          <p className={styles.divider}>hoặc dùng email và mật khẩu</p>
         <form className={styles.authForm} onSubmit={createAccount}>
           <label className={styles.field}>
             <span>Họ và tên</span>
@@ -359,7 +358,11 @@ export function CustomerAccountAuth({ callbackURL, emailRegistrationEnabled = fa
           </button>
           <p className={styles.emailNote}>Chúng tôi sẽ gửi email xác nhận. Bạn cần xác nhận email trước khi đăng nhập.</p>
         </form>
-        </details>
+        </section>
+      ) : null}
+
+      {mode === "create-account" && !emailRegistrationEnabled ? (
+        <p className={styles.emailNote}>{emailDeliveryEnabled ? "Đăng ký bằng email hiện được tắt. Bạn có thể tạo tài khoản bằng Google." : "Đăng ký bằng email đang được thiết lập. Hiện bạn có thể tạo tài khoản bằng Google."}</p>
       ) : null}
 
       {mode === "forgot-password" ? (
