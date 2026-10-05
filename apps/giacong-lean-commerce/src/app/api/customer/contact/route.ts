@@ -2,6 +2,7 @@ import { getCustomerSession } from "@/lib/customer-auth";
 import { getAdminDatabase } from "@/lib/admin-data";
 import { getCustomerContact, saveCustomerContact } from "@/lib/customer-contact-data";
 import { parseCustomerContact } from "@/lib/customer-contact-input";
+import { enqueueCustomerContact } from "@/lib/customer-contact-queue";
 
 export const dynamic = "force-dynamic";
 const responseHeaders = { "Cache-Control": "private, no-store" };
@@ -43,6 +44,7 @@ export async function PUT(request: Request): Promise<Response> {
     const parsed = parseCustomerContact(raw);
     if (!parsed.ok) return Response.json({ ok: false, errors: parsed.errors, message: "Vui lòng kiểm tra thông tin liên hệ." }, { status: 422, headers: responseHeaders });
     await saveCustomerContact(getAdminDatabase(), user.id, parsed.value);
+    await enqueueCustomerContact(user.id, getAdminDatabase());
     return Response.json({ ok: true, message: "Đã lưu thông tin liên hệ." }, { headers: responseHeaders });
   } catch {
     return Response.json({ ok: false, message: "Chưa lưu được thông tin. Vui lòng thử lại." }, { status: 503, headers: responseHeaders });

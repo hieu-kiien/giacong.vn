@@ -64,3 +64,10 @@ Người dùng đã cho phép push nhánh, mở PR và triển khai staging. PR 
 - Xác nhận yêu cầu trong tab được gắn với tài khoản; xóa khi đăng xuất, không phục hồi cho khách khác.
 - Bằng chứng tái tạo: `qa-storefront-journey.mjs` (7 trang × 3 viewport), `qa-customer-contact-local.mjs` (validation, consent, lỗi/retry, prefill, submit), `customer-contact-profile.test.mts` (D1/schema/identity).
 - Staging hiện không có sản phẩm active để nghiệm thu gửi yêu cầu thực với catalog; các trường hợp có dữ liệu dùng fixture cục bộ. Luồng Google cần người dùng thực thao tác nếu phải xác thực lại.
+
+## Báo khách mới — chuẩn bị 05/10
+
+- Chủ dự án chọn cả email owner và Google Sheets. Outbox D1, queue hiện có, ACK từng kênh và nút thử lại trong admin đã được triển khai trong mã; chưa bật trên staging.
+- Cần xác nhận email nhận báo, link Sheet đích và cấu hình sender/Resend; Apps Script cần redeploy trước migration `0037` và Worker. Hồ sơ cũ không tự gửi email hàng loạt. Hướng dẫn tại [GOOGLE_SHEETS_CONTACT_WEBHOOK.md](GOOGLE_SHEETS_CONTACT_WEBHOOK.md).
+- Đã xem trực tiếp màn hình Haravan Accounts đăng ký (email, Google/Apple, điều khoản) và đăng nhập (email, mật khẩu phụ, Google/Apple/Passkey); không tạo tài khoản. Website giữ Google theo quyết định, hỏi thông tin liên hệ bước sau và không thêm những cách đăng nhập chưa cấu hình.
+- Bằng chứng tái tạo: `customer-contact-delivery.test.mts`, `google-apps-script-template.test.mjs`, `qa-customer-notification-local.mjs`; ảnh tham khảo và UI thử lại ở `.runtime/` là hiện vật có thể sinh lại.

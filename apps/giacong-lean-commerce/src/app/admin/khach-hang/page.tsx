@@ -3,6 +3,7 @@
 import { Download, Search } from "lucide-react";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { AdminModal } from "@/components/admin/AdminDialog";
+import { AdminCustomerContactDelivery } from "@/components/admin/AdminCustomerContactDelivery";
 import {
   AdminEmptyState,
   AdminErrorState,
@@ -305,6 +306,8 @@ export default function AdminCustomersPage() {
                   </div>
                 ))}
               </dl>
+
+              <AdminCustomerContactDelivery key={selectedId} customerId={selectedId} />
 
               <section aria-labelledby="customer-requests-title">
                 <h3 className="admin-panel-title" id="customer-requests-title">Yêu cầu mua gần đây</h3>

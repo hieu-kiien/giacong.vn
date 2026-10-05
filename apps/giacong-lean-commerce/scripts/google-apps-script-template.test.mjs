@@ -217,6 +217,24 @@ const validProductPayload = {
   variant: "Vị vani",
 };
 
+test("customer contact upserts one safe row, rejects conflicts and ignores older revisions", async () => {
+  const { context, sheets } = await loadTemplate();
+  context.SpreadsheetApp.flush = () => {};
+  const payload = { event: "customer.contact.updated", customer_id: "customer-1", revision: 1, updated_at: "2026-10-05T00:00:00Z", name: "=HYPERLINK(\"bad\")", phone: "0912345678", email: "customer@example.test", company_name: "Công ty", secret: "shared-secret" };
+  assert.equal(JSON.parse(submit(context,payload).value).ok,true);
+  const sheet = sheets.get("Khách hàng");
+  assert.equal(sheet.getLastRow(),2);
+  assert.ok(String(sheet.getCell(2,3)).startsWith("'="));
+  assert.equal(JSON.parse(submit(context,payload).value).ok,true);
+  assert.equal(sheet.getLastRow(),2);
+  assert.equal(JSON.parse(submit(context,{ ...payload,name: "Conflicting" }).value).ok,false);
+  assert.equal(JSON.parse(submit(context,{ ...payload,revision: 2,name: "New name" }).value).ok,true);
+  assert.equal(JSON.parse(submit(context,payload).value).ok,true);
+  assert.equal(sheet.getCell(2,3),"New name");
+  assert.equal(JSON.parse(submit(context,{ ...payload,secret: "wrong" }).value).ok,false);
+  assert.equal(JSON.parse(submit(context,{ ...payload,revision: "3" }).value).ok,false);
+});
+
 // Cross-contract guard: the Worker's resolvePayload() emits exactly this shape for a
 // generic contact form with no service context (contact-webhook.ts:252-260).
 const workerGenericContactPayload = {

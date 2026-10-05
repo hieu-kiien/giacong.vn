@@ -4,12 +4,13 @@ import { getRetiredLegacyProductRedirect } from "./src/lib/catalog-legacy-redire
 import { deliverQueuedLead, type LeadDeliveryEnvironment, type LeadDeliveryMessage } from "./src/lib/lead-delivery-worker";
 import { deliverQueuedZaloSale } from "./src/lib/zalo-sale-delivery-worker";
 import type { ZaloSaleDeliveryMessage as ZaloSaleQueueMessage } from "./src/lib/zalo-sale-queue";
+import { deliverCustomerContact, type CustomerContactDeliveryEnvironment, type CustomerContactDeliveryMessage } from "./src/lib/customer-contact-delivery";
 
-interface WorkerEnv extends LeadDeliveryEnvironment {
+interface WorkerEnv extends LeadDeliveryEnvironment, CustomerContactDeliveryEnvironment {
   GIACONG_VN_CATALOG?: CatalogDatabase;
 }
 
-type WorkerQueueMessage = (LeadDeliveryMessage & { type?: undefined }) | ZaloSaleQueueMessage;
+type WorkerQueueMessage = (LeadDeliveryMessage & { type?: undefined }) | ZaloSaleQueueMessage | CustomerContactDeliveryMessage;
 
 interface CatalogPreparedStatement {
   all<T = Record<string, unknown>>(): Promise<{ results: T[] }>;
@@ -288,7 +289,9 @@ const worker = {
     if (!env.GIACONG_VN_CATALOG) throw new Error("Missing GIACONG_VN_CATALOG binding.");
     for (const message of batch.messages) {
       try {
-        if (message.body.type === "zalo-sale") {
+        if (message.body.type === "customer-contact") {
+          await deliverCustomerContact(message.body.customerId, env, env.GIACONG_VN_CATALOG);
+        } else if (message.body.type === "zalo-sale") {
           await deliverQueuedZaloSale(
             { saleId: message.body.saleId },
             env,
@@ -300,7 +303,9 @@ const worker = {
         }
       } catch (error) {
         message.retry({ delaySeconds: 60 });
-        if (message.body.type === "zalo-sale") {
+        if (message.body.type === "customer-contact") {
+          console.error("Customer contact delivery pending; check the D1 delivery record.");
+        } else if (message.body.type === "zalo-sale") {
           console.error("Zalo sale queue delivery failed.", {
             error: error instanceof Error ? error.message : "unknown_error",
             saleId: message.body.saleId,

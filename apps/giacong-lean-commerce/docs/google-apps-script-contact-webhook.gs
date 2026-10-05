@@ -36,6 +36,7 @@ function doPost(event) {
     if (!payload || !validSecret(payload)) {
       return output({ ok: false, reference: "" });
     }
+    if (payload.event === "customer.contact.updated") return writeCustomerContact(payload);
     if (payload.event === "sale.confirmed") {
       if (!validSalePayload(payload)) return output({ ok: false, sale_id: "", sale_code: "" });
       return writeConfirmedZaloSale(payload);
@@ -149,6 +150,48 @@ function validSecret(payload) {
   return typeof expected === "string" && expected.length > 0
     && typeof payload.secret === "string" && payload.secret.length > 0
     && payload.secret === expected;
+}
+
+// Profiles are operational copies; a revision prevents an older queue replay overwriting new data.
+function writeCustomerContact(payload) {
+  if (!hasExactKeys(payload, ["event","customer_id","revision","updated_at","name","phone","company_name","email","secret"])
+    || typeof payload.customer_id !== "string" || !/^[A-Za-z0-9_-]{1,128}$/.test(payload.customer_id)
+    || !Number.isSafeInteger(payload.revision) || payload.revision < 1
+    || typeof payload.updated_at !== "string" || payload.updated_at.length > 40 || !isFinite(Date.parse(payload.updated_at))
+    || typeof payload.name !== "string" || !payload.name.trim() || payload.name.length > 120
+    || typeof payload.phone !== "string" || !/^\+?\d{8,15}$/.test(payload.phone)
+    || typeof payload.company_name !== "string" || payload.company_name.length > 160
+    || typeof payload.email !== "string" || payload.email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(payload.email)) {
+    return output({ ok: false, customer_id: "", revision: 0 });
+  }
+  var headers = ["Mã khách hàng","Phiên bản","Họ tên","Điện thoại","Email","Công ty","Cập nhật","Nguồn"];
+  var book = workbook();
+  var sheet = book.getSheetByName("Khách hàng") || book.insertSheet("Khách hàng");
+  ensureHeaders(sheet, headers);
+  var actualHeaders = sheet.getRange(1,1,1,headers.length).getValues()[0];
+  if (!sameRow(actualHeaders,headers)) throw new Error("customer_sheet_headers_mismatch");
+  protectSheet(sheet, "Lean V1: Hồ sơ khách hàng chỉ đọc", null);
+  var row = findUniqueValueRow(sheet, 1, payload.customer_id);
+  var values = [safeText(payload.customer_id),payload.revision,safeText(payload.name),safeText(payload.phone),safeText(payload.email),safeText(payload.company_name),safeText(payload.updated_at),"Tài khoản website"];
+  if (row > 0) {
+    var current = sheet.getRange(row,1,1,headers.length).getValues()[0];
+    if (current[1] > payload.revision) return output({ ok: true, customer_id: payload.customer_id, revision: payload.revision });
+    if (current[1] === payload.revision) {
+      if (!customerContactRowMatches(current,values)) return output({ ok: false, customer_id: "", revision: 0 });
+      return output({ ok: true, customer_id: payload.customer_id, revision: payload.revision });
+    }
+  } else row = sheet.getLastRow() + 1;
+  sheet.getRange(row,1,1,headers.length).setValues([values]);
+  SpreadsheetApp.flush();
+  if (!customerContactRowMatches(sheet.getRange(row,1,1,headers.length).getValues()[0],values)) return output({ ok: false, customer_id: "", revision: 0 });
+  return output({ ok: true, customer_id: payload.customer_id, revision: payload.revision });
+}
+
+function customerContactRowMatches(actual,expected) {
+  return actual.length === expected.length && expected.every(function (value,index) {
+    // Sheets may omit the protective apostrophe when reading a literal text cell.
+    return actual[index] === value || typeof value === "string" && /^'[=+\-@]/.test(value) && actual[index] === value.slice(1);
+  });
 }
 
 function validSalePayload(payload) {
