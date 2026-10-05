@@ -99,7 +99,10 @@ test("staging catalog QA validates the real empty state without exposing inactiv
       assert.equal(payload.lines[0].variantSku, "MISSING");
       return mockResponse(200, { ok: true, cart: { lines: [{ adjustments: [{ code: "PRODUCT_NOT_FOUND" }] }] } }, true);
     }
-    if (url.pathname === "/api/contact") return mockResponse(400, { error: "invalid_json" }, true);
+    if (url.pathname === "/api/contact") {
+      assert.ok(!init.headers.Origin || init.headers.Origin === url.origin);
+      return mockResponse(init.headers.Origin ? 401 : 403, {}, true);
+    }
     throw new Error(`Unexpected request: ${path}`);
   };
 
@@ -139,8 +142,10 @@ test("staging catalog QA uses active product and variant data for search and car
         },
       }, true);
     }
-    if (url.pathname === "/api/contact" && init.body === "{bad json") return mockResponse(400, {}, true);
-    if (url.pathname === "/api/contact") return mockResponse(409, { code: "CART_DRIFTED" }, true);
+    if (url.pathname === "/api/contact") {
+      assert.ok(!init.headers.Origin || init.headers.Origin === url.origin);
+      return mockResponse(init.headers.Origin ? 401 : 403, {}, true);
+    }
     throw new Error(`Unexpected request: ${path}`);
   };
 
