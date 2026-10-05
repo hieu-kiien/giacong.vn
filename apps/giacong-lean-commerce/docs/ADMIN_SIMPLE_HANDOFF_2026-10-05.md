@@ -57,7 +57,7 @@ Người dùng đã cho phép push nhánh, mở PR và triển khai staging. PR 
 - Admin → Nội dung & cài đặt → Liên hệ có lựa chọn bật/tắt đăng ký email, dùng hợp đồng lưu nháp/phát hành hiện có. Migration `0038_customer_email_registration.sql` đã áp dụng staging cùng `0037` bằng guard khớp trạng thái; 10 yêu cầu cũ giữ nguyên, không có lỗi khóa ngoại.
 - API đọc lựa chọn đã phát hành trực tiếp mỗi lần đăng ký; lỗi đọc D1 trả 503. Tắt đăng ký mới không tắt Google, đăng nhập hiện có, khôi phục mật khẩu hoặc gửi lại xác minh.
 - `npm run check`: 877 kiểm tra, lint/typecheck/build, mã thoát 0. QA trình duyệt đăng nhập ở 390/958/1366 px qua; review độc lập chưa tìm thấy lỗi cụ thể.
-- Resend đã xác minh `auth.staging.kienhieu.id.vn`; ba bản ghi DNS và khóa chỉ có quyền gửi cho tên miền thử đã cấu hình. Email thử thực nhận trong Gmail owner. Worker `7e6485ee-22e2-4030-bd81-4a877db26c7e` đã nhận 100% staging; tạo/xác minh/khôi phục tài khoản thực vẫn cần nghiệm thu riêng.
+- Resend đã xác minh `auth.staging.kienhieu.id.vn`; ba bản ghi DNS và khóa chỉ có quyền gửi cho tên miền thử đã cấu hình. Email thử thực nhận trong Gmail owner. Tạo/xác minh và đăng nhập email đã nghiệm thu thực ở phần cuối; khôi phục mật khẩu thực còn cần nghiệm thu riêng.
 - Theo ảnh khách chọn: dùng asset nền liên hệ `form-bg.webp`, chữ tiêu đề tối đa 48px, bỏ hình trang trí tự dựng; thêm mục Tài khoản cả trang marketing và giữ menu desktop trong hai hàng. QA kiểm tra thêm đáy menu không vượt thanh điều hướng.
 
 ### Tài liệu định dạng
@@ -80,3 +80,11 @@ Người dùng đã cho phép push nhánh, mở PR và triển khai staging. PR 
 - Giao diện theo ảnh khách: commit `0afc84de`, full gate 879 kiểm tra/lint/typecheck/build qua; Cloudflare build và preview QA [37317300816](https://github.com/hieu-kiien/giacong.vn/actions/runs/37317300816) qua. QA tài khoản trên staging 390/958/1366px qua, đăng ký email và khôi phục đã hiển thị.
 - Đã xem trực tiếp màn hình Haravan Accounts đăng ký (email, Google/Apple, điều khoản) và đăng nhập (email, mật khẩu phụ, Google/Apple/Passkey); không tạo tài khoản. Website giữ Google theo quyết định, hỏi thông tin liên hệ bước sau và không thêm những cách đăng nhập chưa cấu hình.
 - Bằng chứng tái tạo: `customer-contact-delivery.test.mts`, `google-apps-script-template.test.mjs`, `qa-customer-notification-local.mjs`; ảnh tham khảo và UI thử lại ở `.runtime/` là hiện vật có thể sinh lại.
+
+## Đăng ký có số điện thoại — nghiệm thu 05/10
+
+- Commit `c8fe1b34`: bỏ tên đăng nhập khỏi form đăng nhập/đăng ký và phần thêm mật khẩu cho tài khoản Google. Đăng nhập bằng email hoặc Google; đăng ký email hỏi họ tên, điện thoại, mật khẩu và đồng ý liên hệ.
+- Điện thoại được kiểm tra phía máy chủ và lưu hồ sơ theo ID do Better Auth tạo. Phản hồi đăng ký giữ nguyên để tránh dò email có sẵn. Email/Sheets chỉ gửi sau xác minh; delivery kiểm tra lại `emailVerified` trước mọi kênh.
+- Staging version `43f8436c-995f-4b55-ac33-0fb9307a5073` nhận 100%. Full check và Cloudflare build qua; preview QA [37323530507](https://github.com/hieu-kiien/giacong.vn/actions/runs/37323530507), active QA [37324275167](https://github.com/hieu-kiien/giacong.vn/actions/runs/37324275167) qua. QA tài khoản 390/958/1366px qua; một lượt sát triển khai gặp trang lỗi tải phía client, chạy lại và kiểm tra trình duyệt thực đã qua.
+- Tài khoản thử có tên “THỬ NGHIỆM STAGING - KHÔNG LIÊN HỆ”: email thật nhận xác minh, đăng nhập trước xác minh bị chặn, sau xác minh đăng nhập email/mật khẩu thành công, khách bị chặn admin. D1 trước/sau: users 1→2, profiles 0→1, leads giữ 10, sales giữ 0, FK errors 0. Outbox pending→delivered, Sheet revision 0→1; Gmail owner thực nhận thông báo và điện thoại thử giữ đúng trong Sheet.
+- Một tài khoản thử được giữ riêng trên staging; credentials và cookie thử đã xóa khỏi file cục bộ. Production chưa thay đổi.
