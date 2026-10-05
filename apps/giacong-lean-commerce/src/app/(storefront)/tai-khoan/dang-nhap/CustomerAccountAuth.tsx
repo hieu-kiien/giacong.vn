@@ -2,8 +2,10 @@
 
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 import { customerAuthClient, signInWithGoogle } from "@/lib/customer-auth-client";
+import { parseCustomerContact } from "@/lib/customer-contact-input";
 
 import styles from "./customer-auth.module.css";
 
@@ -35,7 +37,8 @@ export function CustomerAccountAuth({ callbackURL, emailRegistrationEnabled = fa
   const [showPassword, setShowPassword] = useState(false);
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
-  const [username, setUsername] = useState("");
+  const [phone, setPhone] = useState("");
+  const [consent, setConsent] = useState(false);
   const [isPending, setIsPending] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -49,7 +52,8 @@ export function CustomerAccountAuth({ callbackURL, emailRegistrationEnabled = fa
     setShowPassword(false);
     setFullName("");
     setEmail("");
-    setUsername("");
+    setPhone("");
+    setConsent(false);
     setError("");
     setNotice("");
     setUnverifiedEmail("");
@@ -66,9 +70,7 @@ export function CustomerAccountAuth({ callbackURL, emailRegistrationEnabled = fa
 
     try {
       const value = identifier.trim();
-      const result = value.includes("@")
-        ? await customerAuthClient.signIn.email({ callbackURL, email: value, password })
-        : await customerAuthClient.signIn.username({ callbackURL, password, username: value });
+      const result = await customerAuthClient.signIn.email({ callbackURL, email: value, password });
 
       const code = getErrorCode(result);
       if (code === "EMAIL_NOT_VERIFIED") {
@@ -79,7 +81,7 @@ export function CustomerAccountAuth({ callbackURL, emailRegistrationEnabled = fa
         return;
       }
       if (code) {
-        setError("Không thể đăng nhập. Hãy kiểm tra tên đăng nhập hoặc email và mật khẩu.");
+        setError("Không thể đăng nhập. Hãy kiểm tra email và mật khẩu.");
         return;
       }
 
@@ -117,6 +119,11 @@ export function CustomerAccountAuth({ callbackURL, emailRegistrationEnabled = fa
     setError("");
     setNotice("");
 
+    const contact = parseCustomerContact({ name: fullName, phone, consent });
+    if (!contact.ok) {
+      setError(Object.values(contact.errors)[0] ?? "Vui lòng kiểm tra thông tin liên hệ.");
+      return;
+    }
     if (password.length < MIN_PASSWORD_LENGTH) {
       setError(`Mật khẩu cần ít nhất ${MIN_PASSWORD_LENGTH} ký tự.`);
       return;
@@ -128,26 +135,17 @@ export function CustomerAccountAuth({ callbackURL, emailRegistrationEnabled = fa
 
     setIsPending(true);
     try {
-      const trimmedUsername = username.trim();
-      const result = await customerAuthClient.signUp.email({
-        callbackURL,
-        email: email.trim(),
-        name: fullName.trim(),
-        password,
-        ...(trimmedUsername ? { username: trimmedUsername } : {}),
+      const response = await fetch("/api/auth/sign-up/email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ callbackURL, email: email.trim(), name: contact.value.name, password, phone: contact.value.phone, consent }),
       });
+      const body = await response.json();
+      const result = response.ok ? body : { error: body };
 
       const code = getErrorCode(result);
       if (code === "EMAIL_PASSWORD_SIGN_UP_DISABLED" || /sign up is not enabled|sign-up is disabled/i.test(getErrorMessage(result))) {
         setError("Đăng ký bằng email chưa được bật. Vui lòng dùng nút Google bên dưới.");
-        return;
-      }
-      if (code === "USERNAME_IS_ALREADY_TAKEN_PLEASE_TRY_ANOTHER" || code === "USERNAME_IS_ALREADY_TAKEN") {
-        setError("Tên đăng nhập này đã có người dùng. Hãy chọn tên khác hoặc để trống.");
-        return;
-      }
-      if (code === "INVALID_USERNAME" || code === "USERNAME_TOO_SHORT" || code === "USERNAME_TOO_LONG") {
-        setError("Tên đăng nhập chưa hợp lệ (3–30 ký tự, chỉ gồm chữ không dấu, số, dấu chấm, gạch dưới).");
         return;
       }
       if (code === "PASSWORD_TOO_SHORT" || code === "PASSWORD_TOO_LONG") {
@@ -159,7 +157,7 @@ export function CustomerAccountAuth({ callbackURL, emailRegistrationEnabled = fa
         return;
       }
 
-      setNotice("Đã gửi email xác nhận. Hãy mở email và bấm nút xác nhận để hoàn tất đăng ký (kiểm tra cả mục thư rác).");
+      setNotice("Hãy kiểm tra email để xác nhận tài khoản (cả mục thư rác). Nếu bạn đã có tài khoản, hãy đăng nhập hoặc chọn Quên mật khẩu.");
       setPassword("");
     } catch {
       setError("Chưa xử lý được yêu cầu. Vui lòng thử lại sau.");
@@ -259,7 +257,7 @@ export function CustomerAccountAuth({ callbackURL, emailRegistrationEnabled = fa
           <p className={styles.divider}>hoặc dùng email và mật khẩu</p>
         <form className={styles.authForm} onSubmit={signIn}>
           <label className={styles.field}>
-            <span>Tên đăng nhập hoặc email</span>
+            <span>Email</span>
             <input
               autoComplete="username"
               data-testid="input-auth-identifier"
@@ -267,6 +265,7 @@ export function CustomerAccountAuth({ callbackURL, emailRegistrationEnabled = fa
               minLength={1}
               onChange={(event) => setIdentifier(event.target.value)}
               required
+              type="email"
               value={identifier}
             />
           </label>
@@ -326,6 +325,19 @@ export function CustomerAccountAuth({ callbackURL, emailRegistrationEnabled = fa
             />
           </label>
           <label className={styles.field}>
+            <span>Số điện thoại</span>
+            <input
+              autoComplete="tel"
+              data-testid="input-signup-phone"
+              inputMode="tel"
+              maxLength={24}
+              onChange={(event) => setPhone(event.target.value)}
+              required
+              type="tel"
+              value={phone}
+            />
+          </label>
+          <label className={styles.field}>
             <span>Mật khẩu (ít nhất {MIN_PASSWORD_LENGTH} ký tự)</span>
             <input
               autoComplete="new-password"
@@ -343,15 +355,8 @@ export function CustomerAccountAuth({ callbackURL, emailRegistrationEnabled = fa
             <input autoComplete="new-password" maxLength={128} minLength={MIN_PASSWORD_LENGTH} onChange={(event) => setConfirmation(event.target.value)} required type={showPassword ? "text" : "password"} value={confirmation} />
           </label>
           <label className={styles.showPassword}><input checked={showPassword} onChange={(event) => setShowPassword(event.target.checked)} type="checkbox" />Hiện mật khẩu</label>
-          <label className={styles.field}>
-            <span>Tên đăng nhập <small className={styles.optional}>(không bắt buộc)</small></span>
-            <input
-              autoComplete="username"
-              data-testid="input-signup-username"
-              maxLength={30}
-              onChange={(event) => setUsername(event.target.value)}
-              value={username}
-            />
+          <label className={styles.showPassword}><input checked={consent} onChange={(event) => setConsent(event.target.checked)} required type="checkbox" />
+            <span>Tôi đồng ý lưu thông tin để được liên hệ tư vấn theo <Link href="/chinh-sach-bao-mat/">chính sách bảo mật</Link>.</span>
           </label>
           <button aria-busy={isPending} className={styles.submitButton} data-testid="button-signup-submit" disabled={isPending} type="submit">
             {isPending ? "Đang tạo tài khoản…" : "Tạo tài khoản"}

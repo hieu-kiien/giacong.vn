@@ -6,13 +6,25 @@ import { deliverCustomerContact, type CustomerContactDeliveryDatabase } from "..
 
 async function fixture() {
   const db = new DatabaseSync(":memory:");
-  db.exec('CREATE TABLE "user" (id TEXT PRIMARY KEY, email TEXT NOT NULL); INSERT INTO "user" VALUES (\'customer-1\',\'customer@example.com\');');
+  db.exec('CREATE TABLE "user" (id TEXT PRIMARY KEY, email TEXT NOT NULL, "emailVerified" INTEGER NOT NULL DEFAULT 1); INSERT INTO "user" (id,email) VALUES (\'customer-1\',\'customer@example.com\');');
   for (const file of ["0036_customer_contact_profiles.sql", "0037_customer_contact_delivery.sql"]) db.exec(await readFile(new URL(`../migrations/${file}`, import.meta.url), "utf8"));
   const database: CustomerContactDeliveryDatabase = { prepare(sql) { const statement = db.prepare(sql); let values: Array<string | number | null> = []; return { bind(...args) { values = args as typeof values; return this; }, async first<T>() { return (statement.get(...values) ?? null) as T | null; }, async run() { return statement.run(...values); } }; } };
   db.exec("INSERT INTO customer_contact_profiles VALUES ('customer-1','Khách A','0912345678','','2026-10-05T00:00:00Z','2026-10-05T00:00:00Z')");
   return { db, database };
 }
 const environment = { GOOGLE_SHEETS_WEBHOOK_URL: "https://script.google.com/macros/s/test/exec", GOOGLE_SHEETS_WEBHOOK_SECRET: "secret", CUSTOMER_NOTIFICATION_FROM: "Brand <notice@example.com>", CUSTOMER_NOTIFICATION_TO: "owner@example.com", RESEND_API_KEY: "test" };
+
+test("unverified registration retains the phone but cannot send either notification channel", async () => {
+  const { db, database } = await fixture();
+  db.exec('UPDATE "user" SET "emailVerified" = 0');
+  let calls = 0;
+  const fetcher: typeof fetch = async () => { calls++; return Response.json({ id: "unexpected" }); };
+  await deliverCustomerContact("customer-1", environment, database, fetcher);
+  assert.equal(calls, 0);
+  assert.equal(db.prepare("SELECT phone FROM customer_contact_profiles").get()?.phone, "0912345678");
+  assert.equal(db.prepare("SELECT email_status FROM customer_contact_delivery").get()?.email_status, "pending");
+  db.close();
+});
 
 test("profile and outbox are atomic; unchanged saves do not create revisions or repeat new-customer email", async () => {
   const { db } = await fixture();

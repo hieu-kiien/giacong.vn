@@ -67,6 +67,8 @@ async function sendNotification(customerId: string, row: DeliveryRow, env: Custo
 }
 export async function deliverCustomerContact(customerId: string, env: CustomerContactDeliveryEnvironment, database: CustomerContactDeliveryDatabase, fetcher: typeof fetch = fetch): Promise<void> {
   if (!customerId || customerId.length > 128) throw new Error("contact_customer_id_invalid");
+  const customer = await database.prepare('SELECT "emailVerified" FROM "user" WHERE id = ?').bind(customerId).first<{ emailVerified: number | boolean }>();
+  if (customer?.emailVerified !== 1 && customer?.emailVerified !== true) return;
   const token = crypto.randomUUID();
   const claimed = await database.prepare("UPDATE customer_contact_delivery SET lease_token = ?, lease_until = ? WHERE customer_id = ? AND (lease_until IS NULL OR lease_until < ?) RETURNING customer_id").bind(token, Date.now() + 90000, customerId, Date.now()).first();
   if (!claimed) {

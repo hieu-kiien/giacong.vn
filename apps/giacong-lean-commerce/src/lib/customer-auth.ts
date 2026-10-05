@@ -3,6 +3,8 @@ import "server-only";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { betterAuth } from "better-auth";
 import { username } from "better-auth/plugins";
+import type { CustomerContactDeliveryDatabase } from "./customer-contact-delivery.ts";
+import { enqueueCustomerContact } from "./customer-contact-queue.ts";
 
 import {
   buildPasswordResetEmail,
@@ -149,6 +151,10 @@ function createCustomerAuth(origin: string) {
           expiresIn: 60 * 60 * 24,
           sendOnSignIn: true,
           sendOnSignUp: true,
+          afterEmailVerification: async (user) => {
+            try { await enqueueCustomerContact(user.id, database as unknown as CustomerContactDeliveryDatabase); }
+            catch { /* Verification stays successful; D1 retains the contact event for retry. */ }
+          },
           sendVerificationEmail: async ({ user, url }) => {
             await sendCustomerEmail(emailConfig, buildVerificationEmail({ brand, name: user.name, to: user.email, url }));
           },

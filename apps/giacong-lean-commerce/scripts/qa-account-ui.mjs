@@ -38,10 +38,16 @@ try {
     if (viewport.width >= 850) assert.ok(dimensions.desktopNavigationBottom <= dimensions.headerBottom + 8, "Desktop navigation wraps beyond its two-row header");
     await page.getByTestId("auth-mode-create-account").click();
     await expect(page.getByRole("button", { name: /Tạo tài khoản bằng Google$/ })).toBeVisible();
-    if (emailEnabled) await expect(page.getByTestId("input-signup-email")).toBeVisible();
+    if (emailEnabled) {
+      await expect(page.getByTestId("input-signup-email")).toBeVisible();
+      await expect(page.getByTestId("input-signup-phone")).toBeVisible();
+      await expect(page.getByTestId("input-signup-phone")).toHaveAttribute("type", "tel");
+      await expect(page.getByTestId("input-signup-username")).toHaveCount(0);
+    }
     else await expect(page.getByTestId("input-signup-email")).toHaveCount(0);
     await page.screenshot({ path: `${output}/signup-${viewport.width}.png`, fullPage: true });
     await page.getByTestId("auth-mode-sign-in").click();
+    await expect(page.getByTestId("input-auth-identifier")).toHaveAttribute("type", "email");
     await expect(page.getByTestId("input-auth-password")).toBeVisible();
     await page.getByLabel("Hiện mật khẩu", { exact: true }).check();
     await expect(page.getByTestId("input-auth-password")).toHaveAttribute("type", "text");

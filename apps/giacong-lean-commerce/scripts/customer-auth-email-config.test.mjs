@@ -20,14 +20,16 @@ test("customer auth keeps e-mail sign-up closed unless Resend is configured", as
   assert.match(auth, /CUSTOMER_EMAIL_FROM\?: string/);
 });
 
-test("login screen offers Google, e-mail sign-up with optional username, resend and forgot password", async () => {
+test("login screen offers Google, e-mail sign-up with phone, resend and forgot password", async () => {
   const ui = await read("app", "(storefront)", "tai-khoan", "dang-nhap", "CustomerAccountAuth.tsx");
 
-  assert.match(ui, /customerAuthClient\.signUp\.email\(/);
+  assert.match(ui, /fetch\("\/api\/auth\/sign-up\/email"/);
   assert.match(ui, /customerAuthClient\.requestPasswordReset\(/);
   assert.match(ui, /customerAuthClient\.sendVerificationEmail\(/);
   assert.match(ui, /EMAIL_NOT_VERIFIED/);
-  assert.match(ui, /không bắt buộc/);
+  assert.match(ui, /input-signup-phone/);
+  assert.match(ui, /parseCustomerContact/);
+  assert.doesNotMatch(ui, /Tên đăng nhập|signIn\.username|input-signup-username/);
   assert.match(ui, /signInWithGoogle\(callbackURL\)/);
   // Reset requests answer identically for known and unknown e-mail addresses.
   assert.match(ui, /Nếu email này có tài khoản/);
@@ -50,6 +52,22 @@ test("account password forms are visible without opening a disclosure", async ()
   assert.doesNotMatch(ui, /<details className=\{styles\.passwordOption\}>/);
   assert.match(ui, /hoặc dùng email và mật khẩu/);
   assert.match(ui, /Đăng ký bằng email đang được thiết lập/);
+});
+
+test("registration persists contact only for the server-created account and keeps duplicate responses identical", async () => {
+  const route = await read("app", "api", "auth", "[...all]", "route.ts");
+  assert.match(route, /parseCustomerContact\(raw\)/);
+  assert.match(route, /saveCustomerContact\(database, body.user.id, contact.value\)/);
+  assert.doesNotMatch(route, /contactSaved|enqueueCustomerContact/);
+  const auth = await read("lib", "customer-auth.ts");
+  assert.match(auth, /afterEmailVerification: async/);
+  assert.match(auth, /enqueueCustomerContact\(user.id/);
+});
+
+test("Google accounts add an email password without creating a separate username", async () => {
+  const ui = await read("app", "(storefront)", "tai-khoan", "CustomerCredentialsSetup.tsx");
+  assert.doesNotMatch(ui, /Tên đăng nhập|updateUser|usernameSaved/);
+  assert.match(ui, /email và mật khẩu/);
 });
 
 test("admin can control new e-mail registration without disabling existing sign-in", async () => {
