@@ -43,6 +43,13 @@ async function loadTemplate(uuids = ["abcd1234-0000-0000-0000-000000000000"]) {
       return this;
     }
 
+    setNumberFormats(formats) {
+      formats.forEach((formatRow, rowOffset) => formatRow.forEach((format, columnOffset) => {
+        this.sheet.formats.set(`${this.row + rowOffset}:${this.column + columnOffset}`, format);
+      }));
+      return this;
+    }
+
     getValue() { return this.sheet.getCell(this.row, this.column); }
     getValues() {
       return Array.from({ length: this.numRows }, (_unused, rowOffset) => (
@@ -103,6 +110,7 @@ async function loadTemplate(uuids = ["abcd1234-0000-0000-0000-000000000000"]) {
     constructor(name) {
       this.name = name;
       this.cells = new Map();
+      this.formats = new Map();
       this.validations = new Map();
       this.protection = null;
       this.removedProtections = [];
@@ -128,7 +136,12 @@ async function loadTemplate(uuids = ["abcd1234-0000-0000-0000-000000000000"]) {
       return this.protection;
     }
     getProtections() { return this.protection && !this.protection.removed ? [this.protection] : []; }
-    setCell(row, column, value) { this.cells.set(`${row}:${column}`, value); }
+    setCell(row, column, value) {
+      const key = `${row}:${column}`;
+      const stored = this.name === "Khách hàng" && typeof value === "string" && /^\d+$/.test(value)
+        && this.formats.get(key) !== "@" ? Number(value) : value;
+      this.cells.set(key, stored);
+    }
     getCell(row, column) { return this.cells.get(`${row}:${column}`) ?? ""; }
     getValidation(row, column) { return this.validations.get(`${row}:${column}`); }
   }
@@ -224,6 +237,7 @@ test("customer contact upserts one safe row, rejects conflicts and ignores older
   assert.equal(JSON.parse(submit(context,payload).value).ok,true);
   const sheet = sheets.get("Khách hàng");
   assert.equal(sheet.getLastRow(),2);
+  assert.equal(sheet.getCell(2,4),"0912345678");
   assert.ok(String(sheet.getCell(2,3)).startsWith("'="));
   assert.equal(JSON.parse(submit(context,payload).value).ok,true);
   assert.equal(sheet.getLastRow(),2);

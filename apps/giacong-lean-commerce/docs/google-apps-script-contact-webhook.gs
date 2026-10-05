@@ -1,3 +1,4 @@
+/** @OnlyCurrentDoc */
 /*
  * Giacong.vn contact webhook.
  *
@@ -181,6 +182,8 @@ function writeCustomerContact(payload) {
       return output({ ok: true, customer_id: payload.customer_id, revision: payload.revision });
     }
   } else row = sheet.getLastRow() + 1;
+  // Sheets otherwise coerces numeric IDs and leading-zero phone numbers.
+  sheet.getRange(row,1,1,headers.length).setNumberFormats([["@","0","@","@","@","@","@","@"]]);
   sheet.getRange(row,1,1,headers.length).setValues([values]);
   SpreadsheetApp.flush();
   if (!customerContactRowMatches(sheet.getRange(row,1,1,headers.length).getValues()[0],values)) return output({ ok: false, customer_id: "", revision: 0 });

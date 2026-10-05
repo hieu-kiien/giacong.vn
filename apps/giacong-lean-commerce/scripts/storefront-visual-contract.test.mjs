@@ -14,6 +14,16 @@ const capturedMotion = await read("../src/components/captured-motion.ts");
 const mobileNavigation = await read("../src/components/mobile-navigation.ts");
 const contactForm = await read("../src/components/contact-form.ts");
 const capturedMarkup = await read("../src/lib/captured-markup.ts");
+const capturedPage = await read("../src/components/CapturedPage.tsx");
+
+test("captured marketing pages include the same account entry as the storefront shell", () => {
+  assert.match(capturedPage, /appendAccountLinksToCapturedMarkup\(normalizedMarkup\)/);
+});
+
+test("page heroes use the approved contact background without substitute decorative shapes", () => {
+  assert.match(globals, /\.giacong-page-hero\s*\{[^}]*url\("\/images\/home-captured\/form-bg\.webp"\)/);
+  assert.match(globals, /\.giacong-page-hero__orb\s*\{\s*display:\s*none/);
+});
 
 test("home hero uses four independent local image elements", () => {
   assert.match(homePage, /data-testid=["']home-hero-gallery["']/);

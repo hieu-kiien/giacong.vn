@@ -29,11 +29,13 @@ try {
       headerColor: getComputedStyle(document.querySelector("#header .nav > li > a")).color,
       heroTop: document.querySelector(".giacong-page-hero").getBoundingClientRect().top,
       heroBackground: getComputedStyle(document.querySelector(".giacong-page-hero")).backgroundImage,
+      desktopNavigationBottom: Math.max(...Array.from(document.querySelectorAll("#header .header-nav-main > li > a"), (link) => link.getBoundingClientRect().bottom)),
     }));
     assert.ok(dimensions.mainTop >= dimensions.headerBottom - 1, "Account main overlaps navigation");
     assert.ok(dimensions.scrollWidth <= dimensions.width + 1, "Account page overflows horizontally");
     assert.ok(Math.abs(dimensions.heroTop) <= 1, "Shared green hero must sit behind the navigation");
-    assert.ok(dimensions.heroBackground.includes("linear-gradient"), "Shared green hero background is missing");
+    assert.ok(dimensions.heroBackground.includes("/images/home-captured/form-bg.webp"), "Approved contact hero background is missing");
+    if (viewport.width >= 850) assert.ok(dimensions.desktopNavigationBottom <= dimensions.headerBottom + 8, "Desktop navigation wraps beyond its two-row header");
     await page.getByTestId("auth-mode-create-account").click();
     await expect(page.getByRole("button", { name: /Tạo tài khoản bằng Google$/ })).toBeVisible();
     if (emailEnabled) await expect(page.getByTestId("input-signup-email")).toBeVisible();

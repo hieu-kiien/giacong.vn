@@ -230,6 +230,23 @@
   overflow: hidden;
 }
 
+#header .header-wrapper:not(.stuck) .header-bg-color {
+  background-color: transparent;
+}
+
+@media (min-width: 850px) {
+  #header .header-nav-main {
+    column-gap: 24px;
+    display: grid;
+    grid-template-columns: repeat(2, max-content);
+    justify-content: center;
+  }
+
+  #header .header-nav-main > li {
+    margin: 0;
+  }
+}
+
   .archive #header {
     position: relative;
     z-index: 20;
@@ -241,7 +258,7 @@
   }
 
   .giacong-page-hero {
-    background: linear-gradient(118deg, #4a9400 0%, #69b70b 52%, #4e9800 100%);
+    background: #5aa400 url("/images/home-captured/form-bg.webp") center / cover no-repeat;
     color: #fff;
     isolation: isolate;
     margin-top: -75px;
@@ -254,29 +271,7 @@
 
   .giacong-page-hero::before,
   .giacong-page-hero::after {
-    border-radius: 42% 58% 63% 37% / 44% 35% 65% 56%;
-    content: "";
-    pointer-events: none;
-    position: absolute;
-    z-index: -1;
-  }
-
-  .giacong-page-hero::before {
-    background: rgb(255 255 255 / 8%);
-    height: 330px;
-    left: -100px;
-    top: -112px;
-    transform: rotate(-14deg);
-    width: 480px;
-  }
-
-  .giacong-page-hero::after {
-    background: rgb(28 103 0 / 13%);
-    bottom: -180px;
-    height: 420px;
-    right: -50px;
-    transform: rotate(15deg);
-    width: 650px;
+    display: none;
   }
 
   /* Captured page styles reference retired WordPress contact assets. Keep the
@@ -330,10 +325,10 @@
 
   .giacong-page-hero h1 {
     color: #fff;
-    font-size: clamp(38px, 5vw, 66px);
+    font-size: clamp(38px, 5vw, 48px);
     font-weight: 700;
-    letter-spacing: -.045em;
-    line-height: 1;
+    letter-spacing: 0;
+    line-height: 1.3;
     margin: 0;
   }
 
@@ -355,23 +350,7 @@
   .giacong-page-hero__breadcrumb a:hover { text-decoration: underline; }
 
   .giacong-page-hero__orb {
-    background: rgb(255 255 255 / 17%);
-    border-radius: 50%;
-    height: 18px;
-    position: absolute;
-    width: 18px;
-  }
-
-  .giacong-page-hero__orb--one {
-    left: 14%;
-    top: 37%;
-  }
-
-  .giacong-page-hero__orb--two {
-    height: 11px;
-    right: 17%;
-    top: 25%;
-    width: 11px;
+    display: none;
   }
 
   .giacong-news-list {
