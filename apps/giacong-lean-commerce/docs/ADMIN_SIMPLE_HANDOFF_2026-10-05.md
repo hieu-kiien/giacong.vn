@@ -57,7 +57,7 @@ Người dùng đã cho phép push nhánh, mở PR và triển khai staging. PR 
 - Admin → Nội dung & cài đặt → Liên hệ có lựa chọn bật/tắt đăng ký email, dùng hợp đồng lưu nháp/phát hành hiện có. Migration `0038_customer_email_registration.sql` đã áp dụng staging cùng `0037` bằng guard khớp trạng thái; 10 yêu cầu cũ giữ nguyên, không có lỗi khóa ngoại.
 - API đọc lựa chọn đã phát hành trực tiếp mỗi lần đăng ký; lỗi đọc D1 trả 503. Tắt đăng ký mới không tắt Google, đăng nhập hiện có, khôi phục mật khẩu hoặc gửi lại xác minh.
 - `npm run check`: 877 kiểm tra, lint/typecheck/build, mã thoát 0. QA trình duyệt đăng nhập ở 390/958/1366 px qua; review độc lập chưa tìm thấy lỗi cụ thể.
-- Resend đã xác minh `auth.staging.kienhieu.id.vn`; ba bản ghi DNS và khóa chỉ có quyền gửi cho tên miền thử đã cấu hình. Email thử thực nhận trong Gmail owner. Secrets đã lưu vào phiên bản Cloudflare chưa kích hoạt; nghiệm thu tạo/xác minh tài khoản thực còn chờ bản mới nhận traffic.
+- Resend đã xác minh `auth.staging.kienhieu.id.vn`; ba bản ghi DNS và khóa chỉ có quyền gửi cho tên miền thử đã cấu hình. Email thử thực nhận trong Gmail owner. Worker `7e6485ee-22e2-4030-bd81-4a877db26c7e` đã nhận 100% staging; tạo/xác minh/khôi phục tài khoản thực vẫn cần nghiệm thu riêng.
 - Theo ảnh khách chọn: dùng asset nền liên hệ `form-bg.webp`, chữ tiêu đề tối đa 48px, bỏ hình trang trí tự dựng; thêm mục Tài khoản cả trang marketing và giữ menu desktop trong hai hàng. QA kiểm tra thêm đáy menu không vượt thanh điều hướng.
 
 ### Tài liệu định dạng
@@ -75,7 +75,8 @@ Người dùng đã cho phép push nhánh, mở PR và triển khai staging. PR 
 
 ## Báo khách mới — chuẩn bị 05/10
 
-- Chủ dự án chọn cả email owner và Google Sheets. Outbox D1, queue hiện có, ACK từng kênh và nút thử lại trong admin đã được triển khai trong mã; chưa bật trên staging.
-- Đã tạo Sheet và Apps Script staging riêng sau xác nhận của owner, không thay webhook cũ có thể dùng chung production. Script phiên bản 2, secret riêng, `@OnlyCurrentDoc`; nhận hồ sơ mẫu và replay trả ACK đúng ID/revision. Sửa lỗi Sheets ép số điện thoại có số 0 đầu bằng định dạng text trước khi ghi; revision giữ kiểu số. Worker mới chưa kích hoạt; email báo hồ sơ từ ứng dụng chưa nghiệm thu. Hồ sơ cũ không tự gửi email hàng loạt. Hướng dẫn tại [GOOGLE_SHEETS_CONTACT_WEBHOOK.md](GOOGLE_SHEETS_CONTACT_WEBHOOK.md).
+- Chủ dự án chọn cả email owner và Google Sheets. Outbox D1, queue hiện có, ACK từng kênh và nút thử lại trong admin đã triển khai; cấu hình hai kênh đã bật trên staging.
+- Đã tạo Sheet và Apps Script staging riêng sau xác nhận của owner, không thay webhook cũ có thể dùng chung production. Script phiên bản 2, secret riêng, `@OnlyCurrentDoc`; nhận hồ sơ mẫu và replay trả ACK đúng ID/revision. Sửa lỗi Sheets ép số điện thoại có số 0 đầu bằng định dạng text trước khi ghi; revision giữ kiểu số. Worker mới đã kích hoạt; email báo hồ sơ từ ứng dụng chưa nghiệm thu. Hồ sơ cũ không tự gửi email hàng loạt. Hướng dẫn tại [GOOGLE_SHEETS_CONTACT_WEBHOOK.md](GOOGLE_SHEETS_CONTACT_WEBHOOK.md).
+- Giao diện theo ảnh khách: commit `0afc84de`, full gate 879 kiểm tra/lint/typecheck/build qua; Cloudflare build và preview QA [37317300816](https://github.com/hieu-kiien/giacong.vn/actions/runs/37317300816) qua. QA tài khoản trên staging 390/958/1366px qua, đăng ký email và khôi phục đã hiển thị.
 - Đã xem trực tiếp màn hình Haravan Accounts đăng ký (email, Google/Apple, điều khoản) và đăng nhập (email, mật khẩu phụ, Google/Apple/Passkey); không tạo tài khoản. Website giữ Google theo quyết định, hỏi thông tin liên hệ bước sau và không thêm những cách đăng nhập chưa cấu hình.
 - Bằng chứng tái tạo: `customer-contact-delivery.test.mts`, `google-apps-script-template.test.mjs`, `qa-customer-notification-local.mjs`; ảnh tham khảo và UI thử lại ở `.runtime/` là hiện vật có thể sinh lại.
