@@ -1,11 +1,24 @@
 .main {
+  background: #f7f9f5 !important;
   min-height: 50vh;
+  padding: 0;
 }
+.modeTitle { color: #293e27; font-size: 20px; line-height: 1.3; margin: 0 0 10px; }
+.methodCopy { color: #62705e; font-size: 14px; line-height: 1.6; margin: 0 0 16px; }
+.passwordOption { border-top: 1px solid #e4ebdf; margin-top: 24px; padding-top: 18px; }
+.passwordOption summary { color: #355f24; cursor: pointer; font-size: 14px; font-weight: 650; min-height: 28px; }
+.passwordOption summary:focus-visible { outline: 3px solid #477d2f; outline-offset: 3px; }
+.passwordOption .authForm { margin-top: 16px; }
+.showPassword { align-items: center; color: #52634c; display: flex; font-size: 14px; gap: 8px; }
+.showPassword input { accent-color: #3f7a25; height: 18px; margin: 0; width: 18px; }
+.feedback:empty { display: none; }
+.feedback { margin-top: 16px; }
+.feedback p + p { margin-top: 10px; }
 
 .contentSection {
-  background: linear-gradient(180deg, #fff 0%, #f5f9f1 100%);
-  min-height: 430px;
-  padding: 60px 24px 88px;
+  background: #fff;
+  min-height: 400px;
+  padding: 48px 24px 72px;
 }
 
 .card {
@@ -60,6 +73,9 @@
   font-weight: 650;
   min-height: 44px;
   padding: 9px 12px;
+  letter-spacing: 0;
+  margin: 0;
+  text-transform: none;
 }
 
 .modeSwitcher .modeActive {
@@ -120,6 +136,9 @@
   min-height: 50px;
   padding: 12px 18px;
   transition: background-color 150ms ease, box-shadow 150ms ease;
+  letter-spacing: 0;
+  margin: 0;
+  text-transform: none;
 }
 
 .submitButton:hover:not(:disabled) {
@@ -171,6 +190,9 @@
   padding: 8px 10px;
   text-decoration: underline;
   text-underline-offset: 3px;
+  letter-spacing: 0;
+  margin: 0;
+  text-transform: none;
 }
 
 .linkButton:hover:not(:disabled) {
@@ -211,7 +233,7 @@
 }
 
 .googleButtonWrap {
-  margin: 18px 0 0;
+  margin: 0;
 }
 
 .googleButtonWrap :global(button.button.primary.is-large.expand) {
@@ -235,6 +257,7 @@
   text-transform: none !important;
   transition: background-color 150ms ease, border-color 150ms ease, box-shadow 150ms ease, transform 150ms ease;
   width: 100%;
+  margin: 0;
 }
 
 .googleButtonWrap :global(button.button.primary.is-large.expand)::before {
@@ -314,8 +337,8 @@
 
 @media (max-width: 820px) {
   .contentSection {
-    min-height: 380px;
-    padding: 42px 18px 68px;
+    min-height: 320px;
+    padding: 32px 18px 48px;
   }
 
   .card {

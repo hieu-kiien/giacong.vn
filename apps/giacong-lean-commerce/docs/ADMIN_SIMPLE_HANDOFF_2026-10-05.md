@@ -42,7 +42,15 @@ Xuất dữ liệu giới hạn 2.000 khách và 10.000 giao dịch mỗi lần.
 4. Tải Excel bằng dữ liệu staging, đối chiếu số khách, giao dịch và tổng tiền với D1.
 5. Kiểm tra Access dự phòng trên host admin cũ. Production giữ cổng nghiệm thu riêng.
 
-Quy tắc app `AGENTS.md` yêu cầu người dùng cho phép rõ ràng trước khi push. Bản sửa chưa tự động được đưa lên GitHub hoặc website chỉ vì có trong worktree.
+Người dùng đã cho phép push nhánh, mở PR và triển khai staging. PR #143 giữ production ngoài phạm vi triển khai.
+
+## Giao diện tài khoản — bổ sung 05/10
+
+- Dùng nguyên thanh điều hướng, logo, footer và phần tiêu đề xanh của website; sửa CSS trang tin tức kéo nội dung tài khoản lên 120px. Cách hiển thị tài khoản chỉ áp dụng cho đăng nhập, tài khoản và đặt lại mật khẩu.
+- Google là cách đăng nhập/đăng ký chính theo lựa chọn khách hàng. Đăng ký email và khôi phục mật khẩu chỉ hiển thị khi dịch vụ gửi email đã cấu hình; mật khẩu đã thiết lập vẫn đăng nhập được trong mục phụ.
+- Thông tin tài khoản, yêu cầu và giao dịch chia khối rõ ràng; phần thêm mật khẩu được thu gọn.
+- `scripts/qa-account-ui.mjs` sinh lại ảnh và kiểm tra khoảng cách menu/tiêu đề, tràn ngang, chuyển đăng ký/đăng nhập và hiện mật khẩu ở 390, 958, 1366px; không gửi tài khoản mới hoặc sửa dữ liệu.
+- Deep QA staging kiểm tra thêm trang đăng nhập trên năm kích thước màn hình.
 
 ### Tài liệu định dạng
 

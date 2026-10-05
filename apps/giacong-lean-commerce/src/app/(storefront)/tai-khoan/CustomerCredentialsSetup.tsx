@@ -75,8 +75,8 @@ export function CustomerCredentialsSetup({
   }
 
   return (
-    <section aria-labelledby="credentials-setup-title" className={styles.panel}>
-      <h2 id="credentials-setup-title">Tạo tên đăng nhập và mật khẩu</h2>
+    <details className={styles.panel}>
+      <summary className={styles.summary}>Thêm cách đăng nhập bằng mật khẩu <span>(tùy chọn)</span></summary>
       <p>Bạn đã đăng nhập bằng Google. Thêm thông tin này để lần sau đăng nhập nhanh hơn.</p>
       <form className={styles.form} onSubmit={submit}>
         {!usernameSaved ? (
@@ -116,6 +116,6 @@ export function CustomerCredentialsSetup({
         </button>
       </form>
       <p className={styles.help}>Bạn vẫn có thể đăng nhập bằng Google nếu không dùng mật khẩu.</p>
-    </section>
+    </details>
   );
 }

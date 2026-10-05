@@ -31,13 +31,12 @@ export default async function ResetPasswordPage({
   const linkInvalid = !token || query.error === "INVALID_TOKEN";
 
   return (
-    <CapturedStorefrontShell>
+    <CapturedStorefrontShell variant="account">
       <main className={styles.main} id="main">
         <section aria-labelledby="reset-page-title" className="giacong-page-hero">
           <div aria-hidden="true" className="giacong-page-hero__orb giacong-page-hero__orb--one" />
           <div aria-hidden="true" className="giacong-page-hero__orb giacong-page-hero__orb--two" />
           <div className="giacong-page-hero__inner">
-            <p className="giacong-page-hero__eyebrow">Tài khoản khách hàng</p>
             <h1 id="reset-page-title">Đặt lại mật khẩu</h1>
             <nav aria-label="Breadcrumb" className="giacong-page-hero__breadcrumb">
               <Link href="/">Trang chủ</Link>

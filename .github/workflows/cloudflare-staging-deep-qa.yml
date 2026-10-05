@@ -163,6 +163,7 @@ jobs:
           const routes = [
             '/',
             '/san-pham',
+            '/tai-khoan/dang-nhap/',
             '/gui-yeu-cau',
             '/thue-gia-cong/say-thuc-pham-say',
           ];

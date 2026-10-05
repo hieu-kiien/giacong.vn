@@ -26,11 +26,13 @@ function getErrorMessage(result: unknown): string {
 
 const MIN_PASSWORD_LENGTH = 8;
 
-export function CustomerAccountAuth({ callbackURL }: { callbackURL: string }) {
+export function CustomerAccountAuth({ callbackURL, emailRegistrationEnabled = false }: { callbackURL: string; emailRegistrationEnabled?: boolean }) {
   const router = useRouter();
   const [mode, setMode] = useState<AuthMode>("sign-in");
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmation, setConfirmation] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [username, setUsername] = useState("");
@@ -43,6 +45,8 @@ export function CustomerAccountAuth({ callbackURL }: { callbackURL: string }) {
     setMode(nextMode);
     setIdentifier("");
     setPassword("");
+    setConfirmation("");
+    setShowPassword(false);
     setFullName("");
     setEmail("");
     setUsername("");
@@ -107,12 +111,16 @@ export function CustomerAccountAuth({ callbackURL }: { callbackURL: string }) {
 
   async function createAccount(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (isPending) return;
+    if (isPending || !emailRegistrationEnabled) return;
     setError("");
     setNotice("");
 
     if (password.length < MIN_PASSWORD_LENGTH) {
       setError(`Mật khẩu cần ít nhất ${MIN_PASSWORD_LENGTH} ký tự.`);
+      return;
+    }
+    if (password !== confirmation) {
+      setError("Hai mật khẩu chưa giống nhau. Vui lòng kiểm tra lại.");
       return;
     }
 
@@ -160,7 +168,7 @@ export function CustomerAccountAuth({ callbackURL }: { callbackURL: string }) {
 
   async function requestReset(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (isPending) return;
+    if (isPending || !emailRegistrationEnabled) return;
     setError("");
     setNotice("");
     setIsPending(true);
@@ -183,6 +191,7 @@ export function CustomerAccountAuth({ callbackURL }: { callbackURL: string }) {
   }
 
   async function googleSignIn() {
+    if (isPending) return;
     setIsPending(true);
     setError("");
     setNotice("");
@@ -232,7 +241,21 @@ export function CustomerAccountAuth({ callbackURL }: { callbackURL: string }) {
         </div>
       ) : null}
 
+      <h3 className={styles.modeTitle}>{mode === "create-account" ? "Tạo tài khoản" : mode === "forgot-password" ? "Quên mật khẩu" : "Đăng nhập"}</h3>
+      {mode !== "forgot-password" ? (
+        <div className={styles.googleButtonWrap}>
+          <p className={styles.methodCopy}>{mode === "create-account"
+            ? "Tạo tài khoản bằng Google, không cần đặt mật khẩu riêng."
+            : "Dùng tài khoản Google của bạn để tiếp tục."}</p>
+          <button aria-busy={isPending} className="button primary is-large expand" disabled={isPending} onClick={googleSignIn} type="button">
+            {isPending ? "Đang kết nối Google…" : mode === "create-account" ? "Tạo tài khoản bằng Google" : "Đăng nhập bằng Google"}
+          </button>
+        </div>
+      ) : null}
       {mode === "sign-in" ? (
+        <details className={styles.passwordOption}>
+          <summary>Đăng nhập bằng mật khẩu</summary>
+          <p className={styles.methodCopy}>Dành cho tài khoản đã thiết lập mật khẩu.</p>
         <form className={styles.authForm} onSubmit={signIn}>
           <label className={styles.field}>
             <span>Tên đăng nhập hoặc email</span>
@@ -254,11 +277,11 @@ export function CustomerAccountAuth({ callbackURL }: { callbackURL: string }) {
               maxLength={128}
               onChange={(event) => setPassword(event.target.value)}
               required
-              type="password"
+              type={showPassword ? "text" : "password"}
               value={password}
             />
           </label>
-          {feedback}
+          <label className={styles.showPassword}><input checked={showPassword} onChange={(event) => setShowPassword(event.target.checked)} type="checkbox" />Hiện mật khẩu</label>
           {unverifiedEmail ? (
             <button className={styles.linkButton} disabled={isPending} onClick={resendVerification} type="button">
               Gửi lại email xác nhận
@@ -267,13 +290,16 @@ export function CustomerAccountAuth({ callbackURL }: { callbackURL: string }) {
           <button aria-busy={isPending} className={styles.submitButton} data-testid="button-auth-submit" disabled={isPending} type="submit">
             {isPending ? "Đang đăng nhập…" : "Đăng nhập"}
           </button>
-          <button className={styles.linkButton} data-testid="button-auth-forgot" disabled={isPending} onClick={() => changeMode("forgot-password")} type="button">
+          {emailRegistrationEnabled ? <button className={styles.linkButton} data-testid="button-auth-forgot" disabled={isPending} onClick={() => changeMode("forgot-password")} type="button">
             Quên mật khẩu?
-          </button>
+          </button> : null}
         </form>
+        </details>
       ) : null}
 
-      {mode === "create-account" ? (
+      {mode === "create-account" && emailRegistrationEnabled ? (
+        <details className={styles.passwordOption}>
+          <summary>Tạo tài khoản bằng email</summary>
         <form className={styles.authForm} onSubmit={createAccount}>
           <label className={styles.field}>
             <span>Họ và tên</span>
@@ -307,10 +333,15 @@ export function CustomerAccountAuth({ callbackURL }: { callbackURL: string }) {
               minLength={MIN_PASSWORD_LENGTH}
               onChange={(event) => setPassword(event.target.value)}
               required
-              type="password"
+              type={showPassword ? "text" : "password"}
               value={password}
             />
           </label>
+          <label className={styles.field}>
+            <span>Nhập lại mật khẩu</span>
+            <input autoComplete="new-password" maxLength={128} minLength={MIN_PASSWORD_LENGTH} onChange={(event) => setConfirmation(event.target.value)} required type={showPassword ? "text" : "password"} value={confirmation} />
+          </label>
+          <label className={styles.showPassword}><input checked={showPassword} onChange={(event) => setShowPassword(event.target.checked)} type="checkbox" />Hiện mật khẩu</label>
           <label className={styles.field}>
             <span>Tên đăng nhập <small className={styles.optional}>(không bắt buộc)</small></span>
             <input
@@ -321,12 +352,12 @@ export function CustomerAccountAuth({ callbackURL }: { callbackURL: string }) {
               value={username}
             />
           </label>
-          {feedback}
           <button aria-busy={isPending} className={styles.submitButton} data-testid="button-signup-submit" disabled={isPending} type="submit">
             {isPending ? "Đang tạo tài khoản…" : "Tạo tài khoản"}
           </button>
           <p className={styles.emailNote}>Chúng tôi sẽ gửi email xác nhận. Bạn cần xác nhận email trước khi đăng nhập.</p>
         </form>
+        </details>
       ) : null}
 
       {mode === "forgot-password" ? (
@@ -344,7 +375,6 @@ export function CustomerAccountAuth({ callbackURL }: { callbackURL: string }) {
               value={email}
             />
           </label>
-          {feedback}
           <button aria-busy={isPending} className={styles.submitButton} data-testid="button-forgot-submit" disabled={isPending} type="submit">
             {isPending ? "Đang gửi…" : "Gửi liên kết đặt lại mật khẩu"}
           </button>
@@ -354,23 +384,7 @@ export function CustomerAccountAuth({ callbackURL }: { callbackURL: string }) {
         </form>
       ) : null}
 
-      {mode !== "forgot-password" ? <p aria-hidden="true" className={styles.divider}><span>hoặc</span></p> : null}
-
-      {mode !== "forgot-password" ? (
-        <div className={styles.googleButtonWrap}>
-          <button
-            aria-busy={isPending}
-            className="button primary is-large expand"
-            disabled={isPending}
-            onClick={googleSignIn}
-            type="button"
-          >
-            {isPending
-              ? "Đang kết nối Google…"
-              : mode === "create-account" ? "Tạo tài khoản bằng Google" : "Tiếp tục với Google"}
-          </button>
-        </div>
-      ) : null}
+      <div aria-live="polite" className={styles.feedback}>{feedback}</div>
     </div>
   );
 }

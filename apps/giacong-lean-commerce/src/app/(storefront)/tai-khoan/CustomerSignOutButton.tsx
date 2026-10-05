@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { customerAuthClient } from "@/lib/customer-auth-client";
 import { notifyWebsiteSignOut } from "@/lib/customer-session-events";
 import { REQUEST_CART_ACCEPTED_STORAGE_KEY } from "@/lib/request-cart-client";
+import styles from "./customer-account.module.css";
 
 function responseHasError(response: unknown): boolean {
   return typeof response === "object" && response !== null && "error" in response && Boolean(response.error);
@@ -46,7 +47,7 @@ export function CustomerSignOutButton() {
     <div>
       <button
         aria-busy={isPending}
-        className="button is-outline"
+        className={styles.signOut}
         disabled={isPending}
         onClick={handleSignOut}
         type="button"
