@@ -11,6 +11,7 @@ import { AdminUnsavedContext, type AdminUnsavedState, shouldBlockUnsavedNavigati
 import { AdminToastProvider } from "@/components/admin/AdminToast";
 import { canManage, type AdminCapability } from "@/lib/admin-permissions";
 import { customerAuthClient } from "@/lib/customer-auth-client";
+import { notifyWebsiteSignOut, WEBSITE_SIGN_OUT_EVENT, WEBSITE_SIGN_OUT_KEY } from "@/lib/customer-session-events";
 
 interface AdminShellProps { brandName: string; children: ReactNode; }
 interface SessionContextValue { session: AdminSession | null; }
@@ -362,6 +363,7 @@ export function AdminShell({ brandName, children }: AdminShellProps) {
     try {
       const result = await customerAuthClient.signOut();
       if (result.error) throw result.error;
+      notifyWebsiteSignOut();
       window.location.assign(new URL("/tai-khoan/dang-nhap/?next=admin", window.location.origin).toString());
     } catch {
       setLogoutError("Chưa thể đăng xuất. Hãy thử lại.");
@@ -533,14 +535,50 @@ export function AdminShell({ brandName, children }: AdminShellProps) {
     return () => controller.abort();
   }, [attempt]);
 
+  useEffect(() => {
+    if (session?.authMethod !== "account") return;
+    const controller = new AbortController();
+    const revoke = () => {
+      setSession(null);
+      setStatus("blocked");
+      setError(new AdminClientError("Phiên đăng nhập đã kết thúc. Hãy đăng nhập lại.", 401, "UNAUTHENTICATED"));
+    };
+    const onStorage = (event: StorageEvent) => {
+      if (event.key === WEBSITE_SIGN_OUT_KEY && event.newValue !== null) revoke();
+    };
+    const onResume = async () => {
+      try {
+        const current = await fetchAdmin<AdminSession>("/api/admin/session", controller.signal);
+        if (!controller.signal.aborted && (!current.authenticated || current.subject !== session.subject)) revoke();
+      } catch (reason) {
+        if (!controller.signal.aborted && reason instanceof AdminClientError && [401, 403, 404].includes(reason.status)) revoke();
+      }
+    };
+    window.addEventListener(WEBSITE_SIGN_OUT_EVENT, revoke);
+    window.addEventListener("storage", onStorage);
+    window.addEventListener("focus", onResume);
+    window.addEventListener("pageshow", onResume);
+    return () => {
+      controller.abort();
+      window.removeEventListener(WEBSITE_SIGN_OUT_EVENT, revoke);
+      window.removeEventListener("storage", onStorage);
+      window.removeEventListener("focus", onResume);
+      window.removeEventListener("pageshow", onResume);
+    };
+  }, [session]);
+
   if (status === "loading") return <AdminLoadingScreen />;
   if (status !== "ready" || !session) {
     return <AdminAccessScreen brandName={brandName} status={status === "blocked" ? "blocked" : "unavailable"} error={error} onRetry={() => setAttempt((value) => value + 1)} />;
   }
 
-  const visibleNavGroups = navGroups
-    .map((group) => ({ ...group, items: group.items.filter((item) => !item.hidden && canManage(session.role, item.readCapability) && (!item.ownerOnly || session.role === "owner")) }))
-    .filter((group) => group.items.length > 0);
+  const visibleItems = navGroups.flatMap((group) => group.items)
+    .filter((item) => !item.hidden && canManage(session.role, item.readCapability) && (!item.ownerOnly || session.role === "owner"));
+  const primaryHrefs = ["/admin", "/admin/san-pham", "/admin/dich-vu", "/admin/yeu-cau", "/admin/khach-hang"];
+  const visibleNavGroups = [
+    { id: "primary", displayTitle: "CÔNG VIỆC HẰNG NGÀY", items: primaryHrefs.flatMap((href) => visibleItems.filter((item) => item.href === href)) },
+    { id: "settings", displayTitle: "Nội dung & cài đặt", items: visibleItems.filter((item) => !primaryHrefs.includes(item.href)) },
+  ].filter((group) => group.items.length > 0);
   const currentNavItem = navGroups.flatMap((group) => group.items).find((item) => isAdminNavItemActive(pathname, item.href));
 
   return (
@@ -574,9 +612,11 @@ export function AdminShell({ brandName, children }: AdminShellProps) {
               <span className="admin-brand-copy"><strong>{brandName}</strong><span>Khu vực vận hành</span></span>
             </Link>
             <nav aria-label="Các khu vực quản trị" className="admin-nav">
-              {visibleNavGroups.map((group) => (
-                <div className="admin-nav-group" key={group.id}>
-                  <p className="admin-nav-label">{group.displayTitle}</p>
+              {visibleNavGroups.map((group) => {
+                const Group = group.id === "settings" ? "details" : "div";
+                return (
+                <Group className="admin-nav-group" key={group.id} {...(group.id === "settings" ? { open: group.items.some((item) => isAdminNavItemActive(pathname, item.href)) || undefined } : {})}>
+                  {group.id === "settings" ? <summary className="admin-nav-label cursor-pointer">{group.displayTitle}</summary> : <p className="admin-nav-label">{group.displayTitle}</p>}
                   {group.items.map(({ href, icon: Icon, label }) => {
                     const isActive = isAdminNavItemActive(pathname, href);
                     const isPending = navigatingHref === href;
@@ -622,12 +662,12 @@ export function AdminShell({ brandName, children }: AdminShellProps) {
                       ) : null}
                     </Link>
                   })}
-                </div>
-              ))}
+                </Group>
+              );})}
             </nav>
             <div className="admin-sidebar-footer">
-              <strong>Không gian nội bộ</strong>
-              Dữ liệu hiển thị trực tiếp từ hệ thống. Các thay đổi nội dung được quản lý qua quy trình phát hành.
+              <strong>Quản trị website</strong>
+              Sửa nội dung, chăm sóc khách hàng và ghi nhận giao dịch.
             </div>
           </aside>
           <main className="admin-main" inert={mobileOpen}>
@@ -790,6 +830,7 @@ function AdminAccessScreen({ brandName, status, error, onRetry }: { brandName: s
     try {
       const result = await customerAuthClient.signOut();
       if (result.error) throw result.error;
+      notifyWebsiteSignOut();
       window.location.assign(new URL("/tai-khoan/dang-nhap/?next=admin", window.location.origin).toString());
     } catch {
       setLogoutError("Chưa thể đăng xuất. Hãy thử lại.");

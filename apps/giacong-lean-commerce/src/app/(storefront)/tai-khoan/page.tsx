@@ -4,8 +4,11 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { CapturedStorefrontShell } from "@/components/site/CapturedStorefrontShell";
+import { CustomerSessionBoundary } from "@/components/site/CustomerSessionBoundary";
 import { getCustomerAccountHistory } from "@/lib/customer-account-data";
 import { getCustomerAuthAccounts, getCustomerSession } from "@/lib/customer-auth";
+import { findAdminMemberByAuthenticatedEmail, getAdminDatabase } from "@/lib/admin-data";
+import { isStagingAdminHost } from "@/lib/admin-navigation";
 import { canonicalMetadata, noIndexMetadata } from "@/lib/seo";
 import { getPublishedSiteSettings } from "@/lib/site-settings";
 
@@ -55,16 +58,26 @@ function formatMoney(amount: number, currency: string): string {
 export default async function CustomerAccountPage() {
   const requestHeaders = await headers();
   const session = await getCustomerSession(requestHeaders);
-  if (!session?.user.emailVerified) redirect("/tai-khoan/dang-nhap/");
+  if (!session?.user.emailVerified) redirect("/tai-khoan/dang-nhap/?next=%2Ftai-khoan%2F");
 
   const [history, accounts] = await Promise.all([
     getCustomerAccountHistory(session.user.id),
     getCustomerAuthAccounts(requestHeaders),
   ]);
   const hasPassword = accounts.some((account) => account.providerId === "credential");
+  let canEnterAdmin = false;
+  if (isStagingAdminHost((requestHeaders.get("host") ?? "").split(":")[0])) {
+    try {
+      const member = await findAdminMemberByAuthenticatedEmail(getAdminDatabase(), session.user.email);
+      canEnterAdmin = member?.role === "owner";
+    } catch {
+      // This optional shortcut must not prevent customers from viewing their account.
+    }
+  }
 
   return (
     <CapturedStorefrontShell>
+      <CustomerSessionBoundary userId={session.user.id}>
       <main id="main">
         <div className="blog-wrapper page-wrapper" id="content">
           <div className="row align-center">
@@ -73,6 +86,7 @@ export default async function CustomerAccountPage() {
                 <h1 className="uppercase">Tài khoản của bạn</h1>
                 <p>{session.user.name}</p>
                 <p>{session.user.email}</p>
+                {canEnterAdmin ? <p><Link className="button" href="/admin/">Vào quản trị</Link></p> : null}
                 <CustomerSignOutButton />
               </header>
 
@@ -134,6 +148,7 @@ export default async function CustomerAccountPage() {
           </div>
         </div>
       </main>
+      </CustomerSessionBoundary>
     </CapturedStorefrontShell>
   );
 }

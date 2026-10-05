@@ -188,7 +188,7 @@ test("admin account login trusts only the exact staging host and returns to admi
 
   assert.match(auth, /\["admin-staging\.kienhieu\.id\.vn", "https:\/\/admin-staging\.kienhieu\.id\.vn"\]/);
   assert.doesNotMatch(auth, /admin-\*\.kienhieu\.id\.vn|https:\/\/\*\.kienhieu\.id\.vn/);
-  assert.match(page, /query\.next === "admin"\s*\? "\/admin\/"/);
+  assert.match(page, /customerLoginDestination\(query\.next\)/);
   assert.match(wrangler, /"ADMIN_ACCOUNT_AUTH":\s*"false"/);
   assert.match(wrangler, /"ADMIN_ACCOUNT_AUTH":\s*"true"/);
 });
@@ -212,7 +212,7 @@ test("shared admin states explain readiness without infrastructure jargon", asyn
   assert.doesNotMatch(primitives, /schema hoặc binding D1/);
   assert.doesNotMatch(primitives, /chưa được migrate/);
   assert.doesNotMatch(primitives, /Dữ liệu được đọc trực tiếp từ API admin/);
-  assert.match(shell, /Dữ liệu hiển thị trực tiếp từ hệ thống/);
+  assert.match(shell, /Sửa nội dung, chăm sóc khách hàng và ghi nhận giao dịch/);
   assert.doesNotMatch(shell, /Dữ liệu hiển thị trực tiếp từ D1/);
 });
 

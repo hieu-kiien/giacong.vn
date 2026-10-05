@@ -1,7 +1,7 @@
 "use client";
 
 import { Download, Search } from "lucide-react";
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { AdminModal } from "@/components/admin/AdminDialog";
 import {
   AdminEmptyState,
@@ -51,6 +51,12 @@ export default function AdminCustomersPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [detail, setDetail] = useState<AdminCustomerDetail | null>(null);
   const [detailError, setDetailError] = useState<string | null>(null);
+  const [salesPage, setSalesPage] = useState(1);
+  const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState("");
+  const exportController = useRef<AbortController | null>(null);
+
+  useEffect(() => () => exportController.current?.abort(), []);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -88,7 +94,7 @@ export default function AdminCustomersPage() {
       setDetailError(null);
       try {
         const result = await fetchAdmin<{ customer: AdminCustomerDetail }>(
-          `/api/admin/customers/${encodeURIComponent(selectedId)}`,
+          `/api/admin/customers/${encodeURIComponent(selectedId)}?salesPage=${salesPage}`,
           controller.signal,
         );
         setDetail(result.customer);
@@ -99,7 +105,7 @@ export default function AdminCustomersPage() {
       }
     })();
     return () => controller.abort();
-  }, [selectedId]);
+  }, [selectedId, salesPage]);
 
   function submitSearch(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -113,7 +119,33 @@ export default function AdminCustomersPage() {
     setPage(1);
   }
 
-  const exportHref = `/api/admin/customers/export${query ? `?query=${encodeURIComponent(query)}` : ""}`;
+  const exportHref = `/api/admin/customers/export?format=xlsx${query ? `&query=${encodeURIComponent(query)}` : ""}`;
+  async function exportCustomers() {
+    const controller = new AbortController();
+    exportController.current?.abort();
+    exportController.current = controller;
+    setExporting(true);
+    setExportError("");
+    try {
+      const response = await fetch(exportHref, { cache: "no-store", signal: controller.signal });
+      if (!response.ok) {
+        const body: unknown = await response.json();
+        throw new Error(typeof body === "object" && body !== null && "message" in body && typeof body.message === "string" ? body.message : "Không thể xuất danh sách khách hàng.");
+      }
+      const blob = await response.blob();
+      if (controller.signal.aborted) return;
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `khach-hang-${new Date().toISOString().slice(0, 10)}.xlsx`;
+      link.click();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (reason) {
+      if (!controller.signal.aborted) setExportError(reason instanceof Error ? reason.message : "Không thể xuất danh sách khách hàng.");
+    } finally {
+      if (!controller.signal.aborted) setExporting(false);
+    }
+  }
 
   return (
     <div className="admin-content">
@@ -142,16 +174,19 @@ export default function AdminCustomersPage() {
         {query ? (
           <button className="admin-button admin-button-quiet" onClick={clearSearch} type="button">Xóa tìm kiếm</button>
         ) : null}
-        <a
+        <button
           className="admin-button admin-button-quiet"
           data-testid="link-customer-export"
-          download
-          href={exportHref}
-          style={{ alignItems: "center", display: "inline-flex", gap: 5 }}
+          aria-busy={exporting}
+          disabled={exporting || loading || !ready}
+          onClick={exportCustomers}
+          type="button"
         >
-          <Download size={14} /> Xuất Excel (CSV)
-        </a>
+          <Download size={14} /> {exporting ? "Đang xuất…" : "Xuất Excel"}
+        </button>
       </form>
+      {exportError ? <p role="alert">{exportError}</p> : null}
+      <p className="admin-panel-caption">Tệp Excel gồm khách hàng và giao dịch đã chốt theo danh sách đang tìm kiếm.</p>
 
       {error ? (
         <AdminErrorState error={error} onRetry={() => setAttempt((value) => value + 1)} />
@@ -197,7 +232,7 @@ export default function AdminCustomersPage() {
                         <td data-label="Khách hàng">
                           <button
                             className="admin-product-name-btn"
-                            onClick={() => setSelectedId(customer.id)}
+                            onClick={() => { setSalesPage(1); setSelectedId(customer.id); }}
                             style={{ background: "none", border: "none", cursor: "pointer", padding: 0, textAlign: "left" }}
                             type="button"
                           >
@@ -222,7 +257,7 @@ export default function AdminCustomersPage() {
                           <div className="admin-table-actions">
                             <button
                               className="admin-button admin-button-quiet"
-                              onClick={() => setSelectedId(customer.id)}
+                              onClick={() => { setSalesPage(1); setSelectedId(customer.id); }}
                               style={{ fontSize: 12, padding: "4px 8px" }}
                               type="button"
                             >
@@ -309,6 +344,9 @@ export default function AdminCustomersPage() {
                     ))}
                   </ul>
                 )}
+                {detail.salesPagination?.lastPage > 1 ? (
+                  <AdminPagination page={detail.salesPagination.currentPage} lastPage={detail.salesPagination.lastPage} onPage={setSalesPage} total={detail.saleCount} pageSize={20} />
+                ) : null}
               </section>
             </div>
           )}

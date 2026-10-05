@@ -30,6 +30,7 @@ export interface AdminCustomerSale {
 export interface AdminCustomerDetail extends AdminCustomerSummary {
   requests: AdminCustomerRequest[];
   sales: AdminCustomerSale[];
+  salesPagination: { currentPage: number; lastPage: number; pageSize: number; total: number };
 }
 
 function escapeLike(value: string): string {
@@ -117,6 +118,7 @@ export async function listAdminCustomers(
 export async function getAdminCustomerDetail(
   database: D1DatabaseLike,
   id: string,
+  salesPage = 1,
 ): Promise<AdminCustomerDetail | null> {
   if (!(await tableExists(database, "user"))) return null;
   const [hasLeads, hasSales] = await Promise.all([tableExists(database, "leads"), tableExists(database, "zalo_sales")]);
@@ -165,14 +167,16 @@ export async function getAdminCustomerDetail(
   }
 
   const sales: AdminCustomerSale[] = [];
+  const lastPage = Math.max(1, Math.ceil(toNumber(row.sale_count) / 20));
+  const currentPage = Math.min(lastPage, Number.isSafeInteger(salesPage) && salesPage > 0 ? salesPage : 1);
   if (hasSales) {
     const saleRows = await database.prepare(`
       SELECT id, sale_code, confirmed_at, total_amount
       FROM zalo_sales
       WHERE customer_id = ?
-      ORDER BY confirmed_at DESC
-      LIMIT 20
-    `).bind(id).all<{ confirmed_at: string; id: string; sale_code: string; total_amount: number }>();
+      ORDER BY confirmed_at DESC, id DESC
+      LIMIT ? OFFSET ?
+    `).bind(id, 20, (currentPage - 1) * 20).all<{ confirmed_at: string; id: string; sale_code: string; total_amount: number }>();
     for (const sale of saleRows.results) {
       sales.push({
         confirmedAt: String(sale.confirmed_at),
@@ -183,5 +187,5 @@ export async function getAdminCustomerDetail(
     }
   }
 
-  return { ...toSummary(row), requests, sales };
+  return { ...toSummary(row), requests, sales, salesPagination: { currentPage, lastPage, pageSize: 20, total: toNumber(row.sale_count) } };
 }

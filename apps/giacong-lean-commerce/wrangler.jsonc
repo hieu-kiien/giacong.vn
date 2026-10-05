@@ -114,7 +114,7 @@
       // available as a rollback path until staging acceptance is complete.
       "vars": {
         "ADMIN_HOSTNAME": "admin-staging.kienhieu.id.vn",
-        "ADMIN_HOSTNAMES": "admin-staging.kienhieu.id.vn",
+        "ADMIN_HOSTNAMES": "admin-staging.kienhieu.id.vn,staging.kienhieu.id.vn",
         "ADMIN_ACCOUNT_AUTH": "true",
         "ADMIN_PUBLIC": "false",
         "PRODUCTION_ADMIN_HOSTNAME": "admin.kienhieu.id.vn",

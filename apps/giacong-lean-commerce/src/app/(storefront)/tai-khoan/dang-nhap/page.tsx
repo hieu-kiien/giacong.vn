@@ -4,6 +4,7 @@ import Link from "next/link";
 import { CapturedStorefrontShell } from "@/components/site/CapturedStorefrontShell";
 import { canonicalMetadata, noIndexMetadata } from "@/lib/seo";
 import { getPublishedSiteSettings } from "@/lib/site-settings";
+import { customerLoginDestination } from "@/lib/customer-login-destination";
 
 import { CustomerAccountAuth } from "./CustomerAccountAuth";
 import styles from "./customer-auth.module.css";
@@ -27,12 +28,8 @@ export default async function CustomerSignInPage({
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
   const query = await searchParams;
-  const callbackURL = query.next === "gui-yeu-cau"
-    ? "/gui-yeu-cau/"
-    : query.next === "admin"
-      ? "/admin/"
-      : "/tai-khoan/";
-  const isAdminSignIn = query.next === "admin";
+  const callbackURL = customerLoginDestination(query.next);
+  const isAdminSignIn = callbackURL === "/admin/" || callbackURL.startsWith("/admin/");
 
   return (
     <CapturedStorefrontShell>
@@ -41,7 +38,7 @@ export default async function CustomerSignInPage({
           <div aria-hidden="true" className="giacong-page-hero__orb giacong-page-hero__orb--one" />
           <div aria-hidden="true" className="giacong-page-hero__orb giacong-page-hero__orb--two" />
           <div className="giacong-page-hero__inner">
-            <p className="giacong-page-hero__eyebrow">Tài khoản khách hàng</p>
+            <p className="giacong-page-hero__eyebrow">Tài khoản website</p>
             <h1 id="account-page-title">Tài khoản</h1>
             <nav aria-label="Breadcrumb" className="giacong-page-hero__breadcrumb">
               <Link href="/">Trang chủ</Link>

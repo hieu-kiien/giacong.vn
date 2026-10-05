@@ -15,5 +15,5 @@ export function isAdminNavItemActive(pathname: string, href: string): boolean {
 }
 
 export function isStagingAdminHost(hostname: string): boolean {
-  return hostname.trim().toLowerCase() === STAGING_ADMIN_HOSTNAME;
+  return [STAGING_ADMIN_HOSTNAME, "staging.kienhieu.id.vn"].includes(hostname.trim().toLowerCase());
 }
