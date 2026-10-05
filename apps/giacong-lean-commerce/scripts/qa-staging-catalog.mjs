@@ -25,6 +25,9 @@ function assertStatus(response, expected, label) {
 }
 
 export async function runStagingCatalogQa({ origin, activeProduct, inactiveProduct, fetchImpl = fetch, headers = {} }) {
+  // Isolated Worker previews intentionally cannot host customer authentication.
+  const isolatedPreview = /^https:\/\/[a-f0-9]{8}-giacong-vn-staging\.qtu1053\.workers\.dev$/.test(new URL(origin).origin);
+  const anonymousContactStatus = isolatedPreview ? 503 : 401;
   const request = (path, init = {}) => {
     const { signal, ...requestInit } = init;
     return fetchImpl(new URL(path, origin), {
@@ -121,7 +124,12 @@ export async function runStagingCatalogQa({ origin, activeProduct, inactiveProdu
     headers: { "Content-Type": "application/json", Origin: new URL(origin).origin },
     body: "{bad json",
   });
-  assertStatus(anonymousContactResponse, 401, "contact without verified customer session");
+  assertStatus(anonymousContactResponse, anonymousContactStatus, "contact without verified customer session");
+  if (isolatedPreview) {
+    const payload = await anonymousContactResponse.json();
+    assert.equal(payload.ok, false);
+    assert.equal(payload.message, "Không thể xác thực tài khoản lúc này. Vui lòng thử lại.");
+  }
   console.log("Unknown-product cart validation and contact origin/session guards passed.");
 
   if (activeProduct) {
@@ -158,7 +166,7 @@ export async function runStagingCatalogQa({ origin, activeProduct, inactiveProdu
           vatInvoice: "",
         }),
       });
-      assertStatus(driftResponse, 401, "anonymous contact with active cart");
+      assertStatus(driftResponse, anonymousContactStatus, "anonymous contact with active cart");
       console.log("Staging cart MOQ and anonymous contact guards passed with the active product; authenticated drift requires account QA.");
     } else {
       console.log("Skipped positive MOQ and stale-snapshot checks: no available priced variant is published.");

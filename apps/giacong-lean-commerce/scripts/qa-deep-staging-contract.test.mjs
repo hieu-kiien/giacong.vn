@@ -74,6 +74,17 @@ function mockResponse(status, body, json = false) {
   };
 }
 
+test("isolated preview accepts only the explicit authentication-origin rejection", async () => {
+  const fetchImpl = async (url, init) => {
+    if (url.pathname === "/san-pham") return mockResponse(200, "Chưa tìm thấy sản phẩm phù hợp. 0–0 trong 0 sản phẩm");
+    if (url.pathname.startsWith("/api/catalog/products/")) return mockResponse(404, {}, true);
+    if (url.pathname === "/api/gui-yeu-cau/xac-thuc") return mockResponse(200, { ok: true, cart: { lines: [{ adjustments: [{ code: "PRODUCT_NOT_FOUND" }] }] } }, true);
+    return mockResponse(init.headers.Origin ? 503 : 403, { ok: false, message: "Không thể xác thực tài khoản lúc này. Vui lòng thử lại." }, true);
+  };
+  await runStagingCatalogQa({ origin: "https://b5d995c8-giacong-vn-staging.qtu1053.workers.dev", activeProduct: null, inactiveProduct: null, fetchImpl });
+  await assert.rejects(runStagingCatalogQa({ origin: "https://staging.kienhieu.id.vn", activeProduct: null, inactiveProduct: null, fetchImpl }), /expected HTTP 401, got 503/);
+});
+
 test("staging catalog QA unwraps Cloudflare D1 JSON rows", () => {
   assert.deepEqual(readD1FirstRow('[{"results":[{"slug":"real-product","name":"Real product"}]}]'), {
     slug: "real-product",
