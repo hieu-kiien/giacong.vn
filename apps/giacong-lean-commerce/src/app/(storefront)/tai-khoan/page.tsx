@@ -11,6 +11,9 @@ import { findAdminMemberByAuthenticatedEmail, getAdminDatabase } from "@/lib/adm
 import { isStagingAdminHost } from "@/lib/admin-navigation";
 import { canonicalMetadata, noIndexMetadata } from "@/lib/seo";
 import { getPublishedSiteSettings } from "@/lib/site-settings";
+import { getCustomerContact } from "@/lib/customer-contact-data";
+import { customerLoginDestination } from "@/lib/customer-login-destination";
+import { CustomerContactProfile } from "./CustomerContactProfile";
 
 import { CustomerCredentialsSetup } from "./CustomerCredentialsSetup";
 import { CustomerSignOutButton } from "./CustomerSignOutButton";
@@ -56,15 +59,20 @@ function formatMoney(amount: number, currency: string): string {
   }).format(amount);
 }
 
-export default async function CustomerAccountPage() {
+export default async function CustomerAccountPage({ searchParams }: { searchParams: Promise<{ next?: string | string[] }> }) {
   const requestHeaders = await headers();
   const session = await getCustomerSession(requestHeaders);
   if (!session?.user.emailVerified) redirect("/tai-khoan/dang-nhap/?next=%2Ftai-khoan%2F");
 
-  const [history, accounts] = await Promise.all([
+  const query = await searchParams;
+  const destination = query.next ? customerLoginDestination(query.next) : null;
+  const next = destination?.startsWith("/tai-khoan/") ? null : destination;
+  const [history, accounts, contact] = await Promise.all([
     getCustomerAccountHistory(session.user.id),
     getCustomerAuthAccounts(requestHeaders),
+    getCustomerContact(getAdminDatabase(), session.user.id),
   ]);
+  if (contact && next) redirect(next);
   const hasPassword = accounts.some((account) => account.providerId === "credential");
   let canEnterAdmin = false;
   if (isStagingAdminHost((requestHeaders.get("host") ?? "").split(":")[0])) {
@@ -102,6 +110,7 @@ export default async function CustomerAccountPage() {
                   <CustomerSignOutButton />
                 </div>
               </div>
+              <CustomerContactProfile complete={Boolean(contact)} initial={{ name: contact?.name ?? session.user.name, phone: contact?.phone ?? "", companyName: contact?.companyName ?? "", email: session.user.email }} next={next} />
               <div className={styles.historyGrid}>
               <section aria-labelledby="request-history-heading" className={styles.historyCard}>
                 <h2 id="request-history-heading">Yêu cầu đã gửi</h2>

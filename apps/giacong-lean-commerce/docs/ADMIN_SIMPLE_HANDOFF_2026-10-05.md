@@ -56,3 +56,11 @@ Người dùng đã cho phép push nhánh, mở PR và triển khai staging. PR 
 
 - [SpreadsheetML — Microsoft](https://learn.microsoft.com/en-us/office/open-xml/spreadsheet/structure-of-a-spreadsheetml-document)
 - [Node zlib](https://nodejs.org/api/zlib.html) và [Cloudflare zlib](https://developers.cloudflare.com/workers/runtime-apis/nodejs/zlib/)
+## Hồ sơ liên hệ và nghiệm thu tiếp theo
+
+- Khách xác nhận thu số điện thoại cả sau đăng nhập và khi gửi tư vấn; profile được điền sẵn, khách vẫn sửa được cho từng yêu cầu.
+- Migration `0036_customer_contact_profiles.sql` bổ sung bảng riêng; email/ID lấy từ phiên đã xác minh. Admin tìm kiếm, chi tiết và Excel đọc số điện thoại mới.
+- Giữ header/logo/hero/footer chung. Không thêm checkout, thanh toán hoặc CRM mở rộng.
+- Xác nhận yêu cầu trong tab được gắn với tài khoản; xóa khi đăng xuất, không phục hồi cho khách khác.
+- Bằng chứng tái tạo: `qa-storefront-journey.mjs` (7 trang × 3 viewport), `qa-customer-contact-local.mjs` (validation, consent, lỗi/retry, prefill, submit), `customer-contact-profile.test.mts` (D1/schema/identity).
+- Staging hiện không có sản phẩm active để nghiệm thu gửi yêu cầu thực với catalog; các trường hợp có dữ liệu dùng fixture cục bộ. Luồng Google cần người dùng thực thao tác nếu phải xác thực lại.

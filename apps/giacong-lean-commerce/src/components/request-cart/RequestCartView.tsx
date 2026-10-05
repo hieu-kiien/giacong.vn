@@ -10,9 +10,7 @@ import {
   buildRevalidateBody,
   driftNotice,
   hydrationNotice,
-  parseAcceptedRequest,
   parseRevalidateResponse,
-  serializeAcceptedRequest,
 } from "@/lib/request-cart-client";
 import { RequestAccepted } from "@/components/request-cart/RequestAccepted";
 import { RequestForm } from "@/components/request-cart/RequestForm";
@@ -26,6 +24,9 @@ import {
   writeRequestCart,
 } from "@/lib/request-cart-storage";
 import type { RequestCartState, ResolvedRequestCart, ResolvedRequestCartLine } from "@/types/request-cart";
+import { customerAuthClient } from "@/lib/customer-auth-client";
+import { parseCustomerConfirmation, serializeCustomerConfirmation } from "@/lib/customer-request-confirmation";
+import { WEBSITE_SIGN_OUT_EVENT, WEBSITE_SIGN_OUT_KEY } from "@/lib/customer-session-events";
 
 const REVALIDATE_FAILURE_MESSAGE = "Không thể xác thực giỏ yêu cầu. Vui lòng thử lại.";
 
@@ -34,6 +35,8 @@ interface RequestCartViewProps {
 }
 
 export function RequestCartView({ contactZaloUrl }: RequestCartViewProps = {}) {
+  const { data: customerSession, isPending: checkingCustomerSession } = customerAuthClient.useSession();
+  const customerId = customerSession?.user.id ?? null;
   const [cart, setCart] = useState<RequestCartState | null>(null);
   const [storageNotice, setStorageNotice] = useState<string | null>(null);
   const [resolved, setResolved] = useState<ResolvedRequestCart | null>(null);
@@ -42,6 +45,7 @@ export function RequestCartView({ contactZaloUrl }: RequestCartViewProps = {}) {
   const [pending, setPending] = useState(false);
   const [refreshNonce, setRefreshNonce] = useState(0);
   const [accepted, setAccepted] = useState<AcceptedRequestSnapshot | null>(null);
+  const [acceptedCustomerId, setAcceptedCustomerId] = useState<string | null>(null);
   const lastResolved = useRef<ResolvedRequestCart | null>(null);
 
   /*
@@ -57,14 +61,30 @@ export function RequestCartView({ contactZaloUrl }: RequestCartViewProps = {}) {
   }, []);
 
   useEffect(() => {
+    if (checkingCustomerSession) return;
+    setAccepted(null);
+    setAcceptedCustomerId(null);
     try {
       const stored = window.sessionStorage.getItem(REQUEST_CART_ACCEPTED_STORAGE_KEY);
-      const restored = parseAcceptedRequest(stored);
-      if (restored) setAccepted(restored);
+      const restored = parseCustomerConfirmation(stored, customerId);
+      if (restored) { setAccepted(restored); setAcceptedCustomerId(customerId); }
       else if (stored) window.sessionStorage.removeItem(REQUEST_CART_ACCEPTED_STORAGE_KEY);
     } catch {
       // A blocked or full session store must not hide the live cart.
     }
+  }, [checkingCustomerSession, customerId]);
+
+  useEffect(() => {
+    const clear = () => {
+      setAccepted(null);
+      setAcceptedCustomerId(null);
+      try { window.sessionStorage.removeItem(REQUEST_CART_ACCEPTED_STORAGE_KEY); } catch { /* Private storage can be unavailable. */ }
+      void customerAuthClient.getSession({ fetchOptions: { cache: "no-store" } });
+    };
+    const onStorage = (event: StorageEvent) => { if (event.key === WEBSITE_SIGN_OUT_KEY) clear(); };
+    window.addEventListener(WEBSITE_SIGN_OUT_EVENT, clear);
+    window.addEventListener("storage", onStorage);
+    return () => { window.removeEventListener(WEBSITE_SIGN_OUT_EVENT, clear); window.removeEventListener("storage", onStorage); };
   }, []);
 
   const linesKey = cart ? JSON.stringify(toRequestCartKeys(cart)) : "";
@@ -143,6 +163,7 @@ export function RequestCartView({ contactZaloUrl }: RequestCartViewProps = {}) {
     result: { contact: RequestCartContact; receivedAt: string; reference: string },
     submitted: ResolvedRequestCart,
   ) => {
+    if (!customerId) return;
     const empty = emptyRequestCart();
     writeRequestCart(window.localStorage, empty);
     const snapshot: AcceptedRequestSnapshot = {
@@ -152,17 +173,18 @@ export function RequestCartView({ contactZaloUrl }: RequestCartViewProps = {}) {
       reference: result.reference,
     };
     try {
-      window.sessionStorage.setItem(REQUEST_CART_ACCEPTED_STORAGE_KEY, serializeAcceptedRequest(snapshot));
+      window.sessionStorage.setItem(REQUEST_CART_ACCEPTED_STORAGE_KEY, serializeCustomerConfirmation(snapshot, customerId));
     } catch {
       // The live success state remains available even if browser storage is unavailable.
     }
     setAccepted(snapshot);
+    setAcceptedCustomerId(customerId);
     setResolved(null);
     setDrift(null);
     setError(null);
     lastResolved.current = null;
     setCart(empty);
-  }, []);
+  }, [customerId]);
 
   const startNewRequest = useCallback(() => {
     try {
@@ -203,7 +225,7 @@ export function RequestCartView({ contactZaloUrl }: RequestCartViewProps = {}) {
         </p>
       ) : null}
 
-      {accepted !== null ? (
+      {accepted !== null && acceptedCustomerId === customerId && !checkingCustomerSession ? (
         <RequestAccepted
           cart={accepted.cart}
           contact={accepted.contact}

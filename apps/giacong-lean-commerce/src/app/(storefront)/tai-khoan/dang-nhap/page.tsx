@@ -6,6 +6,7 @@ import { CapturedStorefrontShell } from "@/components/site/CapturedStorefrontShe
 import { canonicalMetadata, noIndexMetadata } from "@/lib/seo";
 import { getPublishedSiteSettings } from "@/lib/site-settings";
 import { customerLoginDestination } from "@/lib/customer-login-destination";
+import { customerContactDestination } from "@/lib/customer-contact-input";
 import { resolveCustomerEmailConfig, type CustomerEmailEnvironment } from "@/lib/customer-email";
 
 import { CustomerAccountAuth } from "./CustomerAccountAuth";
@@ -30,8 +31,9 @@ export default async function CustomerSignInPage({
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
   const query = await searchParams;
-  const callbackURL = customerLoginDestination(query.next);
-  const isAdminSignIn = callbackURL === "/admin/" || callbackURL.startsWith("/admin/");
+  const destination = customerLoginDestination(query.next);
+  const callbackURL = customerContactDestination(query.next);
+  const isAdminSignIn = destination === "/admin/" || destination.startsWith("/admin/");
   let emailRegistrationEnabled = false;
   try {
     emailRegistrationEnabled = Boolean(resolveCustomerEmailConfig(getCloudflareContext().env as CustomerEmailEnvironment));
@@ -62,6 +64,7 @@ export default async function CustomerSignInPage({
               <p className={styles.cardCopy}>{isAdminSignIn
                 ? "Đăng nhập bằng tài khoản website. Chỉ tài khoản đã được cấp quyền admin mới vào được khu vực quản trị."
                 : "Đăng nhập để gửi yêu cầu và theo dõi giao dịch của bạn."}</p>
+              {query.error ? <p className={styles.formError} role="alert">Đăng nhập Google chưa hoàn tất. Bạn có thể thử lại bằng nút bên dưới.</p> : null}
 
               <CustomerAccountAuth callbackURL={callbackURL} emailRegistrationEnabled={emailRegistrationEnabled} />
 

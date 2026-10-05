@@ -11,6 +11,8 @@ import {
 } from "@/lib/request-cart-client";
 import type { RequestCartContact, RequestCartField } from "@/lib/request-cart-client";
 import { customerAuthClient } from "@/lib/customer-auth-client";
+import { mergeCustomerContact } from "@/lib/customer-contact-input";
+import { WEBSITE_SIGN_OUT_EVENT, WEBSITE_SIGN_OUT_KEY } from "@/lib/customer-session-events";
 import type { ResolvedRequestCart } from "@/types/request-cart";
 
 const SUBMIT_FAILURE_MESSAGE = "Không thể gửi yêu cầu lúc này. Vui lòng thử lại.";
@@ -38,11 +40,54 @@ export function RequestForm({ cart, onAccepted, onConflict }: RequestFormProps) 
   const [errors, setErrors] = useState<Partial<Record<RequestCartField, string>>>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [contactCustomerId, setContactCustomerId] = useState<string | null>(null);
   const inFlight = useRef(false);
   const automaticMessage = useRef(cartMessage(cart));
+  const contactOwner = useRef<string | null>(null);
   // Reuse a key only when the entire submitted snapshot is unchanged. This keeps a network retry
   // idempotent without allowing edited customer details to silently reuse an older lead.
   const attempt = useRef({ requestId: createRequestId(), submissionSnapshot: "" });
+
+  useEffect(() => {
+    const clearContact = () => {
+      contactOwner.current = null;
+      setContactCustomerId(null);
+      setContact({ ...EMPTY_CONTACT, message: automaticMessage.current });
+      setErrors({});
+      setFormError(null);
+    };
+    const onStorage = (event: StorageEvent) => { if (event.key === WEBSITE_SIGN_OUT_KEY) clearContact(); };
+    window.addEventListener(WEBSITE_SIGN_OUT_EVENT, clearContact);
+    window.addEventListener("storage", onStorage);
+    return () => { window.removeEventListener(WEBSITE_SIGN_OUT_EVENT, clearContact); window.removeEventListener("storage", onStorage); };
+  }, []);
+
+  useEffect(() => {
+    if (checkingCustomerSession) return;
+    const user = customerSession?.user;
+    if (contactOwner.current !== (user?.id ?? null)) {
+      contactOwner.current = user?.id ?? null;
+      setContactCustomerId(user?.id ?? null);
+      setContact({ ...EMPTY_CONTACT, message: automaticMessage.current });
+      setErrors({});
+      setFormError(null);
+    }
+    if (!user?.id) return;
+    const controller = new AbortController();
+    void fetch("/api/customer/contact", { cache: "no-store", signal: controller.signal })
+      .then((response) => response.ok ? response.json() : null)
+      .then((body) => {
+        if (controller.signal.aborted || contactOwner.current !== user.id) return;
+        const fallback = { name: user.name, email: user.email, phone: "", companyName: "" };
+        const candidate = body?.ok === true ? body.contact : null;
+        const profile = candidate && ["name", "phone", "companyName", "email"].every((key) => typeof candidate[key] === "string") ? candidate : fallback;
+        setContact((current) => mergeCustomerContact(current, profile));
+      }).catch(() => {
+        if (controller.signal.aborted || contactOwner.current !== user.id) return;
+        setContact((current) => mergeCustomerContact(current, { name: user.name, email: user.email, phone: "", companyName: "" }));
+      });
+    return () => controller.abort();
+  }, [checkingCustomerSession, customerSession?.user]);
 
   useEffect(() => {
     const nextMessage = cartMessage(cart);
@@ -147,7 +192,7 @@ export function RequestForm({ cart, onAccepted, onConflict }: RequestFormProps) 
     }
   };
 
-  if (checkingCustomerSession) {
+  if (checkingCustomerSession || contactCustomerId !== (customerSession?.user.id ?? null)) {
     return (
       <section aria-labelledby="xac-nhan-yeu-cau" className="mt-8 rounded-lg border border-neutral-200 bg-white p-4 sm:p-6">
         <h2 className="text-xl font-bold text-neutral-900 sm:text-2xl" id="xac-nhan-yeu-cau">Thông tin liên hệ</h2>
@@ -184,6 +229,7 @@ export function RequestForm({ cart, onAccepted, onConflict }: RequestFormProps) 
       <p className="mt-2 text-sm text-neutral-700">
         Gửi yêu cầu để chúng tôi liên hệ xác nhận số lượng và báo giá. Chưa phát sinh đơn hàng ở bước này.
       </p>
+      <p className="mt-2 text-sm text-neutral-600">Thông tin đã lưu được điền sẵn; bạn có thể sửa để dùng cho yêu cầu này.</p>
 
       {formError ? (
         <p className="mt-4 rounded-md border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-800" role="alert">
@@ -307,7 +353,7 @@ export function RequestForm({ cart, onAccepted, onConflict }: RequestFormProps) 
             </button>
           </div>
           <p className="mt-3 text-sm text-neutral-600">
-            Sau khi gửi, bạn nhận được một Mã để đối chiếu khi chúng tôi liên hệ lại.
+            Thông tin liên hệ được lưu cùng yêu cầu để chúng tôi tư vấn theo <Link className="underline" href="/chinh-sach-bao-mat/">chính sách bảo mật</Link>. Sau khi lưu thành công, bạn có thể tiếp tục trao đổi qua Zalo.
           </p>
         </div>
       </form>

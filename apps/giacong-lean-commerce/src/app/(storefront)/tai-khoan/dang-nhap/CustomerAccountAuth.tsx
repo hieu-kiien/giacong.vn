@@ -72,8 +72,10 @@ export function CustomerAccountAuth({ callbackURL, emailRegistrationEnabled = fa
 
       const code = getErrorCode(result);
       if (code === "EMAIL_NOT_VERIFIED") {
-        setError("Email này chưa được xác nhận. Hãy mở email xác nhận chúng tôi đã gửi, hoặc gửi lại email mới.");
-        if (value.includes("@")) setUnverifiedEmail(value);
+        setError(emailRegistrationEnabled
+          ? "Email này chưa được xác nhận. Hãy mở email xác nhận chúng tôi đã gửi, hoặc gửi lại email mới."
+          : "Email này chưa được xác nhận. Vui lòng đăng nhập bằng Google để tiếp tục.");
+        if (emailRegistrationEnabled && value.includes("@")) setUnverifiedEmail(value);
         return;
       }
       if (code) {
