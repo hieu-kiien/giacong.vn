@@ -21,8 +21,8 @@
   },
   "vars": {
     "ADMIN_HOSTNAME": "admin.kienhieu.id.vn",
-    "ADMIN_HOSTNAMES": "admin.kienhieu.id.vn",
-    "ADMIN_ACCOUNT_AUTH": "false",
+    "ADMIN_HOSTNAMES": "admin.kienhieu.id.vn,kienhieu.id.vn",
+    "ADMIN_ACCOUNT_AUTH": "true",
     "ADMIN_PUBLIC": "false",
     "PRODUCTION_ADMIN_HOSTNAME": "admin.kienhieu.id.vn",
     "TEAM_DOMAIN": "https://jolly-brook-7bc8.cloudflareaccess.com",
@@ -110,8 +110,8 @@
           "zone_name": "kienhieu.id.vn"
         }
       ],
-      // Account-session admin auth is staging-only. Keep Access JWT admission
-      // available as a rollback path until staging acceptance is complete.
+      // Keep the Access hostname available as a rollback path alongside
+      // verified website accounts with active D1 owner membership.
       "vars": {
         "ADMIN_HOSTNAME": "admin-staging.kienhieu.id.vn",
         "ADMIN_HOSTNAMES": "admin-staging.kienhieu.id.vn,staging.kienhieu.id.vn",

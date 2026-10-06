@@ -200,6 +200,7 @@ export function AdminShell({ brandName, children }: AdminShellProps) {
   const [attempt, setAttempt] = useState(0);
   const isStagingHost = useSyncExternalStore(subscribeToBrowserLocation, getStagingHostSnapshot, getServerStagingHostSnapshot);
   const storefrontHref = useSyncExternalStore(subscribeToBrowserLocation, getStorefrontHrefSnapshot, getServerStorefrontHrefSnapshot);
+  const accountLoginHref = `${storefrontHref}tai-khoan/dang-nhap/?next=admin`;
   const [pendingNav, setPendingNav] = useState<{ href: string } | { history: true } | { logout: true } | null>(null);
   const [navigatingHref, setNavigatingHref] = useState<string | null>(null);
   const [prevPathname, setPrevPathname] = useState(pathname);
@@ -364,7 +365,7 @@ export function AdminShell({ brandName, children }: AdminShellProps) {
       const result = await customerAuthClient.signOut();
       if (result.error) throw result.error;
       notifyWebsiteSignOut();
-      window.location.assign(new URL("/tai-khoan/dang-nhap/?next=admin", window.location.origin).toString());
+      window.location.assign(accountLoginHref);
     } catch {
       setLogoutError("Chưa thể đăng xuất. Hãy thử lại.");
       setUserMenuOpen(true);
@@ -749,7 +750,7 @@ export function AdminShell({ brandName, children }: AdminShellProps) {
                       <a
                         className="admin-user-popover-logout"
                         data-testid="link-admin-logout"
-                        href={session.authMethod === "account" ? "/tai-khoan/dang-nhap/?next=admin" : CLOUDFLARE_ACCESS_LOGOUT_PATH}
+                        href={session.authMethod === "account" ? accountLoginHref : CLOUDFLARE_ACCESS_LOGOUT_PATH}
                         onClick={(e) => {
                           setUserMenuOpen(false);
                           handleLogoutClick(e);
@@ -802,6 +803,8 @@ function AdminLoadingScreen() {
 
 function AdminAccessScreen({ brandName, status, error, onRetry }: { brandName: string; status: "blocked" | "unavailable"; error: AdminClientError | null; onRetry: () => void }) {
   const router = useRouter();
+  const storefrontHref = useSyncExternalStore(subscribeToBrowserLocation, getStorefrontHrefSnapshot, getServerStorefrontHrefSnapshot);
+  const accountLoginHref = `${storefrontHref}tai-khoan/dang-nhap/?next=admin`;
   const [logoutError, setLogoutError] = useState("");
   const isBlocked = status === "blocked";
   const isAccountMembershipDenied = isBlocked && error?.status === 403 && error.code === "ADMIN_MEMBERSHIP_REQUIRED";
@@ -831,7 +834,7 @@ function AdminAccessScreen({ brandName, status, error, onRetry }: { brandName: s
       const result = await customerAuthClient.signOut();
       if (result.error) throw result.error;
       notifyWebsiteSignOut();
-      window.location.assign(new URL("/tai-khoan/dang-nhap/?next=admin", window.location.origin).toString());
+      window.location.assign(accountLoginHref);
     } catch {
       setLogoutError("Chưa thể đăng xuất. Hãy thử lại.");
     }
@@ -884,7 +887,7 @@ function AdminAccessScreen({ brandName, status, error, onRetry }: { brandName: s
               <Link
                 className="admin-button admin-button-primary"
                 data-testid="link-admin-account-login"
-                href="/tai-khoan/dang-nhap/?next=admin"
+                href={accountLoginHref}
               >
                 Đăng nhập tài khoản website
               </Link>

@@ -295,7 +295,6 @@ export default function AdminCustomersPage() {
                 {[
                   ["Họ tên", detail.name],
                   ["Email", detail.email],
-                  ["Tên đăng nhập", detail.username || "—"],
                   ["Số điện thoại", detail.phone || "Chưa có"],
                   ["Ngày đăng ký", formatAdminDate(detail.createdAt)],
                   ["Tổng đã chốt", detail.saleCount > 0 ? `${detail.saleCount} đơn · ${money.format(detail.saleTotal)}đ` : "Chưa có đơn"],

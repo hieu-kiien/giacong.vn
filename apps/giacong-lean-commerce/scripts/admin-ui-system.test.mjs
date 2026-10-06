@@ -135,7 +135,9 @@ test("blocked sessions direct operators to website login and keep Access logout 
 
   assert.match(shell, /error\.code === "ADMIN_MEMBERSHIP_REQUIRED"/);
   assert.match(shell, /data-testid="link-admin-account-login"/);
-  assert.match(shell, /href="\/tai-khoan\/dang-nhap\/\?next=admin"/);
+  assert.match(shell, /href=\{accountLoginHref\}/);
+  assert.match(shell, /const accountLoginHref = `\$\{storefrontHref\}tai-khoan\/dang-nhap\/\?next=admin`/);
+  assert.doesNotMatch(shell, /new URL\("\/tai-khoan\/dang-nhap\/\?next=admin", window.location.origin\)/);
   assert.match(shell, /data-testid="button-admin-account-logout"/);
   assert.match(shell, /customerAuthClient\.signOut\(\)/);
   assert.match(shell, /data-testid="link-admin-access-logout"/);
@@ -179,7 +181,7 @@ test("network-failed admin sessions keep website login and retry visible", async
   assert.match(shell, /showLoginLink \? \(/);
 });
 
-test("admin account login trusts only the exact staging host and returns to admin", async () => {
+test("admin account login uses exact configured hosts and returns to admin", async () => {
   const [auth, page, wrangler] = await Promise.all([
     readSource("lib", "customer-auth.ts"),
     readSource("app", "(storefront)", "tai-khoan", "dang-nhap", "page.tsx"),
@@ -189,7 +191,7 @@ test("admin account login trusts only the exact staging host and returns to admi
   assert.match(auth, /\["admin-staging\.kienhieu\.id\.vn", "https:\/\/admin-staging\.kienhieu\.id\.vn"\]/);
   assert.doesNotMatch(auth, /admin-\*\.kienhieu\.id\.vn|https:\/\/\*\.kienhieu\.id\.vn/);
   assert.match(page, /customerLoginDestination\(query\.next\)/);
-  assert.match(wrangler, /"ADMIN_ACCOUNT_AUTH":\s*"false"/);
+  assert.match(wrangler, /"ADMIN_HOSTNAMES":\s*"admin\.kienhieu\.id\.vn,kienhieu\.id\.vn"/);
   assert.match(wrangler, /"ADMIN_ACCOUNT_AUTH":\s*"true"/);
 });
 

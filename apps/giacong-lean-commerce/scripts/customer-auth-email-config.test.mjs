@@ -4,6 +4,12 @@ import test from "node:test";
 
 const read = (...parts) => readFile(new URL(`../src/${parts.join("/")}`, import.meta.url), "utf8");
 
+test("admin customer details use phone and email without a username label", async () => {
+  const ui = await read("app", "admin", "khach-hang", "page.tsx");
+  assert.doesNotMatch(ui, /Tên đăng nhập/);
+  assert.match(ui, /Số điện thoại/);
+});
+
 test("customer auth keeps e-mail sign-up closed unless Resend is configured", async () => {
   const auth = await read("lib", "customer-auth.ts");
 
