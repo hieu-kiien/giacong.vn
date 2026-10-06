@@ -6,6 +6,15 @@ async function readSource(...segments) {
   return readFile(new URL(`../src/${segments.join("/")}`, import.meta.url), "utf8");
 }
 
+test("customer Excel export announces readiness and offers a visible retry download", async () => {
+  const source = await readSource("app", "admin", "khach-hang", "page.tsx");
+  assert.match(source, /role="status"/);
+  assert.match(source, /Tệp Excel đã sẵn sàng/);
+  assert.match(source, /download=\{exportFile.name\}/);
+  assert.match(source, /href=\{exportFile.url\}/);
+  assert.match(source, /URL.revokeObjectURL\(exportFile.url\)/);
+});
+
 test("the toast system renders a live region and auto-dismisses without alert()", async () => {
   const source = await readSource("components", "admin", "AdminToast.tsx");
 
@@ -216,6 +225,26 @@ test("shared admin states explain readiness without infrastructure jargon", asyn
   assert.doesNotMatch(primitives, /Dữ liệu được đọc trực tiếp từ API admin/);
   assert.match(shell, /Sửa nội dung, chăm sóc khách hàng và ghi nhận giao dịch/);
   assert.doesNotMatch(shell, /Dữ liệu hiển thị trực tiếp từ D1/);
+});
+
+test("admin service previews use the live storefront service route", async () => {
+  const source = await readSource("app", "admin", "dich-vu", "page.tsx");
+  assert.match(source, /href=\{`\/thue-gia-cong\/\$\{service\.slug\}\//);
+  assert.match(source, /href=\{`\/thue-gia-cong\/\$\{form\.slug\}\//);
+  assert.doesNotMatch(source, /href=\{`\/dich-vu\//);
+});
+
+test("admin form messages do not expose technical error codes", async () => {
+  for (const parts of [
+    ["app", "admin", "san-pham", "page.tsx"],
+    ["app", "admin", "dich-vu", "page.tsx"],
+    ["components", "admin", "AdminMediaPanel.tsx"],
+    ["components", "admin", "AdminProductImportPanel.tsx"],
+    ["components", "admin", "AdminShell.tsx"],
+  ]) {
+    const source = await readSource(...parts);
+    assert.doesNotMatch(source, /\$\{(?:error|reason)\.code\} · /);
+  }
 });
 
 test("request inbox is reachable from the Lean V1 admin control plane", async () => {

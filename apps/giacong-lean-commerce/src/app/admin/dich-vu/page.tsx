@@ -723,7 +723,7 @@ const serviceStatusLabels: Record<string, string> = {
                                 {service.slug && service.isActive ? (
                                   <a
                                     className="admin-external-link-btn"
-                                    href={`/dich-vu/${service.slug}/`}
+                                    href={`/thue-gia-cong/${service.slug}/`}
                                     onClick={(event) => event.stopPropagation()}
                                     rel="noreferrer"
                                     target="_blank"
@@ -942,7 +942,7 @@ function ServiceEditor({ error, form, isDirty = false, onCancel, onChange, onSub
             {form.slug && form.isActive ? (
               <a
                 className="admin-button admin-button-quiet"
-                href={`/dich-vu/${form.slug}/`}
+                href={`/thue-gia-cong/${form.slug}/`}
                 rel="noreferrer"
                 style={{ alignItems: "center", display: "inline-flex", gap: 6 }}
                 target="_blank"
@@ -954,7 +954,7 @@ function ServiceEditor({ error, form, isDirty = false, onCancel, onChange, onSub
           </div>
         </div>
 
-        {error ? <p className="admin-editor-error" role="alert">{error.code ? `${error.code} · ` : ""}{error.message}</p> : null}
+        {error ? <p className="admin-editor-error" role="alert">{error.message}</p> : null}
         {error?.fieldErrors && Object.keys(error.fieldErrors).length > 0 ? (
           <ul className="admin-editor-error-list" data-testid="service-form-field-errors">
             {Object.entries(error.fieldErrors).map(([field, message]) => (

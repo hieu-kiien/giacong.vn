@@ -78,6 +78,8 @@ function doPost(event) {
       now,
     ];
 
+    // Phone numbers are identifiers, not numeric values (retain leading zeroes).
+    sheet.getRange(sheet.getLastRow() + 1, 8).setNumberFormats([["@"]]);
     sheet.appendRow(row);
     refreshSummary();
     if (requestId) cache.put("request:" + requestId, reference, CACHE_SECONDS);
@@ -258,8 +260,9 @@ function writeConfirmedZaloSale(payload) {
       safeText(payload.customer.full_name), sheetText(payload.customer.company_name),
       sheetText(payload.customer.email), sheetText(payload.customer.phone), payload.snapshot_sha256,
     ]];
-    if (saleRow > 0) salesSheet.getRange(saleRow, 1, 1, ZALO_SALE_HEADERS.length).setValues(saleValues);
-    else salesSheet.getRange(salesSheet.getLastRow() + 1, 1, 1, ZALO_SALE_HEADERS.length).setValues(saleValues);
+    var targetSaleRow = saleRow > 0 ? saleRow : salesSheet.getLastRow() + 1;
+    salesSheet.getRange(targetSaleRow, 10).setNumberFormats([["@"]]);
+    salesSheet.getRange(targetSaleRow, 1, 1, ZALO_SALE_HEADERS.length).setValues(saleValues);
 
     SpreadsheetApp.flush();
     var committedRow = findUniqueValueRow(salesSheet, 1, payload.sale_id);
@@ -450,7 +453,7 @@ function validPayload(payload) {
     return payload.product === "" && payload.variant === "" && payload.qty === "" && typeof payload.service === "string" && payload.service !== "";
   }
   if (Array.isArray(payload.cart)) {
-    if (payload.request_type !== "Tư vấn số lượng lớn" || typeof payload.product !== "string" || payload.product === ""
+    if (!["Đặt sản phẩm", "Tư vấn số lượng lớn"].includes(payload.request_type) || typeof payload.product !== "string" || payload.product === ""
       || payload.service !== "" || payload.variant !== "" || payload.qty !== "" || payload.cart.length < 1 || payload.cart.length > 20
       || typeof payload.request_id !== "string" || !isUuid(payload.request_id)) return false;
     if (typeof payload.cart_subtotal !== "number" || typeof payload.cart_price_incomplete !== "boolean") return false;

@@ -243,7 +243,7 @@ export function AdminMediaPanel({ productId, serviceId, title }: AdminMediaPanel
         </div>
         <span className="admin-stamp">{loading ? "ĐANG TẢI" : `${media.length} ẢNH`}</span>
       </div>
-      {error ? <p className="admin-editor-error" role="alert">{error.code ? `${error.code} · ` : ""}{error.message}</p> : null}
+      {error ? <p className="admin-editor-error" role="alert">{error.message}</p> : null}
       <div className="admin-editor-grid">
         <label
           className={`admin-field admin-field-wide ${isDragging ? "admin-field-dragover" : ""}`}

@@ -28,6 +28,18 @@ Status: in progress; not yet approved for customer handover.
 - Excel button was clicked, but download event did not complete and no success/error message appeared. Export acceptance remains unresolved.
 - Independent review found admin-subdomain account-login links targeting an unsupported auth origin. Links now resolve to the matching storefront; regression test was RED then GREEN. Runtime verification remains pending deployment.
 
+### Additional real browser checks and fixes
+
+- Product #15: changed and restored short description, observed unsaved-change confirmation, saved/reloaded, published for cart acceptance, then restored to draft and confirmed saved.
+- Cart: quantity 2→4 and total 49,380 VND matched; missing phone/province showed field guidance; labeled staging request was stored and cart cleared. Confirmed staging sale `ZL-20261006-378930AF` appeared in customer and account histories with matching quantity/total.
+- First request exposed a webhook contract mismatch: Worker sends `Đặt sản phẩm`, Apps Script accepted only the legacy large-quantity cart type. Allowlist fix passed RED→GREEN; staging Apps Script version 3 was deployed. Second request `LEAD-AE6C0C8557` was observed as `Đã gửi xong`, with its row visible in Sheets.
+- Sheets observation exposed leading-zero phone coercion in request/sale rows. Text format is now applied before writing those phone cells; RED→GREEN tests passed. Staging Apps Script version 4 deployed at 13:02. Real retry proving preserved phone remains pending.
+- Account mobile layout at 390×844 was observed directly with branded header, menu and cards without overlap.
+- Service #16: empty-name save showed the field error, but exposed `VALIDATION_ERROR`; technical code prefixes were removed from product/service/media/import/access messages. Edit/save/reload was confirmed. Service preview links led to 404 because they used `/dich-vu/`; corrected to the live `/thue-gia-cong/` route. Browser verification awaits Worker deployment.
+- Excel now provides a live ready message and a persistent retry download link, with object URL cleanup. Independent review found no blocker. Actual file download still requires browser acceptance.
+
+GitNexus full change analysis must precede each commit. Apps Script `.gs` symbols are not indexed (impact is UNKNOWN); literal caller confirmation, VM contract regressions and independent review supplement the graph check, rather than treating zero graph edges as safe.
+
 Screenshots and detailed private runtime evidence are regeneratable artifacts in ignored `.runtime/`. No credentials or customer exports belong in Git.
 
 ## Remaining acceptance

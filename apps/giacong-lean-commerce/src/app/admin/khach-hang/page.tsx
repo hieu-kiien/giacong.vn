@@ -55,9 +55,11 @@ export default function AdminCustomersPage() {
   const [salesPage, setSalesPage] = useState(1);
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState("");
+  const [exportFile, setExportFile] = useState<{ url: string; name: string } | null>(null);
   const exportController = useRef<AbortController | null>(null);
 
   useEffect(() => () => exportController.current?.abort(), []);
+  useEffect(() => () => { if (exportFile) URL.revokeObjectURL(exportFile.url); }, [exportFile]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -127,6 +129,7 @@ export default function AdminCustomersPage() {
     exportController.current = controller;
     setExporting(true);
     setExportError("");
+    setExportFile(null);
     try {
       const response = await fetch(exportHref, { cache: "no-store", signal: controller.signal });
       if (!response.ok) {
@@ -136,11 +139,14 @@ export default function AdminCustomersPage() {
       const blob = await response.blob();
       if (controller.signal.aborted) return;
       const url = URL.createObjectURL(blob);
+      const name = `khach-hang-${new Date().toISOString().slice(0, 10)}.xlsx`;
+      setExportFile({ url, name });
       const link = document.createElement("a");
       link.href = url;
-      link.download = `khach-hang-${new Date().toISOString().slice(0, 10)}.xlsx`;
+      link.download = name;
+      document.body.appendChild(link);
       link.click();
-      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+      link.remove();
     } catch (reason) {
       if (!controller.signal.aborted) setExportError(reason instanceof Error ? reason.message : "Không thể xuất danh sách khách hàng.");
     } finally {
@@ -187,6 +193,11 @@ export default function AdminCustomersPage() {
         </button>
       </form>
       {exportError ? <p role="alert">{exportError}</p> : null}
+      {exportFile ? (
+        <p className="admin-panel-caption" role="status">
+          Tệp Excel đã sẵn sàng. Nếu chưa thấy tệp tải xuống, <a className="admin-inline-link" download={exportFile.name} href={exportFile.url}>tải lại tệp Excel</a>.
+        </p>
+      ) : null}
       <p className="admin-panel-caption">Tệp Excel gồm khách hàng và giao dịch đã chốt theo danh sách đang tìm kiếm.</p>
 
       {error ? (

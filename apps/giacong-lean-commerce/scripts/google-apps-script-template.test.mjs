@@ -230,6 +230,21 @@ const validProductPayload = {
   variant: "Vị vani",
 };
 
+test("request phone numbers retain leading zeroes as text in Sheets", async () => {
+  const { context, sheets } = await loadTemplate();
+  assert.equal(JSON.parse(submit(context, validProductPayload).value).ok, true);
+  const sheet = sheets.get("Yêu cầu");
+  assert.equal(sheet.formats.get("2:8"), "@");
+  assert.equal(sheet.getCell(2, 8), "0900000000");
+});
+
+test("confirmed sale phone column is formatted as text before writing", async () => {
+  const { context } = await loadTemplate();
+  const source = context.writeConfirmedZaloSale.toString();
+  assert.ok(source.indexOf("setNumberFormats") >= 0);
+  assert.ok(source.indexOf("setNumberFormats") < source.indexOf("setValues(saleValues)"));
+});
+
 test("customer contact upserts one safe row, rejects conflicts and ignores older revisions", async () => {
   const { context, sheets } = await loadTemplate();
   context.SpreadsheetApp.flush = () => {};
@@ -529,6 +544,13 @@ const validCartPayload = {
 function detailRow(sheet, row, columns = 9) {
   return Array.from({ length: columns }, (_, index) => sheet.getCell(row, index + 1));
 }
+
+test("accepts storefront cart product requests without quantity-based routing", async () => {
+  const { context, rows } = await loadTemplate();
+  const response = JSON.parse(submit(context, { ...validCartPayload, request_type: "Đặt sản phẩm" }).value);
+  assert.equal(response.ok, true);
+  assert.equal(rows[1][2], "Đặt sản phẩm");
+});
 
 test("writes cart detail rows before the Yêu cầu row that commits them", async () => {
   const { context, operations, rows, sheets } = await loadTemplate();

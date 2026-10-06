@@ -857,7 +857,7 @@ function AdminAccessScreen({ brandName, status, error, onRetry }: { brandName: s
                 Chi tiết kỹ thuật
               </summary>
               <div className="admin-access-detail__body">
-                {error.code ? `${error.code} · ` : ""}{error.message}
+                {error.message}
               </div>
             </details>
           ) : null}

@@ -1425,7 +1425,7 @@ function ProductEditor({
         </div>
       </div>
 
-      {error ? <p className="admin-editor-error" role="alert">{error.code ? `${error.code} · ` : ""}{error.message}</p> : null}
+      {error ? <p className="admin-editor-error" role="alert">{error.message}</p> : null}
       {error?.fieldErrors && Object.keys(error.fieldErrors).length > 0 ? (
         <ul className="admin-editor-error-list" data-testid="product-form-field-errors">
           {Object.entries(error.fieldErrors).map(([field, message]) => (
