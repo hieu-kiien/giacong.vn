@@ -8,11 +8,20 @@ async function readSource(...segments) {
 
 test("daily admin screens keep infrastructure and internal identifiers out of the default view", async () => {
   const media = await readSource("app", "admin", "media", "page.tsx");
+  const services = await readSource("app", "admin", "dich-vu", "page.tsx");
+  const gallery = await readSource("components", "admin", "AdminProductGalleryManager.tsx");
   const audit = await readSource("app", "admin", "audit", "page.tsx");
   const navigation = await readSource("components", "admin", "AdminNavigationManager.tsx");
   const members = await readSource("components", "admin", "AdminMembersManager.tsx");
   assert.match(media, /title="Thư viện ảnh"/);
   assert.doesNotMatch(media, /Bộ nhớ đệm Edge CDN|Cache-Control: immutable|Đang hoạt động trong D1 & R2/);
+  assert.match(media, /<details[\s\S]*?<summary[^>]*>Thông tin kỹ thuật<\/summary>/);
+  assert.match(media, /Mở ảnh ở tab mới/);
+  assert.match(media, /Sao chép liên kết/);
+  assert.doesNotMatch(services, /Sắp xếp theo ID tăng dần/);
+  assert.match(services, /Theo thứ tự sẵn có/);
+  assert.match(gallery, /Ảnh bổ sung/);
+  assert.doesNotMatch(gallery, /Thư viện ảnh sản phẩm \(Gallery\)|góc chụp kỹ thuật|chi tiết cơ khí|ảnh kỹ thuật hoặc bản vẽ/);
   assert.match(audit, /<details><summary>Chi tiết<\/summary>/);
   assert.doesNotMatch(audit, /<strong>\{entry.actorSubject\}<\/strong>/);
   assert.doesNotMatch(navigation, /Mã menu cũ:/);

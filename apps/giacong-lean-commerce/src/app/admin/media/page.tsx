@@ -765,26 +765,32 @@ export default function AdminMediaPage() {
                   <strong>{previewAsset.originalFilename}</strong>
                 </div>
                 <div>
-                  <span className="admin-label">Đường dẫn lưu ảnh</span>
-                  <span className="admin-mono" style={{ fontSize: 12 }}>{previewAsset.storageKey}</span>
-                </div>
-                <div>
                   <span className="admin-label">Dung lượng</span>
                   <span>{formatBytes(previewAsset.byteSize)}</span>
-                </div>
-                <div>
-                  <span className="admin-label">Định dạng MIME</span>
-                  <span>{previewAsset.contentType}</span>
                 </div>
                 <div>
                   <span className="admin-label">Mô tả ảnh</span>
                   <span>{previewAsset.altText || "Chưa có"}</span>
                 </div>
-                <div>
-                  <span className="admin-label">Mã băm SHA-256</span>
-                  <span className="admin-mono" style={{ fontSize: 11 }}>{previewAsset.checksumSha256.slice(0, 16)}...</span>
-                </div>
               </div>
+
+              <details style={{ marginTop: 14 }}>
+                <summary style={{ cursor: "pointer", fontSize: 13 }}>Thông tin kỹ thuật</summary>
+                <div style={{ display: "grid", gap: 12, gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", marginTop: 12 }}>
+                  <div>
+                    <span className="admin-label">Đường dẫn lưu ảnh</span>
+                    <span className="admin-mono" style={{ fontSize: 12 }}>{previewAsset.storageKey}</span>
+                  </div>
+                  <div>
+                    <span className="admin-label">Định dạng ảnh</span>
+                    <span>{previewAsset.contentType}</span>
+                  </div>
+                  <div>
+                    <span className="admin-label">Mã kiểm tra tệp</span>
+                    <span className="admin-mono" style={{ fontSize: 11 }}>{previewAsset.checksumSha256.slice(0, 16)}...</span>
+                  </div>
+                </div>
+              </details>
 
               <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 16 }}>
                 <a
@@ -793,14 +799,14 @@ export default function AdminMediaPage() {
                   rel="noreferrer"
                   target="_blank"
                 >
-                  <ExternalLink size={14} /> Mở tab mới
+                  <ExternalLink size={14} /> Mở ảnh ở tab mới
                 </a>
                 <button
                   className="admin-button admin-button-primary"
                   onClick={() => handleCopyUrl(previewAsset)}
                   type="button"
                 >
-                  <Copy size={14} /> Copy đường dẫn
+                  <Copy size={14} /> Sao chép liên kết
                 </button>
               </div>
             </div>

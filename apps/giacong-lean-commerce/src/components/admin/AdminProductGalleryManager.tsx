@@ -205,10 +205,10 @@ export function AdminProductGalleryManager({
     <section className="admin-editor" aria-labelledby="gallery-manager-heading" style={{ marginTop: 18 }}>
       <div className="admin-editor-heading">
         <div>
-          <div className="admin-kicker">Đa phương tiện</div>
-          <h3 className="admin-panel-title" id="gallery-manager-heading">Thư viện ảnh sản phẩm (Gallery)</h3>
+          <div className="admin-kicker">HÌNH ẢNH</div>
+          <h3 className="admin-panel-title" id="gallery-manager-heading">Ảnh bổ sung</h3>
           <p className="admin-panel-caption" aria-live="polite">
-            Quản lý nhiều góc chụp kỹ thuật, chi tiết cơ khí và bản vẽ. Kéo thả hoặc di chuyển để đổi thứ tự. {images.length}/{MAX_PRODUCT_GALLERY_IMAGES} ảnh.
+            Thêm ảnh để khách xem sản phẩm ở nhiều góc. Có thể đổi thứ tự. {images.length}/{MAX_PRODUCT_GALLERY_IMAGES} ảnh.
           </p>
         </div>
         {images.length > 0 || isDirty() ? (
@@ -247,14 +247,14 @@ export function AdminProductGalleryManager({
           <input
             type="url"
             className="admin-input"
-            placeholder="Nhập URL ảnh kỹ thuật hoặc bản vẽ..."
+            placeholder="Dán liên kết ảnh..."
             value={newImageUrl}
             onChange={(e) => setNewImageUrl(e.target.value)}
             disabled={loading || loadError || saving || uploading}
             style={{ flex: 1 }}
           />
           <button type="submit" className="admin-button admin-button-quiet" disabled={loading || loadError || saving || uploading || images.length >= MAX_PRODUCT_GALLERY_IMAGES || !newImageUrl.trim()}>
-            <Plus size={14} /> Thêm qua URL
+            <Plus size={14} /> Thêm ảnh
           </button>
         </form>
         <label

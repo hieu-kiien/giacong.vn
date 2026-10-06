@@ -645,7 +645,7 @@ const serviceStatusLabels: Record<string, string> = {
       </form>
       {error ? <AdminErrorState error={error} onRetry={() => setAttempt((value) => value + 1)} /> : loading ? <AdminLoadingTable /> : (
         <section className="admin-panel admin-table-panel" aria-labelledby="service-table-heading">
-          <div className="admin-panel-heading" style={{ padding: "21px 21px 12px" }}><div><h2 className="admin-panel-title" id="service-table-heading">Dịch vụ</h2><p className="admin-panel-caption">{query ? `Kết quả cho “${query}”${selectedStatusLabel ? ` · ${selectedStatusLabel}` : ""}` : selectedStatusLabel ? `Đang lọc: ${selectedStatusLabel}` : "Sắp xếp theo ID tăng dần"}</p></div><span aria-live="polite" className="admin-count">{total} kết quả</span></div>
+          <div className="admin-panel-heading" style={{ padding: "21px 21px 12px" }}><div><h2 className="admin-panel-title" id="service-table-heading">Dịch vụ</h2><p className="admin-panel-caption">{query ? `Kết quả cho “${query}”${selectedStatusLabel ? ` · ${selectedStatusLabel}` : ""}` : selectedStatusLabel ? `Đang lọc: ${selectedStatusLabel}` : "Theo thứ tự sẵn có"}</p></div><span aria-live="polite" className="admin-count">{total} kết quả</span></div>
           <div style={{ padding: "0 21px" }}>
             <div className="admin-filter-tabs" role="group" aria-label="Lọc dịch vụ theo trạng thái">
               <button
