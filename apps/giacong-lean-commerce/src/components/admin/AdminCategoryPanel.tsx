@@ -261,7 +261,7 @@ export function AdminCategoryPanel({ onChanged }: { onChanged: () => void }) {
 
       {!loading && !loadError ? (
         <div className="admin-table-scroll">
-          <table className="admin-table" data-testid="table-admin-categories">
+          <table className="admin-table admin-category-table" data-testid="table-admin-categories">
             <thead>
               <tr>
                 {canManage ? <th scope="col"><input aria-label="Chọn tất cả danh mục trong trang" checked={allVisibleSelected} disabled={batchArchiving} onChange={toggleAllVisible} type="checkbox" /></th> : null}
@@ -321,7 +321,7 @@ export function AdminCategoryPanel({ onChanged }: { onChanged: () => void }) {
                           onClick={() => setPendingArchive(category)}
                           type="button"
                         >
-                          <EyeOff size={13} /> Ẩn danh mục
+                          <EyeOff size={13} /> Ẩn
                         </button> : null}
                       </div>
                     </td>

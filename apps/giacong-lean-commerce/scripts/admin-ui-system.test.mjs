@@ -279,6 +279,8 @@ test("category admin keeps internal route keys out of the default list and uses 
   assert.doesNotMatch(source, /storefront|label="Slug"|Sửa danh mục #/i);
   assert.match(source, /label="Đường dẫn trang"/);
   assert.match(source, /Hiển thị trên trang web/);
+  assert.match(source, /className="admin-table admin-category-table"/);
+  assert.match(source, /<EyeOff size=\{13\} \/> Ẩn/);
 });
 
 test("admin form messages do not expose technical error codes", async () => {
