@@ -227,6 +227,12 @@ test("shared admin states explain readiness without infrastructure jargon", asyn
   assert.doesNotMatch(shell, /Dữ liệu hiển thị trực tiếp từ D1/);
 });
 
+test("news detail shares the direct-page header surface", async () => {
+  const source = await readSource("app", "(storefront)", "tin-tuc", "[slug]", "page.tsx");
+  assert.match(source, /CapturedStorefrontTabFrame\.module\.css/);
+  assert.match(source, /styles\.detailMain/);
+});
+
 test("admin service previews use the live storefront service route", async () => {
   const source = await readSource("app", "admin", "dich-vu", "page.tsx");
   assert.match(source, /href=\{`\/thue-gia-cong\/\$\{service\.slug\}\//);

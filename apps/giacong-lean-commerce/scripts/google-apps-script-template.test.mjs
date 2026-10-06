@@ -28,6 +28,7 @@ async function loadTemplate(uuids = ["abcd1234-0000-0000-0000-000000000000"]) {
 
     setValues(values) {
       operations.push({ method: "setValues", rows: values.length, sheet: this.sheet.getName() });
+      if (this.sheet.getName() === "Yêu cầu" && this.row > 1) rows.push(...values);
       values.forEach((valueRow, rowOffset) => valueRow.forEach((value, columnOffset) => {
         this.sheet.setCell(this.row + rowOffset, this.column + columnOffset, value);
       }));
@@ -236,6 +237,7 @@ test("request phone numbers retain leading zeroes as text in Sheets", async () =
   const sheet = sheets.get("Yêu cầu");
   assert.equal(sheet.formats.get("2:8"), "@");
   assert.equal(sheet.getCell(2, 8), "0900000000");
+  assert.ok(context.doPost.toString().includes("setValues([row])"), "write to the preformatted range rather than appendRow coercion");
 });
 
 test("confirmed sale phone column is formatted as text before writing", async () => {
@@ -559,7 +561,7 @@ test("writes cart detail rows before the Yêu cầu row that commits them", asyn
 
   assert.deepEqual(response, { ok: true, reference: "YC-20260725-100000-ABCD1234" });
   const detailWrite = operations.findIndex((entry) => entry.sheet === "Chi tiết giỏ hàng" && entry.rows === 2);
-  const requestWrite = operations.findIndex((entry) => entry.sheet === "Yêu cầu" && entry.method === "appendRow" && entry.rows === 1);
+  const requestWrite = operations.findIndex((entry) => entry.sheet === "Yêu cầu" && entry.method === "setValues" && entry.rows === 1);
   assert.notEqual(detailWrite, -1);
   assert.ok(detailWrite < requestWrite, "detail rows must be written before the request row");
   assert.equal(operations.filter((entry) => entry.sheet === "Chi tiết giỏ hàng" && entry.method === "setValues").length, 1);

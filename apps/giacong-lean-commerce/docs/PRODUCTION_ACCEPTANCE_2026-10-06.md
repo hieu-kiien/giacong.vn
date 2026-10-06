@@ -40,6 +40,11 @@ Status: in progress; not yet approved for customer handover.
 
 GitNexus full change analysis must precede each commit. Apps Script `.gs` symbols are not indexed (impact is UNKNOWN); literal caller confirmation, VM contract regressions and independent review supplement the graph check, rather than treating zero graph edges as safe.
 
+- News: created a labeled staging draft, published it, observed the listing and article content, then returned it to draft. Article screenshot exposed white navigation on a light background; it now reuses the direct-page header surface already used by product/service pages. Runtime visual verification awaits deployment.
+- Brand settings: group filtering and save-draft were operated; the staging tagline draft was restored to the original value. Publication completion remains to be checked.
+- Contact form: missing fields showed a Vietnamese error, valid labeled request was accepted. After version 4, a real Sheet row still displayed phone as `0`; formatting before `appendRow` was insufficient. Request writing now uses `setValues` on the preformatted exact row, protected by the existing script lock. RED→GREEN regressions and independent review passed; staging version 5 deployed at 13:17. New real request `PHONE RANGE` is awaiting delivery verification.
+- Commit `e1ca7c69` passed GitHub quality, graph and D1 gates. Its staging version `8c47204f-5c47-4eb9-b7e1-8bbd5724876f` was uploaded without changing traffic; preview runtime gate is in progress.
+
 Screenshots and detailed private runtime evidence are regeneratable artifacts in ignored `.runtime/`. No credentials or customer exports belong in Git.
 
 ## Remaining acceptance

@@ -79,8 +79,9 @@ function doPost(event) {
     ];
 
     // Phone numbers are identifiers, not numeric values (retain leading zeroes).
-    sheet.getRange(sheet.getLastRow() + 1, 8).setNumberFormats([["@"]]);
-    sheet.appendRow(row);
+    var requestRow = sheet.getLastRow() + 1;
+    sheet.getRange(requestRow, 8).setNumberFormats([["@"]]);
+    sheet.getRange(requestRow, 1, 1, REQUEST_HEADERS.length).setValues([row]);
     refreshSummary();
     if (requestId) cache.put("request:" + requestId, reference, CACHE_SECONDS);
     return output({ ok: true, reference: reference });

@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
 import { CapturedStorefrontShell } from "@/components/site/CapturedStorefrontShell";
+import styles from "@/components/site/CapturedStorefrontTabFrame.module.css";
 import { AdminNewsContextualAction } from "@/components/admin/AdminNewsContextualAction";
 import { getPublishedNewsPost, getPublishedNewsRedirect } from "@/lib/news-public";
 import { canonicalMetadata } from "@/lib/seo";
@@ -51,7 +52,7 @@ export default async function NewsDetailPage({ params }: NewsDetailPageProps) {
 
   return (
     <CapturedStorefrontShell>
-      <main className="giacong-news-detail" id="main">
+      <main className={`${styles.detailMain} giacong-news-detail`} id="main">
         <article>
         <AdminNewsContextualAction newsId={post.id} />
         <p style={{ color: "#84918a", fontSize: 13, margin: "0 0 6px" }}>
