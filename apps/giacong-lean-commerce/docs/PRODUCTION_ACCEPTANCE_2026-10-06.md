@@ -79,3 +79,18 @@ Screenshots and detailed private runtime evidence are regeneratable artifacts in
 **Handover verdict: not ready for final customer acceptance yet.** Remaining credential flows, workbook contents, role/session checks and remaining feature coverage must be completed before promotion and final production smoke acceptance.
 
 Registration/verification/recovery, customer-role denial, profile/request delivery and Sheet copy, confirmed sale/history/Excel, product/service/content edits and validation, unsaved-change protection, responsive layouts, logout/session behavior, and production post-deployment smoke checks must have observed evidence before final handover.
+
+## Follow-up acceptance pass — 2026-10-06
+
+- Commit `3176a5bf` narrows the category-management table so the image, category, order, visibility and action columns fit without horizontal scrolling in the desktop modal. Action labels are shorter (`Sửa`, `Ẩn`) while retaining full accessible names.
+- Local admin suite passed 514/514. The GitHub quality gate, GitNexus gate and staging D1 readiness gate passed for this commit. Full `npm run check` compiled the app and generated all 40 routes; the GitHub quality gate is the authoritative completed CI result.
+- Deployed staging Worker version `fcd61032-444c-42af-954b-1060829b6b40`; Wrangler reports 100% staging traffic. No D1 migration or production change was made.
+- A fresh Chrome tab on staging visibly confirms the category list no longer exposes slug keys/technical labels, all category controls fit inside the modal, and there is no horizontal scrollbar. Existing tabs may continue to show a previous client bundle; use a newly opened tab after deployment.
+- Deep staging QA run `37470097093` passed catalog/product/cart/contact guards, R2 media checks, and responsive browser/error checks.
+
+**Current handover verdict: not ready for final customer acceptance or production promotion.** The implementation and staging UI are improved, but these observed acceptance steps remain open:
+
+- The user must enter and submit the staging test account password; the live registration form is deliberately left for that handoff. Then verify registration, sign-in, verification/recovery messages and customer-only denial of Admin access in the browser.
+- Product image upload remains unverified because the browser safety layer blocked opening the Chrome extension settings page, despite prior approval. No browser permission changed.
+- The customer Excel download was confirmed, but the workbook structure/contents have not been inspected. Validate the exported columns and row shape without exposing personal data in the report.
+- Production OAuth/email delivery, production smoke tests and the production acceptance gate remain separate; production has not been deployed or changed.
