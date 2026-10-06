@@ -156,7 +156,7 @@ export function AdminCategoryPanel({ onChanged }: { onChanged: () => void }) {
         },
         method: "PATCH",
       });
-      showToast("success", `Đã ẩn danh mục “${pendingArchive.name}” khỏi storefront.`);
+      showToast("success", `Đã ẩn danh mục “${pendingArchive.name}” khỏi trang web.`);
       setPendingArchive(null);
       setSelectedIds((current) => {
         const next = new Set(current);
@@ -286,7 +286,7 @@ export function AdminCategoryPanel({ onChanged }: { onChanged: () => void }) {
                   </td>
                   <td>
                     <div className="admin-item-name">{category.name}</div>
-                    <div className="admin-item-meta">{category.slug}{category.description ? ` · ${category.description}` : ""}</div>
+                    {category.description ? <div className="admin-item-meta">{category.description}</div> : null}
                   </td>
                   <td className="admin-mono">{category.sortOrder}</td>
                   <td>{category.isActive ? "Có" : "Ẩn"}</td>
@@ -338,7 +338,7 @@ export function AdminCategoryPanel({ onChanged }: { onChanged: () => void }) {
 
       {editor ? (
         <form onSubmit={submitCategory} style={{ marginTop: 16 }}>
-          <h3 className="admin-panel-title" style={{ marginBottom: 12 }}>{editor.id ? `Sửa danh mục #${editor.id}` : "Danh mục mới"}</h3>
+          <h3 className="admin-panel-title" style={{ marginBottom: 12 }}>{editor.id ? "Sửa danh mục" : "Danh mục mới"}</h3>
           {formError ? <p className="admin-editor-error" role="alert">{formError}</p> : null}
           <AdminField error={fieldErrors.name} id="category-name" label="Tên danh mục">
             <input
@@ -349,7 +349,7 @@ export function AdminCategoryPanel({ onChanged }: { onChanged: () => void }) {
               value={editor.name}
             />
           </AdminField>
-          <AdminField error={fieldErrors.slug} hint="Chữ thường, số và gạch ngang. Dùng trong URL storefront." id="category-slug" label="Slug">
+          <AdminField error={fieldErrors.slug} hint="Đường dẫn trang danh mục trên website; thường được tạo từ tên danh mục." id="category-slug" label="Đường dẫn trang">
             <input
               className="admin-input admin-mono"
               data-testid="input-category-slug"
@@ -403,7 +403,7 @@ export function AdminCategoryPanel({ onChanged }: { onChanged: () => void }) {
               onChange={(event) => setEditor({ ...editor, isActive: event.target.checked })}
               type="checkbox"
             />
-            <span><strong>Hiển thị trên storefront</strong><small>Danh mục ẩn vẫn quản lý được sản phẩm nhưng không xuất hiện công khai.</small></span>
+            <span><strong>Hiển thị trên trang web</strong><small>Danh mục ẩn vẫn quản lý được sản phẩm nhưng không xuất hiện công khai.</small></span>
           </label>
           <div className="admin-modal-footer">
             <button className="admin-button admin-button-quiet" onClick={() => setEditor(null)} type="button">Hủy</button>
@@ -417,7 +417,7 @@ export function AdminCategoryPanel({ onChanged }: { onChanged: () => void }) {
       {pendingArchive ? (
         <AdminConfirmDialog
           confirmLabel="Ẩn danh mục"
-          message={`Ẩn danh mục “${pendingArchive.name}” khỏi storefront? Sản phẩm và dữ liệu lịch sử vẫn được giữ nguyên; bạn có thể bật lại trong form chỉnh sửa.`}
+          message={`Ẩn danh mục “${pendingArchive.name}” khỏi trang web? Sản phẩm và dữ liệu lịch sử vẫn được giữ nguyên; bạn có thể bật lại trong phần chỉnh sửa.`}
           onConfirm={() => void confirmArchive()}
           onDismiss={() => setPendingArchive(null)}
           title="Ẩn danh mục?"
@@ -426,7 +426,7 @@ export function AdminCategoryPanel({ onChanged }: { onChanged: () => void }) {
       {confirmBatchArchive && pendingBatch ? (
         <AdminConfirmDialog
           confirmLabel="Ẩn danh mục đã chọn"
-          message={`Ẩn ${pendingBatch.items.length} danh mục đã chọn khỏi storefront? Dữ liệu sản phẩm và lịch sử vẫn được giữ nguyên.`}
+          message={`Ẩn ${pendingBatch.items.length} danh mục đã chọn khỏi trang web? Dữ liệu sản phẩm và lịch sử vẫn được giữ nguyên.`}
           onConfirm={() => void archiveSelectedCategories()}
           onDismiss={() => { setConfirmBatchArchive(false); setPendingBatch(null); }}
           title="Ẩn danh mục đã chọn?"

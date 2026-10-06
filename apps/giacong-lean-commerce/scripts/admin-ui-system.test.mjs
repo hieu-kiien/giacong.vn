@@ -273,6 +273,14 @@ test("admin service previews use the live storefront service route", async () =>
   assert.doesNotMatch(source, /href=\{`\/dich-vu\//);
 });
 
+test("category admin keeps internal route keys out of the default list and uses Vietnamese labels", async () => {
+  const source = await readSource("components", "admin", "AdminCategoryPanel.tsx");
+  assert.doesNotMatch(source, /admin-item-meta">\{category\.slug\}/);
+  assert.doesNotMatch(source, /storefront|label="Slug"|Sửa danh mục #/i);
+  assert.match(source, /label="Đường dẫn trang"/);
+  assert.match(source, /Hiển thị trên trang web/);
+});
+
 test("admin form messages do not expose technical error codes", async () => {
   for (const parts of [
     ["app", "admin", "san-pham", "page.tsx"],
