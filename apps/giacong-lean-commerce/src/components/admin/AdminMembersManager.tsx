@@ -198,7 +198,7 @@ export function AdminMembersManager() {
       <AdminPageHeading
         kicker="Tài khoản quản trị"
         title="Tài khoản quản trị"
-        subtitle="Thêm quản trị viên bằng email. Cloudflare Access xác minh danh tính trước khi website cấp quyền quản trị."
+        subtitle="Thêm quản trị viên bằng email. Người được cấp quyền dùng màn hình đăng nhập chung của website."
         stamp="ADMIN TOÀN QUYỀN"
       />
       <div className="admin-content-toolbar">
@@ -214,12 +214,12 @@ export function AdminMembersManager() {
       </div>
       {showCreate && canEdit ? (
         <section className="admin-panel admin-member-create" aria-labelledby="member-create-title">
-          <div className="admin-panel-heading"><div><h2 className="admin-panel-title" id="member-create-title">Thêm tài khoản quản trị</h2><p className="admin-panel-caption">Chỉ cần email và tên hiển thị. Hệ thống sẽ tự liên kết danh tính Cloudflare khi người này đăng nhập lần đầu.</p></div></div>
+          <div className="admin-panel-heading"><div><h2 className="admin-panel-title" id="member-create-title">Thêm tài khoản quản trị</h2><p className="admin-panel-caption">Chỉ cần email và tên hiển thị. Người này đăng nhập bằng đúng email đã được cấp quyền.</p></div></div>
           <div className="admin-editor-grid">
             <AdminField error={createFieldErrors.displayName} id="member-new-name" label="Tên hiển thị">
               <input aria-describedby={createFieldErrors.displayName ? "member-new-name-error" : undefined} aria-invalid={Boolean(createFieldErrors.displayName)} className="admin-input" id="member-new-name" onChange={(event) => updateNewMember({ displayName: event.target.value })} required value={newMember.displayName} />
             </AdminField>
-            <AdminField error={createFieldErrors.email} id="member-new-email" hint="Dùng đúng email mà người này sẽ xác minh qua Cloudflare Access." label="Email đăng nhập">
+            <AdminField error={createFieldErrors.email} id="member-new-email" hint="Dùng đúng email tài khoản đăng nhập website của người này." label="Email đăng nhập">
               <input aria-describedby={createFieldErrors.email ? "member-new-email-hint member-new-email-error" : "member-new-email-hint"} aria-invalid={Boolean(createFieldErrors.email)} className="admin-input" id="member-new-email" onChange={(event) => updateNewMember({ email: event.target.value })} required type="email" value={newMember.email} />
             </AdminField>
           </div>
@@ -291,13 +291,13 @@ function MemberEditor({ canEdit, currentMemberId, currentSubject, fieldErrors, m
   const prefix = `member-${member.id}`;
   return (
     <article className={`admin-member-card${dirty ? " is-dirty" : ""}`}>
-      <div className="admin-member-card-heading"><div><strong>{member.displayName}</strong><span>{member.email ?? "Chưa có email"}{isCurrent ? " · tài khoản hiện tại" : ""}</span></div><div className="admin-table-actions"><AdminStatusBadge kind={member.isActive ? "green" : "neutral"} value={member.isActive ? "Active" : "Inactive"} /><AdminStatusBadge kind={member.role === "owner" ? "blue" : "neutral"} value={roleLabel(member.role)} /></div></div>
+      <div className="admin-member-card-heading"><div><strong>{member.displayName}</strong><span>{member.email ?? "Chưa có email"}{isCurrent ? " · tài khoản hiện tại" : ""}</span></div><div className="admin-table-actions"><AdminStatusBadge kind={member.isActive ? "green" : "neutral"} value={member.isActive ? "Đang hoạt động" : "Đã khóa"} /><AdminStatusBadge kind={member.role === "owner" ? "blue" : "neutral"} value={roleLabel(member.role)} /></div></div>
       <div className="admin-editor-grid">
         <AdminField error={fieldErrors.displayName} id={`${prefix}-name`} label="Tên hiển thị"><input aria-describedby={fieldErrors.displayName ? `${prefix}-name-error` : undefined} aria-invalid={Boolean(fieldErrors.displayName)} className="admin-input" disabled={!canEdit} id={`${prefix}-name`} onChange={(event) => onChange(member.id, { draftDisplayName: event.target.value })} value={member.draftDisplayName} /></AdminField>
         <AdminField error={fieldErrors.email} id={`${prefix}-email`} label="Email đăng nhập"><input aria-describedby={fieldErrors.email ? `${prefix}-email-error` : undefined} aria-invalid={Boolean(fieldErrors.email)} className="admin-input" disabled={!canEdit} id={`${prefix}-email`} onChange={(event) => onChange(member.id, { draftEmail: event.target.value })} required type="email" value={member.draftEmail} /></AdminField>
       </div>
       <div className="admin-member-card-footer">
-        <label className={`admin-check${canEdit ? "" : " is-disabled"}`}><input checked={member.draftIsActive} disabled={!canEdit || isCurrent} onChange={(event) => onChange(member.id, { draftIsActive: event.target.checked })} type="checkbox" /><span><strong>Cho phép truy cập</strong><small>{isCurrent ? "Tài khoản hiện tại không thể tự hạ quyền hoặc vô hiệu hóa." : `Revision ${member.revision}`}</small></span></label>
+        <label className={`admin-check${canEdit ? "" : " is-disabled"}`}><input checked={member.draftIsActive} disabled={!canEdit || isCurrent} onChange={(event) => onChange(member.id, { draftIsActive: event.target.checked })} type="checkbox" /><span><strong>Cho phép truy cập</strong><small>{isCurrent ? "Tài khoản hiện tại không thể tự hạ quyền hoặc vô hiệu hóa." : "Có thể khóa tài khoản và vẫn giữ lịch sử thao tác."}</small></span></label>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
           {!isCurrent && canEdit ? (
             <button

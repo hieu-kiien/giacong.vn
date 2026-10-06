@@ -139,21 +139,21 @@ export default function AdminAuditPage() {
       {error ? <AdminErrorState error={error} onRetry={() => setAttempt((value) => value + 1)} /> : loading ? <AdminLoadingTable /> : data?.entries.length === 0 ? <AdminEmptyState title="Chưa có lịch sử phù hợp" description="Không có sự kiện nào khớp bộ lọc hiện tại." /> : data ? (
         <section className="admin-panel admin-table-panel" aria-labelledby="audit-table-heading">
           <div className="admin-panel-heading" style={{ padding: "21px 21px 0" }}>
-            <div><h2 className="admin-panel-title" id="audit-table-heading">Dòng thời gian vận hành</h2><p className="admin-panel-caption">Dữ liệu tổng hợp từ các bảng lịch sử hiện có · không hiện nội dung chi tiết.</p></div>
+            <div><h2 className="admin-panel-title" id="audit-table-heading">Các thay đổi gần đây</h2><p className="admin-panel-caption">Xem thao tác và thời gian thực hiện. Mở Chi tiết khi cần tra cứu mã lưu.</p></div>
             <History aria-hidden="true" color="#6e8c42" size={20} />
           </div>
           <div className="admin-table-scroll">
             <table className="admin-table">
-              <thead><tr><th scope="col">Thời gian</th><th scope="col">Người thực hiện</th><th scope="col">Thao tác</th><th scope="col">Đối tượng</th><th scope="col">Bản lưu</th><th scope="col">Mã yêu cầu</th></tr></thead>
+              <thead><tr><th scope="col">Thời gian</th><th scope="col">Người thực hiện</th><th scope="col">Thao tác</th><th scope="col">Đối tượng</th><th scope="col">Bản lưu</th><th scope="col">Chi tiết</th></tr></thead>
               <tbody>
                 {data.entries.map((entry, index) => (
                   <tr key={entry.source + entry.createdAt + entry.requestId + String(index)}>
                     <td className="admin-mono">{formatAuditDate(entry.createdAt)}</td>
-                    <td><strong>{entry.actorSubject}</strong><div className="admin-item-meta">{entry.source}</div></td>
+                    <td><strong>{entry.actorSubject === session.subject ? "Bạn" : entry.actorSubject.includes("@") ? entry.actorSubject : "Quản trị viên"}</strong></td>
                     <td><AdminStatusBadge kind={entry.action === "delete" ? "red" : entry.action === "create" ? "green" : "blue"} value={operationLabels[entry.operation ?? ""] ?? actionLabels[entry.action] ?? entry.action} /></td>
-                    <td><strong>{entityLabels[entry.entityType] ?? entry.entityType}</strong><div className="admin-item-meta">{entry.entityKey}</div></td>
+                    <td><strong>{entityLabels[entry.entityType] ?? "Nội dung website"}</strong></td>
                     <td className="admin-mono">{entry.previousRevision === null && entry.resultingRevision === null ? "—" : String(entry.previousRevision ?? "—") + " → " + String(entry.resultingRevision ?? "—")}</td>
-                    <td className="admin-mono">{entry.requestId ?? "—"}</td>
+                    <td><details><summary>Chi tiết</summary><dl className="admin-item-meta"><dt>Danh tính</dt><dd>{entry.actorSubject}</dd><dt>Nguồn lưu</dt><dd>{entry.source}</dd><dt>Mã đối tượng</dt><dd>{entry.entityKey}</dd><dt>Mã yêu cầu</dt><dd>{entry.requestId ?? "—"}</dd></dl></details></td>
                   </tr>
                 ))}
               </tbody>

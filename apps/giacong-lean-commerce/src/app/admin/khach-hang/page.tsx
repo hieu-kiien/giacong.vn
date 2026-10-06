@@ -112,11 +112,19 @@ export default function AdminCustomersPage() {
 
   function submitSearch(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    exportController.current?.abort();
+    setExporting(false);
+    setExportFile(null);
+    setExportError("");
     setPage(1);
     setQuery(inputQuery.trim());
   }
 
   function clearSearch() {
+    exportController.current?.abort();
+    setExporting(false);
+    setExportFile(null);
+    setExportError("");
     setInputQuery("");
     setQuery("");
     setPage(1);

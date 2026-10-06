@@ -49,4 +49,22 @@ Screenshots and detailed private runtime evidence are regeneratable artifacts in
 
 ## Remaining acceptance
 
+### Browser continuation, 6 October
+
+- Commit `6310ea26`: preview runtime gate run `37424896457` passed. Staging now serves version `166ad2b9-472b-4e79-8d1c-c6f32a14bb4b` at 100%; production traffic has not changed.
+- Real Sheets observation confirmed the new `PHONE RANGE` request retains `0000000000` after staging Apps Script version 5. Confirmed sale `ZL-20261006-EFED64E4` was saved in admin for 24,690 VND; Sheets cells B3/J3 visibly contain its matching code and `0000000000`.
+- News detail was visually retested after deployment: green navigation, logo and article no longer overlap. The labeled test article was returned to draft; admin shows 0 published / 3 draft posts.
+- Service empty-name submission now visibly shows `Dữ liệu dịch vụ chưa hợp lệ.` and `Tên dịch vụ là bắt buộc.` without a technical error code. Input was restored to its saved original value.
+- Customer detail shows name, email, phone, request history and confirmed-sale total without a username. No-result search displays Vietnamese guidance.
+- Excel ready message and retry link were observed. Tool download capture timed out, but the user confirmed Chrome downloaded the file. Download is accepted with user evidence; workbook contents still require inspection.
+- Brand tagline draft was restored to the published original; UI returned to `Đã đăng`, with publication disabled because there is no draft difference.
+- Registration form is prepared with a labeled staging account. User agreed to enter and submit the new password themselves; completion is still pending. Browser policy requires user handoff for new credentials.
+- Media: changed alt text on the existing staging fixture, saved, reloaded and observed persistence; restored original `Ảnh QA product staging 20260824`, saved and observed restoration. Success message was Vietnamese.
+- Audit: real media updates and news publication/unpublication appeared with timestamps and revisions. The view still exposes internal actor IDs, table names and request UUIDs; simplify default presentation before customer handover.
+- Menu: saved a labeled Home draft; public Home remained unchanged. Saved original Home value again; UI confirmed `Đã lưu bản nháp “Home”.`, `Đã đăng` and disabled publication because the draft equals the published value.
+- Further UI polish found by direct observation: media overview exposes R2/D1/CDN/cache terminology; menu shows legacy IDs; Excel ready/retry notice survives search changes and may refer to a previous filter. Source changes simplify media/member/menu labels, collapse audit identifiers into details, and abort/reset export on search changes. RED→GREEN regressions and full `npm run check` passed; independent review found no blocker. Runtime acceptance of these changes awaits staging deployment.
+- Image upload is pending browser extension file-access permission or user selection. A native required-field message was observed on an empty new variant; the entry was cancelled without creating data.
+
+**Handover verdict: not ready for final customer acceptance yet.** Remaining credential flows, workbook contents, role/session checks and remaining feature coverage must be completed before promotion and final production smoke acceptance.
+
 Registration/verification/recovery, customer-role denial, profile/request delivery and Sheet copy, confirmed sale/history/Excel, product/service/content edits and validation, unsaved-change protection, responsive layouts, logout/session behavior, and production post-deployment smoke checks must have observed evidence before final handover.

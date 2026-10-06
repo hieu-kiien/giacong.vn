@@ -89,7 +89,7 @@ export default function AdminMediaPage() {
       const res = await fetchAdmin<{ media: MediaAssetItem[] }>("/api/admin/media?all=1");
       setAssets(res.media ?? []);
     } catch (err) {
-      const msg = err instanceof AdminClientError ? err.message : "Không thể tải danh sách tài nguyên R2.";
+      const msg = err instanceof AdminClientError ? err.message : "Không thể tải thư viện ảnh.";
       setError(msg);
       showToast("error", msg);
     } finally {
@@ -136,7 +136,7 @@ export default function AdminMediaPage() {
       : `${window.location.origin}${asset.publicUrl}`;
     void navigator.clipboard.writeText(fullUrl);
     setCopiedId(asset.id);
-    showToast("success", "Đã sao chép đường dẫn hình ảnh R2.");
+    showToast("success", "Đã sao chép liên kết ảnh.");
     setTimeout(() => {
       setCopiedId((current) => (current === asset.id ? null : current));
     }, 2000);
@@ -185,13 +185,13 @@ export default function AdminMediaPage() {
         method: "DELETE",
       });
       setAssets((prev) => prev.filter((a) => a.id !== pendingDelete.id));
-      showToast("success", `Đã xóa file "${pendingDelete.originalFilename}" khỏi Cloudflare R2.`);
+      showToast("success", `Đã xóa ảnh "${pendingDelete.originalFilename}".`);
       setPendingDelete(null);
     } catch (err) {
       if (err instanceof AdminClientError && err.code === "MEDIA_IN_USE") {
         setDeleteConflictMessage(err.message);
       } else {
-        const msg = err instanceof AdminClientError ? err.message : "Không thể xóa file R2.";
+        const msg = err instanceof AdminClientError ? err.message : "Không thể xóa ảnh.";
         showToast("error", msg);
         setPendingDelete(null);
       }
@@ -208,10 +208,10 @@ export default function AdminMediaPage() {
         method: "POST",
       });
       setCleanupModalOpen(false);
-      showToast("success", `Đã quét ${res.scanned} tệp trên R2, dọn dẹp ${res.deleted} tệp rác thành công.`);
+      showToast("success", `Đã kiểm tra ${res.scanned} tệp và dọn ${res.deleted} tệp không còn sử dụng.`);
       void loadMedia();
     } catch (err) {
-      const msg = err instanceof AdminClientError ? err.message : "Không thể thực hiện dọn dẹp R2.";
+      const msg = err instanceof AdminClientError ? err.message : "Không thể dọn tệp không sử dụng.";
       showToast("error", msg);
     } finally {
       setCleaning(false);
@@ -225,7 +225,7 @@ export default function AdminMediaPage() {
           kicker="Bảo mật & Quyền truy cập"
           stamp="TRUY CẬP BỊ TỪ CHỐI"
           subtitle="Tài khoản hiện tại không có quyền xem thư viện tài nguyên đa phương tiện."
-          title="Thư viện Media (Cloudflare R2)"
+          title="Thư viện ảnh"
         />
       </div>
     );
@@ -235,20 +235,20 @@ export default function AdminMediaPage() {
     <div className="admin-content">
       <AdminPageHeading
         kicker="Quản lý tập trung"
-        stamp="CLOUDFLARE R2"
+        stamp="HÌNH ẢNH WEBSITE"
         subtitle="Quản lý ảnh sản phẩm, dịch vụ, tin tức và banner của trang web."
-        title="Thư viện Media (R2)"
+        title="Thư viện ảnh"
       />
 
       {/* KPI Stats Overview */}
       <div className="admin-metric-grid" style={{ marginBottom: 20 }}>
         <div className="admin-metric-card">
           <div style={{ alignItems: "center", display: "flex", justifyContent: "space-between" }}>
-            <span className="admin-metric-label">Tổng tệp R2</span>
+            <span className="admin-metric-label">Tổng ảnh</span>
             <FileImage color="var(--admin-primary, #059669)" size={20} />
           </div>
           <div className="admin-metric-value">{stats.totalCount}</div>
-          <span className="admin-metric-detail">Đang hoạt động trong D1 & R2</span>
+          <span className="admin-metric-detail">Ảnh trong thư viện</span>
         </div>
 
         <div className="admin-metric-card">
@@ -257,7 +257,7 @@ export default function AdminMediaPage() {
             <HardDrive color="var(--admin-ink, #0f172a)" size={20} />
           </div>
           <div className="admin-metric-value">{formatBytes(stats.totalBytes)}</div>
-          <span className="admin-metric-detail">Dung lượng thực tế trên R2</span>
+          <span className="admin-metric-detail">Dung lượng ảnh đã lưu</span>
         </div>
 
         <div className="admin-metric-card">
@@ -266,23 +266,13 @@ export default function AdminMediaPage() {
             <Layers color="var(--admin-ink-muted, #64748b)" size={20} />
           </div>
           <div className="admin-metric-value" style={{ fontSize: 16, marginTop: 4 }}>
-            <span>SP: <strong>{stats.productCount}</strong></span> ·{" "}
+            <span>Sản phẩm: <strong>{stats.productCount}</strong></span> ·{" "}
             <span>Dịch vụ: <strong>{stats.serviceCount}</strong></span> ·{" "}
-            <span>Biến thể: <strong>{stats.variantCount}</strong></span>
+            <span>Quy cách: <strong>{stats.variantCount}</strong></span>
           </div>
           <span className="admin-metric-detail">Tự động phân nhóm theo đối tượng</span>
         </div>
 
-        <div className="admin-metric-card">
-          <div style={{ alignItems: "center", display: "flex", justifyContent: "space-between" }}>
-            <span className="admin-metric-label">Bộ nhớ đệm Edge CDN</span>
-            <Sparkles color="#d97706" size={20} />
-          </div>
-          <div className="admin-metric-value" style={{ color: "#059669", fontSize: 18 }}>
-            Tối ưu 1 năm
-          </div>
-          <span className="admin-metric-detail">Cache-Control: immutable</span>
-        </div>
       </div>
 
       {/* Toolbar & Filters */}
@@ -306,7 +296,7 @@ export default function AdminMediaPage() {
               className="admin-input has-icon"
               data-testid="input-media-search"
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Tìm theo tên file, đường dẫn, alt text..."
+              placeholder="Tìm theo tên ảnh hoặc mô tả..."
               value={searchQuery}
             />
           </div>
@@ -389,11 +379,11 @@ export default function AdminMediaPage() {
               data-testid="button-media-cleanup"
               onClick={() => setCleanupModalOpen(true)}
               style={{ color: "#b45309" }}
-              title="Dọn dẹp file R2 mồ côi không còn liên kết"
+              title="Dọn các tệp không còn được sử dụng"
               type="button"
             >
               <Sparkles size={14} />
-              <span>Dọn rác R2</span>
+              <span>Dọn tệp không dùng</span>
             </button>
           ) : null}
         </div>
@@ -409,11 +399,11 @@ export default function AdminMediaPage() {
       {loading ? (
         <div className="admin-haravan-card" style={{ padding: "40px 20px", textAlign: "center" }}>
           <RefreshCw className="animate-spin" size={24} style={{ color: "var(--admin-primary, #059669)", margin: "0 auto 12px" }} />
-          <p style={{ color: "var(--admin-ink-muted)", margin: 0 }}>Đang tải danh sách tài nguyên từ Cloudflare R2...</p>
+          <p style={{ color: "var(--admin-ink-muted)", margin: 0 }}>Đang tải thư viện ảnh...</p>
         </div>
       ) : filteredAssets.length === 0 ? (
         <AdminEmptyState
-          description={searchQuery ? "Không tìm thấy file nào khớp với từ khóa tìm kiếm." : "Chưa có file hình ảnh nào được lưu trữ trên R2."}
+          description={searchQuery ? "Không tìm thấy ảnh phù hợp với từ khóa." : "Chưa có ảnh trong thư viện."}
           title="Không có ảnh nào"
         />
       ) : viewMode === "grid" ? (
@@ -550,7 +540,7 @@ export default function AdminMediaPage() {
                   </p>
                 ) : (
                   <p style={{ color: "#94a3b8", fontSize: 11, fontStyle: "italic", marginBottom: 10 }}>
-                    Chưa có alt text
+                    Chưa có mô tả ảnh
                   </p>
                 )}
 
@@ -570,21 +560,21 @@ export default function AdminMediaPage() {
                     className="admin-button admin-button-quiet"
                     onClick={() => handleCopyUrl(asset)}
                     style={{ fontSize: 11, padding: "3px 6px" }}
-                    title="Sao chép liên kết R2"
+                    title="Sao chép liên kết ảnh"
                     type="button"
                   >
                     {copiedId === asset.id ? <Check color="#059669" size={13} /> : <Copy size={13} />}
-                    <span>{copiedId === asset.id ? "Đã copy" : "Copy URL"}</span>
+                    <span>{copiedId === asset.id ? "Đã sao chép" : "Sao chép liên kết"}</span>
                   </button>
 
                   <div style={{ display: "flex", gap: 4 }}>
                     {hasWritePermission ? (
                       <button
-                        aria-label="Sửa alt text"
+                        aria-label="Sửa mô tả ảnh"
                         className="admin-button admin-button-quiet"
                         onClick={() => handleOpenEditAlt(asset)}
                         style={{ padding: "4px 6px" }}
-                        title="Sửa alt text"
+                        title="Sửa mô tả ảnh"
                         type="button"
                       >
                         <Pencil size={13} />
@@ -593,14 +583,14 @@ export default function AdminMediaPage() {
 
                     {hasWritePermission ? (
                       <button
-                        aria-label="Xóa file khỏi R2"
+                        aria-label="Xóa ảnh"
                         className="admin-button admin-button-quiet"
                         onClick={() => {
                           setDeleteConflictMessage(null);
                           setPendingDelete(asset);
                         }}
                         style={{ color: "#ef4444", padding: "4px 6px" }}
-                        title="Xóa khỏi R2"
+                        title="Xóa ảnh"
                         type="button"
                       >
                         <Trash2 size={13} />
@@ -723,7 +713,7 @@ export default function AdminMediaPage() {
                               setPendingDelete(asset);
                             }}
                             style={{ color: "#ef4444", padding: "4px 8px" }}
-                            title="Xóa khỏi R2"
+                            title="Xóa ảnh"
                             type="button"
                           >
                             <Trash2 size={13} />
@@ -744,7 +734,7 @@ export default function AdminMediaPage() {
         <AdminModal
           labelledBy="admin-media-preview-title"
           onClose={() => setPreviewAsset(null)}
-          title="Chi tiết tệp R2"
+          title="Chi tiết ảnh"
           width="wide"
         >
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
@@ -775,7 +765,7 @@ export default function AdminMediaPage() {
                   <strong>{previewAsset.originalFilename}</strong>
                 </div>
                 <div>
-                  <span className="admin-label">Đường dẫn Cloudflare R2 Key</span>
+                  <span className="admin-label">Đường dẫn lưu ảnh</span>
                   <span className="admin-mono" style={{ fontSize: 12 }}>{previewAsset.storageKey}</span>
                 </div>
                 <div>
@@ -787,7 +777,7 @@ export default function AdminMediaPage() {
                   <span>{previewAsset.contentType}</span>
                 </div>
                 <div>
-                  <span className="admin-label">Mô tả hiển thị (Alt Text)</span>
+                  <span className="admin-label">Mô tả ảnh</span>
                   <span>{previewAsset.altText || "Chưa có"}</span>
                 </div>
                 <div>
@@ -823,7 +813,7 @@ export default function AdminMediaPage() {
         <AdminModal
           labelledBy="admin-media-alt-title"
           onClose={() => setEditingAsset(null)}
-          title="Chỉnh sửa mô tả hình ảnh (Alt Text)"
+          title="Chỉnh sửa mô tả ảnh"
         >
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
             <p style={{ color: "var(--admin-ink-muted)", fontSize: 13, margin: 0 }}>
@@ -859,7 +849,7 @@ export default function AdminMediaPage() {
 
             <label className="admin-field">
               <span style={{ display: "flex", justifyContent: "space-between" }}>
-                <span>Nội dung Alt Text (SEO)</span>
+                <span>Mô tả ảnh</span>
                 <span style={{ color: editAltText.length > 300 ? "#ef4444" : "var(--admin-ink-muted)", fontSize: 12 }}>
                   {editAltText.length}/300
                 </span>
@@ -920,7 +910,7 @@ export default function AdminMediaPage() {
               {deleteConflictMessage}
             </div>
             <p style={{ color: "var(--admin-ink-muted)", fontSize: 13, margin: 0 }}>
-              Để bảo vệ dữ liệu hiển thị trên website, bạn cần thay thế hoặc gỡ ảnh này khỏi các sản phẩm / dịch vụ đang dùng trước khi xóa khỏi Cloudflare R2.
+              Bạn cần thay thế hoặc gỡ ảnh khỏi các sản phẩm, dịch vụ đang dùng trước khi xóa.
             </p>
             <div style={{ display: "flex", justifyContent: "flex-end" }}>
               <button
@@ -940,11 +930,11 @@ export default function AdminMediaPage() {
         <AdminConfirmDialog
           cancelLabel="Hủy"
           confirmKind="danger"
-          confirmLabel={deleting ? "Đang xóa..." : "Xóa vĩnh viễn khỏi R2"}
-          message={`Bạn có chắc chắn muốn xóa file "${pendingDelete.originalFilename}" khỏi Cloudflare R2? Thao tác này sẽ xóa tệp vĩnh viễn.`}
+          confirmLabel={deleting ? "Đang xóa..." : "Xóa vĩnh viễn"}
+          message={`Bạn có chắc muốn xóa ảnh "${pendingDelete.originalFilename}"? Ảnh sẽ bị xóa vĩnh viễn.`}
           onConfirm={() => void handleDeleteAsset()}
           onDismiss={() => setPendingDelete(null)}
-          title="Xác nhận xóa tệp R2"
+          title="Xác nhận xóa ảnh"
         />
       ) : null}
 
@@ -954,10 +944,10 @@ export default function AdminMediaPage() {
           cancelLabel="Hủy"
           confirmKind="primary"
           confirmLabel={cleaning ? "Đang quét & dọn dẹp..." : "Quét & dọn rác ngay"}
-          message="Hệ thống sẽ đối soát toàn bộ tệp tin trong R2 Bucket với cơ sở dữ liệu D1. Các tệp tin mồ côi (không còn bản ghi hoặc bị đánh dấu đã thay thế/xóa) sẽ được xóa an toàn khỏi R2 để tiết kiệm dung lượng."
+          message="Hệ thống sẽ kiểm tra và xóa vĩnh viễn các tệp không còn được sử dụng hoặc đã được thay thế. Ảnh đang gắn với sản phẩm, dịch vụ sẽ được giữ lại."
           onConfirm={() => void handleCleanupOrphans()}
           onDismiss={() => setCleanupModalOpen(false)}
-          title="Dọn dẹp tài nguyên rác R2"
+          title="Dọn tệp không sử dụng"
         />
       ) : null}
     </div>

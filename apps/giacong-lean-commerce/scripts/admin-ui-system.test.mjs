@@ -6,6 +6,30 @@ async function readSource(...segments) {
   return readFile(new URL(`../src/${segments.join("/")}`, import.meta.url), "utf8");
 }
 
+test("daily admin screens keep infrastructure and internal identifiers out of the default view", async () => {
+  const media = await readSource("app", "admin", "media", "page.tsx");
+  const audit = await readSource("app", "admin", "audit", "page.tsx");
+  const navigation = await readSource("components", "admin", "AdminNavigationManager.tsx");
+  const members = await readSource("components", "admin", "AdminMembersManager.tsx");
+  assert.match(media, /title="Thư viện ảnh"/);
+  assert.doesNotMatch(media, /Bộ nhớ đệm Edge CDN|Cache-Control: immutable|Đang hoạt động trong D1 & R2/);
+  assert.match(audit, /<details><summary>Chi tiết<\/summary>/);
+  assert.doesNotMatch(audit, /<strong>\{entry.actorSubject\}<\/strong>/);
+  assert.doesNotMatch(navigation, /Mã menu cũ:/);
+  assert.doesNotMatch(members, /value=\{member.isActive \? "Active" : "Inactive"\}/);
+  assert.doesNotMatch(members, /Cloudflare Access xác minh danh tính/);
+});
+
+test("customer search clears the previous export and cancels an in-flight download", async () => {
+  const source = await readSource("app", "admin", "khach-hang", "page.tsx");
+  for (const name of ["submitSearch", "clearSearch"]) {
+    const body = source.match(new RegExp(`function ${name}\\([^]*?\\n  }`))?.[0] ?? "";
+    assert.match(body, /exportController.current\?\.abort\(\)/);
+    assert.match(body, /setExportFile\(null\)/);
+    assert.match(body, /setExporting\(false\)/);
+  }
+});
+
 test("customer Excel export announces readiness and offers a visible retry download", async () => {
   const source = await readSource("app", "admin", "khach-hang", "page.tsx");
   assert.match(source, /role="status"/);
@@ -78,7 +102,7 @@ test("the admin control plane exposes page, navigation and member management sur
   assert.match(members, /title="Tài khoản quản trị"/);
   assert.match(members, /Thêm tài khoản quản trị/);
   assert.match(members, /Email đăng nhập/);
-  assert.match(members, /tự liên kết danh tính Cloudflare/);
+  assert.match(members, /màn hình đăng nhập chung của website/);
   assert.doesNotMatch(members, /member-new-subject/);
   assert.match(members, /Quản lý tài khoản quản trị/);
   assert.match(members, /currentMemberId=\{session\.memberId\}/);

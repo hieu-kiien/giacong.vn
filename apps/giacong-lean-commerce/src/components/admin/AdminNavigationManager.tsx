@@ -466,7 +466,7 @@ function NavigationEditor({ canEdit, canPublish, item, onChange, onPublish, onSa
   return (
     <article className={`admin-navigation-card${item.dirty ? " is-dirty" : ""}`}>
       <div className="admin-navigation-card-heading">
-        <div><strong>{item.draftLabel}</strong><span>{item.virtual ? "Mục con nguồn cũ · chưa lưu bản quản lý" : item.capturedMenuId ? `Mã menu cũ: ${item.capturedMenuId}` : "Mục mới"}</span></div>
+        <div><strong>{item.draftLabel}</strong><span>{item.virtual ? "Mục có sẵn · chưa có bản nháp" : item.capturedMenuId ? "Menu có sẵn" : "Mục mới"}</span></div>
         <div className="admin-table-actions"><AdminStatusBadge kind={item.dirty ? "amber" : item.virtual ? "blue" : "green"} value={item.dirty ? "Có bản nháp" : item.virtual ? "Nguồn hiện tại" : "Đã đăng"} /><AdminStatusBadge kind={item.draftIsActive ? "blue" : "neutral"} value={item.draftIsActive ? "Đang hiện" : "Đang ẩn"} /></div>
       </div>
       <div className="admin-editor-grid">
