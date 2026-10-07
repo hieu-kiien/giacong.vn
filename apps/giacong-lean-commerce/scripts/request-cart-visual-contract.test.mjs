@@ -39,3 +39,11 @@ test("request-cart warnings do not expose internal variant codes", () => {
   assert.match(view, /aria-label="Xóa sản phẩm không còn tồn tại khỏi giỏ yêu cầu"/);
   assert.match(view, /Gỡ khỏi giỏ/);
 });
+
+test("missing products use one clear warning and do not look like quote-only items", () => {
+  const view = fs.readFileSync(path.join(scriptDir, "..", "src", "components", "request-cart", "RequestCartView.tsx"), "utf8");
+
+  assert.match(view, /line\.productName && blocking\.length > 0/);
+  assert.match(view, /const hasPriceOnRequestLines = cart\.lines\.some\(\(line\) => Boolean\(line\.productName\) && line\.priceOnRequest\);/);
+  assert.match(view, /hasPriceOnRequestLines \? "Liên hệ báo giá" : "Chưa thể tính"/);
+});

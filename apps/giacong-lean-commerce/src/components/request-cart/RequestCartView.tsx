@@ -406,7 +406,7 @@ function CartLine({ line, onChangeQuantity, onRemove }: CartLineProps) {
           {priceNote.message}
         </p>
       ) : null}
-      {blocking.length > 0 ? (
+      {line.productName && blocking.length > 0 ? (
         <ul className="mt-3 flex flex-col gap-2" data-cart-line-warning>
           {blocking.map((adjustment) => (
             <li className="rounded-md border border-[#b54708] bg-[#fff6ed] px-3 py-2 text-sm text-[#8a3a06]" key={adjustment.code}>
@@ -434,6 +434,7 @@ interface CartSummaryProps {
  */
 function CartSummary({ cart }: CartSummaryProps) {
   const hasPricedLines = cart.lines.some((line) => line.lineTotal !== null);
+  const hasPriceOnRequestLines = cart.lines.some((line) => Boolean(line.productName) && line.priceOnRequest);
 
   return (
     <aside
@@ -454,11 +455,13 @@ function CartSummary({ cart }: CartSummaryProps) {
         )}
         <div className="flex items-baseline justify-between gap-3 border-t border-neutral-200 pt-2">
           <dt className="text-neutral-700">Tạm tính</dt>
-          <dd className="text-xl font-bold text-neutral-900" data-cart-subtotal>{hasPricedLines ? formatVnd(cart.pricedSubtotal) : "Liên hệ báo giá"}</dd>
+          <dd className="text-xl font-bold text-neutral-900" data-cart-subtotal>
+            {hasPricedLines ? formatVnd(cart.pricedSubtotal) : hasPriceOnRequestLines ? "Liên hệ báo giá" : "Chưa thể tính"}
+          </dd>
         </div>
       </dl>
       <p className="mt-3 text-sm text-neutral-600">Tạm tính chưa gồm phí vận chuyển và chưa phải là báo giá cuối.</p>
-      {cart.hasPriceOnRequest ? (
+      {hasPriceOnRequestLines ? (
         <p className="mt-2 text-sm text-[#8a3a06]">
           {hasPricedLines
             ? "Tạm tính chưa gồm dòng chưa có giá; những dòng đó sẽ được báo giá riêng."
