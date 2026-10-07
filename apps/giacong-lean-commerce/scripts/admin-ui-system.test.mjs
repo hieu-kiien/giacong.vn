@@ -164,6 +164,24 @@ test("product status filters keep the URL and selected tab in sync", async () =>
   assert.match(products, /onClick=\{\(\) => updateStatusFilter\("all"\)\}/);
 });
 
+test("catalog lists use compact rows and keep internal codes out of the default view", async () => {
+  const [products, services, styles] = await Promise.all([
+    readSource("app", "admin", "san-pham", "page.tsx"),
+    readSource("app", "admin", "dich-vu", "page.tsx"),
+    readSource("styles", "admin.css"),
+  ]);
+  const productList = products.match(/<table className="admin-table admin-product-table admin-catalog-list">([\s\S]*?)<\/table>/)?.[1];
+  const serviceList = services.match(/<table className="admin-table admin-product-table admin-catalog-list">([\s\S]*?)<\/table>/)?.[1];
+
+  assert.ok(productList, "product rows should use the compact catalog list");
+  assert.ok(serviceList, "service rows should use the compact catalog list");
+  assert.doesNotMatch(productList, /SKU:|Danh mục \/ Mã hàng|<span>\{product\.slug\}<\/span>/);
+  assert.doesNotMatch(serviceList, /<span>\{service\.slug\}<\/span>/);
+  assert.match(productList, /admin-catalog-list-main/);
+  assert.match(serviceList, /admin-catalog-list-main/);
+  assert.match(styles, /\.admin-product-table\.admin-catalog-list[\s\S]*?display:\s*table-row;/);
+});
+
 test("protected sidebar links do not prefetch every admin route on first paint", async () => {
   const shell = await readSource("components", "admin", "AdminShell.tsx");
   const navLink = shell.match(/className="admin-nav-link"[\s\S]*?\n\s+>/)?.[0];

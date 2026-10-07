@@ -79,21 +79,18 @@ test("M2 Leads Table (/admin/yeu-cau): inline minWidth: 150 is removed and statu
   assert.match(page, /data-label="Tiếp nhận"/);
 });
 
-test("M2 Products Table (/admin/san-pham): data-labels and action cell layout on mobile", async () => {
+test("M2 Products Table (/admin/san-pham): compact row keeps primary fields and actions", async () => {
   const page = await readSource("app", "admin", "san-pham", "page.tsx");
 
-  assert.match(page, /data-label="Danh mục \/ Mã hàng"/);
-  assert.match(page, /data-label="Quy cách"/);
-  assert.match(page, /data-label="Tối thiểu \/ Giá từ"/);
-  assert.match(page, /data-label="Yêu cầu mua"/);
+  assert.match(page, /data-label="Danh mục · quy cách"/);
+  assert.match(page, /data-label="Tối thiểu · giá"/);
   assert.match(page, /data-label="Trạng thái"/);
-  assert.match(page, /data-label="Thời gian làm hàng"/);
-  assert.match(page, /data-label="Cập nhật"/);
-  assert.match(page, /canManage \? <td className="admin-product-select">/);
-  assert.match(page, /canManage \? <td className="admin-sticky-actions">/);
+  assert.match(page, /canManage \? <td className="admin-product-select admin-catalog-select">/);
+  assert.match(page, /className="admin-sticky-actions admin-catalog-list-actions"/);
+  assert.doesNotMatch(page, /data-label="Danh mục \/ Mã hàng"|SKU: \{product\.sku/);
 });
 
-test("M2 Products Table: desktop screens use readable cards instead of horizontal scrolling", async () => {
+test("M2 desktop catalog rows align while other admin tables retain card layouts", async () => {
   const css = await readSource("styles", "admin.css");
 
   assert.match(css, /@media\s*\(min-width:\s*769px\)/);
@@ -101,17 +98,17 @@ test("M2 Products Table: desktop screens use readable cards instead of horizonta
   assert.match(css, /\.admin-product-table\s+tbody\s*\{[^}]*display:\s*grid/);
   assert.match(css, /\.admin-product-table\s+tbody\s+tr\s*\{[^}]*display:\s*grid/);
   assert.match(css, /\.admin-product-table\s+td\[data-label\]::before\s*\{[^}]*content:\s*attr\(data-label\)/);
+  assert.match(css, /\.admin-product-table\.admin-catalog-list\s+tr\s*\{[^}]*display:\s*table-row/);
+  assert.match(css, /\.admin-product-table\.admin-catalog-list\s+td\[data-label\]::before\s*\{[^}]*display:\s*none/);
 });
 
-test("M2 Services Table (/admin/dich-vu): data-labels and responsive actions", async () => {
+test("M2 Services Table (/admin/dich-vu): compact rows keep summary, minimum and actions", async () => {
   const page = await readSource("app", "admin", "dich-vu", "page.tsx");
 
-  assert.match(page, /data-label="Tóm tắt"/);
+  assert.match(page, /admin-item-desc">\{service\.summary \|\| service\.description/);
   assert.match(page, /data-label="Trạng thái"/);
-  assert.match(page, /data-label="Tối thiểu"/);
-  assert.match(page, /data-label="Thời gian làm hàng"/);
-  assert.match(page, /data-label="Cập nhật"/);
-  assert.match(page, /className="admin-sticky-actions"/);
+  assert.match(page, /data-label="Tối thiểu · thời gian"/);
+  assert.match(page, /className="admin-sticky-actions admin-catalog-list-actions"/);
   assert.match(page, /className="admin-table-actions"/);
 });
 

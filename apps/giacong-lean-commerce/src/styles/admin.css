@@ -1583,6 +1583,125 @@
   .admin-product-table tbody tr:hover .admin-sticky-actions {
     background: transparent;
   }
+  .admin-product-table.admin-catalog-list,
+  .admin-product-table.admin-catalog-list thead,
+  .admin-product-table.admin-catalog-list tbody {
+    width: 100%;
+  }
+  .admin-product-table.admin-catalog-list thead { display: table-header-group; }
+  .admin-product-table.admin-catalog-list tbody { display: table-row-group; }
+  .admin-product-table.admin-catalog-list {
+    border-collapse: collapse;
+    table-layout: auto;
+  }
+  .admin-product-table.admin-catalog-list thead {
+    border: 0;
+    clip: auto;
+    height: auto;
+    margin: 0;
+    overflow: visible;
+    position: static;
+    white-space: normal;
+  }
+  .admin-product-table.admin-catalog-list tbody {
+    display: table-row-group;
+    padding: 0;
+  }
+  .admin-product-table.admin-catalog-list tr {
+    background: var(--admin-surface);
+    border: 0;
+    border-bottom: 1px solid var(--admin-border);
+    border-radius: 0;
+    box-shadow: none;
+    display: table-row;
+    padding: 0;
+  }
+  .admin-product-table.admin-catalog-list th {
+    background: #f7faf5;
+    border-bottom: 1px solid var(--admin-border);
+    color: var(--admin-ink-muted);
+    display: table-cell;
+    font-size: 11px;
+    letter-spacing: 0.02em;
+    padding: 10px 12px;
+    position: static;
+    text-align: left;
+    white-space: nowrap;
+    width: auto;
+  }
+  .admin-product-table.admin-catalog-list td {
+    border: 0;
+    border-bottom: 1px solid var(--admin-border);
+    display: table-cell;
+    font-size: 13px;
+    line-height: 1.4;
+    overflow: hidden;
+    padding: 10px 12px;
+    text-overflow: ellipsis;
+    vertical-align: middle;
+    width: auto;
+  }
+  .admin-product-table.admin-catalog-list td[data-label]::before {
+    display: none;
+  }
+  .admin-product-table.admin-catalog-list td.admin-product-select,
+  .admin-product-table.admin-catalog-list td.admin-product-summary,
+  .admin-product-table.admin-catalog-list td.admin-sticky-actions {
+    grid-column: auto;
+  }
+  .admin-product-table.admin-catalog-list .admin-product-cell {
+    gap: 10px;
+    min-width: 0;
+    width: auto;
+  }
+  .admin-product-table.admin-catalog-list .admin-thumb {
+    flex-basis: 42px;
+    height: 42px;
+    min-width: 42px;
+    width: 42px;
+  }
+  .admin-product-table.admin-catalog-list .admin-item-name {
+    min-width: 0;
+  }
+  .admin-product-table.admin-catalog-list .admin-item-desc {
+    display: block;
+    max-width: 360px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .admin-product-table.admin-catalog-list .admin-catalog-list-details,
+  .admin-product-table.admin-catalog-list .admin-catalog-list-info {
+    max-width: 220px;
+    white-space: normal;
+  }
+  .admin-product-table.admin-catalog-list .admin-catalog-list-details .admin-item-meta,
+  .admin-product-table.admin-catalog-list .admin-catalog-list-info .admin-item-meta {
+    display: block;
+    margin-top: 3px;
+  }
+  .admin-product-table.admin-catalog-list .admin-catalog-list-status {
+    min-width: 126px;
+    white-space: normal;
+  }
+  .admin-product-table.admin-catalog-list .admin-catalog-list-actions {
+    background: transparent;
+    border-left: 0;
+    min-width: 144px;
+    position: static;
+    z-index: auto;
+  }
+  .admin-product-table.admin-catalog-list th.admin-catalog-select,
+  .admin-product-table.admin-catalog-list td.admin-catalog-select {
+    min-width: 40px;
+    width: 40px;
+  }
+  .admin-product-table.admin-catalog-list .admin-catalog-preview {
+    align-items: center;
+    display: inline-flex;
+    gap: 5px;
+    margin: 0;
+  }
 }
 .admin-filter-tabs {
   display: flex;
