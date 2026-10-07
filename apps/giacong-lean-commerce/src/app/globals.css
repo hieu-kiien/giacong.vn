@@ -236,14 +236,42 @@
 
 @media (min-width: 850px) {
   #header .header-nav-main {
-    column-gap: 24px;
-    display: grid;
-    grid-template-columns: repeat(2, max-content);
-    justify-content: center;
+    align-items: center;
+    column-gap: clamp(12px, 1.5vw, 20px);
+    display: flex;
+    flex-wrap: nowrap;
+    white-space: nowrap;
   }
 
   #header .header-nav-main > li {
     margin: 0;
+  }
+
+  #header .flex-col.flex-left .header-nav-main {
+    justify-content: flex-start;
+  }
+
+  #header .flex-col.flex-right {
+    min-width: 0;
+  }
+
+  #header .header-nav-main.nav-right {
+    justify-content: flex-start;
+    width: 100%;
+  }
+
+  #header .header-nav-main.nav-right > .menu-item-account {
+    margin-left: auto;
+  }
+}
+
+@media (min-width: 850px) and (max-width: 1099px) {
+  #header .header-nav-main {
+    column-gap: 10px;
+  }
+
+  #header .header-nav-main > li > a {
+    font-size: 14px;
   }
 }
 

@@ -1,0 +1,1450 @@
+{
+  "generatedAt": "2026-10-07T03:38:06.615Z",
+  "baseUrl": "https://staging.kienhieu.id.vn",
+  "scope": "scoped pilot: homepage, catalog, news and contact; mobile-first with desktop menu check",
+  "persona": {
+    "name": "SME B2B buyer / procurement lead",
+    "goal": "Tìm sản phẩm hoặc dịch vụ gia công nhanh trên mobile, mở chi tiết và biết bước tiếp theo để gửi yêu cầu.",
+    "constraints": "Thời gian hạn chế, kết nối di động, mức quen công nghệ trung bình."
+  },
+  "capability": {
+    "playwrightRuntime": true,
+    "chromeDevtoolsMcp": false,
+    "note": "The session has no Chrome DevTools MCP tool. Runtime evidence uses the project's installed Playwright package with a fresh headless Chromium context."
+  },
+  "routes": [
+    {
+      "route": "/san-pham",
+      "name": "catalog-mobile",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "status": 200,
+      "screenshots": [
+        "catalog-mobile-before.png",
+        "catalog-mobile-search-applied.png",
+        "catalog-mobile-detail-unavailable.png"
+      ],
+      "actions": [
+        {
+          "id": "type-catalog-search",
+          "type": "type in input",
+          "expected": "Ô tìm kiếm nhận nội dung và vẫn có nhãn/placeholder rõ ràng.",
+          "observed": {
+            "value": "bột"
+          },
+          "pass": true,
+          "timestamp": "2026-10-07T03:38:10.940Z"
+        },
+        {
+          "id": "apply-catalog-search",
+          "type": "primary action",
+          "expected": "Kết quả danh mục phản hồi sau khi áp dụng tìm kiếm.",
+          "observed": {
+            "url": "https://staging.kienhieu.id.vn/san-pham?q=b%E1%BB%99t",
+            "cardCount": 0
+          },
+          "pass": true,
+          "timestamp": "2026-10-07T03:38:12.542Z"
+        },
+        {
+          "id": "open-product-detail",
+          "type": "open modal/detail",
+          "expected": "Nếu danh mục trống, empty state phải hiện rõ; nếu có card thì mở được chi tiết.",
+          "observed": {
+            "cardCount": 0,
+            "emptyStateVisible": true,
+            "url": "https://staging.kienhieu.id.vn/san-pham"
+          },
+          "pass": true,
+          "timestamp": "2026-10-07T03:38:14.677Z"
+        }
+      ],
+      "console": [
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 401 ()"
+        },
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 401 ()"
+        }
+      ],
+      "pageErrors": [],
+      "network": {
+        "badResponses": [
+          {
+            "status": 401,
+            "method": "GET",
+            "url": "https://staging.kienhieu.id.vn/api/admin/session"
+          },
+          {
+            "status": 401,
+            "method": "GET",
+            "url": "https://staging.kienhieu.id.vn/api/admin/session"
+          }
+        ],
+        "failedRequests": [
+          {
+            "method": "GET",
+            "url": "https://staging.kienhieu.id.vn/?_rsc=nSN_06OWhakx_h56",
+            "failure": "net::ERR_ABORTED"
+          },
+          {
+            "method": "GET",
+            "url": "https://staging.kienhieu.id.vn/gui-yeu-cau?_rsc=K9ty7fwkqdfDu_y7",
+            "failure": "net::ERR_ABORTED"
+          },
+          {
+            "method": "GET",
+            "url": "https://staging.kienhieu.id.vn/lien-he?_rsc=nSN_06OWhakx_h56",
+            "failure": "net::ERR_ABORTED"
+          },
+          {
+            "method": "GET",
+            "url": "https://staging.kienhieu.id.vn/san-pham?q=b%E1%BB%99t&_rsc=K2PyT3kFmsnYsDj2",
+            "failure": "net::ERR_ABORTED"
+          },
+          {
+            "method": "POST",
+            "url": "https://staging.kienhieu.id.vn/cdn-cgi/rum?",
+            "failure": "net::ERR_ABORTED"
+          },
+          {
+            "method": "GET",
+            "url": "https://staging.kienhieu.id.vn/?_rsc=nSN_06OWhakx_h56",
+            "failure": "net::ERR_ABORTED"
+          },
+          {
+            "method": "GET",
+            "url": "https://staging.kienhieu.id.vn/gui-yeu-cau?_rsc=K9ty7fwkqdfDu_y7",
+            "failure": "net::ERR_ABORTED"
+          },
+          {
+            "method": "GET",
+            "url": "https://staging.kienhieu.id.vn/lien-he?_rsc=nSN_06OWhakx_h56",
+            "failure": "net::ERR_ABORTED"
+          }
+        ],
+        "blockedMutations": [],
+        "fiveXx": [],
+        "fourXx": [
+          {
+            "status": 401,
+            "method": "GET",
+            "url": "https://staging.kienhieu.id.vn/api/admin/session"
+          },
+          {
+            "status": 401,
+            "method": "GET",
+            "url": "https://staging.kienhieu.id.vn/api/admin/session"
+          }
+        ]
+      },
+      "networkFiveXx": [],
+      "networkFourXx": [],
+      "accessibility": {
+        "axe": {
+          "available": true,
+          "violations": []
+        }
+      },
+      "inspection": {
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "documentWidth": 390,
+        "bodyWidth": 390,
+        "horizontalOverflow": false,
+        "bodyOverflow": false,
+        "overflowers": [
+          {
+            "tag": "BUTTON",
+            "className": "!m-0 !px-4 !py-0 min-h-11 shrink-0 whitespace-nowrap rounded-full border text-sm font-semibold disabled:opacity-45 focus",
+            "right": 519,
+            "left": 303
+          },
+          {
+            "tag": "BUTTON",
+            "className": "!m-0 !px-4 !py-0 min-h-11 shrink-0 whitespace-nowrap rounded-full border text-sm font-semibold disabled:opacity-45 focus",
+            "right": 700,
+            "left": 527
+          },
+          {
+            "tag": "BUTTON",
+            "className": "!m-0 !px-4 !py-0 min-h-11 shrink-0 whitespace-nowrap rounded-full border text-sm font-semibold disabled:opacity-45 focus",
+            "right": 903,
+            "left": 708
+          }
+        ],
+        "headings": [
+          {
+            "level": 1,
+            "text": "Sản phẩm"
+          },
+          {
+            "level": 2,
+            "text": "Danh mục sản phẩm đang được cập nhật"
+          },
+          {
+            "level": 2,
+            "text": "Các dịch vụ chính"
+          },
+          {
+            "level": 2,
+            "text": "Chính sách chung"
+          },
+          {
+            "level": 2,
+            "text": "VIET NAM TRADE PROMOTION DEVELOPMENT INVESTMENT .,JSC"
+          }
+        ],
+        "skippedHeadingLevels": [],
+        "unnamedControls": [],
+        "imageCount": 9,
+        "lazyImageCount": 1,
+        "criticalImageCount": 8,
+        "pageHeight": 1882,
+        "vitals": {
+          "fcp": 624,
+          "lcp": 624,
+          "cls": 0,
+          "inp": null
+        }
+      },
+      "notes": [],
+      "consoleErrors": [
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 401 ()"
+        },
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 401 ()"
+        }
+      ],
+      "consoleWarnings": []
+    },
+    {
+      "route": "/tin-tuc",
+      "name": "news-mobile",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "status": 200,
+      "screenshots": [
+        "news-mobile-before.png"
+      ],
+      "actions": [],
+      "console": [
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 401 ()"
+        }
+      ],
+      "pageErrors": [],
+      "network": {
+        "badResponses": [
+          {
+            "status": 401,
+            "method": "GET",
+            "url": "https://staging.kienhieu.id.vn/api/admin/session"
+          }
+        ],
+        "failedRequests": [
+          {
+            "method": "GET",
+            "url": "https://staging.kienhieu.id.vn/?_rsc=prn6ldCCT0nHfe6E",
+            "failure": "net::ERR_ABORTED"
+          }
+        ],
+        "blockedMutations": [],
+        "fiveXx": [],
+        "fourXx": [
+          {
+            "status": 401,
+            "method": "GET",
+            "url": "https://staging.kienhieu.id.vn/api/admin/session"
+          }
+        ]
+      },
+      "networkFiveXx": [],
+      "networkFourXx": [],
+      "accessibility": {
+        "axe": {
+          "available": true,
+          "violations": []
+        }
+      },
+      "inspection": {
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "documentWidth": 390,
+        "bodyWidth": 390,
+        "horizontalOverflow": false,
+        "bodyOverflow": false,
+        "overflowers": [],
+        "headings": [
+          {
+            "level": 1,
+            "text": "Tin tức"
+          },
+          {
+            "level": 2,
+            "text": "Kiến thức và hoạt động mới nhất"
+          },
+          {
+            "level": 3,
+            "text": "Chưa có bài viết mới"
+          },
+          {
+            "level": 2,
+            "text": "Các dịch vụ chính"
+          },
+          {
+            "level": 2,
+            "text": "Chính sách chung"
+          },
+          {
+            "level": 2,
+            "text": "VIET NAM TRADE PROMOTION DEVELOPMENT INVESTMENT .,JSC"
+          }
+        ],
+        "skippedHeadingLevels": [],
+        "unnamedControls": [],
+        "imageCount": 9,
+        "lazyImageCount": 1,
+        "criticalImageCount": 8,
+        "pageHeight": 1884,
+        "vitals": {
+          "fcp": 864,
+          "lcp": 872,
+          "cls": 0,
+          "inp": null
+        }
+      },
+      "notes": [],
+      "consoleErrors": [
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 401 ()"
+        }
+      ],
+      "consoleWarnings": []
+    },
+    {
+      "route": "/lien-he",
+      "name": "contact-mobile",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "status": 200,
+      "screenshots": [
+        "contact-mobile-before.png",
+        "contact-mobile-invalid-form.png"
+      ],
+      "actions": [
+        {
+          "id": "validate-contact-form",
+          "type": "primary action",
+          "expected": "Dữ liệu sai được giữ ở client và không gửi request thật.",
+          "observed": {
+            "invalidCount": 2,
+            "blockedContactMutation": false
+          },
+          "pass": true,
+          "timestamp": "2026-10-07T03:38:26.542Z"
+        }
+      ],
+      "console": [
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 401 ()"
+        },
+        {
+          "type": "log",
+          "text": "Running with experiment IDs: [106288168]"
+        },
+        {
+          "type": "debug",
+          "text": "Search endpoint requested!"
+        },
+        {
+          "type": "warning",
+          "text": "Failed to execute 'postMessage' on 'DOMWindow': The target origin provided ('https://staging.kienhieu.id.vn') does not match the recipient window's origin ('https://www.google.com')."
+        }
+      ],
+      "pageErrors": [],
+      "network": {
+        "badResponses": [
+          {
+            "status": 401,
+            "method": "GET",
+            "url": "https://staging.kienhieu.id.vn/api/admin/session"
+          }
+        ],
+        "failedRequests": [],
+        "blockedMutations": [],
+        "fiveXx": [],
+        "fourXx": [
+          {
+            "status": 401,
+            "method": "GET",
+            "url": "https://staging.kienhieu.id.vn/api/admin/session"
+          }
+        ]
+      },
+      "networkFiveXx": [],
+      "networkFourXx": [],
+      "accessibility": {
+        "axe": {
+          "available": true,
+          "violations": []
+        }
+      },
+      "inspection": {
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "documentWidth": 390,
+        "bodyWidth": 390,
+        "horizontalOverflow": false,
+        "bodyOverflow": false,
+        "overflowers": [],
+        "headings": [
+          {
+            "level": 1,
+            "text": "Liên hệ"
+          },
+          {
+            "level": 2,
+            "text": "Thông tin công ty"
+          },
+          {
+            "level": 3,
+            "text": "Yêu cầu báo giá"
+          },
+          {
+            "level": 2,
+            "text": "Các dịch vụ chính"
+          },
+          {
+            "level": 2,
+            "text": "Chính sách chung"
+          },
+          {
+            "level": 2,
+            "text": "VIET NAM TRADE PROMOTION DEVELOPMENT INVESTMENT .,JSC"
+          }
+        ],
+        "skippedHeadingLevels": [],
+        "unnamedControls": [],
+        "imageCount": 9,
+        "lazyImageCount": 1,
+        "criticalImageCount": 8,
+        "pageHeight": 2520,
+        "vitals": {
+          "fcp": 1360,
+          "lcp": 1436,
+          "cls": 0,
+          "inp": 16
+        }
+      },
+      "notes": [],
+      "consoleErrors": [
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 401 ()"
+        }
+      ],
+      "consoleWarnings": [
+        {
+          "type": "warning",
+          "text": "Failed to execute 'postMessage' on 'DOMWindow': The target origin provided ('https://staging.kienhieu.id.vn') does not match the recipient window's origin ('https://www.google.com')."
+        }
+      ]
+    },
+    {
+      "route": "/",
+      "name": "homepage-mobile",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "status": 200,
+      "screenshots": [
+        "homepage-mobile-before.png",
+        "homepage-mobile-menu-open.png",
+        "homepage-mobile-service-group-accordion-open.png",
+        "homepage-mobile-scroll-bottom.png"
+      ],
+      "actions": [
+        {
+          "id": "open-mobile-menu",
+          "type": "primary action",
+          "expected": "Menu mở, backdrop hiện, không có lỗi console mới.",
+          "observed": {
+            "menuTransform": "matrix(1, 0, 0, 1, 0, 0)",
+            "menuVisibility": "visible",
+            "backdropOpacity": "0.581641",
+            "menuClass": "mobile-sidebar no-scrollbar mfp-hide clone-menu-open",
+            "menuWidth": 260,
+            "open": true
+          },
+          "pass": true,
+          "timestamp": "2026-10-07T03:38:33.125Z"
+        },
+        {
+          "id": "open-mobile-products-link",
+          "type": "primary navigation",
+          "expected": "Mua hàng là liên kết chạm trực tiếp tới /san-pham/, không mở accordion.",
+          "observed": {
+            "href": "/san-pham/",
+            "toggleCount": 0,
+            "visible": true
+          },
+          "pass": true,
+          "timestamp": "2026-10-07T03:38:33.141Z"
+        },
+        {
+          "id": "open-mobile-service-group",
+          "type": "open submenu/detail",
+          "expected": "Nhóm dịch vụ mở dạng accordion, có liên kết nhóm và giữ menu cha đang mở.",
+          "observed": {
+            "expanded": "true",
+            "ariaHidden": "false",
+            "maxHeight": "none",
+            "opacity": "1",
+            "transform": "matrix(1, 0, 0, 1, 0, 0)",
+            "linkCount": 8
+          },
+          "pass": true,
+          "timestamp": "2026-10-07T03:38:34.053Z"
+        },
+        {
+          "id": "mobile-menu-layout",
+          "type": "responsive layout",
+          "expected": "Menu không tràn ngang và nút nổi không che khuất vùng thao tác chính.",
+          "observed": {
+            "scrollWidth": 390,
+            "viewportWidth": 390,
+            "floatingButtons": [
+              {
+                "right": 0,
+                "bottom": 0,
+                "width": 0
+              },
+              {
+                "right": 0,
+                "bottom": 0,
+                "width": 0
+              },
+              {
+                "right": 0,
+                "bottom": 0,
+                "width": 0
+              }
+            ]
+          },
+          "pass": true,
+          "timestamp": "2026-10-07T03:38:34.061Z"
+        },
+        {
+          "id": "scroll-lazy-load-with-visible-mobile-content",
+          "type": "scroll",
+          "expected": "Trên mobile, nội dung luôn nhìn thấy và ảnh lazy-load tăng dần khi người dùng cuộn; không bắt buộc hoạt ảnh reveal.",
+          "observed": {
+            "before": {
+              "scrollY": 0,
+              "scrollHeight": 9466,
+              "animateCount": 16,
+              "animatedCount": 0,
+              "visibleAnimatedCount": 16,
+              "lazyImageCount": 31,
+              "loadedImageCount": 13,
+              "sample": [
+                {
+                  "y": 140,
+                  "opacity": "1",
+                  "transform": "none",
+                  "animated": null
+                },
+                {
+                  "y": 681,
+                  "opacity": "1",
+                  "transform": "none",
+                  "animated": null
+                },
+                {
+                  "y": 964,
+                  "opacity": "1",
+                  "transform": "none",
+                  "animated": null
+                }
+              ]
+            },
+            "during": {
+              "scrollY": 650,
+              "scrollHeight": 9466,
+              "animateCount": 16,
+              "animatedCount": 0,
+              "visibleAnimatedCount": 16,
+              "lazyImageCount": 31,
+              "loadedImageCount": 13,
+              "sample": [
+                {
+                  "y": -510,
+                  "opacity": "1",
+                  "transform": "none",
+                  "animated": null
+                },
+                {
+                  "y": 31,
+                  "opacity": "1",
+                  "transform": "none",
+                  "animated": null
+                },
+                {
+                  "y": 314,
+                  "opacity": "1",
+                  "transform": "none",
+                  "animated": null
+                }
+              ]
+            },
+            "settled": {
+              "scrollY": 650,
+              "scrollHeight": 9466,
+              "animateCount": 16,
+              "animatedCount": 0,
+              "visibleAnimatedCount": 16,
+              "lazyImageCount": 31,
+              "loadedImageCount": 13,
+              "sample": [
+                {
+                  "y": -510,
+                  "opacity": "1",
+                  "transform": "none",
+                  "animated": null
+                },
+                {
+                  "y": 31,
+                  "opacity": "1",
+                  "transform": "none",
+                  "animated": null
+                },
+                {
+                  "y": 314,
+                  "opacity": "1",
+                  "transform": "none",
+                  "animated": null
+                }
+              ]
+            },
+            "bottom": {
+              "scrollY": 6979,
+              "scrollHeight": 7823,
+              "animateCount": 16,
+              "animatedCount": 0,
+              "visibleAnimatedCount": 16,
+              "lazyImageCount": 31,
+              "loadedImageCount": 40,
+              "sample": [
+                {
+                  "y": -6839,
+                  "opacity": "1",
+                  "transform": "none",
+                  "animated": null
+                },
+                {
+                  "y": -6298,
+                  "opacity": "1",
+                  "transform": "none",
+                  "animated": null
+                },
+                {
+                  "y": -6015,
+                  "opacity": "1",
+                  "transform": "none",
+                  "animated": null
+                }
+              ]
+            }
+          },
+          "pass": true,
+          "timestamp": "2026-10-07T03:38:37.148Z"
+        }
+      ],
+      "console": [
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 401 ()"
+        }
+      ],
+      "pageErrors": [],
+      "network": {
+        "badResponses": [
+          {
+            "status": 401,
+            "method": "GET",
+            "url": "https://staging.kienhieu.id.vn/api/admin/session"
+          }
+        ],
+        "failedRequests": [],
+        "blockedMutations": [],
+        "fiveXx": [],
+        "fourXx": [
+          {
+            "status": 401,
+            "method": "GET",
+            "url": "https://staging.kienhieu.id.vn/api/admin/session"
+          }
+        ]
+      },
+      "networkFiveXx": [],
+      "networkFourXx": [],
+      "accessibility": {
+        "axe": {
+          "available": true,
+          "violations": []
+        }
+      },
+      "inspection": {
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "documentWidth": 390,
+        "bodyWidth": 390,
+        "horizontalOverflow": false,
+        "bodyOverflow": false,
+        "overflowers": [
+          {
+            "tag": "DIV",
+            "className": "vong-tron1",
+            "right": 567,
+            "left": -60
+          },
+          {
+            "tag": "DIV",
+            "className": "vong-tron2",
+            "right": 430,
+            "left": 104
+          }
+        ],
+        "headings": [
+          {
+            "level": 3,
+            "text": "Kienhieu cung cấp"
+          },
+          {
+            "level": 1,
+            "text": "Giải pháp gia công toàn diện chuyên nghiệp"
+          },
+          {
+            "level": 2,
+            "text": "Đồng hành cùng doanh nghiệp trong thời đại mới"
+          },
+          {
+            "level": 2,
+            "text": "Các dịch vụ của Kienhieu"
+          },
+          {
+            "level": 3,
+            "text": "Nghiên cứu"
+          },
+          {
+            "level": 3,
+            "text": "Sản xuất"
+          },
+          {
+            "level": 3,
+            "text": "Thiết kế"
+          },
+          {
+            "level": 3,
+            "text": "Đóng gói"
+          },
+          {
+            "level": 2,
+            "text": "Sẵn sàng tiếp cận\nhàng triệu khách hàng tiềm năng?"
+          },
+          {
+            "level": 2,
+            "text": "Bắt đầu với chúng tôi\nngay hôm nay"
+          },
+          {
+            "level": 3,
+            "text": "Tăng giá trị sản phẩm"
+          },
+          {
+            "level": 3,
+            "text": "Tối ưu chi phí"
+          },
+          {
+            "level": 3,
+            "text": "Đảm bảo chất lượng"
+          },
+          {
+            "level": 3,
+            "text": "Tối ưu hóa thời gian"
+          },
+          {
+            "level": 3,
+            "text": "Mở rộng xuất khẩu"
+          },
+          {
+            "level": 2,
+            "text": "Đây là những gì khách hàng\nnói về chúng tôi"
+          },
+          {
+            "level": 3,
+            "text": "Anh Trịnh Anh Tuấn"
+          },
+          {
+            "level": 3,
+            "text": "Chị Nguyễn Ngọc Mai Anh"
+          },
+          {
+            "level": 2,
+            "text": "500+ doanh nghiệp nổi bật"
+          },
+          {
+            "level": 2,
+            "text": "Hãy để Kienhieu hiểu hơn về bạn"
+          },
+          {
+            "level": 2,
+            "text": "Các dịch vụ chính"
+          },
+          {
+            "level": 2,
+            "text": "Chính sách chung"
+          },
+          {
+            "level": 2,
+            "text": "VIET NAM TRADE PROMOTION DEVELOPMENT INVESTMENT .,JSC"
+          }
+        ],
+        "skippedHeadingLevels": [],
+        "unnamedControls": [],
+        "imageCount": 40,
+        "lazyImageCount": 31,
+        "criticalImageCount": 9,
+        "pageHeight": 7823,
+        "vitals": {
+          "fcp": 1664,
+          "lcp": 3228,
+          "cls": 0.01260449537480584,
+          "inp": 48
+        }
+      },
+      "notes": [],
+      "consoleErrors": [
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 401 ()"
+        }
+      ],
+      "consoleWarnings": []
+    },
+    {
+      "route": "/",
+      "name": "homepage-desktop",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "status": 200,
+      "screenshots": [
+        "homepage-desktop-before.png",
+        "homepage-desktop-service-mega-menu-open.png"
+      ],
+      "actions": [
+        {
+          "id": "open-desktop-products-link",
+          "type": "primary navigation",
+          "expected": "Mua hàng là liên kết trực tiếp tới /san-pham/ và không có bảng mega-menu.",
+          "observed": {
+            "label": "Mua hàng",
+            "href": "/san-pham/",
+            "dropdownCount": 0,
+            "className": "menu-item menu-item-type-post_type menu-item-object-page menu-item-1742 menu-item-design-container-width has-icon-left"
+          },
+          "pass": true,
+          "timestamp": "2026-10-07T03:38:44.613Z"
+        },
+        {
+          "id": "hover-desktop-service-menu",
+          "type": "hover",
+          "expected": "Mega-menu dịch vụ hiện ổn định, có nhóm chính và liên kết xem tất cả dịch vụ.",
+          "observed": {
+            "label": "Dịch vụ",
+            "opacity": "1",
+            "visibility": "visible",
+            "transform": "matrix(1, 0, 0, 1, -540, 0)",
+            "transition": "opacity 0.16s, transform 0.16s",
+            "rect": {
+              "x": 180,
+              "y": 74,
+              "width": 1080,
+              "height": 474.390625,
+              "top": 74,
+              "right": 1260,
+              "bottom": 548.390625,
+              "left": 180
+            },
+            "grouped": true,
+            "hasAllServices": true
+          },
+          "pass": true,
+          "timestamp": "2026-10-07T03:38:45.660Z"
+        },
+        {
+          "id": "pointer-handoff-to-service-menu",
+          "type": "mousemove",
+          "expected": "Bảng dịch vụ không biến mất khi di chuột từ nút vào bảng.",
+          "observed": {
+            "opacity": "1",
+            "visibility": "visible"
+          },
+          "pass": true,
+          "timestamp": "2026-10-07T03:38:45.934Z"
+        }
+      ],
+      "console": [
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 401 ()"
+        }
+      ],
+      "pageErrors": [],
+      "network": {
+        "badResponses": [
+          {
+            "status": 401,
+            "method": "GET",
+            "url": "https://staging.kienhieu.id.vn/api/admin/session"
+          }
+        ],
+        "failedRequests": [
+          {
+            "method": "GET",
+            "url": "https://staging.kienhieu.id.vn/gui-yeu-cau?_rsc=0rcmiBA4ufDMm2yb",
+            "failure": "net::ERR_ABORTED"
+          }
+        ],
+        "blockedMutations": [],
+        "fiveXx": [],
+        "fourXx": [
+          {
+            "status": 401,
+            "method": "GET",
+            "url": "https://staging.kienhieu.id.vn/api/admin/session"
+          }
+        ]
+      },
+      "networkFiveXx": [],
+      "networkFourXx": [],
+      "accessibility": {
+        "axe": {
+          "available": true,
+          "violations": []
+        }
+      },
+      "inspection": {
+        "viewport": {
+          "width": 1440,
+          "height": 900
+        },
+        "documentWidth": 1440,
+        "bodyWidth": 1440,
+        "horizontalOverflow": false,
+        "bodyOverflow": false,
+        "overflowers": [
+          {
+            "tag": "DIV",
+            "className": "col small-12 large-12",
+            "right": 1541,
+            "left": -101
+          },
+          {
+            "tag": "DIV",
+            "className": "col-inner",
+            "right": 1528,
+            "left": -88
+          },
+          {
+            "tag": "H2",
+            "className": "",
+            "right": 1528,
+            "left": -88
+          },
+          {
+            "tag": "P",
+            "className": "",
+            "right": 1528,
+            "left": -88
+          },
+          {
+            "tag": "DIV",
+            "className": "col medium-6 small-12 large-6",
+            "right": 815,
+            "left": -6
+          },
+          {
+            "tag": "DIV",
+            "className": "vong-tron2",
+            "right": 1461,
+            "left": 1135
+          },
+          {
+            "tag": "DIV",
+            "className": "row",
+            "right": 2043,
+            "left": 1143
+          },
+          {
+            "tag": "DIV",
+            "className": "col small-12 large-12",
+            "right": 2043,
+            "left": 1143
+          },
+          {
+            "tag": "DIV",
+            "className": "col-inner",
+            "right": 2028,
+            "left": 1158
+          },
+          {
+            "tag": "DIV",
+            "className": "icon-box featured-box icon-box-left text-left",
+            "right": 2028,
+            "left": 1158
+          },
+          {
+            "tag": "DIV",
+            "className": "icon-box-text last-reset",
+            "right": 2028,
+            "left": 1393
+          },
+          {
+            "tag": "BLOCKQUOTE",
+            "className": "",
+            "right": 2028,
+            "left": 1423
+          },
+          {
+            "tag": "P",
+            "className": "",
+            "right": 2028,
+            "left": 1423
+          },
+          {
+            "tag": "A",
+            "className": "",
+            "right": 1654,
+            "left": 1561
+          },
+          {
+            "tag": "H3",
+            "className": "",
+            "right": 2028,
+            "left": 1423
+          },
+          {
+            "tag": "P",
+            "className": "",
+            "right": 2028,
+            "left": 1423
+          }
+        ],
+        "headings": [
+          {
+            "level": 4,
+            "text": "Thực phẩm và nguyên liệu"
+          },
+          {
+            "level": 4,
+            "text": "Sữa và đồ uống"
+          },
+          {
+            "level": 4,
+            "text": "Trà và cà phê"
+          },
+          {
+            "level": 4,
+            "text": "Sấy và đóng gói"
+          },
+          {
+            "level": 3,
+            "text": "Kienhieu cung cấp"
+          },
+          {
+            "level": 1,
+            "text": "Giải pháp gia công toàn diện chuyên nghiệp"
+          },
+          {
+            "level": 2,
+            "text": "Đồng hành cùng doanh nghiệp trong thời đại mới"
+          },
+          {
+            "level": 2,
+            "text": "Các dịch vụ của Kienhieu"
+          },
+          {
+            "level": 3,
+            "text": "Nghiên cứu"
+          },
+          {
+            "level": 3,
+            "text": "Sản xuất"
+          },
+          {
+            "level": 3,
+            "text": "Thiết kế"
+          },
+          {
+            "level": 3,
+            "text": "Đóng gói"
+          },
+          {
+            "level": 2,
+            "text": "Sẵn sàng tiếp cận\nhàng triệu khách hàng tiềm năng?"
+          },
+          {
+            "level": 2,
+            "text": "Bắt đầu với chúng tôi\nngay hôm nay"
+          },
+          {
+            "level": 3,
+            "text": "Tăng giá trị sản phẩm"
+          },
+          {
+            "level": 3,
+            "text": "Tối ưu chi phí"
+          },
+          {
+            "level": 3,
+            "text": "Đảm bảo chất lượng"
+          },
+          {
+            "level": 3,
+            "text": "Tối ưu hóa thời gian"
+          },
+          {
+            "level": 3,
+            "text": "Mở rộng xuất khẩu"
+          },
+          {
+            "level": 2,
+            "text": "Đây là những gì khách hàng\nnói về chúng tôi"
+          },
+          {
+            "level": 3,
+            "text": "Anh Trịnh Anh Tuấn"
+          },
+          {
+            "level": 3,
+            "text": "Chị Nguyễn Ngọc Mai Anh"
+          },
+          {
+            "level": 2,
+            "text": "500+ doanh nghiệp nổi bật"
+          },
+          {
+            "level": 2,
+            "text": "Hãy để Kienhieu hiểu hơn về bạn"
+          },
+          {
+            "level": 2,
+            "text": "Các dịch vụ chính"
+          },
+          {
+            "level": 2,
+            "text": "Chính sách chung"
+          },
+          {
+            "level": 2,
+            "text": "VIET NAM TRADE PROMOTION DEVELOPMENT INVESTMENT .,JSC"
+          }
+        ],
+        "skippedHeadingLevels": [],
+        "unnamedControls": [],
+        "imageCount": 40,
+        "lazyImageCount": 31,
+        "criticalImageCount": 9,
+        "pageHeight": 5934,
+        "vitals": {
+          "fcp": 2012,
+          "lcp": 2012,
+          "cls": 0.0007421473122427983,
+          "inp": 32
+        }
+      },
+      "notes": [],
+      "consoleErrors": [
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 401 ()"
+        }
+      ],
+      "consoleWarnings": []
+    }
+  ],
+  "responsiveSweep": [
+    {
+      "viewport": {
+        "width": 375,
+        "height": 812
+      },
+      "status": 200,
+      "horizontalOverflow": false,
+      "bodyOverflow": false,
+      "documentWidth": 375,
+      "bodyWidth": 375,
+      "pageHeight": 9521,
+      "screenshot": "responsive-home-375x812.png",
+      "errors": [],
+      "console": [
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 401 ()"
+        }
+      ],
+      "pageErrors": [],
+      "network": {
+        "badResponses": [
+          {
+            "status": 401,
+            "method": "GET",
+            "url": "https://staging.kienhieu.id.vn/api/admin/session"
+          }
+        ],
+        "failedRequests": [],
+        "blockedMutations": []
+      }
+    },
+    {
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "status": 200,
+      "horizontalOverflow": false,
+      "bodyOverflow": false,
+      "documentWidth": 390,
+      "bodyWidth": 390,
+      "pageHeight": 9466,
+      "screenshot": "responsive-home-390x844.png",
+      "errors": [],
+      "console": [
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 401 ()"
+        }
+      ],
+      "pageErrors": [],
+      "network": {
+        "badResponses": [
+          {
+            "status": 401,
+            "method": "GET",
+            "url": "https://staging.kienhieu.id.vn/api/admin/session"
+          }
+        ],
+        "failedRequests": [],
+        "blockedMutations": []
+      }
+    },
+    {
+      "viewport": {
+        "width": 768,
+        "height": 900
+      },
+      "status": 200,
+      "horizontalOverflow": false,
+      "bodyOverflow": false,
+      "documentWidth": 768,
+      "bodyWidth": 768,
+      "pageHeight": 7634,
+      "screenshot": "responsive-home-768x900.png",
+      "errors": [],
+      "console": [
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 401 ()"
+        }
+      ],
+      "pageErrors": [],
+      "network": {
+        "badResponses": [
+          {
+            "status": 401,
+            "method": "GET",
+            "url": "https://staging.kienhieu.id.vn/api/admin/session"
+          }
+        ],
+        "failedRequests": [
+          {
+            "method": "GET",
+            "url": "https://staging.kienhieu.id.vn/gui-yeu-cau?_rsc=0rcmiBA4ufDMm2yb",
+            "failure": "net::ERR_ABORTED"
+          }
+        ],
+        "blockedMutations": []
+      }
+    },
+    {
+      "viewport": {
+        "width": 1024,
+        "height": 900
+      },
+      "status": 200,
+      "horizontalOverflow": false,
+      "bodyOverflow": false,
+      "documentWidth": 1024,
+      "bodyWidth": 1024,
+      "pageHeight": 6515,
+      "screenshot": "responsive-home-1024x900.png",
+      "errors": [],
+      "console": [
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 401 ()"
+        }
+      ],
+      "pageErrors": [],
+      "network": {
+        "badResponses": [
+          {
+            "status": 401,
+            "method": "GET",
+            "url": "https://staging.kienhieu.id.vn/api/admin/session"
+          }
+        ],
+        "failedRequests": [
+          {
+            "method": "GET",
+            "url": "https://staging.kienhieu.id.vn/gui-yeu-cau?_rsc=0rcmiBA4ufDMm2yb",
+            "failure": "net::ERR_ABORTED"
+          }
+        ],
+        "blockedMutations": []
+      }
+    },
+    {
+      "viewport": {
+        "width": 1280,
+        "height": 900
+      },
+      "status": 200,
+      "horizontalOverflow": false,
+      "bodyOverflow": false,
+      "documentWidth": 1280,
+      "bodyWidth": 1280,
+      "pageHeight": 5934,
+      "screenshot": "responsive-home-1280x900.png",
+      "errors": [],
+      "console": [],
+      "pageErrors": [],
+      "network": {
+        "badResponses": [],
+        "failedRequests": [],
+        "blockedMutations": []
+      }
+    },
+    {
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "status": 200,
+      "horizontalOverflow": false,
+      "bodyOverflow": false,
+      "documentWidth": 1440,
+      "bodyWidth": 1440,
+      "pageHeight": 5934,
+      "screenshot": "responsive-home-1440x900.png",
+      "errors": [],
+      "console": [
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 401 ()"
+        }
+      ],
+      "pageErrors": [],
+      "network": {
+        "badResponses": [
+          {
+            "status": 401,
+            "method": "GET",
+            "url": "https://staging.kienhieu.id.vn/api/admin/session"
+          }
+        ],
+        "failedRequests": [
+          {
+            "method": "GET",
+            "url": "https://staging.kienhieu.id.vn/gui-yeu-cau?_rsc=0rcmiBA4ufDMm2yb",
+            "failure": "net::ERR_ABORTED"
+          }
+        ],
+        "blockedMutations": []
+      }
+    }
+  ],
+  "hardGates": {
+    "consoleErrors": 6,
+    "consoleWarnings": 1,
+    "networkFiveXx": 0,
+    "networkFourXx": 6,
+    "layoutOverflowRoutes": [],
+    "axeAvailableRuns": 5,
+    "axeUnavailableRuns": 0,
+    "axeCriticalSerious": [],
+    "webVitals": [
+      {
+        "name": "catalog-mobile",
+        "fcp": 624,
+        "lcp": 624,
+        "cls": 0,
+        "inp": null
+      },
+      {
+        "name": "news-mobile",
+        "fcp": 864,
+        "lcp": 872,
+        "cls": 0,
+        "inp": null
+      },
+      {
+        "name": "contact-mobile",
+        "fcp": 1360,
+        "lcp": 1436,
+        "cls": 0,
+        "inp": 16
+      },
+      {
+        "name": "homepage-mobile",
+        "fcp": 1664,
+        "lcp": 3228,
+        "cls": 0.01260449537480584,
+        "inp": 48
+      },
+      {
+        "name": "homepage-desktop",
+        "fcp": 2012,
+        "lcp": 2012,
+        "cls": 0.0007421473122427983,
+        "inp": 32
+      }
+    ]
+  }
+}

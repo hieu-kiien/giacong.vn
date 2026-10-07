@@ -30,7 +30,7 @@ const roleNavigationRoutes = {
   owner: ["/admin/noi-dung", "/admin/thiet-ke", "/admin/san-pham", "/admin/dich-vu", "/admin/tin-tuc", "/admin/dieu-huong", "/admin", "/admin/thanh-vien", "/admin/audit"],
 };
 const adminRoutes = [
-  { path: "/admin", heading: "Tổng quan vận hành" },
+  { path: "/admin", heading: "Tổng quan" },
   { path: "/admin/noi-dung", heading: "Nội dung & thương hiệu" },
   { path: "/admin/thiet-ke", heading: "Thiết kế trang" },
   { path: "/admin/san-pham", heading: "Quản lý sản phẩm" },

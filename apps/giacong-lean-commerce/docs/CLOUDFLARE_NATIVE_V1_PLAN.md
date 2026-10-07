@@ -132,9 +132,9 @@ Admin đọc yêu cầu đã lưu ở D1, chăm sóc liên hệ/yêu cầu và g
 - Không dùng credential D1/R2 phía client.
 - Không log secret, token hoặc PII không cần thiết.
 - Xác thực khách hàng storefront tách khỏi Cloudflare Access và quyền Admin; server chỉ trả lịch sử gắn với ID tài khoản từ session đã xác minh.
-- Admin nội bộ chỉ dùng một quyền **Admin toàn quyền**, lưu bằng khóa `owner` để giữ nguyên tài khoản và audit (quyết định trực tiếp của chủ dự án ngày 2026-09-07, thay thế mô hình năm role ngày 2026-08-23). Các role cũ không được đăng nhập, đọc hoặc ghi API; không tự nâng quyền tài khoản cũ. Giữ Cloudflare Access, kiểm tra quyền phía server và bảo vệ admin hoạt động cuối cùng. Staging đã có đúng một tài khoản owner nên không cần chuyển đổi dữ liệu tài khoản.
+- Admin nội bộ chỉ dùng một quyền **Admin toàn quyền**, lưu bằng khóa `owner` để giữ nguyên tài khoản và audit (quyết định trực tiếp của chủ dự án ngày 2026-09-07, thay thế mô hình năm role ngày 2026-08-23). Các role cũ không được đăng nhập, đọc hoặc ghi API; không tự nâng quyền tài khoản cũ. Cloudflare Access cho staging admin đã được chủ dự án yêu cầu gỡ ngày 2026-10-07; đăng nhập website và membership `owner` đang là cổng truy cập. Production Access vẫn giữ nguyên. Nếu cần rollback về Access, phải khôi phục app và policy staging trước khi dùng lại.
 
-Cloudflare Access là phương án bảo vệ staging admin. Cấu hình Access self-hosted, allow policy và identity-provider state cho `admin-staging.kienhieu.id.vn` đã được audit qua Cloudflare API; Worker route staging cũng đã được khai báo trong Wrangler. Việc triển khai write API vẫn phải tự fail closed nếu request không đạt admission contract, không chỉ dựa vào việc hostname đã có Access.
+Worker route staging đã được khai báo trong Wrangler. Từ 2026-10-07, Cloudflare Access application cho `admin-staging.kienhieu.id.vn` đã bị gỡ theo quyết định của chủ dự án; không coi Access JWT là lớp bảo vệ hoặc phương án rollback đang sẵn có. Mọi admin API vẫn phải fail closed bằng session website đã xác minh cùng membership `owner`. Production Access và các dịch vụ Cloudflare khác không bị thay đổi.
 
 ### 6.3 Contract write và UI control plane
 

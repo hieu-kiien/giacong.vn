@@ -93,6 +93,16 @@ test("M2 Products Table (/admin/san-pham): data-labels and action cell layout on
   assert.match(page, /canManage \? <td className="admin-sticky-actions">/);
 });
 
+test("M2 Products Table: desktop screens use readable cards instead of horizontal scrolling", async () => {
+  const css = await readSource("styles", "admin.css");
+
+  assert.match(css, /@media\s*\(min-width:\s*769px\)/);
+  assert.doesNotMatch(css, /@media\s*\(min-width:\s*769px\)\s*and\s*\(max-width:/);
+  assert.match(css, /\.admin-product-table\s+tbody\s*\{[^}]*display:\s*grid/);
+  assert.match(css, /\.admin-product-table\s+tbody\s+tr\s*\{[^}]*display:\s*grid/);
+  assert.match(css, /\.admin-product-table\s+td\[data-label\]::before\s*\{[^}]*content:\s*attr\(data-label\)/);
+});
+
 test("M2 Services Table (/admin/dich-vu): data-labels and responsive actions", async () => {
   const page = await readSource("app", "admin", "dich-vu", "page.tsx");
 

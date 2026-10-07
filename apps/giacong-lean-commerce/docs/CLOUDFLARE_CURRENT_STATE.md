@@ -1451,3 +1451,18 @@ runtime trước khi đóng gate hiệu năng/ổn định.
 - [ ] Vẫn cần theo dõi observability 24 giờ đầu và chủ dự án duyệt lần cuối
   nội dung kinh doanh/catalog. Redirect từ `giacong.vn` chỉ thực hiện nếu có
   quyền DNS/hosting domain cũ.
+
+## Gỡ Cloudflare Access trên staging admin theo yêu cầu — 2026-10-07
+
+- Chủ dự án yêu cầu gỡ Access riêng cho `admin-staging.kienhieu.id.vn` để
+  kiểm tra đăng nhập admin bằng tài khoản website. Cloudflare Dashboard xác
+  nhận ứng dụng `Giacong staging Admin` đã được xóa; production app
+  `admin.kienhieu.id.vn` và app preview vẫn còn.
+- Chrome đăng nhập website bằng Google và vào được `/admin` trên
+  `staging.kienhieu.id.vn`; trang xác nhận membership `Admin toàn quyền` và
+  readiness D1 `13/13`. Từ `admin-staging`, liên kết đăng nhập điều hướng về
+  host `staging`; chưa xác nhận phiên cookie hoạt động trực tiếp trên host
+  `admin-staging`.
+- Đây chỉ là thay đổi admission cho staging. Production Worker, Access, D1 và
+  R2 không bị thay đổi. Nếu cần rollback, phải tạo lại Access app và policy
+  staging trước khi bật lại đường JWT.

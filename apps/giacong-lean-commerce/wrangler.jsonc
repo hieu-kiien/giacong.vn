@@ -110,8 +110,9 @@
           "zone_name": "kienhieu.id.vn"
         }
       ],
-      // Keep the Access hostname available as a rollback path alongside
-      // verified website accounts with active D1 owner membership.
+      // Staging Access was removed by project-owner decision on 2026-10-07.
+      // Recreate its application and policy before restoring Access admission;
+      // verified website accounts with active D1 owner membership are primary.
       "vars": {
         "ADMIN_HOSTNAME": "admin-staging.kienhieu.id.vn",
         "ADMIN_HOSTNAMES": "admin-staging.kienhieu.id.vn,staging.kienhieu.id.vn",

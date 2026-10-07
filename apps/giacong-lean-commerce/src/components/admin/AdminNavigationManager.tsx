@@ -437,7 +437,20 @@ function renderNavigationTree(
     return (
       <div className="admin-navigation-tree-node" data-depth={depth} key={item.id}>
         {renderEditor(item)}
-        {children.map((child) => renderItem(child, depth + 1, nextTrail))}
+        {children.length > 0 ? (
+          <details className="admin-navigation-children">
+            <summary className="admin-navigation-children-summary" data-testid={`navigation-children-toggle-${item.id}`}>
+              <span>{children.length} mục con</span>
+              <span aria-hidden="true" className="admin-navigation-children-action">
+                <span className="admin-navigation-children-open">Mở danh sách</span>
+                <span className="admin-navigation-children-close">Thu gọn</span>
+              </span>
+            </summary>
+            <div className="admin-navigation-tree-children">
+              {children.map((child) => renderItem(child, depth + 1, nextTrail))}
+            </div>
+          </details>
+        ) : null}
       </div>
     );
   }
