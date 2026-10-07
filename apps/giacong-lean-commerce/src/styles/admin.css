@@ -1592,6 +1592,7 @@
   .admin-product-table.admin-catalog-list tbody { display: table-row-group; }
   .admin-product-table.admin-catalog-list {
     border-collapse: collapse;
+    display: table;
     table-layout: auto;
   }
   .admin-product-table.admin-catalog-list thead {

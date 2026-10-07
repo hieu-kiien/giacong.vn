@@ -179,6 +179,7 @@ test("catalog lists use compact rows and keep internal codes out of the default 
   assert.doesNotMatch(serviceList, /<span>\{service\.slug\}<\/span>/);
   assert.match(productList, /admin-catalog-list-main/);
   assert.match(serviceList, /admin-catalog-list-main/);
+  assert.match(styles, /\.admin-product-table\.admin-catalog-list\s*\{[^}]*display:\s*table;/);
   assert.match(styles, /\.admin-product-table\.admin-catalog-list[\s\S]*?display:\s*table-row;/);
 });
 
