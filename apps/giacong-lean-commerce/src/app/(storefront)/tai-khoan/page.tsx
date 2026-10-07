@@ -59,12 +59,13 @@ function formatMoney(amount: number, currency: string): string {
   }).format(amount);
 }
 
-export default async function CustomerAccountPage({ searchParams }: { searchParams: Promise<{ next?: string | string[] }> }) {
+export default async function CustomerAccountPage({ searchParams }: { searchParams: Promise<{ next?: string | string[]; welcome?: string | string[] }> }) {
   const requestHeaders = await headers();
   const session = await getCustomerSession(requestHeaders);
   if (!session?.user.emailVerified) redirect("/tai-khoan/dang-nhap/?next=%2Ftai-khoan%2F");
 
   const query = await searchParams;
+  const googleWelcome = query.welcome === "google";
   const destination = query.next ? customerLoginDestination(query.next) : null;
   const next = destination?.startsWith("/tai-khoan/") ? null : destination;
   const [history, accounts, contact] = await Promise.all([
@@ -72,7 +73,7 @@ export default async function CustomerAccountPage({ searchParams }: { searchPara
     getCustomerAuthAccounts(requestHeaders),
     getCustomerContact(getAdminDatabase(), session.user.id),
   ]);
-  if (contact && next) redirect(next);
+  if (contact && next && !googleWelcome) redirect(next);
   const hasPassword = accounts.some((account) => account.providerId === "credential");
   let canEnterAdmin = false;
   if (isStagingAdminHost((requestHeaders.get("host") ?? "").split(":")[0])) {
@@ -98,6 +99,11 @@ export default async function CustomerAccountPage({ searchParams }: { searchPara
           </div>
         </section>
         <div className={styles.container} id="content">
+          {googleWelcome ? <section aria-label="Đăng nhập Google thành công" className={styles.welcomeBanner} role="status">
+            <h2>Đã vào tài khoản bằng Google</h2>
+            <p>Nếu đây là lần đầu bạn dùng Google, tài khoản đã được tạo. Thông tin liên hệ bên dưới giúp chúng tôi tư vấn và cập nhật yêu cầu cho bạn.</p>
+            {contact && next ? <Link href={next}>Tiếp tục</Link> : null}
+          </section> : null}
           <CustomerSessionBoundary userId={session.user.id}>
               <div className={styles.profile}>
                 <div>

@@ -1,6 +1,11 @@
 .main { min-height: 60vh; }
 .container { margin: 0 auto; max-width: 1128px; padding: 48px 24px 72px; }
 .profile { background: #fff; border: 1px solid #e1e8dc; border-radius: 16px; display: flex; flex-direction: column; gap: 24px; padding: 24px; }
+.welcomeBanner { background: #f1f7eb; border: 1px solid #d8e8cc; border-radius: 14px; margin-bottom: 20px; padding: 20px 24px; }
+.welcomeBanner h2 { color: #315f19; font-size: 19px; line-height: 1.4; margin: 0 0 6px; }
+.welcomeBanner p { color: #52604e; font-size: 14px; line-height: 1.6; margin: 0; }
+.welcomeBanner a { color: #315f19; display: inline-flex; font-size: 14px; font-weight: 650; margin-top: 12px; text-decoration: underline; text-underline-offset: 3px; }
+.welcomeBanner a:focus-visible { outline: 3px solid #477d2f; outline-offset: 3px; }
 .profile h2 { color: #253b23; font-size: clamp(22px, 4vw, 28px); line-height: 1.2; margin: 0 0 16px; text-transform: none; }
 .name { color: #293e27; font-size: 18px; font-weight: 650; margin: 0 0 6px; }
 .email { color: #62705e; font-size: 14px; margin: 0; overflow-wrap: anywhere; }

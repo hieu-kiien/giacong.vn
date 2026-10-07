@@ -305,6 +305,21 @@
   padding: 12px 14px;
 }
 
+.registrationSuccess {
+  background: #f1f7eb;
+  border: 1px solid #d8e8cc;
+  border-radius: 12px;
+  display: grid;
+  gap: 14px;
+  padding: 20px;
+}
+
+.registrationSuccess h3,
+.registrationSuccess p { margin: 0; }
+.registrationSuccess h3 { color: #315f19; font-size: 19px; line-height: 1.35; }
+.registrationSuccess p { color: #52604e; font-size: 14px; line-height: 1.6; overflow-wrap: anywhere; }
+.registrationSuccess .linkButton { justify-self: start; }
+
 .homeLink {
   align-items: center;
   border: 1px solid #e2eadc;

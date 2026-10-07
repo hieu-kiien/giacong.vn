@@ -976,10 +976,19 @@
 }
 
 /* Keep the legacy quick-contact rail inside a narrow side lane on tablet and
- * small desktop viewports so it cannot sit over product cards or their CTAs. */
-@media (min-width: 550px) and (max-width: 1199px) {
+ * medium desktop viewports so it cannot sit over content or form controls. */
+@media (min-width: 550px) and (max-width: 1399px) {
+  #main #content {
+    box-sizing: border-box;
+    padding-right: 56px;
+  }
+
+  #main #content > .section.dark {
+    width: calc(100% + 56px);
+  }
+
   .echbay-sms-messenger {
-    right: 0 !important;
+    right: 8px !important;
     width: 38px !important;
   }
 
@@ -1227,6 +1236,19 @@ body.clone-menu-active {
 .wpcf7-form[data-status="submitting"] [type="submit"] {
   cursor: wait;
   opacity: 0.72;
+}
+
+#main #content .wpcf7-form .contact-field-label {
+  color: #344054;
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.4;
+  margin: 0 0 6px;
+}
+
+#main #content .section.dark .wpcf7-form .contact-field-label {
+  color: #f1f1f1;
 }
 
 /* The captured palette uses #5aa400 for both text and controls. Keep the same

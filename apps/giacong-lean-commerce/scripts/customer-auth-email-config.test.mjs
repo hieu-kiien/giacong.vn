@@ -36,9 +36,31 @@ test("login screen offers Google, e-mail sign-up with phone, resend and forgot p
   assert.match(ui, /input-signup-phone/);
   assert.match(ui, /parseCustomerContact/);
   assert.doesNotMatch(ui, /Tên đăng nhập|signIn\.username|input-signup-username/);
-  assert.match(ui, /signInWithGoogle\(callbackURL\)/);
+  assert.match(ui, /signInWithGoogle\(mode === "create-account" \? googleCreateAccountCallback\(callbackURL\) : callbackURL\)/);
   // Reset requests answer identically for known and unknown e-mail addresses.
   assert.match(ui, /Nếu email này có tài khoản/);
+});
+
+test("successful e-mail registration gives a clear completion screen and clears credentials", async () => {
+  const ui = await read("app", "(storefront)", "tai-khoan", "dang-nhap", "CustomerAccountAuth.tsx");
+  assert.match(ui, /registrationComplete/);
+  assert.match(ui, /Tài khoản đã được tạo/);
+  assert.match(ui, /setConfirmation\(""\)/);
+  assert.match(ui, /setShowPassword\(false\)/);
+  assert.match(ui, /Đăng nhập/);
+});
+
+test("Google sign-up returns to the account page with a success message and keeps the requested destination", async () => {
+  const [auth, account, styles] = await Promise.all([
+    read("app", "(storefront)", "tai-khoan", "dang-nhap", "CustomerAccountAuth.tsx"),
+    read("app", "(storefront)", "tai-khoan", "page.tsx"),
+    read("app", "(storefront)", "tai-khoan", "customer-account.module.css"),
+  ]);
+  assert.match(auth, /googleCreateAccountCallback\(callbackURL\)/);
+  assert.match(auth, /searchParams\.set\("welcome", "google"\)/);
+  assert.match(account, /Đã vào tài khoản bằng Google/);
+  assert.match(account, /if \(contact && next && !googleWelcome\) redirect\(next\)/);
+  assert.match(styles, /\.welcomeBanner/);
 });
 
 test("password reset page rejects missing tokens and posts the new password with the token", async () => {

@@ -365,11 +365,17 @@ async function auditHomepageMobile(page, result) {
 async function readScrollMotionState(page) {
   return page.evaluate(() => {
     const animated = [...document.querySelectorAll("[data-animate]")];
+    const visibleAnimatedCount = animated.filter((element) => {
+      const style = getComputedStyle(element);
+      const rect = element.getBoundingClientRect();
+      return style.display !== "none" && style.visibility !== "hidden" && Number(style.opacity) > 0 && rect.width > 0 && rect.height > 0;
+    }).length;
     return {
       scrollY: Math.round(window.scrollY),
       scrollHeight: document.documentElement.scrollHeight,
       animateCount: animated.length,
       animatedCount: animated.filter((element) => element.getAttribute("data-animated") === "true").length,
+      visibleAnimatedCount,
       lazyImageCount: [...document.images].filter((image) => image.loading === "lazy").length,
       loadedImageCount: [...document.images].filter((image) => image.complete && image.naturalWidth > 0).length,
       sample: animated.slice(0, 3).map((element) => {
@@ -399,15 +405,16 @@ async function auditHomepageScroll(page, result) {
   const bottom = await readScrollMotionState(page);
   await capture(page, result, "scroll-bottom");
   await recordAction(result, {
-    id: "scroll-reveal-and-lazy-load",
+    id: "scroll-lazy-load-with-visible-mobile-content",
     type: "scroll",
-    expected: "Các block dưới fold xuất hiện bằng opacity/translate/scale và ảnh lazy-load tăng dần khi người dùng cuộn.",
+    expected: "Trên mobile, nội dung luôn nhìn thấy và ảnh lazy-load tăng dần khi người dùng cuộn; không bắt buộc hoạt ảnh reveal.",
     observed: { before, during, settled, bottom },
     pass:
       before.animateCount > 0 &&
-      bottom.animatedCount > before.animatedCount &&
+      before.visibleAnimatedCount === before.animateCount &&
+      bottom.visibleAnimatedCount === bottom.animateCount &&
       bottom.loadedImageCount > before.loadedImageCount &&
-      Number(during.sample[2]?.opacity ?? 1) < 1,
+      Number(during.sample[2]?.opacity ?? 1) > 0,
   });
 }
 
@@ -546,13 +553,17 @@ async function auditCatalogMobile(page, result) {
     }
   } else {
     await capture(page, result, "detail-unavailable");
-    const emptyStateCount = await page.locator('div[role="status"]').count();
+    const emptyStateVisible = await page.getByRole("heading", {
+      name: "Danh mục sản phẩm đang được cập nhật",
+      exact: true,
+    }).isVisible().catch(() => false)
+      && await page.getByText("Hiện chưa có sản phẩm được công bố").isVisible().catch(() => false);
     await recordAction(result, {
       id: "open-product-detail",
       type: "open modal/detail",
       expected: "Nếu danh mục trống, empty state phải hiện rõ; nếu có card thì mở được chi tiết.",
-      observed: { cardCount: catalogCardCount, emptyStateCount, url: page.url() },
-      pass: catalogCardCount === 0 && emptyStateCount > 0,
+      observed: { cardCount: catalogCardCount, emptyStateVisible, url: page.url() },
+      pass: catalogCardCount === 0 && emptyStateVisible,
     });
   }
 }

@@ -273,8 +273,10 @@ test("keeps the injected floating contact off mobile when captured bottom contac
 test("keeps the quick-contact rail in a safe side lane at tablet widths", () => {
   assert.match(
     globals,
-    /@media \(min-width: 550px\) and \(max-width: 1199px\)[\s\S]*?\.echbay-sms-messenger \{[\s\S]*?right: 0 !important;[\s\S]*?width: 38px !important;/,
+    /@media \(min-width: 550px\) and \(max-width: 1399px\)[\s\S]*?\.echbay-sms-messenger \{[\s\S]*?right: 8px !important;[\s\S]*?width: 38px !important;/,
   );
+  assert.match(globals, /@media \(min-width: 550px\) and \(max-width: 1399px\)[\s\S]*?#main #content \{[\s\S]*?padding-right: 56px;/);
+  assert.match(globals, /#main #content > \.section\.dark \{[\s\S]*?width: calc\(100% \+ 56px\);/);
   assert.match(globals, /\.echbay-sms-messenger > div:not\(\.phonering-alo-cart\)[\s\S]*?height: 38px/);
   assert.match(globals, /\.echbay-sms-messenger > div:not\(\.phonering-alo-cart\)[\s\S]*?background-clip: content-box/);
   assert.match(globals, /\.echbay-sms-messenger > div:not\(\.phonering-alo-cart\) > a[\s\S]*?position: absolute/);
@@ -493,6 +495,11 @@ test("the contact audit blocks only the local API mutation", () => {
   assert.match(uxAuditPilot, /const localContactOrigin = new URL\(baseUrl\)\.origin/);
   assert.match(uxAuditPilot, /request\.url\(\)[\s\S]*\/api\/contact/);
   assert.match(uxAuditPilot, /pass:\s*invalidCount > 0 && !blockedContactMutation/);
+});
+
+test("the catalog audit recognizes the live published-catalog empty state", () => {
+  assert.match(uxAuditPilot, /Hiện chưa có sản phẩm được công bố/);
+  assert.match(uxAuditPilot, /emptyStateVisible/);
 });
 
 test("adds an independent page reveal layer for custom storefront surfaces", () => {

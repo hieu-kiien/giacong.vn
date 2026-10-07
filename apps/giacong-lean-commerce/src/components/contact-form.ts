@@ -14,6 +14,7 @@ const formStatuses = [
   "submitting",
 ] as const;
 const REQUEST_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+let contactFormLabelSequence = 0;
 
 export function getContactServiceContext(search: string): string {
   const slug = new URLSearchParams(search).get("service")?.trim() ?? "";
@@ -52,6 +53,50 @@ function getFormRequestId(form: HTMLFormElement): string {
   const requestId = crypto.randomUUID();
   form.dataset.requestId = requestId;
   return requestId;
+}
+
+function addContactFieldLabels(form: HTMLFormElement) {
+  const controls = Array.from(form.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>(
+    'input[type="text"]:not([name^="_"]), input[type="tel"], input[type="email"], textarea',
+  ));
+  const generatedLabels: HTMLLabelElement[] = [];
+  const generatedIds: Array<{ control: HTMLInputElement | HTMLTextAreaElement; id: string }> = [];
+  const scope = `${form.id || "contact-form"}-${++contactFormLabelSequence}`;
+
+  controls.forEach((control, index) => {
+    if (control.labels?.length || control.hasAttribute("aria-label") || control.hasAttribute("aria-labelledby")) return;
+    const placeholder = control.getAttribute("placeholder")?.trim().toLocaleLowerCase("vi") ?? "";
+    const labelText = control instanceof HTMLTextAreaElement
+      ? "Nội dung yêu cầu"
+      : control.type === "tel"
+        ? "Số điện thoại"
+        : control.type === "email"
+          ? "Email"
+          : placeholder.includes("tên")
+            ? "Họ và tên"
+            : "Thông tin liên hệ";
+    const originalId = control.id;
+    const id = originalId || `${scope}-field-${index + 1}`;
+    if (!originalId) {
+      control.id = id;
+      generatedIds.push({ control, id });
+    }
+
+    const label = document.createElement("label");
+    label.className = "contact-field-label";
+    label.htmlFor = id;
+    label.textContent = labelText;
+    const wrapper = control.closest(".wpcf7-form-control-wrap") ?? control;
+    wrapper.insertAdjacentElement("beforebegin", label);
+    generatedLabels.push(label);
+  });
+
+  return () => {
+    generatedLabels.forEach((label) => label.remove());
+    generatedIds.forEach(({ control, id }) => {
+      if (control.id === id) control.removeAttribute("id");
+    });
+  };
 }
 
 function createContactPayload(form: HTMLFormElement) {
@@ -166,8 +211,10 @@ export function connectContactForms() {
     action: form.getAttribute("action"),
     method: form.getAttribute("method"),
   }));
+  const disconnectFieldLabels: Array<() => void> = [];
 
   forms.forEach((form) => {
+    disconnectFieldLabels.push(addContactFieldLabels(form));
     const service = getFormServiceContext(form);
     if (service) {
       const syncServiceContext = () => {
@@ -194,6 +241,7 @@ export function connectContactForms() {
   });
 
   return () => {
+    disconnectFieldLabels.forEach((disconnect) => disconnect());
     forms.forEach((form, index) => {
       form.removeEventListener("submit", submitContactForm);
       const original = originalAttributes[index];

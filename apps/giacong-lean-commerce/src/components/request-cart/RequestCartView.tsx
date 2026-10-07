@@ -318,7 +318,7 @@ interface CartLineProps {
 function CartLine({ line, onChangeQuantity, onRemove }: CartLineProps) {
   const blocking = line.adjustments.filter((adjustment) => adjustment.code !== "PRICE_ON_REQUEST");
   const priceNote = line.adjustments.find((adjustment) => adjustment.code === "PRICE_ON_REQUEST");
-  const label = line.productName || line.variantSku;
+  const label = line.productName || "Sản phẩm";
   const variantLabel = conciseVariantLabel(line.productName, line.variantLabel);
   const quantityStep = line.quantityStep ?? 1;
   const minimumQuantity = line.minimumOrderQuantity ?? 1;
@@ -326,66 +326,82 @@ function CartLine({ line, onChangeQuantity, onRemove }: CartLineProps) {
 
   return (
     <li className="rounded-lg border border-neutral-200 bg-white p-4" data-cart-line={line.variantSku}>
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="flex min-w-0 items-start gap-3">
-          {line.imageUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img alt={line.productName || "Sản phẩm trong giỏ yêu cầu"} className="size-20 shrink-0 rounded-md border border-neutral-200 object-cover" data-cart-image loading="lazy" src={line.imageUrl} />
-          ) : (
-            <div aria-label="Chưa có ảnh sản phẩm" className="size-20 shrink-0 rounded-md border border-neutral-200 bg-neutral-100" data-cart-image />
-          )}
-          <div className="min-w-0">
-            <p className="text-base font-semibold text-neutral-900">{line.productName || "Sản phẩm không còn tồn tại"}</p>
-            <p className="mt-1 text-sm text-neutral-700">
-              {variantLabel || "Biến thể không xác định"}
-              <span className="text-neutral-500"> · SKU {line.variantSku}</span>
-            </p>
+      {line.productName ? (
+        <>
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="flex min-w-0 items-start gap-3">
+              {line.imageUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img alt={line.productName} className="size-20 shrink-0 rounded-md border border-neutral-200 object-cover" data-cart-image loading="lazy" src={line.imageUrl} />
+              ) : (
+                <div aria-label="Chưa có ảnh sản phẩm" className="size-20 shrink-0 rounded-md border border-neutral-200 bg-neutral-100" data-cart-image />
+              )}
+              <div className="min-w-0">
+                <p className="text-base font-semibold text-neutral-900">{line.productName}</p>
+                {variantLabel ? <p className="mt-1 text-sm text-neutral-700">{variantLabel}</p> : null}
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Link
+                className="inline-flex min-h-11! items-center rounded-md border border-commerce-brand px-3 text-sm font-medium text-commerce-brand-dark! hover:bg-[#eff8e8] focus-visible:outline-2! focus-visible:outline-offset-2 focus-visible:outline-[#2e90fa]!"
+                href={`/san-pham/${line.parentSlug}/?variant=${encodeURIComponent(line.variantSku)}&editCart=${encodeURIComponent(line.variantSku)}`}
+              >
+                Chỉnh sản phẩm
+              </Link>
+              <button
+                aria-label={`Xóa ${label}${line.variantLabel ? ` - ${line.variantLabel}` : ""} khỏi giỏ yêu cầu`}
+                className="min-h-11! rounded-md border border-neutral-300 px-3 text-sm font-medium text-neutral-800! hover:border-red-400 hover:text-red-700! focus-visible:outline-2! focus-visible:outline-offset-2 focus-visible:outline-[#2e90fa]!"
+                onClick={() => onRemove(line.variantSku)}
+                type="button"
+              >
+                Xóa
+              </button>
+            </div>
           </div>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Link
-            className="inline-flex min-h-11! items-center rounded-md border border-commerce-brand px-3 text-sm font-medium text-commerce-brand-dark! hover:bg-[#eff8e8] focus-visible:outline-2! focus-visible:outline-offset-2 focus-visible:outline-[#2e90fa]!"
-            href={`/san-pham/${line.parentSlug}/?variant=${encodeURIComponent(line.variantSku)}&editCart=${encodeURIComponent(line.variantSku)}`}
-          >
-            Chỉnh sản phẩm
-          </Link>
+
+          <div className="mt-4 flex flex-wrap items-end gap-x-6 gap-y-3">
+            <div data-cart-quantity>
+              <p className="block text-sm font-medium text-neutral-800">
+                {`Số lượng${line.unit ? ` (${line.unit})` : ""}`}
+              </p>
+              <div className="mt-1 inline-flex h-11 overflow-hidden rounded-md border border-neutral-300 bg-white">
+                <button aria-label={`Giảm số lượng ${label}`} className="min-h-11! w-11 border-r border-neutral-300 text-lg font-semibold text-neutral-800! hover:bg-neutral-50 disabled:cursor-not-allowed disabled:text-neutral-400!" disabled={!canDecrease} onClick={() => onChangeQuantity(line.variantSku, line.quantity - quantityStep)} type="button">−</button>
+                <output className="flex min-w-16 items-center justify-center px-3 text-base font-semibold text-neutral-900">{line.quantity}</output>
+                <button aria-label={`Tăng số lượng ${label}`} className="min-h-11! w-11 border-l border-neutral-300 text-lg font-semibold text-neutral-800! hover:bg-neutral-50" onClick={() => onChangeQuantity(line.variantSku, line.quantity + quantityStep)} type="button">+</button>
+              </div>
+            </div>
+            <p className="text-sm text-neutral-700">
+              <span className="block text-neutral-600">Đơn giá</span>
+              <span className="text-base font-semibold text-neutral-900" data-cart-unit-price>
+                {line.unitPrice === null ? "Liên hệ báo giá" : formatVnd(line.unitPrice)}
+              </span>
+            </p>
+            {line.lineTotal === null ? null : (
+              <p className="text-sm text-neutral-700">
+                <span className="block text-neutral-600">Thành tiền</span>
+                <span className="text-base font-semibold text-neutral-900" data-cart-line-total>{formatVnd(line.lineTotal)}</span>
+              </p>
+            )}
+          </div>
+        </>
+      ) : (
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-base font-semibold text-neutral-900">Sản phẩm không còn tồn tại</p>
+            <p className="mt-1 text-sm text-neutral-700">Xóa dòng này rồi chọn lại sản phẩm đang được hiển thị.</p>
+          </div>
           <button
-            aria-label={`Xóa ${label}${line.variantLabel ? ` - ${line.variantLabel}` : ""} khỏi giỏ yêu cầu`}
+            aria-label="Xóa sản phẩm không còn tồn tại khỏi giỏ yêu cầu"
             className="min-h-11! rounded-md border border-neutral-300 px-3 text-sm font-medium text-neutral-800! hover:border-red-400 hover:text-red-700! focus-visible:outline-2! focus-visible:outline-offset-2 focus-visible:outline-[#2e90fa]!"
             onClick={() => onRemove(line.variantSku)}
             type="button"
           >
-            Xóa
+            Gỡ khỏi giỏ
           </button>
         </div>
-      </div>
+      )}
 
-      <div className="mt-4 flex flex-wrap items-end gap-x-6 gap-y-3">
-        <div data-cart-quantity>
-          <p className="block text-sm font-medium text-neutral-800">
-            {`Số lượng${line.unit ? ` (${line.unit})` : ""}`}
-          </p>
-          <div className="mt-1 inline-flex h-11 overflow-hidden rounded-md border border-neutral-300 bg-white">
-            <button aria-label={`Giảm số lượng ${label}`} className="min-h-11! w-11 border-r border-neutral-300 text-lg font-semibold text-neutral-800! hover:bg-neutral-50 disabled:cursor-not-allowed disabled:text-neutral-400!" disabled={!canDecrease} onClick={() => onChangeQuantity(line.variantSku, line.quantity - quantityStep)} type="button">−</button>
-            <output className="flex min-w-16 items-center justify-center px-3 text-base font-semibold text-neutral-900">{line.quantity}</output>
-            <button aria-label={`Tăng số lượng ${label}`} className="min-h-11! w-11 border-l border-neutral-300 text-lg font-semibold text-neutral-800! hover:bg-neutral-50" onClick={() => onChangeQuantity(line.variantSku, line.quantity + quantityStep)} type="button">+</button>
-          </div>
-        </div>
-        <p className="text-sm text-neutral-700">
-          <span className="block text-neutral-600">Đơn giá</span>
-          <span className="text-base font-semibold text-neutral-900" data-cart-unit-price>
-            {line.unitPrice === null ? "Liên hệ báo giá" : formatVnd(line.unitPrice)}
-          </span>
-        </p>
-        {line.lineTotal === null ? null : (
-          <p className="text-sm text-neutral-700">
-            <span className="block text-neutral-600">Thành tiền</span>
-            <span className="text-base font-semibold text-neutral-900" data-cart-line-total>{formatVnd(line.lineTotal)}</span>
-          </p>
-        )}
-      </div>
-
-      {priceNote ? (
+      {line.productName && priceNote ? (
         <p className="mt-3 rounded-md border border-neutral-200 bg-neutral-50 px-3 py-2 text-sm text-neutral-800">
           {priceNote.message}
         </p>

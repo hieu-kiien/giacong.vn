@@ -21,6 +21,12 @@ test("completion preserves a safe return destination", () => {
   assert.equal(customerContactDestination("//evil.test"), "/tai-khoan/");
 });
 
+test("saved contact details stay visible without a disclosure click", () => {
+  const ui = readFileSync(new URL("../src/app/(storefront)/tai-khoan/CustomerContactProfile.tsx", import.meta.url), "utf8");
+  assert.doesNotMatch(ui, /<details|<summary/);
+  assert.match(ui, /Thông tin liên hệ/);
+});
+
 test("prefill preserves edits and cannot leak one account's profile to another", () => {
   const initial = { name: "", phone: "", email: "", companyName: "", message: "My request" };
   assert.deepEqual(mergeCustomerContact(initial, { name: "Lan", phone: "0912345678", email: "lan@example.test", companyName: "A" }), { ...initial, name: "Lan", phone: "0912345678", email: "lan@example.test", companyName: "A" });

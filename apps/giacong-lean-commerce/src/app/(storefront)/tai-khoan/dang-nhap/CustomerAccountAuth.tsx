@@ -27,6 +27,18 @@ function getErrorMessage(result: unknown): string {
 }
 
 const MIN_PASSWORD_LENGTH = 8;
+const ACCOUNT_CALLBACK_ORIGIN = "https://account.local";
+
+function googleCreateAccountCallback(callbackURL: string): string {
+  const destination = new URL(callbackURL, ACCOUNT_CALLBACK_ORIGIN);
+  const continuation = `${destination.pathname}${destination.search}${destination.hash}`;
+  const callback = new URL("/tai-khoan/", ACCOUNT_CALLBACK_ORIGIN);
+  callback.searchParams.set("welcome", "google");
+  if (continuation !== "/tai-khoan/" && continuation !== "/tai-khoan") {
+    callback.searchParams.set("next", continuation);
+  }
+  return `${callback.pathname}${callback.search}`;
+}
 
 export function CustomerAccountAuth({ callbackURL, emailRegistrationEnabled = false, emailDeliveryEnabled = emailRegistrationEnabled }: { callbackURL: string; emailRegistrationEnabled?: boolean; emailDeliveryEnabled?: boolean }) {
   const router = useRouter();
@@ -43,8 +55,10 @@ export function CustomerAccountAuth({ callbackURL, emailRegistrationEnabled = fa
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [unverifiedEmail, setUnverifiedEmail] = useState("");
+  const [registrationComplete, setRegistrationComplete] = useState(false);
 
   function changeMode(nextMode: AuthMode) {
+    setRegistrationComplete(false);
     setMode(nextMode);
     setIdentifier("");
     setPassword("");
@@ -157,8 +171,15 @@ export function CustomerAccountAuth({ callbackURL, emailRegistrationEnabled = fa
         return;
       }
 
-      setNotice("Hãy kiểm tra email để xác nhận tài khoản (cả mục thư rác). Nếu bạn đã có tài khoản, hãy đăng nhập hoặc chọn Quên mật khẩu.");
+      setUnverifiedEmail(email.trim());
+      setNotice("");
       setPassword("");
+      setConfirmation("");
+      setShowPassword(false);
+      setFullName("");
+      setPhone("");
+      setConsent(false);
+      setRegistrationComplete(true);
     } catch {
       setError("Chưa xử lý được yêu cầu. Vui lòng thử lại sau.");
     } finally {
@@ -196,7 +217,7 @@ export function CustomerAccountAuth({ callbackURL, emailRegistrationEnabled = fa
     setError("");
     setNotice("");
     try {
-      const result = await signInWithGoogle(callbackURL);
+      const result = await signInWithGoogle(mode === "create-account" ? googleCreateAccountCallback(callbackURL) : callbackURL);
       if (getErrorCode(result) || getErrorMessage(result)) {
         setError("Chưa thể đăng nhập bằng Google. Vui lòng thử lại sau.");
         setIsPending(false);
@@ -216,6 +237,14 @@ export function CustomerAccountAuth({ callbackURL, emailRegistrationEnabled = fa
 
   return (
     <div className={styles.authMethods}>
+      {registrationComplete ? (
+        <section aria-labelledby="registration-complete-heading" className={styles.registrationSuccess}>
+          <h3 id="registration-complete-heading">Tài khoản đã được tạo</h3>
+          <p>Chúng tôi đã gửi liên kết xác nhận đến <strong>{email}</strong>. Mở email để xác nhận trước khi đăng nhập; nhớ kiểm tra cả thư rác.</p>
+          {unverifiedEmail ? <button className={styles.linkButton} disabled={isPending} onClick={resendVerification} type="button">Gửi lại email xác nhận</button> : null}
+          <button className={styles.submitButton} disabled={isPending} onClick={() => { const registeredEmail = email; changeMode("sign-in"); setIdentifier(registeredEmail); }} type="button">Đăng nhập</button>
+        </section>
+      ) : <>
       {mode !== "forgot-password" ? (
         <div aria-label="Chọn thao tác tài khoản" className={styles.modeSwitcher} role="group">
           <button
@@ -393,6 +422,7 @@ export function CustomerAccountAuth({ callbackURL, emailRegistrationEnabled = fa
           </button>
         </form>
       ) : null}
+      </>}
 
       <div aria-live="polite" className={styles.feedback}>{feedback}</div>
     </div>

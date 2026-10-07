@@ -65,7 +65,7 @@ export function CustomerContactProfile({ initial, complete, next }: { initial: C
   </form>;
 
   return <section className={styles.card} aria-labelledby="contact-profile-heading">
-    {complete ? <details><summary id="contact-profile-heading">Thông tin liên hệ · {initial.phone}</summary>{form}</details>
-      : <><h2 id="contact-profile-heading">Hoàn thiện thông tin liên hệ</h2>{form}</>}
+    <h2 id="contact-profile-heading">{complete ? "Thông tin liên hệ" : "Hoàn thiện thông tin liên hệ"}</h2>
+    {form}
   </section>;
 }

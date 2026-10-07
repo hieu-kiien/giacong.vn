@@ -1,6 +1,5 @@
 .card { margin-top: 20px; border: 1px solid #e1e8dc; border-radius: 16px; padding: 24px; background: #fff; }
 .card h2 { margin: 0 0 12px; color: #293e27; font-size: 22px; }
-.card summary { color: #334a2f; font-weight: 650; cursor: pointer; min-height: 24px; overflow-wrap: anywhere; }
 .form { margin-top: 16px; }
 .copy { color: #62705e; font-size: 14px; line-height: 1.65; }
 .grid { display: grid; gap: 16px; margin: 20px 0; }
