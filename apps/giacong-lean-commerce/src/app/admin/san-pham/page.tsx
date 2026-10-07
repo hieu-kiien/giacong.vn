@@ -365,19 +365,42 @@ export default function AdminProductsPage() {
   }, [hasUnsavedChanges, unsavedRevision]);
 
   const applyEditorForm = useCallback((form: ProductFormState | null, updateHistory = true) => {
+    const currentUrl = typeof window !== "undefined" ? new URL(window.location.href) : null;
+    const editQuery = currentUrl?.searchParams.get("edit");
+    const createQuery = currentUrl?.searchParams.get("create");
+    const historyState = typeof window !== "undefined" ? window.history.state as { create?: unknown; edit?: unknown } | null : null;
+    const shouldReturnToListEntry = !form && updateHistory && (
+      (editQuery !== null && String(historyState?.edit) === editQuery) ||
+      (createQuery === "1" && historyState?.create === "1")
+    );
+
     editorGenerationRef.current += 1;
     productRequestRef.current = null;
-    handledDeepLinkRef.current = form ? (form.id ? `edit:${form.id}` : "create") : null;
+    // Keep the old deep link marked until Next's search params catch up with the history change.
+    handledDeepLinkRef.current = form
+      ? (form.id ? `edit:${form.id}` : "create")
+      : editQuery
+        ? `edit:${editQuery}`
+        : createQuery === "1" ? "create" : null;
     setEditor(form ? { ...form } : null);
     setEditorSnapshot(form ? { ...form } : null);
     setSaveError(null);
     setPendingRequest(null);
     if (updateHistory && typeof window !== "undefined") {
-      const nextHref = form ? (form.id ? `/admin/san-pham?edit=${form.id}` : "/admin/san-pham?create=1") : "/admin/san-pham";
       const currentHref = `${window.location.pathname}${window.location.search}`;
-      if (currentHref !== nextHref) {
-        const state = form ? (form.id ? { edit: form.id } : { create: "1" }) : null;
-        window.history.pushState(state, "", nextHref);
+      if (form) {
+        const nextHref = form.id ? `/admin/san-pham?edit=${form.id}` : "/admin/san-pham?create=1";
+        if (currentHref !== nextHref) {
+          const state = form.id ? { edit: form.id } : { create: "1" };
+          window.history.pushState(state, "", nextHref);
+        }
+      } else if (shouldReturnToListEntry) {
+        window.history.back();
+      } else if (currentUrl && (editQuery || createQuery)) {
+        currentUrl.searchParams.delete("edit");
+        currentUrl.searchParams.delete("create");
+        const nextHref = `${currentUrl.pathname}${currentUrl.search}${currentUrl.hash}`;
+        if (currentHref !== nextHref) window.history.replaceState(window.history.state, "", nextHref);
       }
     }
   }, []);

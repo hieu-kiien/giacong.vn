@@ -673,6 +673,27 @@ for (const [width, height] of [[390, 844], [1366, 768], [1920, 1080]]) {
   }, "owner", width, height);
 }
 
+await run("Closing the product editor keeps browser Back from reopening it", async (page) => {
+  await open(page, "/admin");
+  await page.getByTestId("link-dashboard-products").click();
+  await expect(page).toHaveURL(`${origin}/admin/san-pham`);
+  await page.getByTestId("button-product-edit-1").click();
+  await expect(page).toHaveURL(`${origin}/admin/san-pham?edit=1`);
+  await page.getByRole("button", { name: "Quay lại danh sách", exact: true }).click();
+  const discardChangesDialog = page.getByRole("dialog");
+  if (await discardChangesDialog.count()) {
+    await discardChangesDialog.getByRole("button", { name: "Bỏ thay đổi", exact: true }).click();
+  }
+  await expect(page).toHaveURL(`${origin}/admin/san-pham`);
+
+  await page.evaluate(() => history.back());
+  await expect(page).toHaveURL(`${origin}/admin`);
+  await page.evaluate(() => history.forward());
+  await expect(page).toHaveURL(`${origin}/admin/san-pham`);
+  await expect(page.getByTestId("button-product-edit-1")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Quay lại danh sách", exact: true })).toHaveCount(0);
+});
+
 await run("Product editor protects dirty browser Back and restores browser Forward", async (page) => {
   await open(page, "/admin/san-pham");
   await page.getByTestId("button-product-edit-1").click();
