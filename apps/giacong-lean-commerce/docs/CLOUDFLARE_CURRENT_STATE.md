@@ -1466,3 +1466,21 @@ runtime trước khi đóng gate hiệu năng/ổn định.
 - Đây chỉ là thay đổi admission cho staging. Production Worker, Access, D1 và
   R2 không bị thay đổi. Nếu cần rollback, phải tạo lại Access app và policy
   staging trước khi bật lại đường JWT.
+
+## Admin UX staging acceptance — 2026-10-07
+
+- Commit `9b1abbf9` was deployed only to `giacong-vn-staging` as Worker version
+  `152dce36-0c19-43d7-87d7-eb911285bcee`; the previous active version was
+  `07f739e7-59b1-4249-9e77-85934ee8293b`.
+- Signed-in browser verification at 1920 px showed all 15 admin product rows
+  as two-column cards with no horizontal overflow. The navigation editor kept
+  all 40 items available and collapsed child groups by default; opening and
+  closing them reduced the measured page height from 13,441 px to 2,650 px.
+- The 16 service rows loaded after the normal initial skeleton state. The
+  read-only check did not modify products, services, requests, customers, or
+  menu data. GitHub quality, GitNexus, and staging D1 readiness checks passed.
+- Public staging still reports zero published products. The admin list contains
+  QA/demo and hidden/draft records, so none were published during UI QA; real
+  catalog content still needs owner selection before customer handoff.
+- Production Worker, Access, D1, and R2 remain unchanged. Rollback of the
+  staging Worker is available to version `07f739e7-59b1-4249-9e77-85934ee8293b`.
