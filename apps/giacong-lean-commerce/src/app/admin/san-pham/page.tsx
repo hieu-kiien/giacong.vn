@@ -46,7 +46,7 @@ import { useAdminSession } from "@/components/admin/AdminShell";
 import { useAdminToast } from "@/components/admin/AdminToast";
 import { AdminClientError, fetchAdmin, getInitials, mutateAdmin, type AdminCategory, type AdminProduct } from "@/lib/admin-client";
 import { canManageCatalog } from "@/lib/admin-permissions";
-import { buildAdminProductPayload } from "@/lib/admin-product-form";
+import { buildAdminProductPayload, normalizeAdminProductStatus } from "@/lib/admin-product-form";
 import { parseAdminProductPayload } from "@/lib/admin-product-input";
 
 interface ProductResponse {
@@ -136,7 +136,7 @@ function getProductVisibilityChoice(form: ProductFormState): ProductVisibilityCh
 function applyProductVisibilityChoice(form: ProductFormState, choice: ProductVisibilityChoice): ProductFormState {
   if (choice === getProductVisibilityChoice(form)) return form;
   if (choice === "live") return { ...form, isActive: true, status: "published" };
-  if (choice === "hidden") return { ...form, isActive: false, status: form.id ? "published" : "archived" };
+  if (choice === "hidden") return { ...form, isActive: false, status: "archived" };
   return { ...form, isActive: false, status: "draft" };
 }
 
@@ -172,7 +172,7 @@ function toProductForm(product: AdminProduct): ProductFormState {
     sku: product.sku,
     slug: product.slug,
     soldCount: product.soldCount ?? 0,
-    status: product.status as ProductFormState["status"],
+    status: normalizeAdminProductStatus(product.status, product.isActive),
   };
 }
 
@@ -582,7 +582,7 @@ export default function AdminProductsPage() {
     setActivatingId(product.id);
     setSaveError(null);
     try {
-      const targetStatus: ProductFormState["status"] = product.status === "archived" ? "draft" : (product.status as ProductFormState["status"]);
+      const targetStatus: ProductFormState["status"] = "published";
       await mutateAdmin<{ product: AdminProduct }>(`/api/admin/products/${product.id}`, {
         body: {
           categoryId: product.categoryId ?? null,
@@ -622,7 +622,7 @@ export default function AdminProductsPage() {
     const selectedProducts = products.filter((p) => selectedIds.has(p.id));
     for (const product of selectedProducts) {
       try {
-        const targetStatus: ProductFormState["status"] = product.status === "archived" ? "draft" : (product.status as ProductFormState["status"]);
+        const targetStatus: ProductFormState["status"] = "published";
         await mutateAdmin<{ product: AdminProduct }>(`/api/admin/products/${product.id}`, {
           body: {
             categoryId: product.categoryId ?? null,

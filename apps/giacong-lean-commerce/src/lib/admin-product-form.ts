@@ -4,6 +4,8 @@
 // requires JSON numbers for numeric fields ("Numeric fields must arrive as
 // JSON numbers, not numeric strings"). This builder converts the form state
 // before submit. Field validation stays server-side.
+import type { AdminPublishStatus } from "./admin-data.ts";
+
 export interface AdminProductFormState {
   categoryId: string;
   description: string;
@@ -29,6 +31,13 @@ export interface AdminProductFormPayload {
   sku: string;
   slug: string;
   status: string;
+}
+
+export function normalizeAdminProductStatus(status: string, isActive: boolean): AdminPublishStatus {
+  if (status === "published" && !isActive) return "archived";
+  return status === "draft" || status === "review" || status === "published" || status === "archived"
+    ? status
+    : "draft";
 }
 
 export function buildAdminProductPayload(

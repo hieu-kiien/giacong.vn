@@ -248,7 +248,7 @@
   }
 
   #header .flex-col.flex-left .header-nav-main {
-    justify-content: flex-start;
+    justify-content: flex-end;
   }
 
   #header .flex-col.flex-right {

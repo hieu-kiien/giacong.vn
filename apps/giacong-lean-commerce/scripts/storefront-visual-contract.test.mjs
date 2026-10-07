@@ -61,6 +61,11 @@ test("shared navigation does not force a news underline on any route", () => {
   assert.doesNotMatch(globals, /\.archive #header #menu-item-1541/);
 });
 
+test("desktop navigation balances primary links around the centered brand and pins the account link right", () => {
+  assert.match(globals, /#header \.flex-col\.flex-left \.header-nav-main\s*\{[^}]*justify-content:\s*flex-end/);
+  assert.match(globals, /#header \.header-nav-main\.nav-right > \.menu-item-account\s*\{[^}]*margin-left:\s*auto/);
+});
+
 test("header-only mega menu groups reuse the linked heading style", () => {
   assert.match(globals, /\.menu-san-pham h4 > span[\s\S]*color:\s*#333/);
   assert.match(globals, /\.menu-san-pham h4 > span[\s\S]*font-size:\s*16px/);
