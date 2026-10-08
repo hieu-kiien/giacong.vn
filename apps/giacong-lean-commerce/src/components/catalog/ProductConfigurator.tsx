@@ -67,7 +67,6 @@ export function ProductConfigurator({ initialVariantSku, product, variantQueryWa
         {selectedVariant ? (
           <div className={styles.variantCommerce} aria-live="polite">
             <p className={styles.selectedVariantName}>{selectedVariant.name}</p>
-            <p className={styles.sku}>SKU: {selectedVariant.sku}</p>
             <span className={styles.price}>{selectedVariant.tierPrices[0] ? formatVnd(selectedVariant.tierPrices[0].price) : "Liên hệ báo giá"}</span>
             <table className={styles.facts}>
               <caption className="sr-only">Thông tin đặt hàng của lựa chọn đã chọn</caption>

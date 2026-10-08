@@ -36,7 +36,6 @@ export function ProductDetailCommerce({ editingCartVariantSku, initialVariantSku
         <h1 className={styles.title}>{view.name}</h1>
         <AdminCatalogContextualAction productId={productId} />
         <p className={styles.identity}>
-          <span>SKU: {view.sku}</span>
           <span>{view.variantChoices.length} quy cách</span>
         </p>
         {view.shortDescription ? <p className={styles.lede}>{view.shortDescription}</p> : null}
