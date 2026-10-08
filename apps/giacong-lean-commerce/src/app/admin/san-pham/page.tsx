@@ -368,11 +368,6 @@ export default function AdminProductsPage() {
     const currentUrl = typeof window !== "undefined" ? new URL(window.location.href) : null;
     const editQuery = currentUrl?.searchParams.get("edit");
     const createQuery = currentUrl?.searchParams.get("create");
-    const historyState = typeof window !== "undefined" ? window.history.state as { create?: unknown; edit?: unknown } | null : null;
-    const shouldReturnToListEntry = !form && updateHistory && (
-      (editQuery !== null && String(historyState?.edit) === editQuery) ||
-      (createQuery === "1" && historyState?.create === "1")
-    );
 
     editorGenerationRef.current += 1;
     productRequestRef.current = null;
@@ -394,8 +389,6 @@ export default function AdminProductsPage() {
           const state = form.id ? { edit: form.id } : { create: "1" };
           window.history.pushState(state, "", nextHref);
         }
-      } else if (shouldReturnToListEntry) {
-        window.history.back();
       } else if (currentUrl && (editQuery || createQuery)) {
         currentUrl.searchParams.delete("edit");
         currentUrl.searchParams.delete("create");

@@ -119,6 +119,22 @@ test("chặn chuyển bản ghi/tạo mới/đóng editor khi dirty qua AdminCon
   assert.doesNotMatch(source, /function openCreate\(\) \{\s*setSaveError\(null\);\s*setEditor/, "openCreate không được setEditor trực tiếp");
 });
 
+test("đóng editor sản phẩm phải xóa deep link khỏi URL để tải lại vẫn ở danh sách", async () => {
+  const source = await readPage();
+  const start = source.indexOf("const applyEditorForm =");
+  const end = source.indexOf("}, []);", start);
+  assert.ok(start !== -1 && end !== -1, "phải tìm thấy applyEditorForm");
+  const applyEditorSource = source.slice(start, end);
+  assert.doesNotMatch(
+    applyEditorSource,
+    /window\.history\.back\(\)/,
+    "đóng editor không được dựa vào Back có thể giữ lại ?edit hoặc rời khỏi danh sách",
+  );
+  assert.match(applyEditorSource, /searchParams\.delete\("edit"\)/, "đóng editor phải xóa deep link edit");
+  assert.match(applyEditorSource, /searchParams\.delete\("create"\)/, "đóng editor phải xóa deep link create");
+  assert.match(applyEditorSource, /replaceState\(window\.history\.state, "", nextHref\)/, "đóng editor phải cập nhật URL tại chỗ để giữ bộ lọc danh sách");
+});
+
 test("beforeunload khi dirty (bổ sung, không thay thế chặn sidebar)", async () => {
   const source = await readPage();
   assert.match(source, /beforeunload/, "phải đăng ký beforeunload khi dirty");

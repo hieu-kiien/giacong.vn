@@ -96,6 +96,8 @@ const HOMEPAGE_CRITICAL_MOTION_STYLES = `@layer captured{#section_250108065 [dat
 const HOMEPAGE_MOBILE_RENDER_STYLES = `@media (max-width:549px){
 #section_220139106,#section_1771329794,#section_819391773,#section_777974837,#section_1385300469,#section_938597378,#footer{content-visibility:auto;}
 #section_220139106{contain-intrinsic-size:auto 2400px;}
+#section_220139106 .section03 .large-3{flex-basis:100%;max-width:100%;}
+#section_220139106 .section03 .icon-box ul li{display:block;-webkit-line-clamp:unset;-webkit-box-orient:initial;overflow:visible;text-overflow:clip;}
 #section_1771329794{contain-intrinsic-size:auto 520px;}
 #section_819391773{contain-intrinsic-size:auto 1200px;}
 #section_777974837{contain-intrinsic-size:auto 900px;}
