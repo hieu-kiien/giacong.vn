@@ -460,10 +460,10 @@ test("preloads the first mobile hero tile when it is the LCP surface", () => {
 
 test("mobile homepage defers below-fold section rendering without touching the hero", () => {
   assert.match(capturedHome, /const HOMEPAGE_MOBILE_RENDER_STYLES = `@media \(max-width:549px\)/);
-  assert.match(capturedHome, /#section_220139106 \.section03 \.large-3\{flex-basis:100%;max-width:100%;\}/);
+  assert.match(capturedHome, /#section_220139106 \.large-3\{flex-basis:100%;max-width:100%;\}/);
   assert.match(
     capturedHome,
-    /#section_220139106 \.section03 \.icon-box ul li\{[^}]*display:block;[^}]*-webkit-line-clamp:unset;[^}]*overflow:visible;[^}]*text-overflow:clip;/,
+    /#section_220139106 \.icon-box ul li\{[^}]*display:block;[^}]*-webkit-line-clamp:unset;[^}]*overflow:visible;[^}]*text-overflow:clip;/,
   );
   assert.match(capturedHome, /#section_220139106[^}]*content-visibility:auto/);
   assert.match(capturedHome, /contain-intrinsic-size:auto 2400px/);

@@ -122,7 +122,7 @@ test("chặn chuyển bản ghi/tạo mới/đóng editor khi dirty qua AdminCon
 test("đóng editor sản phẩm phải xóa deep link khỏi URL để tải lại vẫn ở danh sách", async () => {
   const source = await readPage();
   const start = source.indexOf("const applyEditorForm =");
-  const end = source.indexOf("}, []);", start);
+  const end = source.indexOf("}, [router]);", start);
   assert.ok(start !== -1 && end !== -1, "phải tìm thấy applyEditorForm");
   const applyEditorSource = source.slice(start, end);
   assert.doesNotMatch(
@@ -132,7 +132,7 @@ test("đóng editor sản phẩm phải xóa deep link khỏi URL để tải l�
   );
   assert.match(applyEditorSource, /searchParams\.delete\("edit"\)/, "đóng editor phải xóa deep link edit");
   assert.match(applyEditorSource, /searchParams\.delete\("create"\)/, "đóng editor phải xóa deep link create");
-  assert.match(applyEditorSource, /replaceState\(window\.history\.state, "", nextHref\)/, "đóng editor phải cập nhật URL tại chỗ để giữ bộ lọc danh sách");
+  assert.match(applyEditorSource, /router\.replace\(nextHref, \{ scroll: false \}\)/, "đóng editor phải đồng bộ URL với App Router và giữ bộ lọc danh sách");
 });
 
 test("beforeunload khi dirty (bổ sung, không thay thế chặn sidebar)", async () => {

@@ -2,7 +2,7 @@
 
 import { ArrowLeft, Download, ExternalLink, Eye, EyeOff, FileText, FolderTree, ImageIcon, Search, Settings2, ShoppingCart, SlidersHorizontal } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 function toSlug(text: string): string {
   return text
@@ -213,6 +213,7 @@ function buildProductExportHref(filters: {
 export default function AdminProductsPage() {
   const session = useAdminSession();
   const { showToast } = useAdminToast();
+  const router = useRouter();
   const searchParams = useSearchParams();
   const [products, setProducts] = useState<AdminProduct[]>([]);
   const [query, setQuery] = useState("");
@@ -393,10 +394,10 @@ export default function AdminProductsPage() {
         currentUrl.searchParams.delete("edit");
         currentUrl.searchParams.delete("create");
         const nextHref = `${currentUrl.pathname}${currentUrl.search}${currentUrl.hash}`;
-        if (currentHref !== nextHref) window.history.replaceState(window.history.state, "", nextHref);
+        if (currentHref !== nextHref) router.replace(nextHref, { scroll: false });
       }
     }
-  }, []);
+  }, [router]);
 
   function handleEditorChange(form: ProductFormState) {
     productRequestRef.current = null;
