@@ -40,6 +40,7 @@ test("admin staging QA is authenticated, bounded and read-only", () => {
   assert.match(source, /roleNavigationRoutes/);
   assert.match(source, /JSON\.parse/);
   assert.match(source, /const adminRoutes = \[/);
+  assert.match(source, /path: "\/admin", heading: "Tổng quan"/);
   assert.match(source, /heading\.waitFor\(\{ state: "visible", timeout: 15_000 \}\)/);
   assert.match(source, /page\.on\("console"/);
   assert.match(source, /page\.on\("pageerror"/);

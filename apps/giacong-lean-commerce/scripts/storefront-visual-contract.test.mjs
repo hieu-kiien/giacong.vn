@@ -14,6 +14,16 @@ const capturedMotion = await read("../src/components/captured-motion.ts");
 const mobileNavigation = await read("../src/components/mobile-navigation.ts");
 const contactForm = await read("../src/components/contact-form.ts");
 const capturedMarkup = await read("../src/lib/captured-markup.ts");
+const capturedPage = await read("../src/components/CapturedPage.tsx");
+
+test("captured marketing pages include the same account entry as the storefront shell", () => {
+  assert.match(capturedPage, /appendAccountLinksToCapturedMarkup\(normalizedMarkup\)/);
+});
+
+test("page heroes use the approved contact background without substitute decorative shapes", () => {
+  assert.match(globals, /\.giacong-page-hero\s*\{[^}]*url\("\/images\/home-captured\/form-bg\.webp"\)/);
+  assert.match(globals, /\.giacong-page-hero__orb\s*\{\s*display:\s*none/);
+});
 
 test("home hero uses four independent local image elements", () => {
   assert.match(homePage, /data-testid=["']home-hero-gallery["']/);
@@ -49,6 +59,11 @@ test("news route has its own source-aligned page frame and active navigation", (
 test("shared navigation does not force a news underline on any route", () => {
   assert.doesNotMatch(globals, /\.archive\.category-tin-tuc #header #menu-item-1541 > a/);
   assert.doesNotMatch(globals, /\.archive #header #menu-item-1541/);
+});
+
+test("desktop navigation balances primary links around the centered brand and pins the account link right", () => {
+  assert.match(globals, /#header \.flex-col\.flex-left \.header-nav-main\s*\{[^}]*justify-content:\s*flex-end/);
+  assert.match(globals, /#header \.header-nav-main\.nav-right > \.menu-item-account\s*\{[^}]*margin-left:\s*auto/);
 });
 
 test("header-only mega menu groups reuse the linked heading style", () => {

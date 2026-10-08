@@ -2,7 +2,7 @@
 import { AdminContactContextualAction } from "@/components/admin/AdminContactContextualAction";
 import { GiacongInteractions } from "@/components/GiacongInteractions";
 import { DesktopCapturedRequestCartButton } from "@/components/request-cart/DesktopCapturedRequestCartButton";
-import { addCapturedServiceContext, layerCapturedStyles, needsCapturedShopStyles, normalizeCapturedMarkup, type CapturedServiceContext } from "@/lib/captured-markup";
+import { addCapturedServiceContext, appendAccountLinksToCapturedMarkup, layerCapturedStyles, needsCapturedShopStyles, normalizeCapturedMarkup, type CapturedServiceContext } from "@/lib/captured-markup";
 import { applySiteSettingsToMarkup, siteBrandStyles } from "@/lib/site-markup";
 import {
   applyFooterNavigationToMarkup,
@@ -62,7 +62,7 @@ export function CapturedPage({
       <div
         className={bodyClasses}
         suppressHydrationWarning
-        dangerouslySetInnerHTML={{ __html: normalizedMarkup }}
+        dangerouslySetInnerHTML={{ __html: appendAccountLinksToCapturedMarkup(normalizedMarkup) }}
       />
       <CapturedFloatingContact settings={settings} />
       {contactPageAction ? <AdminContactContextualAction /> : null}

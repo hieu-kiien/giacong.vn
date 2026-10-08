@@ -153,10 +153,7 @@ export function ProductPurchasePanel({ editingCartVariantSku, initialVariantSku,
         </p>
       ) : null}
 
-      <p className={styles.selectedVariant}>
-        <span>{selected.label}</span>
-        <span className={styles.variantSku}>SKU: {selected.sku}</span>
-      </p>
+      <p className={styles.selectedVariant}>{selected.label}</p>
 
       <TierPriceTable
         activeMinQuantity={pricing.needsContact ? selected.minimumOrderQuantity : selected.tierPrices.filter((tier) => tier.minQuantity <= pricing.quantity).at(-1)?.minQuantity ?? null}

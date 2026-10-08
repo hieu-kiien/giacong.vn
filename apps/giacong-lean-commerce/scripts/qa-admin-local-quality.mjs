@@ -27,6 +27,49 @@ await mkdir(output, { recursive: true });
 const browser = await chromium.launch({ headless: true });
 const results = [];
 const product = { id: 1, name: "Túi vải canvas in logo theo yêu cầu", slug: "tui-canvas", sku: "QA-001", categoryId: 1, categoryName: "Quà tặng", description: "Sản xuất theo thiết kế", shortDescription: "In thương hiệu theo yêu cầu", imageUrl: null, isActive: true, status: "published", leadTimeDays: 7, minimumOrderQuantity: 100, revision: 1, startingPrice: 25000, variantCount: 0, updatedAt: "2026-09-06T00:00:00Z" };
+const categoryFixtures = [
+  { id: 1, name: "Quà tặng", slug: "qua-tang" },
+  { id: 2, name: "Bột và nguyên liệu khô", slug: "bot-nguyen-lieu-kho" },
+  { id: 3, name: "Bao bì", slug: "bao-bi" },
+];
+const productFixtures = [
+  "Túi vải canvas in logo theo yêu cầu",
+  "Tinh bột sắn biến tính",
+  "Bột gạo lứt xay mịn dùng cho bánh và thức uống dinh dưỡng",
+  "Ngũ cốc dinh dưỡng hạt sen, hạnh nhân và gạo lứt",
+  "Hỗn hợp gia vị rau củ sấy dành cho thực phẩm ăn liền",
+  "Tinh bột nghệ nguyên chất đóng gói 500 g",
+  "Túi zipper PA/PE ba lớp in thương hiệu theo thiết kế",
+  "Đậu xanh cà vỏ tuyển chọn cho bánh và đồ uống",
+  "Bột gạo nếp rang xay mịn",
+  "Hộp giấy kraft đựng sản phẩm dạng túi nhỏ",
+  "Bột rau má sấy lạnh nguyên chất",
+  "Hỗn hợp ngũ cốc dinh dưỡng không đường",
+  "Bột mì nguyên cám xay mịn",
+  "Túi giấy quai xoắn in logo số lượng lớn",
+  "Gia công đóng gói nguyên liệu khô theo quy cách riêng",
+].map((name, index) => {
+  const category = categoryFixtures[index % categoryFixtures.length];
+  const statuses = ["published", "published", "draft", "review", "archived", "published", "draft", "published", "published", "review", "published", "published", "archived", "published", "draft"];
+  const status = statuses[index];
+  return {
+    ...product,
+    categoryId: category.id,
+    categoryName: category.name,
+    id: index + 1,
+    isActive: status === "published",
+    leadTimeDays: 5 + (index % 12),
+    minimumOrderQuantity: [100, 8, 4, 20, 50][index % 5],
+    name,
+    revision: 1,
+    shortDescription: index === 1 ? "Bột và nguyên liệu khô dùng làm chất tạo đặc cho sốt, súp và thực phẩm chế biến." : product.shortDescription,
+    slug: `qa-san-pham-${index + 1}`,
+    sku: index === 1 ? "B2B-DEMO-TINH-BOT-SAN-BIEN-TINH" : `QA-${String(index + 1).padStart(3, "0")}`,
+    startingPrice: 25000 + (index * 17250),
+    status,
+    variantCount: index % 4,
+  };
+});
 const newsItems = Array.from({ length: 27 }, (_, index) => {
   const isPublished = index < 20;
   const id = isPublished ? index + 1 : index + 81;
@@ -63,10 +106,17 @@ async function run(name, check, role = "owner", width = 1440, height = 900) {
   await context.route("**/api/admin/**", async (route) => {
     const path = new URL(route.request().url()).pathname;
     if (route.request().method() !== "GET") mutations.push(path);
+    if (path === "/api/admin/customers/export") {
+      await route.fulfill({
+        body: Buffer.from([0x50, 0x4b, 0x03, 0x04]),
+        headers: { "content-type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" },
+      });
+      return;
+    }
     const data = path.endsWith("/session") ? { authenticated: true, subject: "qa@example.test", role }
       : path.endsWith("/dashboard") ? { counts: { products: 28, activeProducts: 21, draftProducts: 7, services: 6, activeServices: 4, leads: 12, newLeads: 3, news: 8 }, dataReadiness: dashboardReadiness, member: { displayName: "Người kiểm thử", role }, recentLeads: [{ createdAt: "2026-09-06T00:00:00Z", fullName: "Doanh nghiệp kiểm thử", id: "qa-lead-1", status: "new" }] }
       : /\/products\/\d+$/.test(path) ? { product: { ...product, id: Number(path.split("/").at(-1)) } }
-      : path.endsWith("/products") ? { products: Array.from({ length: 8 }, (_, i) => ({ ...product, id: i + 1 })), categories: [{ id: 1, name: "Quà tặng", slug: "qua-tang" }], total: 8 }
+      : path.endsWith("/products") ? { products: productFixtures, categories: categoryFixtures, total: productFixtures.length }
       : path.endsWith("/variants") ? { variants: [] }
       : path.endsWith("/news") ? (() => {
         const url = new URL(route.request().url());
@@ -131,6 +181,20 @@ await run("Mobile navigation closes with Escape and restores focus", async (page
   await expect(trigger).toBeFocused();
 }, "owner", 390);
 
+await run("Narrow mobile admin header keeps menu and storefront controls separate", async (page) => {
+  await open(page);
+  const geometry = await page.evaluate(() => {
+    const menu = document.querySelector('[data-testid="button-toggle-admin-nav"]')?.getBoundingClientRect();
+    const storefront = document.querySelector(".admin-storefront-link")?.getBoundingClientRect();
+    return menu && storefront
+      ? { overlaps: menu.left < storefront.right && menu.right > storefront.left && menu.top < storefront.bottom && menu.bottom > storefront.top }
+      : null;
+  });
+  assert.deepEqual(geometry, { overlaps: false }, "Menu hit area must not be covered by the storefront link");
+  await page.getByTestId("button-toggle-admin-nav").click();
+  await expect(page.getByTestId("button-toggle-admin-nav")).toHaveAttribute("aria-expanded", "true");
+}, "owner", 320);
+
 await run("Mobile navigation has reachable close, traps focus and dismisses outside", async (page) => {
   await open(page);
   await page.getByTestId("button-toggle-admin-nav").click();
@@ -158,6 +222,68 @@ await run("Products show records and edit action before optional CSV tools", asy
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await page.screenshot({ path: `${output}/products-desktop-1920x1080.png` });
 }, "owner", 1920, 1080);
+
+await run("Mobile product toolbar groups primary and utility actions compactly", async (page) => {
+  await open(page, "/admin/san-pham");
+  const layout = await page.evaluate(() => {
+    const rect = (id) => document.querySelector(`[data-testid="${id}"]`)?.getBoundingClientRect();
+    const search = rect("button-product-search");
+    const create = rect("button-product-create");
+    const category = rect("button-open-category-panel");
+    const importCsv = rect("button-open-csv-import");
+    const exportCsv = rect("link-product-export");
+    const categoryFilter = document.querySelector("#product-category-filter")?.parentElement?.getBoundingClientRect();
+    const sortFilter = document.querySelector("#product-sort")?.parentElement?.getBoundingClientRect();
+    return {
+      primarySameRow: Boolean(search && create && Math.abs(search.top - create.top) < 1),
+      utilitiesSameRow: Boolean(category && importCsv && exportCsv && Math.abs(category.top - importCsv.top) < 1 && Math.abs(importCsv.top - exportCsv.top) < 1),
+      filtersSameRow: Boolean(categoryFilter && sortFilter && Math.abs(categoryFilter.top - sortFilter.top) < 1),
+      pageOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
+    };
+  });
+  assert.deepEqual(layout, { primarySameRow: true, utilitiesSameRow: true, filtersSameRow: true, pageOverflow: false });
+}, "owner", 390, 844);
+
+await run("Products fit a 1480px viewport without horizontal scrolling", async (page) => {
+  await open(page, "/admin/san-pham");
+  const geometry = await page.evaluate(() => {
+    const scroller = document.querySelector(".admin-table-scroll");
+    const table = document.querySelector(".admin-product-table");
+    return scroller && table
+      ? {
+          pageWidth: document.documentElement.clientWidth,
+          pageScrollWidth: document.documentElement.scrollWidth,
+          productCount: table.querySelectorAll("tbody tr").length,
+          scrollWidth: scroller.scrollWidth,
+          visibleDataCells: [...table.querySelectorAll("tbody td[data-label]")].every((cell) => getComputedStyle(cell).display !== "none"),
+          viewportWidth: scroller.clientWidth,
+        }
+      : null;
+  });
+  assert.ok(geometry, "Products table is present");
+  assert.equal(geometry.productCount, 15, "Every fixture product is displayed");
+  assert.equal(geometry.visibleDataCells, true, "All product fields remain visible");
+  assert.ok(geometry.scrollWidth <= geometry.viewportWidth + 1, "Product list has no horizontal scrollbar");
+  assert.ok(geometry.pageScrollWidth <= geometry.pageWidth + 1, "Admin page has no horizontal overflow");
+  await page.screenshot({ path: `${output}/products-responsive-1480x900.png` });
+}, "owner", 1480, 900);
+
+await run("Products use two readable cards at 1366px instead of one tall column", async (page) => {
+  await open(page, "/admin/san-pham");
+  const layout = await page.evaluate(() => {
+    const body = document.querySelector(".admin-product-table tbody");
+    const rows = body ? [...body.querySelectorAll("tr")] : [];
+    const firstRowTop = rows[0]?.getBoundingClientRect().top;
+    return {
+      columns: firstRowTop === undefined ? 0 : rows.filter((row) => Math.abs(row.getBoundingClientRect().top - firstRowTop) < 1).length,
+      rows: rows.length,
+      overflow: document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
+    };
+  });
+  assert.equal(layout.rows, 15, "Every fixture product remains listed");
+  assert.equal(layout.columns, 2, "Product cards use the available wide-screen space");
+  assert.equal(layout.overflow, false, "The compact two-column list does not add horizontal page scrolling");
+}, "owner", 1366, 768);
 
 await run("Product status filters stay shareable and reset when cleared", async (page) => {
   await open(page, "/admin/san-pham?status=draft");
@@ -211,7 +337,9 @@ await run("Customers are plain: searchable list, detail with requests and sales,
     assert.equal(bodyText.includes(jargon), false, `customers page must not mention ${jargon}`);
   }
   await expect(page.getByTestId("row-customer-cust-1")).toContainText("Nguyễn Thị Lan");
-  await expect(page.getByTestId("link-customer-export")).toHaveAttribute("href", /\/api\/admin\/customers\/export/);
+  const exportDownload = page.waitForEvent("download");
+  await page.getByTestId("link-customer-export").click();
+  assert.match((await exportDownload).suggestedFilename(), /\.xlsx$/i, "Customer export downloads as Excel");
   await page.getByTestId("row-customer-cust-1").getByRole("button", { name: "Xem chi tiết" }).click();
   const detail = page.getByTestId("customer-detail");
   await expect(detail).toContainText("lan@example.test");
@@ -451,10 +579,16 @@ await run("Content publishing asks before writing and reports the saved state", 
 
 await run("Legacy service hubs show source state before an operator adopts them", async (page) => {
   await open(page, "/admin/dieu-huong");
+  const childrenToggle = page.getByTestId("navigation-children-toggle-services");
+  const childrenDisclosure = childrenToggle.locator("xpath=..");
+  await expect(childrenToggle).toContainText("2 mục con");
+  await expect(childrenDisclosure).not.toHaveAttribute("open", "");
+  await childrenToggle.click();
+  await expect(childrenDisclosure).toHaveAttribute("open", "");
   const label = page.locator("#navigation-legacy-services-gia-cong-sua-label");
   const card = label.locator("xpath=ancestor::article[1]");
   await expect(card.getByText("Gia công sữa", { exact: true })).toBeVisible();
-  await expect(card.getByText("Mục con nguồn cũ · chưa lưu bản quản lý", { exact: true })).toBeVisible();
+  await expect(card.getByText("Mục dropdown nguồn giữ đúng vị trí hiện tại. Sửa nhãn hoặc đường dẫn rồi bấm Bật quản lý.", { exact: true })).toBeVisible();
   await label.fill("Gia công sữa demo");
   await expect(card.getByRole("button", { name: "Bật quản lý", exact: true })).toBeEnabled();
 });
@@ -502,20 +636,34 @@ for (const [width, height] of [[390, 844], [1366, 768], [1920, 1080]]) {
       if (path === "/admin/san-pham") {
         const table = await page.evaluate(() => {
           const wrapper = document.querySelector(".admin-table-scroll");
+          const body = document.querySelector(".admin-product-table tbody");
+          const cardLayout = body && getComputedStyle(body).display === "grid";
           const headers = [...document.querySelectorAll(".admin-product-table thead th")];
           const status = headers.find((header) => header.textContent?.trim() === "Trạng thái");
           const actions = headers.find((header) => header.textContent?.trim() === "Thao tác");
-          const overlap = status && actions && status.getBoundingClientRect().right > actions.getBoundingClientRect().left;
+          const statusCell = body?.querySelector('td[data-label="Trạng thái"]');
+          const actionCell = body?.querySelector("td.admin-sticky-actions");
+          const overlap = cardLayout
+            ? Boolean(statusCell && actionCell && actionCell.getBoundingClientRect().top < statusCell.getBoundingClientRect().bottom - 1)
+            : Boolean(status && actions && status.getBoundingClientRect().right > actions.getBoundingClientRect().left);
+          const dataCells = [...document.querySelectorAll(".admin-product-table tbody td[data-label]")];
+          const labelsVisible = dataCells.length > 0 && dataCells.every((cell) => {
+            const label = getComputedStyle(cell, "::before");
+            return label.display !== "none" && label.content !== "none" && label.content !== "normal";
+          });
           const hint = document.querySelector(".admin-table-scroll-hint");
-          return { canScroll: wrapper ? wrapper.scrollWidth > wrapper.clientWidth + 1 : false, overlap, hintVisible: Boolean(hint && getComputedStyle(hint).display !== "none") };
+          return { cardLayout: Boolean(cardLayout), canScroll: wrapper ? wrapper.scrollWidth > wrapper.clientWidth + 1 : false, labelsVisible, overlap, hintVisible: Boolean(hint && getComputedStyle(hint).display !== "none") };
         });
         if (width === 1366) {
-          assert.equal(table.canScroll, true, "1366×768 product table exposes horizontal scroll");
-          assert.equal(table.overlap, false, "1366×768 action column does not cover product status");
-          assert.equal(table.hintVisible, true, "1366×768 explains how to reach hidden columns");
+          assert.equal(table.canScroll, false, "1366×768 product cards fit without horizontal scrolling");
+          assert.equal(table.labelsVisible, true, "1366×768 product values remain labeled in card layout");
+          assert.equal(table.hintVisible, false, "1366×768 does not show a redundant scroll hint");
         }
         if (width === 1920) {
-          assert.equal(table.canScroll, false, "1920×1080 product table fits without horizontal scrolling");
+          assert.equal(table.cardLayout, true, "1920×1080 product list uses cards instead of an overwide table");
+          assert.equal(table.canScroll, false, "1920×1080 product cards fit without horizontal scrolling");
+          assert.equal(table.labelsVisible, true, "1920×1080 product values remain labeled in card layout");
+          assert.equal(table.overlap, false, "1920×1080 card actions do not cover product status");
           assert.equal(table.hintVisible, false, "1920×1080 does not show an unnecessary scroll hint");
         }
       }
@@ -524,6 +672,27 @@ for (const [width, height] of [[390, 844], [1366, 768], [1920, 1080]]) {
     }
   }, "owner", width, height);
 }
+
+await run("Closing the product editor keeps browser Back from reopening it", async (page) => {
+  await open(page, "/admin");
+  await page.getByTestId("link-dashboard-products").click();
+  await expect(page).toHaveURL(`${origin}/admin/san-pham`);
+  await page.getByTestId("button-product-edit-1").click();
+  await expect(page).toHaveURL(`${origin}/admin/san-pham?edit=1`);
+  await page.getByRole("button", { name: "Quay lại danh sách", exact: true }).click();
+  const discardChangesDialog = page.getByRole("dialog");
+  if (await discardChangesDialog.count()) {
+    await discardChangesDialog.getByRole("button", { name: "Bỏ thay đổi", exact: true }).click();
+  }
+  await expect(page).toHaveURL(`${origin}/admin/san-pham`);
+
+  await page.evaluate(() => history.back());
+  await expect(page).toHaveURL(`${origin}/admin`);
+  await page.evaluate(() => history.forward());
+  await expect(page).toHaveURL(`${origin}/admin/san-pham`);
+  await expect(page.getByTestId("button-product-edit-1")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Quay lại danh sách", exact: true })).toHaveCount(0);
+});
 
 await run("Product editor protects dirty browser Back and restores browser Forward", async (page) => {
   await open(page, "/admin/san-pham");

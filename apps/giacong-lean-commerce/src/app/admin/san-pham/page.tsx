@@ -2,7 +2,7 @@
 
 import { ArrowLeft, Download, ExternalLink, Eye, EyeOff, FileText, FolderTree, ImageIcon, Search, Settings2, ShoppingCart, SlidersHorizontal } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 function toSlug(text: string): string {
   return text
@@ -44,9 +44,9 @@ import { AdminProductGalleryManager } from "@/components/admin/AdminProductGalle
 import { AdminProductSeoPreview } from "@/components/admin/AdminProductSeoPreview";
 import { useAdminSession } from "@/components/admin/AdminShell";
 import { useAdminToast } from "@/components/admin/AdminToast";
-import { AdminClientError, fetchAdmin, formatAdminDate, getInitials, mutateAdmin, type AdminCategory, type AdminProduct } from "@/lib/admin-client";
+import { AdminClientError, fetchAdmin, getInitials, mutateAdmin, type AdminCategory, type AdminProduct } from "@/lib/admin-client";
 import { canManageCatalog } from "@/lib/admin-permissions";
-import { buildAdminProductPayload } from "@/lib/admin-product-form";
+import { buildAdminProductPayload, normalizeAdminProductStatus } from "@/lib/admin-product-form";
 import { parseAdminProductPayload } from "@/lib/admin-product-input";
 
 interface ProductResponse {
@@ -136,7 +136,7 @@ function getProductVisibilityChoice(form: ProductFormState): ProductVisibilityCh
 function applyProductVisibilityChoice(form: ProductFormState, choice: ProductVisibilityChoice): ProductFormState {
   if (choice === getProductVisibilityChoice(form)) return form;
   if (choice === "live") return { ...form, isActive: true, status: "published" };
-  if (choice === "hidden") return { ...form, isActive: false, status: form.id ? "published" : "archived" };
+  if (choice === "hidden") return { ...form, isActive: false, status: "archived" };
   return { ...form, isActive: false, status: "draft" };
 }
 
@@ -172,7 +172,7 @@ function toProductForm(product: AdminProduct): ProductFormState {
     sku: product.sku,
     slug: product.slug,
     soldCount: product.soldCount ?? 0,
-    status: product.status as ProductFormState["status"],
+    status: normalizeAdminProductStatus(product.status, product.isActive),
   };
 }
 
@@ -213,6 +213,7 @@ function buildProductExportHref(filters: {
 export default function AdminProductsPage() {
   const session = useAdminSession();
   const { showToast } = useAdminToast();
+  const router = useRouter();
   const searchParams = useSearchParams();
   const [products, setProducts] = useState<AdminProduct[]>([]);
   const [query, setQuery] = useState("");
@@ -365,22 +366,38 @@ export default function AdminProductsPage() {
   }, [hasUnsavedChanges, unsavedRevision]);
 
   const applyEditorForm = useCallback((form: ProductFormState | null, updateHistory = true) => {
+    const currentUrl = typeof window !== "undefined" ? new URL(window.location.href) : null;
+    const editQuery = currentUrl?.searchParams.get("edit");
+    const createQuery = currentUrl?.searchParams.get("create");
+
     editorGenerationRef.current += 1;
     productRequestRef.current = null;
-    handledDeepLinkRef.current = form ? (form.id ? `edit:${form.id}` : "create") : null;
+    // Keep the old deep link marked until Next's search params catch up with the history change.
+    handledDeepLinkRef.current = form
+      ? (form.id ? `edit:${form.id}` : "create")
+      : editQuery
+        ? `edit:${editQuery}`
+        : createQuery === "1" ? "create" : null;
     setEditor(form ? { ...form } : null);
     setEditorSnapshot(form ? { ...form } : null);
     setSaveError(null);
     setPendingRequest(null);
     if (updateHistory && typeof window !== "undefined") {
-      const nextHref = form ? (form.id ? `/admin/san-pham?edit=${form.id}` : "/admin/san-pham?create=1") : "/admin/san-pham";
       const currentHref = `${window.location.pathname}${window.location.search}`;
-      if (currentHref !== nextHref) {
-        const state = form ? (form.id ? { edit: form.id } : { create: "1" }) : null;
-        window.history.pushState(state, "", nextHref);
+      if (form) {
+        const nextHref = form.id ? `/admin/san-pham?edit=${form.id}` : "/admin/san-pham?create=1";
+        if (currentHref !== nextHref) {
+          const state = form.id ? { edit: form.id } : { create: "1" };
+          window.history.pushState(state, "", nextHref);
+        }
+      } else if (currentUrl && (editQuery || createQuery)) {
+        currentUrl.searchParams.delete("edit");
+        currentUrl.searchParams.delete("create");
+        const nextHref = `${currentUrl.pathname}${currentUrl.search}${currentUrl.hash}`;
+        if (currentHref !== nextHref) router.replace(nextHref, { scroll: false });
       }
     }
-  }, []);
+  }, [router]);
 
   function handleEditorChange(form: ProductFormState) {
     productRequestRef.current = null;
@@ -559,7 +576,7 @@ export default function AdminProductsPage() {
     setActivatingId(product.id);
     setSaveError(null);
     try {
-      const targetStatus: ProductFormState["status"] = product.status === "archived" ? "draft" : (product.status as ProductFormState["status"]);
+      const targetStatus: ProductFormState["status"] = "published";
       await mutateAdmin<{ product: AdminProduct }>(`/api/admin/products/${product.id}`, {
         body: {
           categoryId: product.categoryId ?? null,
@@ -599,7 +616,7 @@ export default function AdminProductsPage() {
     const selectedProducts = products.filter((p) => selectedIds.has(p.id));
     for (const product of selectedProducts) {
       try {
-        const targetStatus: ProductFormState["status"] = product.status === "archived" ? "draft" : (product.status as ProductFormState["status"]);
+        const targetStatus: ProductFormState["status"] = "published";
         await mutateAdmin<{ product: AdminProduct }>(`/api/admin/products/${product.id}`, {
           body: {
             categoryId: product.categoryId ?? null,
@@ -985,15 +1002,14 @@ export default function AdminProductsPage() {
               </div>
               {products.length === 0 ? <AdminEmptyState title={query ? "Không tìm thấy sản phẩm phù hợp" : statusFilter !== "all" || categoryFilter !== "all" ? "Không có sản phẩm khớp bộ lọc" : "Chưa có sản phẩm"} description={query ? "Thử một tên, mã hàng hoặc đường dẫn khác." : statusFilter !== "all" || categoryFilter !== "all" ? "Thử chọn bộ lọc khác để xem thêm sản phẩm." : "Máy chủ chưa trả về sản phẩm nào."} /> : (
                 <>
-                  <p className="admin-table-scroll-hint">Kéo ngang bảng để xem đầy đủ thông tin và thao tác.</p>
                   <div className="admin-table-scroll">
-                    <table className="admin-table admin-product-table">
-                       <thead><tr>{canManage ? <th scope="col"><label className="admin-check"><input aria-label="Chọn tất cả sản phẩm trong trang" checked={allVisibleSelected} onChange={(event) => toggleAllVisible(event.target.checked)} type="checkbox" /><span>Chọn</span></label></th> : null}<th scope="col">Sản phẩm</th><th scope="col">Danh mục / Mã hàng</th><th scope="col">Quy cách</th><th scope="col">Tối thiểu / Giá từ</th><th scope="col">Yêu cầu</th><th scope="col">Trạng thái</th><th scope="col">Thời gian làm hàng</th><th scope="col">Cập nhật</th>{canManage ? <th scope="col">Thao tác</th> : null}</tr></thead>
+                    <table className="admin-table admin-product-table admin-catalog-list">
+                      <thead><tr>{canManage ? <th className="admin-catalog-select" scope="col"><label className="admin-check"><input aria-label="Chọn tất cả sản phẩm trong trang" checked={allVisibleSelected} onChange={(event) => toggleAllVisible(event.target.checked)} type="checkbox" /><span>Chọn</span></label></th> : null}<th scope="col">Sản phẩm</th><th scope="col">Danh mục · quy cách</th><th scope="col">Tối thiểu · giá</th><th scope="col">Trạng thái</th>{canManage ? <th scope="col">Thao tác</th> : null}</tr></thead>
                       <tbody>
                         {filteredProducts.map((product) => (
                           <tr data-testid={`row-product-${product.id}`} key={product.id}>
-                            {canManage ? <td className="admin-product-select"><input aria-label={`Chọn sản phẩm ${product.name}`} checked={selectedIds.has(product.id)} disabled={batchArchiving || batchActivating} onChange={(event) => toggleProduct(product.id, event.target.checked)} type="checkbox" /></td> : null}
-                            <td className="admin-product-summary">
+                            {canManage ? <td className="admin-product-select admin-catalog-select"><input aria-label={`Chọn sản phẩm ${product.name}`} checked={selectedIds.has(product.id)} disabled={batchArchiving || batchActivating} onChange={(event) => toggleProduct(product.id, event.target.checked)} type="checkbox" /></td> : null}
+                            <td className="admin-product-summary admin-catalog-list-main">
                               <div className="admin-product-cell">
                                 <button
                                   className="admin-thumb admin-thumb-clickable"
@@ -1019,8 +1035,7 @@ export default function AdminProductsPage() {
                                   >
                                     {product.name}
                                   </button>
-                                  <div className="admin-item-meta" style={{ alignItems: "center", display: "inline-flex", gap: 5 }}>
-                                    <span>{product.slug}</span>
+                                  <div className="admin-item-meta admin-catalog-preview">
                                     {product.slug && product.isActive ? (
                                       <a
                                         className="admin-external-link-btn"
@@ -1038,21 +1053,13 @@ export default function AdminProductsPage() {
                                 </div>
                               </div>
                             </td>
-                            <td data-label="Danh mục / Mã hàng"><div>{product.categoryName || "Chưa phân loại"}</div><div className="admin-item-meta">SKU: {product.sku || "chưa có"}</div></td>
-                            <td data-label="Quy cách" className="admin-mono">{product.variantCount ?? 0} quy cách</td>
-                            <td data-label="Tối thiểu / Giá từ" className="admin-product-price">
+                            <td className="admin-catalog-list-details" data-label="Danh mục · quy cách"><span>{product.categoryName || "Chưa phân loại"}</span><span className="admin-item-meta">{product.variantCount ?? 0} quy cách</span></td>
+                            <td className="admin-product-price admin-catalog-list-info" data-label="Tối thiểu · giá">
                               <div>{product.minimumOrderQuantity ? `Tối thiểu ${product.minimumOrderQuantity}` : "—"}</div>
-                              <div className="admin-item-meta">{product.startingPrice ? `từ ${new Intl.NumberFormat("vi-VN").format(product.startingPrice)}đ` : "Chưa có giá"}</div>
+                              <div className="admin-item-meta">{product.startingPrice ? `từ ${new Intl.NumberFormat("vi-VN").format(product.startingPrice)}đ` : "Chưa có giá"}{product.leadTimeDays ? ` · ${product.leadTimeDays} ngày` : ""}</div>
                             </td>
-                            <td data-label="Yêu cầu mua" className="admin-mono" style={{ whiteSpace: "nowrap" }}>
-                              <span title={`Khách đã gửi yêu cầu mua ${product.soldCount ?? 0} sản phẩm (chưa tính là đã bán)`}>
-                                <strong>{new Intl.NumberFormat("vi-VN").format(product.soldCount ?? 0)}</strong>
-                              </span>
-                            </td>
-                            <td data-label="Trạng thái" className="admin-product-state"><AdminStatusBadge kind={product.isActive && product.status === "published" ? "green" : product.status === "draft" || product.status === "review" ? "amber" : "neutral"} value={product.status === "draft" || product.status === "review" || product.status === "archived" ? statusLabelsVN[product.status as ProductFormState["status"]] : product.isActive ? "Đang hiển thị" : "Đã đăng · Tạm ẩn"} /></td>
-                            <td data-label="Thời gian làm hàng" className="admin-mono">{product.leadTimeDays ? `${product.leadTimeDays} ngày` : "Chưa có"}</td>
-                            <td data-label="Cập nhật" className="admin-mono">{formatAdminDate(product.updatedAt)}</td>
-                              {canManage ? <td className="admin-sticky-actions">
+                            <td className="admin-product-state admin-catalog-list-status" data-label="Trạng thái"><AdminStatusBadge kind={product.isActive && product.status === "published" ? "green" : product.status === "draft" || product.status === "review" ? "amber" : "neutral"} value={product.status === "draft" || product.status === "review" || product.status === "archived" ? statusLabelsVN[product.status as ProductFormState["status"]] : product.isActive ? "Đang hiển thị" : "Đã đăng · Tạm ẩn"} /></td>
+                              {canManage ? <td className="admin-sticky-actions admin-catalog-list-actions" data-label="Thao tác">
                                 <div className="admin-table-actions">
                                   <button className="admin-button admin-button-quiet" data-testid={`button-product-edit-${product.id}`} disabled={saving} onClick={() => openEdit(product)} type="button">Sửa</button>
                                   {product.isActive ? (
@@ -1425,7 +1432,7 @@ function ProductEditor({
         </div>
       </div>
 
-      {error ? <p className="admin-editor-error" role="alert">{error.code ? `${error.code} · ` : ""}{error.message}</p> : null}
+      {error ? <p className="admin-editor-error" role="alert">{error.message}</p> : null}
       {error?.fieldErrors && Object.keys(error.fieldErrors).length > 0 ? (
         <ul className="admin-editor-error-list" data-testid="product-form-field-errors">
           {Object.entries(error.fieldErrors).map(([field, message]) => (

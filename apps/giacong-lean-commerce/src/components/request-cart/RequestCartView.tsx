@@ -10,9 +10,7 @@ import {
   buildRevalidateBody,
   driftNotice,
   hydrationNotice,
-  parseAcceptedRequest,
   parseRevalidateResponse,
-  serializeAcceptedRequest,
 } from "@/lib/request-cart-client";
 import { RequestAccepted } from "@/components/request-cart/RequestAccepted";
 import { RequestForm } from "@/components/request-cart/RequestForm";
@@ -26,6 +24,9 @@ import {
   writeRequestCart,
 } from "@/lib/request-cart-storage";
 import type { RequestCartState, ResolvedRequestCart, ResolvedRequestCartLine } from "@/types/request-cart";
+import { customerAuthClient } from "@/lib/customer-auth-client";
+import { parseCustomerConfirmation, serializeCustomerConfirmation } from "@/lib/customer-request-confirmation";
+import { WEBSITE_SIGN_OUT_EVENT, WEBSITE_SIGN_OUT_KEY } from "@/lib/customer-session-events";
 
 const REVALIDATE_FAILURE_MESSAGE = "Không thể xác thực giỏ yêu cầu. Vui lòng thử lại.";
 
@@ -34,6 +35,8 @@ interface RequestCartViewProps {
 }
 
 export function RequestCartView({ contactZaloUrl }: RequestCartViewProps = {}) {
+  const { data: customerSession, isPending: checkingCustomerSession } = customerAuthClient.useSession();
+  const customerId = customerSession?.user.id ?? null;
   const [cart, setCart] = useState<RequestCartState | null>(null);
   const [storageNotice, setStorageNotice] = useState<string | null>(null);
   const [resolved, setResolved] = useState<ResolvedRequestCart | null>(null);
@@ -42,6 +45,7 @@ export function RequestCartView({ contactZaloUrl }: RequestCartViewProps = {}) {
   const [pending, setPending] = useState(false);
   const [refreshNonce, setRefreshNonce] = useState(0);
   const [accepted, setAccepted] = useState<AcceptedRequestSnapshot | null>(null);
+  const [acceptedCustomerId, setAcceptedCustomerId] = useState<string | null>(null);
   const lastResolved = useRef<ResolvedRequestCart | null>(null);
 
   /*
@@ -57,14 +61,30 @@ export function RequestCartView({ contactZaloUrl }: RequestCartViewProps = {}) {
   }, []);
 
   useEffect(() => {
+    if (checkingCustomerSession) return;
+    setAccepted(null);
+    setAcceptedCustomerId(null);
     try {
       const stored = window.sessionStorage.getItem(REQUEST_CART_ACCEPTED_STORAGE_KEY);
-      const restored = parseAcceptedRequest(stored);
-      if (restored) setAccepted(restored);
+      const restored = parseCustomerConfirmation(stored, customerId);
+      if (restored) { setAccepted(restored); setAcceptedCustomerId(customerId); }
       else if (stored) window.sessionStorage.removeItem(REQUEST_CART_ACCEPTED_STORAGE_KEY);
     } catch {
       // A blocked or full session store must not hide the live cart.
     }
+  }, [checkingCustomerSession, customerId]);
+
+  useEffect(() => {
+    const clear = () => {
+      setAccepted(null);
+      setAcceptedCustomerId(null);
+      try { window.sessionStorage.removeItem(REQUEST_CART_ACCEPTED_STORAGE_KEY); } catch { /* Private storage can be unavailable. */ }
+      void customerAuthClient.getSession({ fetchOptions: { cache: "no-store" } });
+    };
+    const onStorage = (event: StorageEvent) => { if (event.key === WEBSITE_SIGN_OUT_KEY) clear(); };
+    window.addEventListener(WEBSITE_SIGN_OUT_EVENT, clear);
+    window.addEventListener("storage", onStorage);
+    return () => { window.removeEventListener(WEBSITE_SIGN_OUT_EVENT, clear); window.removeEventListener("storage", onStorage); };
   }, []);
 
   const linesKey = cart ? JSON.stringify(toRequestCartKeys(cart)) : "";
@@ -143,6 +163,7 @@ export function RequestCartView({ contactZaloUrl }: RequestCartViewProps = {}) {
     result: { contact: RequestCartContact; receivedAt: string; reference: string },
     submitted: ResolvedRequestCart,
   ) => {
+    if (!customerId) return;
     const empty = emptyRequestCart();
     writeRequestCart(window.localStorage, empty);
     const snapshot: AcceptedRequestSnapshot = {
@@ -152,17 +173,18 @@ export function RequestCartView({ contactZaloUrl }: RequestCartViewProps = {}) {
       reference: result.reference,
     };
     try {
-      window.sessionStorage.setItem(REQUEST_CART_ACCEPTED_STORAGE_KEY, serializeAcceptedRequest(snapshot));
+      window.sessionStorage.setItem(REQUEST_CART_ACCEPTED_STORAGE_KEY, serializeCustomerConfirmation(snapshot, customerId));
     } catch {
       // The live success state remains available even if browser storage is unavailable.
     }
     setAccepted(snapshot);
+    setAcceptedCustomerId(customerId);
     setResolved(null);
     setDrift(null);
     setError(null);
     lastResolved.current = null;
     setCart(empty);
-  }, []);
+  }, [customerId]);
 
   const startNewRequest = useCallback(() => {
     try {
@@ -203,7 +225,7 @@ export function RequestCartView({ contactZaloUrl }: RequestCartViewProps = {}) {
         </p>
       ) : null}
 
-      {accepted !== null ? (
+      {accepted !== null && acceptedCustomerId === customerId && !checkingCustomerSession ? (
         <RequestAccepted
           cart={accepted.cart}
           contact={accepted.contact}
@@ -296,7 +318,7 @@ interface CartLineProps {
 function CartLine({ line, onChangeQuantity, onRemove }: CartLineProps) {
   const blocking = line.adjustments.filter((adjustment) => adjustment.code !== "PRICE_ON_REQUEST");
   const priceNote = line.adjustments.find((adjustment) => adjustment.code === "PRICE_ON_REQUEST");
-  const label = line.productName || line.variantSku;
+  const label = line.productName || "Sản phẩm";
   const variantLabel = conciseVariantLabel(line.productName, line.variantLabel);
   const quantityStep = line.quantityStep ?? 1;
   const minimumQuantity = line.minimumOrderQuantity ?? 1;
@@ -304,71 +326,87 @@ function CartLine({ line, onChangeQuantity, onRemove }: CartLineProps) {
 
   return (
     <li className="rounded-lg border border-neutral-200 bg-white p-4" data-cart-line={line.variantSku}>
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="flex min-w-0 items-start gap-3">
-          {line.imageUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img alt={line.productName || "Sản phẩm trong giỏ yêu cầu"} className="size-20 shrink-0 rounded-md border border-neutral-200 object-cover" data-cart-image loading="lazy" src={line.imageUrl} />
-          ) : (
-            <div aria-label="Chưa có ảnh sản phẩm" className="size-20 shrink-0 rounded-md border border-neutral-200 bg-neutral-100" data-cart-image />
-          )}
-          <div className="min-w-0">
-            <p className="text-base font-semibold text-neutral-900">{line.productName || "Sản phẩm không còn tồn tại"}</p>
-            <p className="mt-1 text-sm text-neutral-700">
-              {variantLabel || "Biến thể không xác định"}
-              <span className="text-neutral-500"> · SKU {line.variantSku}</span>
-            </p>
+      {line.productName ? (
+        <>
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="flex min-w-0 items-start gap-3">
+              {line.imageUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img alt={line.productName} className="size-20 shrink-0 rounded-md border border-neutral-200 object-cover" data-cart-image loading="lazy" src={line.imageUrl} />
+              ) : (
+                <div aria-label="Chưa có ảnh sản phẩm" className="size-20 shrink-0 rounded-md border border-neutral-200 bg-neutral-100" data-cart-image />
+              )}
+              <div className="min-w-0">
+                <p className="text-base font-semibold text-neutral-900">{line.productName}</p>
+                {variantLabel ? <p className="mt-1 text-sm text-neutral-700">{variantLabel}</p> : null}
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Link
+                className="inline-flex min-h-11! items-center rounded-md border border-commerce-brand px-3 text-sm font-medium text-commerce-brand-dark! hover:bg-[#eff8e8] focus-visible:outline-2! focus-visible:outline-offset-2 focus-visible:outline-[#2e90fa]!"
+                href={`/san-pham/${line.parentSlug}/?variant=${encodeURIComponent(line.variantSku)}&editCart=${encodeURIComponent(line.variantSku)}`}
+              >
+                Chỉnh sản phẩm
+              </Link>
+              <button
+                aria-label={`Xóa ${label}${line.variantLabel ? ` - ${line.variantLabel}` : ""} khỏi giỏ yêu cầu`}
+                className="min-h-11! rounded-md border border-neutral-300 px-3 text-sm font-medium text-neutral-800! hover:border-red-400 hover:text-red-700! focus-visible:outline-2! focus-visible:outline-offset-2 focus-visible:outline-[#2e90fa]!"
+                onClick={() => onRemove(line.variantSku)}
+                type="button"
+              >
+                Xóa
+              </button>
+            </div>
           </div>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Link
-            className="inline-flex min-h-11! items-center rounded-md border border-commerce-brand px-3 text-sm font-medium text-commerce-brand-dark! hover:bg-[#eff8e8] focus-visible:outline-2! focus-visible:outline-offset-2 focus-visible:outline-[#2e90fa]!"
-            href={`/san-pham/${line.parentSlug}/?variant=${encodeURIComponent(line.variantSku)}&editCart=${encodeURIComponent(line.variantSku)}`}
-          >
-            Chỉnh sản phẩm
-          </Link>
+
+          <div className="mt-4 flex flex-wrap items-end gap-x-6 gap-y-3">
+            <div data-cart-quantity>
+              <p className="block text-sm font-medium text-neutral-800">
+                {`Số lượng${line.unit ? ` (${line.unit})` : ""}`}
+              </p>
+              <div className="mt-1 inline-flex h-11 overflow-hidden rounded-md border border-neutral-300 bg-white">
+                <button aria-label={`Giảm số lượng ${label}`} className="min-h-11! w-11 border-r border-neutral-300 text-lg font-semibold text-neutral-800! hover:bg-neutral-50 disabled:cursor-not-allowed disabled:text-neutral-400!" disabled={!canDecrease} onClick={() => onChangeQuantity(line.variantSku, line.quantity - quantityStep)} type="button">−</button>
+                <output className="flex min-w-16 items-center justify-center px-3 text-base font-semibold text-neutral-900">{line.quantity}</output>
+                <button aria-label={`Tăng số lượng ${label}`} className="min-h-11! w-11 border-l border-neutral-300 text-lg font-semibold text-neutral-800! hover:bg-neutral-50" onClick={() => onChangeQuantity(line.variantSku, line.quantity + quantityStep)} type="button">+</button>
+              </div>
+            </div>
+            <p className="text-sm text-neutral-700">
+              <span className="block text-neutral-600">Đơn giá</span>
+              <span className="text-base font-semibold text-neutral-900" data-cart-unit-price>
+                {line.unitPrice === null ? "Liên hệ báo giá" : formatVnd(line.unitPrice)}
+              </span>
+            </p>
+            {line.lineTotal === null ? null : (
+              <p className="text-sm text-neutral-700">
+                <span className="block text-neutral-600">Thành tiền</span>
+                <span className="text-base font-semibold text-neutral-900" data-cart-line-total>{formatVnd(line.lineTotal)}</span>
+              </p>
+            )}
+          </div>
+        </>
+      ) : (
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-base font-semibold text-neutral-900">Sản phẩm không còn tồn tại</p>
+            <p className="mt-1 text-sm text-neutral-700">Xóa dòng này rồi chọn lại sản phẩm đang được hiển thị.</p>
+          </div>
           <button
-            aria-label={`Xóa ${label}${line.variantLabel ? ` - ${line.variantLabel}` : ""} khỏi giỏ yêu cầu`}
+            aria-label="Xóa sản phẩm không còn tồn tại khỏi giỏ yêu cầu"
             className="min-h-11! rounded-md border border-neutral-300 px-3 text-sm font-medium text-neutral-800! hover:border-red-400 hover:text-red-700! focus-visible:outline-2! focus-visible:outline-offset-2 focus-visible:outline-[#2e90fa]!"
             onClick={() => onRemove(line.variantSku)}
             type="button"
           >
-            Xóa
+            Gỡ khỏi giỏ
           </button>
         </div>
-      </div>
+      )}
 
-      <div className="mt-4 flex flex-wrap items-end gap-x-6 gap-y-3">
-        <div data-cart-quantity>
-          <p className="block text-sm font-medium text-neutral-800">
-            {`Số lượng${line.unit ? ` (${line.unit})` : ""}`}
-          </p>
-          <div className="mt-1 inline-flex h-11 overflow-hidden rounded-md border border-neutral-300 bg-white">
-            <button aria-label={`Giảm số lượng ${label}`} className="min-h-11! w-11 border-r border-neutral-300 text-lg font-semibold text-neutral-800! hover:bg-neutral-50 disabled:cursor-not-allowed disabled:text-neutral-400!" disabled={!canDecrease} onClick={() => onChangeQuantity(line.variantSku, line.quantity - quantityStep)} type="button">−</button>
-            <output className="flex min-w-16 items-center justify-center px-3 text-base font-semibold text-neutral-900">{line.quantity}</output>
-            <button aria-label={`Tăng số lượng ${label}`} className="min-h-11! w-11 border-l border-neutral-300 text-lg font-semibold text-neutral-800! hover:bg-neutral-50" onClick={() => onChangeQuantity(line.variantSku, line.quantity + quantityStep)} type="button">+</button>
-          </div>
-        </div>
-        <p className="text-sm text-neutral-700">
-          <span className="block text-neutral-600">Đơn giá</span>
-          <span className="text-base font-semibold text-neutral-900" data-cart-unit-price>
-            {line.unitPrice === null ? "Liên hệ báo giá" : formatVnd(line.unitPrice)}
-          </span>
-        </p>
-        {line.lineTotal === null ? null : (
-          <p className="text-sm text-neutral-700">
-            <span className="block text-neutral-600">Thành tiền</span>
-            <span className="text-base font-semibold text-neutral-900" data-cart-line-total>{formatVnd(line.lineTotal)}</span>
-          </p>
-        )}
-      </div>
-
-      {priceNote ? (
+      {line.productName && priceNote ? (
         <p className="mt-3 rounded-md border border-neutral-200 bg-neutral-50 px-3 py-2 text-sm text-neutral-800">
           {priceNote.message}
         </p>
       ) : null}
-      {blocking.length > 0 ? (
+      {line.productName && blocking.length > 0 ? (
         <ul className="mt-3 flex flex-col gap-2" data-cart-line-warning>
           {blocking.map((adjustment) => (
             <li className="rounded-md border border-[#b54708] bg-[#fff6ed] px-3 py-2 text-sm text-[#8a3a06]" key={adjustment.code}>
@@ -396,6 +434,7 @@ interface CartSummaryProps {
  */
 function CartSummary({ cart }: CartSummaryProps) {
   const hasPricedLines = cart.lines.some((line) => line.lineTotal !== null);
+  const hasPriceOnRequestLines = cart.lines.some((line) => Boolean(line.productName) && line.priceOnRequest);
 
   return (
     <aside
@@ -416,11 +455,13 @@ function CartSummary({ cart }: CartSummaryProps) {
         )}
         <div className="flex items-baseline justify-between gap-3 border-t border-neutral-200 pt-2">
           <dt className="text-neutral-700">Tạm tính</dt>
-          <dd className="text-xl font-bold text-neutral-900" data-cart-subtotal>{hasPricedLines ? formatVnd(cart.pricedSubtotal) : "Liên hệ báo giá"}</dd>
+          <dd className="text-xl font-bold text-neutral-900" data-cart-subtotal>
+            {hasPricedLines ? formatVnd(cart.pricedSubtotal) : hasPriceOnRequestLines ? "Liên hệ báo giá" : "Chưa thể tính"}
+          </dd>
         </div>
       </dl>
       <p className="mt-3 text-sm text-neutral-600">Tạm tính chưa gồm phí vận chuyển và chưa phải là báo giá cuối.</p>
-      {cart.hasPriceOnRequest ? (
+      {hasPriceOnRequestLines ? (
         <p className="mt-2 text-sm text-[#8a3a06]">
           {hasPricedLines
             ? "Tạm tính chưa gồm dòng chưa có giá; những dòng đó sẽ được báo giá riêng."

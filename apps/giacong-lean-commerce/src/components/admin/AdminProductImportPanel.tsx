@@ -90,7 +90,7 @@ export function AdminProductImportPanel({ categories, onImported, role }: AdminP
       setRequestId(null);
       onImported();
     } catch (reason: unknown) {
-      setError(reason instanceof AdminClientError ? `${reason.code ? `${reason.code} · ` : ""}${reason.message}` : "Không thể kết nối tới máy chủ admin.");
+      setError(reason instanceof AdminClientError ? reason.message : "Không thể kết nối tới máy chủ admin.");
     } finally {
       setLoading(false);
     }

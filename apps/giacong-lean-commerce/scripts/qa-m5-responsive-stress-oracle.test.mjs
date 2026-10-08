@@ -20,7 +20,11 @@ test("M5 Responsive Oracle: Shell adapts cleanly under 360px-768px without horiz
   assert.match(css, /\.admin-main\s*\{\s*flex:\s*1;\s*min-width:\s*0;\s*\}/);
 
   // 4. Crumb has overflow truncation
-  assert.match(css, /\.admin-crumb\s*>\s*span\s*\{\s*overflow:\s*hidden;\s*text-overflow:\s*ellipsis;\s*white-space:\s*nowrap;\s*\}/);
+  const crumbRule = css.match(/\.admin-crumb\s*>\s*span\s*\{([^}]*)\}/);
+  assert.ok(crumbRule, "Breadcrumb label rule exists");
+  assert.match(crumbRule[1], /overflow:\s*hidden;/);
+  assert.match(crumbRule[1], /text-overflow:\s*ellipsis;/);
+  assert.match(crumbRule[1], /white-space:\s*nowrap;/);
 
   // 5. Global box-sizing border-box applied to all admin elements
   assert.match(css, /\.admin-app\s*\*,[\s\S]*?box-sizing:\s*border-box;/);

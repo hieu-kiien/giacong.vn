@@ -28,6 +28,7 @@ async function loadTemplate(uuids = ["abcd1234-0000-0000-0000-000000000000"]) {
 
     setValues(values) {
       operations.push({ method: "setValues", rows: values.length, sheet: this.sheet.getName() });
+      if (this.sheet.getName() === "Yêu cầu" && this.row > 1) rows.push(...values);
       values.forEach((valueRow, rowOffset) => valueRow.forEach((value, columnOffset) => {
         this.sheet.setCell(this.row + rowOffset, this.column + columnOffset, value);
       }));
@@ -40,6 +41,13 @@ async function loadTemplate(uuids = ["abcd1234-0000-0000-0000-000000000000"]) {
           this.sheet.validations.set(`${row}:${column}`, validation);
         }
       }
+      return this;
+    }
+
+    setNumberFormats(formats) {
+      formats.forEach((formatRow, rowOffset) => formatRow.forEach((format, columnOffset) => {
+        this.sheet.formats.set(`${this.row + rowOffset}:${this.column + columnOffset}`, format);
+      }));
       return this;
     }
 
@@ -103,6 +111,7 @@ async function loadTemplate(uuids = ["abcd1234-0000-0000-0000-000000000000"]) {
     constructor(name) {
       this.name = name;
       this.cells = new Map();
+      this.formats = new Map();
       this.validations = new Map();
       this.protection = null;
       this.removedProtections = [];
@@ -128,7 +137,12 @@ async function loadTemplate(uuids = ["abcd1234-0000-0000-0000-000000000000"]) {
       return this.protection;
     }
     getProtections() { return this.protection && !this.protection.removed ? [this.protection] : []; }
-    setCell(row, column, value) { this.cells.set(`${row}:${column}`, value); }
+    setCell(row, column, value) {
+      const key = `${row}:${column}`;
+      const stored = this.name === "Khách hàng" && typeof value === "string" && /^\d+$/.test(value)
+        && this.formats.get(key) !== "@" ? Number(value) : value;
+      this.cells.set(key, stored);
+    }
     getCell(row, column) { return this.cells.get(`${row}:${column}`) ?? ""; }
     getValidation(row, column) { return this.validations.get(`${row}:${column}`); }
   }
@@ -216,6 +230,41 @@ const validProductPayload = {
   source: "/lien-he/",
   variant: "Vị vani",
 };
+
+test("request phone numbers retain leading zeroes as text in Sheets", async () => {
+  const { context, sheets } = await loadTemplate();
+  assert.equal(JSON.parse(submit(context, validProductPayload).value).ok, true);
+  const sheet = sheets.get("Yêu cầu");
+  assert.equal(sheet.formats.get("2:8"), "@");
+  assert.equal(sheet.getCell(2, 8), "0900000000");
+  assert.ok(context.doPost.toString().includes("setValues([row])"), "write to the preformatted range rather than appendRow coercion");
+});
+
+test("confirmed sale phone column is formatted as text before writing", async () => {
+  const { context } = await loadTemplate();
+  const source = context.writeConfirmedZaloSale.toString();
+  assert.ok(source.indexOf("setNumberFormats") >= 0);
+  assert.ok(source.indexOf("setNumberFormats") < source.indexOf("setValues(saleValues)"));
+});
+
+test("customer contact upserts one safe row, rejects conflicts and ignores older revisions", async () => {
+  const { context, sheets } = await loadTemplate();
+  context.SpreadsheetApp.flush = () => {};
+  const payload = { event: "customer.contact.updated", customer_id: "customer-1", revision: 1, updated_at: "2026-10-05T00:00:00Z", name: "=HYPERLINK(\"bad\")", phone: "0912345678", email: "customer@example.test", company_name: "Công ty", secret: "shared-secret" };
+  assert.equal(JSON.parse(submit(context,payload).value).ok,true);
+  const sheet = sheets.get("Khách hàng");
+  assert.equal(sheet.getLastRow(),2);
+  assert.equal(sheet.getCell(2,4),"0912345678");
+  assert.ok(String(sheet.getCell(2,3)).startsWith("'="));
+  assert.equal(JSON.parse(submit(context,payload).value).ok,true);
+  assert.equal(sheet.getLastRow(),2);
+  assert.equal(JSON.parse(submit(context,{ ...payload,name: "Conflicting" }).value).ok,false);
+  assert.equal(JSON.parse(submit(context,{ ...payload,revision: 2,name: "New name" }).value).ok,true);
+  assert.equal(JSON.parse(submit(context,payload).value).ok,true);
+  assert.equal(sheet.getCell(2,3),"New name");
+  assert.equal(JSON.parse(submit(context,{ ...payload,secret: "wrong" }).value).ok,false);
+  assert.equal(JSON.parse(submit(context,{ ...payload,revision: "3" }).value).ok,false);
+});
 
 // Cross-contract guard: the Worker's resolvePayload() emits exactly this shape for a
 // generic contact form with no service context (contact-webhook.ts:252-260).
@@ -498,6 +547,13 @@ function detailRow(sheet, row, columns = 9) {
   return Array.from({ length: columns }, (_, index) => sheet.getCell(row, index + 1));
 }
 
+test("accepts storefront cart product requests without quantity-based routing", async () => {
+  const { context, rows } = await loadTemplate();
+  const response = JSON.parse(submit(context, { ...validCartPayload, request_type: "Đặt sản phẩm" }).value);
+  assert.equal(response.ok, true);
+  assert.equal(rows[1][2], "Đặt sản phẩm");
+});
+
 test("writes cart detail rows before the Yêu cầu row that commits them", async () => {
   const { context, operations, rows, sheets } = await loadTemplate();
 
@@ -505,7 +561,7 @@ test("writes cart detail rows before the Yêu cầu row that commits them", asyn
 
   assert.deepEqual(response, { ok: true, reference: "YC-20260725-100000-ABCD1234" });
   const detailWrite = operations.findIndex((entry) => entry.sheet === "Chi tiết giỏ hàng" && entry.rows === 2);
-  const requestWrite = operations.findIndex((entry) => entry.sheet === "Yêu cầu" && entry.method === "appendRow" && entry.rows === 1);
+  const requestWrite = operations.findIndex((entry) => entry.sheet === "Yêu cầu" && entry.method === "setValues" && entry.rows === 1);
   assert.notEqual(detailWrite, -1);
   assert.ok(detailWrite < requestWrite, "detail rows must be written before the request row");
   assert.equal(operations.filter((entry) => entry.sheet === "Chi tiết giỏ hàng" && entry.method === "setValues").length, 1);

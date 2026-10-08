@@ -79,8 +79,7 @@ export function CatalogProductCard({ card }: CatalogProductCardProps) {
         ) : null}
 
         <p className="!mb-0 text-[10px] !leading-4 text-commerce-secondary" data-catalog-identifiers>
-          {card.sku ? <span>SKU: {card.sku}</span> : null}
-          {card.minimumOrderQuantity ? <span>{card.sku ? " · " : ""}MOQ {card.minimumOrderQuantity}</span> : null}
+          {card.minimumOrderQuantity ? <span>MOQ {card.minimumOrderQuantity}</span> : null}
         </p>
 
         <p className="!mb-0 flex flex-wrap items-baseline justify-start gap-0.5 !leading-4" data-catalog-price>

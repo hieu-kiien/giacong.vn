@@ -6,6 +6,48 @@ async function readSource(...segments) {
   return readFile(new URL(`../src/${segments.join("/")}`, import.meta.url), "utf8");
 }
 
+test("daily admin screens keep infrastructure and internal identifiers out of the default view", async () => {
+  const media = await readSource("app", "admin", "media", "page.tsx");
+  const services = await readSource("app", "admin", "dich-vu", "page.tsx");
+  const gallery = await readSource("components", "admin", "AdminProductGalleryManager.tsx");
+  const audit = await readSource("app", "admin", "audit", "page.tsx");
+  const navigation = await readSource("components", "admin", "AdminNavigationManager.tsx");
+  const members = await readSource("components", "admin", "AdminMembersManager.tsx");
+  assert.match(media, /title="Thư viện ảnh"/);
+  assert.doesNotMatch(media, /Bộ nhớ đệm Edge CDN|Cache-Control: immutable|Đang hoạt động trong D1 & R2/);
+  assert.match(media, /<details[\s\S]*?<summary[^>]*>Thông tin kỹ thuật<\/summary>/);
+  assert.match(media, /Mở ảnh ở tab mới/);
+  assert.match(media, /Sao chép liên kết/);
+  assert.doesNotMatch(services, /Sắp xếp theo ID tăng dần/);
+  assert.match(services, /Theo thứ tự sẵn có/);
+  assert.match(gallery, /Ảnh bổ sung/);
+  assert.doesNotMatch(gallery, /Thư viện ảnh sản phẩm \(Gallery\)|góc chụp kỹ thuật|chi tiết cơ khí|ảnh kỹ thuật hoặc bản vẽ/);
+  assert.match(audit, /<details><summary>Chi tiết<\/summary>/);
+  assert.doesNotMatch(audit, /<strong>\{entry.actorSubject\}<\/strong>/);
+  assert.doesNotMatch(navigation, /Mã menu cũ:/);
+  assert.doesNotMatch(members, /value=\{member.isActive \? "Active" : "Inactive"\}/);
+  assert.doesNotMatch(members, /Cloudflare Access xác minh danh tính/);
+});
+
+test("customer search clears the previous export and cancels an in-flight download", async () => {
+  const source = await readSource("app", "admin", "khach-hang", "page.tsx");
+  for (const name of ["submitSearch", "clearSearch"]) {
+    const body = source.match(new RegExp(`function ${name}\\([^]*?\\n  }`))?.[0] ?? "";
+    assert.match(body, /exportController.current\?\.abort\(\)/);
+    assert.match(body, /setExportFile\(null\)/);
+    assert.match(body, /setExporting\(false\)/);
+  }
+});
+
+test("customer Excel export announces readiness and offers a visible retry download", async () => {
+  const source = await readSource("app", "admin", "khach-hang", "page.tsx");
+  assert.match(source, /role="status"/);
+  assert.match(source, /Tệp Excel đã sẵn sàng/);
+  assert.match(source, /download=\{exportFile.name\}/);
+  assert.match(source, /href=\{exportFile.url\}/);
+  assert.match(source, /URL.revokeObjectURL\(exportFile.url\)/);
+});
+
 test("the toast system renders a live region and auto-dismisses without alert()", async () => {
   const source = await readSource("components", "admin", "AdminToast.tsx");
 
@@ -69,7 +111,7 @@ test("the admin control plane exposes page, navigation and member management sur
   assert.match(members, /title="Tài khoản quản trị"/);
   assert.match(members, /Thêm tài khoản quản trị/);
   assert.match(members, /Email đăng nhập/);
-  assert.match(members, /tự liên kết danh tính Cloudflare/);
+  assert.match(members, /màn hình đăng nhập chung của website/);
   assert.doesNotMatch(members, /member-new-subject/);
   assert.match(members, /Quản lý tài khoản quản trị/);
   assert.match(members, /currentMemberId=\{session\.memberId\}/);
@@ -122,6 +164,25 @@ test("product status filters keep the URL and selected tab in sync", async () =>
   assert.match(products, /onClick=\{\(\) => updateStatusFilter\("all"\)\}/);
 });
 
+test("catalog lists use compact rows and keep internal codes out of the default view", async () => {
+  const [products, services, styles] = await Promise.all([
+    readSource("app", "admin", "san-pham", "page.tsx"),
+    readSource("app", "admin", "dich-vu", "page.tsx"),
+    readSource("styles", "admin.css"),
+  ]);
+  const productList = products.match(/<table className="admin-table admin-product-table admin-catalog-list">([\s\S]*?)<\/table>/)?.[1];
+  const serviceList = services.match(/<table className="admin-table admin-product-table admin-catalog-list">([\s\S]*?)<\/table>/)?.[1];
+
+  assert.ok(productList, "product rows should use the compact catalog list");
+  assert.ok(serviceList, "service rows should use the compact catalog list");
+  assert.doesNotMatch(productList, /SKU:|Danh mục \/ Mã hàng|<span>\{product\.slug\}<\/span>/);
+  assert.doesNotMatch(serviceList, /<span>\{service\.slug\}<\/span>/);
+  assert.match(productList, /admin-catalog-list-main/);
+  assert.match(serviceList, /admin-catalog-list-main/);
+  assert.match(styles, /\.admin-product-table\.admin-catalog-list\s*\{[^}]*display:\s*table;/);
+  assert.match(styles, /\.admin-product-table\.admin-catalog-list[\s\S]*?display:\s*table-row;/);
+});
+
 test("protected sidebar links do not prefetch every admin route on first paint", async () => {
   const shell = await readSource("components", "admin", "AdminShell.tsx");
   const navLink = shell.match(/className="admin-nav-link"[\s\S]*?\n\s+>/)?.[0];
@@ -135,7 +196,9 @@ test("blocked sessions direct operators to website login and keep Access logout 
 
   assert.match(shell, /error\.code === "ADMIN_MEMBERSHIP_REQUIRED"/);
   assert.match(shell, /data-testid="link-admin-account-login"/);
-  assert.match(shell, /href="\/tai-khoan\/dang-nhap\/\?next=admin"/);
+  assert.match(shell, /href=\{accountLoginHref\}/);
+  assert.match(shell, /const accountLoginHref = `\$\{storefrontHref\}tai-khoan\/dang-nhap\/\?next=admin`/);
+  assert.doesNotMatch(shell, /new URL\("\/tai-khoan\/dang-nhap\/\?next=admin", window.location.origin\)/);
   assert.match(shell, /data-testid="button-admin-account-logout"/);
   assert.match(shell, /customerAuthClient\.signOut\(\)/);
   assert.match(shell, /data-testid="link-admin-access-logout"/);
@@ -179,7 +242,7 @@ test("network-failed admin sessions keep website login and retry visible", async
   assert.match(shell, /showLoginLink \? \(/);
 });
 
-test("admin account login trusts only the exact staging host and returns to admin", async () => {
+test("admin account login uses exact configured hosts and returns to admin", async () => {
   const [auth, page, wrangler] = await Promise.all([
     readSource("lib", "customer-auth.ts"),
     readSource("app", "(storefront)", "tai-khoan", "dang-nhap", "page.tsx"),
@@ -188,8 +251,8 @@ test("admin account login trusts only the exact staging host and returns to admi
 
   assert.match(auth, /\["admin-staging\.kienhieu\.id\.vn", "https:\/\/admin-staging\.kienhieu\.id\.vn"\]/);
   assert.doesNotMatch(auth, /admin-\*\.kienhieu\.id\.vn|https:\/\/\*\.kienhieu\.id\.vn/);
-  assert.match(page, /query\.next === "admin"\s*\? "\/admin\/"/);
-  assert.match(wrangler, /"ADMIN_ACCOUNT_AUTH":\s*"false"/);
+  assert.match(page, /customerLoginDestination\(query\.next\)/);
+  assert.match(wrangler, /"ADMIN_HOSTNAMES":\s*"admin\.kienhieu\.id\.vn,kienhieu\.id\.vn"/);
   assert.match(wrangler, /"ADMIN_ACCOUNT_AUTH":\s*"true"/);
 });
 
@@ -212,8 +275,44 @@ test("shared admin states explain readiness without infrastructure jargon", asyn
   assert.doesNotMatch(primitives, /schema hoặc binding D1/);
   assert.doesNotMatch(primitives, /chưa được migrate/);
   assert.doesNotMatch(primitives, /Dữ liệu được đọc trực tiếp từ API admin/);
-  assert.match(shell, /Dữ liệu hiển thị trực tiếp từ hệ thống/);
+  assert.match(shell, /Sửa nội dung, chăm sóc khách hàng và ghi nhận giao dịch/);
   assert.doesNotMatch(shell, /Dữ liệu hiển thị trực tiếp từ D1/);
+});
+
+test("news detail shares the direct-page header surface", async () => {
+  const source = await readSource("app", "(storefront)", "tin-tuc", "[slug]", "page.tsx");
+  assert.match(source, /CapturedStorefrontTabFrame\.module\.css/);
+  assert.match(source, /styles\.detailMain/);
+});
+
+test("admin service previews use the live storefront service route", async () => {
+  const source = await readSource("app", "admin", "dich-vu", "page.tsx");
+  assert.match(source, /href=\{`\/thue-gia-cong\/\$\{service\.slug\}\//);
+  assert.match(source, /href=\{`\/thue-gia-cong\/\$\{form\.slug\}\//);
+  assert.doesNotMatch(source, /href=\{`\/dich-vu\//);
+});
+
+test("category admin keeps internal route keys out of the default list and uses Vietnamese labels", async () => {
+  const source = await readSource("components", "admin", "AdminCategoryPanel.tsx");
+  assert.doesNotMatch(source, /admin-item-meta">\{category\.slug\}/);
+  assert.doesNotMatch(source, /storefront|label="Slug"|Sửa danh mục #/i);
+  assert.match(source, /label="Đường dẫn trang"/);
+  assert.match(source, /Hiển thị trên trang web/);
+  assert.match(source, /className="admin-table admin-category-table"/);
+  assert.match(source, /<EyeOff size=\{13\} \/> Ẩn/);
+});
+
+test("admin form messages do not expose technical error codes", async () => {
+  for (const parts of [
+    ["app", "admin", "san-pham", "page.tsx"],
+    ["app", "admin", "dich-vu", "page.tsx"],
+    ["components", "admin", "AdminMediaPanel.tsx"],
+    ["components", "admin", "AdminProductImportPanel.tsx"],
+    ["components", "admin", "AdminShell.tsx"],
+  ]) {
+    const source = await readSource(...parts);
+    assert.doesNotMatch(source, /\$\{(?:error|reason)\.code\} · /);
+  }
 });
 
 test("request inbox is reachable from the Lean V1 admin control plane", async () => {

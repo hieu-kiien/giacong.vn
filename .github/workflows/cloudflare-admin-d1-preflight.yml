@@ -7,15 +7,110 @@ on:
       - ".github/workflows/cloudflare-admin-d1-preflight.yml"
       - "apps/giacong-lean-commerce/migrations/**"
   workflow_dispatch:
+    inputs:
+      apply_customer_contact_profile:
+        description: "Apply only migration 0036 to staging after guarded schema checks."
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: read
 
 concurrency:
   group: cloudflare-admin-d1-preflight-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
+  customer-contact-profile:
+    name: Guarded staging customer contact schema
+    if: github.event_name == 'workflow_dispatch' && inputs.apply_customer_contact_profile
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: staging
+    defaults:
+      run:
+        working-directory: apps/giacong-lean-commerce
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      DATABASE_NAME: giacong-vn-catalog-staging
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+      - name: Guard exact staging schema and capture row counts
+        id: before
+        shell: bash
+        run: |
+          set -euo pipefail
+          state="$(npx -y wrangler@4.144.0 d1 execute "$DATABASE_NAME" --env staging --remote --json --command="
+            SELECT COUNT(*) AS count FROM sqlite_master WHERE type='table' AND name='user';
+            SELECT COUNT(*) AS count FROM sqlite_master WHERE type='table' AND name='customer_contact_profiles';
+            SELECT COUNT(*) AS count FROM d1_migrations WHERE name='0036_customer_contact_profiles.sql';
+            SELECT COUNT(*) AS count FROM d1_migrations WHERE name='0032_customer_auth.sql';
+            SELECT 'users' AS entity, COUNT(*) AS row_count FROM user;
+            SELECT 'leads' AS entity, COUNT(*) AS row_count FROM leads;
+            SELECT 'sales' AS entity, COUNT(*) AS row_count FROM zalo_sales;
+          ")"
+          echo "$state" | jq .
+          test "$(echo "$state" | jq -r '.[0].results[0].count')" = 1
+          test "$(echo "$state" | jq -r '.[3].results[0].count')" = 1
+          table_count="$(echo "$state" | jq -r '.[1].results[0].count')"
+          migration_count="$(echo "$state" | jq -r '.[2].results[0].count')"
+          test "$table_count" = 0 -o "$table_count" = 1
+          test "$migration_count" = 0 -o "$migration_count" = 1
+          test "$table_count" != 0 -o "$migration_count" = 0
+          if [[ "$table_count" == 1 ]]; then
+            npx -y wrangler@4.144.0 d1 execute "$DATABASE_NAME" --env staging --remote --json --command="
+              PRAGMA table_info(customer_contact_profiles);
+              PRAGMA foreign_key_list(customer_contact_profiles);
+              SELECT sql FROM sqlite_master WHERE type='table' AND name='customer_contact_profiles';
+            " > /tmp/customer-contact-schema.json
+            node scripts/verify-customer-contact-schema.mjs /tmp/customer-contact-schema.json
+          fi
+          echo "already_applied=$migration_count" >> "$GITHUB_OUTPUT"
+          echo "$state" | jq -S '[.[4,5,6].results[0]]' > /tmp/customer-contact-counts.json
+      - name: Apply only the reviewed additive migration
+        if: steps.before.outputs.already_applied == '0'
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp migrations/0036_customer_contact_profiles.sql /tmp/customer-contact-migration.sql
+          cat >> /tmp/customer-contact-migration.sql <<'SQL'
+            INSERT INTO d1_migrations (name) SELECT '0036_customer_contact_profiles.sql'
+            WHERE NOT EXISTS (SELECT 1 FROM d1_migrations WHERE name='0036_customer_contact_profiles.sql');
+          SQL
+          npx -y wrangler@4.144.0 d1 execute "$DATABASE_NAME" --env staging --remote --file=/tmp/customer-contact-migration.sql
+      - name: Verify schema, foreign key and unchanged business rows
+        shell: bash
+        run: |
+          set -euo pipefail
+          info="$(npx -y wrangler@4.144.0 d1 execute "$DATABASE_NAME" --env staging --remote --json --command="
+            PRAGMA table_info(customer_contact_profiles);
+            PRAGMA foreign_key_list(customer_contact_profiles);
+            SELECT COUNT(*) AS count FROM d1_migrations WHERE name='0036_customer_contact_profiles.sql';
+            SELECT 'users' AS entity, COUNT(*) AS row_count FROM user;
+            SELECT 'leads' AS entity, COUNT(*) AS row_count FROM leads;
+            SELECT 'sales' AS entity, COUNT(*) AS row_count FROM zalo_sales;
+            PRAGMA foreign_key_check(customer_contact_profiles);
+          ")"
+          echo "$info" | jq .
+          test "$(echo "$info" | jq -r '.[0].results | length')" = 6
+          test "$(echo "$info" | jq -r '.[1].results[0].table')" = user
+          test "$(echo "$info" | jq -r '.[1].results[0].from')" = customer_id
+          test "$(echo "$info" | jq -r '.[2].results[0].count')" = 1
+          test "$(echo "$info" | jq -r '.[6].results | length')" = 0
+          echo "$info" | jq -S '[.[3,4,5].results[0]]' > /tmp/customer-contact-after.json
+          diff /tmp/customer-contact-counts.json /tmp/customer-contact-after.json
+          npx -y wrangler@4.144.0 d1 execute "$DATABASE_NAME" --env staging --remote --json --command="
+            PRAGMA table_info(customer_contact_profiles);
+            PRAGMA foreign_key_list(customer_contact_profiles);
+            SELECT sql FROM sqlite_master WHERE type='table' AND name='customer_contact_profiles';
+          " > /tmp/customer-contact-schema-after.json
+          node scripts/verify-customer-contact-schema.mjs /tmp/customer-contact-schema-after.json
+          echo '## Staging contact profile schema verified; existing accounts, requests and sales preserved.' >> "$GITHUB_STEP_SUMMARY"
   audit-staging-schema:
     name: Audit staging D1 admin readiness
     if: github.event.pull_request.head.repo.full_name == github.repository || github.event_name == 'workflow_dispatch'

@@ -1,9 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { getCloudflareContext } from "@opennextjs/cloudflare";
 
 import { CapturedStorefrontShell } from "@/components/site/CapturedStorefrontShell";
 import { canonicalMetadata, noIndexMetadata } from "@/lib/seo";
 import { getPublishedSiteSettings } from "@/lib/site-settings";
+import { customerLoginDestination } from "@/lib/customer-login-destination";
+import { customerContactDestination } from "@/lib/customer-contact-input";
+import { resolveCustomerEmailConfig, type CustomerEmailEnvironment } from "@/lib/customer-email";
 
 import { CustomerAccountAuth } from "./CustomerAccountAuth";
 import styles from "./customer-auth.module.css";
@@ -27,21 +31,26 @@ export default async function CustomerSignInPage({
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
   const query = await searchParams;
-  const callbackURL = query.next === "gui-yeu-cau"
-    ? "/gui-yeu-cau/"
-    : query.next === "admin"
-      ? "/admin/"
-      : "/tai-khoan/";
-  const isAdminSignIn = query.next === "admin";
+  const destination = customerLoginDestination(query.next);
+  const callbackURL = customerContactDestination(query.next);
+  const isAdminSignIn = destination === "/admin/" || destination.startsWith("/admin/");
+  const settings = await getPublishedSiteSettings();
+  let emailRegistrationEnabled = false;
+  let emailDeliveryEnabled = false;
+  try {
+    emailDeliveryEnabled = Boolean(resolveCustomerEmailConfig(getCloudflareContext().env as CustomerEmailEnvironment));
+    emailRegistrationEnabled = settings.customer_email_registration === "on" && emailDeliveryEnabled;
+  } catch {
+    // Google remains the primary account entry when email delivery is unavailable.
+  }
 
   return (
-    <CapturedStorefrontShell>
+    <CapturedStorefrontShell variant="account">
       <main className={styles.main} id="main">
         <section aria-labelledby="account-page-title" className="giacong-page-hero">
           <div aria-hidden="true" className="giacong-page-hero__orb giacong-page-hero__orb--one" />
           <div aria-hidden="true" className="giacong-page-hero__orb giacong-page-hero__orb--two" />
           <div className="giacong-page-hero__inner">
-            <p className="giacong-page-hero__eyebrow">Tài khoản khách hàng</p>
             <h1 id="account-page-title">Tài khoản</h1>
             <nav aria-label="Breadcrumb" className="giacong-page-hero__breadcrumb">
               <Link href="/">Trang chủ</Link>
@@ -54,12 +63,13 @@ export default async function CustomerSignInPage({
         <section aria-labelledby="sign-in-title" className={styles.contentSection}>
           <div className="giacong-content-rail">
             <div className={styles.card}>
-              <h2 className={styles.cardTitle} id="sign-in-title">Đăng nhập hoặc tạo tài khoản</h2>
+              <h2 className={styles.cardTitle} id="sign-in-title">Chào mừng bạn</h2>
               <p className={styles.cardCopy}>{isAdminSignIn
                 ? "Đăng nhập bằng tài khoản website. Chỉ tài khoản đã được cấp quyền admin mới vào được khu vực quản trị."
-                : "Dùng Google, hoặc email và mật khẩu. Tên đăng nhập là tùy chọn."}</p>
+                : "Đăng nhập để gửi yêu cầu và theo dõi giao dịch của bạn."}</p>
+              {query.error ? <p className={styles.formError} role="alert">Đăng nhập Google chưa hoàn tất. Bạn có thể thử lại bằng nút bên dưới.</p> : null}
 
-              <CustomerAccountAuth callbackURL={callbackURL} />
+              <CustomerAccountAuth callbackURL={callbackURL} emailDeliveryEnabled={emailDeliveryEnabled} emailRegistrationEnabled={emailRegistrationEnabled} />
 
               <Link className={styles.homeLink} href="/">
                 <span aria-hidden="true">←</span> Quay lại trang chủ

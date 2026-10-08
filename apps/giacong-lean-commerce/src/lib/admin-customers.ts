@@ -30,6 +30,7 @@ export interface AdminCustomerSale {
 export interface AdminCustomerDetail extends AdminCustomerSummary {
   requests: AdminCustomerRequest[];
   sales: AdminCustomerSale[];
+  salesPagination: { currentPage: number; lastPage: number; pageSize: number; total: number };
 }
 
 function escapeLike(value: string): string {
@@ -74,13 +75,16 @@ function toSummary(row: CustomerRow): AdminCustomerSummary {
  * sale counters come from `leads.customer_id` and the confirmed `zalo_sales`
  * ledger; either table may be absent on an older database.
  */
-function customerSelectSql(hasLeads: boolean, hasSales: boolean): string {
+function customerSelectSql(hasLeads: boolean, hasSales: boolean, hasProfiles: boolean): string {
+  const leadPhone = hasLeads ? "(SELECT l.phone FROM leads l WHERE l.customer_id = u.id AND l.phone IS NOT NULL AND TRIM(l.phone) <> '' ORDER BY l.created_at DESC LIMIT 1)" : "NULL";
+  const profilePhone = hasProfiles ? "(SELECT p.phone FROM customer_contact_profiles p WHERE p.customer_id = u.id)" : "NULL";
+  const contactName = hasProfiles ? "COALESCE((SELECT p.full_name FROM customer_contact_profiles p WHERE p.customer_id = u.id), u.name)" : "u.name";
   return `
     SELECT
-      u.id, u.name, u.email, u.username, u."createdAt" AS created_at,
+      u.id, ${contactName} AS name, u.email, u.username, u."createdAt" AS created_at,
       ${hasLeads ? "(SELECT COUNT(*) FROM leads l WHERE l.customer_id = u.id)" : "0"} AS request_count,
       ${hasLeads ? "(SELECT MAX(l.created_at) FROM leads l WHERE l.customer_id = u.id)" : "NULL"} AS last_request_at,
-      ${hasLeads ? "(SELECT l.phone FROM leads l WHERE l.customer_id = u.id AND l.phone IS NOT NULL AND TRIM(l.phone) <> '' ORDER BY l.created_at DESC LIMIT 1)" : "NULL"} AS phone,
+      COALESCE(${profilePhone}, ${leadPhone}) AS phone,
       ${hasSales ? "(SELECT COUNT(*) FROM zalo_sales s WHERE s.customer_id = u.id)" : "0"} AS sale_count,
       ${hasSales ? "(SELECT COALESCE(SUM(s.total_amount), 0) FROM zalo_sales s WHERE s.customer_id = u.id)" : "0"} AS sale_total
     FROM "user" u
@@ -92,7 +96,7 @@ export async function listAdminCustomers(
   input: { page: number; pageSize: number; query?: string },
 ): Promise<{ customers: AdminCustomerSummary[]; ready: boolean; total: number }> {
   if (!(await tableExists(database, "user"))) return { customers: [], ready: false, total: 0 };
-  const [hasLeads, hasSales] = await Promise.all([tableExists(database, "leads"), tableExists(database, "zalo_sales")]);
+  const [hasLeads, hasSales, hasProfiles] = await Promise.all([tableExists(database, "leads"), tableExists(database, "zalo_sales"), tableExists(database, "customer_contact_profiles")]);
   const params: unknown[] = [];
   let where = "";
   const query = input.query?.trim();
@@ -100,13 +104,16 @@ export async function listAdminCustomers(
     const pattern = `%${escapeLike(query)}%`;
     where = `WHERE (u.name LIKE ? ESCAPE '\\' COLLATE NOCASE OR u.email LIKE ? ESCAPE '\\' COLLATE NOCASE OR u.username LIKE ? ESCAPE '\\' COLLATE NOCASE${
       hasLeads ? " OR EXISTS (SELECT 1 FROM leads l WHERE l.customer_id = u.id AND l.phone LIKE ? ESCAPE '\\')" : ""
+    }${
+      hasProfiles ? " OR EXISTS (SELECT 1 FROM customer_contact_profiles p WHERE p.customer_id = u.id AND (p.phone LIKE ? ESCAPE '\\' OR p.full_name LIKE ? ESCAPE '\\' COLLATE NOCASE))" : ""
     })`;
     params.push(pattern, pattern, pattern);
     if (hasLeads) params.push(pattern);
+    if (hasProfiles) params.push(pattern, pattern);
   }
   const count = await database.prepare(`SELECT COUNT(*) AS total FROM "user" u ${where}`).bind(...params).first<{ total: number }>();
   const rows = await database.prepare(`
-    ${customerSelectSql(hasLeads, hasSales)}
+    ${customerSelectSql(hasLeads, hasSales, hasProfiles)}
     ${where}
     ORDER BY ${hasLeads ? "last_request_at IS NULL, last_request_at DESC, " : ""}u."createdAt" DESC
     LIMIT ? OFFSET ?
@@ -117,11 +124,12 @@ export async function listAdminCustomers(
 export async function getAdminCustomerDetail(
   database: D1DatabaseLike,
   id: string,
+  salesPage = 1,
 ): Promise<AdminCustomerDetail | null> {
   if (!(await tableExists(database, "user"))) return null;
-  const [hasLeads, hasSales] = await Promise.all([tableExists(database, "leads"), tableExists(database, "zalo_sales")]);
+  const [hasLeads, hasSales, hasProfiles] = await Promise.all([tableExists(database, "leads"), tableExists(database, "zalo_sales"), tableExists(database, "customer_contact_profiles")]);
   const row = await database.prepare(`
-    ${customerSelectSql(hasLeads, hasSales)}
+    ${customerSelectSql(hasLeads, hasSales, hasProfiles)}
     WHERE u.id = ?
     LIMIT 1
   `).bind(id).first<CustomerRow>();
@@ -165,14 +173,16 @@ export async function getAdminCustomerDetail(
   }
 
   const sales: AdminCustomerSale[] = [];
+  const lastPage = Math.max(1, Math.ceil(toNumber(row.sale_count) / 20));
+  const currentPage = Math.min(lastPage, Number.isSafeInteger(salesPage) && salesPage > 0 ? salesPage : 1);
   if (hasSales) {
     const saleRows = await database.prepare(`
       SELECT id, sale_code, confirmed_at, total_amount
       FROM zalo_sales
       WHERE customer_id = ?
-      ORDER BY confirmed_at DESC
-      LIMIT 20
-    `).bind(id).all<{ confirmed_at: string; id: string; sale_code: string; total_amount: number }>();
+      ORDER BY confirmed_at DESC, id DESC
+      LIMIT ? OFFSET ?
+    `).bind(id, 20, (currentPage - 1) * 20).all<{ confirmed_at: string; id: string; sale_code: string; total_amount: number }>();
     for (const sale of saleRows.results) {
       sales.push({
         confirmedAt: String(sale.confirmed_at),
@@ -183,5 +193,5 @@ export async function getAdminCustomerDetail(
     }
   }
 
-  return { ...toSummary(row), requests, sales };
+  return { ...toSummary(row), requests, sales, salesPagination: { currentPage, lastPage, pageSize: 20, total: toNumber(row.sale_count) } };
 }

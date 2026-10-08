@@ -1,0 +1,96 @@
+# Production release and browser acceptance — 2026-10-06
+
+Status: in progress; not yet approved for customer handover.
+
+## Release guard and rollback
+
+- User approved production commit/push/deployment, separate Google OAuth and scoped email sender, and publishing basic-profile Google login.
+- Production D1 export is stored privately in ignored `.runtime/production-pre-release-20261005.sql`; SHA256 `7cc58a31a8e4f0c7cd769f66073f32a50a48638fde00ddaf3ab00bb73e04b8e1`.
+- Existing data baseline: 9 hidden products, 17 variants, 51 tier prices, 14 services, 1 request, 3 active owners, 0 news posts. Preserve existing publication states and data; do not copy staging fixtures.
+- Ten additive migrations (0029–0038) were rehearsed against the export. Existing row values were preserved, foreign-key check passed, and the guard rejected replay. Remote execution must abort if baseline counts/schema differ, then verify all original row values and foreign keys after export.
+- Previous production Worker version: `a2ffab9c-1dfa-4c10-9edb-57154a44c02d`. Roll back traffic to this version on failed acceptance. Keep additive schema on rollback; do not restore an old database over new customer data.
+- Production Apps Script was upgraded in place from version 3 to 4, retaining endpoint and secret. Original source and workbook export are private ignored backups. Repoint existing deployment to version 3 if webhook compatibility fails.
+- Keep Cloudflare Access configuration and `ADMIN_PUBLIC=false`. Website account admission requires verified identity plus active owner membership.
+
+## External dependencies observed
+
+- Google application is published; separate production client has production callback URLs.
+- Production sender `auth.kienhieu.id.vn` is verified, with a sending-only domain-scoped key. A real configuration probe arrived in the owner's Gmail inbox. This does not prove registration/recovery flows yet.
+- Apps Script deployment UI confirmed version 4 at 12:23 on 6 October 2026.
+
+## Browser evidence so far
+
+- Staging desktop: coherent branded account header and login form were viewed directly.
+- Empty login submission: Vietnamese required-field message displayed and focus moved to email.
+- Google owner login: browser returned to account page, showing contact profile, request history, confirmed-sale history and owner admin entry.
+- Same account entered staging admin successfully; overview and customer list were viewed directly.
+- Customer list shows the existing labeled staging fixture with email and phone `0000000000`.
+- Excel button was clicked, but download event did not complete and no success/error message appeared. Export acceptance remains unresolved.
+- Independent review found admin-subdomain account-login links targeting an unsupported auth origin. Links now resolve to the matching storefront; regression test was RED then GREEN. Runtime verification remains pending deployment.
+
+### Additional real browser checks and fixes
+
+- Product #15: changed and restored short description, observed unsaved-change confirmation, saved/reloaded, published for cart acceptance, then restored to draft and confirmed saved.
+- Cart: quantity 2→4 and total 49,380 VND matched; missing phone/province showed field guidance; labeled staging request was stored and cart cleared. Confirmed staging sale `ZL-20261006-378930AF` appeared in customer and account histories with matching quantity/total.
+- First request exposed a webhook contract mismatch: Worker sends `Đặt sản phẩm`, Apps Script accepted only the legacy large-quantity cart type. Allowlist fix passed RED→GREEN; staging Apps Script version 3 was deployed. Second request `LEAD-AE6C0C8557` was observed as `Đã gửi xong`, with its row visible in Sheets.
+- Sheets observation exposed leading-zero phone coercion in request/sale rows. Text format is now applied before writing those phone cells; RED→GREEN tests passed. Staging Apps Script version 4 deployed at 13:02. Real retry proving preserved phone remains pending.
+- Account mobile layout at 390×844 was observed directly with branded header, menu and cards without overlap.
+- Service #16: empty-name save showed the field error, but exposed `VALIDATION_ERROR`; technical code prefixes were removed from product/service/media/import/access messages. Edit/save/reload was confirmed. Service preview links led to 404 because they used `/dich-vu/`; corrected to the live `/thue-gia-cong/` route. Browser verification awaits Worker deployment.
+- Excel now provides a live ready message and a persistent retry download link, with object URL cleanup. Independent review found no blocker. Actual file download still requires browser acceptance.
+
+GitNexus full change analysis must precede each commit. Apps Script `.gs` symbols are not indexed (impact is UNKNOWN); literal caller confirmation, VM contract regressions and independent review supplement the graph check, rather than treating zero graph edges as safe.
+
+- News: created a labeled staging draft, published it, observed the listing and article content, then returned it to draft. Article screenshot exposed white navigation on a light background; it now reuses the direct-page header surface already used by product/service pages. Runtime visual verification awaits deployment.
+- Brand settings: group filtering and save-draft were operated; the staging tagline draft was restored to the original value. Publication completion remains to be checked.
+- Contact form: missing fields showed a Vietnamese error, valid labeled request was accepted. After version 4, a real Sheet row still displayed phone as `0`; formatting before `appendRow` was insufficient. Request writing now uses `setValues` on the preformatted exact row, protected by the existing script lock. RED→GREEN regressions and independent review passed; staging version 5 deployed at 13:17. New real request `PHONE RANGE` is awaiting delivery verification.
+- Commit `e1ca7c69` passed GitHub quality, graph and D1 gates. Its staging version `8c47204f-5c47-4eb9-b7e1-8bbd5724876f` was uploaded without changing traffic; preview runtime gate is in progress.
+
+Screenshots and detailed private runtime evidence are regeneratable artifacts in ignored `.runtime/`. No credentials or customer exports belong in Git.
+
+## Remaining acceptance
+
+### Browser continuation, 6 October
+
+- Commit `6310ea26`: preview runtime gate run `37424896457` passed. Staging now serves version `166ad2b9-472b-4e79-8d1c-c6f32a14bb4b` at 100%; production traffic has not changed.
+- Real Sheets observation confirmed the new `PHONE RANGE` request retains `0000000000` after staging Apps Script version 5. Confirmed sale `ZL-20261006-EFED64E4` was saved in admin for 24,690 VND; Sheets cells B3/J3 visibly contain its matching code and `0000000000`.
+- News detail was visually retested after deployment: green navigation, logo and article no longer overlap. The labeled test article was returned to draft; admin shows 0 published / 3 draft posts.
+- Service empty-name submission now visibly shows `Dữ liệu dịch vụ chưa hợp lệ.` and `Tên dịch vụ là bắt buộc.` without a technical error code. Input was restored to its saved original value.
+- Customer detail shows name, email, phone, request history and confirmed-sale total without a username. No-result search displays Vietnamese guidance.
+- Excel ready message and retry link were observed. Tool download capture timed out, but the user confirmed Chrome downloaded the file. Download is accepted with user evidence; workbook contents still require inspection.
+- Brand tagline draft was restored to the published original; UI returned to `Đã đăng`, with publication disabled because there is no draft difference.
+- Registration form is prepared with a labeled staging account. User agreed to enter and submit the new password themselves; completion is still pending. Browser policy requires user handoff for new credentials.
+- Media: changed alt text on the existing staging fixture, saved, reloaded and observed persistence; restored original `Ảnh QA product staging 20260824`, saved and observed restoration. Success message was Vietnamese.
+- Audit: real media updates and news publication/unpublication appeared with timestamps and revisions. The view still exposes internal actor IDs, table names and request UUIDs; simplify default presentation before customer handover.
+- Menu: saved a labeled Home draft; public Home remained unchanged. Saved original Home value again; UI confirmed `Đã lưu bản nháp “Home”.`, `Đã đăng` and disabled publication because the draft equals the published value.
+- Further UI polish found by direct observation: media overview exposes R2/D1/CDN/cache terminology; menu shows legacy IDs; Excel ready/retry notice survives search changes and may refer to a previous filter. Source changes simplify media/member/menu labels, collapse audit identifiers into details, and abort/reset export on search changes. RED→GREEN regressions and full `npm run check` passed; independent review found no blocker. Runtime acceptance of these changes awaits staging deployment.
+- Image upload is pending browser extension file-access permission or user selection. A native required-field message was observed on an empty new variant; the entry was cancelled without creating data.
+- Commit `a5318a46` is pushed. Upload run `37449237901` and preview gate `37449663242` passed; staging serves `953408fe-4819-4384-aa50-4c7430c5f0fa` at 100%. Real screenshots confirm simplified media/audit views. Export ready/retry notice disappeared when a different customer search was submitted.
+- Confirmed-sale status was changed to `Đã chốt`, persisted after reload, appeared in customer request history and in account history. Customer detail shows two sales totalling 74,070 VND.
+- Admin logout returned to the shared login; another tab could no longer access admin. Google sign-in returned to profile completion; saving phone and consent continued to admin. The actual customer-contact notification reached Gmail at 17:27 from the staging email domain, with matching name, phone and email. Sheets customer row 4 visibly contains the matching name, `0000000000`, email and update timestamp.
+- Category list loaded four existing categories. Submitting an empty new category displayed Vietnamese name/slug field errors; cancelled without creating a record. Some category form labels still use `Slug`/`storefront` and warrant further copy simplification.
+- Latest continuation: directly reopened the product #15 image editor on staging version `953408fe-4819-4384-aa50-4c7430c5f0fa`. The saved QA product remains a draft with no image, but the live screen still shows the old technical gallery title/instructions. A small copy pass is now prepared locally (`Ảnh bổ sung`, plain Vietnamese instructions); live acceptance requires deploy and reinspection.
+- Local `npm run check` completed with exit code 0, and `node --test scripts/admin-ui-system.test.mjs` passed 24/24 after the copy changes. Local full build passed; this does not establish staging acceptance.
+- Image upload could not be attempted: although the owner approved enabling file URL access for the ChatGPT Chrome extension and disabling it after the test, the browser safety layer blocked opening Chrome's extension settings page. No setting was changed, and no alternate path was attempted. Upload remains unverified.
+- Commit `23bdcb46` passed the staging upload workflow `37458085123` and preview QA `37458432005`; staging now serves `3a38b5b0-879a-43a4-999e-f819d5156e5c` at 100%. Direct browser checks on a fresh tab confirmed the gallery title/instructions are simplified, service order no longer mentions IDs, and the media detail modal hides storage paths/checksums inside collapsed “Thông tin kỹ thuật”. Opening/copying the link produced the visible notice `Đã sao chép liên kết ảnh.`
+- Existing browser tabs can retain the previous client bundle after a Worker version change; a freshly opened staging tab loaded the new gallery copy. Reopened/updated tabs were used to avoid marking stale client content as a deployment regression.
+- Direct category-panel inspection confirmed internal slugs and the word `storefront` remained in the default admin UI. Commit `23650c38` hides the slug from the category list and uses “Đường dẫn trang” / “trang web”; local checks passed, preview QA `37460127162` passed, and version `878d8961-3e09-4187-b74c-4529ea44efac` was deployed at 100%.
+- Acceptance discrepancy: after deployment, the staging browser still visibly rendered the old “Slug”, `storefront`, `Sửa danh mục #5`, and slug keys in the list, including after opening a fresh tab and hard reload. The CLI reports version `878d8961…` active, but the updated category UI is not runtime-verified. Treat this deployment/cache mismatch as a blocker and investigate before handover.
+
+**Handover verdict: not ready for final customer acceptance yet.** Remaining credential flows, workbook contents, role/session checks and remaining feature coverage must be completed before promotion and final production smoke acceptance.
+
+Registration/verification/recovery, customer-role denial, profile/request delivery and Sheet copy, confirmed sale/history/Excel, product/service/content edits and validation, unsaved-change protection, responsive layouts, logout/session behavior, and production post-deployment smoke checks must have observed evidence before final handover.
+
+## Follow-up acceptance pass — 2026-10-06
+
+- Commit `3176a5bf` narrows the category-management table so the image, category, order, visibility and action columns fit without horizontal scrolling in the desktop modal. Action labels are shorter (`Sửa`, `Ẩn`) while retaining full accessible names.
+- Local admin suite passed 514/514. The GitHub quality gate, GitNexus gate and staging D1 readiness gate passed for this commit. Full `npm run check` compiled the app and generated all 40 routes; the GitHub quality gate is the authoritative completed CI result.
+- Deployed staging Worker version `fcd61032-444c-42af-954b-1060829b6b40`; Wrangler reports 100% staging traffic. No D1 migration or production change was made.
+- A fresh Chrome tab on staging visibly confirms the category list no longer exposes slug keys/technical labels, all category controls fit inside the modal, and there is no horizontal scrollbar. Existing tabs may continue to show a previous client bundle; use a newly opened tab after deployment.
+- Deep staging QA run `37470097093` passed catalog/product/cart/contact guards, R2 media checks, and responsive browser/error checks.
+
+**Current handover verdict: not ready for final customer acceptance or production promotion.** The implementation and staging UI are improved, but these observed acceptance steps remain open:
+
+- The user must enter and submit the staging test account password; the live registration form is deliberately left for that handoff. Then verify registration, sign-in, verification/recovery messages and customer-only denial of Admin access in the browser.
+- Product image upload remains unverified because the browser safety layer blocked opening the Chrome extension settings page, despite prior approval. No browser permission changed.
+- The customer Excel download was confirmed, but the workbook structure/contents have not been inspected. Validate the exported columns and row shape without exposing personal data in the report.
+- Production OAuth/email delivery, production smoke tests and the production acceptance gate remain separate; production has not been deployed or changed.

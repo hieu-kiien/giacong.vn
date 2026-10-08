@@ -39,7 +39,7 @@ import { useAdminSession } from "@/components/admin/AdminShell";
 import { AdminConfirmDialog } from "@/components/admin/AdminDialog";
 import { useAdminToast } from "@/components/admin/AdminToast";
 import { parseOfferingLines } from "@/lib/admin-service-offerings";
-import { AdminClientError, fetchAdmin, formatAdminDate, getInitials, mutateAdmin, type AdminService } from "@/lib/admin-client";
+import { AdminClientError, fetchAdmin, getInitials, mutateAdmin, type AdminService } from "@/lib/admin-client";
 import { canManageServices } from "@/lib/admin-permissions";
 
 interface AdminServiceWithRevision extends AdminService {
@@ -645,7 +645,7 @@ const serviceStatusLabels: Record<string, string> = {
       </form>
       {error ? <AdminErrorState error={error} onRetry={() => setAttempt((value) => value + 1)} /> : loading ? <AdminLoadingTable /> : (
         <section className="admin-panel admin-table-panel" aria-labelledby="service-table-heading">
-          <div className="admin-panel-heading" style={{ padding: "21px 21px 12px" }}><div><h2 className="admin-panel-title" id="service-table-heading">Dịch vụ</h2><p className="admin-panel-caption">{query ? `Kết quả cho “${query}”${selectedStatusLabel ? ` · ${selectedStatusLabel}` : ""}` : selectedStatusLabel ? `Đang lọc: ${selectedStatusLabel}` : "Sắp xếp theo ID tăng dần"}</p></div><span aria-live="polite" className="admin-count">{total} kết quả</span></div>
+          <div className="admin-panel-heading" style={{ padding: "21px 21px 12px" }}><div><h2 className="admin-panel-title" id="service-table-heading">Dịch vụ</h2><p className="admin-panel-caption">{query ? `Kết quả cho “${query}”${selectedStatusLabel ? ` · ${selectedStatusLabel}` : ""}` : selectedStatusLabel ? `Đang lọc: ${selectedStatusLabel}` : "Theo thứ tự sẵn có"}</p></div><span aria-live="polite" className="admin-count">{total} kết quả</span></div>
           <div style={{ padding: "0 21px" }}>
             <div className="admin-filter-tabs" role="group" aria-label="Lọc dịch vụ theo trạng thái">
               <button
@@ -685,13 +685,13 @@ const serviceStatusLabels: Record<string, string> = {
           {services.length === 0 ? <AdminEmptyState title={query ? "Không tìm thấy dịch vụ phù hợp" : statusFilter !== "all" ? "Không có dịch vụ ở trạng thái này" : "Chưa có dịch vụ"} description={query ? "Thử một từ khóa khác. Không có dữ liệu mẫu được đưa vào danh sách." : statusFilter !== "all" ? "Thử chọn bộ lọc khác để xem thêm dịch vụ." : "Bạn có thể tạo dịch vụ mới từ nút Thêm dịch vụ."} /> : (
             <>
               <div className="admin-table-scroll">
-                <table className="admin-table admin-product-table">
-                  <thead><tr>{canManage ? <th scope="col"><input aria-label="Chọn tất cả dịch vụ trong trang" checked={filteredServices.length > 0 && filteredServices.every((service) => selectedIds.has(service.id))} disabled={batchArchiving || batchActivating} onChange={toggleAllVisible} type="checkbox" /></th> : null}<th scope="col">Dịch vụ</th><th scope="col">Tóm tắt</th><th scope="col">Trạng thái</th><th scope="col">Tối thiểu</th><th scope="col">Thời gian làm hàng</th><th scope="col">Cập nhật</th>{canManage ? <th scope="col">Thao tác</th> : null}</tr></thead>
+                <table className="admin-table admin-product-table admin-catalog-list">
+                  <thead><tr>{canManage ? <th className="admin-catalog-select" scope="col"><input aria-label="Chọn tất cả dịch vụ trong trang" checked={filteredServices.length > 0 && filteredServices.every((service) => selectedIds.has(service.id))} disabled={batchArchiving || batchActivating} onChange={toggleAllVisible} type="checkbox" /></th> : null}<th scope="col">Dịch vụ</th><th scope="col">Tối thiểu · thời gian</th><th scope="col">Trạng thái</th>{canManage ? <th scope="col">Thao tác</th> : null}</tr></thead>
                   <tbody>
                     {filteredServices.map((service) => (
                       <tr data-testid={`row-service-${service.id}`} key={service.id}>
-                        {canManage ? <td className="admin-product-select"><input aria-label={`Chọn dịch vụ ${service.name}`} checked={selectedIds.has(service.id)} disabled={batchArchiving || batchActivating} onChange={() => toggleSelected(service.id)} type="checkbox" /></td> : null}
-                        <td className="admin-product-summary">
+                        {canManage ? <td className="admin-product-select admin-catalog-select"><input aria-label={`Chọn dịch vụ ${service.name}`} checked={selectedIds.has(service.id)} disabled={batchArchiving || batchActivating} onChange={() => toggleSelected(service.id)} type="checkbox" /></td> : null}
+                        <td className="admin-product-summary admin-catalog-list-main">
                           <div className="admin-product-cell">
                             <button
                               className="admin-thumb admin-thumb-clickable"
@@ -718,12 +718,11 @@ const serviceStatusLabels: Record<string, string> = {
                               >
                                 {service.name}
                               </button>
-                              <div className="admin-item-meta" style={{ alignItems: "center", display: "inline-flex", gap: 5 }}>
-                                <span>{service.slug}</span>
+                              <div className="admin-item-meta admin-catalog-preview">
                                 {service.slug && service.isActive ? (
                                   <a
                                     className="admin-external-link-btn"
-                                    href={`/dich-vu/${service.slug}/`}
+                                    href={`/thue-gia-cong/${service.slug}/`}
                                     onClick={(event) => event.stopPropagation()}
                                     rel="noreferrer"
                                     target="_blank"
@@ -733,16 +732,14 @@ const serviceStatusLabels: Record<string, string> = {
                                   </a>
                                 ) : null}
                               </div>
+                              <div className="admin-item-desc">{service.summary || service.description || "Chưa có tóm tắt"}</div>
                             </div>
                           </div>
                         </td>
-                        <td data-label="Tóm tắt"><div className="admin-description">{service.summary || service.description || "Chưa có tóm tắt"}</div></td>
-                        <td data-label="Trạng thái"><AdminStatusBadge kind={service.isActive && service.status === "published" ? "green" : service.status === "draft" || service.status === "review" ? "amber" : "neutral"} value={service.status === "draft" || service.status === "review" || service.status === "archived" ? serviceStatusLabels[service.status] : service.isActive ? "Đang hiển thị" : "Đã đăng · Tạm ẩn"} /></td>
-                        <td data-label="Tối thiểu" className="admin-description">{service.moqSummary || "Chưa có"}</td>
-                        <td data-label="Thời gian làm hàng" className="admin-mono">{service.leadTimeDays !== null ? `${service.leadTimeDays} ngày` : "Chưa có"}</td>
-                        <td data-label="Cập nhật" className="admin-mono">{formatAdminDate(service.updatedAt)}</td>
+                        <td className="admin-catalog-list-info" data-label="Tối thiểu · thời gian"><div>{service.moqSummary || "Chưa có"}</div><div className="admin-item-meta">{service.leadTimeDays !== null ? `${service.leadTimeDays} ngày làm hàng` : "Chưa có thời gian"}</div></td>
+                        <td className="admin-catalog-list-status" data-label="Trạng thái"><AdminStatusBadge kind={service.isActive && service.status === "published" ? "green" : service.status === "draft" || service.status === "review" ? "amber" : "neutral"} value={service.status === "draft" || service.status === "review" || service.status === "archived" ? serviceStatusLabels[service.status] : service.isActive ? "Đang hiển thị" : "Đã đăng · Tạm ẩn"} /></td>
                         {canManage ? (
-                          <td className="admin-sticky-actions">
+                          <td className="admin-sticky-actions admin-catalog-list-actions" data-label="Thao tác">
                             <div className="admin-table-actions">
                               <button className="admin-button admin-button-quiet" data-testid={`button-service-edit-${service.id}`} onClick={() => openEdit(service)} type="button">Sửa</button>
                               {service.isActive ? (
@@ -942,7 +939,7 @@ function ServiceEditor({ error, form, isDirty = false, onCancel, onChange, onSub
             {form.slug && form.isActive ? (
               <a
                 className="admin-button admin-button-quiet"
-                href={`/dich-vu/${form.slug}/`}
+                href={`/thue-gia-cong/${form.slug}/`}
                 rel="noreferrer"
                 style={{ alignItems: "center", display: "inline-flex", gap: 6 }}
                 target="_blank"
@@ -954,7 +951,7 @@ function ServiceEditor({ error, form, isDirty = false, onCancel, onChange, onSub
           </div>
         </div>
 
-        {error ? <p className="admin-editor-error" role="alert">{error.code ? `${error.code} · ` : ""}{error.message}</p> : null}
+        {error ? <p className="admin-editor-error" role="alert">{error.message}</p> : null}
         {error?.fieldErrors && Object.keys(error.fieldErrors).length > 0 ? (
           <ul className="admin-editor-error-list" data-testid="service-form-field-errors">
             {Object.entries(error.fieldErrors).map(([field, message]) => (

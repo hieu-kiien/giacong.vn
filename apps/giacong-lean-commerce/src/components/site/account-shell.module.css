@@ -1,0 +1,13 @@
+.shell :global(#header) {
+  position: relative;
+  z-index: 20;
+}
+
+.shell :global(#main) {
+  display: flow-root;
+  margin-top: 0;
+}
+
+@media (max-width: 849px) {
+  .shell :global(.giacong-page-hero) { margin-top: -70px; }
+}

@@ -163,6 +163,7 @@ jobs:
           const routes = [
             '/',
             '/san-pham',
+            '/tai-khoan/dang-nhap/',
             '/gui-yeu-cau',
             '/thue-gia-cong/say-thuc-pham-say',
           ];
@@ -192,6 +193,18 @@ jobs:
               const context = await browser.newContext({ viewport });
               await context.route('**/*', async (route) => {
                 const requestUrl = new URL(route.request().url());
+                // Preview hosts intentionally cannot authenticate website accounts.
+                // Verify the real denial before supplying an anonymous session for layout QA.
+                if (requestUrl.origin === stagingOrigin && requestUrl.hostname.endsWith('.workers.dev')
+                  && requestUrl.pathname === '/api/auth/get-session' && route.request().method() === 'GET') {
+                  const response = await route.fetch({ headers: { ...route.request().headers(), ...accessHeaders } });
+                  const body = await response.json();
+                  if (response.status() !== 403 || body.code !== 'AUTH_ORIGIN_FORBIDDEN') {
+                    throw new Error('Preview session must reject the unsupported authentication origin');
+                  }
+                  await route.fulfill({ status: 200, contentType: 'application/json', body: 'null' });
+                  return;
+                }
                 if (requestUrl.origin !== stagingOrigin || Object.keys(accessHeaders).length === 0) {
                   await route.continue();
                   return;

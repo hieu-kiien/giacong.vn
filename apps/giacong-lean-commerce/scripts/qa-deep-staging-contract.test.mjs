@@ -74,6 +74,17 @@ function mockResponse(status, body, json = false) {
   };
 }
 
+test("isolated preview accepts only the explicit authentication-origin rejection", async () => {
+  const fetchImpl = async (url, init) => {
+    if (url.pathname === "/san-pham") return mockResponse(200, "Chưa tìm thấy sản phẩm phù hợp. 0–0 trong 0 sản phẩm");
+    if (url.pathname.startsWith("/api/catalog/products/")) return mockResponse(404, {}, true);
+    if (url.pathname === "/api/gui-yeu-cau/xac-thuc") return mockResponse(200, { ok: true, cart: { lines: [{ adjustments: [{ code: "PRODUCT_NOT_FOUND" }] }] } }, true);
+    return mockResponse(init.headers.Origin ? 503 : 403, { ok: false, message: "Không thể xác thực tài khoản lúc này. Vui lòng thử lại." }, true);
+  };
+  await runStagingCatalogQa({ origin: "https://b5d995c8-giacong-vn-staging.qtu1053.workers.dev", activeProduct: null, inactiveProduct: null, fetchImpl });
+  await assert.rejects(runStagingCatalogQa({ origin: "https://staging.kienhieu.id.vn", activeProduct: null, inactiveProduct: null, fetchImpl }), /expected HTTP 401, got 503/);
+});
+
 test("staging catalog QA unwraps Cloudflare D1 JSON rows", () => {
   assert.deepEqual(readD1FirstRow('[{"results":[{"slug":"real-product","name":"Real product"}]}]'), {
     slug: "real-product",
@@ -99,7 +110,10 @@ test("staging catalog QA validates the real empty state without exposing inactiv
       assert.equal(payload.lines[0].variantSku, "MISSING");
       return mockResponse(200, { ok: true, cart: { lines: [{ adjustments: [{ code: "PRODUCT_NOT_FOUND" }] }] } }, true);
     }
-    if (url.pathname === "/api/contact") return mockResponse(400, { error: "invalid_json" }, true);
+    if (url.pathname === "/api/contact") {
+      assert.ok(!init.headers.Origin || init.headers.Origin === url.origin);
+      return mockResponse(init.headers.Origin ? 401 : 403, {}, true);
+    }
     throw new Error(`Unexpected request: ${path}`);
   };
 
@@ -139,8 +153,10 @@ test("staging catalog QA uses active product and variant data for search and car
         },
       }, true);
     }
-    if (url.pathname === "/api/contact" && init.body === "{bad json") return mockResponse(400, {}, true);
-    if (url.pathname === "/api/contact") return mockResponse(409, { code: "CART_DRIFTED" }, true);
+    if (url.pathname === "/api/contact") {
+      assert.ok(!init.headers.Origin || init.headers.Origin === url.origin);
+      return mockResponse(init.headers.Origin ? 401 : 403, {}, true);
+    }
     throw new Error(`Unexpected request: ${path}`);
   };
 

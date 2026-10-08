@@ -2,6 +2,15 @@
 
 Template [google-apps-script-contact-webhook.gs](google-apps-script-contact-webhook.gs) nhận intake từ `POST /api/contact` vào tab `Yêu cầu` và bản sao giao dịch nhân viên đã chốt qua Zalo từ D1 vào hai tab giao dịch. Sheet là bản sao vận hành; Admin/D1 vẫn là nguồn dữ liệu gốc.
 
+## Hồ sơ khách hàng và email báo khách mới
+
+Theo quyết định 05/10, khách hoàn thiện thông tin liên hệ được đồng bộ vào tab `Khách hàng` và báo email cho owner. Migration `0037` tạo outbox bằng trigger trong cùng lần lưu D1; queue hiện có chỉ mang mã khách. Sheet upsert theo mã và revision, không ghi đè bằng replay cũ. Admin hiển thị trạng thái hai kênh và nút thử lại riêng trong chi tiết khách hàng. Chỉnh sửa thông tin cập nhật Sheet; email khách mới chỉ gửi khi hồ sơ được tạo lần đầu sau migration, không gửi bù hàng loạt hồ sơ cũ.
+
+- Redeploy Apps Script với nhánh `customer.contact.updated` trước khi bật Worker; kiểm tra header tab `Khách hàng` đúng và quyền owner kiểm soát Sheet.
+- Email dùng Resend đã có trong mã ứng dụng: cấu hình secrets `RESEND_API_KEY`, `CUSTOMER_NOTIFICATION_FROM` (sender đã xác minh), `CUSTOMER_NOTIFICATION_TO` (email owner được xác nhận). Không đặt `CUSTOMER_EMAIL_FROM` nếu vẫn giữ đăng ký bằng Google, vì biến đó bật dịch vụ email tài khoản riêng.
+- Hai kênh lưu ACK độc lập; lỗi một kênh không làm mất hồ sơ hoặc gửi lại kênh đã thành công. Email chốt snapshot mới nhất lúc bắt đầu gửi, dùng Idempotency-Key ổn định. Retry muộn hơn 23 giờ cần đối soát với provider vì [Resend giữ khóa 24 giờ](https://resend.com/docs/dashboard/emails/idempotency-keys); không tự gửi lại một kết quả chưa rõ.
+- Chưa nghiệm thu gửi thật cho đến khi owner xác nhận email nhận, Sheet đích, sender/provider và kiểm tra hồ sơ mẫu qua cả hai nơi. Không dùng thông tin cá nhân thật hoặc cấu hình production cho phép thử staging.
+
 ## Đồng bộ giao dịch Zalo đã chốt
 
 Admin lưu giao dịch, các dòng hàng snapshot, audit và một dòng `google_sheet_sales_outbox` trạng thái `pending` trong cùng batch D1. Worker chỉ nhận `{ type: "zalo-sale", saleId }`, đọc lại giá và nội dung từ D1 rồi gửi `sale.confirmed`; browser không gửi giá làm nguồn đồng bộ. Nếu binding queue không có hoặc enqueue lỗi, route thử webhook đồng bộ ngay. Outbox chỉ thành `delivered` sau JSON ACK có đúng cả `sale_id` và `sale_code`; lỗi giữ `pending` để queue retry hoặc thành `failed` khi hết lần thử/synchronous fallback lỗi.

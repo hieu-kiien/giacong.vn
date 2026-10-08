@@ -1,0 +1,20 @@
+.card { margin-top: 20px; border: 1px solid #e1e8dc; border-radius: 16px; padding: 24px; background: #fff; }
+.card h2 { margin: 0 0 12px; color: #293e27; font-size: 22px; }
+.form { margin-top: 16px; }
+.copy { color: #62705e; font-size: 14px; line-height: 1.65; }
+.grid { display: grid; gap: 16px; margin: 20px 0; }
+.grid label { display: block; color: #334a2f; font-size: 14px; margin-bottom: 6px; }
+.grid input { width: 100%; min-height: 44px; margin: 0; border: 1px solid #cbd8c4; border-radius: 8px; padding: 10px 12px; color: #293e27; font: inherit; background: #fff; }
+.grid input[readonly] { background: #f3f6f0; color: #53644d; }
+.grid input[aria-invalid="true"] { border-color: #a22929; }
+.optional { font-weight: 400; color: #62705e; }
+.consent { display: flex; align-items: flex-start; gap: 10px; color: #4d5f47; font-size: 14px; line-height: 1.6; }
+.consent input { flex-shrink: 0; width: 18px; height: 18px; margin: 2px 0 0; }
+.consent a { color: #355f24; text-decoration: underline; }
+.error { color: #a22929; font-size: 14px; margin: 8px 0; }
+.success { color: #355f24; font-size: 14px; }
+.submit { background: #3f7a25; color: #fff; border: 0; border-radius: 10px; min-height: 44px; padding: 10px 18px; margin: 16px 0 0; font: inherit; font-size: 14px; font-weight: 650; text-transform: none; letter-spacing: 0; cursor: pointer; }
+.submit:disabled { opacity: .65; cursor: wait; }
+.card :is(input, button, summary, a):focus-visible { outline: 3px solid #477d2f; outline-offset: 3px; }
+@media(min-width: 768px) { .grid { grid-template-columns: 1fr 1fr; } .card { padding: 28px 32px; } }
+@media(max-width: 420px) { .card { padding: 20px; } }

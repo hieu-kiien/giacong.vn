@@ -17,6 +17,8 @@ Cập nhật: 2026-09-29. Tài liệu này tách yêu cầu khách đã xác nh�
 
 ## Chủ dự án đã xác nhận / định hướng
 
+- Quyết định 2026-10-05: bổ sung tên/số điện thoại sau đăng nhập và điền sẵn khi gửi yêu cầu tư vấn. Hồ sơ liên hệ gắn với tài khoản đã xác minh; khách đồng ý lưu thông tin để liên hệ, công ty là tùy chọn. Số điện thoại liên hệ chưa xác minh không trở thành phương thức đăng nhập.
+
 - Không có thanh toán online.
 - Không phát sinh chi phí mới cho xác thực; không nâng gói Cloudflare hoặc bật dịch vụ gửi email trả phí.
 - Đăng nhập website phục vụ nhận diện, chăm sóc khách và xem lịch sử mua hàng; cùng tài khoản Google hoặc tên đăng nhập/email + mật khẩu được dùng để mở màn hình Admin, nhưng chỉ thành viên `owner` đang hoạt động trong D1 mới có quyền quản trị. Mục đăng nhập phải hiện ở góc trang.

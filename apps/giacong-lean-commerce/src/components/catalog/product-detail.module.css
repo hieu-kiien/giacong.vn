@@ -320,12 +320,6 @@
   margin: 0;
 }
 
-.variantSku {
-  color: var(--detail-secondary);
-  font-size: 12px;
-  font-weight: 400;
-}
-
 /* Tier price table ------------------------------------------------------- */
 
 .tierTable {

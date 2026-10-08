@@ -398,6 +398,7 @@ export async function getAdminOverview(
     options.includeRecentLeads ? database.prepare(`
         SELECT id, full_name, status, created_at
         FROM leads
+        WHERE status IN ('new', 'qualified', 'contacted', 'quotation_sent', 'sampling', 'negotiation')
         ORDER BY created_at DESC
         LIMIT 5
       `).all<{ created_at: string; full_name: string; id: string; status: string }>().then(
@@ -485,7 +486,7 @@ export async function listAdminProducts(
   },
 ): Promise<{ products: AdminProductListItem[]; total: number }> {
   const hasMeta = await tableExists(database, "product_admin_meta");
-  const hasLeadItems = await tableExists(database, "lead_items");
+  const hasConfirmedSales = await tableExists(database, "zalo_sales") && await tableExists(database, "zalo_sale_items");
   const where: string[] = [];
   const params: unknown[] = [];
   if (input.query?.trim()) {
@@ -552,7 +553,7 @@ export async function listAdminProducts(
         INNER JOIN product_variants v2 ON v2.id = tp.variant_id
         WHERE v2.product_id = p.id) AS starting_price
       ${hasMeta ? ", m.status, m.lead_time_days, m.updated_at AS meta_updated_at" : ""}
-      ${hasLeadItems ? ", COALESCE((SELECT SUM(li.quantity) FROM lead_items li WHERE li.product_slug = p.slug), 0) AS sold_count" : ", 0 AS sold_count"}
+      ${hasConfirmedSales ? ", COALESCE((SELECT SUM(si.quantity) FROM zalo_sale_items si INNER JOIN zalo_sales s ON s.id = si.sale_id WHERE si.product_slug = p.slug), 0) AS sold_count" : ", 0 AS sold_count"}
     FROM products p
     LEFT JOIN categories c ON c.id = p.category_id
     ${hasMeta ? "LEFT JOIN product_admin_meta m ON m.product_id = p.id" : ""}
@@ -610,13 +611,13 @@ export async function getAdminProduct(
   id: number,
 ): Promise<AdminProduct | null> {
   const hasMeta = await tableExists(database, "product_admin_meta");
-  const hasLeadItems = await tableExists(database, "lead_items");
+  const hasConfirmedSales = await tableExists(database, "zalo_sales") && await tableExists(database, "zalo_sale_items");
   const row = await database.prepare(`
     SELECT
       p.id, p.name, p.slug, p.sku, p.category_id, c.name AS category_name,
       p.short_description, p.description, p.image_url, p.is_active, p.revision
       ${hasMeta ? ", m.status, m.lead_time_days, m.updated_at AS meta_updated_at" : ""}
-      ${hasLeadItems ? ", COALESCE((SELECT SUM(li.quantity) FROM lead_items li WHERE li.product_slug = p.slug), 0) AS sold_count" : ", 0 AS sold_count"}
+      ${hasConfirmedSales ? ", COALESCE((SELECT SUM(si.quantity) FROM zalo_sale_items si INNER JOIN zalo_sales s ON s.id = si.sale_id WHERE si.product_slug = p.slug), 0) AS sold_count" : ", 0 AS sold_count"}
     FROM products p
     LEFT JOIN categories c ON c.id = p.category_id
     ${hasMeta ? "LEFT JOIN product_admin_meta m ON m.product_id = p.id" : ""}

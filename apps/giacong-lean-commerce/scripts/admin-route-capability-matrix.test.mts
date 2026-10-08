@@ -85,6 +85,8 @@ const adminRouteCapabilityMatrix: readonly RouteCapabilityRow[] = [
   directRead("crm/customers/route.ts", "crm.read"),
   writeGuard("crm/customers/route.ts", "POST", "canManageCrm", "crm.write", "create"),
   directRead("customers/[id]/route.ts", "crm.read"),
+  ownerLiteral("customers/[id]/contact-delivery/route.ts"),
+  { route: "customers/[id]/contact-delivery/route.ts", method: "POST", operation: "owner-read", kind: "owner-only", guard: "literal" },
   directRead("customers/export/route.ts", "crm.read"),
   directRead("customers/route.ts", "crm.read"),
   directRead("dashboard/route.ts", "dashboard.read"),

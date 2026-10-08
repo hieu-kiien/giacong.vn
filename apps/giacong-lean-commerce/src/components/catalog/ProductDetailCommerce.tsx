@@ -28,6 +28,7 @@ export function ProductDetailCommerce({ editingCartVariantSku, initialVariantSku
   const [selectedSku, setSelectedSku] = useState(initialVariant?.sku ?? view.defaultVariantSku);
   const selectedVariant = view.variants.find((variant) => variant.sku === selectedSku) ?? fallbackVariant;
   const facts = selectedVariant ? buildProductDetailFacts(view, selectedVariant) : view.facts;
+  const customerFacts = facts.filter((fact) => fact.label !== "Mã sản phẩm");
 
   return (
     <>
@@ -36,7 +37,6 @@ export function ProductDetailCommerce({ editingCartVariantSku, initialVariantSku
         <h1 className={styles.title}>{view.name}</h1>
         <AdminCatalogContextualAction productId={productId} />
         <p className={styles.identity}>
-          <span>SKU: {view.sku}</span>
           <span>{view.variantChoices.length} quy cách</span>
         </p>
         {view.shortDescription ? <p className={styles.lede}>{view.shortDescription}</p> : null}
@@ -53,7 +53,7 @@ export function ProductDetailCommerce({ editingCartVariantSku, initialVariantSku
       <aside aria-label="Thông tin đặt hàng" className={styles.factsPanel}>
         <h2 className={styles.factsTitle}>Thông tin đặt hàng</h2>
         <dl className={styles.facts}>
-          {facts.map((fact) => (
+          {customerFacts.map((fact) => (
             <div key={fact.label}>
               <dt>{fact.label}</dt>
               <dd>{fact.value}</dd>

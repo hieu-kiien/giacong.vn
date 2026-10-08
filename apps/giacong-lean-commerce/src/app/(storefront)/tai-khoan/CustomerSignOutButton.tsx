@@ -4,7 +4,9 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { customerAuthClient } from "@/lib/customer-auth-client";
+import { notifyWebsiteSignOut } from "@/lib/customer-session-events";
 import { REQUEST_CART_ACCEPTED_STORAGE_KEY } from "@/lib/request-cart-client";
+import styles from "./customer-account.module.css";
 
 function responseHasError(response: unknown): boolean {
   return typeof response === "object" && response !== null && "error" in response && Boolean(response.error);
@@ -32,7 +34,9 @@ export function CustomerSignOutButton() {
       } catch {
         // The auth session is already closed; keep sign-out working if storage is blocked.
       }
-      router.replace("/tai-khoan/dang-nhap/");
+      notifyWebsiteSignOut();
+      router.replace("/tai-khoan/dang-nhap/?next=%2Ftai-khoan%2F");
+      router.refresh();
     } catch {
       setError("Chưa thể đăng xuất. Vui lòng thử lại.");
       setIsPending(false);
@@ -43,7 +47,7 @@ export function CustomerSignOutButton() {
     <div>
       <button
         aria-busy={isPending}
-        className="button is-outline"
+        className={styles.signOut}
         disabled={isPending}
         onClick={handleSignOut}
         type="button"

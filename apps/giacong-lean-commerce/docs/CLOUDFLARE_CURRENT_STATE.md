@@ -1451,3 +1451,56 @@ runtime trước khi đóng gate hiệu năng/ổn định.
 - [ ] Vẫn cần theo dõi observability 24 giờ đầu và chủ dự án duyệt lần cuối
   nội dung kinh doanh/catalog. Redirect từ `giacong.vn` chỉ thực hiện nếu có
   quyền DNS/hosting domain cũ.
+
+## Gỡ Cloudflare Access trên staging admin theo yêu cầu — 2026-10-07
+
+- Chủ dự án yêu cầu gỡ Access riêng cho `admin-staging.kienhieu.id.vn` để
+  kiểm tra đăng nhập admin bằng tài khoản website. Cloudflare Dashboard xác
+  nhận ứng dụng `Giacong staging Admin` đã được xóa; production app
+  `admin.kienhieu.id.vn` và app preview vẫn còn.
+- Chrome đăng nhập website bằng Google và vào được `/admin` trên
+  `staging.kienhieu.id.vn`; trang xác nhận membership `Admin toàn quyền` và
+  readiness D1 `13/13`. Từ `admin-staging`, liên kết đăng nhập điều hướng về
+  host `staging`; chưa xác nhận phiên cookie hoạt động trực tiếp trên host
+  `admin-staging`.
+- Đây chỉ là thay đổi admission cho staging. Production Worker, Access, D1 và
+  R2 không bị thay đổi. Nếu cần rollback, phải tạo lại Access app và policy
+  staging trước khi bật lại đường JWT.
+
+## Admin UX staging acceptance — 2026-10-07
+
+- Commit `9b1abbf9` was deployed only to `giacong-vn-staging` as Worker version
+  `152dce36-0c19-43d7-87d7-eb911285bcee`; the previous active version was
+  `07f739e7-59b1-4249-9e77-85934ee8293b`.
+- Signed-in browser verification at 1920 px showed all 15 admin product rows
+  as two-column cards with no horizontal overflow. The navigation editor kept
+  all 40 items available and collapsed child groups by default; opening and
+  closing them reduced the measured page height from 13,441 px to 2,650 px.
+- The 16 service rows loaded after the normal initial skeleton state. The
+  read-only check did not modify products, services, requests, customers, or
+  menu data. GitHub quality, GitNexus, and staging D1 readiness checks passed.
+- Public staging still reports zero published products. The admin list contains
+  QA/demo and hidden/draft records, so none were published during UI QA; real
+  catalog content still needs owner selection before customer handoff.
+- Production Worker, Access, D1, and R2 remain unchanged. Rollback of the
+  staging Worker is available to version `07f739e7-59b1-4249-9e77-85934ee8293b`.
+
+## Production readiness and live browser review — 2026-10-07
+
+- Rechecked open PR #143 at `43742fec80c48b7203d7d2035c034af15a52ec5c`: quality gate, GitNexus detect-changes, and staging D1 readiness passed; the CI Cloudflare deploy gate was skipped because staging was deployed manually. The active staging Worker remains `152dce36-0c19-43d7-87d7-eb911285bcee`.
+- Direct Chrome review of staging admin at desktop width found the product list displayed all 15 rows in two columns without horizontal overflow; service list showed 16 rows (13 active); customer detail displayed its request and confirmed-sale history; the media preview loaded its QA image; the admin content, page-design, menu, member, and audit surfaces opened. D1 diagnostics showed 13/13 checks ready. No data was changed during this review.
+- Staging data is not customer-ready content: products are 0 active out of 15, the public catalog returns 0 products, all 3 news entries are drafts, and the requests/customers include clearly labelled test records. Services have 13 active rows. Do not publish the demo/QA catalog to fill the empty storefront.
+- Read-only production D1 query returned 9 products and every SKU uses the `B2B-SEED-*` prefix with `is_active=0`; Cloudflare reported `changed_db=false` and `rows_written=0`. The production catalog page also returns 0 products. These records remain unapproved seed content, not a safe source for customer-facing listings.
+- `wrangler d1 migrations list` reports no pending migrations in staging. Production still has migrations `0029_b2b_crm_core_schema.sql` through `0038_customer_email_registration.sql` pending. Production's Worker secret inventory has no Better Auth, Google OAuth, or Resend secrets; staging has the corresponding secret names configured. Secret values were not read. No production Worker, Access, D1, or R2 changes were made.
+- The staging account page visibly offers Google login, email/password login, email registration with name/phone/consent, and a password-reset form. No credentials or reset/verification emails were submitted in this review; secret presence does not prove email delivery. Staging has two active admin memberships with the same full-owner role; verify both are authorized before a production cutover. No membership was changed.
+- Fresh `npm run check` exited 0, covering tests, lint, typecheck, and build. Lint retains two `window.location.assign()` warnings in `src/components/admin/AdminShell.tsx` at lines 368 and 837. The local build used committed fallback content because its isolated local D1 fixture lacks `site_settings` and `site_navigation_items`; it completed successfully. The live CUA browser exposed screenshots/accessibility state, not DevTools console/network logs; live console cleanliness is therefore not claimed. Manual visual review was at desktop width; responsive behavior was covered by the automated gate, not a live mobile viewport in this pass.
+- Handoff decision: this branch is reviewable on staging, but production/customer handoff is blocked until an owner-approved product catalog (descriptions, SKUs, variants/prices/MOQ, images and publish status) is supplied, staging QA fixtures are separated from the demonstration dataset, active admin identities are confirmed, production migrations/auth/email configuration are accepted, and the request/sales Sheet round-trip is verified in the production acceptance process. No production promotion was attempted.
+
+## Admin dashboard request queue review — 2026-10-08
+
+- In the owner's signed-in Chrome session on staging, the dashboard preview showed requests marked `Rác` and `Đã chốt` while its badge counted only new requests. `getAdminOverview` selected the latest five leads without filtering terminal statuses.
+- After auditing the exact staging records, 11 clearly synthetic, non-sale-linked leads were moved to `Rác` through the Admin UI. The 11 expected status/revision postconditions and audit entries were verified. No raw D1 writes, webhook retries, or Google Sheets deliveries were made. Two synthetic requests linked to recorded sales were left unchanged.
+- The dashboard preview query now includes only actionable statuses: new, qualified, contacted, quotation sent, sampling, and negotiation. Closed, lost, and spam requests remain available in the full inbox but no longer appear in the work queue.
+- The dashboard regression suite passed 7/7. The full `npm run check` reached successful type generation and build output; Admin tests passed 523/523. Lint reported the two existing internal-navigation warnings in `src/components/admin/AdminShell.tsx`. Local static generation still logs fallback warnings because the isolated local D1 fixture lacks the site settings, page, and navigation tables.
+- Commit `b64e4bb9` was deployed only to the staging Worker as version `e1854f89-7468-408e-8603-0fc5733cf907`. Direct Chrome verification on the signed-in admin dashboard showed no `Rác` or `Đã chốt` rows; D1 diagnostics remained 13/13 ready.
+- Staging remains a QA dataset, not customer handoff content. A synthetic `Mới` request linked to a sale remains unchanged, as do all sale records. Production was not changed.

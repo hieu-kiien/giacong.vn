@@ -19,3 +19,17 @@ test("generic contact forms keep one request id across retries and clear it afte
   assert.match(source, /payload\.set\("request_id"/);
   assert.match(source, /delete form\.dataset\.requestId/);
 });
+
+test("captured contact fields receive visible labels without changing submit behavior", async () => {
+  const source = await readFile(new URL("../src/components/contact-form.ts", import.meta.url), "utf8");
+  const styles = await readFile(new URL("../src/app/globals.css", import.meta.url), "utf8");
+
+  assert.match(source, /function addContactFieldLabels\(form: HTMLFormElement\)/);
+  assert.match(source, /Họ và tên/);
+  assert.match(source, /Số điện thoại/);
+  assert.match(source, /Nội dung yêu cầu/);
+  assert.match(source, /addContactFieldLabels\(form\)/);
+  assert.match(source, /wrapper\.insertAdjacentElement\("beforebegin", label\)/);
+  assert.match(source, /return \(\) => \{[\s\S]*?generatedLabels\.forEach/);
+  assert.match(styles, /\.section\.dark \.wpcf7-form \.contact-field-label\s*\{[^}]*color:\s*#f1f1f1/i);
+});

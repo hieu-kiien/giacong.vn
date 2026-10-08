@@ -130,7 +130,7 @@ test("M3 Product: visibility choices map onto the existing status and isActive c
   const saved = { id: 7, status: "draft", isActive: false };
   assert.deepEqual(apply(saved, "live"), { id: 7, status: "published", isActive: true });
   const live = { id: 7, status: "published", isActive: true };
-  assert.deepEqual(apply(live, "hidden"), { id: 7, status: "published", isActive: false });
+  assert.deepEqual(apply(live, "hidden"), { id: 7, status: "archived", isActive: false });
   assert.deepEqual(apply(live, "draft"), { id: 7, status: "draft", isActive: false });
 
   const unsaved = { status: "draft", isActive: false };
@@ -138,6 +138,14 @@ test("M3 Product: visibility choices map onto the existing status and isActive c
 
   const review = { id: 7, status: "review", isActive: false };
   assert.equal(apply(review, "draft"), review, "an unchanged choice must return the same object so it cannot mark the form dirty");
+});
+
+test("M3 Product: hidden choices use an archivable state and restore published status when shown", async () => {
+  const source = await readSource("app", "admin", "san-pham", "page.tsx");
+  const activationStatusAssignments = source.match(/const targetStatus: ProductFormState\["status"\] = "published";/g) ?? [];
+
+  assert.equal(activationStatusAssignments.length, 2, "row and bulk activation must both publish products");
+  assert.match(source, /status: normalizeAdminProductStatus\(product\.status, product\.isActive\)/);
 });
 
 test("M3 Product: Floating Sticky Action Bar configured with dirty indicator & guard hooks", async () => {

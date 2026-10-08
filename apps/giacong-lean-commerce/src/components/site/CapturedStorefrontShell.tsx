@@ -19,10 +19,12 @@ import {
   getPublishedSiteNavigation,
 } from "@/lib/site-navigation";
 import { getPublishedSiteSettings } from "@/lib/site-settings";
+import styles from "./account-shell.module.css";
 
 interface CapturedStorefrontShellProps {
   activeNavigation?: StorefrontNavigationKey;
   children: ReactNode;
+  variant?: "captured" | "account";
 }
 
 interface CapturedElement {
@@ -68,7 +70,12 @@ const capturedAuxiliaryMarkupSource = wrapperClose < 0
 export async function CapturedStorefrontShell({
   activeNavigation,
   children,
+  variant = "captured",
 }: CapturedStorefrontShellProps) {
+  const accountShell = variant === "account";
+  const bodyClasses = accountShell
+    ? newsPage.bodyClasses.split(/\s+/).filter((name) => name !== "archive" && !/^category(?:-|$)/.test(name)).join(" ")
+    : newsPage.bodyClasses;
   const [settings, navigation] = await Promise.all([getPublishedSiteSettings(), getPublishedSiteNavigation()]);
   const activeCapturedMenuId = activeNavigation ? getStorefrontNavigation(activeNavigation)?.menuItemId : undefined;
   const headerMarkup = applySiteSettingsToMarkup(
@@ -92,7 +99,7 @@ export async function CapturedStorefrontShell({
   return (
     <>
       <style dangerouslySetInnerHTML={{ __html: `${layerCapturedStyles(newsPage.pageStyles)}\n${siteBrandStyles(settings)}` }} />
-      <div className={newsPage.bodyClasses}>
+      <div className={`${bodyClasses}${accountShell ? ` ${styles.shell}` : ""}`}>
         <a className="skip-link screen-reader-text" href="#main">Skip to content</a>
         <div id="wrapper">
           <div dangerouslySetInnerHTML={{ __html: headerWithAccountLinks }} />
@@ -102,7 +109,7 @@ export async function CapturedStorefrontShell({
         <div dangerouslySetInnerHTML={{ __html: auxiliaryMarkup }} />
       </div>
       <CapturedFloatingContact settings={settings} />
-      <GiacongInteractions bodyClasses={newsPage.bodyClasses} htmlClasses={newsPage.htmlClasses} />
+      <GiacongInteractions bodyClasses={bodyClasses} htmlClasses={newsPage.htmlClasses} />
     </>
   );
 }

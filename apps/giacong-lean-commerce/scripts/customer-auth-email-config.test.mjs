@@ -4,6 +4,12 @@ import test from "node:test";
 
 const read = (...parts) => readFile(new URL(`../src/${parts.join("/")}`, import.meta.url), "utf8");
 
+test("admin customer details use phone and email without a username label", async () => {
+  const ui = await read("app", "admin", "khach-hang", "page.tsx");
+  assert.doesNotMatch(ui, /Tên đăng nhập/);
+  assert.match(ui, /Số điện thoại/);
+});
+
 test("customer auth keeps e-mail sign-up closed unless Resend is configured", async () => {
   const auth = await read("lib", "customer-auth.ts");
 
@@ -20,17 +26,41 @@ test("customer auth keeps e-mail sign-up closed unless Resend is configured", as
   assert.match(auth, /CUSTOMER_EMAIL_FROM\?: string/);
 });
 
-test("login screen offers Google, e-mail sign-up with optional username, resend and forgot password", async () => {
+test("login screen offers Google, e-mail sign-up with phone, resend and forgot password", async () => {
   const ui = await read("app", "(storefront)", "tai-khoan", "dang-nhap", "CustomerAccountAuth.tsx");
 
-  assert.match(ui, /customerAuthClient\.signUp\.email\(/);
+  assert.match(ui, /fetch\("\/api\/auth\/sign-up\/email"/);
   assert.match(ui, /customerAuthClient\.requestPasswordReset\(/);
   assert.match(ui, /customerAuthClient\.sendVerificationEmail\(/);
   assert.match(ui, /EMAIL_NOT_VERIFIED/);
-  assert.match(ui, /không bắt buộc/);
-  assert.match(ui, /signInWithGoogle\(callbackURL\)/);
+  assert.match(ui, /input-signup-phone/);
+  assert.match(ui, /parseCustomerContact/);
+  assert.doesNotMatch(ui, /Tên đăng nhập|signIn\.username|input-signup-username/);
+  assert.match(ui, /signInWithGoogle\(mode === "create-account" \? googleCreateAccountCallback\(callbackURL\) : callbackURL\)/);
   // Reset requests answer identically for known and unknown e-mail addresses.
   assert.match(ui, /Nếu email này có tài khoản/);
+});
+
+test("successful e-mail registration gives a clear completion screen and clears credentials", async () => {
+  const ui = await read("app", "(storefront)", "tai-khoan", "dang-nhap", "CustomerAccountAuth.tsx");
+  assert.match(ui, /registrationComplete/);
+  assert.match(ui, /Tài khoản đã được tạo/);
+  assert.match(ui, /setConfirmation\(""\)/);
+  assert.match(ui, /setShowPassword\(false\)/);
+  assert.match(ui, /Đăng nhập/);
+});
+
+test("Google sign-up returns to the account page with a success message and keeps the requested destination", async () => {
+  const [auth, account, styles] = await Promise.all([
+    read("app", "(storefront)", "tai-khoan", "dang-nhap", "CustomerAccountAuth.tsx"),
+    read("app", "(storefront)", "tai-khoan", "page.tsx"),
+    read("app", "(storefront)", "tai-khoan", "customer-account.module.css"),
+  ]);
+  assert.match(auth, /googleCreateAccountCallback\(callbackURL\)/);
+  assert.match(auth, /searchParams\.set\("welcome", "google"\)/);
+  assert.match(account, /Đã vào tài khoản bằng Google/);
+  assert.match(account, /if \(contact && next && !googleWelcome\) redirect\(next\)/);
+  assert.match(styles, /\.welcomeBanner/);
 });
 
 test("password reset page rejects missing tokens and posts the new password with the token", async () => {
@@ -43,4 +73,60 @@ test("password reset page rejects missing tokens and posts the new password with
   assert.match(page, /noIndexMetadata\(\)/);
   assert.match(form, /customerAuthClient\.resetPassword\(\{ newPassword: password, token \}\)/);
   assert.match(form, /password !== confirmation/);
+});
+
+test("account password forms are visible without opening a disclosure", async () => {
+  const ui = await read("app", "(storefront)", "tai-khoan", "dang-nhap", "CustomerAccountAuth.tsx");
+  assert.doesNotMatch(ui, /<details className=\{styles\.passwordOption\}>/);
+  assert.match(ui, /hoặc dùng email và mật khẩu/);
+  assert.match(ui, /Đăng ký bằng email đang được thiết lập/);
+});
+
+test("registration persists contact only for the server-created account and keeps duplicate responses identical", async () => {
+  const route = await read("app", "api", "auth", "[...all]", "route.ts");
+  assert.match(route, /parseCustomerContact\(raw\)/);
+  assert.match(route, /saveCustomerContact\(database, body.user.id, contact.value\)/);
+  assert.doesNotMatch(route, /contactSaved|enqueueCustomerContact/);
+  const auth = await read("lib", "customer-auth.ts");
+  assert.match(auth, /afterEmailVerification: async/);
+  assert.match(auth, /enqueueCustomerContact\(user.id/);
+});
+
+test("Google accounts add an email password without creating a separate username", async () => {
+  const ui = await read("app", "(storefront)", "tai-khoan", "CustomerCredentialsSetup.tsx");
+  assert.doesNotMatch(ui, /Tên đăng nhập|updateUser|usernameSaved/);
+  assert.match(ui, /email và mật khẩu/);
+});
+
+test("admin can control new e-mail registration without disabling existing sign-in", async () => {
+  const [settings, route, ui] = await Promise.all([
+    read("lib", "site-settings.ts"),
+    read("app", "api", "auth", "[...all]", "route.ts"),
+    read("app", "admin", "noi-dung", "page.tsx"),
+  ]);
+  assert.match(settings, /key: "customer_email_registration"/);
+  assert.match(settings, /definition.key === "customer_email_registration"/);
+  assert.match(route, /\/sign-up\/email/);
+  assert.match(route, /isCustomerEmailRegistrationAllowed/);
+  assert.match(ui, /Bật đăng ký bằng email/);
+});
+
+test("registration policy reads published values fresh and fails closed on storage failure", async () => {
+  const { isCustomerEmailRegistrationAllowed } = await import("../src/lib/customer-registration-policy.ts");
+  let row = null;
+  const database = { prepare: () => ({ first: async () => row }) };
+  assert.equal(await isCustomerEmailRegistrationAllowed(database), true);
+  row = { published_value: "off", draft_value: "on" };
+  assert.equal(await isCustomerEmailRegistrationAllowed(database), false);
+  row = { published_value: "on", draft_value: "off" };
+  assert.equal(await isCustomerEmailRegistrationAllowed(database), true);
+  row = { published_value: "unexpected" };
+  assert.equal(await isCustomerEmailRegistrationAllowed(database), false);
+  await assert.rejects(isCustomerEmailRegistrationAllowed({ prepare: () => { throw new Error("unavailable"); } }));
+});
+
+test("turning off registration preserves password reset and verification resend", async () => {
+  const ui = await read("app", "(storefront)", "tai-khoan", "dang-nhap", "CustomerAccountAuth.tsx");
+  assert.match(ui, /emailDeliveryEnabled \? <button[^\n]+button-auth-forgot/);
+  assert.match(ui, /if \(emailDeliveryEnabled && value.includes/);
 });

@@ -4,6 +4,7 @@ import { getCloudflareContext } from "@opennextjs/cloudflare";
 import type { D1DatabaseLike, D1PreparedStatementLike } from "./admin-data";
 
 export const siteSettingDefinitions = [
+  { key: "customer_email_registration", group: "contact", label: "Đăng ký tài khoản bằng email", description: "Cho phép khách tạo tài khoản bằng email và mật khẩu khi dịch vụ gửi email xác minh đã sẵn sàng. Đăng nhập Google và tài khoản hiện có vẫn hoạt động.", type: "text" },
   { key: "brand_name", group: "brand", label: "Tên thương hiệu", description: "Tên hiển thị ở logo, tiêu đề và các điểm nhận diện. Hiện ở: cạnh logo, đầu mọi trang.", type: "text" },
   { key: "brand_tagline", group: "brand", label: "Khẩu hiệu thương hiệu", description: "Dòng mô tả ngắn đi cùng logo. Hiện ở: dưới tên thương hiệu, đầu mọi trang.", type: "text" },
   { key: "logo_url", group: "brand", label: "Logo sáng", description: "Ảnh logo PNG/JPEG/WebP an toàn, dùng ở header sáng và logo footer.", type: "image" },
@@ -59,6 +60,7 @@ export interface AdminSiteSetting {
 export type PublishedSiteSettings = Record<SiteSettingKey, string>;
 
 export const siteSettingDefaults: PublishedSiteSettings = {
+  customer_email_registration: "on",
   brand_name: "Kienhieu",
   brand_tagline: "Giải pháp gia công toàn diện",
   logo_url: "/images/brand/kienhieu-logo.svg",
@@ -838,6 +840,9 @@ function isSiteSettingKey(value: string): value is SiteSettingKey {
 function normalizeValue(definition: (typeof siteSettingDefinitions)[number], value: unknown): string {
   if (typeof value !== "string") throw new SiteSettingValidationError("Giá trị setting phải là chuỗi.");
   const normalized = value.trim();
+  if (definition.key === "customer_email_registration" && normalized !== "on" && normalized !== "off") {
+    throw new SiteSettingValidationError("Chọn bật hoặc tắt đăng ký bằng email.");
+  }
   if (normalized.length > (definition.type === "multiline" ? 8000 : 1000)) {
     throw new SiteSettingValidationError("Nội dung setting vượt quá giới hạn cho phép.");
   }

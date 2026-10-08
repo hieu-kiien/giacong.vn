@@ -4,7 +4,7 @@
 // every save with a category fails with a categoryId field error.
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildAdminProductPayload } from "../src/lib/admin-product-form.ts";
+import { buildAdminProductPayload, normalizeAdminProductStatus } from "../src/lib/admin-product-form.ts";
 import { parseAdminProductCreateCommand } from "../src/lib/admin-product-command.ts";
 import { parseAdminProductPayload } from "../src/lib/admin-product-input.ts";
 
@@ -62,4 +62,12 @@ test("product editor rejects an empty name before a write", () => {
 
   assert.equal(parsed.input, null);
   assert.match(parsed.fieldErrors.name ?? "", /Tên sản phẩm/);
+});
+
+test("legacy inactive published products normalize to the supported hidden state", () => {
+  assert.equal(normalizeAdminProductStatus("published", false), "archived");
+  assert.equal(normalizeAdminProductStatus("published", true), "published");
+  assert.equal(normalizeAdminProductStatus("draft", false), "draft");
+  assert.equal(normalizeAdminProductStatus("review", false), "review");
+  assert.equal(normalizeAdminProductStatus("archived", false), "archived");
 });

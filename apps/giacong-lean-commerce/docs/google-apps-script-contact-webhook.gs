@@ -1,3 +1,4 @@
+/** @OnlyCurrentDoc */
 /*
  * Giacong.vn contact webhook.
  *
@@ -36,6 +37,7 @@ function doPost(event) {
     if (!payload || !validSecret(payload)) {
       return output({ ok: false, reference: "" });
     }
+    if (payload.event === "customer.contact.updated") return writeCustomerContact(payload);
     if (payload.event === "sale.confirmed") {
       if (!validSalePayload(payload)) return output({ ok: false, sale_id: "", sale_code: "" });
       return writeConfirmedZaloSale(payload);
@@ -76,7 +78,10 @@ function doPost(event) {
       now,
     ];
 
-    sheet.appendRow(row);
+    // Phone numbers are identifiers, not numeric values (retain leading zeroes).
+    var requestRow = sheet.getLastRow() + 1;
+    sheet.getRange(requestRow, 8).setNumberFormats([["@"]]);
+    sheet.getRange(requestRow, 1, 1, REQUEST_HEADERS.length).setValues([row]);
     refreshSummary();
     if (requestId) cache.put("request:" + requestId, reference, CACHE_SECONDS);
     return output({ ok: true, reference: reference });
@@ -151,6 +156,50 @@ function validSecret(payload) {
     && payload.secret === expected;
 }
 
+// Profiles are operational copies; a revision prevents an older queue replay overwriting new data.
+function writeCustomerContact(payload) {
+  if (!hasExactKeys(payload, ["event","customer_id","revision","updated_at","name","phone","company_name","email","secret"])
+    || typeof payload.customer_id !== "string" || !/^[A-Za-z0-9_-]{1,128}$/.test(payload.customer_id)
+    || !Number.isSafeInteger(payload.revision) || payload.revision < 1
+    || typeof payload.updated_at !== "string" || payload.updated_at.length > 40 || !isFinite(Date.parse(payload.updated_at))
+    || typeof payload.name !== "string" || !payload.name.trim() || payload.name.length > 120
+    || typeof payload.phone !== "string" || !/^\+?\d{8,15}$/.test(payload.phone)
+    || typeof payload.company_name !== "string" || payload.company_name.length > 160
+    || typeof payload.email !== "string" || payload.email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(payload.email)) {
+    return output({ ok: false, customer_id: "", revision: 0 });
+  }
+  var headers = ["Mã khách hàng","Phiên bản","Họ tên","Điện thoại","Email","Công ty","Cập nhật","Nguồn"];
+  var book = workbook();
+  var sheet = book.getSheetByName("Khách hàng") || book.insertSheet("Khách hàng");
+  ensureHeaders(sheet, headers);
+  var actualHeaders = sheet.getRange(1,1,1,headers.length).getValues()[0];
+  if (!sameRow(actualHeaders,headers)) throw new Error("customer_sheet_headers_mismatch");
+  protectSheet(sheet, "Lean V1: Hồ sơ khách hàng chỉ đọc", null);
+  var row = findUniqueValueRow(sheet, 1, payload.customer_id);
+  var values = [safeText(payload.customer_id),payload.revision,safeText(payload.name),safeText(payload.phone),safeText(payload.email),safeText(payload.company_name),safeText(payload.updated_at),"Tài khoản website"];
+  if (row > 0) {
+    var current = sheet.getRange(row,1,1,headers.length).getValues()[0];
+    if (current[1] > payload.revision) return output({ ok: true, customer_id: payload.customer_id, revision: payload.revision });
+    if (current[1] === payload.revision) {
+      if (!customerContactRowMatches(current,values)) return output({ ok: false, customer_id: "", revision: 0 });
+      return output({ ok: true, customer_id: payload.customer_id, revision: payload.revision });
+    }
+  } else row = sheet.getLastRow() + 1;
+  // Sheets otherwise coerces numeric IDs and leading-zero phone numbers.
+  sheet.getRange(row,1,1,headers.length).setNumberFormats([["@","0","@","@","@","@","@","@"]]);
+  sheet.getRange(row,1,1,headers.length).setValues([values]);
+  SpreadsheetApp.flush();
+  if (!customerContactRowMatches(sheet.getRange(row,1,1,headers.length).getValues()[0],values)) return output({ ok: false, customer_id: "", revision: 0 });
+  return output({ ok: true, customer_id: payload.customer_id, revision: payload.revision });
+}
+
+function customerContactRowMatches(actual,expected) {
+  return actual.length === expected.length && expected.every(function (value,index) {
+    // Sheets may omit the protective apostrophe when reading a literal text cell.
+    return actual[index] === value || typeof value === "string" && /^'[=+\-@]/.test(value) && actual[index] === value.slice(1);
+  });
+}
+
 function validSalePayload(payload) {
   if (!hasExactKeys(payload, [
     "event", "sale_id", "sale_code", "source_lead_id", "confirmed_at", "currency",
@@ -212,8 +261,9 @@ function writeConfirmedZaloSale(payload) {
       safeText(payload.customer.full_name), sheetText(payload.customer.company_name),
       sheetText(payload.customer.email), sheetText(payload.customer.phone), payload.snapshot_sha256,
     ]];
-    if (saleRow > 0) salesSheet.getRange(saleRow, 1, 1, ZALO_SALE_HEADERS.length).setValues(saleValues);
-    else salesSheet.getRange(salesSheet.getLastRow() + 1, 1, 1, ZALO_SALE_HEADERS.length).setValues(saleValues);
+    var targetSaleRow = saleRow > 0 ? saleRow : salesSheet.getLastRow() + 1;
+    salesSheet.getRange(targetSaleRow, 10).setNumberFormats([["@"]]);
+    salesSheet.getRange(targetSaleRow, 1, 1, ZALO_SALE_HEADERS.length).setValues(saleValues);
 
     SpreadsheetApp.flush();
     var committedRow = findUniqueValueRow(salesSheet, 1, payload.sale_id);
@@ -404,7 +454,7 @@ function validPayload(payload) {
     return payload.product === "" && payload.variant === "" && payload.qty === "" && typeof payload.service === "string" && payload.service !== "";
   }
   if (Array.isArray(payload.cart)) {
-    if (payload.request_type !== "Tư vấn số lượng lớn" || typeof payload.product !== "string" || payload.product === ""
+    if (!["Đặt sản phẩm", "Tư vấn số lượng lớn"].includes(payload.request_type) || typeof payload.product !== "string" || payload.product === ""
       || payload.service !== "" || payload.variant !== "" || payload.qty !== "" || payload.cart.length < 1 || payload.cart.length > 20
       || typeof payload.request_id !== "string" || !isUuid(payload.request_id)) return false;
     if (typeof payload.cart_subtotal !== "number" || typeof payload.cart_price_incomplete !== "boolean") return false;

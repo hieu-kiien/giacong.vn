@@ -10,7 +10,7 @@ Staging admin target:
 
 - hostname: `admin-staging.kienhieu.id.vn`;
 - account login: the shared Better Auth website account, gated by a separate active `owner` membership in D1;
-- rollout fallback: keep Cloudflare Access JWT admission available until staging acceptance is complete;
+- staging Access JWT fallback: disabled at Cloudflare on 2026-10-07 by project-owner decision; recreate the staging Access app and policy before using this rollback path;
 - Worker route: `admin-staging.kienhieu.id.vn/*` → `giacong-vn-staging`;
 - canonical D1 binding: `GIACONG_VN_CATALOG`;
 - canonical R2 binding: `GIACONG_VN_PRODUCT_MEDIA`.
@@ -29,7 +29,7 @@ Required checks:
 2. Account admission is enabled only with `ADMIN_ACCOUNT_AUTH=true`; production keeps it false until separately approved.
 3. The server must read the Better Auth session from its host-only cookie. The user ID, verified email and verification flag come from that server-side session; arbitrary identity, email or role headers are never trusted.
 4. Require a verified email and exactly one case-insensitive matching `admin_members` row with an active `owner` role. This account lookup is read-only and must not rewrite the Cloudflare Access `access_subject`.
-5. During rollout, the existing Access JWT path remains available as a rollback path. If used, cryptographically verify the JWT against configured issuer/team domain and application audience, including signature and time validity.
+5. The staging Access JWT path is not currently available because its Cloudflare Access application was removed. If an Access rollback is required, recreate the app and policy first, then verify JWT issuer/team domain and application audience, including signature and time validity.
 6. Missing authentication or D1 configuration fails closed; it must never enable public admin mode.
 7. Mutation methods require an exact same-origin `Origin` matching the admin origin. Cross-origin browser mutations are rejected.
 8. Enforce the endpoint `Content-Type` before parsing.
