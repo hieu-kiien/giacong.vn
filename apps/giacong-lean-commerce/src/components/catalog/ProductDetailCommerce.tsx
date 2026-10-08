@@ -28,6 +28,7 @@ export function ProductDetailCommerce({ editingCartVariantSku, initialVariantSku
   const [selectedSku, setSelectedSku] = useState(initialVariant?.sku ?? view.defaultVariantSku);
   const selectedVariant = view.variants.find((variant) => variant.sku === selectedSku) ?? fallbackVariant;
   const facts = selectedVariant ? buildProductDetailFacts(view, selectedVariant) : view.facts;
+  const customerFacts = facts.filter((fact) => fact.label !== "MÃ SẢN PHẨM");
 
   return (
     <>
@@ -52,7 +53,7 @@ export function ProductDetailCommerce({ editingCartVariantSku, initialVariantSku
       <aside aria-label="Thông tin đặt hàng" className={styles.factsPanel}>
         <h2 className={styles.factsTitle}>Thông tin đặt hàng</h2>
         <dl className={styles.facts}>
-          {facts.map((fact) => (
+          {customerFacts.map((fact) => (
             <div key={fact.label}>
               <dt>{fact.label}</dt>
               <dd>{fact.value}</dd>
