@@ -28,7 +28,7 @@ export function ProductDetailCommerce({ editingCartVariantSku, initialVariantSku
   const [selectedSku, setSelectedSku] = useState(initialVariant?.sku ?? view.defaultVariantSku);
   const selectedVariant = view.variants.find((variant) => variant.sku === selectedSku) ?? fallbackVariant;
   const facts = selectedVariant ? buildProductDetailFacts(view, selectedVariant) : view.facts;
-  const customerFacts = facts.filter((fact) => fact.label !== "MÃ SẢN PHẨM");
+  const customerFacts = facts.filter((fact) => fact.label !== "Mã sản phẩm");
 
   return (
     <>
