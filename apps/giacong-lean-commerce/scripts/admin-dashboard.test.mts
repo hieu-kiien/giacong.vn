@@ -99,6 +99,39 @@ test("dashboard counts only products explicitly marked draft or review", async (
   });
 });
 
+test("dashboard actionable lead queue excludes completed, lost, and spam requests", async () => {
+  const rows = ["new", "qualified", "contacted", "quotation_sent", "sampling", "negotiation", "won", "lost", "spam"].map(
+    (status) => ({ created_at: "2026-10-08T00:00:00Z", full_name: status, id: status, status }),
+  );
+  const actionableStatuses = ["new", "qualified", "contacted", "quotation_sent", "sampling", "negotiation"];
+  class DashboardQueueDatabase extends OverviewDatabase {
+    recentLeadsQuery = "";
+
+    override async all<T>(query: string, values: unknown[]): Promise<{ results: T[] }> {
+      if (!query.includes("FROM leads")) return super.all<T>(query, values);
+
+      this.recentLeadsQuery = query;
+      const filteredRows = query.includes("status IN")
+        ? rows.filter((row) => actionableStatuses.includes(row.status))
+        : rows;
+      return { results: filteredRows as T[] };
+    }
+  }
+
+  const database = new DashboardQueueDatabase();
+  const overview = await getAdminOverview(database, { includeRecentLeads: true });
+
+  assert.match(database.recentLeadsQuery, /WHERE status IN \('new', 'qualified', 'contacted', 'quotation_sent', 'sampling', 'negotiation'\)/);
+  assert.deepEqual(overview.recentLeads.map((lead) => lead.status), [
+    "new",
+    "qualified",
+    "contacted",
+    "quotation_sent",
+    "sampling",
+    "negotiation",
+  ]);
+});
+
 test("dashboard distinguishes failed data reads from real zero counts", async () => {
   class IncompleteOverviewDatabase extends OverviewDatabase {
     override async first<T>(query: string, values: unknown[]): Promise<T | null> {

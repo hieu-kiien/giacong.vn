@@ -398,6 +398,7 @@ export async function getAdminOverview(
     options.includeRecentLeads ? database.prepare(`
         SELECT id, full_name, status, created_at
         FROM leads
+        WHERE status IN ('new', 'qualified', 'contacted', 'quotation_sent', 'sampling', 'negotiation')
         ORDER BY created_at DESC
         LIMIT 5
       `).all<{ created_at: string; full_name: string; id: string; status: string }>().then(
