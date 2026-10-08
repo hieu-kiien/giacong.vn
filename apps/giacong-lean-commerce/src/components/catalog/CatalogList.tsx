@@ -161,7 +161,7 @@ export function CatalogList({
 
         <section className="pt-4" aria-label="Điều khiển danh sách sản phẩm">
           {/* The reference leads with categories, then keeps search and display controls compact. */}
-          <div className="flex gap-2 overflow-x-auto border-b border-commerce-border pb-3 lg:overflow-visible" data-catalog-category-nav role="group" aria-label="Danh mục nhanh">
+          <div className="flex flex-wrap gap-2 border-b border-commerce-border pb-3" data-catalog-category-nav role="group" aria-label="Danh mục nhanh">
             <CategoryChip
               isActive={!filters.category}
               isPending={isPending}
