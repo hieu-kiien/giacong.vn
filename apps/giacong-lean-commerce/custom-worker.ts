@@ -396,6 +396,25 @@ const worker = {
       : finalResponse;
   },
 
+  /** Keep-warm cron: loads the Next runtime and touches D1 so real visitors rarely hit a cold start. */
+  async scheduled(_event: unknown, env: WorkerEnv, ctx: WorkerExecutionContext): Promise<void> {
+    const warmPaths = ["/tai-khoan/dang-nhap/", "/lien-he/", "/san-pham/"];
+    await Promise.all(
+      warmPaths.map(async (path) => {
+        try {
+          const response = await generatedWorker.fetch(
+            new Request(`https://kienhieu.id.vn${path}`, { headers: { Accept: "text/html" } }),
+            env,
+            ctx,
+          );
+          await response.arrayBuffer();
+        } catch (error) {
+          console.warn("Keep-warm request failed.", error instanceof Error ? error.message : "unknown_error");
+        }
+      }),
+    );
+  },
+
   async queue(batch: QueueBatch<WorkerQueueMessage>, env: WorkerEnv): Promise<void> {
     if (!env.GIACONG_VN_CATALOG) throw new Error("Missing GIACONG_VN_CATALOG binding.");
     for (const message of batch.messages) {

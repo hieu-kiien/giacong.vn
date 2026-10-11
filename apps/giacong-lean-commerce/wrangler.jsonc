@@ -17,7 +17,7 @@
     }
   ],
   "triggers": {
-    "crons": []
+    "crons": ["*/2 * * * *"]
   },
   "vars": {
     "ADMIN_HOSTNAME": "admin.kienhieu.id.vn",
