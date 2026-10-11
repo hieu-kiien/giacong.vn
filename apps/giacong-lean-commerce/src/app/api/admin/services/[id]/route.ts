@@ -18,6 +18,7 @@ import {
   parseAdminServiceUpdateCommand,
 } from "@/lib/admin-service-command.ts";
 import { attachAdminServiceRevision } from "@/lib/admin-service-revision.ts";
+import { catalogServicePurgePaths, purgeCatalogStorefront } from "@/lib/storefront-revalidate";
 
 export const dynamic = "force-dynamic";
 
@@ -69,6 +70,7 @@ export async function PATCH(
   }
 
   try {
+    const previous = await getAdminService(guard.database, id);
     const changedId = await updateAdminServiceAtomically(
       guard.database,
       id,
@@ -80,7 +82,10 @@ export async function PATCH(
     if (changedId === null) return adminFailure(requestId, 404, "NOT_FOUND", "Không tìm thấy dịch vụ.");
     const service = await getAdminService(guard.database, changedId);
     if (!service) return adminFailure(requestId, 500, "INTERNAL_ERROR", "Không đọc lại được dịch vụ vừa cập nhật.");
-    return adminSuccess(requestId, { service: await attachAdminServiceRevision(guard.database, service) });
+    return purgeCatalogStorefront(
+      adminSuccess(requestId, { service: await attachAdminServiceRevision(guard.database, service) }),
+      catalogServicePurgePaths([previous?.slug, service.slug]),
+    );
   } catch (error) {
     return mapServiceWriteError(requestId, error, "Không thể cập nhật dịch vụ.", { fieldErrors: { slug: "Slug đã tồn tại." } });
   }
@@ -118,7 +123,10 @@ export async function DELETE(
     if (changedId === null) return adminFailure(requestId, 404, "NOT_FOUND", "Không tìm thấy dịch vụ.");
     const service = await getAdminService(guard.database, changedId);
     if (!service) return adminFailure(requestId, 500, "INTERNAL_ERROR", "Không đọc lại được dịch vụ vừa ẩn.");
-    return adminSuccess(requestId, { service: await attachAdminServiceRevision(guard.database, service) });
+    return purgeCatalogStorefront(
+      adminSuccess(requestId, { service: await attachAdminServiceRevision(guard.database, service) }),
+      catalogServicePurgePaths([service.slug]),
+    );
   } catch (error) {
     return mapServiceWriteError(requestId, error, "Không thể ẩn dịch vụ.", {});
   }

@@ -18,6 +18,7 @@ import {
   parseAdminProductArchiveCommand,
   parseAdminProductUpdateCommand,
 } from "@/lib/admin-product-command";
+import { catalogProductPurgePaths, purgeCatalogStorefront } from "@/lib/storefront-revalidate";
 
 export const dynamic = "force-dynamic";
 
@@ -93,9 +94,11 @@ export async function PATCH(
       guard.actorSubject,
       requestId,
     );
-    return product
-      ? adminSuccess(requestId, { product })
-      : adminFailure(requestId, 404, "NOT_FOUND", "Không tìm thấy sản phẩm.");
+    if (!product) return adminFailure(requestId, 404, "NOT_FOUND", "Không tìm thấy sản phẩm.");
+    return purgeCatalogStorefront(
+      adminSuccess(requestId, { product }),
+      catalogProductPurgePaths([existing.slug, product.slug]),
+    );
   } catch (error) {
     return mapCatalogWriteError(requestId, error, "Không thể cập nhật sản phẩm.", { fieldErrors: { slug: "Slug hoặc SKU đã tồn tại." } });
   }
@@ -130,9 +133,8 @@ export async function DELETE(
       guard.actorSubject,
       requestId,
     );
-    return product
-      ? adminSuccess(requestId, { product })
-      : adminFailure(requestId, 404, "NOT_FOUND", "Không tìm thấy sản phẩm.");
+    if (!product) return adminFailure(requestId, 404, "NOT_FOUND", "Không tìm thấy sản phẩm.");
+    return purgeCatalogStorefront(adminSuccess(requestId, { product }), catalogProductPurgePaths([product.slug]));
   } catch (error) {
     return mapCatalogWriteError(requestId, error, "Không thể ẩn sản phẩm.", {});
   }
