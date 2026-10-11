@@ -1,3 +1,4 @@
+import { purgeCatalogProductById } from "@/lib/storefront-revalidate";
 import { adminFailure, adminSuccess } from "@/lib/admin-api.ts";
 import {
   AdminCatalogWriteConflictError,
@@ -56,7 +57,7 @@ export async function POST(request: Request, context: RouteContext): Promise<Res
   try {
     const variant = await createAdminProductVariantAtomically(guard.database, productId, parsed.command.input, guard.actorSubject, requestId);
     return variant
-      ? adminSuccess(requestId, { variant }, 201)
+      ? await purgeCatalogProductById(guard.database, [productId], adminSuccess(requestId, { variant }, 201))
       : adminFailure(requestId, 404, "NOT_FOUND", "Không tìm thấy sản phẩm.");
   } catch (error) {
     return mapCatalogWriteError(requestId, error, "Không thể tạo quy cách.", { fieldErrors: { sku: "Mã hàng đã tồn tại." } });

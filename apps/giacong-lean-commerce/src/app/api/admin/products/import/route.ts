@@ -1,3 +1,4 @@
+import { catalogProductPurgePaths, purgeCatalogStorefront } from "@/lib/storefront-revalidate";
 import { adminFailure, adminSuccess } from "@/lib/admin-api.ts";
 import { listAdminCategories, type AdminCategory } from "@/lib/admin-data";
 import { isUniqueConstraintError } from "@/lib/admin-error-mapping.ts";
@@ -135,7 +136,10 @@ export async function POST(request: Request): Promise<Response> {
       requestId,
       payloadSha256,
     );
-    return adminSuccess(requestId, { createdCount: productIds.length, productIds, replayed: false }, 201);
+    return purgeCatalogStorefront(
+      adminSuccess(requestId, { createdCount: productIds.length, productIds, replayed: false }, 201),
+      catalogProductPurgePaths(),
+    );
   } catch (error) {
     if (error instanceof AdminProductImportIdempotencyConflictError) {
       return adminFailure(requestId, 409, "IDEMPOTENCY_CONFLICT", error.message);

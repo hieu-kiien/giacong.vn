@@ -1,3 +1,4 @@
+import { purgeCatalogProductById } from "@/lib/storefront-revalidate";
 import { adminFailure, adminSuccess } from "@/lib/admin-api";
 import { adminErrorFrom } from "@/lib/admin-error-mapping";
 import type { D1DatabaseLike } from "@/lib/admin-data";
@@ -76,12 +77,16 @@ export async function POST(request: Request, context: RouteContext): Promise<Res
     );
     const gallery = await readProductGallery(guard.database, productId);
     if (!gallery) return adminFailure(command.requestId, 404, "NOT_FOUND", "Không tìm thấy sản phẩm.");
-    return adminSuccess(command.requestId, {
-      ...gallery,
-      count: gallery.images.length,
-      replayed: result.replayed,
-      success: true,
-    });
+    return purgeCatalogProductById(
+      guard.database,
+      [productId],
+      adminSuccess(command.requestId, {
+        ...gallery,
+        count: gallery.images.length,
+        replayed: result.replayed,
+        success: true,
+      }),
+    );
   } catch (error) {
     if (error instanceof AdminProductGalleryConflictError) {
       return adminFailure(command.requestId, 409, "STALE_WRITE", error.message);

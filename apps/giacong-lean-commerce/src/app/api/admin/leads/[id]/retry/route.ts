@@ -27,7 +27,15 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     if (status === "missing") return adminFailure(requestId, 404, "NOT_FOUND", "Không tìm thấy yêu cầu.");
     if (status === "busy") return adminFailure(requestId, 409, "STALE_WRITE", "Yêu cầu đang chờ đồng bộ. Chỉ gửi lại khi chờ quá 10 phút; hãy tải lại để xem kết quả.");
     return adminSuccess(requestId, { deliveryStatus: status });
-  } catch {
+  } catch (error) {
+    if (error instanceof Error && error.message === "lead_retry_legacy_payload_unreconstructable") {
+      return adminFailure(requestId, 422, "VALIDATION_ERROR", "Yêu cầu được lưu theo định dạng cũ và thiếu chi tiết dịch vụ hoặc quy cách để gửi an toàn. Cần bổ sung dữ liệu gốc trước khi thử lại.");
+    }
+    console.error("admin_lead_retry_failed", {
+      leadId: id.toLowerCase(),
+      requestId,
+      error: error instanceof Error ? error.message.slice(0, 300) : "unknown_error",
+    });
     return adminFailure(requestId, 503, "INTERNAL_ERROR", "Chưa gửi lại được yêu cầu. Dữ liệu đã lưu vẫn được giữ; vui lòng thử lại sau.");
   }
 }

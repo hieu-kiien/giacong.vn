@@ -1,3 +1,4 @@
+import { purgeCatalogProductById } from "@/lib/storefront-revalidate";
 import { adminFailure, adminSuccess } from "@/lib/admin-api.ts";
 import {
   AdminCatalogWriteConflictError,
@@ -71,7 +72,7 @@ export async function PATCH(request: Request, context: RouteContext): Promise<Re
       requestId,
     );
     return variant
-      ? adminSuccess(requestId, { variant })
+      ? await purgeCatalogProductById(guard.database, [ids.productId], adminSuccess(requestId, { variant }))
       : adminFailure(requestId, 404, "NOT_FOUND", "Không tìm thấy quy cách.");
   } catch (error) {
     return mapCatalogWriteError(requestId, error, "Không thể cập nhật quy cách.", { fieldErrors: { sku: "Mã hàng đã tồn tại." } });
@@ -103,7 +104,7 @@ export async function DELETE(request: Request, context: RouteContext): Promise<R
       requestId,
     );
     return variant
-      ? adminSuccess(requestId, { variant })
+      ? await purgeCatalogProductById(guard.database, [ids.productId], adminSuccess(requestId, { variant }))
       : adminFailure(requestId, 404, "NOT_FOUND", "Không tìm thấy quy cách.");
   } catch (error) {
     return mapCatalogWriteError(requestId, error, "Không thể ẩn quy cách.", {});

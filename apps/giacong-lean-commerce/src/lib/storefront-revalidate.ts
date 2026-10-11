@@ -65,3 +65,31 @@ export function purgeCatalogStorefront(response: Response, paths: string[]): Res
   revalidatePublishedStorefront({ tags: [], paths });
   return withStorefrontPurgeHeader(response, paths);
 }
+
+interface ProductSlugDatabase {
+  prepare(query: string): {
+    bind(...values: unknown[]): { first<T = Record<string, unknown>>(): Promise<T | null> };
+  };
+}
+
+/**
+ * Same as purgeCatalogStorefront for writes that only know a product id (variants, gallery,
+ * specs, create/import): looks up the current slug so the detail page is purged too. A failed
+ * lookup still purges the list pages and never blocks the already-saved write.
+ */
+export async function purgeCatalogProductById(
+  database: ProductSlugDatabase,
+  productIds: ReadonlyArray<number>,
+  response: Response,
+): Promise<Response> {
+  const slugs: string[] = [];
+  for (const id of productIds) {
+    try {
+      const row = await database.prepare("SELECT slug FROM products WHERE id = ?").bind(id).first<{ slug: string }>();
+      if (row?.slug) slugs.push(row.slug);
+    } catch {
+      // list pages are still purged below
+    }
+  }
+  return purgeCatalogStorefront(response, catalogProductPurgePaths(slugs));
+}

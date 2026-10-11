@@ -1,3 +1,4 @@
+import { catalogServicePurgePaths, purgeCatalogStorefront } from "@/lib/storefront-revalidate";
 import { adminFailure, adminSuccess } from "@/lib/admin-api.ts";
 import { adminErrorFrom } from "@/lib/admin-error-mapping.ts";
 import {
@@ -63,7 +64,7 @@ export async function POST(request: Request): Promise<Response> {
       items,
       requestId,
     });
-    return adminSuccess(requestId, result);
+    return purgeCatalogStorefront(adminSuccess(requestId, result), catalogServicePurgePaths());
   } catch (error) {
     if (error instanceof AdminServiceBatchIdempotencyConflictError) {
       return adminFailure(requestId, 409, "IDEMPOTENCY_CONFLICT", error.message);

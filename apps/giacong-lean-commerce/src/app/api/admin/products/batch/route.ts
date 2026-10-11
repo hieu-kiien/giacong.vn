@@ -1,3 +1,4 @@
+import { catalogProductPurgePaths, purgeCatalogStorefront } from "@/lib/storefront-revalidate";
 import { adminFailure, adminSuccess } from "@/lib/admin-api.ts";
 import { adminErrorFrom } from "@/lib/admin-error-mapping.ts";
 import {
@@ -48,7 +49,7 @@ export async function POST(request: Request): Promise<Response> {
   }
   try {
     const result = await archiveAdminProductsAtomically(guard.database, { actorSubject: guard.actorSubject, items, requestId });
-    return adminSuccess(requestId, result);
+    return purgeCatalogStorefront(adminSuccess(requestId, result), catalogProductPurgePaths());
   } catch (error) {
     if (error instanceof AdminProductBatchIdempotencyConflictError) return adminFailure(requestId, 409, "IDEMPOTENCY_CONFLICT", error.message);
     if (error instanceof AdminProductBatchValidationError) return adminFailure(requestId, 422, "VALIDATION_ERROR", error.message);

@@ -1,3 +1,4 @@
+import { catalogServicePurgePaths, purgeCatalogStorefront } from "@/lib/storefront-revalidate";
 import { adminFailure, adminSuccess } from "@/lib/admin-api.ts";
 import {
   AdminServiceWriteConflictError,
@@ -77,7 +78,10 @@ export async function POST(request: Request): Promise<Response> {
     const id = await createAdminServiceAtomically(guard.database, parsed.command.input, guard.actorSubject, requestId);
     const service = await getAdminService(guard.database, id);
     if (!service) return adminFailure(requestId, 500, "INTERNAL_ERROR", "Không đọc lại được dịch vụ vừa tạo.");
-    return adminSuccess(requestId, { service: await attachAdminServiceRevision(guard.database, service) }, 201);
+    return purgeCatalogStorefront(
+      adminSuccess(requestId, { service: await attachAdminServiceRevision(guard.database, service) }, 201),
+      catalogServicePurgePaths([service.slug]),
+    );
   } catch (error) {
     return mapServiceWriteError(requestId, error, "Không thể tạo dịch vụ.", { fieldErrors: { slug: "Slug đã tồn tại." } });
   }

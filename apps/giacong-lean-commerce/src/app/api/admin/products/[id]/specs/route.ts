@@ -1,3 +1,4 @@
+import { purgeCatalogProductById } from "@/lib/storefront-revalidate";
 import { adminFailure, adminSuccess } from "@/lib/admin-api";
 import { adminErrorFrom } from "@/lib/admin-error-mapping";
 import { requireAdmin } from "@/lib/admin-guard";
@@ -125,7 +126,7 @@ export async function POST(request: Request, context: RouteContext): Promise<Res
       .bind(productId, material, tolerance, manufacturingProcess, surfaceFinish, weightGrams, certificationsJson)
       .run();
 
-    return adminSuccess(parsedRequest.requestId, { success: true });
+    return purgeCatalogProductById(guard.database, [productId], adminSuccess(parsedRequest.requestId, { success: true }));
   } catch (error) {
     return adminErrorFrom(parsedRequest.requestId, error, "Không thể lưu thông số kỹ thuật sản phẩm.");
   }
