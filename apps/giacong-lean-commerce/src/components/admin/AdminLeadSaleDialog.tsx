@@ -59,8 +59,6 @@ export function AdminLeadSaleDialog({ lead, onClose }: AdminLeadSaleDialogProps)
 
   useEffect(() => {
     const controller = new AbortController();
-    setLoading(true);
-    setError(null);
     void fetchAdmin<SaleResponse>(`/api/admin/leads/${lead.id}/sales`, controller.signal)
       .then((response) => {
         setSale(response.sale);
@@ -141,7 +139,7 @@ export function AdminLeadSaleDialog({ lead, onClose }: AdminLeadSaleDialogProps)
       {loading ? <p aria-live="polite" className="admin-item-meta">Đang tải thông tin giao dịch…</p> : null}
       {error ? <p className="admin-editor-error" role="alert">{error}</p> : null}
       {!loading && !loaded && !sale ? (
-        <button className="admin-button admin-button-quiet" onClick={() => setLoadAttempt((attempt) => attempt + 1)} type="button">Thử tải lại</button>
+        <button className="admin-button admin-button-quiet" onClick={() => { setLoading(true); setError(null); setLoadAttempt((attempt) => attempt + 1); }} type="button">Thử tải lại</button>
       ) : null}
       {sale ? (
         <section aria-label="Giao dịch đã lưu">

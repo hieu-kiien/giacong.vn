@@ -33,17 +33,25 @@ export function AdminProductGalleryManager({
   const [loadError, setLoadError] = useState(false);
   const [conflictError, setConflictError] = useState(false);
   const [newImageUrl, setNewImageUrl] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(productId > 0);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const savedImagesRef = useRef(serializeAdminProductGalleryState([]));
+  const [savedState, setSavedState] = useState(serializeAdminProductGalleryState([]));
   const productRevisionRef = useRef(0);
   const pendingRequestRef = useRef<{ key: string; requestId: string } | null>(null);
   const { showToast } = useAdminToast();
-  const isDirty = useCallback(() => serializeAdminProductGalleryState(images) !== savedImagesRef.current, [images]);
+  const isDirty = useCallback(() => serializeAdminProductGalleryState(images) !== savedState, [images, savedState]);
 
   useRegisterAdminUnsaved(isDirty, saving);
 
+  const applyGallery = useCallback((res: GalleryResponse) => {
+    const nextImages = res.images ?? [];
+    productRevisionRef.current = res.revision;
+    setSavedState(serializeAdminProductGalleryState(nextImages));
+    setImages(nextImages);
+  }, []);
+
+  /** Manual reload (retry button): resets the visible error state, then fetches again. */
   const loadGallery = useCallback(async () => {
     if (!productId) return;
     setLoading(true);
@@ -51,21 +59,30 @@ export function AdminProductGalleryManager({
     setConflictError(false);
     pendingRequestRef.current = null;
     try {
-      const res = await fetchAdmin<GalleryResponse>(`/api/admin/products/${productId}/gallery`);
-      const nextImages = res.images ?? [];
-      productRevisionRef.current = res.revision;
-      savedImagesRef.current = serializeAdminProductGalleryState(nextImages);
-      setImages(nextImages);
+      applyGallery(await fetchAdmin<GalleryResponse>(`/api/admin/products/${productId}/gallery`));
     } catch {
       setLoadError(true);
     } finally {
       setLoading(false);
     }
-  }, [productId]);
+  }, [productId, applyGallery]);
 
   useEffect(() => {
-    void loadGallery();
-  }, [loadGallery]);
+    if (!productId) return;
+    // `loading` starts true for a real product, so nothing needs resetting before the first await.
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await fetchAdmin<GalleryResponse>(`/api/admin/products/${productId}/gallery`);
+        if (!cancelled) applyGallery(res);
+      } catch {
+        if (!cancelled) setLoadError(true);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [productId, applyGallery]);
 
   function handleAddImage(e: React.FormEvent) {
     e.preventDefault();
@@ -185,7 +202,7 @@ export function AdminProductGalleryManager({
       productRevisionRef.current = result.revision;
       onRevisionChange(result.revision);
       setImages(result.images);
-      savedImagesRef.current = serializeAdminProductGalleryState(result.images);
+      setSavedState(serializeAdminProductGalleryState(result.images));
       pendingRequestRef.current = null;
       setConflictError(false);
       showToast("success", "Đã lưu bộ sưu tập ảnh thành công!");

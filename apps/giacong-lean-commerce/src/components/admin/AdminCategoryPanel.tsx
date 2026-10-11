@@ -10,6 +10,7 @@ import { AdminField } from "@/components/admin/AdminField";
 import { useAdminSession } from "@/components/admin/AdminShell";
 import { useAdminToast } from "@/components/admin/AdminToast";
 import { fetchAdmin, mutateAdmin, AdminClientError } from "@/lib/admin-client";
+import { canManageCatalog } from "@/lib/admin-permissions";
 
 interface AdminCategoryDetail {
   description: string;
@@ -62,7 +63,7 @@ const emptyForm: CategoryFormState = {
 
 export function AdminCategoryPanel({ onChanged }: { onChanged: () => void }) {
   const session = useAdminSession();
-  const canManage = session.role === "owner" || session.role === "catalog_manager";
+  const canManage = canManageCatalog(session.role);
   const { showToast } = useAdminToast();
 
   const [categories, setCategories] = useState<AdminCategoryDetail[]>([]);
@@ -95,8 +96,19 @@ export function AdminCategoryPanel({ onChanged }: { onChanged: () => void }) {
   }, []);
 
   useEffect(() => {
-    void reload();
-  }, [reload]);
+    let cancelled = false;
+    void (async () => {
+      try {
+        const result = await fetchAdmin<{ categories: AdminCategoryDetail[] }>("/api/admin/categories");
+        if (!cancelled) setCategories(result.categories ?? []);
+      } catch (reason: unknown) {
+        if (!cancelled) setLoadError(reason instanceof AdminClientError ? reason.message : "Không thể tải danh mục.");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   async function submitCategory(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -235,8 +247,10 @@ export function AdminCategoryPanel({ onChanged }: { onChanged: () => void }) {
 
   return (
     <div aria-busy={loading || batchArchiving}>
-      <div className="admin-modal-footer" style={{ justifyContent: "space-between", margin: "0 0 14px" }}>
-        <span className="admin-panel-caption">{categories.length} danh mục · sắp theo thứ tự hiển thị</span>
+      <div className="admin-modal-footer admin-category-toolbar">
+        <span className="admin-panel-caption">{loading
+          ? <span aria-live="polite" role="status">Đang tải danh mục…</span>
+          : `${categories.length} danh mục · sắp theo thứ tự hiển thị`}</span>
         {canManage ? <div className="admin-content-toolbar-actions">
           {selectedIds.size > 0 ? <>
             <span aria-live="polite" className="admin-item-meta" data-testid="category-selection-count">Đã chọn {selectedIds.size}</span>
@@ -259,7 +273,7 @@ export function AdminCategoryPanel({ onChanged }: { onChanged: () => void }) {
 
       {loadError ? <p className="admin-editor-error" role="alert">{loadError}</p> : null}
 
-      {!loading && !loadError ? (
+      {!loading && !loadError && categories.length > 0 ? (
         <div className="admin-table-scroll">
           <table className="admin-table admin-category-table" data-testid="table-admin-categories">
             <thead>
@@ -276,7 +290,7 @@ export function AdminCategoryPanel({ onChanged }: { onChanged: () => void }) {
               {categories.map((category) => (
                 <tr data-testid={`row-category-${category.id}`} key={category.id}>
                   {canManage ? <td><input aria-label={`Chọn danh mục ${category.name}`} checked={selectedIds.has(category.id)} disabled={!category.isActive || batchArchiving} onChange={() => toggleSelected(category.id)} type="checkbox" /></td> : null}
-                  <td>
+                  <td data-label="Ảnh">
                     <span className="admin-thumb">
                       {category.imageUrl
                         ? // eslint-disable-next-line @next/next/no-img-element
@@ -284,14 +298,14 @@ export function AdminCategoryPanel({ onChanged }: { onChanged: () => void }) {
                         : <span>{category.name.slice(0, 2).toUpperCase()}</span>}
                     </span>
                   </td>
-                  <td>
+                  <td data-label="Danh mục">
                     <div className="admin-item-name">{category.name}</div>
                     {category.description ? <div className="admin-item-meta">{category.description}</div> : null}
                   </td>
-                  <td className="admin-mono">{category.sortOrder}</td>
-                  <td>{category.isActive ? "Có" : "Ẩn"}</td>
+                  <td className="admin-mono" data-label="Thứ tự">{category.sortOrder}</td>
+                  <td data-label="Hiển thị">{category.isActive ? "Có" : "Ẩn"}</td>
                   {canManage ? (
-                    <td>
+                    <td data-label="Thao tác">
                       <div className="admin-table-actions">
                         <button
                           aria-label={`Sửa danh mục ${category.name}`}
@@ -328,13 +342,12 @@ export function AdminCategoryPanel({ onChanged }: { onChanged: () => void }) {
                   ) : null}
                 </tr>
               ))}
-              {categories.length === 0 ? (
-                <tr><td colSpan={canManage ? 6 : 4}>Chưa có danh mục nào.</td></tr>
-              ) : null}
             </tbody>
           </table>
         </div>
       ) : null}
+
+      {!loading && !loadError && categories.length === 0 ? <p className="admin-item-meta">Chưa có danh mục nào.</p> : null}
 
       {editor ? (
         <form onSubmit={submitCategory} style={{ marginTop: 16 }}>

@@ -234,7 +234,7 @@ export function AdminShell({ brandName, children }: AdminShellProps) {
     const closeOnDesktop = () => { if (desktop.matches) setMobileOpen(false); };
     function onMenuKeyDown(event: KeyboardEvent) {
       // An unsaved-changes confirmation owns focus while it is open.
-      if (document.querySelector('[role="dialog"]')) return;
+      if (document.querySelector('.admin-modal[role="dialog"]')) return;
       if (event.key === "Escape") {
         event.preventDefault();
         setMobileOpen(false);
@@ -341,7 +341,7 @@ export function AdminShell({ brandName, children }: AdminShellProps) {
       event.preventDefault();
       return;
     }
-    if (typeof document !== "undefined" && document.querySelector('[role="dialog"]')) {
+    if (typeof document !== "undefined" && document.querySelector('.admin-modal[role="dialog"]')) {
       event.preventDefault();
       return;
     }
@@ -365,6 +365,9 @@ export function AdminShell({ brandName, children }: AdminShellProps) {
       const result = await customerAuthClient.signOut();
       if (result.error) throw result.error;
       notifyWebsiteSignOut();
+      // Full document load on purpose: it discards in-memory session/admin state and any cached
+      // client data after sign-out; a client-side router.push would keep them alive.
+      // eslint-disable-next-line @next/next/no-location-assign-relative-destination
       window.location.assign(accountLoginHref);
     } catch {
       setLogoutError("Chưa thể đăng xuất. Hãy thử lại.");
@@ -445,7 +448,7 @@ export function AdminShell({ brandName, children }: AdminShellProps) {
       }
       const hasPending = pendingRef.current !== null;
       const saving = unsavedSavingRef.current;
-      const domDialogOpen = typeof document !== "undefined" && document.querySelector('[role="dialog"]') !== null;
+      const domDialogOpen = typeof document !== "undefined" && document.querySelector('.admin-modal[role="dialog"]') !== null;
       if (!shouldBlockUnsavedNavigation({ isDirty: dirty, saving, hasPending: false }) && !hasPending && !domDialogOpen) return;
 
       event.preventDefault();
@@ -575,7 +578,7 @@ export function AdminShell({ brandName, children }: AdminShellProps) {
 
   const visibleItems = navGroups.flatMap((group) => group.items)
     .filter((item) => !item.hidden && canManage(session.role, item.readCapability) && (!item.ownerOnly || session.role === "owner"));
-  const primaryHrefs = ["/admin", "/admin/san-pham", "/admin/dich-vu", "/admin/yeu-cau", "/admin/khach-hang"];
+  const primaryHrefs = ["/admin", "/admin/san-pham", "/admin/dich-vu", "/admin/yeu-cau", "/admin/khach-hang", "/admin/thanh-vien"];
   const visibleNavGroups = [
     { id: "primary", displayTitle: "CÔNG VIỆC HẰNG NGÀY", items: primaryHrefs.flatMap((href) => visibleItems.filter((item) => item.href === href)) },
     { id: "settings", displayTitle: "Nội dung & cài đặt", items: visibleItems.filter((item) => !primaryHrefs.includes(item.href)) },
@@ -635,16 +638,6 @@ export function AdminShell({ brandName, children }: AdminShellProps) {
                           setNavigatingHref(href);
                         }
                       }}
-                      onMouseEnter={() => {
-                        try {
-                          router.prefetch(href);
-                        } catch {}
-                      }}
-                      onFocus={() => {
-                        try {
-                          router.prefetch(href);
-                        } catch {}
-                      }}
                       prefetch={false}
                     >
                       <Icon aria-hidden="true" />
@@ -689,7 +682,7 @@ export function AdminShell({ brandName, children }: AdminShellProps) {
                 <span>{brandName} / <strong>{currentNavItem?.label ?? "Quản trị"}</strong></span>
               </div>
               <div className="admin-topbar-meta">
-                <Link className="admin-storefront-link" href={storefrontHref} rel="noreferrer" target="_blank">
+                <Link className="admin-storefront-link" href={storefrontHref} prefetch={false} rel="noreferrer" target="_blank">
                   Xem trang web
                   <ExternalLink aria-hidden="true" size={14} />
                 </Link>
@@ -834,6 +827,9 @@ function AdminAccessScreen({ brandName, status, error, onRetry }: { brandName: s
       const result = await customerAuthClient.signOut();
       if (result.error) throw result.error;
       notifyWebsiteSignOut();
+      // Full document load on purpose: it discards in-memory session/admin state and any cached
+      // client data after sign-out; a client-side router.push would keep them alive.
+      // eslint-disable-next-line @next/next/no-location-assign-relative-destination
       window.location.assign(accountLoginHref);
     } catch {
       setLogoutError("Chưa thể đăng xuất. Hãy thử lại.");

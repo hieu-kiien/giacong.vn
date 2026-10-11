@@ -270,16 +270,16 @@ export default function AdminProductsPage() {
   const [sortOrder, setSortOrder] = useState<ProductListSort>(() => parseProductListSort(searchParams.get("sort")));
   const [categoryFilter, setCategoryFilter] = useState<string>(() => parseProductListCategory(searchParams.get("categoryId")));
 
-  useEffect(() => {
+  // Mirror URL filters (Back/Forward, links) into local state during render, keyed on the string.
+  const searchParamsKey = searchParams.toString();
+  const [syncedParamsKey, setSyncedParamsKey] = useState(searchParamsKey);
+  if (syncedParamsKey !== searchParamsKey) {
+    setSyncedParamsKey(searchParamsKey);
     const sp = searchParams.get("status");
-    if (sp === "draft" || sp === "active" || sp === "hidden") {
-      setStatusFilter(sp);
-    } else {
-      setStatusFilter("all");
-    }
+    setStatusFilter(sp === "draft" || sp === "active" || sp === "hidden" ? sp : "all");
     setSortOrder(parseProductListSort(searchParams.get("sort")));
     setCategoryFilter(parseProductListCategory(searchParams.get("categoryId")));
-  }, [searchParams]);
+  }
 
   function updateListParam(key: "sort" | "categoryId", value: string) {
     const url = new URL(window.location.href);
@@ -385,16 +385,38 @@ export default function AdminProductsPage() {
     if (updateHistory && typeof window !== "undefined") {
       const currentHref = `${window.location.pathname}${window.location.search}`;
       if (form) {
-        const nextHref = form.id ? `/admin/san-pham?edit=${form.id}` : "/admin/san-pham?create=1";
+        const nextUrl = new URL(window.location.href);
+        nextUrl.searchParams.delete("edit");
+        nextUrl.searchParams.delete("create");
+        nextUrl.searchParams.set(form.id ? "edit" : "create", form.id ? String(form.id) : "1");
+        const nextHref = `${nextUrl.pathname}${nextUrl.search}${nextUrl.hash}`;
         if (currentHref !== nextHref) {
-          const state = form.id ? { edit: form.id } : { create: "1" };
-          window.history.pushState(state, "", nextHref);
+          const state = {
+            ...(form.id ? { edit: form.id } : { create: "1" }),
+            productEditorReturnHref: !editQuery && !createQuery
+              ? currentHref
+              : window.history.state?.productEditorReturnHref,
+          };
+          if (editQuery || createQuery) {
+            window.history.replaceState(state, "", nextHref);
+          } else {
+            window.history.pushState(state, "", nextHref);
+          }
         }
       } else if (currentUrl && (editQuery || createQuery)) {
         currentUrl.searchParams.delete("edit");
         currentUrl.searchParams.delete("create");
         const nextHref = `${currentUrl.pathname}${currentUrl.search}${currentUrl.hash}`;
-        if (currentHref !== nextHref) router.replace(nextHref, { scroll: false });
+        if (currentHref !== nextHref) {
+          if (window.history.state?.productEditorReturnHref === nextHref) {
+            // Retire this editor entry before returning to its existing list entry.
+            // Forward must not reopen an editor the operator explicitly closed.
+            window.history.replaceState(window.history.state, "", nextHref);
+            window.history.back();
+          } else {
+            router.replace(nextHref, { scroll: false });
+          }
+        }
       }
     }
   }, [router]);
@@ -456,6 +478,9 @@ export default function AdminProductsPage() {
     if (!canManage || loading || !deepLinkKey || handledDeepLinkRef.current === deepLinkKey) return;
     handledDeepLinkRef.current = deepLinkKey;
     if (deepLinkKey === "create") {
+      // The `?create=1` URL is the trigger (link or Back/Forward); there is no click handler to host
+      // this, and `handledDeepLinkRef` ensures the editor opens only once per link.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       openCreate();
       return;
     }

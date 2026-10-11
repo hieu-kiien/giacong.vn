@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import {
   Building2,
   Mail,
@@ -54,25 +54,25 @@ export function AdminCustomerDrawer({
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"overview" | "contacts" | "timeline">("overview");
 
-  const loadCustomer = useCallback(async () => {
-    if (!customerId) return;
-    setLoading(true);
-    try {
-      const res = await fetchAdmin<{ customer: CrmCustomer; contacts?: CrmContact[] }>(
-        `/api/admin/crm/customers/${customerId}`
-      );
-      setCustomer(res.customer);
-      setContacts(res.contacts ?? []);
-    } catch {
-      // Mock fallback if customer record was auto-linked
-    } finally {
-      setLoading(false);
-    }
-  }, [customerId]);
-
   useEffect(() => {
-    void loadCustomer();
-  }, [loadCustomer]);
+    if (!customerId) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await fetchAdmin<{ customer: CrmCustomer; contacts?: CrmContact[] }>(
+          `/api/admin/crm/customers/${customerId}`
+        );
+        if (cancelled) return;
+        setCustomer(res.customer);
+        setContacts(res.contacts ?? []);
+      } catch {
+        // Mock fallback if customer record was auto-linked
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [customerId]);
 
   return (
     <AdminModal

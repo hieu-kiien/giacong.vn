@@ -58,7 +58,7 @@ export function AdminTimelineFeed({
   leadId?: string;
 }) {
   const [events, setEvents] = useState<CrmTimelineEvent[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(customerId.length > 0);
   const [newTitle, setNewTitle] = useState("");
   const [newContent, setNewContent] = useState("");
   const [eventType, setEventType] = useState<CrmTimelineEventType>("note_internal");
@@ -67,6 +67,7 @@ export function AdminTimelineFeed({
   const [saving, setSaving] = useState(false);
   const { showToast } = useAdminToast();
 
+  /** Explicit refresh after the user adds an event. */
   const loadTimeline = useCallback(async () => {
     if (!customerId) return;
     setLoading(true);
@@ -83,8 +84,22 @@ export function AdminTimelineFeed({
   }, [customerId]);
 
   useEffect(() => {
-    void loadTimeline();
-  }, [loadTimeline]);
+    if (!customerId) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await fetchAdmin<{ events: CrmTimelineEvent[] }>(
+          `/api/admin/crm/customers/${customerId}/timeline`
+        );
+        if (!cancelled) setEvents(res.events ?? []);
+      } catch {
+        if (!cancelled) setEvents([]);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [customerId]);
 
   async function handleAddEvent(e: React.FormEvent) {
     e.preventDefault();

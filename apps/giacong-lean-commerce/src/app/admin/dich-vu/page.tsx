@@ -229,6 +229,9 @@ export default function AdminServicesPage() {
     if (!canManage || !deepLinkKey || handledDeepLinkRef.current === deepLinkKey) return;
     handledDeepLinkRef.current = deepLinkKey;
     if (createQuery === "1" && !editQuery) {
+      // The `?create=1` URL is the trigger (link or Back/Forward); there is no click handler to host
+      // this, and `handledDeepLinkRef` ensures the editor is opened only once per link.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       requestServiceEditor({ ...emptyServiceForm });
       return;
     }
@@ -286,9 +289,13 @@ export default function AdminServicesPage() {
     return () => controller.abort();
   }, [session.subject, page, query, statusFilter, attempt]);
 
-  useEffect(() => {
+  // Selection belongs to one page of one search; drop it when either changes (no effect needed).
+  const selectionScope = `${page}|${query}`;
+  const [selectedScope, setSelectedScope] = useState(selectionScope);
+  if (selectedScope !== selectionScope) {
+    setSelectedScope(selectionScope);
     setSelectedIds(new Set());
-  }, [page, query]);
+  }
 
   useEffect(() => {
     // The media panel promotes a main image without touching this form; keep the
@@ -736,7 +743,11 @@ const serviceStatusLabels: Record<string, string> = {
                             </div>
                           </div>
                         </td>
-                        <td className="admin-catalog-list-info" data-label="Tối thiểu · thời gian"><div>{service.moqSummary || "Chưa có"}</div><div className="admin-item-meta">{service.leadTimeDays !== null ? `${service.leadTimeDays} ngày làm hàng` : "Chưa có thời gian"}</div></td>
+                        <td className="admin-catalog-list-info" data-label="Tối thiểu · thời gian">
+                          {service.moqSummary ? <div>{service.moqSummary}</div> : null}
+                          {service.leadTimeDays !== null ? <div className="admin-item-meta">{service.leadTimeDays} ngày làm hàng</div> : null}
+                          {!service.moqSummary && service.leadTimeDays === null ? <span className="admin-item-meta">Cần bổ sung điều kiện gia công</span> : null}
+                        </td>
                         <td className="admin-catalog-list-status" data-label="Trạng thái"><AdminStatusBadge kind={service.isActive && service.status === "published" ? "green" : service.status === "draft" || service.status === "review" ? "amber" : "neutral"} value={service.status === "draft" || service.status === "review" || service.status === "archived" ? serviceStatusLabels[service.status] : service.isActive ? "Đang hiển thị" : "Đã đăng · Tạm ẩn"} /></td>
                         {canManage ? (
                           <td className="admin-sticky-actions admin-catalog-list-actions" data-label="Thao tác">

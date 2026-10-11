@@ -113,9 +113,12 @@ export default function AdminNewsPage() {
     setEditorSnapshot(form);
   }, []);
 
-  useEffect(() => {
+  // Keep the input in step with the URL query (Back/Forward, external links) without an effect.
+  const [syncedSearchQuery, setSyncedSearchQuery] = useState(searchQuery);
+  if (syncedSearchQuery !== searchQuery) {
+    setSyncedSearchQuery(searchQuery);
     setInputQuery(searchQuery);
-  }, [searchQuery]);
+  }
 
   function submitSearch(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -130,28 +133,32 @@ export default function AdminNewsPage() {
     setSelectedIds(new Set());
   }
 
+  const applyPost = useCallback((post: NewsFormState & { coverImageUrl: string | null }) => {
+    setFieldErrors({});
+    setFormError(null);
+    applyNewsEditor({
+      content: post.content,
+      coverImageUrl: post.coverImageUrl ?? "",
+      excerpt: post.excerpt,
+      id: post.id,
+      revision: post.revision,
+      slug: post.slug,
+      title: post.title,
+    });
+  }, [applyNewsEditor]);
+
   const openEditById = useCallback(async (id: number) => {
     if (!canManage) {
       showToast("error", "Vai trò hiện tại chỉ được xem bài viết.");
       return;
     }
-    setFieldErrors({});
-    setFormError(null);
     try {
       const result = await fetchAdmin<{ post: NewsFormState & { coverImageUrl: string | null } }>(`/api/admin/news/${id}`);
-      applyNewsEditor({
-        content: result.post.content,
-        coverImageUrl: result.post.coverImageUrl ?? "",
-        excerpt: result.post.excerpt,
-        id: result.post.id,
-        revision: result.post.revision,
-        slug: result.post.slug,
-        title: result.post.title,
-      });
+      applyPost(result.post);
     } catch (reason: unknown) {
       showToast("error", reason instanceof AdminClientError ? reason.message : "Không thể tải bài viết được yêu cầu.");
     }
-  }, [applyNewsEditor, canManage, showToast]);
+  }, [applyPost, canManage, showToast]);
 
   const editQuery = searchParams.get("edit");
   const createQuery = searchParams.get("create");
@@ -162,11 +169,23 @@ export default function AdminNewsPage() {
       showToast("error", "Không thể tải bài viết được yêu cầu.");
       return;
     }
-    void openEditById(id);
-  }, [canManage, editQuery, openEditById, showToast]);
+    let cancelled = false;
+    void (async () => {
+      try {
+        const result = await fetchAdmin<{ post: NewsFormState & { coverImageUrl: string | null } }>(`/api/admin/news/${id}`);
+        if (!cancelled) applyPost(result.post);
+      } catch (reason: unknown) {
+        if (!cancelled) showToast("error", reason instanceof AdminClientError ? reason.message : "Không thể tải bài viết được yêu cầu.");
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [applyPost, canManage, editQuery, showToast]);
 
   useEffect(() => {
     if (editQuery || createQuery !== "1" || !canManage) return;
+    // The `?create=1` URL is the trigger: it can be reached by link or Back/Forward, so there is no
+    // click handler to run this in, and the form is external UI state that must open exactly once.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setFieldErrors({});
     setFormError(null);
     applyNewsEditor({ ...emptyForm });

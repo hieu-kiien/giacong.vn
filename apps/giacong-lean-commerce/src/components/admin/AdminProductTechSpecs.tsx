@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { Wrench, CheckCircle2, ShieldCheck, Scale, Cpu, Layers } from "lucide-react";
 import { useAdminToast } from "@/components/admin/AdminToast";
 import { AdminClientError, fetchAdmin, mutateAdmin } from "@/lib/admin-client";
@@ -67,28 +67,25 @@ const certPresets = ["ISO 9001:2015", "RoHS Compliant", "REACH", "IATF 16949", "
 
 export function AdminProductTechSpecs({ productId }: { productId: number }) {
   const [specs, setSpecs] = useState<TechSpecsData>(emptySpecs);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(productId > 0);
   const [saving, setSaving] = useState(false);
   const { showToast } = useAdminToast();
 
-  const loadSpecs = useCallback(async () => {
-    if (!productId) return;
-    setLoading(true);
-    try {
-      const res = await fetchAdmin<{ specs: TechSpecsData }>(`/api/admin/products/${productId}/specs`);
-      if (res.specs) {
-        setSpecs(res.specs);
-      }
-    } catch {
-      // Default to empty specs
-    } finally {
-      setLoading(false);
-    }
-  }, [productId]);
-
   useEffect(() => {
-    void loadSpecs();
-  }, [loadSpecs]);
+    if (!productId) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await fetchAdmin<{ specs: TechSpecsData }>(`/api/admin/products/${productId}/specs`);
+        if (!cancelled && res.specs) setSpecs(res.specs);
+      } catch {
+        // Default to empty specs
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [productId]);
 
   function toggleCert(cert: string) {
     setSpecs((prev) => {

@@ -65,14 +65,14 @@ export default function AdminAuditPage() {
   const [entityType, setEntityType] = useState("");
   const [page, setPage] = useState(1);
   const [attempt, setAttempt] = useState(0);
-  const [loading, setLoading] = useState(true);
+  const [fetching, setFetching] = useState(true);
   const [error, setError] = useState<AdminClientError | null>(null);
+  const isOwner = session.role === "owner";
+  // Non-owners never fetch, so they are never "loading" regardless of the fetch flag.
+  const loading = isOwner && fetching;
 
   useEffect(() => {
-    if (session.role !== "owner") {
-      setLoading(false);
-      return;
-    }
+    if (!isOwner) return;
     const controller = new AbortController();
     const params = new URLSearchParams({ page: String(page), pageSize: "20" });
     if (query) params.set("query", query);
@@ -80,7 +80,7 @@ export default function AdminAuditPage() {
     void (async () => {
       await Promise.resolve();
       if (controller.signal.aborted) return;
-      setLoading(true);
+      setFetching(true);
       setError(null);
       try {
         setData(await fetchAdmin<AuditResponse>("/api/admin/audit?" + params.toString(), controller.signal));
@@ -89,11 +89,11 @@ export default function AdminAuditPage() {
           setError(reason instanceof AdminClientError ? reason : new AdminClientError("Không thể tải lịch sử thay đổi.", 0));
         }
       } finally {
-        if (!controller.signal.aborted) setLoading(false);
+        if (!controller.signal.aborted) setFetching(false);
       }
     })();
     return () => controller.abort();
-  }, [session.role, page, query, entityType, attempt]);
+  }, [isOwner, page, query, entityType, attempt]);
 
   function submitSearch(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();

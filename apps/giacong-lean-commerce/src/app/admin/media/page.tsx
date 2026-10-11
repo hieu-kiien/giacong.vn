@@ -98,8 +98,23 @@ export default function AdminMediaPage() {
   }, [hasReadPermission, showToast]);
 
   useEffect(() => {
-    void loadMedia();
-  }, [loadMedia]);
+    if (!hasReadPermission) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await fetchAdmin<{ media: MediaAssetItem[] }>("/api/admin/media?all=1");
+        if (!cancelled) setAssets(res.media ?? []);
+      } catch (err) {
+        if (cancelled) return;
+        const msg = err instanceof AdminClientError ? err.message : "Không thể tải thư viện ảnh.";
+        setError(msg);
+        showToast("error", msg);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [hasReadPermission, showToast]);
 
   const filteredAssets = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();

@@ -90,20 +90,22 @@ export function AdminPageBuilder() {
   ), [blocks, createForm, draftEnabled, selectedPage, seoDescription, seoTitle]);
   useRegisterAdminUnsaved(isDirty, saving || publishing || creating);
 
+  function applyPages(next: PagesResponse) {
+    setData(next);
+    const nextKey = next.pages.some((page) => page.pageKey === requestedPage)
+      ? requestedPage
+      : next.pages.some((page) => page.pageKey === selectedKey)
+      ? selectedKey
+      : next.pages[0]?.pageKey ?? "";
+    const nextPage = next.pages.find((page) => page.pageKey === nextKey);
+    setSelectedKey(nextKey);
+    if (nextPage) hydratePage(nextPage);
+  }
+
+  /** Manual retry: the caller has already reset loading/error. */
   async function loadPages() {
-    setLoading(true);
-    setError(null);
     try {
-      const next = await fetchAdmin<PagesResponse>("/api/admin/pages");
-      setData(next);
-      const nextKey = next.pages.some((page) => page.pageKey === requestedPage)
-        ? requestedPage
-        : next.pages.some((page) => page.pageKey === selectedKey)
-        ? selectedKey
-        : next.pages[0]?.pageKey ?? "";
-      const nextPage = next.pages.find((page) => page.pageKey === nextKey);
-      setSelectedKey(nextKey);
-      if (nextPage) hydratePage(nextPage);
+      applyPages(await fetchAdmin<PagesResponse>("/api/admin/pages"));
     } catch (reason: unknown) {
       setError(reason instanceof AdminClientError ? reason : new AdminClientError("Không thể tải page builder.", 0));
     } finally {
@@ -112,7 +114,18 @@ export function AdminPageBuilder() {
   }
 
   useEffect(() => {
-    void loadPages();
+    let cancelled = false;
+    void (async () => {
+      try {
+        const next = await fetchAdmin<PagesResponse>("/api/admin/pages");
+        if (!cancelled) applyPages(next);
+      } catch (reason: unknown) {
+        if (!cancelled) setError(reason instanceof AdminClientError ? reason : new AdminClientError("Không thể tải page builder.", 0));
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
     // The page list is intentionally loaded once per screen; saves update local state below.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session.subject]);
@@ -308,7 +321,7 @@ export function AdminPageBuilder() {
         </details>
       ) : null}
       {notice ? <div className="admin-content-notice" role="status">{notice}</div> : null}
-      {error ? <AdminErrorState error={error} onRetry={() => { setError(null); void loadPages(); }} /> : null}
+      {error ? <AdminErrorState error={error} onRetry={() => { setError(null); setLoading(true); void loadPages(); }} /> : null}
       {loading ? <div className="admin-skeleton admin-content-skeleton" aria-label="Đang tải page builder" /> : selectedPage ? (
         <div className="admin-builder-layout">
           <section className="admin-builder-editor" aria-labelledby="builder-editor-title">

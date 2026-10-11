@@ -160,7 +160,8 @@ test("product status filters keep the URL and selected tab in sync", async () =>
   assert.match(products, /nextStatus === "all"\) url\.searchParams\.delete\("status"\)/);
   assert.match(products, /url\.searchParams\.set\("status", nextStatus\)/);
   assert.match(products, /window\.history\.pushState\(window\.history\.state, "",/);
-  assert.match(products, /if \(sp === "draft" \|\| sp === "active" \|\| sp === "hidden"\) \{\s*setStatusFilter\(sp\);\s*\} else \{\s*setStatusFilter\("all"\);/);
+  assert.match(products, /setStatusFilter\(sp === "draft" \|\| sp === "active" \|\| sp === "hidden" \? sp : "all"\)/);
+  assert.match(products, /const searchParamsKey = searchParams\.toString\(\);[\s\S]*?if \(syncedParamsKey !== searchParamsKey\)/);
   assert.match(products, /onClick=\{\(\) => updateStatusFilter\("all"\)\}/);
 });
 
@@ -189,6 +190,10 @@ test("protected sidebar links do not prefetch every admin route on first paint",
 
   assert.ok(navLink, "the protected sidebar link opening tag should remain explicit");
   assert.match(navLink, /prefetch=\{false\}/);
+  assert.doesNotMatch(navLink, /router\.prefetch\(/, "hover and focus must not force protected server renders");
+  const storefrontLink = shell.match(/<Link className="admin-storefront-link"[^>]+>/)?.[0];
+  assert.ok(storefrontLink);
+  assert.match(storefrontLink, /prefetch=\{false\}/, "the new-tab storefront link must not render the homepage in the background");
 });
 
 test("blocked sessions direct operators to website login and keep Access logout as fallback", async () => {

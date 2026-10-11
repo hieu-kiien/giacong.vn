@@ -60,15 +60,22 @@ export function RequestCartView({ contactZaloUrl }: RequestCartViewProps = {}) {
     });
   }, []);
 
+  /*
+   * The accepted panel is gated by `acceptedCustomerId === customerId` at render, so a snapshot
+   * that belongs to another customer is never shown and needs no reset here.
+   */
   useEffect(() => {
     if (checkingCustomerSession) return;
-    setAccepted(null);
-    setAcceptedCustomerId(null);
     try {
       const stored = window.sessionStorage.getItem(REQUEST_CART_ACCEPTED_STORAGE_KEY);
       const restored = parseCustomerConfirmation(stored, customerId);
-      if (restored) { setAccepted(restored); setAcceptedCustomerId(customerId); }
-      else if (stored) window.sessionStorage.removeItem(REQUEST_CART_ACCEPTED_STORAGE_KEY);
+      if (restored) {
+        // sessionStorage does not exist during the server render, so the snapshot can only be
+        // applied after hydration; there is no render-time source to derive it from.
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setAccepted(restored);
+        setAcceptedCustomerId(customerId);
+      } else if (stored) window.sessionStorage.removeItem(REQUEST_CART_ACCEPTED_STORAGE_KEY);
     } catch {
       // A blocked or full session store must not hide the live cart.
     }
@@ -145,6 +152,7 @@ export function RequestCartView({ contactZaloUrl }: RequestCartViewProps = {}) {
     const mutation = setRequestCartQuantity(cart, variantSku, quantity);
     if (mutation.status !== "ok") return;
     writeRequestCart(window.localStorage, mutation.state);
+    setAccepted(null);
     setCart(mutation.state);
   }, [cart]);
 
@@ -152,6 +160,7 @@ export function RequestCartView({ contactZaloUrl }: RequestCartViewProps = {}) {
     if (!cart) return;
     const next = removeRequestCartLine(cart, variantSku);
     writeRequestCart(window.localStorage, next);
+    setAccepted(null);
     setCart(next);
   }, [cart]);
 
@@ -195,10 +204,19 @@ export function RequestCartView({ contactZaloUrl }: RequestCartViewProps = {}) {
     setAccepted(null);
   }, []);
 
+  /*
+   * A cart that holds new lines supersedes an earlier confirmation: the panel is hidden by the
+   * derived `hasLiveLines` flag below, and the stored snapshot is dropped here (external store only).
+   */
+  const hasLiveLines = (cart?.lines.length ?? 0) > 0;
   useEffect(() => {
-    if (!cart || cart.lines.length === 0 || !accepted) return;
-    startNewRequest();
-  }, [accepted, cart, startNewRequest]);
+    if (!hasLiveLines || !accepted) return;
+    try {
+      window.sessionStorage.removeItem(REQUEST_CART_ACCEPTED_STORAGE_KEY);
+    } catch {
+      // Ignore storage restrictions; the derived flag already hides the stale panel.
+    }
+  }, [accepted, hasLiveLines]);
 
   /** A 409 repaints from the server's fresh snapshot instead of the state the customer saw. */
   const applyConflict = useCallback((fresh: ResolvedRequestCart | null) => {
@@ -225,7 +243,7 @@ export function RequestCartView({ contactZaloUrl }: RequestCartViewProps = {}) {
         </p>
       ) : null}
 
-      {accepted !== null && acceptedCustomerId === customerId && !checkingCustomerSession ? (
+      {accepted !== null && acceptedCustomerId === customerId && !checkingCustomerSession && !hasLiveLines ? (
         <RequestAccepted
           cart={accepted.cart}
           contact={accepted.contact}
