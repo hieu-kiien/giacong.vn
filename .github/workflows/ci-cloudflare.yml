@@ -39,6 +39,12 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Audit production dependencies
+        run: npm audit --omit=dev --audit-level=high
+
+      - name: Report full dependency audit (dev tooling, non-blocking)
+        run: npm audit --audit-level=high || echo "::warning::Dev-tooling advisories remain; see npm audit output."
+
       - name: Run application checks
         run: npm run check
 
