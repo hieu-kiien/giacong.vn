@@ -30,7 +30,7 @@ test("purge helpers always include the home page and the list page", async () =>
 
 test("a cached product page is visibility-checked on staging as well as production", async () => {
   const worker = await read("custom-worker.ts");
-  const block = worker.match(/const cachedDocument = await readPublicDocumentCache\(request\);([\s\S]*?)const response = await generatedWorker\.fetch/)?.[1];
+  const block = worker.match(/const cachedEntry = await readPublicDocumentCache\(request\);([\s\S]*?)const response = await generatedWorker\.fetch/)?.[1];
 
   assert.ok(block, "cached-document branch not found");
   const check = block.indexOf("withCatalogProductNotFoundStatus");
@@ -38,4 +38,13 @@ test("a cached product page is visibility-checked on staging as well as producti
   assert.ok(check >= 0 && stagingHit >= 0);
   // The visibility check must run before any cached document is returned as a HIT.
   assert.ok(check < stagingHit, "staging returned a cache HIT before the visibility check");
+});
+
+test("stale cached pages are served and refreshed in the background", async () => {
+  const worker = await read("custom-worker.ts");
+
+  assert.match(worker, /DOCUMENT_STORE_CACHE_CONTROL = "public, max-age=604800"/);
+  assert.match(worker, /if \(cachedEntry\.stale\) ctx\.waitUntil\(revalidatePublicDocument\(request, env, ctx\)\)/);
+  // A failed refresh must keep the old copy: only a 200 replaces it.
+  assert.match(worker, /if \(checked\.status !== 200\) return;/);
 });

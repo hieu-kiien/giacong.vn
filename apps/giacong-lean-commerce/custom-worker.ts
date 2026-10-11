@@ -149,13 +149,49 @@ function publicDocumentCacheKey(request: Request): Request {
   return new Request(url.toString(), { method: "GET" });
 }
 
-async function readPublicDocumentCache(request: Request): Promise<Response | null> {
+const DOCUMENT_STORE_CACHE_CONTROL = "public, max-age=604800";
+const DOCUMENT_FRESH_MS = 600_000;
+const DOCUMENT_CACHED_AT_HEADER = "x-document-cached-at";
+
+interface CachedPublicDocument {
+  response: Response;
+  stale: boolean;
+}
+
+async function readPublicDocumentCache(request: Request): Promise<CachedPublicDocument | null> {
   if (!isPublicDocumentRequest(request)) return null;
   try {
-    return await publicDocumentCache.match(publicDocumentCacheKey(request)) ?? null;
+    const cached = await publicDocumentCache.match(publicDocumentCacheKey(request));
+    if (!cached) return null;
+    const storedAt = Number(cached.headers.get(DOCUMENT_CACHED_AT_HEADER));
+    const stale = !Number.isFinite(storedAt) || Date.now() - storedAt > DOCUMENT_FRESH_MS;
+    const staging = new URL(request.url).hostname.toLowerCase() === "staging.kienhieu.id.vn";
+    const headers = new Headers(cached.headers);
+    headers.delete(DOCUMENT_CACHED_AT_HEADER);
+    headers.set("Cache-Control", staging ? STAGING_DOCUMENT_CACHE_CONTROL : PUBLIC_DOCUMENT_CACHE_CONTROL);
+    headers.set("CDN-Cache-Control", staging ? STAGING_CDN_DOCUMENT_CACHE_CONTROL : CDN_DOCUMENT_CACHE_CONTROL);
+    return {
+      response: new Response(cached.body, { headers, status: cached.status, statusText: cached.statusText }),
+      stale,
+    };
   } catch (error) {
     console.warn("Public document cache read unavailable.", error);
     return null;
+  }
+}
+
+async function storePublicDocument(request: Request, response: Response): Promise<void> {
+  try {
+    const headers = new Headers(response.headers);
+    headers.set("Cache-Control", DOCUMENT_STORE_CACHE_CONTROL);
+    headers.delete("CDN-Cache-Control");
+    headers.set(DOCUMENT_CACHED_AT_HEADER, String(Date.now()));
+    await publicDocumentCache.put(
+      publicDocumentCacheKey(request),
+      new Response(response.body, { headers, status: response.status, statusText: response.statusText }),
+    );
+  } catch (error) {
+    console.warn("Public document cache write unavailable.", error);
   }
 }
 
@@ -165,11 +201,24 @@ function writePublicDocumentCache(
   ctx: WorkerExecutionContext,
 ): void {
   if (!isPublicDocumentRequest(request) || !isPublicDocumentResponse(response)) return;
-  ctx.waitUntil(
-    publicDocumentCache.put(publicDocumentCacheKey(request), response.clone()).catch((error: unknown) => {
-      console.warn("Public document cache write unavailable.", error);
-    }),
-  );
+  ctx.waitUntil(storePublicDocument(request, response.clone()));
+}
+
+async function revalidatePublicDocument(
+  request: Request,
+  env: WorkerEnv,
+  ctx: WorkerExecutionContext,
+): Promise<void> {
+  try {
+    const fresh = await generatedWorker.fetch(new Request(request.url, { method: "GET", headers: request.headers }), env, ctx);
+    const checked = await withCatalogProductNotFoundStatus(request, fresh, env);
+    if (checked.status !== 200) return;
+    const finalResponse = withPublicDocumentCache(request, withIndexingHeaders(request, checked));
+    if (!isPublicDocumentResponse(finalResponse)) return;
+    await storePublicDocument(request, finalResponse);
+  } catch (error) {
+    console.warn("Public document revalidation failed; keeping the cached copy.", error);
+  }
 }
 
 function shouldPreventIndexing(request: Request): boolean {
@@ -280,8 +329,9 @@ const worker = {
       }
     }
 
-    const cachedDocument = await readPublicDocumentCache(request);
-    if (cachedDocument) {
+    const cachedEntry = await readPublicDocumentCache(request);
+    if (cachedEntry) {
+      const cachedDocument = cachedEntry.response;
       const checkedDocument = await withCatalogProductNotFoundStatus(request, cachedDocument, env);
       if (checkedDocument.status === 404) {
         ctx.waitUntil(
@@ -290,6 +340,7 @@ const worker = {
         return checkedDocument;
       }
       if (checkedDocument.status === 308) return checkedDocument;
+      if (cachedEntry.stale) ctx.waitUntil(revalidatePublicDocument(request, env, ctx));
       if (new URL(request.url).hostname.toLowerCase() === "staging.kienhieu.id.vn") {
         return withStagingDocumentCacheStatus(request, cachedDocument, "HIT");
       }
