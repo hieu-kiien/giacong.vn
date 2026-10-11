@@ -74,6 +74,8 @@ export interface CustomerSaleHistory {
   totalAmount: number;
 }
 
+const ACCOUNT_HISTORY_LIMIT = 50;
+
 export async function getCustomerAccountHistory(customerId: string): Promise<{
   requests: CustomerRequestHistory[];
   sales: CustomerSaleHistory[];
@@ -87,13 +89,15 @@ export async function getCustomerAccountHistory(customerId: string): Promise<{
       `SELECT id, public_reference, status, created_at
        FROM leads
        WHERE customer_id = ? AND status <> 'spam'
-       ORDER BY created_at DESC`,
+       ORDER BY created_at DESC
+       LIMIT ${ACCOUNT_HISTORY_LIMIT}`,
     ).bind(customerId).all<RequestRow>(),
     db.prepare(
       `SELECT id, sale_code, confirmed_at, currency, total_amount
        FROM zalo_sales
        WHERE customer_id = ?
-       ORDER BY confirmed_at DESC`,
+       ORDER BY confirmed_at DESC
+       LIMIT ${ACCOUNT_HISTORY_LIMIT}`,
     ).bind(customerId).all<SaleRow>(),
   ]);
 
@@ -104,7 +108,12 @@ export async function getCustomerAccountHistory(customerId: string): Promise<{
       `SELECT item.lead_id, item.product_name, item.variant_name, item.quantity, item.unit
        FROM lead_items AS item
        INNER JOIN leads AS lead ON lead.id = item.lead_id
-       WHERE lead.customer_id = ? AND lead.status <> 'spam'
+       WHERE lead.id IN (
+         SELECT id FROM leads
+         WHERE customer_id = ? AND status <> 'spam'
+         ORDER BY created_at DESC
+         LIMIT ${ACCOUNT_HISTORY_LIMIT}
+       )
        ORDER BY lead.created_at DESC, item.rowid`,
     ).bind(customerId).all<RequestItemRow>(),
     db.prepare(
@@ -112,7 +121,12 @@ export async function getCustomerAccountHistory(customerId: string): Promise<{
               item.unit, item.unit_price, item.line_total
        FROM zalo_sale_items AS item
        INNER JOIN zalo_sales AS sale ON sale.id = item.sale_id
-       WHERE sale.customer_id = ?
+       WHERE sale.id IN (
+         SELECT id FROM zalo_sales
+         WHERE customer_id = ?
+         ORDER BY confirmed_at DESC
+         LIMIT ${ACCOUNT_HISTORY_LIMIT}
+       )
        ORDER BY sale.confirmed_at DESC, item.created_at, item.id`,
     ).bind(customerId).all<SaleItemRow>(),
   ]);
