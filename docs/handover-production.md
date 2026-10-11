@@ -21,10 +21,10 @@
 4. Hoàn tác: `npx wrangler rollback <phiên bản> --name giacong-vn --yes`.
 
 ## Secret production
-- Đã có: `BETTER_AUTH_SECRET`.
-- Chưa có: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `RESEND_API_KEY`, `CUSTOMER_EMAIL_FROM`.
-  Đặt bằng `npx wrangler secret put <TÊN> --name giacong-vn`. Cần thêm redirect URI production trong Google Cloud Console.
-  Khi thiếu, đăng nhập Google và email khách hàng không hoạt động.
+- Đã đặt đủ: `BETTER_AUTH_SECRET`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `RESEND_API_KEY`, `CUSTOMER_EMAIL_FROM` (giá trị Google/Resend dùng chung với staging).
+- Luồng Google: production trả địa chỉ chuyển hướng `https://kienhieu.id.vn/api/auth/callback/google` và Google chấp nhận yêu cầu (302 sang trang đăng nhập). Chưa thử đăng nhập thật bằng tài khoản Google.
+- Nếu Google báo `redirect_uri_mismatch`: thêm URI trên vào OAuth client trong Google Cloud Console.
+- Email gửi qua Resend: cần domain gửi đã xác minh trong Resend; chưa thử gửi email thật từ production.
 
 ## Việc còn mở
 - Next 16.4.0 làm mọi trang trả 500 trên OpenNext hiện tại (`loadManifest preview-props.json`), nên đang giữ 16.3.4;
