@@ -37,7 +37,8 @@
 ## Sao lưu
 Thư mục `backups/` (không commit) chứa bản xuất D1 production trước khi di chuyển và trước khi chép danh mục.
 
-## Giới hạn CPU của Cloudflare (quan trọng)
-- Tài khoản Cloudflare đang ở gói **Free**: Cloudflare từ chối đặt `limits.cpu_ms` (lỗi 100328).
-- Khi Worker khởi động nguội (bundle Next khoảng 32 MB), yêu cầu đầu tiên tốn 0,7-1,2 giây CPU; thỉnh thoảng vượt trần và trả HTTP 503 (`exceededCpu`, đã thấy 2010 ms trong log). Các yêu cầu sau chỉ tốn 20-60 ms CPU.
-- Cách xử lý dứt điểm: nâng lên **Workers Paid** (khoảng 5 USD/tháng) trong Cloudflare Dashboard, sau đó thêm `limits: { cpu_ms: 30000 }` vào `wrangler.jsonc` và deploy.
+## Giới hạn CPU của Cloudflare (gói Free)
+- Tài khoản đang ở gói **Free**: Cloudflare từ chối `limits.cpu_ms` (lỗi 100328). Worker khởi động nguội tốn 0,7-1,2 giây CPU và thỉnh thoảng vượt trần (`exceededCpu`, HTTP 503).
+- Đã giảm thiểu không tốn phí: `custom-worker.ts` phục vụ trang công khai từ cache kể cả khi bản cũ (tối đa 7 ngày, coi là mới trong 10 phút) và làm mới ngầm; làm mới thất bại thì giữ bản cũ. Đo với `Accept: text/html`: 60/60 lần 200, trung vị 70-92 ms cho `/`, `/san-pham/`, `/lien-he/`.
+- Trang động (đăng nhập, tài khoản, admin) không lưu cache, khoảng 0,6 giây; yêu cầu đầu tiên sau lúc rảnh vẫn có thể gặp khởi động nguội. Nâng lên Workers Paid (khoảng 5 USD/tháng) là cách dứt điểm nếu khách muốn, rồi thêm `limits: { cpu_ms: 30000 }` vào `wrangler.jsonc`.
+- Sau khi sửa dữ liệu trực tiếp trong D1, đổi `PUBLIC_DOCUMENT_CACHE_VERSION` rồi deploy để xóa cache toàn cục.
