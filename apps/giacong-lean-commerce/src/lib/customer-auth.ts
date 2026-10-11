@@ -2,9 +2,10 @@ import "server-only";
 
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { betterAuth } from "better-auth";
-import { username } from "better-auth/plugins";
+import { username } from "better-auth/plugins/username";
 import type { CustomerContactDeliveryDatabase } from "./customer-contact-delivery.ts";
 import { enqueueCustomerContact } from "./customer-contact-queue.ts";
+import { createReadyInstanceCache } from "./ready-instance-cache.ts";
 
 import {
   buildPasswordResetEmail,
@@ -15,6 +16,7 @@ import {
 
 type BetterAuthOptions = Parameters<typeof betterAuth>[0];
 type BetterAuthDatabase = NonNullable<BetterAuthOptions["database"]>;
+const reuseCustomerAuth = createReadyInstanceCache<ReturnType<typeof createCustomerAuth>>();
 
 interface CustomerAuthEnvironment {
   BETTER_AUTH_SECRET?: string;
@@ -29,6 +31,7 @@ interface CustomerAuthEnvironment {
 
 const CUSTOMER_AUTH_ORIGINS = [
   "https://kienhieu.id.vn",
+  "https://admin.kienhieu.id.vn",
   "https://staging.kienhieu.id.vn",
   "https://admin-staging.kienhieu.id.vn",
   "http://localhost:3000",
@@ -37,6 +40,7 @@ const CUSTOMER_AUTH_ORIGINS = [
 const CUSTOMER_AUTH_ORIGIN_SET = new Set<string>(CUSTOMER_AUTH_ORIGINS);
 const CUSTOMER_AUTH_ORIGIN_BY_HOST = new Map<string, string>([
   ["kienhieu.id.vn", "https://kienhieu.id.vn"],
+  ["admin.kienhieu.id.vn", "https://admin.kienhieu.id.vn"],
   ["staging.kienhieu.id.vn", "https://staging.kienhieu.id.vn"],
   ["admin-staging.kienhieu.id.vn", "https://admin-staging.kienhieu.id.vn"],
   ["localhost:3000", "http://localhost:3000"],
@@ -183,15 +187,28 @@ function createCustomerAuth(origin: string) {
   });
 }
 
+function getReusableCustomerAuth(origin: string) {
+  const environment = getCustomerAuthEnvironment();
+  return reuseCustomerAuth(environment.GIACONG_VN_CATALOG as object, origin,
+    [environment.BETTER_AUTH_SECRET, environment.GOOGLE_CLIENT_ID, environment.GOOGLE_CLIENT_SECRET,
+      environment.RESEND_API_KEY, environment.CUSTOMER_EMAIL_FROM],
+    () => createCustomerAuth(origin),
+    async (auth) => {
+      const context = await auth.$context;
+      await context.checkSchema?.();
+    },
+  );
+}
+
 export function getCustomerAuthForRequest(request: Request) {
   const requestOrigin = resolveCustomerAuthOrigin(new URL(request.url).origin);
   const headerOrigin = resolveCustomerAuthOriginFromHeaders(request.headers);
   if (headerOrigin !== requestOrigin) throw new CustomerAuthOriginError();
-  return createCustomerAuth(requestOrigin);
+  return getReusableCustomerAuth(requestOrigin);
 }
 
 export function getCustomerAuthForHeaders(headers: Headers) {
-  return createCustomerAuth(resolveCustomerAuthOriginFromHeaders(headers));
+  return getReusableCustomerAuth(resolveCustomerAuthOriginFromHeaders(headers));
 }
 
 export async function getCustomerAuthAccounts(headers: Headers) {

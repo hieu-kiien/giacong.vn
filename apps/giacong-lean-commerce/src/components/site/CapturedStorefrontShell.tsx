@@ -100,7 +100,7 @@ export async function CapturedStorefrontShell({
     <>
       <style dangerouslySetInnerHTML={{ __html: `${layerCapturedStyles(newsPage.pageStyles)}\n${siteBrandStyles(settings)}` }} />
       <div className={`${bodyClasses}${accountShell ? ` ${styles.shell}` : ""}`}>
-        <a className="skip-link screen-reader-text" href="#main">Skip to content</a>
+        <a className="skip-link screen-reader-text" href="#main">Chuyển đến nội dung chính</a>
         <div id="wrapper">
           <div dangerouslySetInnerHTML={{ __html: headerWithAccountLinks }} />
           {children}

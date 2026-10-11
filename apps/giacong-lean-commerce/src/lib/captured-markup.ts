@@ -222,9 +222,27 @@ export function normalizeCapturedMarkup(markup: string, activeCapturedMenuId?: s
     .replace(/Sản Phẩm(?=<i\b[^>]*\bclass=(["'])icon-angle-down\1[^>]*>\s*<\/i>)/g, "Mua hàng")
     .replace(/Dịch vụ(?=<i\b[^>]*\bclass=(["'])icon-angle-down\1[^>]*>\s*<\/i>)/g, "Thuê gia công")
     .replace(/Dịch Vụ Gia Công(?=<\/a>)/g, "Thuê gia công")
+    .replace(/0947[\s.-]*142[\s.-]*999/g, "0868408115")
+    // English strings from the original theme: visible text and assistive-technology labels.
+    .replace(/(<a\b[^>]*\bclass=(["'])[^"']*\bskip-link\b[^"']*\2[^>]*>)\s*Skip to content\s*(<\/a>)/gi, "$1Chuyển đến nội dung chính$3")
+    .replace(/\b(aria-label|title)=(["'])Send us an email\2/gi, '$1=$2Gửi email cho chúng tôi$2')
+    .replace(/\b(aria-label|title)=(["'])Go to top\2/gi, '$1=$2Lên đầu trang$2')
+    .replace(/\b(aria-label|title)=(["'])Follow on (Facebook|Instagram|Twitter|YouTube|Pinterest|LinkedIn|TikTok)\2/gi, '$1=$2Theo dõi trên $3$2')
+    .replace(/\baria-label=(["'])Submit\1/gi, 'aria-label="Tìm kiếm"')
+    .replace(/(\/>)\s*Home(<\/a>)/g, "$1Trang chủ$2")
     .replace(/Kiếm tra/g, "Kiểm tra")
     .replace(/doanh nghiệp\.Bao gồm/g, "doanh nghiệp. Bao gồm")
     .replace(/doanh nghiệp,tiến hành/g, "doanh nghiệp, tiến hành")
+    .replace(
+      /(<li\b(?=[^>]*\bclass=(['"])[^'"]*\bheader-search-dropdown\b[^'"]*\2)[^>]*>\s*)<i\b(?=[^>]*\bclass=(['"])[^'"]*\bicon-search\b[^'"]*\3)[^>]*>\s*<\/i>/i,
+      '$1<a aria-label="Tìm sản phẩm" class="header-search-trigger" href="/san-pham/#catalog-query"><i class="icon-search"></i></a>',
+    )
+    .replace(
+      /<form\b[^>]*\bclass=(['"])[^'"]*\bsearchform\b[^'"]*\1[^>]*>[\s\S]*?<\/form>/gi,
+      (form) => form
+        .replace(/\baction=(['"])\/\1/i, 'action="/san-pham/"')
+        .replace(/\bname=(['"])s\1/i, 'name="q"'),
+    )
     .replace(
     /<a\b([^>]*?)href=(["'])#\2([^>]*)>([\s\S]*?)<\/a>/gi,
     (link, beforeHref: string, quote: string, afterHref: string, content: string) => {
@@ -234,11 +252,12 @@ export function normalizeCapturedMarkup(markup: string, activeCapturedMenuId?: s
     },
     );
 
+  const normalizedSearch = normalizeCapturedSearchTrigger(normalized);
   const safeNormalized = normalizeCapturedFooterDeadItems(
     normalizeCapturedUnverifiedProofItems(
       normalizeCapturedPlaceholderAnchors(
         normalizeCapturedPlaceholderSocialLinks(
-          normalizeCapturedTemplatePurchaseCta(normalized),
+          normalizeCapturedTemplatePurchaseCta(normalizedSearch),
         ),
       ),
     ),
@@ -337,6 +356,24 @@ function normalizeCapturedAssetSources(markup: string): string {
   );
 }
 
+function normalizeCapturedSearchTrigger(markup: string): string {
+  const linkedSearch = markup.replace(
+    /(<li\b(?=[^>]*\bclass=(['"])[^'"]*\bheader-search-dropdown\b[^'"]*\2)[^>]*>[\s\S]*?)<a\b([^>]*\bhref=(['"])#\4[^>]*)>([\s\S]*?<i\b(?=[^>]*\bclass=(['"])[^'"]*\bicon-search\b[^'"]*\6)[^>]*>[\s\S]*?<\/i>[\s\S]*?)<\/a>/i,
+    (_match, beforeAnchor: string, _liQuote: string, attributes: string, _hrefQuote: string, content: string) => {
+      let nextAttributes = attributes
+        .replace(/\bhref\s*=\s*(['"])#\1/i, 'href="/san-pham/#catalog-query"')
+        .replace(/\baria-label\s*=\s*(['"])[^'"]*\1/i, 'aria-label="Tìm sản phẩm"');
+      if (!/\baria-label\s*=/.test(attributes)) nextAttributes += ' aria-label="Tìm sản phẩm"';
+      return `${beforeAnchor}<a${nextAttributes}>${content}</a>`;
+    },
+  );
+
+  return linkedSearch.replace(
+    /(<li\b(?=[^>]*\bclass=(['"])[^'"]*\bheader-search-dropdown\b[^'"]*\2)[^>]*>\s*)<i\b(?=[^>]*\bclass=(['"])[^'"]*\bicon-search\b[^'"]*\3)[^>]*>\s*<\/i>/i,
+    '$1<a aria-label="Tìm sản phẩm" class="header-search-trigger" href="/san-pham/#catalog-query"><i class="icon-search"></i></a>',
+  );
+}
+
 function normalizeCapturedHeaderIcons(markup: string): string {
   return markup.replace(
     /(<li\b[^>]*\bid=["'](?:menu-item-1541|menu-item-5477)["'][^>]*>[\s\S]*?<img\b[^>]*\bsrc=["'])(?:\/images\/home-captured\/icon-about\.svg|\/images\/captured-legacy\/nav-about\.svg)(?=["'])/i,
@@ -346,7 +383,7 @@ function normalizeCapturedHeaderIcons(markup: string): string {
 
 function normalizeCapturedPlaceholderSocialLinks(markup: string): string {
   return markup.replace(
-    /<a\b(?=[^>]*\bhref\s*=\s*["'](?:https?:\/\/url\/?|#\/?)["'])(?=[^>]*(?:aria-label|title)\s*=\s*["']Follow on (?:Facebook|Instagram|Twitter|TikTok|Pinterest|LinkedIn)["'])[^>]*>[\s\S]*?<\/a>/gi,
+    /<a\b(?=[^>]*\bhref\s*=\s*["'](?:https?:\/\/url\/?|#\/?)["'])(?=[^>]*(?:aria-label|title)\s*=\s*["'](?:Follow on|Theo dõi trên) (?:Facebook|Instagram|Twitter|TikTok|Pinterest|LinkedIn)["'])[^>]*>[\s\S]*?<\/a>/gi,
     "",
   );
 }
