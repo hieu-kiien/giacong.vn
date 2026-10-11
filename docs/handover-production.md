@@ -36,3 +36,8 @@
 
 ## Sao lưu
 Thư mục `backups/` (không commit) chứa bản xuất D1 production trước khi di chuyển và trước khi chép danh mục.
+
+## Giới hạn CPU của Cloudflare (quan trọng)
+- Tài khoản Cloudflare đang ở gói **Free**: Cloudflare từ chối đặt `limits.cpu_ms` (lỗi 100328).
+- Khi Worker khởi động nguội (bundle Next khoảng 32 MB), yêu cầu đầu tiên tốn 0,7-1,2 giây CPU; thỉnh thoảng vượt trần và trả HTTP 503 (`exceededCpu`, đã thấy 2010 ms trong log). Các yêu cầu sau chỉ tốn 20-60 ms CPU.
+- Cách xử lý dứt điểm: nâng lên **Workers Paid** (khoảng 5 USD/tháng) trong Cloudflare Dashboard, sau đó thêm `limits: { cpu_ms: 30000 }` vào `wrangler.jsonc` và deploy.
