@@ -42,3 +42,9 @@ Thư mục `backups/` (không commit) chứa bản xuất D1 production trước
 - Đã giảm thiểu không tốn phí: `custom-worker.ts` phục vụ trang công khai từ cache kể cả khi bản cũ (tối đa 7 ngày, coi là mới trong 10 phút) và làm mới ngầm; làm mới thất bại thì giữ bản cũ. Đo với `Accept: text/html`: 60/60 lần 200, trung vị 70-92 ms cho `/`, `/san-pham/`, `/lien-he/`.
 - Trang động (đăng nhập, tài khoản, admin) không lưu cache, khoảng 0,6 giây; yêu cầu đầu tiên sau lúc rảnh vẫn có thể gặp khởi động nguội. Nâng lên Workers Paid (khoảng 5 USD/tháng) là cách dứt điểm nếu khách muốn, rồi thêm `limits: { cpu_ms: 30000 }` vào `wrangler.jsonc`.
 - Sau khi sửa dữ liệu trực tiếp trong D1, đổi `PUBLIC_DOCUMENT_CACHE_VERSION` rồi deploy để xóa cache toàn cục.
+
+## Cảnh báo bảo mật của Next 16.3.4 (đã đánh giá mức ảnh hưởng)
+- `npm audit --omit=dev` báo mức nghiêm trọng cho Next 16.0.0-16.3.7; bản sửa là 16.4.0 nhưng bản này làm mọi trang trả 500 trên OpenNext 1.20.10 (`loadManifest preview-props.json`).
+- Mã nguồn không dùng `next/og`/`ImageResponse` (lỗi thực thi mã từ xa), `use cache`, `draftMode` hay `cacheComponents` (lỗi rò rỉ Draft Mode); chỉ dùng `unstable_cache`. Lỗi ở máy chủ phát triển (MCP) không áp dụng cho production.
+- Cảnh báo cache poisoning ISR/SSG nêu cho Next tự lưu trữ; ứng dụng chạy trên Cloudflare Workers với lớp cache riêng (khóa theo URL đã chuẩn hóa, bỏ qua yêu cầu có Cookie/Authorization), nên chưa chứng minh bị ảnh hưởng nhưng chưa thể loại trừ hoàn toàn.
+- Việc cần làm: khi OpenNext phát hành bản chạy được với Next 16.4+, nâng cấp, chạy canary, rồi bật lại bước `npm audit --omit=dev` chặn trong `.github/workflows/ci-cloudflare.yml` (đang `continue-on-error`).
