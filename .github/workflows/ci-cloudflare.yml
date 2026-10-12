@@ -46,7 +46,11 @@ jobs:
         run: npm audit --audit-level=high || echo "::warning::Dev-tooling advisories remain; see npm audit output."
 
       - name: Run application checks
-        run: npm run check
+        # The mobile-search regression exercises Chromium on a fresh runner.
+        # Browser binaries are not included in npm's dependency cache.
+        run: |
+          npx --no-install playwright install --with-deps chromium
+          npm run check
 
   staging-gate:
     name: Cloudflare staging gate
