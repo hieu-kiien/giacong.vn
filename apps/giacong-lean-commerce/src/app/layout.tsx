@@ -12,7 +12,9 @@ export async function generateMetadata(): Promise<Metadata> {
   const settings = await getPublishedSiteSettings();
   const title = settings.site_title || defaultMetadata.title;
   const description = settings.site_description || defaultMetadata.description;
-  const shareImage = settings.hero_image_url || settings.favicon_url || undefined;
+  const shareImage = [settings.hero_image_url, settings.logo_url, settings.favicon_url].find(
+    (url) => Boolean(url) && !/\.svg(\?|$)/i.test(url),
+  ) || undefined;
   return {
     metadataBase: new URL(PUBLIC_SITE_ORIGIN),
     title,
