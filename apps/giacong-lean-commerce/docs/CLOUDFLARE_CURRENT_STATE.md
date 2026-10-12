@@ -1,5 +1,7 @@
 # Cloudflare current state — 2026-09-28
 
+> **Checkpoint mới nhất:** [production 2026-10-12](PRODUCTION_COMPLETION_2026-10-12.md). Các snapshot bên dưới là bằng chứng lịch sử; không dùng để suy ra version, OAuth, migrations hoặc Apps Script đang chạy.
+
 > Các mục dưới đây là snapshot theo ngày và môi trường, không phải quyết định phạm vi sản phẩm hiện hành. Những phát biểu cũ về tài khoản khách, request inbox, Google Sheet hoặc vai trò Admin đã được [phạm vi 2026-09-27](PROJECT_SCOPE_2026-09-27.md) và [AGENTS.md](../AGENTS.md) thay thế. Đọc mốc ngày và bằng chứng triển khai trước khi suy ra trạng thái runtime hiện tại.
 
 ## Khách hàng Google, giao dịch Zalo và Sheets — cập nhật staging 2026-09-28
