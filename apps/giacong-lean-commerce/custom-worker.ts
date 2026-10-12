@@ -8,6 +8,7 @@ import type { ZaloSaleDeliveryMessage as ZaloSaleQueueMessage } from "./src/lib/
 import { deliverCustomerContact, type CustomerContactDeliveryEnvironment, type CustomerContactDeliveryMessage } from "./src/lib/customer-contact-delivery";
 
 interface WorkerEnv extends LeadDeliveryEnvironment, CustomerContactDeliveryEnvironment {
+  ADMIN_HOSTNAME?: string;
   GIACONG_VN_CATALOG?: CatalogDatabase;
 }
 
@@ -396,18 +397,18 @@ const worker = {
       : finalResponse;
   },
 
-  /** Keep-warm cron: loads the Next runtime and touches D1 so real visitors rarely hit a cold start. */
+  /** Warm the runtime and prime eligible public HTML using the existing cron budget. */
   async scheduled(_event: unknown, env: WorkerEnv, ctx: WorkerExecutionContext): Promise<void> {
     const warmPaths = ["/tai-khoan/dang-nhap/", "/lien-he/", "/san-pham/"];
+    const hostname = publicDocumentCacheHostname(env.ADMIN_HOSTNAME ?? "") ?? "kienhieu.id.vn";
     await Promise.all(
       warmPaths.map(async (path) => {
         try {
-          const response = await generatedWorker.fetch(
-            new Request(`https://kienhieu.id.vn${path}`, { headers: { Accept: "text/html" } }),
-            env,
-            ctx,
-          );
-          await response.arrayBuffer();
+          const request = new Request(`https://${hostname}${path}`, { headers: { Accept: "text/html" } });
+          const response = await generatedWorker.fetch(request, env, ctx);
+          const finalResponse = withPublicDocumentCache(request, withIndexingHeaders(request, response));
+          writePublicDocumentCache(request, finalResponse, ctx);
+          await finalResponse.arrayBuffer();
         } catch (error) {
           console.warn("Keep-warm request failed.", error instanceof Error ? error.message : "unknown_error");
         }

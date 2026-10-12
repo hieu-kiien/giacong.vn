@@ -14,7 +14,13 @@
 
 ## Điểm còn phải xử lý
 
-- Cloudflare Dashboard xác nhận tài khoản đang ở **Workers Free**, CPU 10 ms/request. Log production đo được các invocation 500–1.000 ms; cache/cron không bảo đảm cold start dưới giới hạn này. Lỗi 1102 chưa được coi là khắc phục. Workers Paid đang hiển thị $5/tháng cộng usage; chủ tài khoản phải tự thực hiện bước đăng ký/thanh toán.
+- Ràng buộc khách xác nhận: **chỉ dùng gói miễn phí, không đăng ký dịch vụ trả phí**. Tài khoản vẫn ở Workers Free. Log đã có invocation tải lạnh vượt CPU 10 ms; chưa coi lỗi 1102 được khắc phục. Khuyến nghị nâng gói trước đây đã rút lại; hướng xử lý là đo và tối ưu tài nguyên hiện có.
+- Dashboard đọc lại: Workers Free, chi phí sử dụng $0.00, hôm nay 1.535/100.000 request tại thời điểm kiểm tra. Chưa hết quota request; CPU render là vấn đề riêng.
+- Cron trước đây render ba trang nhưng chưa ghi HTML cache. Bản sửa dùng đúng hostname môi trường và ghi cache qua bộ lọc hiện có; test xác nhận không cache trang tài khoản hoặc response `Set-Cookie`, và lượt HIT không gọi Next render. Giữ nguyên ba đường dẫn, lịch `*/2 * * * *`, bindings và dịch vụ; không tăng tài nguyên hoặc đăng ký gói trả phí.
+- Full gate đạt 947 test, lint/typecheck/build exit 0; review độc lập không có finding chặn. GitNexus kiểm tra thay đổi trả low; caller của `scheduled` vẫn không được graph giải quyết, đã xác nhận qua cron cấu hình và test runtime.
+- Đã triển khai wrapper mới: staging `2681af38-978b-484b-9a5f-2656495f012a`, production `eb718887-cd55-42a5-a43d-f93e618e4fe1`. Tái sử dụng artifact OpenNext build `Q3LTqwR6TwvUT3ke0uRYc` đã nghiệm thu: source ứng dụng của commit baseline và worktree tạo artifact không có diff; phần thay đổi là custom Worker wrapper. Không chạy migration hoặc ghi dữ liệu kinh doanh mới.
+- Runtime staging: 15 lượt trên home/liên hệ/catalog/dịch vụ/login đều 200; trang công khai HIT, login và request có cookie không dùng shared cache; anonymous admin API 401. Production: 10 lượt cùng nhóm trang đều 200; anonymous admin API qua public host 401, hostname admin chuyển 302 tới Cloudflare Access (không coi trang login Access 200 sau redirect là API thành công).
+- CPU mẫu với `Accept: text/html`: trước sửa staging HIT nóng 1–3 ms; sau sửa staging HIT nóng 1–2 ms, production nóng khoảng 1 ms. Production lần đầu còn 820 ms, login 22–38 ms. Đây là mẫu nhỏ, chưa phải p95, chưa chứng minh mức giảm cold start hoặc bảo đảm mọi trung tâm dữ liệu đều HIT. Cache API cục bộ theo trung tâm dữ liệu; không coi cron priming là tối ưu hoàn tất.
 - Giá/MOQ và nội dung kinh doanh chưa được khách xác nhận không được tự suy diễn để đánh dấu nghiệm thu.
 
 ## Bằng chứng và khôi phục
