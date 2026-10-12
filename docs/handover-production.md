@@ -55,3 +55,9 @@ Thư mục `backups/` (không commit) chứa bản xuất D1 production trước
 - Thẻ chia sẻ Facebook/Zalo (`og:*`, `twitter:card`) lấy từ cài đặt: ảnh bìa, rồi logo, rồi favicon (bỏ qua SVG). Nên đặt ảnh bìa raster 1200x630 trong admin.
 - Cron giữ ấm `*/2 * * * *` (`scheduled` trong `custom-worker.ts`) giúp giảm 503 do khởi động nguội trên gói Free.
 - Menu chính lấy từ bảng `site_navigation_items` (không phải giá trị mặc định trong mã).
+
+## Giám sát và xác minh (12/10/2026)
+- UptimeRobot (gói Free, đăng nhập Google qtu1053@gmail.com): monitor HTTP `https://kienhieu.id.vn/`, trạng thái Up, cảnh báo qua email tài khoản.
+- Đăng ký bằng mật khẩu đã kiểm thử thật: nhận email xác nhận, bấm liên kết, `emailVerified=1`, đăng nhập mật khẩu thành công (tài khoản thử đã xóa).
+- Email xác nhận hiện gửi từ `no-reply@auth.staging.kienhieu.id.vn`; nên đổi `CUSTOMER_EMAIL_FROM` sang tên miền chính khi xác minh xong domain trên Resend.
+- Trang chủ dùng `force-dynamic` và `open-next.config.ts` dùng `memoryQueue` để không phục vụ nội dung prerender cũ.
