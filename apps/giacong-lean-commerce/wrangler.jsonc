@@ -24,6 +24,7 @@
     "ADMIN_HOSTNAME": "admin.kienhieu.id.vn",
     "ADMIN_HOSTNAMES": "admin.kienhieu.id.vn,kienhieu.id.vn",
     "ADMIN_ACCOUNT_AUTH": "true",
+    "LEAD_MANUAL_RETRY_ENABLED": "true",
     "ADMIN_PUBLIC": "false",
     "PRODUCTION_ADMIN_HOSTNAME": "admin.kienhieu.id.vn",
     "TEAM_DOMAIN": "https://jolly-brook-7bc8.cloudflareaccess.com",
