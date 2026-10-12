@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { notFound, permanentRedirect } from "next/navigation";
+import { headers } from "next/headers";
 
 import { ProductDetailPage } from "@/components/catalog/ProductDetailPage";
 import { CapturedStorefrontTabFrame } from "@/components/site/CapturedStorefrontTabFrame";
@@ -7,6 +8,7 @@ import { legacyProductRedirects, retiredLegacyProductSlugs } from "@/lib/catalog
 import { loadCatalogProductDetail } from "@/lib/catalog-detail-source";
 import { getCatalogProductRedirect } from "@/lib/cloudflare-catalog";
 import { canonicalMetadata } from "@/lib/seo";
+import { isStagingPreviewHost } from "@/lib/storefront-preview";
 import { getPublishedSiteSettings } from "@/lib/site-settings";
 
 export const dynamic = "force-dynamic";
@@ -35,7 +37,7 @@ export async function generateMetadata({ params }: CatalogDetailPageProps): Prom
 }
 
 export default async function CatalogDetailPage({ params, searchParams }: CatalogDetailPageProps) {
-  const { slug } = await params;
+  const [{ slug }, requestHeaders] = await Promise.all([params, headers()]);
   redirectLegacyProduct(slug);
   const requestedQuery = await searchParams;
   const source = await loadCatalogProductDetail(slug);
@@ -67,6 +69,7 @@ export default async function CatalogDetailPage({ params, searchParams }: Catalo
       <ProductDetailPage
         initialVariantSku={selectedVariant?.sku ?? null}
         editingCartVariantSku={editingCartVariantSku}
+        isStagingPreview={isStagingPreviewHost(requestHeaders.get("host"))}
         source={source}
         variantQueryWarning={Boolean(requestedVariant && !selectedVariant)}
       />

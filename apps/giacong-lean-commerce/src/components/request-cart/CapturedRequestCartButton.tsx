@@ -34,6 +34,7 @@ export function CapturedRequestCartButton() {
   return (
     <div className={`phonering-alo-cart ${styles.container}`}>
       <Link
+        prefetch={false}
         aria-label={`Giỏ yêu cầu, ${lineCount} sản phẩm`}
         className={styles.link}
         href="/gui-yeu-cau/"

@@ -6,6 +6,14 @@ export interface AdminVisualSession {
   role: unknown;
 }
 
+/** Exact deployment hosts, included so static storefront output can gate admin visuals. */
+export const KNOWN_ADMIN_VISUAL_HOSTNAMES = [
+  "admin-staging.kienhieu.id.vn",
+  "staging.kienhieu.id.vn",
+  "admin.kienhieu.id.vn",
+  "kienhieu.id.vn",
+] as const;
+
 /**
  * Keeps the storefront host gate deliberately narrower than a route matcher:
  * only the exact, already-normalized admin hostnames can opt into admin UI.

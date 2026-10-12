@@ -19,6 +19,7 @@ const repoRoot = path.join(import.meta.dirname, "..");
 const detailView = await import("../src/lib/product-detail-view" + ".ts");
 const demoPolicy = await import("../src/lib/demo-catalog-policy" + ".ts");
 const demoCatalog = await import("../src/data/demo-catalog" + ".ts");
+const imageOrigin = await import("../src/lib/catalog-image-origin" + ".ts");
 
 /** Forbidden V1 surfaces, as `scripts/commerce-foundation.test.mts` defines them. */
 const FORBIDDEN_SURFACE_PATTERN =
@@ -182,6 +183,15 @@ test("the real gallery uses only managed product images and removes duplicate UR
   assert.ok(view.gallery.every((image: { alt: string }) => image.alt === product.name));
 });
 
+test("generated staging product images are labelled in the detail view", async () => {
+  const page = await readSource("src", "components", "catalog", "ProductDetailPage.tsx");
+  assert.equal(imageOrigin.isAiIllustrationProductImage("B2B-DEMO-BGL-05", "/media/products/1/image.webp"), true);
+  assert.equal(imageOrigin.isAiIllustrationProductImage("REAL-BGL-05", "/media/products/1/image.webp"), false);
+  assert.equal(imageOrigin.isAiIllustrationProductImage("B2B-DEMO-BGL-05", null), false);
+  assert.match(page, /isAiIllustrationProductImage\(source\.product\.sku,\s*source\.product\.imageUrl\)/);
+  assert.match(page, /Ảnh minh họa do AI tạo/);
+});
+
 test("demo gallery assets appear only when the detail source identifies demo data", () => {
   const view = buildView(multiVariantProduct(), [], true);
 
@@ -215,7 +225,7 @@ test("legacy captured article has one canonical URL and a search-visible title",
   assert.equal(manifest["/gia-cong-nuoc-chanh-mat-ong/"], "7047-2.json");
   assert.match(captured.title, /^Gia công nước chanh mật ong$/);
   assert.match(captured.markup, /<h1[^>]*class="entry-title"[^>]*>Gia công nước chanh mật ong<\/h1>/);
-  assert.match(nextConfig, /source:\s*"\/7047-2"[\s\S]*?destination:\s*"\/gia-cong-nuoc-chanh-mat-ong"[\s\S]*?permanent:\s*true/);
+  assert.match(nextConfig, /source:\s*"\/7047-2"[\s\S]*?destination:\s*"\/gia-cong-nuoc-chanh-mat-ong\/"[\s\S]*?permanent:\s*true/);
 });
 
 // ---------------------------------------------------------------------------
@@ -595,6 +605,13 @@ test("uploaded product photos stay uncropped in listing, detail, related cards, 
   assert.match(detailCss, /\.thumb img\s*\{[^}]*object-fit:\s*contain/);
   assert.match(detailCss, /\.relatedImage img\s*\{[^}]*object-fit:\s*contain/);
   assert.match(adminGallery, /objectFit:\s*"contain"/);
+});
+
+test("the product detail hero image is explicitly prioritized while gallery thumbnails stay lazy", async () => {
+  const gallery = await readSource("src", "components", "catalog", "ProductGallery.tsx");
+
+  assert.match(gallery, /<img alt=\{active\.alt\} fetchPriority="high" src=\{active\.url\}/);
+  assert.match(gallery, /<img alt="" loading="lazy" src=\{image\.url\}/);
 });
 
 test("previous product URLs permanently redirect to the current public slug before cached HTML", async () => {

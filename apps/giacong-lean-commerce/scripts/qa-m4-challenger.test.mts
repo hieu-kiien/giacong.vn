@@ -197,13 +197,13 @@ test("Frontend TestID Integrity: page.tsx retains all required metrics and short
   assert.match(pageSrc, /testId="metric-products"/, "Missing metric-products testId");
   assert.match(pageSrc, /testId="metric-draft-products"/, "Missing metric-draft-products testId");
   assert.match(pageSrc, /testId="metric-services"/, "Missing metric-services testId");
-  assert.match(pageSrc, /testId="metric-news"/, "Missing metric-news testId");
+  assert.match(pageSrc, /testId="metric-new-leads"/, "Missing metric-new-leads testId");
 
   // Shortcut links testids
   assert.match(pageSrc, /data-testid="link-quick-inbox"/, "Missing link-quick-inbox testid");
   assert.match(pageSrc, /data-testid="link-dashboard-products"/, "Missing link-dashboard-products testid");
   assert.match(pageSrc, /data-testid="link-dashboard-services"/, "Missing link-dashboard-services testid");
-  assert.match(pageSrc, /data-testid="link-dashboard-news"/, "Missing link-dashboard-news testid");
+  assert.match(pageSrc, /data-testid="link-dashboard-customers"/, "Missing customer shortcut testid");
 
   // DevOps diagnostic accordion
   assert.match(pageSrc, /data-testid="accordion-data-readiness"/, "Missing accordion-data-readiness testid");

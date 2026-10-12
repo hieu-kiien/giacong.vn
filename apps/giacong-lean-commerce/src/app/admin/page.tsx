@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowUpRight, ClipboardList, Database, Newspaper, Package, Settings2 } from "lucide-react";
+import { ArrowUpRight, ClipboardList, Database, UsersRound, Package, Settings2 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import {
@@ -47,7 +47,7 @@ export default function AdminDashboardPage() {
   const session = useAdminSession();
   const canViewServices = canManage(session.role, "services.read");
   const canViewProducts = canManage(session.role, "catalog.read");
-  const canViewNews = canManage(session.role, "news.read");
+  const canViewCustomers = canManage(session.role, "crm.read");
   const canViewLeads = canManage(session.role, "leads.read");
   const [data, setData] = useState<DashboardData | null>(null);
   const [error, setError] = useState<AdminClientError | null>(null);
@@ -79,7 +79,7 @@ export default function AdminDashboardPage() {
       <AdminPageHeading
         kicker="Vận hành"
         title="Tổng quan"
-        subtitle="Việc cần làm hôm nay: yêu cầu mua hàng mới, sản phẩm chưa hoàn thiện và nội dung cần đăng."
+        subtitle="Theo dõi yêu cầu mới và mở nhanh công việc cần làm."
       />
       {loading && !data ? (
         <>
@@ -128,13 +128,13 @@ export default function AdminDashboardPage() {
                 testId="metric-services"
               />
             ) : null}
-            {canViewNews ? (
+            {canViewLeads ? (
               <AdminMetric
-                href="/admin/tin-tuc"
-                label="Bài viết tin tức"
-                value={data.dataReadiness.newsPostsTable ? data.counts.news : "—"}
-                foot={data.dataReadiness.newsPostsTable ? "Bản nháp và bài đã xuất bản" : "Chưa tải được số liệu bài viết"}
-                testId="metric-news"
+                href="/admin/yeu-cau?status=new"
+                label="Yêu cầu mới"
+                value={data.dataReadiness.leadsTable && data.dataReadiness.newLeads ? data.counts.newLeads : "—"}
+                foot={data.dataReadiness.newLeads ? "Cần liên hệ tư vấn" : "Chưa tải được số liệu yêu cầu"}
+                testId="metric-new-leads"
               />
             ) : null}
           </div>
@@ -147,9 +147,9 @@ export default function AdminDashboardPage() {
               recentLeads={data.recentLeads}
               permissions={{
                 canViewLeads,
-                canViewProducts,
+                canViewProducts: false,
                 canViewServices,
-                canViewNews,
+                canViewNews: false,
               }}
             />
 
@@ -194,12 +194,12 @@ export default function AdminDashboardPage() {
                       <ArrowUpRight size={14} />
                     </Link>
                   ) : null}
-                  {canViewNews ? (
-                    <Link className="admin-brief-row" data-testid="link-dashboard-news" href="/admin/tin-tuc" prefetch={false}>
-                      <span className="admin-brief-icon"><Newspaper size={16} /></span>
+                  {canViewCustomers ? (
+                    <Link className="admin-brief-row" data-testid="link-dashboard-customers" href="/admin/khach-hang" prefetch={false}>
+                      <span className="admin-brief-icon"><UsersRound size={16} /></span>
                       <span className="admin-brief-copy">
-                        <strong>Biên tập tin tức</strong>
-                        <span>Soạn bài, kiểm tra và xuất bản</span>
+                        <strong>Khách hàng</strong>
+                        <span>Thông tin liên hệ và lịch sử giao dịch</span>
                       </span>
                       <ArrowUpRight size={14} />
                     </Link>

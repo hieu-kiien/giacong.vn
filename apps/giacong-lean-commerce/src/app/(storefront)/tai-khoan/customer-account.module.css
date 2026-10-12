@@ -1,4 +1,6 @@
 .main { min-height: 60vh; }
+.heading { margin: 0 auto; max-width: 1128px; padding: 24px 24px 0; }
+.heading h1 { color: #253b23; font-size: clamp(24px, 4vw, 32px); margin: 0 0 8px; }
 .container { margin: 0 auto; max-width: 1128px; padding: 48px 24px 72px; }
 .profile { background: #fff; border: 1px solid #e1e8dc; border-radius: 16px; display: flex; flex-direction: column; gap: 24px; padding: 24px; }
 .welcomeBanner { background: #f1f7eb; border: 1px solid #d8e8cc; border-radius: 14px; margin-bottom: 20px; padding: 20px 24px; }

@@ -7,7 +7,6 @@ const read = (path) => readFile(new URL(path, appRoot), "utf8");
 
 const galleryData = await read("src/data/demo-product-gallery.ts");
 const imageData = await read("src/data/demo-product-images.ts");
-const formatVndSource = await read("src/lib/format-vnd.ts");
 const globalStyles = await read("src/app/globals.css");
 const capturedMarkupSource = await read("src/lib/captured-markup.ts");
 const homeSource = await read("src/components/site/CapturedHomePage.tsx");
@@ -62,10 +61,7 @@ test("mobile catalog fallback imagery uses compressed WebP packshots", async () 
   sizes.forEach((size) => assert.ok(size < 250_000, `expected ${size} bytes to stay below 250 KB`));
 });
 
-test("currency formatting reuses one Intl formatter during catalog renders", () => {
-  assert.match(formatVndSource, /const VND_FORMATTER = new Intl\.NumberFormat\(/);
-  assert.doesNotMatch(formatVndSource, /function formatVnd\(value: number\)[\s\S]*new Intl\.NumberFormat\(/);
-});
+// Currency behavior and cold-start overhead are covered by format-vnd.test.mts.
 
 test("page reveal layers are released after a block settles", () => {
   assert.match(

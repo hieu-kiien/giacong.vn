@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 
 import { ServiceFamilyDetail } from "@/components/services/ServiceFamilyDetail";
 import { CapturedStorefrontTabFrame } from "@/components/site/CapturedStorefrontTabFrame";
 import { serviceFamilies } from "@/data/service-families";
 import { getManagedServiceFamily, getManagedServiceRedirect } from "@/lib/cloudflare-services";
+import { isStagingPreviewHost } from "@/lib/storefront-preview";
 import { canonicalMetadata } from "@/lib/seo";
 
 export const dynamic = "force-dynamic";
@@ -26,7 +28,8 @@ export async function generateMetadata({ params }: ServiceFamilyPageProps): Prom
 }
 
 export default async function ServiceFamilyPage({ params }: ServiceFamilyPageProps) {
-  const requestedSlug = (await params).family;
+  const [routeParams, requestHeaders] = await Promise.all([params, headers()]);
+  const requestedSlug = routeParams.family;
   const redirectSlug = await getManagedServiceRedirect(requestedSlug);
   if (redirectSlug) redirect(`/thue-gia-cong/${encodeURIComponent(redirectSlug)}/`);
 
@@ -35,7 +38,7 @@ export default async function ServiceFamilyPage({ params }: ServiceFamilyPagePro
 
   return (
     <CapturedStorefrontTabFrame activePath="/thue-gia-cong">
-      <ServiceFamilyDetail family={family} />
+      <ServiceFamilyDetail family={family} isStagingPreview={isStagingPreviewHost(requestHeaders.get("host"))} />
     </CapturedStorefrontTabFrame>
   );
 }

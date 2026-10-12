@@ -6,6 +6,7 @@ const { layerCapturedStyles, normalizeCapturedMarkup } = await import("../src/li
 const { transformPage } = await import("./capture-giacong.mjs");
 const { applyHomepageSiteSettingsToMarkup } = await import("../src/lib/site-markup" + ".ts");
 const { applyNavigationToMarkup } = await import("../src/lib/site-navigation" + ".ts");
+const { sanitizeCapturedHomepageCopy } = await import("../src/lib/captured-homepage-content" + ".ts");
 const interactions = await readFile(new URL("../src/components/GiacongInteractions.tsx", import.meta.url), "utf8");
 const capturedMotion = await readFile(new URL("../src/components/captured-motion.ts", import.meta.url), "utf8");
 const mobileNavigation = await readFile(new URL("../src/components/mobile-navigation.ts", import.meta.url), "utf8");
@@ -174,6 +175,17 @@ test("removes legacy proof widgets from the real contact capture", () => {
   const result = normalizeCapturedMarkup(contactCapture.markup);
 
   assert.doesNotMatch(result, /kk-star-ratings|kksr-legend|5\/5|bình chọn|dmca\.com|dmca-badge/i);
+});
+
+test("normalizes legacy hotline text and tel links to the confirmed business contact", () => {
+  const result = normalizeCapturedMarkup(
+    '<p>Hotline: 0947 142 999</p><a href="tel:0947142999">Gọi 0947142999</a>',
+  );
+
+  assert.match(result, /Hotline: 0868408115/);
+  assert.match(result, /href="tel:0868408115"/);
+  assert.match(result, />Gọi 0868408115<\/a>/);
+  assert.doesNotMatch(result, /0947\s*142\s*999|0947142999/);
 });
 
 test("promotes the captured contact section heading to follow its page title", () => {
@@ -435,13 +447,43 @@ test("restores the exact second testimonial image instead of a placeholder", asy
   await stat(new URL("../public/images/captured-legacy/source/Screenshot-2024-09-06-004009.png", import.meta.url));
 });
 
-test("keeps the exact legacy homepage partner showcase while filtering only the proof block", () => {
+test("filters unverified homepage proof, testimonials, and third-party client logos", () => {
   assert.match(capturedHome, /removeUnverifiedHomepageProof/);
   assert.match(capturedHome, /section_300790898/);
   const proofList = capturedHome.match(/const UNVERIFIED_HOMEPAGE_PROOF_SECTION_IDS = \[([\s\S]*?)\] as const;/)?.[1] ?? "";
   assert.match(proofList, /section_300790898/);
-  assert.doesNotMatch(proofList, /section_777974837/);
-  assert.doesNotMatch(proofList, /section_1385300469/);
+  assert.match(proofList, /section_777974837/);
+  assert.match(proofList, /section_1385300469/);
+});
+
+test("turns the captured search icon and dropdown form into working catalog search", () => {
+  const result = normalizeCapturedMarkup(`
+    <li class="header-search header-search-dropdown has-icon has-dropdown menu-item-has-children">
+      <a aria-label="Tìm kiếm" class="is-small" href="#"><i class="icon-search"></i></a>
+      <ul class="nav-dropdown"><li class="header-search-form">
+        <form action="/" class="searchform" method="get">
+          <input name="s" type="search" placeholder="Tìm kiếm sản phẩm..."/>
+          <input name="post_type" type="hidden" value="product"/>
+        </form>
+      </li></ul>
+    </li>
+  `);
+  assert.match(result, /<a[^>]*aria-label="Tìm sản phẩm"[^>]*class="is-small"[^>]*href="\/san-pham\/#catalog-query"[^>]*><i class="icon-search"><\/i><\/a>/);
+  assert.match(result, /<form action="\/san-pham\/" class="searchform"/);
+  assert.match(result, /<input name="q" type="search"/);
+});
+
+test("replaces unverified homepage reach and availability claims with neutral copy", () => {
+  const sanitized = sanitizeCapturedHomepageCopy(
+    '<h2>Sẵn sàng tiếp cận hàng triệu khách hàng tiềm năng?</h2><a aria-label="Hotline hỗ trợ 24/7">Gọi ngay</a>',
+  );
+  assert.match(sanitized, /Trao đổi kế hoạch gia công cùng Kienhieu\?/);
+  assert.match(sanitized, /Hotline tư vấn/);
+  assert.doesNotMatch(sanitized, /hàng triệu|24\/7/i);
+});
+
+test("homepage service cards keep compact spacing before the next CTA", () => {
+  assert.match(capturedHome, /#section_220139106\{padding-bottom:36px !important;\}/);
 });
 
 test("preloads the local desktop homepage background when it is the LCP surface", () => {

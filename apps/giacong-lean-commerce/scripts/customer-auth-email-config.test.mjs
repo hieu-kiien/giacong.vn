@@ -4,6 +4,20 @@ import test from "node:test";
 
 const read = (...parts) => readFile(new URL(`../src/${parts.join("/")}`, import.meta.url), "utf8");
 
+test("account navigation and cart entry do not render unrelated routes in the background", async () => {
+  const files = [
+    ["app", "(storefront)", "tai-khoan", "page.tsx"],
+    ["app", "(storefront)", "tai-khoan", "CustomerContactProfile.tsx"],
+    ["components", "request-cart", "CapturedRequestCartButton.tsx"],
+  ];
+  for (const file of files) {
+    const source = await read(...file);
+    const links = [...source.matchAll(/<Link\b[\s\S]*?>/g)];
+    assert.ok(links.length > 0);
+    for (const [opening] of links) assert.match(opening, /prefetch=\{false\}/, file.join("/"));
+  }
+});
+
 test("admin customer details use phone and email without a username label", async () => {
   const ui = await read("app", "admin", "khach-hang", "page.tsx");
   assert.doesNotMatch(ui, /Tên đăng nhập/);

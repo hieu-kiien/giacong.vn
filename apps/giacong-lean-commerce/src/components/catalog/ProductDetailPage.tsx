@@ -1,15 +1,18 @@
 import Link from "next/link";
 
 import { ProductGallery } from "@/components/catalog/ProductGallery";
+import { StagingPreviewNotice } from "@/components/catalog/StagingPreviewNotice";
 import { ProductDetailCommerce } from "@/components/catalog/ProductDetailCommerce";
 import { RelatedProductCard } from "@/components/catalog/RelatedProductCard";
 import styles from "@/components/catalog/product-detail.module.css";
 import type { CatalogDetailSourceResult } from "@/lib/catalog-detail-source";
 import { buildProductDetailView } from "@/lib/product-detail-view";
+import { isAiIllustrationProductImage } from "@/lib/catalog-image-origin";
 
 interface ProductDetailPageProps {
   editingCartVariantSku: string | null;
   initialVariantSku: string | null;
+  isStagingPreview: boolean;
   source: CatalogDetailSourceResult;
   variantQueryWarning: boolean;
 }
@@ -32,8 +35,9 @@ interface ProductDetailPageProps {
  * Owns `product-detail.module.css` rather than the shared catalog stylesheet, so
  * restyling detail cannot restyle the list page.
  */
-export function ProductDetailPage({ editingCartVariantSku, initialVariantSku, source, variantQueryWarning }: ProductDetailPageProps) {
+export function ProductDetailPage({ editingCartVariantSku, initialVariantSku, isStagingPreview, source, variantQueryWarning }: ProductDetailPageProps) {
   const view = buildProductDetailView({ isDemo: source.isDemo, product: source.product, related: source.related });
+  const hasAiIllustrationImage = isAiIllustrationProductImage(source.product.sku, source.product.imageUrl);
 
   return (
     <div className={styles.page}>
@@ -50,8 +54,19 @@ export function ProductDetailPage({ editingCartVariantSku, initialVariantSku, so
           </ol>
         </nav>
 
-        <div className={styles.hero} data-motion-section="product-detail-hero">
-          <ProductGallery images={view.gallery} />
+        {isStagingPreview ? <StagingPreviewNotice className="mb-4" /> : null}
+
+        <div className={`${styles.hero}${view.gallery.length ? "" : ` ${styles.heroWithoutGallery}`}`} data-motion-section="product-detail-hero">
+          {view.gallery.length ? (
+            <div className={styles.galleryColumn}>
+              <ProductGallery images={view.gallery} />
+              {hasAiIllustrationImage ? (
+                <p className={styles.illustrativeNotice} data-ai-image-label role="note">
+                  Ảnh minh họa do AI tạo; hình thức sản phẩm thực tế có thể khác.
+                </p>
+              ) : null}
+            </div>
+          ) : null}
           <ProductDetailCommerce
             editingCartVariantSku={editingCartVariantSku}
             initialVariantSku={initialVariantSku}

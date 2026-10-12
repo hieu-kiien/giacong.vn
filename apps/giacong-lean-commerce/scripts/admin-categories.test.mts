@@ -69,5 +69,33 @@ test("category admin surface enforces read capability and deactivation-only remo
   assert.doesNotMatch(panel, /method: "DELETE"/);
   assert.match(panel, /Ẩn danh mục/);
   assert.match(panel, /revision:\s*category\.revision/);
+  assert.match(panel, /role="status"[^>]*>Đang tải danh mục…<\/span>/);
+  assert.match(panel, /!loading && !loadError && categories\.length === 0/);
+  assert.match(panel, /Chưa có danh mục nào/);
   assert.doesNotMatch(panel, /Xóa vĩnh viễn|pendingDelete|deleteAdminCategory/);
+});
+
+test("category thumbnails fit their fixed table column without overlapping category text", async () => {
+  const styles = await readFile(new URL("../src/styles/admin.css", import.meta.url), "utf8");
+
+  assert.match(
+    styles,
+    /\.admin-category-table\s+\.admin-thumb\s*\{[\s\S]*?flex:\s*0\s+0\s+48px;[\s\S]*?height:\s*48px;[\s\S]*?width:\s*48px;/,
+  );
+});
+
+test("category manager stacks its toolbar and labels category fields in mobile cards", async () => {
+  const [panel, styles] = await Promise.all([
+    readFile(new URL("../src/components/admin/AdminCategoryPanel.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/styles/admin.css", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(panel, /className="[^"]*admin-category-toolbar/);
+  assert.match(panel, /data-label="Ảnh"/);
+  assert.match(panel, /data-label="Danh mục"/);
+  assert.match(panel, /data-label="Thứ tự"/);
+  assert.match(panel, /data-label="Hiển thị"/);
+  assert.match(panel, /data-label="Thao tác"/);
+  assert.match(styles, /\.admin-category-toolbar\s*\{[^}]*min-width:\s*0/);
+  assert.match(styles, /\.admin-category-toolbar\s+\.admin-content-toolbar-actions\s*\{[^}]*width:\s*100%/);
 });

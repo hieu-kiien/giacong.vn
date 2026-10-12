@@ -27,7 +27,7 @@ Cập nhật: 2026-09-29. Tài liệu này tách yêu cầu khách đã xác nh�
 - Khách đã đăng nhập xem lịch sử yêu cầu và giao dịch đã chốt trong tài khoản; hai loại bản ghi phải có trạng thái/nhãn phân biệt rõ. Không coi yêu cầu đang tư vấn là giao dịch mua.
 - Admin là nguồn dữ liệu gốc cho hồ sơ khách, yêu cầu và giao dịch đã chốt; Google Sheet nhận bản đồng bộ để tra cứu/vận hành, không phải nơi nhập lại hay nguồn lịch sử mua độc lập. Nhân viên không phải nhập tay hai nơi.
 - Website phục vụ cả khách mua lẻ và mua sỉ: cần giá bán lẻ và các bậc giá/giảm giá theo số lượng, quy cách/đơn vị và số lượng tối thiểu khi có. Mọi khách chuyển sang Zalo để tư vấn/chốt; không dựng thêm quy trình đặt hàng phức tạp trên web.
-- URL Zalo chính thức đã được chủ dự án xác nhận: `https://zalo.me/0947142999`. Kiểm tra chỉ đọc ngày 2026-09-27 cho thấy cả staging và production đều đang dùng cùng URL này.
+- URL Zalo chính thức theo `AGENTS.md` và cấu hình storefront hiện hành: `https://zalo.me/0868408115`. Các ghi chú cũ dùng số `0947142999` đã lỗi thời và không được dùng để ghi đè cấu hình.
 
 SEO cần tập trung vào trang sản phẩm, danh mục và nội dung công khai có thể được lập chỉ mục. Tài khoản đăng nhập tự nó không cải thiện thứ hạng tìm kiếm; dữ liệu tài khoản hữu ích hơn cho chăm sóc và giữ chân khách.
 

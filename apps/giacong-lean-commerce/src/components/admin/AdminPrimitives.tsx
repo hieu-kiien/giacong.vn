@@ -208,15 +208,6 @@ export function AdminOperationsQueue({
                 Khách gửi yêu cầu từ trang web, nhân viên liên hệ qua Zalo để chốt đơn
               </p>
             </div>
-            <Link
-              href="/admin/yeu-cau"
-              className="admin-queue-view-all"
-              prefetch={false}
-              title="Xem tất cả trong hộp thư"
-            >
-              {leadsReady ? `Xem hộp thư (${counts.leads})` : "Mở hộp thư yêu cầu"}
-              <ArrowUpRight size={14} />
-            </Link>
           </div>
 
           {!leadsReady ? (

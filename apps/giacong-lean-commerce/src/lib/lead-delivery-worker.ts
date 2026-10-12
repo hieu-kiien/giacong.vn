@@ -71,6 +71,6 @@ async function markDelivery(
       delivered_at = CASE WHEN ? = 'delivered' THEN CURRENT_TIMESTAMP ELSE delivered_at END,
       delivery_attempts = delivery_attempts + 1,
       updated_at = CURRENT_TIMESTAMP
-    WHERE id = ?
+    WHERE id = ? AND delivery_status <> 'delivered'
   `).bind(status, webhookReference, error, status, leadId).run();
 }

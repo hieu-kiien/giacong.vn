@@ -87,6 +87,44 @@ test("listAdminProducts supports uncategorised filter and name/updated/default o
   assert.match(listStatement(fallback.statements).sql, /ORDER BY p\.id DESC/);
 });
 
+test("listAdminProducts starts independent optional-table checks together", async () => {
+  const checkedTables: string[] = [];
+  let checkedAtFirstResult = 0;
+  let resolveAllChecks!: () => void;
+  const allChecksStarted = new Promise<void>((resolve) => {
+    resolveAllChecks = resolve;
+  });
+  const database = {
+    prepare(sql: string) {
+      return {
+        bind(...params: unknown[]) {
+          return {
+            all: async () => ({ results: [] }),
+            first: async () => {
+              if (sql.includes("sqlite_master")) {
+                checkedTables.push(String(params[0]));
+                if (checkedTables.length === 3) resolveAllChecks();
+                await Promise.race([
+                  allChecksStarted,
+                  new Promise<void>((resolve) => setTimeout(resolve, 0)),
+                ]);
+                if (checkedAtFirstResult === 0) checkedAtFirstResult = checkedTables.length;
+                return { name: params[0] };
+              }
+              return { total: 0 };
+            },
+          };
+        },
+      };
+    },
+  };
+
+  await listAdminProducts(database as never, { page: 1, pageSize: 20 });
+
+  assert.deepEqual(checkedTables.sort(), ["product_admin_meta", "zalo_sale_items", "zalo_sales"]);
+  assert.equal(checkedAtFirstResult, 3);
+});
+
 test("export CSV starts with BOM, uses CRLF and keeps the import columns first", () => {
   const csv = buildProductExportCsv([sample]);
   assert.equal(csv.charCodeAt(0), 0xfeff);

@@ -1,22 +1,24 @@
 // Imports the same `public/styles/` sheets that used to ship as `<link>` tags,
 // but inside the `captured` cascade layer so Tailwind utilities can override
 // them. See the comment in the file itself.
-import { headers } from "next/headers";
-
-import { AdminVisualMode } from "@/components/admin/AdminVisualMode";
-import { isAdminStorefrontHost } from "@/lib/admin-visual-contract";
+import { AdminVisualModeGate } from "@/components/admin/AdminVisualMode";
 import { getRuntimeAdminAccessConfig } from "@/lib/admin-access-runtime";
 import { normalizeAdminAccessConfig } from "@/lib/admin-access";
+import { KNOWN_ADMIN_VISUAL_HOSTNAMES } from "@/lib/admin-visual-contract";
 
 import "./captured-layers.css";
 import "../../styles/admin.css";
 
-export default async function StorefrontLayout({ children }: { children: React.ReactNode }) {
-  const requestHeaders = await headers();
+export default function StorefrontLayout({ children }: { children: React.ReactNode }) {
   const adminConfig = normalizeAdminAccessConfig(getRuntimeAdminAccessConfig());
-  const isAdminHost = adminConfig
-    ? isAdminStorefrontHost(requestHeaders.get("host"), adminConfig)
-    : false;
+  const adminHostnames = [...new Set([
+    ...KNOWN_ADMIN_VISUAL_HOSTNAMES,
+    ...(adminConfig?.adminHostnames ?? []),
+  ])];
 
-  return isAdminHost ? <AdminVisualMode>{children}</AdminVisualMode> : <>{children}</>;
+  return (
+    <AdminVisualModeGate adminHostnames={adminHostnames}>
+      {children}
+    </AdminVisualModeGate>
+  );
 }

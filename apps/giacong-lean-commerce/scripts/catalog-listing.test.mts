@@ -5,6 +5,28 @@ import { buildCatalogCard, buildCatalogCards, demoCatalogList } from "../src/com
 import { findDemoCatalogProduct } from "../src/data/demo-catalog.ts";
 import type { CatalogProductParent } from "../src/types/catalog.ts";
 
+test("published AI product cards label generated images as illustrative", async () => {
+  const cardSource = await readFile(new URL("../src/components/catalog/CatalogProductCard.tsx", import.meta.url), "utf8");
+
+  assert.match(cardSource, /isAiIllustrationProductImage\(card\.sku,\s*card\.imageUrl\)/);
+  assert.match(cardSource, /Ảnh minh họa do AI tạo/);
+});
+
+test("only the first listing image is eager and prioritized for the initial viewport", async () => {
+  const [listSource, cardSource, imageSource] = await Promise.all([
+    readFile(new URL("../src/components/catalog/CatalogList.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/components/catalog/CatalogProductCard.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/components/catalog/CatalogProductImage.tsx", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(listSource, /cards\.map\(\(card,\s*index\)\s*=>/);
+  assert.match(listSource, /priority=\{index === 0\}/);
+  assert.match(cardSource, /priority\?: boolean/);
+  assert.match(cardSource, /priority=\{priority\}/);
+  assert.match(imageSource, /loading=\{priority \? "eager" : "lazy"\}/);
+  assert.match(imageSource, /fetchPriority=\{priority \? "high" : "auto"\}/);
+});
+
 test("listing view model keeps detail routing and server-owned purchase rules", () => {
   const product = findDemoCatalogProduct("bot-gao-lut-xay-min");
   assert.ok(product);

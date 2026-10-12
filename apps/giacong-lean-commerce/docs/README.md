@@ -9,6 +9,7 @@
 
 ## Tài liệu vận hành còn hiệu lực
 
+- [STAGING_ACCEPTANCE_2026-10-09.md](./STAGING_ACCEPTANCE_2026-10-09.md) — checklist hợp nhất 16 mục, bằng chứng staging, dữ liệu QA và phần chưa nghiệm thu.
 - [ADMIN_SIMPLE_HANDOFF_2026-10-05.md](./ADMIN_SIMPLE_HANDOFF_2026-10-05.md) — admin gọn, phiên đăng nhập dùng chung, Excel và lịch sử giao dịch; bằng chứng cục bộ và bước nghiệm thu staging.
 - [CLOUDFLARE_ADMIN_WRITE_CONTRACT.md](./CLOUDFLARE_ADMIN_WRITE_CONTRACT.md) — xác thực, validation, ghi D1/R2 và audit cho API quản trị.
 - [CLOUDFLARE_DEPLOYMENT.md](./CLOUDFLARE_DEPLOYMENT.md) — quy trình triển khai Cloudflare.

@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { DatabaseSync } from "node:sqlite";
 import { handleContactSubmission } from "../src/lib/contact-webhook.ts";
 import { deliverQueuedLead } from "../src/lib/lead-delivery-worker.ts";
 
@@ -78,4 +79,19 @@ test("queue consumer marks failed delivery and throws for Cloudflare retry", asy
     globalThis.fetch = originalFetch;
   }
   assert.deepEqual(updates[0]?.slice(0, 2), ["failed", null]);
+});
+
+test("an older failed delivery cannot overwrite a newer delivered result", async () => {
+  const sqlite = new DatabaseSync(":memory:");
+  sqlite.exec("CREATE TABLE leads (id TEXT, delivery_status TEXT, webhook_reference TEXT, delivery_error TEXT, delivered_at TEXT, delivery_attempts INTEGER, updated_at TEXT)");
+  sqlite.prepare("INSERT INTO leads VALUES ('lead', 'delivered', 'YC-STABLE', NULL, '2026-10-09', 1, '2026-10-09')").run();
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => Response.json({ ok: false }, { status: 502 });
+  try {
+    await assert.rejects(deliverQueuedLead({ leadId: "lead", payload: { email: "", message: "", name: "QA", phone: "0912345678", product: "", qty: "", request_id: "7d7c2b5e-7e34-4d02-8e7d-7b2d0a4f7c31", request_type: "Tư vấn dịch vụ", service: "", source: "queue-test", variant: "" } }, { GOOGLE_SHEETS_WEBHOOK_URL: "https://script.google.com/macros/s/demo/exec" }, { prepare(sql) { let values: unknown[] = []; return { bind(...params: unknown[]) { values = params; return this; }, async run() { sqlite.prepare(sql).run(...values as never[]); } }; } }), /secondary_sink_http_502/);
+    const row = sqlite.prepare("SELECT delivery_status, webhook_reference, delivery_error FROM leads").get();
+    assert.equal(row?.delivery_status, "delivered");
+    assert.equal(row?.webhook_reference, "YC-STABLE");
+    assert.equal(row?.delivery_error, null);
+  } finally { globalThis.fetch = originalFetch; sqlite.close(); }
 });

@@ -5,9 +5,11 @@ import type { CatalogCardView } from "@/components/catalog/catalog-listing";
 import { COMMERCE_TYPOGRAPHY } from "@/components/commerce/typography";
 import { formatVnd } from "@/lib/format-vnd";
 import { AdminCatalogContextualAction } from "@/components/admin/AdminCatalogContextualAction";
+import { isAiIllustrationProductImage } from "@/lib/catalog-image-origin";
 
 interface CatalogProductCardProps {
   card: CatalogCardView;
+  priority?: boolean;
 }
 
 /**
@@ -15,7 +17,7 @@ interface CatalogProductCardProps {
  * action; variant selection and request-cart actions live on product detail.
  * `h-full` and `mt-auto` keep the action aligned across each responsive grid row.
  */
-export function CatalogProductCard({ card }: CatalogProductCardProps) {
+export function CatalogProductCard({ card, priority = false }: CatalogProductCardProps) {
   return (
     <article className="flex h-full flex-col overflow-hidden rounded-[10px] border border-commerce-border bg-white text-left transition-colors hover:border-commerce-brand" data-catalog-card>
       <div className="relative">
@@ -35,6 +37,7 @@ export function CatalogProductCard({ card }: CatalogProductCardProps) {
             alt={card.name}
             fallbackSrc={card.fallbackImageUrl}
             imageUrl={card.imageUrl}
+            priority={priority}
             variant="card"
           />
         </Link>
@@ -44,6 +47,11 @@ export function CatalogProductCard({ card }: CatalogProductCardProps) {
             data-catalog-category-pill
           >
             {card.categoryName}
+          </span>
+        ) : null}
+        {isAiIllustrationProductImage(card.sku, card.imageUrl) ? (
+          <span className="absolute bottom-2 left-2 rounded-full border border-commerce-border bg-white/95 px-2 py-1 text-[10px] font-semibold leading-3 text-commerce-brand-dark" data-ai-image-label>
+            Ảnh minh họa do AI tạo
           </span>
         ) : null}
       </div>
@@ -79,7 +87,7 @@ export function CatalogProductCard({ card }: CatalogProductCardProps) {
         ) : null}
 
         <p className="!mb-0 text-[10px] !leading-4 text-commerce-secondary" data-catalog-identifiers>
-          {card.minimumOrderQuantity ? <span>MOQ {card.minimumOrderQuantity}</span> : null}
+          {card.minimumOrderQuantity ? <span>{card.unitLabel ? `Đặt từ ${card.minimumOrderQuantity} ${card.unitLabel} · Tùy quy cách` : "Số lượng tối thiểu tùy quy cách"}</span> : null}
         </p>
 
         <p className="!mb-0 flex flex-wrap items-baseline justify-start gap-0.5 !leading-4" data-catalog-price>

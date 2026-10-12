@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 
 import { CatalogList } from "@/components/catalog/CatalogList";
 import { CapturedNewsFrame } from "@/components/CapturedNewsFrame";
@@ -9,6 +10,7 @@ import {
 } from "@/components/catalog/catalog-listing";
 import { getCatalogCategories, getCatalogProducts } from "@/lib/cloudflare-catalog";
 import { parseCatalogFilters } from "@/lib/catalog-query";
+import { isStagingPreviewHost } from "@/lib/storefront-preview";
 import { demoCatalogFallbackAllowed, demoCatalogForced, waitForDemoCatalogFallback } from "@/lib/demo-catalog-policy";
 import { canonicalMetadata } from "@/lib/seo";
 import { getPublishedSiteSettings } from "@/lib/site-settings";
@@ -33,7 +35,8 @@ interface CatalogPageData {
 
 export default async function CatalogPage({ searchParams }: PageProps<"/san-pham">) {
   const filters = parseCatalogFilters(await searchParams);
-  const data = await loadCatalog(filters);
+  const [data, requestHeaders] = await Promise.all([loadCatalog(filters), headers()]);
+  const isStagingPreview = isStagingPreviewHost(requestHeaders.get("host"));
 
   return (
     <CapturedNewsFrame activePath="/san-pham" title="Sản phẩm">
@@ -42,6 +45,7 @@ export default async function CatalogPage({ searchParams }: PageProps<"/san-pham
         categories={data.categories}
         filters={filters}
         isDemoData={data.isDemoData}
+        isStagingPreview={isStagingPreview}
         pagination={data.pagination}
         showPageHeading={false}
       />

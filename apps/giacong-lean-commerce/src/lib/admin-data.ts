@@ -485,8 +485,12 @@ export async function listAdminProducts(
     status?: string;
   },
 ): Promise<{ products: AdminProductListItem[]; total: number }> {
-  const hasMeta = await tableExists(database, "product_admin_meta");
-  const hasConfirmedSales = await tableExists(database, "zalo_sales") && await tableExists(database, "zalo_sale_items");
+  const [hasMeta, hasSales, hasSaleItems] = await Promise.all([
+    tableExists(database, "product_admin_meta"),
+    tableExists(database, "zalo_sales"),
+    tableExists(database, "zalo_sale_items"),
+  ]);
+  const hasConfirmedSales = hasSales && hasSaleItems;
   const where: string[] = [];
   const params: unknown[] = [];
   if (input.query?.trim()) {
@@ -537,13 +541,13 @@ export async function listAdminProducts(
     }
   })();
   const whereSql = where.length ? `WHERE ${where.join(" AND ")}` : "";
-  const count = await database.prepare(`
+  const countQuery = database.prepare(`
     SELECT COUNT(*) AS total
     FROM products p
     ${hasMeta ? "LEFT JOIN product_admin_meta m ON m.product_id = p.id" : ""}
     ${whereSql}
   `).bind(...params).first<{ total: number }>();
-  const rows = await database.prepare(`
+  const rowsQuery = database.prepare(`
     SELECT
       p.id, p.name, p.slug, p.sku, p.category_id, c.name AS category_name,
       p.short_description, p.description, p.image_url, p.is_active, p.revision,
@@ -580,6 +584,7 @@ export async function listAdminProducts(
     lead_time_days?: number | null;
     meta_updated_at?: string | null;
   }>();
+  const [count, rows] = await Promise.all([countQuery, rowsQuery]);
 
   return {
     products: rows.results.map((row) => ({

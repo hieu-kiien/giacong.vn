@@ -104,6 +104,24 @@
   min-width: 0;
 }
 
+.galleryColumn {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.illustrativeNotice {
+  background: var(--detail-active-surface);
+  border: 1px solid var(--detail-border);
+  border-radius: var(--radius-commerce-card);
+  color: var(--detail-brand-dark);
+  font-size: 12px;
+  line-height: 1.5;
+  margin: 0;
+  padding: 10px 12px;
+}
+
 .mainImage {
   align-items: center;
   aspect-ratio: auto;
@@ -805,4 +823,9 @@
   .hero {
     grid-template-columns: minmax(0, 47fr) minmax(0, 43fr) minmax(210px, 10fr);
   }
+}
+
+.hero.heroWithoutGallery {
+  grid-template-columns: minmax(0, 1fr);
+  max-width: 840px;
 }

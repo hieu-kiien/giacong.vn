@@ -196,7 +196,7 @@ export function ProductPurchasePanel({ editingCartVariantSku, initialVariantSku,
           </button>
         </div>
         <p className={styles.quantityRule}>
-          Đặt tối thiểu {selected.minimumOrderQuantity} {selected.unit}, tăng mỗi bước {selected.quantityStep} {selected.unit}.
+          Quy cách đang chọn: đặt tối thiểu {selected.minimumOrderQuantity} {selected.unit}, tăng mỗi bước {selected.quantityStep} {selected.unit}. Giá áp dụng theo số lượng của quy cách này.
         </p>
       </div>
 

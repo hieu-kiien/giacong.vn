@@ -98,7 +98,7 @@ function deliveryDetailText(lead: LeadListItem): string | null {
   const parts: string[] = [];
   const reason = deliveryErrorText(lead.deliveryError);
   if (reason) parts.push(reason);
-  else if (lead.deliveryStatus === "failed") parts.push("Gửi chưa thành công, hệ thống sẽ thử lại");
+  else if (lead.deliveryStatus === "failed") parts.push("Đồng bộ chưa thành công; bạn có thể gửi lại trong chi tiết yêu cầu");
   parts.push(deliveryAttemptsText(lead.deliveryAttempts));
   return parts.join(" · ");
 }
@@ -125,6 +125,20 @@ export default function AdminLeadsPage() {
   const [bulkStatusModal, setBulkStatusModal] = useState(false);
   const [targetBulkStatus, setTargetBulkStatus] = useState<LeadStatus>("contacted");
   const [bulkUpdating, setBulkUpdating] = useState(false);
+  const [retrying, setRetrying] = useState(false);
+
+  async function retryDelivery(lead: LeadListItem) {
+    if (retrying) return;
+    setRetrying(true);
+    try {
+      const result = await mutateAdmin<{ deliveryStatus: "queued" | "delivered" }>(`/api/admin/leads/${lead.id}/retry`, { method: "POST" });
+      setDetailLead({ ...lead, deliveryStatus: result.deliveryStatus, deliveryError: null });
+      setAttempt((value) => value + 1);
+      showToast("success", result.deliveryStatus === "delivered" ? "Yêu cầu đã đồng bộ." : "Đã xếp hàng gửi lại. Tải lại chi tiết để xem kết quả đồng bộ.");
+    } catch (reason) {
+      showToast("error", reason instanceof Error ? reason.message : "Chưa gửi lại được yêu cầu.");
+    } finally { setRetrying(false); }
+  }
 
   useEffect(() => {
     const controller = new AbortController();
@@ -415,6 +429,7 @@ export default function AdminLeadsPage() {
                 </div>
               ))}
             </dl>
+            {canManage && ["failed", "queued"].includes(detailLead.deliveryStatus) ? <><button className="admin-button admin-button-secondary" disabled={retrying} onClick={() => void retryDelivery(detailLead)} type="button">{retrying ? "Đang gửi lại…" : "Gửi lại đồng bộ"}</button>{detailLead.deliveryStatus === "queued" ? <p>Chỉ gửi lại nếu yêu cầu chờ quá 10 phút.</p> : null}</> : null}
             <div style={{ marginTop: 14 }}>
               <strong style={{ fontSize: 13 }}>Nội dung</strong>
               <p className="admin-message" style={{ margin: "6px 0 0", whiteSpace: "pre-wrap" }}>{detailLead.message || "Không có nội dung"}</p>

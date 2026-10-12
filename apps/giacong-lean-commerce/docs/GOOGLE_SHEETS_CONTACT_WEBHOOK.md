@@ -37,15 +37,15 @@ Nhánh giỏ được nhận khi payload có khóa `cart`. Schema 15 cột A:O c
 
 Ba tính chất vận hành cần biết:
 
-- **Thứ tự ghi.** N dòng chi tiết được ghi trước bằng một `setValues`, rồi dòng `Yêu cầu` mới được append. Dòng `Yêu cầu` là commit marker: nếu script chết giữa hai bước, kết quả là dòng chi tiết mồ côi mà operator không thấy, còn client nhận non-ok nên không có thành công giả. Thứ tự ngược lại sẽ hứa N dòng không tồn tại.
+- **Thứ tự ghi.** Các dòng chi tiết được upsert theo `Mã` và `Dòng`, rồi mới ghi dòng `Yêu cầu` làm commit marker. Retry sau khi ghi dở khôi phục các dòng này thay vì append trùng.
 - **Lock.** `LockService.getScriptLock().tryLock(2000)` giữ toàn bộ thao tác ghi dưới ngưỡng abort 5s của Next; nếu không lấy được lock, script trả `{ ok: false }` và không ghi gì.
-- **Chống retry trùng.** `CacheService` map `request_id` → `Mã` trong 6 giờ
-  cho cả form thường và giỏ hàng. Gửi lại cùng `request_id` (ví dụ sau một
-  `504` mà script đã kịp commit) trả lại đúng `Mã` cũ và không thêm dòng nào.
-  Đây là replay protection ở tầng vận chuyển, không phải dedup engine: hai lần
-  khách chủ động gửi là hai `request_id` và vẫn là hai dòng. `CacheService` có
-  thể bị evict, nên backstop vận hành vẫn là `Không tiếp tục` + `Trùng mã
-  <reference>`.
+- **Chống retry trùng.** Template từ 09/10 dùng `YC-<request_id>` cho UUID hợp lệ và tra mã đã lưu trong Sheet dưới script lock; cache chỉ tăng tốc. Gửi lại sau khi cache hết hạn vẫn trả cùng mã. Hai yêu cầu khác `request_id` vẫn là hai dòng. Payload cũ không có UUID và các lỗi trước rollout cần đối soát riêng; không suy diễn rằng bản Apps Script đang triển khai đã được nâng cấp.
+
+## Gửi lại từ admin
+
+`POST /api/admin/leads/[id]/retry` giữ snapshot và request_id trong D1, kiểm tra quyền quản trị, ghi `lead_events` kèm actor/request ID. Chỉ một thao tác được nhận; yêu cầu đang chờ chỉ được nhận lại sau 10 phút để khôi phục trường hợp tiến trình dừng trước khi enqueue.
+
+Endpoint mặc định chưa bật. Chỉ đặt `LEAD_MANUAL_RETRY_ENABLED=true` sau khi xác minh Apps Script chống trùng lâu dài và đối soát lỗi cũ. Với các bản ghi cũ mà Sheet đã ghi nhưng D1 báo lỗi, phải đối chiếu trước khi gửi lại. Không bật cờ chỉ vì kiểm thử template cục bộ đã qua.
 
 ## Thiết lập thủ công
 

@@ -94,6 +94,7 @@ const adminRouteCapabilityMatrix: readonly RouteCapabilityRow[] = [
   directRead("leads/[id]/sales/route.ts", "leads.read"),
   writeGuard("leads/[id]/sales/route.ts", "POST", "canManageLeads", "leads.write", "create"),
   writeGuard("leads/[id]/sales/retry/route.ts", "POST", "canManageLeads", "leads.write", "write"),
+  writeGuard("leads/[id]/retry/route.ts", "POST", "canManageLeads", "leads.write", "write"),
   directRead("leads/route.ts", "leads.read"),
   writeGuard("media/[id]/route.ts", "DELETE", "canManageMedia", "media.write", "delete"),
   writeGuard("media/[id]/route.ts", "PATCH", "canManageMedia", "media.write", "update"),

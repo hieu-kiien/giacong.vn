@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { AdminServiceContextualAction } from "@/components/admin/AdminServiceContextualAction";
+import { StagingPreviewNotice } from "@/components/catalog/StagingPreviewNotice";
 import { ContactBand } from "@/components/services/ServiceLanding";
 import { ServiceImage } from "@/components/services/ServiceImage";
 import { getServiceFamilyImage } from "@/components/services/service-visuals";
@@ -21,9 +22,10 @@ interface ServiceFamilyDetailProps {
     moqSummary?: string | null;
     sortOrder?: number;
   };
+  isStagingPreview?: boolean;
 }
 
-export function ServiceFamilyDetail({ family }: ServiceFamilyDetailProps) {
+export function ServiceFamilyDetail({ family, isStagingPreview = false }: ServiceFamilyDetailProps) {
   // The shared storefront frame owns the main landmark. This component keeps
   // only the service content so it can render under the common site chrome.
   const moqSummary = family.moqSummary?.trim() ? family.moqSummary.trim() : null;
@@ -35,6 +37,7 @@ export function ServiceFamilyDetail({ family }: ServiceFamilyDetailProps) {
   const heroImage = family.imageUrl ?? getServiceFamilyImage(family.slug) ?? "/images/services/service-manufacturing.svg";
   return (
     <div className={styles.main}>
+      {isStagingPreview ? <StagingPreviewNotice className="mx-auto my-4 w-[min(1115px,calc(100vw-2rem))]" /> : null}
       <section className={styles.hero} data-motion-section="service-detail-hero">
         <ServiceImage
           alt=""

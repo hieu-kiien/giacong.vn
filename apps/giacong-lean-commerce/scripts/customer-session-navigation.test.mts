@@ -2,6 +2,28 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import { customerLoginDestination } from "../src/lib/customer-login-destination.ts";
+import { resolveCustomerSessionView } from "../src/lib/customer-session-state.ts";
+
+test("session transport failures hide private data without claiming the user signed out", () => {
+  const verified = { revoked: false, pending: false, error: null, expectedUserId: "owner", user: { id: "owner", emailVerified: true } };
+  assert.equal(resolveCustomerSessionView(verified), "verified");
+  for (const error of [new Error("offline"), { status: 503 }, { status: 500 }]) {
+    assert.equal(resolveCustomerSessionView({ ...verified, error, user: null }), "unavailable");
+    assert.equal(resolveCustomerSessionView({ ...verified, error }), "unavailable");
+  }
+  assert.equal(resolveCustomerSessionView({ ...verified, revoked: true, error: new Error("offline") }), "expired");
+  assert.equal(resolveCustomerSessionView({ ...verified, pending: true, user: null }), "pending");
+  assert.equal(resolveCustomerSessionView({ ...verified, user: null }), "expired");
+  assert.equal(resolveCustomerSessionView({ ...verified, user: { id: "owner", emailVerified: false } }), "expired");
+  assert.equal(resolveCustomerSessionView({ ...verified, user: { id: "other", emailVerified: true } }), "changed");
+});
+
+test("account boundary uses the session decision and offers recovery for transport errors", () => {
+  const source = readFileSync(new URL("../src/components/site/CustomerSessionBoundary.tsx", import.meta.url), "utf8");
+  assert.match(source, /resolveCustomerSessionView\(/);
+  assert.match(source, /view === "unavailable"/);
+  assert.match(source, /Thử lại/);
+});
 
 test("login returns to a local requested page without permitting external redirects", () => {
   assert.equal(customerLoginDestination("admin"), "/admin/");

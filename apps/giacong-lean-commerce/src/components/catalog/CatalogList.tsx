@@ -6,6 +6,7 @@ import { Grid2X2, List, Search } from "lucide-react";
 import { useRef, useState, useTransition } from "react";
 
 import { CatalogProductCard } from "@/components/catalog/CatalogProductCard";
+import { StagingPreviewNotice } from "@/components/catalog/StagingPreviewNotice";
 import { AdminProductCreateContextualAction } from "@/components/admin/AdminProductCreateContextualAction";
 import { DEMO_CATALOG_NOTICE, type CatalogCardView } from "@/components/catalog/catalog-listing";
 import { CommerceRail } from "@/components/commerce/CommerceRail";
@@ -25,6 +26,7 @@ interface CatalogListProps {
   filters: CatalogFilters;
   /** True when the demo fixture answered because the catalog feed was unreachable. */
   isDemoData?: boolean;
+  isStagingPreview?: boolean;
   pagination: CatalogPagination;
   /** The captured green title strip owns this on the catalog route. */
   showPageHeading?: boolean;
@@ -89,6 +91,7 @@ export function CatalogList({
   categories,
   filters,
   isDemoData = false,
+  isStagingPreview = false,
   pagination,
   showPageHeading = true,
 }: CatalogListProps) {
@@ -144,6 +147,7 @@ export function CatalogList({
   return (
     <div className="bg-white text-commerce-body">
       <CommerceRail className="-mt-6 max-w-[1263px] pb-12 pt-0">
+        {isStagingPreview ? <StagingPreviewNotice className="mb-4" /> : null}
         {showPageHeading ? (
           <section className="pb-6">
           {showPageHeading ? (
@@ -294,7 +298,9 @@ export function CatalogList({
               className={`${viewMode === "grid" ? "grid grid-cols-1 gap-3 min-[440px]:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 lg:gap-5" : "grid grid-cols-1 gap-3"} ${isPending ? "opacity-60" : ""}`}
               data-catalog-grid
             >
-              {cards.map((card) => <CatalogProductCard card={card} key={card.id} />)}
+              {cards.map((card, index) => (
+                <CatalogProductCard card={card} key={card.id} priority={index === 0} />
+              ))}
             </div>
           ) : isPending ? (
             <div

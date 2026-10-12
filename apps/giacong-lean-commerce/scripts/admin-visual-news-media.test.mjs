@@ -53,8 +53,11 @@ test("admin visual mode provides session state without adding a public session f
   assert.match(mode, /createContext/);
   assert.match(mode, /AdminVisualContext\.Provider/);
   assert.match(mode, /value=\{\{[^}]*session[^}]*status/s);
-  assert.match(layout, /isAdminHost\s*\?/);
-  assert.match(layout, /<AdminVisualMode>/);
+  assert.match(layout, /KNOWN_ADMIN_VISUAL_HOSTNAMES/);
+  assert.match(layout, /AdminVisualModeGate adminHostnames=\{adminHostnames\}/);
+  assert.doesNotMatch(layout, /next\/headers|await headers\(/);
+  assert.match(mode, /isAdminStorefrontHost\(window\.location\.hostname/);
+  assert.match(mode, /<AdminVisualMode>\{children\}<\/AdminVisualMode>/);
 });
 
 test("admin news deep link opens a canonical post and ignores invalid edit ids safely", async () => {

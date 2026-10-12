@@ -1,9 +1,9 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 
 import { AdminClientError, fetchAdmin, type AdminSession } from "@/lib/admin-client";
-import { isAdminSessionReady } from "@/lib/admin-visual-contract";
+import { isAdminSessionReady, isAdminStorefrontHost } from "@/lib/admin-visual-contract";
 import { AdminUnsavedContext, type AdminUnsavedState } from "./AdminUnsavedGuard";
 
 export type AdminVisualStatus = "loading" | "ready" | "blocked" | "unavailable";
@@ -14,6 +14,7 @@ export interface AdminVisualContextValue {
 }
 
 const AdminVisualContext = createContext<AdminVisualContextValue>({ session: null, status: "unavailable" });
+const subscribeToNoChanges = () => () => {};
 
 export function useAdminVisualContext(): AdminVisualContextValue {
   return useContext(AdminVisualContext);
@@ -21,6 +22,20 @@ export function useAdminVisualContext(): AdminVisualContextValue {
 
 interface AdminVisualModeProps {
   children: ReactNode;
+}
+
+interface AdminVisualModeGateProps extends AdminVisualModeProps {
+  adminHostnames: string[];
+}
+
+export function AdminVisualModeGate({ children, adminHostnames }: AdminVisualModeGateProps) {
+  const isAdminHost = useSyncExternalStore(
+    subscribeToNoChanges,
+    () => isAdminStorefrontHost(window.location.hostname, { adminHostnames }),
+    () => false,
+  );
+
+  return isAdminHost ? <AdminVisualMode>{children}</AdminVisualMode> : children;
 }
 
 export function AdminVisualMode({ children }: AdminVisualModeProps) {

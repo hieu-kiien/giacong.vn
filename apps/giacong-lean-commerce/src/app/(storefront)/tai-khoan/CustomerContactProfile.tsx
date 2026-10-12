@@ -12,7 +12,8 @@ export function CustomerContactProfile({ initial, complete, next }: { initial: C
   const [phone, setPhone] = useState(initial.phone);
   const [companyName, setCompanyName] = useState(initial.companyName);
   const [consent, setConsent] = useState(complete);
-  const [errors, setErrors] = useState<Partial<Record<"name" | "phone" | "companyName" | "consent", string>>>({});
+  const initialValidation = parseCustomerContact({ ...initial, consent: true });
+  const [errors, setErrors] = useState<Partial<Record<"name" | "phone" | "companyName" | "consent", string>>>(complete && !initialValidation.ok ? initialValidation.errors : {});
   const [message, setMessage] = useState("");
   const [failed, setFailed] = useState(false);
   const [pending, setPending] = useState(false);
@@ -52,13 +53,13 @@ export function CustomerContactProfile({ initial, complete, next }: { initial: C
       <div><label htmlFor="contact-profile-phone">Số điện thoại <span aria-hidden="true">*</span></label>
         <input id="contact-profile-phone" autoComplete="tel" type="tel" inputMode="tel" required maxLength={24} value={phone} onChange={(event) => setPhone(event.target.value)} aria-invalid={Boolean(errors.phone)} aria-describedby={errors.phone ? "profile-phone-error" : undefined} />
         {errors.phone ? <p className={styles.error} id="profile-phone-error">{errors.phone}</p> : null}</div>
-      <div><label htmlFor="contact-profile-email">Email Google</label><input id="contact-profile-email" value={initial.email} type="email" readOnly /></div>
+      <div><label htmlFor="contact-profile-email">Email tài khoản</label><input id="contact-profile-email" value={initial.email} type="email" readOnly /></div>
       <div><label htmlFor="contact-profile-company">Công ty <span className={styles.optional}>(tùy chọn)</span></label>
         <input id="contact-profile-company" autoComplete="organization" maxLength={160} value={companyName} onChange={(event) => setCompanyName(event.target.value)} aria-invalid={Boolean(errors.companyName)} />
         {errors.companyName ? <p className={styles.error}>{errors.companyName}</p> : null}</div>
     </div>
     <label className={styles.consent}><input type="checkbox" checked={consent} onChange={(event) => setConsent(event.target.checked)} aria-describedby={errors.consent ? "profile-consent-error" : undefined} />
-      <span>Tôi đồng ý lưu thông tin để được liên hệ tư vấn theo <Link href="/chinh-sach-bao-mat/">chính sách bảo mật</Link>.</span></label>
+      <span>Tôi đồng ý lưu thông tin để được liên hệ tư vấn theo <Link prefetch={false} href="/chinh-sach-bao-mat/">chính sách bảo mật</Link>.</span></label>
     {errors.consent ? <p className={styles.error} id="profile-consent-error">{errors.consent}</p> : null}
     <div aria-live="polite">{message ? <p className={failed ? styles.error : styles.success} role={failed ? "alert" : "status"}>{message}</p> : null}</div>
     <button className={styles.submit} disabled={pending} type="submit">{pending ? "Đang lưu…" : next ? "Lưu và tiếp tục" : "Lưu thông tin liên hệ"}</button>

@@ -51,14 +51,16 @@ function doPost(event) {
       if (previous) return output({ ok: true, reference: previous });
     }
 
-    var reference = makeReference();
+    // The persisted reference is also the idempotency key after cache expiry.
+    var reference = requestId && isUuid(requestId) ? "YC-" + requestId.toUpperCase() : makeReference();
+    ensureRequestWorkbookSetup();
+    var sheet = workbook().getSheetByName("Yêu cầu");
+    if (findUniqueValueRow(sheet, 1, reference) > 0) return output({ ok: true, reference: reference });
     var isCart = Array.isArray(payload.cart);
     if (isCart) {
       ensureCartDetailSheet();
       writeCartRows(payload.cart, reference);
     }
-    setupRequestWorkbook();
-    var sheet = workbook().getSheetByName("Yêu cầu");
     var now = new Date();
     var row = [
       reference,
@@ -112,6 +114,13 @@ function setupRequestWorkbook() {
   detailSheet.setFrozenRows(1);
   protectSheet(detailSheet, "Lean V1: Chi tiết giỏ hàng chỉ đọc", null);
   refreshSummary();
+}
+
+function ensureRequestWorkbookSetup() {
+  var properties = PropertiesService.getScriptProperties();
+  if (properties.getProperty("CONTACT_REQUEST_SETUP_VERSION") === "7") return;
+  setupRequestWorkbook();
+  properties.setProperty("CONTACT_REQUEST_SETUP_VERSION", "7");
 }
 
 function onEdit(event) {
@@ -479,7 +488,13 @@ function validCartLine(line) {
 
 function writeCartRows(cart, reference) {
   var sheet = workbook().getSheetByName("Chi tiết giỏ hàng");
-  var firstRow = sheet.getLastRow() + 1;
+  var existing = sheet.getLastRow() > 1 ? sheet.getRange(2, 1, sheet.getLastRow() - 1, 2).getValues() : [];
+  var rowByIndex = {};
+  existing.forEach(function (row, index) {
+    if (row[0] !== reference) return;
+    if (rowByIndex[row[1]]) throw new Error("duplicate_request_line");
+    rowByIndex[row[1]] = index + 2;
+  });
   var values = cart.map(function (line) {
     return [
       reference,
@@ -493,7 +508,10 @@ function writeCartRows(cart, reference) {
       safeText(line.note),
     ];
   });
-  sheet.getRange(firstRow, 1, values.length, DETAIL_HEADERS.length).setValues(values);
+  values.forEach(function (row) {
+    var target = rowByIndex[row[1]] || sheet.getLastRow() + 1;
+    sheet.getRange(target, 1, 1, DETAIL_HEADERS.length).setValues([row]);
+  });
 }
 
 function ensureCartDetailSheet() {

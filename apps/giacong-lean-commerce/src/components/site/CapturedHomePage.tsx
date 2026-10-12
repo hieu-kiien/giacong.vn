@@ -5,6 +5,7 @@ import {
   layerCapturedStyles,
   normalizeCapturedMarkup,
 } from "@/lib/captured-markup";
+import { sanitizeCapturedHomepageCopy } from "@/lib/captured-homepage-content";
 import { optimizeHomepageResponsiveImages } from "@/lib/homepage-image-optimization";
 import { applyHomepageSiteSettingsToMarkup, siteBrandStyles } from "@/lib/site-markup";
 import {
@@ -77,11 +78,12 @@ const HOMEPAGE_MEDIA_ALIASES: Readonly<Record<string, string>> = {
   "https://giacong.vn/wp-content/uploads/2024/10/seo-reward-license-certificate-contract-svgrepo-com.svg": "/images/home-captured/service-certificate.svg",
 };
 
-// Keep the captured customer-count proof block out of the public fallback until the owner
-// supplies evidence. The partner showcase is restored from the exact legacy Git assets and is
-// intentionally allowed through because it is a visual section the owner asked to retain.
+// Keep captured customer-count, testimonial, and client-logo sections out of the public
+// fallback until the owner supplies evidence and permission for those claims and brand assets.
 const UNVERIFIED_HOMEPAGE_PROOF_SECTION_IDS = [
   "section_300790898",
+  "section_777974837",
+  "section_1385300469",
 ] as const;
 
 type CapturedHomePageProps = Pick<
@@ -92,7 +94,7 @@ type CapturedHomePageProps = Pick<
   siteSettings?: PublishedSiteSettings;
 };
 
-const HOMEPAGE_CRITICAL_MOTION_STYLES = `@layer captured{#section_250108065 [data-animate]{animation:none !important;opacity:1 !important;transform:none !important;}}`;
+const HOMEPAGE_CRITICAL_MOTION_STYLES = `@layer captured{#section_250108065 [data-animate]{animation:none !important;opacity:1 !important;transform:none !important;}#section_220139106{padding-bottom:36px !important;}}`;
 const HOMEPAGE_MOBILE_RENDER_STYLES = `@media (max-width:549px){
 #section_220139106,#section_1771329794,#section_819391773,#section_777974837,#section_1385300469,#section_938597378,#footer{content-visibility:auto;}
 #section_220139106{contain-intrinsic-size:auto 2400px;}
@@ -100,8 +102,6 @@ const HOMEPAGE_MOBILE_RENDER_STYLES = `@media (max-width:549px){
 #section_220139106 .icon-box ul li{display:block;-webkit-line-clamp:unset;-webkit-box-orient:initial;overflow:visible;text-overflow:clip;}
 #section_1771329794{contain-intrinsic-size:auto 520px;}
 #section_819391773{contain-intrinsic-size:auto 1200px;}
-#section_777974837{contain-intrinsic-size:auto 900px;}
-#section_1385300469{contain-intrinsic-size:auto 1500px;}
 #section_938597378{contain-intrinsic-size:auto 1100px;}
 #section_294752369{contain-intrinsic-size:auto 900px;}
 #footer{contain-intrinsic-size:auto 600px;}
@@ -126,7 +126,9 @@ export async function CapturedHomePage({
   const normalizedMarkup = optimizeHomepageResponsiveImages(
     localizeHomepageMedia(
       applyHomepageSiteSettingsToMarkup(
-        removeUnverifiedHomepageProof(normalizeCapturedMarkup(localizeHomepageMedia(markup))),
+        sanitizeCapturedHomepageCopy(
+          removeUnverifiedHomepageProof(normalizeCapturedMarkup(localizeHomepageMedia(markup))),
+        ),
         settings,
       ),
     ),

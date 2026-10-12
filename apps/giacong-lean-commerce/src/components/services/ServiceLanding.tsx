@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { StagingPreviewNotice } from "@/components/catalog/StagingPreviewNotice";
 import { ServiceDirectory } from "@/components/services/ServiceDirectory";
 import indexStyles from "@/components/services/service-index.module.css";
 import styles from "@/components/services/service.module.css";
@@ -17,15 +18,18 @@ import { defaultServicePresentation, safeInternalHref } from "@/lib/service-pres
 export function ServiceLanding({
   contentIndex,
   families,
+  isStagingPreview = false,
 }: {
   contentIndex?: readonly ServiceOffering[];
   families?: readonly ServiceFamily[];
+  isStagingPreview?: boolean;
 }) {
   const familyCount = families?.length ?? 13;
 
   return (
     <div className={indexStyles.landing}>
       <div className={indexStyles.rail}>
+        {isStagingPreview ? <StagingPreviewNotice className="mb-5" /> : null}
         <p className={indexStyles.intro} data-motion-section="service-intro">
           {familyCount} nhóm dịch vụ gia công. Chọn nhóm gần nhất với sản phẩm của bạn để xem
           các trang dịch vụ chi tiết.

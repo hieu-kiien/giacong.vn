@@ -12,6 +12,8 @@ interface CatalogProductImageProps {
    */
   fallbackSrc?: string | null;
   imageUrl: string | null;
+  /** Prioritizes the first visible product card as the listing's likely LCP image. */
+  priority?: boolean;
   /**
    * `card` renders the landscape ratio of the approved product-list reference.
    * `detail` (the default) retains the detail surface's independent square frame.
@@ -25,6 +27,7 @@ export function CatalogProductImage({
   className,
   fallbackSrc,
   imageUrl,
+  priority = false,
   variant = "detail",
 }: CatalogProductImageProps) {
   // Only explicitly demo-backed cards pass a fallback. Real records keep the
@@ -45,8 +48,9 @@ export function CatalogProductImage({
           <img
             alt={alt}
             className="size-full object-contain"
+            fetchPriority={priority ? "high" : "auto"}
             height={400}
-            loading="lazy"
+            loading={priority ? "eager" : "lazy"}
             onError={() => setFailed(true)}
             src={source}
             width={500}

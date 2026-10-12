@@ -88,13 +88,11 @@ export default async function CustomerAccountPage({ searchParams }: { searchPara
   return (
     <CapturedStorefrontShell variant="account">
       <main className={styles.main} id="main">
-        <section aria-labelledby="account-page-title" className="giacong-page-hero">
-          <div aria-hidden="true" className="giacong-page-hero__orb giacong-page-hero__orb--one" />
-          <div aria-hidden="true" className="giacong-page-hero__orb giacong-page-hero__orb--two" />
-          <div className="giacong-page-hero__inner">
+        <section aria-labelledby="account-page-title" className={styles.heading}>
+          <div>
             <h1 id="account-page-title">Tài khoản</h1>
             <nav aria-label="Breadcrumb" className="giacong-page-hero__breadcrumb">
-              <Link href="/">Trang chủ</Link><span aria-hidden="true">»</span><span aria-current="page">Tài khoản</span>
+              <Link prefetch={false} href="/">Trang chủ</Link><span aria-hidden="true">»</span><span aria-current="page">Tài khoản</span>
             </nav>
           </div>
         </section>
@@ -102,7 +100,7 @@ export default async function CustomerAccountPage({ searchParams }: { searchPara
           {googleWelcome ? <section aria-label="Đăng nhập Google thành công" className={styles.welcomeBanner} role="status">
             <h2>Đã vào tài khoản bằng Google</h2>
             <p>Nếu đây là lần đầu bạn dùng Google, tài khoản đã được tạo. Thông tin liên hệ bên dưới giúp chúng tôi tư vấn và cập nhật yêu cầu cho bạn.</p>
-            {contact && next ? <Link href={next}>Tiếp tục</Link> : null}
+            {contact && next ? <Link prefetch={false} href={next}>Tiếp tục</Link> : null}
           </section> : null}
           <CustomerSessionBoundary userId={session.user.id}>
               <div className={styles.profile}>
@@ -112,7 +110,7 @@ export default async function CustomerAccountPage({ searchParams }: { searchPara
                   <p className={styles.email}>{session.user.email}</p>
                 </div>
                 <div className={styles.actions}>
-                  {canEnterAdmin ? <Link className={styles.primaryLink} href="/admin/">Vào quản trị</Link> : null}
+                  {canEnterAdmin ? <Link prefetch={false} className={styles.primaryLink} href="/admin/">Vào quản trị</Link> : null}
                   <CustomerSignOutButton />
                 </div>
               </div>
@@ -124,8 +122,9 @@ export default async function CustomerAccountPage({ searchParams }: { searchPara
                   <ul className={styles.historyList}>
                     {history.requests.map((request) => (
                       <li key={request.id}>
-                        <h3>{request.reference}</h3>
+                        <h3>{request.items[0]?.name || "Yêu cầu tư vấn"}{request.items.length > 1 ? ` và ${request.items.length - 1} sản phẩm khác` : ""}</h3>
                         <p>{formatDate(request.createdAt)} · {customerRequestStatus(request.status)}</p>
+                        <p>Mã yêu cầu: {request.reference}</p>
                         {request.items.length ? (
                           <ul>
                             {request.items.map((item, index) => (
@@ -139,7 +138,7 @@ export default async function CustomerAccountPage({ searchParams }: { searchPara
                     ))}
                   </ul>
                 ) : (
-                  <p>Bạn chưa gửi yêu cầu nào. <Link href="/san-pham/">Xem sản phẩm</Link></p>
+                  <p>Bạn chưa gửi yêu cầu nào. <Link prefetch={false} href="/san-pham/">Xem sản phẩm</Link></p>
                 )}
               </section>
 
@@ -149,8 +148,9 @@ export default async function CustomerAccountPage({ searchParams }: { searchPara
                   <ul className={styles.historyList}>
                     {history.sales.map((sale) => (
                       <li key={sale.saleCode}>
-                        <h3>{sale.saleCode}</h3>
+                        <h3>{sale.items[0]?.name || "Giao dịch đã chốt"}{sale.items.length > 1 ? ` và ${sale.items.length - 1} sản phẩm khác` : ""}</h3>
                         <p>{formatDate(sale.confirmedAt)} · {formatMoney(sale.totalAmount, sale.currency)}</p>
+                        <p>Mã giao dịch: {sale.saleCode} · Đã chốt</p>
                         {sale.items.length ? (
                           <ul>
                             {sale.items.map((item, index) => (

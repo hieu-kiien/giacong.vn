@@ -373,6 +373,8 @@ test("category batch route and UI stay bounded, authorized, revision-aware and d
   assert.match(panel, /Chọn tất cả danh mục trong trang/);
   assert.match(panel, /AdminConfirmDialog/);
   assert.match(panel, /Ẩn danh mục đã chọn/);
+  assert.match(panel, /canManageCatalog\(session\.role\)/);
+  assert.doesNotMatch(panel, /session\.role\s*===\s*["']catalog_manager["']/);
   assert.doesNotMatch(panel, /method: "DELETE"/);
   assert.match(packageJson, /scripts\/admin-category-batch\.test\.mts/);
 });

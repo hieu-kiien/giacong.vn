@@ -35,7 +35,7 @@ export function ProductGallery({ images }: ProductGalleryProps) {
     <div className={styles.gallery}>
       <div className={styles.mainImage}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img alt={active.alt} src={active.url} />
+        <img alt={active.alt} fetchPriority="high" src={active.url} />
       </div>
       {images.length > 1 ? (
         <ul aria-label="Ảnh sản phẩm" className={styles.thumbRail}>

@@ -268,7 +268,7 @@ await run("Products fit a 1480px viewport without horizontal scrolling", async (
   await page.screenshot({ path: `${output}/products-responsive-1480x900.png` });
 }, "owner", 1480, 900);
 
-await run("Products use two readable cards at 1366px instead of one tall column", async (page) => {
+await run("Products keep readable labeled rows at 1366px", async (page) => {
   await open(page, "/admin/san-pham");
   const layout = await page.evaluate(() => {
     const body = document.querySelector(".admin-product-table tbody");
@@ -277,12 +277,14 @@ await run("Products use two readable cards at 1366px instead of one tall column"
     return {
       columns: firstRowTop === undefined ? 0 : rows.filter((row) => Math.abs(row.getBoundingClientRect().top - firstRowTop) < 1).length,
       rows: rows.length,
+      headersVisible: [...document.querySelectorAll('.admin-product-table thead th')].every((header) => header.getBoundingClientRect().height > 0),
       overflow: document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
     };
   });
   assert.equal(layout.rows, 15, "Every fixture product remains listed");
-  assert.equal(layout.columns, 2, "Product cards use the available wide-screen space");
-  assert.equal(layout.overflow, false, "The compact two-column list does not add horizontal page scrolling");
+  assert.equal(layout.columns, 1, "Product records remain easy to scan as rows");
+  assert.equal(layout.headersVisible, true, "Product values have visible column labels");
+  assert.equal(layout.overflow, false, "The compact list does not add horizontal page scrolling");
 }, "owner", 1366, 768);
 
 await run("Product status filters stay shareable and reset when cleared", async (page) => {
@@ -416,11 +418,44 @@ await run("Failed product request announces error and retry recovers", async (pa
   await expect(page.getByTestId("row-product-1")).toBeVisible();
 });
 
+await run("Disconnected product request keeps a persistent error and can recover", async (page) => {
+  let disconnected = true;
+  await page.route("**/api/admin/products?**", async (route) => {
+    if (disconnected) await route.abort("internetdisconnected");
+    else await route.fallback();
+  });
+  await open(page, "/admin/san-pham");
+  await expect(page.getByTestId("status-admin-error")).toContainText("Không thể kết nối tới máy chủ admin.");
+  await page.getByTestId("button-retry-data").click();
+  await expect(page.getByTestId("status-admin-error")).toBeVisible();
+  disconnected = false;
+  await page.getByTestId("button-retry-data").click();
+  await expect(page.getByTestId("row-product-1")).toBeVisible();
+});
+
+await run("Expired session hides admin data and keeps the return destination", async (page) => {
+  let expired = false;
+  await page.route("**/api/admin/session", async (route) => {
+    if (expired) await route.fulfill({ status: 401, json: { ok: false, code: "UNAUTHENTICATED", message: "Phiên đăng nhập đã kết thúc." } });
+    else await route.fulfill({ json: { ok: true, data: { authenticated: true, authMethod: "account", subject: "qa@example.test", role: "owner" } } });
+  });
+  await open(page, "/admin/san-pham");
+  await expect(page.getByTestId("row-product-1")).toBeVisible();
+  expired = true;
+  await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+  await expect(page.getByTestId("row-product-1")).toHaveCount(0);
+  await expect(page.getByTestId("link-admin-account-login")).toHaveAttribute("href", /tai-khoan\/dang-nhap\/?\?next=admin$/);
+  await expect(page.getByTestId("button-retry-admin-session")).toBeVisible();
+  expired = false;
+  await page.getByTestId("button-retry-admin-session").click();
+  await expect(page.getByTestId("row-product-1")).toBeVisible();
+});
+
 await run("Owner dashboard desktop evidence", async (page) => {
   await open(page);
   await expect(page.getByTestId("metric-products").locator(".admin-metric-value")).toHaveText("28");
   await expect(page.getByTestId("metric-draft-products").locator(".admin-metric-value")).toHaveText("7");
-  await expect(page.getByTestId("metric-news").locator(".admin-metric-value")).toHaveText("8");
+  await expect(page.getByTestId("metric-new-leads").locator(".admin-metric-value")).toHaveText("3");
   await expect(page.getByText("Doanh nghiệp kiểm thử")).toBeVisible();
   await page.screenshot({ path: `${output}/dashboard-desktop.png`, fullPage: true });
 });
@@ -438,9 +473,8 @@ await run("Dashboard never presents unavailable data as a genuine zero", async (
     await open(page);
     await expect(page.getByTestId("metric-products").locator(".admin-metric-value")).toHaveText("—");
     await expect(page.getByTestId("metric-draft-products").locator(".admin-metric-value")).toHaveText("—");
-    await expect(page.getByTestId("metric-news").locator(".admin-metric-value")).toHaveText("—");
+    await expect(page.getByTestId("metric-new-leads").locator(".admin-metric-value")).toHaveText("—");
     await expect(page.getByText("Chưa thể tải yêu cầu mua hàng.")).toBeVisible();
-    await expect(page.getByText("Chưa xác định trạng thái bản nháp vì dữ liệu sản phẩm chưa sẵn sàng.")).toBeVisible();
     await page.screenshot({ path: `${output}/dashboard-unavailable-1920x1080.png`, fullPage: true });
   } finally {
     dashboardReadiness = { ...readyDataSources };
@@ -482,7 +516,7 @@ await run("Dashboard reports an unavailable recent-lead preview separately", asy
   try {
     await open(page);
     await expect(page.getByText("3 yêu cầu mới", { exact: true })).toBeVisible();
-    await expect(page.locator(".admin-queue-view-all")).toContainText("12");
+    await expect(page.getByRole("link", { name: "Mở hộp thư yêu cầu (12)", exact: true })).toBeVisible();
     await expect(page.getByText("Chưa thể tải danh sách yêu cầu gần đây.")).toBeVisible();
     await expect(page.getByText("Chưa có yêu cầu mua hàng nào cần xử lý.")).toHaveCount(0);
   } finally {
@@ -647,20 +681,20 @@ for (const [width, height] of [[390, 844], [1366, 768], [1920, 1080]]) {
             ? Boolean(statusCell && actionCell && actionCell.getBoundingClientRect().top < statusCell.getBoundingClientRect().bottom - 1)
             : Boolean(status && actions && status.getBoundingClientRect().right > actions.getBoundingClientRect().left);
           const dataCells = [...document.querySelectorAll(".admin-product-table tbody td[data-label]")];
-          const labelsVisible = dataCells.length > 0 && dataCells.every((cell) => {
+          const labelsVisible = cardLayout ? dataCells.length > 0 && dataCells.every((cell) => {
             const label = getComputedStyle(cell, "::before");
             return label.display !== "none" && label.content !== "none" && label.content !== "normal";
-          });
+          }) : headers.length > 0 && headers.every((header) => header.getBoundingClientRect().height > 0);
           const hint = document.querySelector(".admin-table-scroll-hint");
           return { cardLayout: Boolean(cardLayout), canScroll: wrapper ? wrapper.scrollWidth > wrapper.clientWidth + 1 : false, labelsVisible, overlap, hintVisible: Boolean(hint && getComputedStyle(hint).display !== "none") };
         });
         if (width === 1366) {
           assert.equal(table.canScroll, false, "1366×768 product cards fit without horizontal scrolling");
-          assert.equal(table.labelsVisible, true, "1366×768 product values remain labeled in card layout");
+          assert.equal(table.labelsVisible, true, "1366×768 product values remain labeled");
           assert.equal(table.hintVisible, false, "1366×768 does not show a redundant scroll hint");
         }
         if (width === 1920) {
-          assert.equal(table.cardLayout, true, "1920×1080 product list uses cards instead of an overwide table");
+          assert.equal(table.cardLayout, false, "1920×1080 product list uses labeled rows");
           assert.equal(table.canScroll, false, "1920×1080 product cards fit without horizontal scrolling");
           assert.equal(table.labelsVisible, true, "1920×1080 product values remain labeled in card layout");
           assert.equal(table.overlap, false, "1920×1080 card actions do not cover product status");
@@ -691,6 +725,27 @@ await run("Closing the product editor keeps browser Back from reopening it", asy
   await page.evaluate(() => history.forward());
   await expect(page).toHaveURL(`${origin}/admin/san-pham`);
   await expect(page.getByTestId("button-product-edit-1")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Quay lại danh sách", exact: true })).toHaveCount(0);
+});
+
+await run("Product editor preserves list filters through close and reload", async (page) => {
+  await open(page, "/admin/san-pham?status=draft");
+  await page.getByTestId("button-product-edit-3").click();
+  await expect(page).toHaveURL(`${origin}/admin/san-pham?status=draft&edit=3`);
+  await page.getByRole("button", { name: "Quay lại danh sách", exact: true }).click();
+  await expect(page).toHaveURL(`${origin}/admin/san-pham?status=draft`);
+  await expect(page.getByRole("button", { name: "Bản nháp / Chờ duyệt", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await page.reload();
+  await expect(page.getByTestId("row-product-3")).toBeVisible();
+});
+
+await run("Closing a direct product editor link remains on its list after reload", async (page) => {
+  await open(page, "/admin/san-pham?edit=1");
+  await expect(page.getByTestId("input-product-name")).toBeVisible();
+  await page.getByRole("button", { name: "Quay lại danh sách", exact: true }).click();
+  await expect(page).toHaveURL(`${origin}/admin/san-pham`);
+  await page.reload();
+  await expect(page.getByTestId("row-product-1")).toBeVisible();
   await expect(page.getByRole("button", { name: "Quay lại danh sách", exact: true })).toHaveCount(0);
 });
 

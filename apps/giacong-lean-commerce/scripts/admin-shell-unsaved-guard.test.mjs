@@ -10,6 +10,19 @@ const readShell = () => readFile(shellPath, "utf8");
 const readGuard = () => readFile(guardPath, "utf8");
 const readProductPage = () => readFile(productPagePath, "utf8");
 
+test("hidden extension dialogs cannot block sidebar links or browser history", async () => {
+  const shell = await readShell();
+  const checks = shell.match(/document\.querySelector\('[^']*role="dialog"[^']*'\)/g) ?? [];
+  assert.ok(checks.length >= 2);
+  for (const check of checks) {
+    const evaluate = new Function("document", `return ${check};`);
+    const hiddenExtension = { id: "rstest-flyout", style: { display: "none" } };
+    assert.equal(evaluate({ querySelector: (selector) => selector === '[role="dialog"]' ? hiddenExtension : null }), null);
+    const adminDialog = { className: "admin-modal" };
+    assert.equal(evaluate({ querySelector: () => adminDialog }), adminDialog);
+  }
+});
+
 function extractFunction(source, name) {
   const marker = `function ${name}(`;
   const start = source.indexOf(marker);

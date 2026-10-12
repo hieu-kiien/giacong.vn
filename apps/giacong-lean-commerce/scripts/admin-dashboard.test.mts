@@ -202,6 +202,13 @@ test("dashboard queue uses accurate copy when no items need review", async () =>
   assert.doesNotMatch(primitives, /100% hoàn tất|đã được phê duyệt và sẵn sàng/);
 });
 
+test("dashboard request queue has one inbox link, in its action footer", async () => {
+  const primitives = await readFile(new URL("../src/components/admin/AdminPrimitives.tsx", import.meta.url), "utf8");
+
+  assert.doesNotMatch(primitives, /admin-queue-view-all/);
+  assert.match(primitives, /admin-queue-footer[\s\S]*?Mở hộp thư yêu cầu/);
+});
+
 test("dashboard presents unavailable counts as unavailable instead of zero", async () => {
   const dashboard = await readFile(new URL("../src/app/admin/page.tsx", import.meta.url), "utf8");
   const primitives = await readFile(new URL("../src/components/admin/AdminPrimitives.tsx", import.meta.url), "utf8");

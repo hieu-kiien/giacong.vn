@@ -12,7 +12,7 @@ export function parseCustomerContact(raw: unknown):
   const companyName = typeof data.companyName === "string" ? data.companyName.trim() : "";
   const errors: Partial<Record<"name" | "phone" | "consent" | "companyName", string>> = {};
   if (!name || name.length > 120 || /[\u0000-\u001f]/.test(name)) errors.name = "Vui lòng nhập họ tên (tối đa 120 ký tự).";
-  if (!/^\+?\d{8,15}$/.test(phone)) errors.phone = "Vui lòng nhập số điện thoại hợp lệ (8–15 chữ số).";
+  if (!/^\+?\d{8,15}$/.test(phone) || /^(\d)\1+$/.test(phone.replace(/^\+/, ""))) errors.phone = "Vui lòng nhập số điện thoại liên hệ thật (8–15 chữ số), không dùng số lặp như 0000000000.";
   if (companyName.length > 160 || /[\u0000-\u001f]/.test(companyName)) errors.companyName = "Tên công ty tối đa 160 ký tự.";
   if (data.consent !== true) errors.consent = "Vui lòng đồng ý lưu thông tin để chúng tôi liên hệ tư vấn.";
   return Object.keys(errors).length ? { ok: false, errors } : { ok: true, value: { name, phone, companyName } };

@@ -21,6 +21,17 @@ test("completion preserves a safe return destination", () => {
   assert.equal(customerContactDestination("//evil.test"), "/tai-khoan/");
 });
 
+test("contact rejects repeated-digit placeholders without rejecting formatted real numbers", () => {
+  for (const phone of ["0000000000", "+00000000000", "1111111111", "9999999999"]) {
+    const parsed = parseCustomerContact({ name: "Lan", phone, consent: true });
+    assert.equal(parsed.ok, false, phone);
+    if (!parsed.ok) assert.ok(parsed.errors.phone);
+  }
+  for (const phone of ["0868 408 115", "+84 868 408 115", "(024) 3825-1234"]) {
+    assert.equal(parseCustomerContact({ name: "Lan", phone, consent: true }).ok, true, phone);
+  }
+});
+
 test("saved contact details stay visible without a disclosure click", () => {
   const ui = readFileSync(new URL("../src/app/(storefront)/tai-khoan/CustomerContactProfile.tsx", import.meta.url), "utf8");
   assert.doesNotMatch(ui, /<details|<summary/);

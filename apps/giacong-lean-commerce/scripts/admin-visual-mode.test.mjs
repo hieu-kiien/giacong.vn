@@ -31,15 +31,37 @@ test("admin mode requires an authenticated session with a known role", () => {
   assert.equal(isAdminSessionReady({ authenticated: false, role: "owner" }), false);
 });
 
-test("the storefront layout gates the lightweight admin context by request host", async () => {
-  const source = await readSource("../src/app/(storefront)/layout.tsx");
+test("the storefront layout gates admin context without making public routes request-dynamic", async () => {
+  const [source, visualContract, wrangler] = await Promise.all([
+    readSource("../src/app/(storefront)/layout.tsx"),
+    readSource("../src/lib/admin-visual-contract.ts"),
+    readSource("../wrangler.jsonc"),
+  ]);
 
   assert.match(source, /styles\/admin\.css/);
   assert.match(source, /getRuntimeAdminAccessConfig/);
   assert.match(source, /normalizeAdminAccessConfig/);
-  assert.match(source, /isAdminStorefrontHost/);
-  assert.match(source, /<AdminVisualMode>/);
-  assert.match(source, /<>\{children\}<\/>/);
+  assert.doesNotMatch(source, /next\/headers|await headers\(/);
+  assert.match(source, /KNOWN_ADMIN_VISUAL_HOSTNAMES/);
+  assert.match(source, /<AdminVisualModeGate adminHostnames=\{adminHostnames\}>/);
+  for (const hostname of [
+    "admin-staging.kienhieu.id.vn",
+    "staging.kienhieu.id.vn",
+    "admin.kienhieu.id.vn",
+    "kienhieu.id.vn",
+  ]) {
+    assert.ok(visualContract.includes(hostname), `visual host allowlist must include ${hostname}`);
+    assert.ok(wrangler.includes(hostname), `Cloudflare configuration must include ${hostname}`);
+  }
+});
+
+test("storefront admin context activates only after an exact browser-host match", async () => {
+  const source = await readSource("../src/components/admin/AdminVisualMode.tsx");
+
+  assert.match(source, /export function AdminVisualModeGate\(/);
+  assert.match(source, /isAdminStorefrontHost\(window\.location\.hostname/);
+  assert.match(source, /useSyncExternalStore\(/);
+  assert.match(source, /<AdminVisualMode>\{children\}<\/AdminVisualMode>/);
 });
 
 test("the visual context is read-only and leaves contextual actions to individual pages", async () => {
