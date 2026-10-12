@@ -6,13 +6,14 @@ const root = new URL("../", import.meta.url);
 const read = (path) => readFile(new URL(path, root), "utf8");
 
 test("public SEO contract declares canonical metadata and a generated sitemap", async () => {
-  const [seo, sitemap, robots, rootLayout, notFound, capturedRoute] = await Promise.all([
+  const [seo, sitemap, robots, rootLayout, notFound, capturedRoute, nextConfig] = await Promise.all([
     read("src/lib/seo.ts"),
     read("src/app/sitemap.ts"),
     read("src/app/robots.txt/route.ts"),
     read("src/app/layout.tsx"),
     read("src/app/not-found.tsx"),
     read("src/app/(storefront)/[...slug]/page.tsx"),
+    read("next.config.ts"),
   ]);
   assert.match(seo, /PUBLIC_SITE_ORIGIN = "https:\/\/kienhieu\.id\.vn"/);
   assert.match(seo, /alternates: \{ canonical:/);
@@ -22,8 +23,9 @@ test("public SEO contract declares canonical metadata and a generated sitemap", 
   assert.match(sitemap, /getServiceContentIndex/);
   assert.match(robots, /Disallow: \/\\n/);
   assert.match(robots, /Sitemap: \$\{PUBLIC_SITE_ORIGIN\}\/sitemap\.xml/);
-  assert.match(rootLayout, /title: settings\.site_title \|\| defaultMetadata\.title/);
-  assert.match(rootLayout, /description: settings\.site_description \|\| defaultMetadata\.description/);
+  assert.match(rootLayout, /const title = settings\.site_title \|\| defaultMetadata\.title/);
+  assert.match(rootLayout, /const description = settings\.site_description \|\| defaultMetadata\.description/);
+  assert.match(rootLayout, /openGraph: \{/);
   assert.doesNotMatch(rootLayout, /canonicalMetadata\("\/"\)/);
   assert.match(notFound, /generateMetadata/);
   assert.match(notFound, /title: `Không tìm thấy trang \| \$\{settings\.brand_name\}`/);
@@ -33,6 +35,9 @@ test("public SEO contract declares canonical metadata and a generated sitemap", 
   assert.match(capturedRoute, /Không tìm thấy trang \| \$\{settings\.brand_name\}/);
   assert.match(capturedRoute, /noIndexMetadata/);
   assert.match(capturedRoute, /replaceLegacyBrandInText/);
+  assert.match(nextConfig, /trailingSlash: true/);
+  assert.match(nextConfig, /destination: "\/san-pham\/"/);
+  assert.match(nextConfig, /destination: "\/gia-cong-nuoc-chanh-mat-ong\/"/);
 });
 
 test("non-public hosts are marked noindex at the Worker boundary", async () => {

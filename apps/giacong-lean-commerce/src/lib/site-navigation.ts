@@ -83,7 +83,7 @@ export class SiteNavigationNotFoundError extends Error {
 }
 
 export const defaultPrimaryNavigation: readonly PublishedNavigationItem[] = [
-  { id: "home", capturedMenuId: "menu-item-4618", href: "/", isActive: true, label: "Home", menuKey: "primary", parentId: null, sortOrder: 10 },
+  { id: "home", capturedMenuId: "menu-item-4618", href: "/", isActive: true, label: "Trang chủ", menuKey: "primary", parentId: null, sortOrder: 10 },
   { id: "about", capturedMenuId: "menu-item-5498", href: "/gioi-thieu-ve-gia-cong/", isActive: true, label: "Về Kienhieu", menuKey: "primary", parentId: null, sortOrder: 20 },
   { id: "products", capturedMenuId: "menu-item-1742", href: "/san-pham/", isActive: true, label: "Mua hàng", menuKey: "primary", parentId: null, sortOrder: 30 },
   { id: "services", capturedMenuId: "menu-item-5166", href: "/thue-gia-cong/", isActive: true, label: "Thuê gia công", menuKey: "primary", parentId: null, sortOrder: 40 },

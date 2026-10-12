@@ -10,11 +10,23 @@ const defaultMetadata: Metadata = {
 
 export async function generateMetadata(): Promise<Metadata> {
   const settings = await getPublishedSiteSettings();
+  const title = settings.site_title || defaultMetadata.title;
+  const description = settings.site_description || defaultMetadata.description;
+  const shareImage = settings.hero_image_url || settings.favicon_url || undefined;
   return {
     metadataBase: new URL(PUBLIC_SITE_ORIGIN),
-    title: settings.site_title || defaultMetadata.title,
-    description: settings.site_description || defaultMetadata.description,
+    title,
+    description,
     icons: settings.favicon_url ? { icon: settings.favicon_url } : undefined,
+    openGraph: {
+      type: "website",
+      locale: "vi_VN",
+      siteName: typeof title === "string" ? title : "Kienhieu",
+      title: typeof title === "string" ? title : "Kienhieu",
+      description: description ?? undefined,
+      images: shareImage ? [{ url: shareImage }] : undefined,
+    },
+    twitter: { card: shareImage ? "summary_large_image" : "summary" },
   };
 }
 
