@@ -52,12 +52,14 @@ test("the Cloudflare catalog keeps the server-only, credential-free boundary the
   assert.doesNotMatch(source, /BAGISTO_|API_KEY|SECRET|PASSWORD/i, "catalog data must not read credential-like values");
 });
 
-test("the Worker deployment explicitly clears unused cron triggers", async () => {
-  const source = await readFile(new URL("../wrangler.jsonc", import.meta.url), "utf8");
+test("configured keep-warm cron has an exported scheduled handler", async () => {
+  const [config, worker] = await Promise.all([
+    readFile(new URL("../wrangler.jsonc", import.meta.url), "utf8"),
+    readFile(new URL("../custom-worker.ts", import.meta.url), "utf8"),
+  ]);
 
-  assert.match(
-    source,
-    /"triggers"\s*:\s*\{\s*"crons"\s*:\s*\[\s*\]\s*\}/s,
-    "this Worker has no scheduled handler, so deployment must clear stale cron triggers",
-  );
+  assert.match(config, /"crons"\s*:\s*\["\*\/2 \* \* \* \*"\]/);
+  assert.match(worker, /async scheduled\(/, "configured cron must have a handler");
+  assert.match(worker, /export default worker;/);
+  assert.match(worker, /const warmPaths = \["\/tai-khoan\/dang-nhap\/", "\/lien-he\/", "\/san-pham\/"\]/);
 });
