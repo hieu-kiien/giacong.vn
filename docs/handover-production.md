@@ -48,3 +48,10 @@ Thư mục `backups/` (không commit) chứa bản xuất D1 production trước
 - Mã nguồn không dùng `next/og`/`ImageResponse` (lỗi thực thi mã từ xa), `use cache`, `draftMode` hay `cacheComponents` (lỗi rò rỉ Draft Mode); chỉ dùng `unstable_cache`. Lỗi ở máy chủ phát triển (MCP) không áp dụng cho production.
 - Cảnh báo cache poisoning ISR/SSG nêu cho Next tự lưu trữ; ứng dụng chạy trên Cloudflare Workers với lớp cache riêng (khóa theo URL đã chuẩn hóa, bỏ qua yêu cầu có Cookie/Authorization), nên chưa chứng minh bị ảnh hưởng nhưng chưa thể loại trừ hoàn toàn.
 - Việc cần làm: khi OpenNext phát hành bản chạy được với Next 16.4+, nâng cấp, chạy canary, rồi bật lại bước `npm audit --omit=dev` chặn trong `.github/workflows/ci-cloudflare.yml` (đang `continue-on-error`).
+
+## Ghi chú vận hành bổ sung (12/10/2026)
+- Đăng nhập Google production dùng OAuth client **Kienhieu Staging Web** (dự án Google Cloud `giacong-vn-staging-auth`); client này đã được thêm URI `https://kienhieu.id.vn/api/auth/callback/google` và `https://admin.kienhieu.id.vn/api/auth/callback/google`. Đã thử đăng nhập Google thật trên production: thành công. Client `Kienhieu Production Web` chưa được dùng (cần secret của nó nếu muốn tách).
+- `npx opennextjs-cloudflare upload` KHÔNG tự build lại Next: luôn chạy `npm run cf:build` trước, rồi mới `upload`, canary (`wrangler versions deploy`) và chuyển 100%.
+- Thẻ chia sẻ Facebook/Zalo (`og:*`, `twitter:card`) lấy từ cài đặt: ảnh bìa, rồi logo, rồi favicon (bỏ qua SVG). Nên đặt ảnh bìa raster 1200x630 trong admin.
+- Cron giữ ấm `*/2 * * * *` (`scheduled` trong `custom-worker.ts`) giúp giảm 503 do khởi động nguội trên gói Free.
+- Menu chính lấy từ bảng `site_navigation_items` (không phải giá trị mặc định trong mã).
