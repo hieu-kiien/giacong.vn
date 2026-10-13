@@ -36,6 +36,16 @@ const settings = (heroImageUrl) => ({
   about_description: "About description mặc định.",
 });
 
+test("uses a neutral footer address label for the published office location", () => {
+  const result = applySiteSettingsToMarkup(footerMarkup, {
+    ...settings(""),
+    contact_address: "VP Thái Nguyên & <QA>",
+  });
+
+  assert.match(result, /<strong>Văn phòng:<\/strong> VP Thái Nguyên &amp; &lt;QA&gt;/);
+  assert.doesNotMatch(result, /VP Hà Nội|<QA>/);
+});
+
 test("replaces the hero src AND strips legacy srcset so the new image actually renders", () => {
   const result = applyHomepageSiteSettingsToMarkup(heroMarkup, settings("https://media.example.test/hero-new.jpg"));
 
@@ -90,7 +100,7 @@ test("applies published footer description, address and copyright without allowi
   });
 
   assert.match(result, /Mô tả mới<br \/>Dòng thứ hai/);
-  assert.match(result, /<strong>VP Hà Nội:<\/strong> 108 Trần Hưng Đạo &amp; &lt;script&gt;/);
+  assert.match(result, /<strong>Văn phòng:<\/strong> 108 Trần Hưng Đạo &amp; &lt;script&gt;/);
   assert.match(result, /Copyright &lt;2026&gt; &amp; partners/);
   assert.doesNotMatch(result, /<script>/);
 });

@@ -244,8 +244,8 @@ function replaceFooterAddress(markup: string, value: string): string {
   if (!value) return markup;
   const address = value.replace(/^\s*VP\s*Hà\s*Nội\s*:\s*/i, "").trim();
   if (!address) return markup;
-  const pattern = /(<footer\b[\s\S]*?<ul\b[^>]*class=["'][^"']*\btext-info\b[^"']*["'][\s\S]*?<li\b[^>]*>[\s\S]*?<strong>VP\s*Hà\s*Nội:\s*<\/strong>)[\s\S]*?(<\/li>)/i;
-  return markup.replace(pattern, (_match, opening: string, closing: string) => `${opening} ${escapeHtml(address)}${closing}`);
+  const pattern = /(<footer\b[\s\S]*?<ul\b[^>]*class=["'][^"']*\btext-info\b[^"']*["'][\s\S]*?<li\b[^>]*>[\s\S]*?)<strong>VP\s*Hà\s*Nội:\s*<\/strong>[\s\S]*?(<\/li>)/i;
+  return markup.replace(pattern, (_match, opening: string, closing: string) => `${opening}<strong>Văn phòng:</strong> ${escapeHtml(address)}${closing}`);
 }
 
 function replaceFooterCopyright(markup: string, value: string): string {
