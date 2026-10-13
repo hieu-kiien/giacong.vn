@@ -56,7 +56,7 @@ const PUBLIC_DOCUMENT_CACHE_CONTROL = "public, max-age=0, s-maxage=600, stale-wh
 const STAGING_DOCUMENT_CACHE_CONTROL = "public, max-age=0, s-maxage=600, stale-while-revalidate=3600";
 const CDN_DOCUMENT_CACHE_CONTROL = "public, max-age=86400, stale-while-revalidate=604800";
 const STAGING_CDN_DOCUMENT_CACHE_CONTROL = "public, max-age=600";
-const PUBLIC_DOCUMENT_CACHE_VERSION = "2026-10-12-next-16-3-8";
+const PUBLIC_DOCUMENT_CACHE_VERSION = "2026-10-13-ui-final";
 const publicDocumentCache = (caches as CacheStorage & { default: Cache }).default;
 
 function publicDocumentCacheHostname(hostname: string): string | null {
