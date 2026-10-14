@@ -88,8 +88,8 @@ export default async function CustomerAccountPage({ searchParams }: { searchPara
   return (
     <CapturedStorefrontShell variant="account">
       <main className={styles.main} id="main">
-        <section aria-labelledby="account-page-title" className={styles.heading}>
-          <div>
+        <section aria-labelledby="account-page-title" className="giacong-page-hero">
+          <div className="giacong-page-hero__inner">
             <h1 id="account-page-title">Tài khoản</h1>
             <nav aria-label="Breadcrumb" className="giacong-page-hero__breadcrumb">
               <Link prefetch={false} href="/">Trang chủ</Link><span aria-hidden="true">»</span><span aria-current="page">Tài khoản</span>

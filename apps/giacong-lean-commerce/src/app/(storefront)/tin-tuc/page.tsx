@@ -93,7 +93,6 @@ export default async function NewsListingPage({ searchParams }: NewsListingPageP
 
             {posts.length === 0 ? (
               <div className="giacong-news-empty" data-testid="news-empty-state">
-                <span aria-hidden="true" className="giacong-news-empty__mark">g.</span>
                 <h3>{query ? `Không tìm thấy bài viết cho “${query}”` : "Chưa có bài viết mới"}</h3>
                 <p>{query ? "Thử một từ khóa khác hoặc xóa bộ lọc để xem toàn bộ bài viết đã phát hành." : "Nội dung đang được cập nhật. Bạn có thể tìm lại tin tức theo từ khóa khi bài viết được phát hành."}</p>
               </div>

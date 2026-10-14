@@ -1,29 +1,9 @@
 .shell :global(#header) {
-  background: #fff;
   position: relative;
   z-index: 20;
 }
 
-/* Account pages have a white header, including the captured dark-nav variant. */
 @layer captured {
-  .shell :global(#header .nav-dark .nav > li > a),
-  .shell :global(#header .nav-dark .giacong-brand-tagline) {
-    color: #1f3320 !important;
-  }
-
-  .shell :global(#header .nav-dark .header-logo) {
-    display: block !important;
-  }
-
-  .shell :global(#header .nav-dark .header-logo-dark) {
-    display: none !important;
-  }
-
-  .shell :global(#header .nav-dark .ux-menu-icon) {
-    filter: brightness(0);
-    opacity: .8;
-  }
-
   @media (max-width: 849px) {
     .shell :global(#header .mobile-nav a[data-open="#main-menu"]),
     .shell :global(#header .mobile-nav .header-account a) {
