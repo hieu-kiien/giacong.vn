@@ -55,15 +55,16 @@ CMS dùng typed settings, draft/published tách biệt, optimistic versioning, a
 
 - `/admin/thiet-ke`: page builder schema an toàn cho hero, rich text, image, feature grid, CTA và contact;
 - `/admin/dieu-huong`: primary navigation desktop/mobile, draft/publish và optimistic versioning;
-- `/admin/thanh-vien`: owner-only member/role management với `owner`, `content_manager`, `catalog_manager`, `sales_manager`, `viewer`;
-- mọi API admin đều kiểm tra Cloudflare Access admission, capability server-side, validation và audit log.
+- `/admin/thanh-vien`: quản lý tài khoản quản trị nội bộ với quyền duy nhất `owner` (Admin toàn quyền), bảo vệ owner cuối cùng và lưu audit log;
+- mọi API admin đều kiểm tra admission, phiên tài khoản đã xác minh cùng quyền `owner` server-side, validation và audit log.
 
 Migration `0009_admin_control_plane.sql` phải được apply vào môi trường trước khi dùng ba màn hình mới. Page builder không chạy HTML/CSS/JavaScript tùy ý; thay đổi schema hoặc logic mới vẫn cần code review.
 
 Không đưa `.env`, `.env.local`, `.dev.vars` hoặc secret Cloudflare/Google lên GitHub. Kiến trúc vận hành chi tiết nằm trong thư mục `docs/`.
 
-Phạm vi storefront hiện tại và giới hạn kỹ thuật admin:
+Phạm vi storefront hiện tại, giới hạn kỹ thuật admin và trạng thái hoàn thiện production:
 
 - [`docs/PROJECT_SCOPE_2026-09-27.md`](docs/PROJECT_SCOPE_2026-09-27.md)
 - [`docs/PRODUCT_FORM_FIELD_AUDIT_2026-09-27.md`](docs/PRODUCT_FORM_FIELD_AUDIT_2026-09-27.md)
 - [`docs/CLOUDFLARE_ADMIN_WRITE_CONTRACT.md`](docs/CLOUDFLARE_ADMIN_WRITE_CONTRACT.md)
+- [`docs/PRODUCTION_COMPLETION_2026-10-12.md`](docs/PRODUCTION_COMPLETION_2026-10-12.md)

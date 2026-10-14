@@ -5,9 +5,9 @@ Workspace này tách các nguồn theo vai trò để tránh nhầm lẫn giữa
 ## Bắt đầu tại đây
 
 - Ứng dụng đang phát triển: [`apps/giacong-lean-commerce`](apps/giacong-lean-commerce/)
-- Phạm vi và quyết định hiện hành: [`apps/giacong-lean-commerce/docs/CLOUDFLARE_NATIVE_V1_PLAN.md`](apps/giacong-lean-commerce/docs/CLOUDFLARE_NATIVE_V1_PLAN.md)
-- Lộ trình admin visual: [`apps/giacong-lean-commerce/docs/ADMIN_VISUAL_ROADMAP.md`](apps/giacong-lean-commerce/docs/ADMIN_VISUAL_ROADMAP.md)
-- Bản đồ file và ownership: [`apps/giacong-lean-commerce/docs/ADMIN_VISUAL_FILE_MAP.md`](apps/giacong-lean-commerce/docs/ADMIN_VISUAL_FILE_MAP.md)
+- Mục lục tài liệu dự án: [`apps/giacong-lean-commerce/docs/README.md`](apps/giacong-lean-commerce/docs/README.md)
+- Phạm vi sản phẩm hiện hành: [`apps/giacong-lean-commerce/docs/PROJECT_SCOPE_2026-09-27.md`](apps/giacong-lean-commerce/docs/PROJECT_SCOPE_2026-09-27.md)
+- Kế hoạch kiến trúc Cloudflare-native V1: [`apps/giacong-lean-commerce/docs/CLOUDFLARE_NATIVE_V1_PLAN.md`](apps/giacong-lean-commerce/docs/CLOUDFLARE_NATIVE_V1_PLAN.md)
 
 ## 📋 Tài liệu Bàn giao & Hướng dẫn Khách hàng
 
@@ -15,11 +15,13 @@ Dành cho khách hàng, chủ doanh nghiệp và nhân sự vận hành hệ th�
 
 | Tài liệu | Đối tượng | Mô tả |
 | :--- | :--- | :--- |
-| 📖 [**HƯỚNG DẪN SỬ DỤNG DÀNH CHO KHÁCH HÀNG**](apps/giacong-lean-commerce/docs/HUONG_DAN_SU_DUNG_KHACH_HANG.md) | Khách hàng / Chủ shop / Sales | Cẩm nang hướng dẫn đăng nhập Admin, quản lý sản phẩm B2B, quản trị nội dung CMS, xử lý đơn/RFQ trên Google Sheets |
-| 📑 [**Tài liệu Bàn giao Vận hành (HANDOVER)**](apps/giacong-lean-commerce/docs/HANDOVER.md) | Chủ dự án & Quản trị hệ thống | Bản đồ hệ thống, Cloudflare Access, D1/R2, quy trình deploy và giám sát |
-| ✅ [**Checklist Nghiệm thu (PRODUCTION_ACCEPTANCE)**](apps/giacong-lean-commerce/docs/PRODUCTION_ACCEPTANCE_CHECKLIST.md) | Nghiệm thu dự án | Danh mục kiểm thử nghiệm thu storefront, admin, responsive và bảo mật |
-| 📊 [**Hướng dẫn Vận hành Google Sheets**](apps/giacong-lean-commerce/docs/GOOGLE_SHEETS_CONTACT_WEBHOOK.md) | Nhân sự vận hành đơn | Hướng dẫn quản lý dữ liệu đơn hàng và báo giá trên Google Sheets |
-| 🌐 [**Trạng thái Cloudflare Production**](apps/giacong-lean-commerce/docs/CLOUDFLARE_CURRENT_STATE.md) | Đội kỹ thuật | Trạng thái phát hành, version Worker trên domain kienhieu.id.vn |
+| 📑 [**Bàn giao Production (`handover-production.md`)**](docs/handover-production.md) | Chủ dự án & Quản trị hệ thống | Tổng quan hạ tầng `kienhieu.id.vn`, quy trình build/deploy canary, secrets, giới hạn CPU Free và giám sát |
+| 🚀 [**Hoàn thiện & Nghiệm thu Production**](apps/giacong-lean-commerce/docs/PRODUCTION_COMPLETION_2026-10-12.md) | Đội kỹ thuật & Nghiệm thu | Checkpoint phát hành mới nhất: bản vá bảo mật, Apps Script v5, cache R2 và bằng chứng runtime |
+| 🛠️ [**Bàn giao Admin Tinh gọn & Tài khoản**](apps/giacong-lean-commerce/docs/ADMIN_SIMPLE_HANDOFF_2026-10-05.md) | Khách hàng / Chủ shop / Sales | Cẩm nang hệ thống Admin tinh gọn, phiên đăng nhập dùng chung, ghi nhận giao dịch Zalo và xuất Excel |
+| 📊 [**Hướng dẫn Vận hành Google Sheets**](apps/giacong-lean-commerce/docs/GOOGLE_SHEETS_CONTACT_WEBHOOK.md) | Nhân sự vận hành đơn | Hợp đồng đồng bộ yêu cầu mua hàng và giao dịch đã chốt sang Google Sheets |
+| ✅ [**Checklist Nghiệm thu Production**](apps/giacong-lean-commerce/docs/PRODUCTION_ACCEPTANCE_CHECKLIST.md) | Nghiệm thu dự án | Danh mục kiểm thử nghiệm thu storefront, admin, responsive và bảo mật |
+| 🌐 [**Nhật ký Trạng thái Cloudflare**](apps/giacong-lean-commerce/docs/CLOUDFLARE_CURRENT_STATE.md) | Đội kỹ thuật | Lịch sử các đợt kiểm tra, migration và snapshot version Worker |
+| 📖 [**Hướng dẫn Sử dụng (Bản lưu trữ)**](apps/giacong-lean-commerce/docs/archive/legacy-2026-09-27/HUONG_DAN_SU_DUNG_KHACH_HANG.md) | Tham khảo lịch sử | Tài liệu hướng dẫn thao tác các màn hình CMS/Admin ban đầu |
 
 ## Cấu trúc
 

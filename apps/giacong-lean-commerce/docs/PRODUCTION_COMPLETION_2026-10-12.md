@@ -1,5 +1,16 @@
 # Kiểm tra và hoàn thiện production — 2026-10-12
 
+## Nghiệm thu kỹ thuật tiếp tục — 2026-10-14
+
+- Production đang ở `679177ec-6d55-403e-a1f2-60707888faa9` (source `944ec00c`, tiếp nối `d9148588-5394-4128-8991-a27ccfd24c1c` / `803a5b90`): đồng bộ header/hero trang tài khoản, trạng thái trống tin tức, logo/header/footer đã sửa. Chưa bật dịch vụ/gói trả phí.
+- Staging mới: `a59e8f0e-7c60-4599-bb74-ff77eefbfbd7`, build `VCXqvfpdFkoT2zqVNFBOj`; Worker startup remote 556 ms, gzip 2259.88 KiB. Full gate 951 test, lint/typecheck/build exit 0; production dependency audit 0 vulnerability. R2 build mới put/get SHA-256 đủ 15/15 entry.
+- Auth native gọi nguyên canonical GET/POST của Better Auth trong context OpenNext, giữ router/schema/origin/rate limit. Kysely pin bản tương thích `0.28.17` để tránh mutex giữa request; test adapter thật chứng minh query thứ hai không bị chặn bởi query thứ nhất đang chờ. Chỉ reuse instance đã hoàn tất schema validation theo D1 binding; không chia sẻ pending I/O. Module server, routes và Kysely được nạp trước request.
+- Integration trên đúng native bundle và SQLite trong bộ nhớ: anonymous session 200; bốn payload đăng nhập không hợp lệ trả 400/400/400/429; số user vẫn 0. Probe live trước đó chưa quan sát được 429, nên không coi giới hạn trên nhiều isolate là đã nghiệm thu.
+- Tail staging mới: account anonymous cold 225 ms, login 253 ms, native session 33–56 ms; warm account 23 ms, login 43 ms, session 7 ms. Admin session anonymous có mẫu 18/261/17 ms và đều 401. Public cache hit 1–2 ms. Các probe mới không gặp 1102, nhưng CPU cold còn cao: **chưa đóng lỗi 1102 hoặc chứng nhận đáp ứng CPU Free**. Không suy diễn warm pass thành cold pass.
+- Chrome production ở viewport thực: account 390 px; catalog/detail/cart, tìm kiếm không có kết quả và reset, chọn quy cách bằng bàn phím, quantity clamp theo MOQ hiện có, chặn submit thiếu số điện thoại/tỉnh thành. Cart ở 320/390/768/1024 px không tràn ngang, không ảnh hỏng; đã xóa dòng giỏ do QA thêm. Không gửi yêu cầu kinh doanh giả. Đây là viewport mô phỏng trên Chrome, chưa phải thiết bị vật lý.
+- Công cụ điều khiển Chrome bị `Transport closed` sau checkpoint; đã đề nghị kết nối lại để kiểm tra Google/owner, logout/admin và tải đồng thời trên version mới. Phần này còn mở. Giá/MOQ/nội dung kinh doanh cần khách xác nhận giữ nguyên theo yêu cầu; không thay bằng dữ liệu giả.
+- Review độc lập không có blocker source để thử staging; lưu ý startup pass không chứng minh mọi route preload thành công vì Next có thể nuốt lỗi preload. GitNexus full detect_changes không partial/truncated, risk critical do auth. Artifacts `.runtime/handoff-*` là bằng chứng cục bộ/regeneratable, không commit token/PII.
+
 ## Phần đã xác minh
 
 - Source phát hành đã đưa vào Git đầy đủ: bảy module/component và ba test trước đây chỉ có trong worktree. PR [#144](https://github.com/hieu-kiien/giacong.vn/pull/144).
@@ -24,6 +35,32 @@
 - Giá/MOQ và nội dung kinh doanh chưa được khách xác nhận không được tự suy diễn để đánh dấu nghiệm thu.
 
 ## Bằng chứng và khôi phục
+
+### Giao diện và logo — 2026-10-13
+
+- **Bản hiện hành sau sửa footer:** production `d9148588-5394-4128-8991-a27ccfd24c1c`, source `803a5b90`, build `06RnQPRommL-8o9rOT1IF`; staging `7a7ae393-9987-4a1a-a9cb-6e559a276126`, build `DCJAkGOtHJ6362JbaJwK-`. Giữ vars/secret và các binding/lịch cron hiện có. Production tiếp tục tách khỏi thay đổi auth/HEAD thử nghiệm.
+- Địa chỉ footer trước sửa production hiển thị `VP Hà Nội: VP Thái Nguyên`: hàm dùng nhãn captured cố định. Đổi thành `Văn phòng:`, giữ địa chỉ published, strip tiền tố Hà Nội cũ và escape HTML. Regression RED → GREEN 17/17; review độc lập không blocker. Impact trước sửa CRITICAL (16 upstream, 6 process); detect_changes cuối đầy đủ, không partial/truncated. Không diễn giải affected=0 của index thành không có phụ thuộc.
+- Gate bản footer: staging 949 test, production 948 test; lint/typecheck/build và OpenNext đều exit 0. Cache R2 build mới staging 15/15, production 12/12 put/get SHA-256 trùng. Production kiểm tra lại 11 trang công khai 200, admin API anonymous 401, 26 CSS/JS 200; mọi trang có footer đều đúng nhãn và địa chỉ published. Staging năm trang công khai 200, admin API 401, nhãn footer đúng.
+- Chrome owner sau phát hành ở cả hai môi trường tải xong tài khoản, không tràn ngang; production header `rgb(31,51,32)`, logo SVG, footer `Văn phòng: VP Thái Nguyên`. Ảnh cuối `.runtime/ui-audit-20261013/production-account-final.jpg`. Đây là lượt kiểm tra warm, không phủ định lỗi cold 1102 đã ghi dưới đây. Bằng chứng production được giữ cục bộ trong `production-release/`; worktree phát hành được giữ để tiếp tục xử lý.
+- Checkpoint production CSS/logo đã phát hành: version `ab8e3a0f-56e1-46f7-a9fc-f544b04f9016`, source `cba6fc2d`, build `Ly1Y8I0yiVViddjNCYHci`. Full gate production 947 test và lint/typecheck/build exit 0; 12 cache entry R2 được put/get và so SHA-256. Bản build lấy 27 settings/6 navigation công khai từ production vào D1 local để giữ đúng nội dung published; không sao chép dữ liệu tài khoản/khách hàng.
+- Smoke production: 11 trang công khai HTTP 200, anonymous admin API 401, 26 asset CSS/JS HTTP 200. Chrome owner gặp 1102 lần đầu sau Google callback (`2026-10-13T12:17:22Z`, Ray `a49e47d829c25cd5`), reload sau đó tải đầy đủ thông tin tài khoản; header màu tối và SVG đúng. Không coi warm reload thành công là sửa được cold start. Rollback code trước UI: `eb718887-cd55-42a5-a43d-f93e618e4fe1`; rollback logo độc lập đã lưu, không thực thi.
+- Checkpoint staging sau đổi namespace cache UI: `164b18d1-c660-40a9-b1c5-2ccea32f881e`; app build `d6hBpdJR1MgN36uenYRPq` giữ nguyên source CSS đã nghiệm thu. Các version phía dưới là lịch sử kiểm tra.
+- Tái hiện ảnh lỗi: header tài khoản dùng chữ/icon trắng và logo nền tối trên nền trắng; breadcrumb cũng trắng. CSS account được scope riêng để dùng màu tối/logo sáng, breadcrumb căn trái và nút menu/tài khoản mobile tối thiểu 44 px. Hero login/reset giữ nguyên.
+- Full gate cuối: 948 test, lint/typecheck/build exit 0; review độc lập không có blocker. Staging `597bffce-a8e5-4cf4-adde-3e0b33d5d98a`, build `d6hBpdJR1MgN36uenYRPq`; 15 cache entry được put/get và so SHA-256.
+- Đã rà 12 trang desktop tiêu biểu: home, account, catalog, nhóm dịch vụ, giỏ, chi tiết sản phẩm/dịch vụ, tin tức, liên hệ và ba trang admin. Các lượt kiểm tra không có ảnh hỏng/tràn ngang; bốn trang chi tiết/tin tức/liên hệ không có console error/warn. Không coi đây là chứng nhận mọi trang/trạng thái đều hoàn tất.
+- Login local chạy trong iframe có viewport thực 320/767/1023/1440 px: không tràn ngang, menu mobile mở/đóng được bằng nút và Escape, logo và vùng bấm không chồng nhau. Đây là kiểm tra layout bản build local, không thay thế D1/auth staging ở mobile. Chụp ảnh iframe local bị timeout qua công cụ; ảnh desktop trước/sau và logo production đã lưu.
+- Theo yêu cầu khách, production khôi phục hai logo về `/images/brand/kienhieu-logo.svg` và `/images/brand/kienhieu-logo-dark.svg`, version 10/5; guard chính xác hai giá trị/version cũ, backup hai row và rollback riêng, hai audit record. Ảnh JPG cũ trong R2 được giữ. Chrome đã xác minh logo mới hiển thị trên home production.
+- Phát hành CSS production được tách từ source `45c3cb6e` để không đưa thử nghiệm auth/HEAD mới sang production. Lỗi 1102 trên account staging lúc `2026-10-13T06:56:24Z` vẫn là vấn đề CPU mở; không coi sửa giao diện là đã khắc phục nó. Bằng chứng `.runtime/ui-audit-20261013*` là cục bộ/regeneratable, không commit dữ liệu cá nhân.
+
+### Staging tiếp tục — 2026-10-13
+
+- Auth chỉ reuse instance trong cùng Worker ExecutionContext, tránh chia sẻ driver SQLite/Kysely và mutex giữa các request. Schema validation, router Better Auth và kiểm tra quyền owner giữ nguyên; thử nghiệm native/direct session API đã rút.
+- HEAD công khai dùng cache GET với body rỗng, không kích hoạt render nền khi stale. Cookie/Authorization/RSC/Access JWT vẫn loại khỏi shared cache; GET stale vẫn refresh.
+- Full gate: 948 test, lint/typecheck/build exit 0. OpenNext build `kd4qEYP_wJz-q6TwUVpaN`; 15 cache entry R2 staging đã put/get và so SHA-256. Staging version `e2a17841-81b9-4b7f-8c2a-d30982c1512c`.
+- Chrome Công Việc: tài khoản Google owner tải thông tin/lịch sử và admin tổng quan; ba tab tài khoản đồng thời đều hoàn tất. Đăng xuất chặn admin, đăng nhập Google lại thành công. Điều hướng trực tiếp tab JSON qua công cụ browser timeout; không coi thao tác đó là pass. Kiểm tra đồng thời dựa trên ba trang tài khoản và API do chính UI gọi.
+- Tail đã lược bỏ headers/body: GET công khai nóng 3 ms CPU, HEAD 1 ms; get-session nóng 16–19 ms, admin-session 13–19 ms trong mẫu đồng thời. Vẫn có get-session 52/895 ms và admin-session 954 ms; hai request session canceled sau 457/522 ms trong lượt mở tab, chưa chứng minh nguyên nhân. Chưa đạt gate CPU Free hoặc ổn định cold start.
+- Review độc lập không có blocker staging. GitNexus detect_changes đầy đủ (không partial/truncated): 12 symbol gồm tài liệu, 234 flow, risk critical do auth; không coi số lượng sửa ít là rủi ro thấp.
+- Tại checkpoint auth/HEAD này, production là `eb718887-cd55-42a5-a43d-f93e618e4fe1`; các bản UI hiện hành ghi ở mục trên vẫn chưa phát hành thay đổi auth/HEAD này. Không bật gói trả phí, thêm dịch vụ hoặc tạo dữ liệu kinh doanh giả. Artifacts `.runtime/free-request-scope-*` là bằng chứng cục bộ/regeneratable, không đưa token/PII vào Git.
 
 Artifacts `.runtime/completion-*`, screenshot Apps Script, reconciliation và backup là bằng chứng cục bộ được ignore; harness kiểm tra có thể chạy lại. Không commit dữ liệu khách hàng, tokens hoặc backup D1. Phiên bản production trước thay đổi: `e19155b6-17a3-4bb2-93cf-da4a66d53856`; chỉ rollback code khi xác nhận regression, không rollback dữ liệu kinh doanh đã ghi.
 
