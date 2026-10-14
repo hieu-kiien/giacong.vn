@@ -66,6 +66,7 @@ const readCapturedManifest = cache(async (): Promise<Record<string, string>> => 
 
 const readCapturedPath = cache(async (path: string): Promise<CapturedPageData> => {
   const localPage = localCapturedPages[path];
+  if (localPage) return localPage;
   try {
     const manifest = await readCapturedManifest();
     const file = manifest[path];

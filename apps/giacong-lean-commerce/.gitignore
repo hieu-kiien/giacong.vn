@@ -61,3 +61,4 @@ temp/
 # Regeneratable browser-audit captures
 docs/design-references/audit-*.png
 docs/design-references/qa-*.png
+.e2e/

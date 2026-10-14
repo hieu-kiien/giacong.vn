@@ -58,7 +58,8 @@ function activateDesktopNavigation(markup: string, activeNavigation?: Storefront
   );
 }
 
-const normalizedNewsMarkup = normalizeCapturedMarkup(newsPage.markup);
+const shellSourceMarkup = newsPage.markup.replace(/<main\b[^>]*>[\s\S]*?<\/main>/i, '<main id="main"></main>');
+const normalizedNewsMarkup = normalizeCapturedMarkup(shellSourceMarkup);
 const capturedHeader = extractElement(normalizedNewsMarkup, "header");
 const capturedFooter = extractElement(normalizedNewsMarkup, "footer", capturedHeader.end);
 const wrapperClose = normalizedNewsMarkup.indexOf("</div>", capturedFooter.end);
@@ -66,17 +67,24 @@ const capturedAuxiliaryMarkupSource = wrapperClose < 0
   ? ""
   : normalizedNewsMarkup.slice(wrapperClose + "</div>".length);
 
-/** Shared source of the approved captured Header, Footer and interactions. */
-export async function CapturedStorefrontShell({
-  activeNavigation,
-  children,
-  variant = "captured",
-}: CapturedStorefrontShellProps) {
-  const accountShell = variant === "account";
-  const bodyClasses = accountShell
-    ? newsPage.bodyClasses.split(/\s+/).filter((name) => name !== "archive" && !/^category(?:-|$)/.test(name)).join(" ")
-    : newsPage.bodyClasses;
-  const [settings, navigation] = await Promise.all([getPublishedSiteSettings(), getPublishedSiteNavigation()]);
+interface PreparedShellMarkup {
+  auxiliaryMarkup: string;
+  footerMarkup: string;
+  headerWithAccountLinks: string;
+  styleMarkup: string;
+}
+
+const preparedShellCache = new Map<string, PreparedShellMarkup>();
+
+function buildPreparedShellMarkup(
+  activeNavigation: StorefrontNavigationKey | undefined,
+  settings: Awaited<ReturnType<typeof getPublishedSiteSettings>>,
+  navigation: Awaited<ReturnType<typeof getPublishedSiteNavigation>>,
+): PreparedShellMarkup {
+  const cacheKey = `${activeNavigation ?? ""}\0${JSON.stringify(settings)}\0${JSON.stringify(navigation)}`;
+  const cached = preparedShellCache.get(cacheKey);
+  if (cached) return cached;
+
   const activeCapturedMenuId = activeNavigation ? getStorefrontNavigation(activeNavigation)?.menuItemId : undefined;
   const headerMarkup = applySiteSettingsToMarkup(
     applyNavigationToMarkup(
@@ -95,10 +103,41 @@ export async function CapturedStorefrontShell({
     applyNavigationToMarkup(capturedAuxiliaryMarkupSource, navigation, activeCapturedMenuId),
     settings,
   );
+  const styleMarkup = `${layerCapturedStyles(newsPage.pageStyles)}\n${siteBrandStyles(settings)}`;
+  const prepared: PreparedShellMarkup = {
+    auxiliaryMarkup,
+    footerMarkup,
+    headerWithAccountLinks,
+    styleMarkup,
+  };
+  if (preparedShellCache.size >= 16) {
+    const oldest = preparedShellCache.keys().next().value;
+    if (oldest !== undefined) preparedShellCache.delete(oldest);
+  }
+  preparedShellCache.set(cacheKey, prepared);
+  return prepared;
+}
+
+/** Shared source of the approved captured Header, Footer and interactions. */
+export async function CapturedStorefrontShell({
+  activeNavigation,
+  children,
+  variant = "captured",
+}: CapturedStorefrontShellProps) {
+  const accountShell = variant === "account";
+  const bodyClasses = accountShell
+    ? newsPage.bodyClasses.split(/\s+/).filter((name) => name !== "archive" && !/^category(?:-|$)/.test(name)).join(" ")
+    : newsPage.bodyClasses;
+  const [settings, navigation] = await Promise.all([getPublishedSiteSettings(), getPublishedSiteNavigation()]);
+  const { auxiliaryMarkup, footerMarkup, headerWithAccountLinks, styleMarkup } = buildPreparedShellMarkup(
+    activeNavigation,
+    settings,
+    navigation,
+  );
 
   return (
     <>
-      <style dangerouslySetInnerHTML={{ __html: `${layerCapturedStyles(newsPage.pageStyles)}\n${siteBrandStyles(settings)}` }} />
+      <style dangerouslySetInnerHTML={{ __html: styleMarkup }} />
       <div className={`${bodyClasses}${accountShell ? ` ${styles.shell}` : ""}`}>
         <a className="skip-link screen-reader-text" href="#main">Chuyển đến nội dung chính</a>
         <div id="wrapper">

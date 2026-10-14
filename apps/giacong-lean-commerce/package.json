@@ -77,11 +77,13 @@
     }
   },
   "devDependencies": {
+    "@e2e-dev/web": "^0.14.0",
     "@opennextjs/cloudflare": "1.20.10",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^24",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "e2e": "^0.20.0",
     "eslint": "^9",
     "eslint-config-next": "16.3.8",
     "playwright": "^1.61.1",

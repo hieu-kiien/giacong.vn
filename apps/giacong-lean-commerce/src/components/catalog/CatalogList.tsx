@@ -221,9 +221,9 @@ export function CatalogList({
             </form>
 
             <div className="flex w-full items-center gap-2 md:w-auto">
-              <label className="shrink-0 text-sm font-medium text-commerce-secondary" htmlFor="catalog-orderby">Sắp xếp:</label>
+              <label className="sr-only sm:not-sr-only shrink-0 text-sm font-medium text-commerce-secondary" htmlFor="catalog-orderby">Sắp xếp:</label>
               <select
-                className="min-h-11 min-w-0 flex-1 rounded-[5px] border border-commerce-border bg-white px-3 text-sm font-semibold text-commerce-body focus-visible:commerce-focus-ring md:w-64 md:flex-none"
+                className="min-h-11 min-w-0 flex-1 rounded-[5px] border border-commerce-border bg-white pl-3 pr-8 text-sm font-semibold text-commerce-body focus-visible:commerce-focus-ring md:w-64 md:flex-none"
                 disabled={isPending}
                 id="catalog-orderby"
                 onChange={(event) => {

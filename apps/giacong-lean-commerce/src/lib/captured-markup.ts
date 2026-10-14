@@ -133,13 +133,39 @@ function readLinkLabel(content: string) {
  * valid only at the stylesheet top level, while `@layer` may contain the
  * remaining `@font-face`, `@media` and `@keyframes` rules.
  */
+const MAX_CAPTURED_CACHE_ENTRIES = 24;
+const layeredStylesCache = new Map<string, string>();
+const normalizedMarkupCache = new Map<string, string>();
+
+function readBoundedCache(cache: Map<string, string>, key: string): string | undefined {
+  const cached = cache.get(key);
+  if (cached !== undefined) {
+    cache.delete(key);
+    cache.set(key, cached);
+  }
+  return cached;
+}
+
+function writeBoundedCache(cache: Map<string, string>, key: string, value: string): string {
+  if (key.length > 300_000) return value;
+  if (cache.size >= MAX_CAPTURED_CACHE_ENTRIES) {
+    const oldestKey = cache.keys().next().value;
+    if (oldestKey !== undefined) cache.delete(oldestKey);
+  }
+  cache.set(key, value);
+  return value;
+}
+
 export function layerCapturedStyles(pageStyles: string): string {
+  const cached = readBoundedCache(layeredStylesCache, pageStyles);
+  if (cached !== undefined) return cached;
+
   const nestedStyles = normalizeCapturedFontDisplay(
     normalizeCapturedAssetSources(
       pageStyles.replace(/@charset\s+(?:"[^"]*"|'[^']*')\s*;?/gi, ""),
     ),
   );
-  return `@layer captured {\n${nestedStyles}\n}`;
+  return writeBoundedCache(layeredStylesCache, pageStyles, `@layer captured {\n${nestedStyles}\n}`);
 }
 
 /**
@@ -203,6 +229,10 @@ function normalizeCapturedFontDisplay(styles: string): string {
 }
 
 export function normalizeCapturedMarkup(markup: string, activeCapturedMenuId?: string | null) {
+  const cacheKey = `${activeCapturedMenuId ?? ""}\0${markup}`;
+  const cached = readBoundedCache(normalizedMarkupCache, cacheKey);
+  if (cached !== undefined) return cached;
+
   const normalized = markup
     // Captured pages are static marketing HTML rendered through
     // dangerouslySetInnerHTML. Executable elements must never reach the
@@ -263,7 +293,7 @@ export function normalizeCapturedMarkup(markup: string, activeCapturedMenuId?: s
     ),
   );
 
-  return applyCapturedActiveNav(
+  const result = applyCapturedActiveNav(
     addCapturedImageLoadingHints(
       normalizeCapturedHeaderIcons(
         normalizeCapturedAssetSources(
@@ -287,6 +317,7 @@ export function normalizeCapturedMarkup(markup: string, activeCapturedMenuId?: s
     ),
     activeCapturedMenuId,
   );
+  return writeBoundedCache(normalizedMarkupCache, cacheKey, result);
 }
 
 export interface CapturedServiceContext {

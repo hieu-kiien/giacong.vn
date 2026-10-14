@@ -370,6 +370,10 @@
   padding: 42px 0;
 }
 
+.contactBand .eyebrow {
+  color: var(--color-commerce-brand-dark);
+}
+
 .contactInner {
   align-items: center;
   display: flex;

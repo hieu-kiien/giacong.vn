@@ -113,6 +113,35 @@ const HOMEPAGE_MOBILE_RENDER_STYLES = `@media (max-width:549px){
  * artwork with four real image elements. Keeping this at the page boundary
  * leaves the shared captured shell untouched for the other storefront routes.
  */
+const homeBaseMarkupCache = new Map<string, string>();
+const homePrunedStylesCache = new Map<string, string>();
+
+function prepareCapturedHomepageMarkup(markup: string): string {
+  const cached = homeBaseMarkupCache.get(markup);
+  if (cached !== undefined) return cached;
+  const prepared = sanitizeCapturedHomepageCopy(
+    removeUnverifiedHomepageProof(normalizeCapturedMarkup(localizeHomepageMedia(markup))),
+  );
+  if (homeBaseMarkupCache.size >= 4) {
+    const firstKey = homeBaseMarkupCache.keys().next().value;
+    if (firstKey !== undefined) homeBaseMarkupCache.delete(firstKey);
+  }
+  homeBaseMarkupCache.set(markup, prepared);
+  return prepared;
+}
+
+function prepareCapturedHomepageStyles(pageStyles: string): string {
+  const cached = homePrunedStylesCache.get(pageStyles);
+  if (cached !== undefined) return cached;
+  const prepared = layerCapturedStyles(pruneHomepageStyles(localizeHomepageMedia(pageStyles)));
+  if (homePrunedStylesCache.size >= 4) {
+    const firstKey = homePrunedStylesCache.keys().next().value;
+    if (firstKey !== undefined) homePrunedStylesCache.delete(firstKey);
+  }
+  homePrunedStylesCache.set(pageStyles, prepared);
+  return prepared;
+}
+
 export async function CapturedHomePage({
   markup,
   pageStyles,
@@ -126,9 +155,7 @@ export async function CapturedHomePage({
   const normalizedMarkup = optimizeHomepageResponsiveImages(
     localizeHomepageMedia(
       applyHomepageSiteSettingsToMarkup(
-        sanitizeCapturedHomepageCopy(
-          removeUnverifiedHomepageProof(normalizeCapturedMarkup(localizeHomepageMedia(markup))),
-        ),
+        prepareCapturedHomepageMarkup(markup),
         settings,
       ),
     ),
@@ -167,7 +194,7 @@ export async function CapturedHomePage({
       ) : null}
       <link rel="preload" href="/styles/fonts/SFProDisplay-Regular.woff2" as="font" type="font/woff2" crossOrigin="anonymous" />
       <link rel="preload" href="/styles/fonts/SFProDisplay-Bold.woff2" as="font" type="font/woff2" crossOrigin="anonymous" media="(min-width: 850px)" />
-      <style dangerouslySetInnerHTML={{ __html: `${layerCapturedStyles(pruneHomepageStyles(localizeHomepageMedia(pageStyles)))}\n${siteBrandStyles(settings)}\n${HOMEPAGE_CRITICAL_MOTION_STYLES}\n${HOMEPAGE_MOBILE_RENDER_STYLES}` }} />
+      <style dangerouslySetInnerHTML={{ __html: `${prepareCapturedHomepageStyles(pageStyles)}\n${siteBrandStyles(settings)}\n${HOMEPAGE_CRITICAL_MOTION_STYLES}\n${HOMEPAGE_MOBILE_RENDER_STYLES}` }} />
       <div
         className={bodyClasses}
         dangerouslySetInnerHTML={{ __html: homeMarkup }}

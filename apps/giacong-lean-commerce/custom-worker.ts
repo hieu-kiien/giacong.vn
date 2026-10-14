@@ -56,7 +56,7 @@ const PUBLIC_DOCUMENT_CACHE_CONTROL = "public, max-age=0, s-maxage=600, stale-wh
 const STAGING_DOCUMENT_CACHE_CONTROL = "public, max-age=0, s-maxage=600, stale-while-revalidate=3600";
 const CDN_DOCUMENT_CACHE_CONTROL = "public, max-age=86400, stale-while-revalidate=604800";
 const STAGING_CDN_DOCUMENT_CACHE_CONTROL = "public, max-age=600";
-const PUBLIC_DOCUMENT_CACHE_VERSION = "2026-10-14-account-news-shell";
+const PUBLIC_DOCUMENT_CACHE_VERSION = "2026-10-15-ui-polish-v3";
 const publicDocumentCache = (caches as CacheStorage & { default: Cache }).default;
 
 function publicDocumentCacheHostname(hostname: string): string | null {
@@ -72,8 +72,9 @@ function isPublicDocumentRequest(request: Request): boolean {
   if (!publicDocumentHosts.has(url.hostname.toLowerCase())) return false;
   if (!(request.headers.get("Accept") ?? "").includes("text/html")) return false;
   if (request.headers.has("RSC") || url.searchParams.has("_rsc")) return false;
+  const cookieHeader = request.headers.get("Cookie") ?? "";
   if (
-    request.headers.has("Cookie") ||
+    /(?:^|;\s*)(?:__prerender_bypass|__next_preview_data)=/.test(cookieHeader) ||
     request.headers.has("Authorization") ||
     request.headers.has("cf-access-jwt-assertion")
   ) return false;
